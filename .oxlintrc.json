@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "jsPlugins": ["@shadcn/lint"],
+  "settings": {
+    "shadcn": {
+      "ui": "@/components/ui"
+    }
+  },
+  "ignorePatterns": ["dist", "src/components/ui", "src/route-tree.gen.ts"],
+  "rules": {
+    "shadcn/no-inline-styles": "error",
+    "shadcn/no-unknown-classes": "error",
+    "shadcn/require-static-classes": "error",
+    "shadcn/no-restyle": ["error", { "allow": ["layout"] }],
+    "shadcn/no-arbitrary-values": "error",
+    "shadcn/no-raw-colors": ["error", { "allow": ["fill-mode-forwards"] }]
+  },
+  "overrides": [
+    {
+      "files": ["src/routes/login.tsx"],
+      "rules": {
+        "shadcn/no-raw-colors": "off"
+      }
+    }
+  ]
+}

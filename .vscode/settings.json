@@ -1,0 +1,17 @@
+{
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports.biome": "explicit"
+  },
+  "json.schemas": [
+    {
+      "url": "https://ui.shadcn.com/schema.json",
+      "fileMatch": ["components.json"]
+    },
+    {
+      "url": "https://docs.renovatebot.com/renovate-schema.json",
+      "fileMatch": ["renovate.json"]
+    }
+  ]
+}

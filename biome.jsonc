@@ -1,0 +1,93 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
+
+  // Use .gitignore to determine which files to skip
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "master"
+  },
+
+  // Skip third-party/generated directories from linting and formatting.
+  // Standalone .svg assets are excluded too - Biome 2.5.0 lints them as
+  // markup (e.g. noSvgWithoutTitle), which doesn't apply to static brand assets.
+  "files": {
+    "includes": ["**", "!.agents", "!.claude", "!**/*.svg"]
+  },
+
+  // Global formatting rules (applies to JS, TS, JSON, CSS, etc.)
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+
+  // Linter: "recommended" enables React hooks, a11y, correctness, and more
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
+      },
+      "style": {
+        "useConst": "error",
+        "useConsistentTypeDefinitions": {
+          "level": "error",
+          "options": { "style": "type" }
+        },
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case"]
+          }
+        }
+      }
+    }
+  },
+
+  // Auto-sort imports on check/format
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+
+  // JS/TS-specific formatting
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+
+  // shadcn/ui components and the TanStack Router generated route tree are
+  // generated code - leave them completely untouched.
+  "overrides": [
+    {
+      "includes": ["src/components/ui/**", "src/route-tree.gen.ts"],
+      "linter": { "enabled": false },
+      "formatter": { "enabled": false },
+      "assist": { "enabled": false }
+    }
+  ],
+
+  // CSS: enable Tailwind directive parsing (@apply, @theme, etc.)
+  // Linting disabled - Tailwind handles its own CSS validation
+  "css": {
+    "parser": {
+      "cssModules": true,
+      "tailwindDirectives": true
+    },
+    "linter": {
+      "enabled": false
+    }
+  }
+}
