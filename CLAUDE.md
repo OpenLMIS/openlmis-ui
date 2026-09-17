@@ -34,7 +34,59 @@ Routes live in `src/routes/`. The route tree is auto-generated (`src/route-tree.
 
 ### Data fetching pattern
 
-Routes pre-fetch data via `loader()` → `queryClient.ensureQueryData(queryOptions)`, then components read the cache with `useSuspenseQuery(queryOptions)`. Query options are defined in `src/features/*/api/queries.ts` using the key factory from `src/lib/key-factory.ts`.
+Query options live in `src/features/*/api/queries.ts` and use the key factory from
+`src/lib/key-factory.ts`. The loader starts the request; how it starts decides whether
+navigation waits.
+
+**Default to deferred.** `prefetchQuery` without `await` warms the cache while the route
+transitions, so navigation is instant and only the data-dependent subtree suspends:
+
+```tsx
+export const Route = createFileRoute('/(protected)/_protected/facilities')({
+  loader: ({ context: { queryClient } }) => {
+    queryClient.prefetchQuery(facilitiesListOptions());
+  },
+  component: FacilitiesPage,
+});
+
+function FacilitiesPage() {
+  return (
+    <Workspace>
+      <WorkspaceHeader>{/* renders immediately */}</WorkspaceHeader>
+      <WorkspaceContent>
+        <CatchBoundary getResetKey={() => 'facilities'} errorComponent={ErrorFallback}>
+          <Suspense fallback={<PendingFallback />}>
+            <FacilitiesTable />
+          </Suspense>
+        </CatchBoundary>
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+function FacilitiesTable() {
+  const { data } = useSuspenseQuery(facilitiesListOptions());
+  // ...
+}
+```
+
+**Block only when the route cannot render without the data** - a detail page that must 404
+on a missing record, or a permission check. Then `return` the promise so the router awaits
+it, and let the route's `pendingComponent` cover the wait:
+
+```tsx
+loader: ({ context: { queryClient }, params }) =>
+  queryClient.ensureQueryData(facilityDetailOptions(params.facilityId)),
+```
+
+Three rules that follow from this:
+
+- `prefetchQuery` is the fire-and-forget call, not `ensureQueryData`. It swallows errors
+  internally, so an unawaited rejection cannot become an unhandled promise rejection.
+- Never `await` a `prefetchQuery` - that blocks navigation and gives up the whole benefit.
+- `useSuspenseQuery` throws on error instead of returning an error state, so a suspended
+  subtree needs a `CatchBoundary` above it. Without one the error escapes to the route's
+  `errorComponent` and replaces the entire page.
 
 ### Feature-based modules
 

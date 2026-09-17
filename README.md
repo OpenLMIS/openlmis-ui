@@ -44,13 +44,25 @@ pnpm dev
 
 - **TanStack Router** owns the route structure and navigation
 - **TanStack Query** manages all server state
-- Routes `loader` calls `queryClient.ensureQueryData()` during navigation
-- Components use `useSuspenseQuery()` to read cached data
 - Data is fetched at the route level, consumed at the component level
 
+Navigation should not wait on data. The loader starts the request and returns; the page
+shell renders straight away and only the part that needs the data suspends.
+
 ```
-Route loader (ensureQueryData) → Component (useSuspenseQuery)
+Route loader (prefetchQuery, not awaited)
+  → shell renders immediately
+  → <Suspense> boundary around the data-dependent subtree
+    → Component (useSuspenseQuery)
 ```
+
+Block the transition only when the route genuinely cannot render without the data, such as
+a detail page that must 404 on a missing record. In that case `return` the
+`ensureQueryData` promise so the router awaits it and shows the route's pending component.
+
+Because `useSuspenseQuery` throws rather than returning an error state, wrap suspended
+subtrees in a `CatchBoundary` so a failed query degrades that section instead of the whole
+page. See CLAUDE.md for the full pattern.
 
 ### Feature-Based Structure
 
