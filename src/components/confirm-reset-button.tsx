@@ -27,7 +27,7 @@ export type ConfirmResetButtonProps = {
 
 /*
   Reset triggers data loss, so it always goes through an AlertDialog
-  confirmation. Extracted because every form in the template will want
+  confirmation. Extracted because every form will want
   the same pattern - keeps the copy and button treatment consistent.
 */
 export function ConfirmResetButton({

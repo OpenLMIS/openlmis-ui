@@ -1,6 +1,6 @@
-# openlmis-ui
+# OpenLMIS UI
 
-SolDevelo's React project template.
+Web frontend for OpenLMIS.
 
 ## Quick Start
 
@@ -28,6 +28,7 @@ pnpm dev
 | `pnpm preview` | Preview production build |
 | `pnpm check` | Lint + format + sort imports |
 | `pnpm lint` | Lint only |
+| `pnpm lint:ds` | Design-system rules (shadcn/lint via Oxlint) |
 | `pnpm format` | Format only |
 | `pnpm test` | Tests in watch mode |
 | `pnpm test:run` | Tests single run (CI) |
@@ -199,6 +200,8 @@ Required by specific shadcn components. Only loaded when the corresponding compo
 | Package | Rationale |
 |---|---|
 | [@biomejs/biome](https://biomejs.dev) | Linter + formatter + import sorter (replaces ESLint + Prettier) |
+| [oxlint](https://oxc.rs/docs/guide/usage/linter) | Host for the `@shadcn/lint` plugin, every built-in category disabled |
+| [@shadcn/lint](https://github.com/shadcn-ui/lint) | Design-system rules - blocks restyling shadcn components via `className`, raw colors, arbitrary values, unknown classes |
 
 Configuration in `biome.jsonc`:
 - Recommended rules (React hooks, a11y, correctness)
@@ -207,6 +210,13 @@ Configuration in `biome.jsonc`:
 - `type` preferred over `interface`
 - shadcn `src/components/ui/**` excluded (generated code)
 - kebab-case filenames enforced
+
+Configuration in `.oxlintrc.json`: every Oxlint category is off, so `pnpm lint:ds` reports
+shadcn rules only and never overlaps Biome. Biome stays the linter and formatter of record;
+Oxlint is installed purely because Biome's plugin system accepts GritQL only and cannot load
+a JS plugin. All six rules are errors and gate CI. When a page needs a different treatment,
+add a variant prop to the component in `src/components/ui/` instead of passing a `className`
+override.
 
 ### Testing
 

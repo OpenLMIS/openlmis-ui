@@ -15,9 +15,9 @@ import {
 import type { NavGroup, NavItem } from '@/lib/types';
 
 export const appConfig = {
-  BRAND: 'SolDevelo',
-  NAME: 'SolDevelo - React Template',
-  DESCRIPTION: 'A React template for building web applications.',
+  BRAND: 'OpenLMIS',
+  NAME: 'OpenLMIS UI',
+  DESCRIPTION: 'Web frontend for OpenLMIS.',
 } as const;
 
 export const SUPPORTED_LANGUAGES = [
@@ -26,7 +26,7 @@ export const SUPPORTED_LANGUAGES = [
 ] as const;
 
 // Sidebar navigation. Items with `to: '#'` are mocked placeholders - they render
-// as non-navigating buttons so the sidebar has realistic content in the template.
+// as non-navigating buttons so the sidebar has realistic content.
 // Replace `to: '#'` with a real route path when the feature is implemented.
 export const NAV_GROUPS: NavGroup[] = [
   {
