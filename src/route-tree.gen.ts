@@ -12,11 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as protectedProtectedRouteImport } from './routes/(protected)/_protected'
-import { Route as protectedProtectedCustomersRouteImport } from './routes/(protected)/_protected.customers'
 import { Route as protectedProtectedDashboardRouteImport } from './routes/(protected)/_protected.dashboard'
-import { Route as protectedProtectedNewProjectRouteImport } from './routes/(protected)/_protected.new-project'
-import { Route as protectedProtectedStockMovementRouteImport } from './routes/(protected)/_protected.stock-movement'
-import { Route as protectedProtectedUsersRouteImport } from './routes/(protected)/_protected.users'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -32,94 +28,41 @@ const protectedProtectedRoute = protectedProtectedRouteImport.update({
   id: '/(protected)/_protected',
   getParentRoute: () => rootRouteImport,
 } as any)
-const protectedProtectedCustomersRoute =
-  protectedProtectedCustomersRouteImport.update({
-    id: '/customers',
-    path: '/customers',
-    getParentRoute: () => protectedProtectedRoute,
-  } as any)
 const protectedProtectedDashboardRoute =
   protectedProtectedDashboardRouteImport.update({
     id: '/dashboard',
     path: '/dashboard',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
-const protectedProtectedNewProjectRoute =
-  protectedProtectedNewProjectRouteImport.update({
-    id: '/new-project',
-    path: '/new-project',
-    getParentRoute: () => protectedProtectedRoute,
-  } as any)
-const protectedProtectedStockMovementRoute =
-  protectedProtectedStockMovementRouteImport.update({
-    id: '/stock-movement',
-    path: '/stock-movement',
-    getParentRoute: () => protectedProtectedRoute,
-  } as any)
-const protectedProtectedUsersRoute = protectedProtectedUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => protectedProtectedRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/customers': typeof protectedProtectedCustomersRoute
   '/dashboard': typeof protectedProtectedDashboardRoute
-  '/new-project': typeof protectedProtectedNewProjectRoute
-  '/stock-movement': typeof protectedProtectedStockMovementRoute
-  '/users': typeof protectedProtectedUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/customers': typeof protectedProtectedCustomersRoute
   '/dashboard': typeof protectedProtectedDashboardRoute
-  '/new-project': typeof protectedProtectedNewProjectRoute
-  '/stock-movement': typeof protectedProtectedStockMovementRoute
-  '/users': typeof protectedProtectedUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/(protected)/_protected': typeof protectedProtectedRouteWithChildren
-  '/(protected)/_protected/customers': typeof protectedProtectedCustomersRoute
   '/(protected)/_protected/dashboard': typeof protectedProtectedDashboardRoute
-  '/(protected)/_protected/new-project': typeof protectedProtectedNewProjectRoute
-  '/(protected)/_protected/stock-movement': typeof protectedProtectedStockMovementRoute
-  '/(protected)/_protected/users': typeof protectedProtectedUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/login'
-    | '/customers'
-    | '/dashboard'
-    | '/new-project'
-    | '/stock-movement'
-    | '/users'
+  fullPaths: '/' | '/login' | '/dashboard'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/login'
-    | '/customers'
-    | '/dashboard'
-    | '/new-project'
-    | '/stock-movement'
-    | '/users'
+  to: '/' | '/login' | '/dashboard'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/(protected)/_protected'
-    | '/(protected)/_protected/customers'
     | '/(protected)/_protected/dashboard'
-    | '/(protected)/_protected/new-project'
-    | '/(protected)/_protected/stock-movement'
-    | '/(protected)/_protected/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -151,13 +94,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(protected)/_protected/customers': {
-      id: '/(protected)/_protected/customers'
-      path: '/customers'
-      fullPath: '/customers'
-      preLoaderRoute: typeof protectedProtectedCustomersRouteImport
-      parentRoute: typeof protectedProtectedRoute
-    }
     '/(protected)/_protected/dashboard': {
       id: '/(protected)/_protected/dashboard'
       path: '/dashboard'
@@ -165,44 +101,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedDashboardRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
-    '/(protected)/_protected/new-project': {
-      id: '/(protected)/_protected/new-project'
-      path: '/new-project'
-      fullPath: '/new-project'
-      preLoaderRoute: typeof protectedProtectedNewProjectRouteImport
-      parentRoute: typeof protectedProtectedRoute
-    }
-    '/(protected)/_protected/stock-movement': {
-      id: '/(protected)/_protected/stock-movement'
-      path: '/stock-movement'
-      fullPath: '/stock-movement'
-      preLoaderRoute: typeof protectedProtectedStockMovementRouteImport
-      parentRoute: typeof protectedProtectedRoute
-    }
-    '/(protected)/_protected/users': {
-      id: '/(protected)/_protected/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof protectedProtectedUsersRouteImport
-      parentRoute: typeof protectedProtectedRoute
-    }
   }
 }
 
 interface protectedProtectedRouteChildren {
-  protectedProtectedCustomersRoute: typeof protectedProtectedCustomersRoute
   protectedProtectedDashboardRoute: typeof protectedProtectedDashboardRoute
-  protectedProtectedNewProjectRoute: typeof protectedProtectedNewProjectRoute
-  protectedProtectedStockMovementRoute: typeof protectedProtectedStockMovementRoute
-  protectedProtectedUsersRoute: typeof protectedProtectedUsersRoute
 }
 
 const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
-  protectedProtectedCustomersRoute: protectedProtectedCustomersRoute,
   protectedProtectedDashboardRoute: protectedProtectedDashboardRoute,
-  protectedProtectedNewProjectRoute: protectedProtectedNewProjectRoute,
-  protectedProtectedStockMovementRoute: protectedProtectedStockMovementRoute,
-  protectedProtectedUsersRoute: protectedProtectedUsersRoute,
 }
 
 const protectedProtectedRouteWithChildren =

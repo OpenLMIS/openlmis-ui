@@ -1,17 +1,23 @@
-import { cn } from '@/lib/utils';
+import { cn } from "cn"
 
 function Skeleton({
   className,
-  shape = 'default',
+  shape = "default",
+  fill = false,
   ...props
-}: React.ComponentProps<'div'> & { shape?: 'default' | 'circle' }) {
+}: React.ComponentProps<"div"> & { shape?: "default" | "circle"; fill?: boolean }) {
   return (
     <div
       data-slot="skeleton"
-      className={cn('animate-pulse rounded-none bg-muted', shape === 'circle' && 'rounded-full', className)}
+      className={cn(
+        "animate-pulse rounded-md bg-muted",
+        shape === "circle" && "rounded-full",
+        fill && "size-full",
+        className
+      )}
       {...props}
     />
-  );
+  )
 }
 
-export { Skeleton };
+export { Skeleton }

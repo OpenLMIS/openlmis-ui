@@ -9,31 +9,24 @@ import pl from '@/messages/pl.json';
 export const defaultNS = 'translation' as const;
 
 i18n
-  // ICU MessageFormat for plurals, selects, etc.
   .use(ICU)
-  // Auto-detect language from localStorage / browser
   .use(LanguageDetector)
-  // Bind to React context + Suspense
   .use(initReactI18next)
   .init({
     defaultNS,
     supportedLngs: SUPPORTED_LANGUAGES.map((lang) => lang.code),
-    // Translations bundled in code - no HTTP loading
     resources: {
       en: { translation: en },
       pl: { translation: pl },
     },
     fallbackLng: 'en',
-    // Flat keys: t('users.title') looks up literal "users.title", not nested { users: { title } }
+    // Keys are flat: t('users.title') is a literal lookup, not a nested path.
     keySeparator: false,
-    // Single namespace: disable ":" separator to avoid conflicts with key names
     nsSeparator: false,
     interpolation: {
-      // React already escapes JSX output
       escapeValue: false,
     },
     detection: {
-      // localStorage first (user's explicit choice), then browser language
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
     },

@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Local env files - .env.example is the committed reference
+.env
+.env.*
+!.env.example
+
 # TanStack Router plugin cache
 .tanstack
 

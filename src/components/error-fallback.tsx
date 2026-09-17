@@ -16,7 +16,7 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
   const parsedError = error instanceof Error ? error : new Error(String(error));
 
   return (
-    <Empty className="h-screen">
+    <Empty height="screen">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <AlertTriangleIcon />
@@ -52,6 +52,7 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
               {t('not-found.back-home')}
             </Link>
           )}
+          nativeButton={false}
           size="sm"
         />
       </div>

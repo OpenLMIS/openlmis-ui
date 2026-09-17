@@ -11,7 +11,11 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SUPPORTED_LANGUAGES } from '@/lib/config';
 
-export function LanguageSwitcher() {
+type LanguageSwitcherProps = {
+  tone?: 'default' | 'sidebar';
+};
+
+export function LanguageSwitcher({ tone = 'default' }: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
   const label = t('sidebar.change-language');
 
@@ -21,7 +25,7 @@ export function LanguageSwitcher() {
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
-              render={<Button aria-label={label} size="icon-sm" variant="ghost" />}
+              render={<Button aria-label={label} size="icon-sm" tone={tone} variant="ghost" />}
             />
           }
         >

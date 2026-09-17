@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-export function ThemeSwitcher() {
+type ThemeSwitcherProps = {
+  tone?: 'default' | 'sidebar';
+};
+
+export function ThemeSwitcher({ tone = 'default' }: ThemeSwitcherProps) {
   const { t } = useTranslation();
   const { setTheme, resolvedTheme } = useTheme();
 
@@ -18,7 +22,15 @@ export function ThemeSwitcher() {
   return (
     <Tooltip>
       <TooltipTrigger
-        render={<Button aria-label={label} onClick={toggleTheme} size="icon-sm" variant="ghost" />}
+        render={
+          <Button
+            aria-label={label}
+            onClick={toggleTheme}
+            size="icon-sm"
+            tone={tone}
+            variant="ghost"
+          />
+        }
       >
         <SunMoonIcon />
       </TooltipTrigger>

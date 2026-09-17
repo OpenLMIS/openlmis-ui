@@ -1,13 +1,13 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router';
+import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import { AppShell } from '@/components/app-shell';
 import { AppShellSkeleton } from '@/components/app-shell-skeleton';
+import { useLoginData } from '@/features/auth/store/login-data';
 
 export const Route = createFileRoute('/(protected)/_protected')({
-  beforeLoad: async () => {
-    // Auth guard - redirect unauthenticated users to login.
-    // Example:
-    //   const user = await getAuthUser();
-    //   if (!user) throw redirect({ to: '/login' });
+  beforeLoad: () => {
+    if (!useLoginData.getState().isAuthenticated) {
+      throw redirect({ to: '/login' });
+    }
   },
   component: ProtectedLayout,
   pendingComponent: AppShellSkeleton,

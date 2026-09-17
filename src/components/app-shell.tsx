@@ -11,7 +11,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset surface="muted">
+      <SidebarInset>
         <AppHeader />
         <div className="mx-auto flex w-full flex-1">{children}</div>
       </SidebarInset>

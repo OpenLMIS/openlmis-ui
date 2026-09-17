@@ -18,7 +18,7 @@ pnpm test             # Vitest in watch mode
 pnpm test:run         # Vitest single run (CI mode)
 ```
 
-Run a single test file: `pnpm vitest run src/hooks/use-debounce.test.ts`
+Run a single test file: `pnpm vitest run src/hooks/use-mobile.test.ts`
 
 Sort translation keys: `pnpm sort-messages`
 
@@ -52,6 +52,11 @@ Translations are bundled in code under `src/messages/<lang>.json` as **flat key-
 
 When `en.json` changes, use the `sync-translations` skill to propagate changes to other language files (removes stale keys, translates missing ones, preserves existing translations).
 
+Zod validation messages hold **translation keys**, not translated strings (see
+`src/features/auth/lib/types.ts`), and the key is resolved with `t()` at render. A form
+keeps whatever a field last validated to, so a message translated at validation time would
+stay in the old language after a language switch.
+
 ### Design-system linting (shadcn/lint)
 
 `@shadcn/lint` checks Tailwind usage against the design system: restyling shadcn
@@ -66,20 +71,29 @@ nothing else and never overlaps Biome. Biome stays the linter and formatter of r
 All six rules are `error` and gate CI. The codebase is at zero findings, so keep it
 there rather than downgrading a rule to `warn`.
 
-`no-restyle` allows only the `layout` category, so a page can size and position a
-component. Margin is never flagged either way, so pages can always control the space
-*around* a component. Everything a component owns (`spacing`, `color`, `typography`,
-`motion`, `shape`, `effects`) is off limits from the outside: that includes `p-*` and
-`gap-*`, which reach inside and change padding the component owns.
+`no-restyle` runs with no allowlist: a shadcn component accepts **no** `className` from
+the outside. Not colour, not typography, not spacing, and not layout or margin either.
 
-When a page needs a different treatment, add a variant prop to the component in
-`src/components/ui/` and pass it, rather than passing a `className` override. Existing
-examples: `Card surface/padding`, `CardContent padding`, `TableCell gutter/tone/numeric`,
-`Button padding/weight/textSize`, `Input hasLeadingIcon`, `ToggleGroup itemPadding`.
+Two ways out when a page needs a different treatment:
+
+1. Add a variant prop to the component in `src/components/ui/` and pass it. Existing
+   examples: `Button padding/width` + the `xl` size, `CardHeader spacing/align`,
+   `CardTitle size`, `CardFooter align`, `Separator spacing`, `Skeleton shape/fill`,
+   `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
+   `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
+   `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
+   `SidebarFooter padding`.
+2. Put the layout classes on a plain wrapper element around the component. This is the
+   right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
+   for `Skeleton`, whose size always belongs to the surrounding layout.
 
 `src/components/ui/` is ignored by the linter - those files define the variants the
-rules enforce. This is the one place where editing generated shadcn files is expected;
-re-running `shadcn add` for a component will drop any variants added there.
+rules enforce. This is the one place where editing generated shadcn files is expected.
+
+**Switching presets or re-running `shadcn add` overwrites these files and silently drops
+every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
+passing props the regenerated component no longer accepts. Re-apply the variants to the
+new files rather than reverting the preset.
 
 ### Integrations
 
@@ -99,7 +113,7 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 - **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`)
 - **`type` over `interface`** - enforced by Biome
 - **`@/*` path aliases** - always use for imports (maps to `src/*`)
-- **Tests colocated** with source files (e.g., `use-debounce.test.ts` next to `use-debounce.ts`)
+- **Tests colocated** with source files (e.g., `use-mobile.test.ts` next to `use-mobile.ts`)
 - **Biome formatting**: 2-space indent, single quotes, trailing commas, 100 char line width
 - **No Co-Authored-By lines** in commits or PRs
 - **No em dashes** anywhere in the project - not in code, comments, UI copy, translations, docs, commits, or PRs. Use a plain hyphen or rephrase.
@@ -132,8 +146,52 @@ https://tracker.example.com/BROWSE/ABC-123
 | ... | ... |
 ```
 
+## Page layout
+
+Pages inside the app shell compose `src/components/workspace.tsx` rather than
+hand-rolling padding:
+
+```tsx
+<Workspace>
+  <WorkspaceHeader>
+    <WorkspaceHeading>
+      <WorkspaceTitle>{t('requisitions.title')}</WorkspaceTitle>
+      <WorkspaceDescription>{t('requisitions.description')}</WorkspaceDescription>
+    </WorkspaceHeading>
+    <WorkspaceActions>
+      <Button>{t('requisitions.create')}</Button>
+    </WorkspaceActions>
+  </WorkspaceHeader>
+  <WorkspaceContent>{/* page body */}</WorkspaceContent>
+</Workspace>
+```
+
+Every part takes only `children` - no boolean props, no `renderX` callbacks. A page
+without a description or actions just leaves those parts out. None of them accept a
+`className`, which is what keeps padding and heading scale identical across pages; if a
+page needs a different treatment, add a variant to the component rather than overriding
+at the call site.
+
+## Authentication
+
+`/login` exchanges credentials for a token at `POST /api/oauth/token?grant_type=password`.
+The auth service authenticates the *client* over HTTP Basic first, so the request also
+carries `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)`.
+
+The token lives in a persisted zustand store (`src/features/auth/store/login-data.ts`),
+which is read outside React by the axios request interceptor (attaches the bearer token)
+and by the router guards (`_protected.tsx` redirects anonymous users to `/login`; `/login`
+redirects authenticated ones to `/dashboard`). A `401` clears the store and returns to
+`/login`.
+
+Nothing talks to the API directly in development - the Vite dev server proxies `/api` to
+`VITE_API_PROXY_TARGET`, keeping the browser same-origin.
+
 ## Environment Variables
 
 Defined in `.env.example`:
-- `VITE_API_BASE_URL` - Backend API base URL (default: `/api`)
+- `VITE_API_BASE_URL` - Axios base URL, kept relative (default: `/api`)
+- `VITE_API_PROXY_TARGET` - OpenLMIS instance the dev server proxies `/api` to
+- `VITE_FE_PORT` - Dev server port
+- `VITE_AUTH_SERVER_CLIENT_ID` / `VITE_AUTH_SERVER_CLIENT_SECRET` - OAuth client credentials
 - `VITE_SHOW_DEVTOOLS` - Enable TanStack devtools in dev mode

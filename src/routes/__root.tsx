@@ -28,7 +28,6 @@ function RootLayout() {
     <>
       <Outlet />
       <Toaster />
-      {/* Production: Tools are not rendered by design, the VITE_SHOW_DEVTOOLS is purely for development purposes */}
       {import.meta.env.VITE_SHOW_DEVTOOLS === 'true' && (
         <>
           <ReactQueryDevtools initialIsOpen={false} />
@@ -43,9 +42,9 @@ function NotFoundPage() {
   const { t } = useTranslation();
 
   return (
-    <Empty className="h-screen">
+    <Empty height="screen">
       <EmptyHeader>
-        <EmptyMedia variant="icon" className="size-12 [&_svg:not([class*='size-'])]:size-8">
+        <EmptyMedia variant="icon" size="lg">
           <X />
         </EmptyMedia>
         <EmptyTitle size="lg">{t('not-found.title')}</EmptyTitle>
@@ -58,6 +57,7 @@ function NotFoundPage() {
             {t('not-found.back-home')}
           </Link>
         )}
+        nativeButton={false}
         size="lg"
       />
     </Empty>

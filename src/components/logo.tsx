@@ -5,21 +5,13 @@ type LogoProps = {
   className?: string;
 };
 
-// Renders both variants so the theme swap happens purely via CSS - avoids the
-// hydration flicker you'd get from reading `resolvedTheme` at mount time.
+// One flat brand-blue glyph reads on both light and dark surfaces.
 export function Logo({ className }: LogoProps) {
   return (
-    <>
-      <img
-        alt={appConfig.BRAND}
-        className={cn('block h-6 w-auto dark:hidden', className)}
-        src="/logo.svg"
-      />
-      <img
-        alt={appConfig.BRAND}
-        className={cn('hidden h-6 w-auto dark:block', className)}
-        src="/dark_logo.svg"
-      />
-    </>
+    <img
+      alt={appConfig.BRAND}
+      className={cn('block h-5 w-auto shrink-0', className)}
+      src="/olmis.png"
+    />
   );
 }

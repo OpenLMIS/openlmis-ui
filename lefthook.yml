@@ -20,6 +20,9 @@ pre-push:
     - name: biome check
       run: pnpm check
 
+    - name: design-system lint
+      run: pnpm lint:ds
+
     - name: typecheck
       run: pnpm tsc --noEmit
 

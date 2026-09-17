@@ -1,51 +1,47 @@
-import { CreditCardIcon, LogOutIcon, SettingsIcon, UserIcon, UserRoundIcon } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { LogOutIcon, SettingsIcon, UserIcon } from 'lucide-react';
+import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
+import { useLoginData } from '@/features/auth/store/login-data';
 
-// TODO: Replace with the authenticated user from auth context (e.g. `useAuth()`).
-const user = {
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  avatar: '',
+type NavUserProps = {
+  /** Rendered as the menu trigger so each call site styles its own. */
+  trigger: ReactElement;
+  align?: 'start' | 'end';
 };
 
-export function NavUser() {
+export function NavUser({ trigger, align = 'end' }: NavUserProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { logout } = useAuthActions();
+  const username = useLoginData((state) => state.username);
+  const referenceDataUserId = useLoginData((state) => state.referenceDataUserId);
+
+  const handleLogout = async () => {
+    await logout();
+    await navigate({ to: '/login' });
+  };
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Avatar className="size-8" />}>
-        {user.avatar && <AvatarImage src={user.avatar} />}
-        <AvatarFallback>
-          <UserRoundIcon className="size-4" />
-        </AvatarFallback>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel gap="md" className="flex items-center">
-            <Avatar className="size-10">
-              {user.avatar && <AvatarImage src={user.avatar} />}
-              <AvatarFallback>
-                <UserRoundIcon className="size-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <span className="font-medium text-foreground">{user.name}</span>
-              <div className="max-w-full truncate text-muted-foreground text-xs">{user.email}</div>
-            </div>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
+      <DropdownMenuTrigger render={trigger} />
+      <DropdownMenuContent align={align} width="wide">
+        <div className="flex flex-col gap-0.5 px-2 py-1.5">
+          <p className="truncate font-semibold text-foreground text-xs">{username}</p>
+          {/* TODO: Swap the reference-data id for the real profile once that endpoint is wired up. */}
+          <p className="truncate text-2xs text-muted-foreground">{referenceDataUserId}</p>
+        </div>
         <DropdownMenuSeparator />
-        {/* TODO: Wire up onClick handlers (navigate to /account, /settings, /billing). */}
+        {/* TODO: Wire up onClick handlers (navigate to /account, /settings). */}
         <DropdownMenuGroup>
           <DropdownMenuItem>
             <UserIcon />
@@ -57,20 +53,10 @@ export function NavUser() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <CreditCardIcon />
-            {t('nav-user.plan-billing')}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          {/* TODO: Wire up logout (clear auth state, redirect to /login). */}
-          <DropdownMenuItem variant="destructive">
-            <LogOutIcon />
-            {t('nav-user.log-out')}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        <DropdownMenuItem onClick={handleLogout} variant="destructive">
+          <LogOutIcon />
+          {t('nav-user.log-out')}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
