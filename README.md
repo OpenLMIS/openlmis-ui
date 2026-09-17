@@ -316,3 +316,9 @@ This project ships with Claude Code skills for AI-assisted development. Skills a
 | `sync-translations` | local | Syncs i18next language files with `en.json` - removes stale keys, translates missing ones, preserves existing translations |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | React composition patterns - compound components, render props, context providers |
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | React and Next.js performance optimization guidelines from Vercel Engineering |
+
+## Offline implementation plan
+
+See the [two-page illustrated plan](docs/offline-plan/index.html) or [PDF](docs/offline-plan/offline-plan.pdf).
+Offline support is planned, not implemented: first a working online draft, then durable local
+saving and synchronization. Update the conventions here and in CLAUDE.md alongside implementation.

@@ -247,3 +247,10 @@ Defined in `.env.example`:
 - `VITE_FE_PORT` - Dev server port
 - `VITE_AUTH_SERVER_CLIENT_ID` / `VITE_AUTH_SERVER_CLIENT_SECRET` - OAuth client credentials
 - `VITE_SHOW_DEVTOOLS` - Enable TanStack devtools in dev mode
+
+## Planned offline work
+
+The [two-page offline plan](docs/offline-plan/index.html) describes planned behavior.
+Build a tested online draft workflow first, then add durable local saving and synchronization.
+Update the Query/loader and auth guidance alongside the implementation. Offline reads must
+finish with data, an unavailable result or a handled error; local absence is not a server 404.
