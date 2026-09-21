@@ -13,3 +13,12 @@ export type NavGroup = {
   labelKey: ParseKeys;
   items: NavItem[];
 };
+
+export type TextDirection = 'ltr' | 'rtl';
+
+export type SupportedLanguage = {
+  code: string;
+  /** Endonym, so the switcher reads in the language it selects. */
+  name: string;
+  dir: TextDirection;
+};

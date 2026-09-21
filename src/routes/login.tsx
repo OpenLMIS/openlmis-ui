@@ -67,7 +67,7 @@ function LoginPage() {
     <section className="relative flex min-h-svh w-full flex-col items-center justify-center bg-muted px-6 py-12 text-foreground dark:bg-background">
       <title>{`${t('login.title')} - OpenLMIS UI`}</title>
 
-      <div className="absolute top-4 right-4 flex items-center gap-1">
+      <div className="absolute top-4 end-4 flex items-center gap-1">
         <LanguageSwitcher />
         <ThemeSwitcher />
       </div>

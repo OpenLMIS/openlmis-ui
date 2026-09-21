@@ -1,37 +1,37 @@
 ---
 name: sync-translations
-description: Sync i18next translation files in src/messages/ with en.json as the single source of truth. Removes stale keys, adds missing keys translated into each target language, preserves existing translations, then runs pnpm sort-messages and pnpm tsc --noEmit. Use this skill whenever the user asks to sync, update, translate, or refresh translation files; whenever they add new keys to en.json; whenever they add a new language file and want it populated; or when they say "sync translations", "update language files", "translate new keys", "let's sync the translations", or similar — even if they don't explicitly name the skill or mention i18n.
+description: Sync i18next translation files in public/locales/ with en.json as the single source of truth. Removes stale keys, adds missing keys translated into each target language, preserves existing translations, then runs pnpm sort-messages and pnpm tsc --noEmit. Use this skill whenever the user asks to sync, update, translate, or refresh translation files; whenever they add new keys to en.json; whenever they add a new language file and want it populated; or when they say "sync translations", "update language files", "translate new keys", "let's sync the translations", or similar — even if they don't explicitly name the skill or mention i18n.
 ---
 
 # Sync Translations
 
-This skill keeps i18next translation files in sync with `src/messages/en.json` as the single source of truth.
+This skill keeps i18next translation files in sync with `public/locales/en.json` as the single source of truth.
 
 ## When to use
 
 Trigger this skill when:
-- The user has edited `src/messages/en.json` and other language files need updating
+- The user has edited `public/locales/en.json` and other language files need updating
 - The user mentions syncing, updating, translating, or refreshing translations
 - The user adds a new language file (e.g. creates an empty `de.json`) and wants it populated
 - The user invokes `/sync-translations`
 
 ## Core principle
 
-`en.json` is the king. Every other language file in `src/messages/` must match its key set exactly — no stale keys, no missing keys. Existing translations are preserved (never overwritten), so the user can manually tweak a translation and trust that future syncs won't clobber it.
+`en.json` is the king. Every other language file in `public/locales/` must match its key set exactly — no stale keys, no missing keys. Existing translations are preserved (never overwritten), so the user can manually tweak a translation and trust that future syncs won't clobber it.
 
 ## Procedure
 
 ### Step 1: Read the source of truth
 
-Read `src/messages/en.json`. This defines the authoritative key set and the English values that need translating.
+Read `public/locales/en.json`. This defines the authoritative key set and the English values that need translating.
 
 ### Step 2: Discover target language files
 
-Glob `src/messages/*.json` and exclude `en.json`. The filename (without extension) is the ISO 639-1 language code. Common examples:
+Glob `public/locales/*.json` and exclude `en.json`. The filename (without extension) is the ISO 639-1 language code. Common examples:
 
 | Code | Language |
 |---|---|
-| `pl` | Polish |
+| `ar` | Arabic (RTL) |
 | `de` | German |
 | `es` | Spanish |
 | `fr` | French |
@@ -72,7 +72,7 @@ After all target files are updated, run:
 pnpm sort-messages
 ```
 
-This sorts keys alphabetically across all files in `src/messages/`.
+This sorts keys alphabetically across all files in `public/locales/`.
 
 Then verify type safety:
 
@@ -93,28 +93,41 @@ The `src/types/i18next.d.ts` file imports `en.json` to type-augment i18next's `t
 }
 ```
 
-**`pl.json` (before):**
+**`pt.json` (before):**
 ```json
 {
-  "dashboard.title": "Panel",
-  "old.deprecated.key": "Stara wartość"
+  "dashboard.title": "Painel",
+  "old.deprecated.key": "Valor antigo"
 }
 ```
 
-**`pl.json` (after):**
+**`pt.json` (after):**
 ```json
 {
-  "dashboard.title": "Panel",
-  "users.count": "{count, plural, one {# użytkownik} few {# użytkowników} many {# użytkowników} other {# użytkowników}}",
-  "users.title": "Użytkownicy"
+  "dashboard.title": "Painel",
+  "users.count": "{count, plural, one {# utilizador} other {# utilizadores}}",
+  "users.title": "Utilizadores"
 }
 ```
 
 What happened:
-- `dashboard.title` — preserved (translation already existed)
-- `users.title` — added, translated
-- `users.count` — added; ICU structure preserved, text translated, Polish plural categories (`one`/`few`/`many`/`other`) used correctly
-- `old.deprecated.key` — removed (not in `en.json`)
+- `dashboard.title` - preserved (translation already existed)
+- `users.title` - added, translated
+- `users.count` - added; ICU structure preserved, text translated, Portuguese plural categories used correctly
+- `old.deprecated.key` - removed (not in `en.json`)
+
+## Registering a new language
+
+A file in `public/locales/` is not enough on its own. A language is only selectable once it
+is listed in `SUPPORTED_LANGUAGES` in `src/lib/config.ts`, which also declares its text
+direction:
+
+```ts
+{ code: 'he', name: 'עברית', dir: 'rtl' },
+```
+
+For an RTL language, check that a font covering the script is in the `--font-sans` stack in
+`src/globals.css` (Arabic already is, via `@fontsource-variable/noto-sans-arabic`).
 
 ## Notes
 

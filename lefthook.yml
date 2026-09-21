@@ -7,7 +7,7 @@ pre-commit:
       stage_fixed: true
 
     - name: sort messages
-      glob: "src/messages/*.json"
+      glob: "public/locales/*.json"
       run: pnpm sort-messages
       stage_fixed: true
 

@@ -7,7 +7,7 @@ import {
   SparklesIcon,
   TrendingUpIcon,
 } from 'lucide-react';
-import type { NavGroup, NavItem } from '@/lib/types';
+import type { NavGroup, NavItem, SupportedLanguage, TextDirection } from '@/lib/types';
 
 export const appConfig = {
   BRAND: 'OpenLMIS',
@@ -16,9 +16,18 @@ export const appConfig = {
 } as const;
 
 export const SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'pl', name: 'Polski' },
-] as const;
+  { code: 'en', name: 'English', dir: 'ltr' },
+  { code: 'pt', name: 'Português', dir: 'ltr' },
+  { code: 'ar', name: 'العربية', dir: 'rtl' },
+] as const satisfies readonly SupportedLanguage[];
+
+export const DEFAULT_TEXT_DIRECTION: TextDirection = 'ltr';
+
+/** Region subtags are ignored: `ar-EG` resolves through `ar`. */
+export function getTextDirection(language: string | undefined): TextDirection {
+  const code = language?.split('-')[0];
+  return SUPPORTED_LANGUAGES.find((lang) => lang.code === code)?.dir ?? DEFAULT_TEXT_DIRECTION;
+}
 
 // Drives both the sidebar and the command palette.
 export const NAV_GROUPS: NavGroup[] = [
