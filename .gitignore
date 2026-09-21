@@ -33,8 +33,9 @@ dist-ssr
 *.sw?
 tsconfig.tsbuildinfo
 
-# Claude Code runtime state - keep skills, ignore locks/caches
+# Claude Code runtime state - keep skills and shared settings, ignore locks/caches
 .claude/*
+!.claude/settings.json
 !.claude/skills/
 .agents/*
 !.agents/skills/

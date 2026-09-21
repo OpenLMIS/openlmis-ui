@@ -3,7 +3,7 @@ pre-commit:
   jobs:
     - name: biome check
       glob: "*.{js,ts,jsx,tsx,json,css}"
-      run: pnpm biome check --write --staged {staged_files}
+      run: pnpm biome check --write --no-errors-on-unmatched --staged {staged_files}
       stage_fixed: true
 
     - name: sort messages
