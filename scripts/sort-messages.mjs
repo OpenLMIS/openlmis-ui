@@ -1,12 +1,12 @@
 /**
- * Sorts translation keys alphabetically in all JSON files under src/messages/.
+ * Sorts translation keys alphabetically in all JSON files under public/locales/.
  * Run manually: pnpm sort-messages
  * Also runs automatically on pre-commit via lefthook.
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const messagesDir = join(import.meta.dirname, '..', 'src', 'messages');
+const messagesDir = join(import.meta.dirname, '..', 'public', 'locales');
 const files = readdirSync(messagesDir).filter((f) => f.endsWith('.json'));
 
 let hasChanges = false;

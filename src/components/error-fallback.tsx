@@ -25,7 +25,7 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
         <EmptyDescription>{t('error.description')}</EmptyDescription>
       </EmptyHeader>
       {import.meta.env.DEV && (
-        <div className="w-full max-w-xl overflow-hidden border bg-muted text-left">
+        <div className="w-full max-w-xl overflow-hidden border bg-muted text-start">
           <div className="border-b px-3 py-2">
             <p className="break-words font-mono font-semibold text-destructive text-xs">
               {parsedError.name}: {parsedError.message}
@@ -48,7 +48,7 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
         <Button
           render={(props) => (
             <Link {...props} to="/">
-              <ChevronLeft />
+              <ChevronLeft className="rtl:rotate-180" />
               {t('not-found.back-home')}
             </Link>
           )}

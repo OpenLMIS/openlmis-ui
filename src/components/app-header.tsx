@@ -12,7 +12,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-50 flex h-(--app-header-height) w-full shrink-0 items-center gap-3 border-b bg-background px-2 md:px-4">
       <CustomTrigger place="navbar" />
       <CommandPalette />
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ms-auto flex items-center gap-1.5">
         <NavUser
           trigger={
             <button

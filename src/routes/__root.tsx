@@ -53,7 +53,7 @@ function NotFoundPage() {
       <Button
         render={(props) => (
           <Link {...props} to="/">
-            <ChevronLeft />
+            <ChevronLeft className="rtl:rotate-180" />
             {t('not-found.back-home')}
           </Link>
         )}

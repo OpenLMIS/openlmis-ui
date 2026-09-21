@@ -54,7 +54,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} variant="destructive">
-          <LogOutIcon />
+          <LogOutIcon className="rtl:rotate-180" />
           {t('nav-user.log-out')}
         </DropdownMenuItem>
       </DropdownMenuContent>

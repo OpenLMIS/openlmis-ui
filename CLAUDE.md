@@ -100,7 +100,15 @@ Shared code lives in `src/lib/` (utils, types, constants, config, key-factory).
 
 ### Internationalization (i18next)
 
-Translations are bundled in code under `src/messages/<lang>.json` as **flat key-value pairs** - always flat, never nested (e.g. `"users.title": "Users"`, not `{ users: { title: "Users" } }`). `keySeparator` and `nsSeparator` are both `false` in the i18next config to enforce this. ICU MessageFormat is enabled for plurals/selects. Supported languages are defined in `src/lib/config.ts`. Type safety via module augmentation in `src/types/i18next.d.ts` - `t()` autocompletes keys and `tsc` catches typos. Keys must be sorted alphabetically (`pnpm sort-messages`), enforced by pre-commit hook.
+Translations are **static assets** in `public/locales/<lang>.json`, fetched at runtime by
+`i18next-http-backend` rather than bundled. A deployment can correct a string or drop in a
+language without rebuilding the app. `src/index.tsx` awaits `initI18n()` before the first
+render so nothing ever paints raw keys.
+
+They are **flat key-value pairs** - always flat, never nested (e.g. `"users.title": "Users"`, not `{ users: { title: "Users" } }`). `keySeparator` and `nsSeparator` are both `false` in the i18next config to enforce this. ICU MessageFormat is enabled for plurals/selects. Supported languages are defined in `src/lib/config.ts`. Type safety via module augmentation in `src/types/i18next.d.ts`, which type-imports `public/locales/en.json` - `t()` autocompletes keys and `tsc` catches typos. Keys must be sorted alphabetically (`pnpm sort-messages`), enforced by pre-commit hook.
+
+Adding a language takes two steps: the catalog in `public/locales/`, **and** an entry in
+`SUPPORTED_LANGUAGES` with its `dir`. A file on its own is never picked up.
 
 When `en.json` changes, use the `sync-translations` skill to propagate changes to other language files (removes stale keys, translates missing ones, preserves existing translations).
 
@@ -108,6 +116,59 @@ Zod validation messages hold **translation keys**, not translated strings (see
 `src/features/auth/lib/types.ts`), and the key is resolved with `t()` at render. A form
 keeps whatever a field last validated to, so a message translated at validation time would
 stay in the old language after a language switch.
+
+### Right-to-left support (RTL)
+
+**Arabic ships as a supported language, so every screen renders in both directions. Write
+direction-agnostic markup by default - there is no "fix RTL later" pass.**
+
+`components.json` has `"rtl": true`, so `shadcn add` emits logical classes. Existing
+components were converted with `pnpm shadcn migrate rtl`.
+
+Direction is derived from the language, never chosen separately.
+`SUPPORTED_LANGUAGES` in `src/lib/config.ts` declares a `dir` per language and
+`getTextDirection()` resolves it (region subtags fall through, so `ar-EG` is `rtl`).
+`TextDirectionProvider` (`src/components/text-direction.tsx`) wraps the app in
+`src/index.tsx`: it sets `<html lang>`/`<html dir>` in a layout effect so the first frame is
+never painted LTR, and feeds the same value to Base UI's `DirectionProvider` so portalled
+popovers, menus and tooltips flip too.
+
+#### Rules for writing components
+
+**Never use a physical direction utility.** Use the logical equivalent:
+
+| Instead of | Use |
+|---|---|
+| `ml-*` / `mr-*` | `ms-*` / `me-*` |
+| `pl-*` / `pr-*` | `ps-*` / `pe-*` |
+| `left-*` / `right-*` | `start-*` / `end-*` |
+| `border-l` / `border-r` | `border-s` / `border-e` |
+| `rounded-l-*` / `rounded-r-*` | `rounded-s-*` / `rounded-e-*` |
+| `text-left` / `text-right` | `text-start` / `text-end` |
+| `space-x-*` | `gap-*` on a flex/grid parent |
+| `slide-in-from-left/right` | `slide-in-from-start/end` |
+
+**Flip directional icons with `rtl:rotate-180`.** Anything that points along the reading
+axis: `ChevronLeft`/`ChevronRight`, `ArrowLeft`/`ArrowRight`, `LogOutIcon`, `PanelLeftIcon`.
+Do **not** flip icons whose meaning is not reading-order: `RotateCcwIcon` (undo),
+`SearchIcon`, `TrendingUpIcon` and other chart marks.
+
+**`side` props come in two flavours.** Base UI's floating components (`TooltipContent`,
+`DropdownMenuContent`, popovers) take logical sides - use `"inline-start"`/`"inline-end"`
+so they follow `DirectionProvider`, not `"left"`/`"right"`.
+
+`Sidebar` and `Sheet` are the exception: their `side` is physical, so every rule keyed off
+`data-[side=...]` has to stay physical too. A `side="right"` sidebar borders on its left in
+either direction. `AppSidebar` picks the side from `useDirection()` instead. If a future
+`shadcn migrate rtl` logicalizes `group-data-[side=left]:border-r`, the offcanvas rail
+offsets, or the sheet's `data-[side=right]:border-l` and enter/exit translates, revert that
+hunk - the migration gets these wrong and the border lands on the viewport edge.
+
+#### Checking a change
+
+`pnpm dev`, switch the language to العربية, and walk the screen you touched. Look for
+padding or borders on the wrong edge, arrows pointing the wrong way, and popovers or
+tooltips sliding in from the wrong side.
 
 ### Design-system linting (shadcn/lint)
 
@@ -153,7 +214,7 @@ new files rather than reverting the preset.
 
 ### UI components
 
-shadcn/ui components are generated in `src/components/ui/` and excluded from Biome linting. Use `pnpm dlx shadcn@latest add <component>` to add new ones. The `cn` helper comes from the `cn` package and is re-exported from `src/lib/utils.ts`.
+shadcn/ui components are generated in `src/components/ui/` and excluded from Biome linting. Use `pnpm dlx shadcn@latest add <component>` to add new ones; with `"rtl": true` in `components.json` the CLI emits logical classes already, so check the generated file only for the exceptions listed under RTL. The `cn` helper comes from the `cn` package and is re-exported from `src/lib/utils.ts`.
 
 ### pnpm settings
 
@@ -165,6 +226,8 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 - **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`)
 - **`type` over `interface`** - enforced by Biome
 - **`@/*` path aliases** - always use for imports (maps to `src/*`)
+- **Logical CSS properties only** - `ms`/`me`/`ps`/`pe`/`start`/`end`/`text-start`, never
+  `ml`/`mr`/`pl`/`pr`/`left`/`right`/`text-left`. The app renders RTL in Arabic.
 - **Tests colocated** with source files (e.g., `use-mobile.test.ts` next to `use-mobile.ts`)
 - **Biome formatting**: 2-space indent, single quotes, trailing commas, 100 char line width
 - **No Co-Authored-By lines** in commits or PRs

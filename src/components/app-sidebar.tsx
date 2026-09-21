@@ -6,6 +6,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
+import { useDirection } from '@/components/ui/direction';
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +27,7 @@ export function AppSidebar() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile, state } = useSidebar();
+  const direction = useDirection();
   const settingsLabel = t('sidebar.settings');
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
@@ -36,7 +38,12 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
+    <Sidebar
+      collapsible="icon"
+      dir={direction}
+      side={direction === 'rtl' ? 'right' : 'left'}
+      variant="sidebar"
+    >
       <SidebarHeader bordered layout="bar">
         <Button
           nativeButton={false}

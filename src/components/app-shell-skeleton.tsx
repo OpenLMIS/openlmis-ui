@@ -5,7 +5,7 @@ import { NAV_GROUPS } from '@/lib/config';
 export function AppShellSkeleton() {
   return (
     <div className="flex h-screen">
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-e bg-sidebar md:flex">
         <div className="flex h-12 shrink-0 items-center border-b px-3">
           <div className="h-6 w-24">
             <Skeleton fill />

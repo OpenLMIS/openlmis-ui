@@ -50,7 +50,7 @@ export function CommandPalette() {
         type="button"
       >
         <SearchIcon className="size-4 shrink-0" />
-        <span className="flex-1 text-left">{t('command.search')}</span>
+        <span className="flex-1 text-start">{t('command.search')}</span>
         <KbdGroup>
           <Kbd size="sm">Ctrl</Kbd>
           <Kbd size="sm">K</Kbd>
