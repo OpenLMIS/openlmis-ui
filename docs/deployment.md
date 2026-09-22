@@ -81,18 +81,31 @@ logout work in both directions without logging out people who only use the new U
 | We sign in | Legacy is **not** signed in, see below |
 
 Login only carries one way, and that is deliberate. Publishing our token into the
-legacy keys was tried against a real instance: the legacy UI does accept it and
-renders as signed in, but it never backfills the rights its own login fetches.
-`ROLE_ASSIGNMENTS`, `permissions`, `userPrograms` and `homeFacility` all stay
-missing across reloads, and its menu comes up with `Home`, `Requisitions` and
-`Administration` only, instead of the full set including `Stock Management`,
-`Orders`, `Reports` and `CCE Management`.
+legacy keys was tried against a real instance. The legacy UI accepts it and renders
+as signed in, but it never backfills the rights its own login caches, and it does
+not fetch them later either: navigating straight to Stock on Hand issues **zero**
+API calls and dead-ends on an untranslated `openlmisAuth.authorization.error` modal.
+Its route guards read the cache synchronously and refuse before requesting anything.
 
-A session that looks signed in while silently hiding half the application is worse
-than a login screen, and backfilling those keys would mean reimplementing the
-legacy login bootstrap against its internals. So a user who starts in the new UI
-signs into the old one once. Logout stays symmetric, because tearing a session down
-needs none of that setup.
+Making that work would mean fetching the whole cache ourselves at login and writing
+it in legacy's exact format. Measured on a real instance that is about 2.2 MB:
+
+| Key | Endpoint | Size |
+| --- | --- | --- |
+| `permissions` | `GET /api/users/{id}/permissionStrings` | 1727 KB (13337 entries) |
+| `ROLE_ASSIGNMENTS` | `GET /api/users/auth/{id}` | 511 KB (59 entries) |
+| `userPrograms` | `GET /api/users/{id}/programs` | small |
+| `homeFacility` | `GET /api/facilities/{homeFacilityId}` | small |
+
+Doing it in the background instead races the user's click, and losing that race
+produces the same dead end. So we publish nothing: a user who starts in the new UI
+signs into the old one once and gets its normal login screen, which is honest and
+self-explanatory. Logout stays symmetric, because tearing a session down needs none
+of this setup.
+
+When the new UI needs user context of its own, fetch it per screen through TanStack
+Query rather than pulling this at login. Nothing should make signing in wait on
+thousands of rows.
 
 It runs on boot and again on the `storage` event, so a logout in one tab reaches a
 `/v2` tab already open in another. Only session keys are cleared; preferences such
