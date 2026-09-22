@@ -1,8 +1,13 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Working reference for anyone writing code in this repository, human or agent.
 
-OpenLMIS UI is the web frontend for OpenLMIS.
+OpenLMIS UI is the web frontend for OpenLMIS. It runs beside the legacy AngularJS UI under
+a URL prefix rather than replacing it in one step.
+
+README.md is the user-facing entry point: setup, environment variables, scripts, project
+layout. Keep setup instructions there and code rules here rather than repeating either.
+[docs/stack.md](docs/stack.md) covers why each dependency is in the tree.
 
 ## Commands
 
@@ -31,6 +36,14 @@ Pre-commit hooks (lefthook) automatically run `biome check --write --staged` and
 ### File-based routing (TanStack Router)
 
 Routes live in `src/routes/`. The route tree is auto-generated (`src/route-tree.gen.ts` - never edit manually). Route groups use parentheses `(protected)` for shared layouts without URL segments. Layout routes use underscore prefix `_protected.tsx`.
+
+### App shell
+
+The protected layout is an icon-collapsible sidebar (`Ctrl/Cmd+B`) plus a top bar, adapted
+from the `@7ovr/app-shell-1` block. `NAV_GROUPS` in `src/lib/config.ts` is the single
+source for both the sidebar menu and the `Ctrl/Cmd+K` command palette. Entries with
+`to: '#'` are placeholders that render as non-navigating buttons and stay out of the
+palette, which only lists real routes.
 
 ### Data fetching pattern
 
@@ -188,13 +201,6 @@ into asset URLs. It feeds Vite's `base`, and everything else derives from
 `import.meta.env.BASE_URL`: the router's `basepath`, i18next's `loadPath`, assets.
 Anything new that builds a URL should read `BASE_URL` too, never assume `/`.
 
-`VITE_API_BASE_URL` stays root-absolute (`/api`). The API is shared with the
-legacy UI and is not behind the prefix.
-
-Sessions carry over from the legacy UI: `adoptLegacySession()` reads
-`openlmis.ACCESS_TOKEN` and friends from localStorage on boot when our own store
-is empty. One-way and non-destructive.
-
 ### Design-system linting (shadcn/lint)
 
 `@shadcn/lint` checks Tailwind usage against the design system: restyling shadcn
@@ -327,18 +333,37 @@ redirects authenticated ones to `/dashboard`). A `401` clears the store and retu
 Nothing talks to the API directly in development - the Vite dev server proxies `/api` to
 `VITE_API_PROXY_TARGET`, keeping the browser same-origin.
 
+Both UIs share an origin, so `adoptLegacySession()` (`src/features/auth/lib/legacy-session.ts`)
+reads the legacy AngularJS session out of localStorage on boot when our own store is empty.
+The legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,
+`openlmis.USERNAME`. One-way and non-destructive, so signing into the legacy UI carries
+into ours but nothing legacy is overwritten.
+
 ## Environment Variables
 
-Defined in `.env.example`:
-- `VITE_API_BASE_URL` - Axios base URL, kept relative (default: `/api`)
-- `VITE_API_PROXY_TARGET` - OpenLMIS instance the dev server proxies `/api` to
-- `VITE_FE_PORT` - Dev server port
-- `VITE_AUTH_SERVER_CLIENT_ID` / `VITE_AUTH_SERVER_CLIENT_SECRET` - OAuth client credentials
-- `VITE_SHOW_DEVTOOLS` - Enable TanStack devtools in dev mode
+`.env.example` is the source of truth and README.md has the annotated table. Two that
+affect how code is written:
+
+- `VITE_API_BASE_URL` stays root-absolute (`/api`). The API is shared with the legacy UI
+  and is not behind the base path.
+- `VITE_BASE_PATH` is a build input, not runtime config. See the base path rules above.
+
+## Skills
+
+Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lock.json`.
+
+| Skill | Source | Use for |
+|---|---|---|
+| `sync-translations` | local | Syncing `public/locales/*` with `en.json` after changing keys |
+| `shadcn` | `shadcn/ui` | Adding, debugging, styling and composing shadcn components |
+| `frontend-design` | `anthropics/skills` | Building new UI with real design quality |
+| `vercel-composition-patterns` | `vercel-labs/agent-skills` | Compound components, render props, provider design |
+| `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance review and refactors |
+| `skill-creator` | `anthropics/skills` | Authoring or improving a skill |
 
 ## Planned offline work
 
-The [two-page offline plan](docs/offline-plan/index.html) describes planned behavior.
+The [two-page offline plan](docs/offline-plan/offline-plan.pdf) describes planned behavior.
 Build a tested online draft workflow first, then add durable local saving and synchronization.
 Update the Query/loader and auth guidance alongside the implementation. Offline reads must
 finish with data, an unavailable result or a handled error; local absence is not a server 404.
