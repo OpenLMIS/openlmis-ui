@@ -212,8 +212,8 @@ and add the service to `deployment/test_env/docker-compose.yml`:
       SERVICE_NAME: openlmis-ui
       SERVICE_TAG: openlmis-service
       SERVICE_PORT: 80
-      AUTH_SERVER_CLIENT_ID: ${AUTH_SERVER_CLIENT_ID}
-      AUTH_SERVER_CLIENT_SECRET: ${AUTH_SERVER_CLIENT_SECRET}
+      AUTH_SERVER_CLIENT_ID: user-client
+      AUTH_SERVER_CLIENT_SECRET: changeme
     depends_on:
       consul:
         condition: service_healthy
@@ -223,9 +223,10 @@ and add the service to `deployment/test_env/docker-compose.yml`:
         condition: service_healthy
 ```
 
-`AUTH_SERVER_CLIENT_ID` and `AUTH_SERVER_CLIENT_SECRET` come from `settings.env`,
-which lives in the private `openlmis-config` checkout rather than this repo, so they
-have to be added there too.
+`user-client` / `changeme` is the public OpenLMIS demo client, which is what the test
+and demo instances accept, so nothing private is needed to get `/v2` signing in. An
+environment with its own client should read the pair from `settings.env` instead,
+which lives in the private `openlmis-config` checkout rather than here.
 
 The gateway needs no change. Nothing else claims `/v2`, so the new routes appear as
 soon as Consul reports the service healthy. The same block works for any other
