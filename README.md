@@ -6,7 +6,7 @@ It is designed to run **beside** the legacy AngularJS UI rather than replace it 
 step. Both are served from the same host, the new UI under a URL prefix (`/v2`), so a
 screen can move over on its own schedule and users pick which one to use.
 
-[docs/migration/migration.md](docs/migration/migration.md) explains what that looks like for users.
+[docs/dual-boot/dual-boot.md](docs/dual-boot/dual-boot.md) explains what that looks like for users.
 
 ## Quick start
 
@@ -90,7 +90,7 @@ To run the whole thing locally, including Consul and the real gateway image:
 docker compose up --build   # then http://localhost:8080/v2/
 ```
 
-See [docs/deployment.md](docs/deployment.md) for how routing works, why the prefix is a
+See [docs/deployment/deployment.md](docs/deployment/deployment.md) for how routing works, why the prefix is a
 build input, and the snippet to add to `openlmis-deployment`.
 
 ## Offline support

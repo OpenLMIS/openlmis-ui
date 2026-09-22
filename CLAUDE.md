@@ -186,7 +186,7 @@ tooltips sliding in from the wrong side.
 
 The app is deployed beside the legacy AngularJS UI under a URL prefix (`/v2`),
 routed by Consul KV rather than any nginx config. See
-[docs/deployment.md](docs/deployment.md) for the full picture.
+[docs/deployment/deployment.md](docs/deployment/deployment.md) for the full picture.
 
 Two rules follow from the prefix:
 
@@ -262,6 +262,8 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 - **Biome formatting**: 2-space indent, single quotes, trailing commas, 100 char line width
 - **No Co-Authored-By lines** in commits or PRs
 - **No em dashes** anywhere in the project - not in code, comments, UI copy, translations, docs, commits, or PRs. Use a plain hyphen or rephrase.
+- **Docs are markdown** - write `.md` under `docs/`, one directory per topic
+  (`docs/dual-boot/dual-boot.md`). Never generate a PDF as the source of a document.
 - **Comments only when really necessary** - max 1 line, and never any ticket or issue attributions. Prefer clear naming over explanation.
 
 ## Pull Request Format
@@ -346,7 +348,7 @@ session. Preferences such as `openlmis.current_locale` are left alone.
 Login deliberately carries one way: signing in here does not sign the user into the legacy
 UI, and we write no `openlmis.*` keys. Legacy keeps working normally, it just asks for a
 login once. Do not "fix" this by publishing our token, which leaves legacy unable to enter
-any rights-guarded route. [docs/deployment.md](docs/deployment.md) records the evidence and
+any rights-guarded route. [docs/deployment/deployment.md](docs/deployment/deployment.md) records the evidence and
 what a real single sign-on would cost.
 
 Anything touching auth state should go through the store rather than reading localStorage
