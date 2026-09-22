@@ -64,7 +64,7 @@ src/
   lib/                # config, shared types, utils, query key factory
   hooks/              # Shared hooks
 public/locales/       # Translation catalogs, fetched at runtime
-docs/                 # Deployment, dependency rationale, offline plan
+docs/                 # Deployment notes and the offline plan
 docker/               # Container entrypoint, nginx template, Consul registration
 ```
 
@@ -104,8 +104,6 @@ synchronization.
 [CLAUDE.md](CLAUDE.md) is the working reference for anyone writing code here, human or
 agent. It covers the data-fetching pattern, the RTL rules, i18n, the design-system lint
 constraints, page layout and commit conventions.
-
-[docs/stack.md](docs/stack.md) explains why each dependency is in the tree.
 
 Pre-commit and pre-push hooks (lefthook) run Biome, typecheck and the test suite, so
 `pnpm check && pnpm test:run` before pushing saves a round trip.
