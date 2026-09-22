@@ -1,11 +1,11 @@
-# Running two UIs at once
+# Dual-boot
 
-OpenLMIS is being rebuilt, but not all at once. The new UI runs **beside** the
-existing AngularJS one rather than replacing it, so screens can move over
-individually and anyone can fall back to the old version at any time.
+OpenLMIS is being rebuilt, but not all at once. Two UIs run side by side on the same
+server and you choose which to use, screen by screen. The new one does not replace
+the old one, so anything not rebuilt yet still works, and you can always go back.
 
 This page describes what that looks like in practice. For how it is wired up, see
-[deployment.md](../deployment.md).
+[deployment.md](../deployment/deployment.md).
 
 ## Where each UI lives
 
