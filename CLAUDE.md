@@ -343,6 +343,12 @@ what the old one does. Our own logout calls `clearLegacySession()`, since the to
 shared and killing it server-side while leaving the keys behind would only render a dead
 session. Preferences such as `openlmis.current_locale` are left alone.
 
+Login deliberately carries one way: signing in here does not sign the user into the legacy
+UI, and we write no `openlmis.*` keys. Legacy keeps working normally, it just asks for a
+login once. Do not "fix" this by publishing our token, which leaves legacy unable to enter
+any rights-guarded route. [docs/deployment.md](docs/deployment.md) records the evidence and
+what a real single sign-on would cost.
+
 Anything touching auth state should go through the store rather than reading localStorage
 directly, or these two views of the session drift apart again.
 
