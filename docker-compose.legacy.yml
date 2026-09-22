@@ -16,7 +16,7 @@ services:
   legacy-proxy:
     image: nginx:1.29-alpine
     environment:
-      OL_UPSTREAM: ${OL_UPSTREAM:-uat.openlmis.org}  # host only, no scheme
+      OL_UPSTREAM: ${OL_UPSTREAM:-test.openlmis.org}  # host only, no scheme
     volumes:
       - ./docker/legacy-proxy.conf.template:/etc/nginx/templates/default.conf.template:ro
     depends_on:

@@ -67,9 +67,11 @@ container builds and serves fine but every login fails with
 Both UIs share an origin, so `syncLegacySession()` reads the AngularJS session out
 of localStorage. The legacy UI stores its token through `angular-local-storage`
 under the `openlmis.` prefix, so the keys are `openlmis.ACCESS_TOKEN`,
-`openlmis.USER_ID` and `openlmis.USERNAME`. Verified against the `reference-ui`
-version pinned in `uat_env`: raw UUIDs, not JSON-encoded, and accepted by the API
-as `Authorization: Bearer`.
+`openlmis.USER_ID` and `openlmis.USERNAME`. Values are raw UUIDs, not JSON-encoded,
+and the API accepts them as `Authorization: Bearer`. Verified end to end against two
+live instances with different builds, `test.openlmis.org` on `reference-ui`
+5.2.13-SNAPSHOT and `uat.openlmis.org` on 5.2.15-RC1, so the format is not specific
+to one of them.
 
 The store records where a session came from (`sessionSource`), which is what lets
 logout work both ways without signing out people who only use the new UI:
@@ -185,17 +187,18 @@ docker compose -f docker-compose.yml -f docker-compose.legacy.yml up -d --build
 
 Then `http://localhost:8080/` is the real legacy UI, `/api` its real API, and `/v2`
 this repository. Log in at `/`, open `/v2`, and the session should carry with no
-second login. `OL_UPSTREAM` picks the instance, defaulting to `uat.openlmis.org`.
+second login. `OL_UPSTREAM` picks the instance, defaulting to `test.openlmis.org`.
 
 ## Adding it to an environment
 
-In `openlmis-deployment`, pin the version in `deployment/<env>_env/.env`:
+`test.openlmis.org` is the first target. In `openlmis-deployment`, pin the version
+in `deployment/test_env/.env`:
 
 ```
 OL_UI_VERSION=x.y.z
 ```
 
-and add the service to `deployment/<env>_env/docker-compose.yml`:
+and add the service to `deployment/test_env/docker-compose.yml`:
 
 ```yaml
   openlmis-ui:
@@ -220,5 +223,10 @@ and add the service to `deployment/<env>_env/docker-compose.yml`:
         condition: service_healthy
 ```
 
-The gateway needs no change. Nothing else claims `/v2`, so the new routes appear
-as soon as Consul reports the service healthy.
+`AUTH_SERVER_CLIENT_ID` and `AUTH_SERVER_CLIENT_SECRET` come from `settings.env`,
+which lives in the private `openlmis-config` checkout rather than this repo, so they
+have to be added there too.
+
+The gateway needs no change. Nothing else claims `/v2`, so the new routes appear as
+soon as Consul reports the service healthy. The same block works for any other
+environment, since they all run the same gateway and routing.
