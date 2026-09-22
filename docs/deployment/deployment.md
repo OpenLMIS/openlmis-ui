@@ -189,6 +189,25 @@ Then `http://localhost:8080/` is the real legacy UI, `/api` its real API, and `/
 this repository. Log in at `/`, open `/v2`, and the session should carry with no
 second login. `OL_UPSTREAM` picks the instance, defaulting to `test.openlmis.org`.
 
+## Publishing the image
+
+Jenkins publishes, matching every other OpenLMIS component. `Jenkinsfile` reads the
+version from `project.properties`, builds, and pushes `openlmis/openlmis-ui:<version>`
+on `master` and `rel-*` only. It reuses the shared Docker Hub credential
+(`cad2f741-7b1e-4ddd-b5ca-2959d40f62c2`), so no new secret is needed.
+
+`project.properties` is the source of the image tag, not `package.json`.
+
+The `Verify` stage runs `docker build --target verify`, which runs the checks inside
+the same image the release is built from. An ordinary build never reaches that stage.
+
+GitHub Actions still gates pull requests. It is faster and needs no Jenkins access,
+but it cannot trigger the Jenkins deploy job, so publishing stays on Jenkins.
+
+Two things have to be created in Jenkins by hand: a multibranch pipeline job for this
+repo, and a downstream `OpenLMIS-ui-deploy-to-test` job. The pipeline tolerates the
+second one being absent, so the first builds work before it exists.
+
 ## Adding it to an environment
 
 `test.openlmis.org` is the first target. In `openlmis-deployment`, pin the version

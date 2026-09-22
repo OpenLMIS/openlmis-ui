@@ -14,6 +14,11 @@ COPY . .
 ENV VITE_BASE_PATH=$BASE_PATH
 RUN pnpm build
 
+# Built only when targeted (`docker build --target verify`), so it never runs
+# during a normal image build.
+FROM build AS verify
+RUN pnpm check && pnpm lint:ds && pnpm test:run
+
 FROM nginx:1.29-alpine AS runtime
 ARG BASE_PATH
 ENV BASE_PATH=$BASE_PATH
