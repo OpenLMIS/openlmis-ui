@@ -68,8 +68,8 @@ under the `openlmis.` prefix, so the keys are `openlmis.ACCESS_TOKEN`,
 version pinned in `uat_env`: raw UUIDs, not JSON-encoded, and accepted by the API
 as `Authorization: Bearer`.
 
-The store records where a session came from (`sessionSource`), which is what makes
-logout work in both directions without logging out people who only use the new UI:
+The store records where a session came from (`sessionSource`), which is what lets
+logout work both ways without signing out people who only use the new UI:
 
 | Event | Result |
 | --- | --- |
@@ -78,17 +78,46 @@ logout work in both directions without logging out people who only use the new U
 | Legacy switches user | We follow to the new user |
 | We sign out | `clearLegacySession()` drops the legacy keys as well |
 | We signed in ourselves (`own`) | Legacy signing out does not touch us |
-| We sign in | Legacy is **not** signed in, see below |
+| We sign in | Legacy is untouched, so it still asks for a login |
 
-Login only carries one way, and that is deliberate. Publishing our token into the
-legacy keys was tried against a real instance. The legacy UI accepts it and renders
-as signed in, but it never backfills the rights its own login caches, and it does
-not fetch them later either: navigating straight to Stock on Hand issues **zero**
-API calls and dead-ends on an untranslated `openlmisAuth.authorization.error` modal.
-Its route guards read the cache synchronously and refuse before requesting anything.
+It runs on boot and again on the `storage` event, so a logout in one tab reaches a
+`/v2` tab already open in another. Only session keys are cleared; preferences such
+as `openlmis.current_locale` survive. Without this, a legacy logout left us holding
+a dead token while still rendering as signed in, because nothing forced the 401 that
+would have corrected it.
 
-Making that work would mean fetching the whole cache ourselves at login and writing
-it in legacy's exact format. Measured on a real instance that is about 2.2 MB:
+`clearLegacySession()` is unconditional: signing out of the new UI ends a legacy
+session even if that session was established separately and shares no token with
+ours. To a user these are one application, so one logout ending both is the intent.
+
+### Decision: login carries one way
+
+**Signing into `/v2` does not sign you into the legacy UI. Crossing over asks for a
+login once. Legacy is otherwise completely unaffected: it keeps its full menu and
+every rights-guarded page works normally.** We write no `openlmis.*` keys on login,
+so legacy simply never sees a session it did not create.
+
+Publishing our token into the legacy keys was tried against a real instance and
+rejected. Legacy accepts the token and renders as signed in, but it never backfills
+the rights its own login caches, and it does not fetch them on demand either:
+navigating straight to Stock on Hand issues **zero** API calls and dead-ends on an
+untranslated `openlmisAuth.authorization.error` modal. Its route guards read the
+cache synchronously and refuse before requesting anything. A token on its own
+therefore produces something worse than a login prompt.
+
+### If single sign-on is wanted later
+
+Publishing can be made to work, and the earlier objection that a background fetch
+would race the user's click only applies to a partial write. Publish **atomically**
+and there is no broken intermediate state:
+
+1. after a `/v2` login, fetch all four caches in the background
+2. write nothing until every one has arrived
+3. then write the token and the rights together
+
+A user who crosses over early sees the same login screen they see today, so the
+worst case is unchanged. What it costs is the fetch itself, measured on a real
+instance at roughly 2.2 MB per login, paid even by users who never open legacy:
 
 | Key | Endpoint | Size |
 | --- | --- | --- |
@@ -97,22 +126,21 @@ it in legacy's exact format. Measured on a real instance that is about 2.2 MB:
 | `userPrograms` | `GET /api/users/{id}/programs` | small |
 | `homeFacility` | `GET /api/facilities/{homeFacilityId}` | small |
 
-Doing it in the background instead races the user's click, and losing that race
-produces the same dead end. So we publish nothing: a user who starts in the new UI
-signs into the old one once and gets its normal login screen, which is honest and
-self-explanatory. Logout stays symmetric, because tearing a session down needs none
-of this setup.
+It also means writing legacy's cache format exactly, quirks included:
+`userIdOffline` is injected into each program, and role assignments carry
+`isDirect`. That format belongs to a specific `reference-ui` version, so this
+couples us to whichever one an environment pins.
 
-When the new UI needs user context of its own, fetch it per screen through TanStack
-Query rather than pulling this at login. Nothing should make signing in wait on
-thousands of rows.
+The trade is not worth it while `/v2` is a dashboard and effectively everyone starts
+in the legacy UI, where the handoff already works with no extra login. Revisit when
+`/v2` has screens people land on first.
 
-It runs on boot and again on the `storage` event, so a logout in one tab reaches a
-`/v2` tab already open in another. Only session keys are cleared; preferences such
-as `openlmis.current_locale` survive.
+### Our own user context
 
-Without this, a legacy logout left us holding a dead token while still rendering as
-signed in, because nothing forced the 401 that would have corrected it.
+Unrelated to the above, and it should not reuse any of it. When the new UI needs the
+current user, home facility, programs or rights, fetch them per screen through
+TanStack Query with the key factory. Nothing should make signing in wait on thousands
+of rows, and nothing should be cached as a multi-megabyte localStorage blob.
 
 ## Stopping cleanly
 
