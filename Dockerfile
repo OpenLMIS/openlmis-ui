@@ -7,6 +7,10 @@ WORKDIR /app
 
 RUN corepack enable
 
+# lefthook's postinstall installs git hooks, which needs a git binary and a repo,
+# and the image has neither. It skips itself when CI is set.
+ENV CI=true
+
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
