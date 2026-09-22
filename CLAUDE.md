@@ -7,7 +7,6 @@ a URL prefix rather than replacing it in one step.
 
 README.md is the user-facing entry point: setup, environment variables, scripts, project
 layout. Keep setup instructions there and code rules here rather than repeating either.
-[docs/stack.md](docs/stack.md) covers why each dependency is in the tree.
 
 ## Commands
 
