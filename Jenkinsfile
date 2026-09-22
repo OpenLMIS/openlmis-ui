@@ -72,9 +72,6 @@ pipeline {
                         notifyAfterFailure()
                     }
                 }
-                cleanup {
-                    sh "docker image prune -f --filter label=stage=build || true"
-                }
             }
         }
         stage('Push image') {
