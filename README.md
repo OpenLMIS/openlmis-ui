@@ -106,5 +106,7 @@ synchronization.
 agent. It covers the data-fetching pattern, the RTL rules, i18n, the design-system lint
 constraints, page layout and commit conventions.
 
+[docs/](docs/README.md) indexes the longer-form documentation.
+
 Pre-commit and pre-push hooks (lefthook) run Biome, typecheck and the test suite, so
 `pnpm check && pnpm test:run` before pushing saves a round trip.

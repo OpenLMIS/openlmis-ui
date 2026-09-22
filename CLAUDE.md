@@ -263,7 +263,8 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 - **No Co-Authored-By lines** in commits or PRs
 - **No em dashes** anywhere in the project - not in code, comments, UI copy, translations, docs, commits, or PRs. Use a plain hyphen or rephrase.
 - **Docs are markdown** - write `.md` under `docs/`, one directory per topic
-  (`docs/dual-boot/dual-boot.md`). Never generate a PDF as the source of a document.
+  (`docs/dual-boot/dual-boot.md`), and add a row to `docs/README.md`. Never generate a
+  PDF as the source of a document.
 - **Comments only when really necessary** - max 1 line, and never any ticket or issue attributions. Prefer clear naming over explanation.
 
 ## Pull Request Format
