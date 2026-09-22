@@ -113,10 +113,10 @@ pipeline {
                 }
             }
         }
-        // No deploy is triggered on purpose. The test environment is redeployed by
-        // OpenLMIS-3.x-deploy-to-test, which tears the whole stack down including
-        // volumes, so it is run deliberately rather than on every merge. It pulls
-        // every image at the version pinned in test_env/.env, ours included.
+        // No deploy is triggered on purpose. OpenLMIS-3.x-deploy-to-test removes every
+        // container and image before recreating, taking the whole test environment
+        // down for a full re-pull, so it is run deliberately rather than on merge. It
+        // pulls every service at the version pinned in test_env/.env, ours included.
     }
 }
 

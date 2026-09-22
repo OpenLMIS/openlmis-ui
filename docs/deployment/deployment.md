@@ -210,16 +210,30 @@ it inherits the scan credential, scan interval and orphaned-branch strategy.
 
 ### Deploying what was published
 
-No per-component deploy job is needed. `OpenLMIS-3.x-deploy-to-test` redeploys the
-whole test stack through `restart_or_restore.sh`, which runs `docker compose pull`
-against every service at the version pinned in `test_env/.env`, ours included.
-Because `0.1.0-SNAPSHOT` is a mutable tag that each master build overwrites, running
-that job picks up the newest image.
+No per-component deploy job is needed. `OpenLMIS-3.x-deploy-to-test` is a manual,
+parameterised job that redeploys the whole test stack. It checks out this repo plus
+the private `openlmis-config`, copies `test.env` into place as `settings.env`, and
+runs `test_env/deploy_to_test_env.sh`, which in turn calls:
 
-The pipeline deliberately does not trigger it. That job starts with
-`docker compose down -v`, tearing down the whole stack and its volumes, which is why
-it is labelled as something to use only when needed. Running it on every merge would
-reset the test environment each time. Deploys stay a deliberate action.
+```
+shared/pull_images.sh    # docker-compose pull, every service at its pinned version
+shared/restart.sh        # kill, down -v, remove all containers and images, up
+```
+
+Our service is included automatically once it is in `test_env/docker-compose.yml`.
+`0.1.0-SNAPSHOT` is a mutable tag that each master build overwrites, so re-running
+the job picks up the newest image without any version bump.
+
+Its `KEEP_OR_WIPE` parameter chooses whether demo data is re-seeded, by adding or
+removing spring profiles. It does not govern the volumes: `restart.sh` always runs
+`down -v`, but `test_env/docker-compose.yml` declares no database service and no data
+volume, only logs and config, so a redeploy does not destroy the database.
+
+The pipeline still does not trigger it, for two reasons. `restart.sh` removes every
+container and every image before recreating, so the entire test environment is down
+for the length of a full re-pull, and the job blocks while any other `*-deploy-to-test`
+is running. Doing that on each merge to this repo would be disruptive out of all
+proportion. The job's own description asks for it to be used only when needed.
 
 ## Adding it to an environment
 
