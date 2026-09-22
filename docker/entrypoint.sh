@@ -16,6 +16,14 @@ fi
 
 envsubst '${BASE_PREFIX}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
+# Per-environment settings the bundle cannot carry, since Vite resolves
+# import.meta.env at build time. Same idea as the legacy UI's openlmis.js.
+export AUTH_SERVER_CLIENT_ID="${AUTH_SERVER_CLIENT_ID:-}"
+export AUTH_SERVER_CLIENT_SECRET="${AUTH_SERVER_CLIENT_SECRET:-}"
+envsubst '${AUTH_SERVER_CLIENT_ID} ${AUTH_SERVER_CLIENT_SECRET}' \
+  < /opt/openlmis/config.json.template \
+  > "/usr/share/nginx/html/${BASE_PREFIX}/config.json"
+
 if [ "${CONSUL_REGISTRATION:-true}" = "true" ]; then
   node /opt/openlmis/registration.mjs register
   # QUIT matters most: it is the nginx image's STOPSIGNAL, so it is what

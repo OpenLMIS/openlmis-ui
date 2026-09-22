@@ -29,6 +29,7 @@ RUN PREFIX=$(printf '%s' "$BASE_PATH" | sed 's#^/*##; s#/*$##') \
   && mv /tmp/dist "/usr/share/nginx/html/$PREFIX"
 
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY docker/config.json.template /opt/openlmis/config.json.template
 COPY docker/registration.mjs /opt/openlmis/registration.mjs
 COPY docker/entrypoint.sh /opt/openlmis/entrypoint.sh
 RUN chmod +x /opt/openlmis/entrypoint.sh

@@ -52,6 +52,9 @@ services:
       SERVICE_NAME: openlmis-ui
       SERVICE_TAG: openlmis-service
       SERVICE_PORT: 80
+      # Read straight out of .env, the same keys `pnpm dev` uses.
+      AUTH_SERVER_CLIENT_ID: ${VITE_AUTH_SERVER_CLIENT_ID:?set it in .env}
+      AUTH_SERVER_CLIENT_SECRET: ${VITE_AUTH_SERVER_CLIENT_SECRET:?set it in .env}
     depends_on:
       consul:
         condition: service_healthy

@@ -355,6 +355,11 @@ affect how code is written:
   and is not behind the base path.
 - `VITE_BASE_PATH` is a build input, not runtime config. See the base path rules above.
 
+Anything that varies per environment cannot go through `import.meta.env`, because Vite
+resolves it at build time and one image serves every environment. Add it to
+`src/lib/runtime-config.ts`, which reads `config.json` written by the container at start
+and falls back to `import.meta.env` for `pnpm dev`. The OAuth client works this way.
+
 ## Skills
 
 Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lock.json`.

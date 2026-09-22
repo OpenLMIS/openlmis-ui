@@ -44,6 +44,21 @@ entrypoint fails fast if no build exists at that path rather than serving 404s.
 `index.html`, but a literal like `src="/olmis.png"` in a component ships as-is
 and 404s under a prefix. Use `` `${import.meta.env.BASE_URL}olmis.png` ``.
 
+## Runtime configuration
+
+Vite resolves `import.meta.env` at build time, so anything baked in ties one image
+to one environment. The OAuth client must therefore be supplied at runtime: the
+entrypoint renders `config.json` into the served directory from
+`AUTH_SERVER_CLIENT_ID` and `AUTH_SERVER_CLIENT_SECRET`, and the app loads it
+during boot alongside the translation catalogues. `import.meta.env` is the
+fallback, which is what `pnpm dev` uses.
+
+This is the same approach the legacy UI takes with `openlmis.js`. Without it the
+container builds and serves fine but every login fails with
+`MissingAuthClientCredentialsError`, because the bundle carries no client.
+
+`VITE_BASE_PATH` stays a build input, since it is compiled into asset URLs.
+
 ## Session handoff
 
 Both UIs share an origin, so `syncLegacySession()` reads the AngularJS session out
@@ -63,6 +78,21 @@ logout work in both directions without logging out people who only use the new U
 | Legacy switches user | We follow to the new user |
 | We sign out | `clearLegacySession()` drops the legacy keys as well |
 | We signed in ourselves (`own`) | Legacy signing out does not touch us |
+| We sign in | Legacy is **not** signed in, see below |
+
+Login only carries one way, and that is deliberate. Publishing our token into the
+legacy keys was tried against a real instance: the legacy UI does accept it and
+renders as signed in, but it never backfills the rights its own login fetches.
+`ROLE_ASSIGNMENTS`, `permissions`, `userPrograms` and `homeFacility` all stay
+missing across reloads, and its menu comes up with `Home`, `Requisitions` and
+`Administration` only, instead of the full set including `Stock Management`,
+`Orders`, `Reports` and `CCE Management`.
+
+A session that looks signed in while silently hiding half the application is worse
+than a login screen, and backfilling those keys would mean reimplementing the
+legacy login bootstrap against its internals. So a user who starts in the new UI
+signs into the old one once. Logout stays symmetric, because tearing a session down
+needs none of that setup.
 
 It runs on boot and again on the `storage` event, so a logout in one tab reaches a
 `/v2` tab already open in another. Only session keys are cleared; preferences such
@@ -96,6 +126,23 @@ allowlist compares the `Host` header verbatim, and locally it carries the
 published port. A mismatch means every request is rate limited and the browser
 gets 429s on parallel asset loads.
 
+## Verifying against the real legacy UI
+
+The handoff only works same-origin, so it cannot be checked by pointing at a remote
+environment: `uat.openlmis.org` and `localhost` do not share localStorage. The
+`docker-compose.legacy.yml` overlay solves that by proxying everything we do not
+claim to a live instance, putting the real AngularJS UI and this container on one
+origin:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.legacy.yml up -d --build
+./scripts/register-legacy-proxy.sh
+```
+
+Then `http://localhost:8080/` is the real legacy UI, `/api` its real API, and `/v2`
+this repository. Log in at `/`, open `/v2`, and the session should carry with no
+second login. `OL_UPSTREAM` picks the instance, defaulting to `uat.openlmis.org`.
+
 ## Adding it to an environment
 
 In `openlmis-deployment`, pin the version in `deployment/<env>_env/.env`:
@@ -118,6 +165,8 @@ and add the service to `deployment/<env>_env/docker-compose.yml`:
       SERVICE_NAME: openlmis-ui
       SERVICE_TAG: openlmis-service
       SERVICE_PORT: 80
+      AUTH_SERVER_CLIENT_ID: ${AUTH_SERVER_CLIENT_ID}
+      AUTH_SERVER_CLIENT_SECRET: ${AUTH_SERVER_CLIENT_SECRET}
     depends_on:
       consul:
         condition: service_healthy
