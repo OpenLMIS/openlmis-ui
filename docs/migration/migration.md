@@ -5,7 +5,7 @@ existing AngularJS one rather than replacing it, so screens can move over
 individually and anyone can fall back to the old version at any time.
 
 This page describes what that looks like in practice. For how it is wired up, see
-[deployment.md](deployment.md).
+[deployment.md](../deployment.md).
 
 ## Where each UI lives
 

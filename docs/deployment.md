@@ -4,7 +4,7 @@
 beside the legacy `reference-ui`, serving a URL prefix such as `/v2`. Users pick
 which UI to use per screen by choosing a link; both run at once.
 
-This page is the mechanism. [migration.md](migration.md) covers the same setup in
+This page is the mechanism. [migration/migration.md](migration/migration.md) covers the same setup in
 plain language, for anyone who needs to understand the behaviour but not the wiring.
 
 ## How routing works
