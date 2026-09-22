@@ -9,5 +9,5 @@ One directory per topic, markdown only.
 | [deployment/how-to-add-new-ui](deployment/how-to-add-new-ui.md) | Step by step: Jenkins job, OAuth client, compose entry, deploy, verify | Whoever is rolling it out to a server |
 | [offline-plan](offline-plan/offline-plan.pdf) | Planned offline behaviour, not yet implemented | Anyone picking up the offline work |
 
-Code conventions and the rules for writing code are in [CLAUDE.md](../CLAUDE.md), not
+Code conventions and the rules for writing code are in [AGENTS.md](../AGENTS.md), not
 here. Setup and scripts are in the [README](../README.md).
