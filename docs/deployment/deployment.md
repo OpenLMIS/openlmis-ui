@@ -209,6 +209,23 @@ The pipeline triggers no deploy. `OpenLMIS-3.x-deploy-to-test` removes every con
 and image before recreating, so running it on each merge would take the environment
 down every time.
 
+### The Jenkins job, for reference
+
+`OpenLMIS-ui-pipeline` already exists, so this is only needed if it has to be rebuilt.
+It is a Multibranch Pipeline pointed at this repo, using the `GitHub Access Token`
+credential, `by Jenkinsfile`, and discarding orphaned items.
+
+Two settings are not obvious. **Trust for fork PRs must not be `Everyone`**: the repo
+is public and the `Preparation` stage holds the shared Docker Hub push credential, so
+`Everyone` would let any fork rewrite the `Jenkinsfile` and run it with that
+credential. Use *From users with Admin or Write permission*.
+
+And **create it fresh rather than using "Copy from"**. Copying a Multibranch Pipeline
+brings the source job's branch sub-jobs and their recorded revisions along with the
+config. Copying `OpenLMIS-reference-ui-pipeline` produced about thirty orphaned branch
+jobs that immediately queued builds, and a `master` sub-job pinned to a commit that
+does not exist here, so the first real build failed at checkout.
+
 ## Adding it to an environment
 
 See [how-to-add-new-ui.md](how-to-add-new-ui.md) for the steps, including the Jenkins
