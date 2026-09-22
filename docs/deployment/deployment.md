@@ -189,45 +189,27 @@ It is worth redoing whenever an environment moves to a `reference-ui` version th
 has not been checked. The current behaviour was verified against `test.openlmis.org`
 on 5.2.13-SNAPSHOT and `uat.openlmis.org` on 5.2.15-RC1.
 
+## Publishing the image
+
+Jenkins publishes, matching every other OpenLMIS component. `Jenkinsfile` reads the
+version from `project.properties`, builds, and pushes `openlmis/openlmis-ui:<version>`
+on `master` and `rel-*` only. It reuses the shared Docker Hub credential
+(`cad2f741-7b1e-4ddd-b5ca-2959d40f62c2`), so no new secret is needed.
+
+`project.properties` is the source of the image tag, not `package.json`.
+
+The `Verify` stage runs `docker build --target verify`, which runs the checks inside
+the same image the release is built from. An ordinary build never reaches that stage,
+so `docker compose up --build` stays fast.
+
+GitHub Actions still gates pull requests. It is faster and needs no Jenkins access,
+but it cannot trigger the Jenkins deploy chain, so publishing stays on Jenkins.
+
+The pipeline triggers no deploy. `OpenLMIS-3.x-deploy-to-test` removes every container
+and image before recreating, so running it on each merge would take the environment
+down every time.
+
 ## Adding it to an environment
 
-`test.openlmis.org` is the first target. In `openlmis-deployment`, pin the version
-in `deployment/test_env/.env`:
-
-```
-OL_UI_VERSION=x.y.z
-```
-
-and add the service to `deployment/test_env/docker-compose.yml`:
-
-```yaml
-  openlmis-ui:
-    restart: always
-    image: openlmis/openlmis-ui:${OL_UI_VERSION}
-    env_file: settings.env
-    environment:
-      BASE_PATH: /v2
-      CONSUL_HOST: consul
-      CONSUL_PORT: 8500
-      SERVICE_NAME: openlmis-ui
-      SERVICE_TAG: openlmis-service
-      SERVICE_PORT: 80
-      AUTH_SERVER_CLIENT_ID: user-client
-      AUTH_SERVER_CLIENT_SECRET: changeme
-    depends_on:
-      consul:
-        condition: service_healthy
-      auth:
-        condition: service_healthy
-      referencedata:
-        condition: service_healthy
-```
-
-`user-client` / `changeme` is the public OpenLMIS demo client, which is what the test
-and demo instances accept, so nothing private is needed to get `/v2` signing in. An
-environment with its own client should read the pair from `settings.env` instead,
-which lives in the private `openlmis-config` checkout rather than here.
-
-The gateway needs no change. Nothing else claims `/v2`, so the new routes appear as
-soon as Consul reports the service healthy. The same block works for any other
-environment, since they all run the same gateway and routing.
+See [how-to-add-new-ui.md](how-to-add-new-ui.md) for the steps, including the Jenkins
+job, the OAuth client, the compose entry and how to verify.
