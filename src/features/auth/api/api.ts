@@ -1,5 +1,6 @@
 import type { LoginInput, LoginResponse } from '@/features/auth/lib/types';
 import { client } from '@/integrations/axios';
+import { getAuthClientCredentials } from '@/lib/runtime-config';
 
 export class MissingAuthClientCredentialsError extends Error {
   constructor() {
@@ -10,8 +11,7 @@ export class MissingAuthClientCredentialsError extends Error {
 
 // The auth service authenticates the client with HTTP Basic before the password grant.
 export async function login({ username, password }: LoginInput): Promise<LoginResponse> {
-  const clientId = import.meta.env.VITE_AUTH_SERVER_CLIENT_ID;
-  const clientSecret = import.meta.env.VITE_AUTH_SERVER_CLIENT_SECRET;
+  const { clientId, clientSecret } = getAuthClientCredentials();
 
   if (!clientId || !clientSecret) {
     throw new MissingAuthClientCredentialsError();

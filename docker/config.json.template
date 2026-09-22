@@ -1,0 +1,4 @@
+{
+  "authServerClientId": "${AUTH_SERVER_CLIENT_ID}",
+  "authServerClientSecret": "${AUTH_SERVER_CLIENT_SECRET}"
+}
