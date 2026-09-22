@@ -172,68 +172,22 @@ allowlist compares the `Host` header verbatim, and locally it carries the
 published port. A mismatch means every request is rate limited and the browser
 gets 429s on parallel asset loads.
 
-## Verifying against the real legacy UI
+## Verifying the session handoff
 
-The handoff only works same-origin, so it cannot be checked by pointing at a remote
-environment: `uat.openlmis.org` and `localhost` do not share localStorage. The
-`docker-compose.legacy.yml` overlay solves that by proxying everything we do not
-claim to a live instance, putting the real AngularJS UI and this container on one
-origin:
+localStorage is per-origin, so the handoff cannot be checked by pointing a local
+container at a remote environment: `test.openlmis.org` and `localhost` do not share
+storage, and there is nothing for us to read.
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.legacy.yml up -d --build
-./scripts/register-legacy-proxy.sh
-```
+Checking it needs both UIs on one origin. The way that was done here was a throwaway
+nginx container proxying everything we do not claim to a live instance, registered in
+Consul under the `<all>` global wildcard, which is the key the real `reference-ui`
+registers. That puts the genuine legacy UI at `/`, its API at `/api` and this
+container at `/v2`, all on `localhost:8080`, so signing in at `/` and opening `/v2`
+exercises the real thing.
 
-Then `http://localhost:8080/` is the real legacy UI, `/api` its real API, and `/v2`
-this repository. Log in at `/`, open `/v2`, and the session should carry with no
-second login. `OL_UPSTREAM` picks the instance, defaulting to `test.openlmis.org`.
-
-## Publishing the image
-
-Jenkins publishes, matching every other OpenLMIS component. `Jenkinsfile` reads the
-version from `project.properties`, builds, and pushes `openlmis/openlmis-ui:<version>`
-on `master` and `rel-*` only. It reuses the shared Docker Hub credential
-(`cad2f741-7b1e-4ddd-b5ca-2959d40f62c2`), so no new secret is needed.
-
-`project.properties` is the source of the image tag, not `package.json`.
-
-The `Verify` stage runs `docker build --target verify`, which runs the checks inside
-the same image the release is built from. An ordinary build never reaches that stage.
-
-GitHub Actions still gates pull requests. It is faster and needs no Jenkins access,
-but it cannot trigger the Jenkins deploy job, so publishing stays on Jenkins.
-
-One thing has to be created in Jenkins by hand: a multibranch pipeline job for this
-repo. Copy the existing `OpenLMIS-reference-ui` job and change the branch source, so
-it inherits the scan credential, scan interval and orphaned-branch strategy.
-
-### Deploying what was published
-
-No per-component deploy job is needed. `OpenLMIS-3.x-deploy-to-test` is a manual,
-parameterised job that redeploys the whole test stack. It checks out this repo plus
-the private `openlmis-config`, copies `test.env` into place as `settings.env`, and
-runs `test_env/deploy_to_test_env.sh`, which in turn calls:
-
-```
-shared/pull_images.sh    # docker-compose pull, every service at its pinned version
-shared/restart.sh        # kill, down -v, remove all containers and images, up
-```
-
-Our service is included automatically once it is in `test_env/docker-compose.yml`.
-`0.1.0-SNAPSHOT` is a mutable tag that each master build overwrites, so re-running
-the job picks up the newest image without any version bump.
-
-Its `KEEP_OR_WIPE` parameter chooses whether demo data is re-seeded, by adding or
-removing spring profiles. It does not govern the volumes: `restart.sh` always runs
-`down -v`, but `test_env/docker-compose.yml` declares no database service and no data
-volume, only logs and config, so a redeploy does not destroy the database.
-
-The pipeline still does not trigger it, for two reasons. `restart.sh` removes every
-container and every image before recreating, so the entire test environment is down
-for the length of a full re-pull, and the job blocks while any other `*-deploy-to-test`
-is running. Doing that on each merge to this repo would be disruptive out of all
-proportion. The job's own description asks for it to be used only when needed.
+It is worth redoing whenever an environment moves to a `reference-ui` version that
+has not been checked. The current behaviour was verified against `test.openlmis.org`
+on 5.2.13-SNAPSHOT and `uat.openlmis.org` on 5.2.15-RC1.
 
 ## Adding it to an environment
 
