@@ -22,6 +22,7 @@ pnpm dev
 | `VITE_AUTH_SERVER_CLIENT_ID` | - | OAuth client id for the password grant |
 | `VITE_AUTH_SERVER_CLIENT_SECRET` | - | OAuth client secret for the password grant |
 | `VITE_SHOW_DEVTOOLS` | - | Set to `true` to enable TanStack devtools |
+| `VITE_BASE_PATH` | `/` | URL prefix the app is served under, compiled into asset paths at build time |
 
 ## Scripts
 
@@ -369,6 +370,21 @@ This project ships with Claude Code skills for AI-assisted development. Skills a
 | `sync-translations` | local | Syncs i18next language files with `en.json` - removes stale keys, translates missing ones, preserves existing translations |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | React composition patterns - compound components, render props, context providers |
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | React and Next.js performance optimization guidelines from Vercel Engineering |
+
+## Deployment
+
+`openlmis-ui` runs as a container inside an existing OpenLMIS stack, beside the
+legacy `reference-ui`, serving a URL prefix (`/v2`) so both UIs are available at
+once and users choose per screen. Routing comes from Consul KV, so the shared
+nginx gateway needs no change.
+
+```bash
+docker compose up --build   # Consul + the real gateway, then http://localhost:8080/v2/
+```
+
+See [docs/deployment.md](docs/deployment.md) for how the routing works, why the
+prefix is a build input rather than runtime config, and the snippet to add to
+`openlmis-deployment`.
 
 ## Offline implementation plan
 

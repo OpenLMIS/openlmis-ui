@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+.agents
+.claude
+.tanstack
+screenshots
+docs
+*.log
+.env
+.env.*
+!.env.example

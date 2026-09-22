@@ -1,0 +1,37 @@
+server {
+  listen 80;
+  root /usr/share/nginx/html;
+
+  gzip on;
+  gzip_proxied any;
+  gzip_comp_level 5;
+  gzip_types text/css text/javascript application/javascript application/json image/svg+xml;
+
+  # Container-local check. The Consul check uses the prefix instead, because that
+  # is what proves the build was copied to the path nginx will ask for.
+  location = /healthz {
+    access_log off;
+    return 200 "ok\n";
+  }
+
+  location = /${BASE_PREFIX} {
+    return 301 /${BASE_PREFIX}/;
+  }
+
+  # Hashed filenames, so the bundle can be cached indefinitely.
+  location ~ ^/${BASE_PREFIX}/assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    try_files $uri =404;
+  }
+
+  # Catalogs are swapped without a rebuild, so they must revalidate.
+  location ~ ^/${BASE_PREFIX}/locales/ {
+    add_header Cache-Control "no-cache";
+    try_files $uri =404;
+  }
+
+  location /${BASE_PREFIX}/ {
+    add_header Cache-Control "no-cache";
+    try_files $uri $uri/ /${BASE_PREFIX}/index.html;
+  }
+}
