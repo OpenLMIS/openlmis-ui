@@ -6,7 +6,7 @@ It is designed to run **beside** the legacy AngularJS UI rather than replace it 
 step. Both are served from the same host, the new UI under a URL prefix (`/v2`), so a
 screen can move over on its own schedule and users pick which one to use.
 
-[docs/migration.md](docs/migration.md) explains what that looks like for users.
+[docs/migration/migration.md](docs/migration/migration.md) explains what that looks like for users.
 
 ## Quick start
 
