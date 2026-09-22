@@ -18,7 +18,10 @@ envsubst '${BASE_PREFIX}' < /etc/nginx/templates/default.conf.template > /etc/ng
 
 if [ "${CONSUL_REGISTRATION:-true}" = "true" ]; then
   node /opt/openlmis/registration.mjs register
-  trap 'node /opt/openlmis/registration.mjs deregister; nginx -s quit' TERM INT
+  # QUIT matters most: it is the nginx image's STOPSIGNAL, so it is what
+  # `docker stop` actually sends. Missing it leaves a stale Consul entry and
+  # nginx proxying the prefix to a dead upstream until the health check reaps it.
+  trap 'node /opt/openlmis/registration.mjs deregister; nginx -s quit' TERM INT QUIT
 fi
 
 nginx -g 'daemon off;' &

@@ -46,12 +46,37 @@ and 404s under a prefix. Use `` `${import.meta.env.BASE_URL}olmis.png` ``.
 
 ## Session handoff
 
-Both UIs share an origin, so `adoptLegacySession()` reads the AngularJS session
-out of localStorage on boot when ours is empty. The legacy UI stores its token
-through `angular-local-storage` under the `openlmis.` prefix, so the keys are
-`openlmis.ACCESS_TOKEN`, `openlmis.USER_ID` and `openlmis.USERNAME`. This is
-one-way and non-destructive: signing into the legacy UI carries into `/v2`, but
-not the reverse, and nothing legacy is overwritten.
+Both UIs share an origin, so `syncLegacySession()` reads the AngularJS session out
+of localStorage. The legacy UI stores its token through `angular-local-storage`
+under the `openlmis.` prefix, so the keys are `openlmis.ACCESS_TOKEN`,
+`openlmis.USER_ID` and `openlmis.USERNAME`. Verified against the `reference-ui`
+version pinned in `uat_env`: raw UUIDs, not JSON-encoded, and accepted by the API
+as `Authorization: Bearer`.
+
+The store records where a session came from (`sessionSource`), which is what makes
+logout work in both directions without logging out people who only use the new UI:
+
+| Event | Result |
+| --- | --- |
+| Legacy signs in, we have no session | We adopt it, marked `legacy` |
+| Legacy signs out | A `legacy`-sourced session of ours is cleared too |
+| Legacy switches user | We follow to the new user |
+| We sign out | `clearLegacySession()` drops the legacy keys as well |
+| We signed in ourselves (`own`) | Legacy signing out does not touch us |
+
+It runs on boot and again on the `storage` event, so a logout in one tab reaches a
+`/v2` tab already open in another. Only session keys are cleared; preferences such
+as `openlmis.current_locale` survive.
+
+Without this, a legacy logout left us holding a dead token while still rendering as
+signed in, because nothing forced the 401 that would have corrected it.
+
+## Stopping cleanly
+
+The image inherits `STOPSIGNAL SIGQUIT` from nginx, so that is what `docker stop`
+sends, not `SIGTERM`. The entrypoint traps `TERM INT QUIT`; dropping `QUIT` would
+mean every ordinary stop skipped deregistration and left nginx proxying the prefix
+to a dead upstream until Consul's `DeregisterCriticalServiceAfter` (10m) reaped it.
 
 ## Running the stack locally
 

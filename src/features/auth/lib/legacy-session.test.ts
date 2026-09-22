@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { readLegacySession } from '@/features/auth/lib/legacy-session';
-import { adoptLegacySession, useLoginData } from '@/features/auth/store/login-data';
+import { clearLegacySession, readLegacySession } from '@/features/auth/lib/legacy-session';
+import { syncLegacySession, useLoginData } from '@/features/auth/store/login-data';
+
+function signInLegacy(token: string, username = 'administrator') {
+  localStorage.setItem('openlmis.ACCESS_TOKEN', token);
+  localStorage.setItem('openlmis.USER_ID', 'legacy-user-id');
+  localStorage.setItem('openlmis.USERNAME', username);
+}
+
+function signOutLegacy() {
+  for (const key of ['ACCESS_TOKEN', 'USER_ID', 'USERNAME', 'ROLE_ASSIGNMENTS']) {
+    localStorage.removeItem(`openlmis.${key}`);
+  }
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -9,13 +21,11 @@ beforeEach(() => {
 
 describe('readLegacySession', () => {
   it('reads the session the AngularJS UI left behind', () => {
-    localStorage.setItem('openlmis.ACCESS_TOKEN', 'legacy-token');
-    localStorage.setItem('openlmis.USER_ID', 'user-uuid');
-    localStorage.setItem('openlmis.USERNAME', 'administrator');
+    signInLegacy('legacy-token');
 
     expect(readLegacySession()).toEqual({
       accessToken: 'legacy-token',
-      referenceDataUserId: 'user-uuid',
+      referenceDataUserId: 'legacy-user-id',
       username: 'administrator',
     });
   });
@@ -43,30 +53,79 @@ describe('readLegacySession', () => {
   });
 });
 
-describe('adoptLegacySession', () => {
-  it('signs us in from the legacy session', () => {
-    localStorage.setItem('openlmis.ACCESS_TOKEN', 'legacy-token');
-    localStorage.setItem('openlmis.USERNAME', 'administrator');
+describe('clearLegacySession', () => {
+  it('removes every legacy key', () => {
+    signInLegacy('legacy-token');
+    localStorage.setItem('openlmis.ROLE_ASSIGNMENTS', '[]');
+    localStorage.setItem('openlmis.current_locale', 'en');
 
-    expect(adoptLegacySession()).toBe(true);
+    clearLegacySession();
+
+    expect(readLegacySession()).toBeNull();
+    expect(localStorage.getItem('openlmis.ROLE_ASSIGNMENTS')).toBeNull();
+    // Preferences are not session state, so they survive.
+    expect(localStorage.getItem('openlmis.current_locale')).toBe('en');
+  });
+});
+
+describe('syncLegacySession', () => {
+  it('adopts the legacy session when we have none', () => {
+    signInLegacy('legacy-token');
+
+    expect(syncLegacySession()).toBe(true);
     expect(useLoginData.getState().isAuthenticated).toBe(true);
     expect(useLoginData.getState().accessToken).toBe('legacy-token');
+    expect(useLoginData.getState().sessionSource).toBe('legacy');
   });
 
-  it('leaves an existing session alone', () => {
+  it('signs us out when the legacy UI signs out', () => {
+    signInLegacy('legacy-token');
+    syncLegacySession();
+
+    signOutLegacy();
+
+    expect(syncLegacySession()).toBe(true);
+    expect(useLoginData.getState().isAuthenticated).toBe(false);
+    expect(useLoginData.getState().accessToken).toBeNull();
+  });
+
+  it('follows the legacy UI to a different user', () => {
+    signInLegacy('first-token', 'administrator');
+    syncLegacySession();
+
+    signInLegacy('second-token', 'someone-else');
+
+    expect(syncLegacySession()).toBe(true);
+    expect(useLoginData.getState().accessToken).toBe('second-token');
+    expect(useLoginData.getState().username).toBe('someone-else');
+  });
+
+  it('leaves a session we established ourselves alone', () => {
     useLoginData.getState().setLoginData({
       accessToken: 'our-token',
       referenceDataUserId: 'our-id',
       username: 'ours',
     });
-    localStorage.setItem('openlmis.ACCESS_TOKEN', 'legacy-token');
+    signInLegacy('legacy-token');
 
-    expect(adoptLegacySession()).toBe(false);
+    expect(syncLegacySession()).toBe(false);
     expect(useLoginData.getState().accessToken).toBe('our-token');
   });
 
-  it('does nothing when there is no legacy session', () => {
-    expect(adoptLegacySession()).toBe(false);
+  it('does not sign us out of our own session when the legacy UI signs out', () => {
+    useLoginData.getState().setLoginData({
+      accessToken: 'our-token',
+      referenceDataUserId: 'our-id',
+      username: 'ours',
+    });
+    signOutLegacy();
+
+    expect(syncLegacySession()).toBe(false);
+    expect(useLoginData.getState().isAuthenticated).toBe(true);
+  });
+
+  it('is a no-op when neither side is signed in', () => {
+    expect(syncLegacySession()).toBe(false);
     expect(useLoginData.getState().isAuthenticated).toBe(false);
   });
 });
