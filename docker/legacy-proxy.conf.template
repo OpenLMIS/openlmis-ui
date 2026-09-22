@@ -2,8 +2,14 @@ server {
   listen 80;
   server_name _;
 
+  # Docker's embedded DNS, with the host in a variable so nginx resolves it per
+  # request instead of at config load. A static upstream makes the container
+  # refuse to start whenever DNS is not ready yet.
+  resolver 127.0.0.11 ipv6=off valid=30s;
+
   location / {
-    proxy_pass https://${OL_UPSTREAM};
+    set $upstream "${OL_UPSTREAM}";
+    proxy_pass https://$upstream$request_uri;
     proxy_set_header Host ${OL_UPSTREAM};
     proxy_ssl_server_name on;
     proxy_ssl_name ${OL_UPSTREAM};
