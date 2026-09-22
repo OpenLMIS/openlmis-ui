@@ -113,19 +113,10 @@ pipeline {
                 }
             }
         }
-        success {
-            script {
-                BRANCH = "${env.GIT_BRANCH}".trim()
-                if (BRANCH.equals("master") || BRANCH.startsWith("rel-")) {
-                    // Tolerated while the downstream job does not exist yet.
-                    try {
-                        build job: 'OpenLMIS-ui-deploy-to-test', wait: false
-                    } catch (exc) {
-                        echo "Deploy job not triggered: ${exc}"
-                    }
-                }
-            }
-        }
+        // No deploy is triggered on purpose. The test environment is redeployed by
+        // OpenLMIS-3.x-deploy-to-test, which tears the whole stack down including
+        // volumes, so it is run deliberately rather than on every merge. It pulls
+        // every image at the version pinned in test_env/.env, ours included.
     }
 }
 

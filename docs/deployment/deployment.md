@@ -204,9 +204,22 @@ the same image the release is built from. An ordinary build never reaches that s
 GitHub Actions still gates pull requests. It is faster and needs no Jenkins access,
 but it cannot trigger the Jenkins deploy job, so publishing stays on Jenkins.
 
-Two things have to be created in Jenkins by hand: a multibranch pipeline job for this
-repo, and a downstream `OpenLMIS-ui-deploy-to-test` job. The pipeline tolerates the
-second one being absent, so the first builds work before it exists.
+One thing has to be created in Jenkins by hand: a multibranch pipeline job for this
+repo. Copy the existing `OpenLMIS-reference-ui` job and change the branch source, so
+it inherits the scan credential, scan interval and orphaned-branch strategy.
+
+### Deploying what was published
+
+No per-component deploy job is needed. `OpenLMIS-3.x-deploy-to-test` redeploys the
+whole test stack through `restart_or_restore.sh`, which runs `docker compose pull`
+against every service at the version pinned in `test_env/.env`, ours included.
+Because `0.1.0-SNAPSHOT` is a mutable tag that each master build overwrites, running
+that job picks up the newest image.
+
+The pipeline deliberately does not trigger it. That job starts with
+`docker compose down -v`, tearing down the whole stack and its volumes, which is why
+it is labelled as something to use only when needed. Running it on every merge would
+reset the test environment each time. Deploys stay a deliberate action.
 
 ## Adding it to an environment
 
