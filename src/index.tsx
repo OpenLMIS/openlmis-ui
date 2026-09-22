@@ -6,6 +6,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TextDirectionProvider } from '@/components/text-direction';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { adoptLegacySession } from '@/features/auth/store/login-data';
 import { initI18n } from '@/integrations/i18n';
 import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
@@ -14,6 +15,9 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
 
 await initI18n();
+
+// Before the router guards read the store, so a legacy session lands on /dashboard.
+adoptLegacySession();
 
 createRoot(root).render(
   <StrictMode>

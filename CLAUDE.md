@@ -170,6 +170,31 @@ hunk - the migration gets these wrong and the border lands on the viewport edge.
 padding or borders on the wrong edge, arrows pointing the wrong way, and popovers or
 tooltips sliding in from the wrong side.
 
+### Deployment and the base path
+
+The app is deployed beside the legacy AngularJS UI under a URL prefix (`/v2`),
+routed by Consul KV rather than any nginx config. See
+[docs/deployment.md](docs/deployment.md) for the full picture.
+
+Two rules follow from the prefix:
+
+**Never hardcode an absolute path to a `public/` asset.** Vite rewrites
+`index.html` but not string literals in TS/TSX, so `src="/olmis.png"` ships
+unchanged and 404s under a prefix. Use `` `${import.meta.env.BASE_URL}olmis.png` ``.
+`BASE_URL` always ends in a slash.
+
+**`VITE_BASE_PATH` is a build input, not runtime config**, because it is compiled
+into asset URLs. It feeds Vite's `base`, and everything else derives from
+`import.meta.env.BASE_URL`: the router's `basepath`, i18next's `loadPath`, assets.
+Anything new that builds a URL should read `BASE_URL` too, never assume `/`.
+
+`VITE_API_BASE_URL` stays root-absolute (`/api`). The API is shared with the
+legacy UI and is not behind the prefix.
+
+Sessions carry over from the legacy UI: `adoptLegacySession()` reads
+`openlmis.ACCESS_TOKEN` and friends from localStorage on boot when our own store
+is empty. One-way and non-destructive.
+
 ### Design-system linting (shadcn/lint)
 
 `@shadcn/lint` checks Tailwind usage against the design system: restyling shadcn

@@ -11,7 +11,7 @@ export function Logo({ className }: LogoProps) {
     <img
       alt={appConfig.BRAND}
       className={cn('block h-5 w-auto shrink-0', className)}
-      src="/olmis.png"
+      src={`${import.meta.env.BASE_URL}olmis.png`}
     />
   );
 }
