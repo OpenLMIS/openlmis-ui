@@ -4,8 +4,9 @@ Web frontend for OpenLMIS, built with React 19, TypeScript, Vite and Tailwind CS
 
 It is designed to run **beside** the legacy AngularJS UI rather than replace it in one
 step. Both are served from the same host, the new UI under a URL prefix (`/v2`), so a
-screen can move over on its own schedule and users pick which one to use. Signing into
-either carries the session to the other.
+screen can move over on its own schedule and users pick which one to use.
+
+[docs/migration.md](docs/migration.md) explains what that looks like for users.
 
 ## Quick start
 
