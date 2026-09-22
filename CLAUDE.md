@@ -332,11 +332,19 @@ redirects authenticated ones to `/dashboard`). A `401` clears the store and retu
 Nothing talks to the API directly in development - the Vite dev server proxies `/api` to
 `VITE_API_PROXY_TARGET`, keeping the browser same-origin.
 
-Both UIs share an origin, so `adoptLegacySession()` (`src/features/auth/lib/legacy-session.ts`)
-reads the legacy AngularJS session out of localStorage on boot when our own store is empty.
-The legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,
-`openlmis.USERNAME`. One-way and non-destructive, so signing into the legacy UI carries
-into ours but nothing legacy is overwritten.
+Both UIs share an origin, so `syncLegacySession()` keeps the two sessions in step. The
+legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,
+`openlmis.USERNAME`. It runs on boot and on the `storage` event, so signing in or out of
+the legacy UI reaches a `/v2` tab that is already open.
+
+The store records a `sessionSource` (`own` or `legacy`). Only a `legacy`-sourced session
+follows the legacy UI out, so a user who signed into the new UI directly is unaffected by
+what the old one does. Our own logout calls `clearLegacySession()`, since the token is
+shared and killing it server-side while leaving the keys behind would only render a dead
+session. Preferences such as `openlmis.current_locale` are left alone.
+
+Anything touching auth state should go through the store rather than reading localStorage
+directly, or these two views of the session drift apart again.
 
 ## Environment Variables
 

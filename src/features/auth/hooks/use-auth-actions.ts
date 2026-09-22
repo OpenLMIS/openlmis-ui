@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import * as authApi from '@/features/auth/api/api';
+import { clearLegacySession } from '@/features/auth/lib/legacy-session';
 import type { LoginInput } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
 
@@ -40,6 +41,7 @@ export function useAuthActions(): AuthActions {
     } finally {
       // Clear locally even if the call failed, or an offline user stays stuck logged in.
       clearLoginData();
+      clearLegacySession();
     }
   };
 

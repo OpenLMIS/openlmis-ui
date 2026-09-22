@@ -8,7 +8,11 @@ const LEGACY_KEYS = {
   accessToken: 'ACCESS_TOKEN',
   referenceDataUserId: 'USER_ID',
   username: 'USERNAME',
+  roleAssignments: 'ROLE_ASSIGNMENTS',
 } as const;
+
+/** The key a `storage` event names when the legacy UI signs in or out. */
+export const LEGACY_TOKEN_STORAGE_KEY = `${LEGACY_PREFIX}${LEGACY_KEYS.accessToken}`;
 
 // Plain strings are stored raw, but angular-local-storage JSON-encodes other
 // values, so tolerate a quoted token rather than passing quotes to the API.
@@ -37,4 +41,18 @@ export function readLegacySession(): LoginData | null {
     referenceDataUserId: readLegacyValue(LEGACY_KEYS.referenceDataUserId) ?? '',
     username: readLegacyValue(LEGACY_KEYS.username) ?? '',
   };
+}
+
+/**
+ * Signs the legacy UI out too. The token is shared, so our logout already kills
+ * it server-side; leaving the keys behind would only render a dead session.
+ */
+export function clearLegacySession(): void {
+  try {
+    for (const key of Object.values(LEGACY_KEYS)) {
+      window.localStorage.removeItem(`${LEGACY_PREFIX}${key}`);
+    }
+  } catch {
+    // A storage failure must not stop our own logout from completing.
+  }
 }
