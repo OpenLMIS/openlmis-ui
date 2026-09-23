@@ -31,7 +31,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {
     if (useLoginData.getState().isAuthenticated) {
-      throw redirect({ to: '/dashboard' });
+      throw redirect({ to: '/home' });
     }
   },
   component: LoginPage,
@@ -53,7 +53,7 @@ function LoginPage() {
     },
     onSubmit: async ({ value }) => {
       if (await login(value)) {
-        await navigate({ to: '/dashboard' });
+        await navigate({ to: '/home' });
       }
     },
   });

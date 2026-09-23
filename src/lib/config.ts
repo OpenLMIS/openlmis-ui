@@ -1,13 +1,15 @@
 import {
-  BarChart3Icon,
-  BookOpenIcon,
-  LayoutDashboardIcon,
-  LineChartIcon,
-  SettingsIcon,
-  SparklesIcon,
-  TrendingUpIcon,
+  BellIcon,
+  CalculatorIcon,
+  ChartColumnIcon,
+  ClipboardListIcon,
+  HouseIcon,
+  RefrigeratorIcon,
+  Settings2Icon,
+  TruckIcon,
+  WarehouseIcon,
 } from 'lucide-react';
-import type { NavGroup, NavItem, SupportedLanguage, TextDirection } from '@/lib/types';
+import type { NavGroup, NavItem, NavParent, SupportedLanguage, TextDirection } from '@/lib/types';
 
 export const appConfig = {
   BRAND: 'OpenLMIS',
@@ -32,25 +34,105 @@ export function getTextDirection(language: string | undefined): TextDirection {
 // Drives both the sidebar and the command palette.
 export const NAV_GROUPS: NavGroup[] = [
   {
-    labelKey: 'nav.main',
-    items: [{ titleKey: 'dashboard.title', to: '/dashboard', icon: LayoutDashboardIcon }],
-  },
-  {
-    labelKey: 'nav.analytics',
     items: [
-      { titleKey: 'nav.reports', to: '#', icon: BarChart3Icon },
-      { titleKey: 'nav.insights', to: '#', icon: SparklesIcon },
-      { titleKey: 'nav.trends', to: '#', icon: TrendingUpIcon },
-      { titleKey: 'nav.metrics', to: '#', icon: LineChartIcon },
+      { titleKey: 'home.title', to: '/home', icon: HouseIcon },
+      { titleKey: 'nav.notifications', to: '#', icon: BellIcon },
     ],
   },
   {
-    labelKey: 'nav.other',
+    labelKey: 'nav.menu',
     items: [
-      { titleKey: 'nav.documentation', to: '#', icon: BookOpenIcon },
-      { titleKey: 'nav.settings', to: '#', icon: SettingsIcon },
+      {
+        titleKey: 'nav.buq',
+        icon: CalculatorIcon,
+        items: [
+          { titleKey: 'nav.buq.prepare', to: '#' },
+          { titleKey: 'nav.buq.create-authorize', to: '#' },
+          { titleKey: 'nav.buq.approve', to: '#' },
+          { titleKey: 'nav.buq.national-approvals', to: '#' },
+        ],
+      },
+      {
+        titleKey: 'nav.cce',
+        icon: RefrigeratorIcon,
+        items: [{ titleKey: 'nav.cce.inventory', to: '#' }],
+      },
+      {
+        titleKey: 'nav.orders',
+        icon: TruckIcon,
+        items: [
+          { titleKey: 'nav.orders.fulfill', to: '#' },
+          { titleKey: 'nav.orders.proof-of-delivery', to: '#' },
+          { titleKey: 'nav.orders.view', to: '#' },
+        ],
+      },
+      {
+        titleKey: 'nav.reports',
+        icon: ChartColumnIcon,
+        items: [{ titleKey: 'nav.reports.view', to: '#' }],
+      },
+      {
+        titleKey: 'nav.requisitions',
+        icon: ClipboardListIcon,
+        items: [
+          { titleKey: 'nav.requisitions.create-orders', to: '#' },
+          { titleKey: 'nav.requisitions.create-authorize', to: '#' },
+          { titleKey: 'nav.requisitions.approve', to: '#' },
+          { titleKey: 'nav.requisitions.convert-to-order', to: '#' },
+          { titleKey: 'nav.requisitions.view', to: '#' },
+        ],
+      },
+      {
+        titleKey: 'nav.stock-management',
+        icon: WarehouseIcon,
+        items: [
+          { titleKey: 'nav.stock-management.unpack', to: '#' },
+          { titleKey: 'nav.stock-management.issue', to: '#' },
+          { titleKey: 'nav.stock-management.receive', to: '#' },
+          { titleKey: 'nav.stock-management.physical-inventory', to: '#' },
+          { titleKey: 'nav.stock-management.adjustments', to: '#' },
+          { titleKey: 'nav.stock-management.stock-on-hand', to: '#' },
+        ],
+      },
+      {
+        titleKey: 'nav.administration',
+        icon: Settings2Icon,
+        items: [
+          { titleKey: 'nav.administration.manage-buq', to: '#' },
+          { titleKey: 'nav.administration.data-export', to: '#' },
+          { titleKey: 'nav.administration.data-import', to: '#' },
+          { titleKey: 'nav.administration.reports', to: '#' },
+          { titleKey: 'nav.administration.report-categories', to: '#' },
+          { titleKey: 'nav.administration.equipment', to: '#' },
+          { titleKey: 'nav.administration.facilities', to: '#' },
+          { titleKey: 'nav.administration.facility-types', to: '#' },
+          { titleKey: 'nav.administration.geographic-zones', to: '#' },
+          { titleKey: 'nav.administration.ideal-stock-amounts', to: '#' },
+          { titleKey: 'nav.administration.lots', to: '#' },
+          { titleKey: 'nav.administration.one-network-integration', to: '#' },
+          { titleKey: 'nav.administration.products', to: '#' },
+          { titleKey: 'nav.administration.processing-schedules', to: '#' },
+          { titleKey: 'nav.administration.programs', to: '#' },
+          { titleKey: 'nav.administration.reasons', to: '#' },
+          { titleKey: 'nav.administration.rejection-reason-category', to: '#' },
+          { titleKey: 'nav.administration.rejection-reason', to: '#' },
+          { titleKey: 'nav.administration.requisition-groups', to: '#' },
+          { titleKey: 'nav.administration.requisition-templates', to: '#' },
+          { titleKey: 'nav.administration.roles', to: '#' },
+          { titleKey: 'nav.administration.service-accounts', to: '#' },
+          { titleKey: 'nav.administration.supervisory-nodes', to: '#' },
+          { titleKey: 'nav.administration.supply-lines', to: '#' },
+          { titleKey: 'nav.administration.supply-partners', to: '#' },
+          { titleKey: 'nav.administration.system-notifications', to: '#' },
+          { titleKey: 'nav.administration.users', to: '#' },
+          { titleKey: 'nav.administration.valid-destinations', to: '#' },
+          { titleKey: 'nav.administration.valid-sources', to: '#' },
+        ],
+      },
     ],
   },
 ];
 
-export const NAV_LINKS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
+export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
+
+export const isNavParent = (item: NavItem): item is NavParent => 'items' in item;

@@ -18,7 +18,7 @@ if (!root) throw new Error('Root element not found');
 
 await Promise.all([initI18n(), loadRuntimeConfig()]);
 
-// Before the router guards read the store, so a legacy session lands on /dashboard.
+// Before the router guards read the store, so a legacy session lands on /home.
 syncLegacySession();
 
 // `storage` fires in the other tabs, so signing out of the legacy UI signs us out too.

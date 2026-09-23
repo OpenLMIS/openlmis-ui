@@ -8,22 +8,22 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 
-export const Route = createFileRoute('/(protected)/_protected/dashboard')({
-  component: DashboardPage,
+export const Route = createFileRoute('/(protected)/_protected/home')({
+  component: HomePage,
 });
 
-function DashboardPage() {
+function HomePage() {
   const { t } = useTranslation();
 
   return (
     <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
-          <WorkspaceTitle>{t('dashboard.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('dashboard.description')}</WorkspaceDescription>
+          <WorkspaceTitle>{t('home.title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('home.description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
-      {/* TODO: Add WorkspaceContent once there are dashboard widgets to show. */}
+      {/* TODO: Add WorkspaceContent once there are home widgets to show. */}
     </Workspace>
   );
 }

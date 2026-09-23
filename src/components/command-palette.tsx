@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
-import { SearchIcon } from 'lucide-react';
+import type { ParseKeys } from 'i18next';
+import { type LucideIcon, SearchIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,12 +13,28 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
-import { NAV_GROUPS } from '@/lib/config';
-import type { NavItem } from '@/lib/types';
+import { isNavParent, NAV_ITEMS } from '@/lib/config';
+import type { NavItem, NavLink } from '@/lib/types';
 
-type RoutedNavItem = NavItem & { to: Exclude<NavItem['to'], '#'> };
+type RoutedNavLink = NavLink & { to: Exclude<NavLink['to'], '#'> };
 
-const isRouted = (item: NavItem): item is RoutedNavItem => item.to !== '#';
+type PaletteSection = {
+  headingKey?: ParseKeys;
+  icon?: LucideIcon;
+  links: RoutedNavLink[];
+};
+
+const isRouted = (link: NavLink): link is RoutedNavLink => link.to !== '#';
+
+// Top-level links share one unlabelled section; each parent becomes a section headed by its title.
+const toSections = (items: NavItem[]): PaletteSection[] => [
+  { links: items.filter((item): item is NavLink => !isNavParent(item)).filter(isRouted) },
+  ...items.filter(isNavParent).map((parent) => ({
+    headingKey: parent.titleKey,
+    ...(parent.icon && { icon: parent.icon }),
+    links: parent.items.filter(isRouted),
+  })),
+];
 
 export function CommandPalette() {
   const { t } = useTranslation();
@@ -37,10 +54,7 @@ export function CommandPalette() {
   }, []);
 
   // Placeholder nav entries (`to: '#'`) have nowhere to navigate, so they stay out.
-  const groups = NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter(isRouted),
-  })).filter((group) => group.items.length > 0);
+  const sections = toSections(NAV_ITEMS).filter((section) => section.links.length > 0);
 
   return (
     <>
@@ -67,26 +81,29 @@ export function CommandPalette() {
           <CommandInput placeholder={t('command.placeholder')} />
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
-            {groups.map((group) => (
-              <CommandGroup heading={t(group.labelKey)} key={group.labelKey}>
-                {group.items.map((item) => {
-                  const title = t(item.titleKey);
-                  return (
-                    <CommandItem
-                      key={`${group.labelKey}-${item.titleKey}`}
-                      onSelect={() => {
-                        setOpen(false);
-                        navigate({ to: item.to });
-                      }}
-                      value={title}
-                    >
-                      {item.icon && <item.icon />}
-                      <span>{title}</span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            ))}
+            {sections.map((section) => {
+              const heading = section.headingKey && t(section.headingKey);
+              return (
+                <CommandGroup heading={heading} key={section.headingKey ?? 'top-level'}>
+                  {section.links.map((link) => {
+                    const title = t(link.titleKey);
+                    return (
+                      <CommandItem
+                        key={link.titleKey}
+                        onSelect={() => {
+                          setOpen(false);
+                          navigate({ to: link.to });
+                        }}
+                        value={heading ? `${heading} ${title}` : title}
+                      >
+                        {link.icon ? <link.icon /> : section.icon && <section.icon />}
+                        <span>{title}</span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              );
+            })}
           </CommandList>
         </Command>
       </CommandDialog>
