@@ -114,12 +114,17 @@ Each feature is self-contained under `src/features/<name>/`:
 
 Shared code lives in `src/lib/` (utils, types, constants, config, key-factory).
 
-**A feature never imports another feature.** When two features need the same thing, it
-moves to a shared folder, or the route composes them and passes data down as props.
-OpenLMIS reference data that many screens look up (facilities, and soon programs,
-supervisory nodes and roles) lives in `src/lib/reference-data/`, one file per resource
-with its type, fetch and query options. `src/routes/` is the one layer that may import
-any feature, since composing them is its job.
+**A feature never imports another feature**, with one exception below. When two
+features need the same thing, it moves to a shared folder, or the route composes them and
+passes data down as props. `src/routes/` may import any feature, since composing them is
+its job.
+
+**`src/features/reference-data/` is the exception: every feature may import it.** It holds
+the OpenLMIS reference data many screens look up (facilities, and soon programs,
+supervisory nodes and roles), named after the backend's `referencedata` service. It has the
+usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
+turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
+facilities list, is a feature of its own.
 
 ### Internationalization (i18next)
 

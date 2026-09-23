@@ -15,6 +15,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { userDetailsOptions, usersListOptions } from '@/features/users/api/queries';
 import { UsersTable, UsersTableSkeleton } from '@/features/users/components/users-table';
 import { UsersToolbar } from '@/features/users/components/users-toolbar';
@@ -25,7 +26,6 @@ import {
   usersSearchSchema,
 } from '@/features/users/lib/search';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { minimalFacilitiesOptions } from '@/lib/reference-data/facilities';
 import type { SearchUpdate } from '@/lib/table-search';
 
 // Its own chunk: the list paints without the form, and the chunk is fetched right after.

@@ -37,6 +37,7 @@ import {
   FieldTitle,
 } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
+import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
 import type { UsersSearch } from '@/features/users/lib/search';
@@ -49,7 +50,6 @@ import {
   userFormSchema,
 } from '@/features/users/lib/user-form';
 import { queryKeys } from '@/lib/key-factory';
-import { minimalFacilitiesOptions } from '@/lib/reference-data/facilities';
 
 type DialogTarget = NonNullable<UsersSearch['user']>;
 
