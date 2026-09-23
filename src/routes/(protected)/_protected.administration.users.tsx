@@ -16,6 +16,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { usersListOptions } from '@/features/users/api/queries';
+import { UserFormDialog } from '@/features/users/components/user-form-dialog';
 import { UsersTable, UsersTableSkeleton } from '@/features/users/components/users-table';
 import { UsersToolbar } from '@/features/users/components/users-toolbar';
 import {
@@ -40,7 +41,12 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 function UsersPage() {
   const { t } = useTranslation();
-  const search = Route.useSearch();
+  // Without the dialog's param, and shared structurally, so opening a dialog leaves the table alone.
+  const search = Route.useSearch({
+    select: ({ user: _dialog, ...list }): UsersSearch => list,
+    structuralSharing: true,
+  });
+  const dialogTarget = Route.useSearch({ select: (current) => current.user });
   const navigate = Route.useNavigate();
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
@@ -62,6 +68,15 @@ function UsersPage() {
       }),
     [navigate],
   );
+  // Opening adds a history entry, so Back closes the dialog; closing replaces it.
+  const openUserDialog = useCallback(
+    (user: 'new' | string) => updateSearch({ user }),
+    [updateSearch],
+  );
+  const closeUserDialog = useCallback(
+    () => updateSearch({ user: undefined }, true),
+    [updateSearch],
+  );
 
   return (
     <Workspace>
@@ -79,6 +94,7 @@ function UsersPage() {
         <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
           <UsersToolbar
             columnView={columnView}
+            onAdd={() => openUserDialog('new')}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
@@ -97,11 +113,13 @@ function UsersPage() {
           >
             <UsersTable
               columnVisibility={columnView.visibility}
+              onEdit={openUserDialog}
               onSearchChange={updateSearch}
               search={search}
             />
           </QueryBoundary>
         </div>
+        <UserFormDialog onClose={closeUserDialog} target={dialogTarget} />
       </WorkspaceContent>
     </Workspace>
   );
