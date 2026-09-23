@@ -20,7 +20,14 @@ import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FieldGroup } from '@/components/ui/field';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions } from '@/features/facilities/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
@@ -230,7 +237,7 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
             {() => (
               <QueryBoundary
                 errorComponent={() => <FacilitiesError />}
-                pendingFallback={<FieldSkeleton />}
+                pendingFallback={<FieldSkeleton label={t('users.form.home-facility')} />}
                 resetKey="facilities"
               >
                 <HomeFacilityCombobox />
@@ -260,7 +267,7 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
 
           <form.AppField name="active">
             {(field) => (
-              <field.SwitchField
+              <field.CheckboxField
                 description={t('users.form.active-description')}
                 label={t('users.form.active')}
               />
@@ -270,7 +277,7 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
           {isEdit && (
             <form.AppField name="allowNotify">
               {(field) => (
-                <field.SwitchField
+                <field.CheckboxField
                   description={
                     emailVerified
                       ? t('users.form.allow-notify-description')
@@ -341,31 +348,88 @@ function FacilitiesError() {
   );
 }
 
-function FieldSkeleton() {
+/** One line of small text: its line height with a bar inside, so it takes the room the text will. */
+function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="h-4 w-24">
-        <Skeleton fill />
-      </div>
-      <div className="h-8 w-full">
+    <div className="flex h-4 items-center">
+      <div className={width === 'short' ? 'h-3 w-32' : 'h-3 w-56'}>
         <Skeleton fill />
       </div>
     </div>
   );
 }
 
+/** The field's real label over a placeholder input, since only the value is still loading. */
+function FieldSkeleton({ label, required = false }: { label: string; required?: boolean }) {
+  return (
+    <Field spacing="tight">
+      <FieldLabel>
+        <span>
+          {label}
+          {required && (
+            <span aria-hidden="true" className="ms-0.5 text-destructive">
+              *
+            </span>
+          )}
+        </span>
+      </FieldLabel>
+      <div className="h-8 w-full">
+        <Skeleton fill />
+      </div>
+    </Field>
+  );
+}
+
+function CheckboxSkeleton({ label, description }: { label: string; description?: string }) {
+  return (
+    <FieldLabel>
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldTitle>{label}</FieldTitle>
+          {description ? (
+            <FieldDescription size="sm">{description}</FieldDescription>
+          ) : (
+            <SkeletonLine width="medium" />
+          )}
+        </FieldContent>
+        <div className="size-4 shrink-0">
+          <Skeleton fill />
+        </div>
+      </Field>
+    </FieldLabel>
+  );
+}
+
+/** The edit form as it will look, laid out the same, so nothing moves when the user arrives. */
 function UserFormSkeleton() {
   const { t } = useTranslation();
 
   return (
     <>
-      <FormDialogHeader title={t('users.form.edit-title')} />
+      <FormDialogHeader
+        description={<SkeletonLine width="short" />}
+        title={t('users.form.edit-title')}
+      />
       <FormDialogBody>
-        <div aria-busy className="flex flex-col gap-5">
-          {Array.from({ length: 5 }, (_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: identical placeholders with nothing else to key on.
-            <FieldSkeleton key={index} />
-          ))}
+        <div aria-busy>
+          <FieldGroup>
+            <FieldSkeleton label={t('users.username')} required />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FieldSkeleton label={t('users.form.first-name')} required />
+              <FieldSkeleton label={t('users.form.last-name')} required />
+            </div>
+            <FieldSkeleton label={t('users.email')} />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FieldSkeleton label={t('users.form.job-title')} />
+              <FieldSkeleton label={t('users.form.phone-number')} />
+            </div>
+            <FieldSkeleton label={t('users.form.home-facility')} />
+            <CheckboxSkeleton
+              description={t('users.form.active-description')}
+              label={t('users.form.active')}
+            />
+            <CheckboxSkeleton label={t('users.form.allow-notify')} />
+          </FieldGroup>
         </div>
       </FormDialogBody>
       <FormDialogFooter>

@@ -72,9 +72,9 @@ export function FormDialogHeader({ title, description }: FormDialogHeaderProps) 
   return (
     // Room at the end for the close button, so a long title never runs under it.
     <div className="pe-8">
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        {description && <DialogDescription>{description}</DialogDescription>}
+      <DialogHeader spacing="tight">
+        <DialogTitle size="lg">{title}</DialogTitle>
+        {description && <DialogDescription size="sm">{description}</DialogDescription>}
       </DialogHeader>
     </div>
   );

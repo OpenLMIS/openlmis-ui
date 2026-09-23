@@ -45,7 +45,9 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
           />
         )}
       </form.AppField>
-      <form.AppField name="active">{(field) => <field.SwitchField label="Active" />}</form.AppField>
+      <form.AppField name="active">
+        {(field) => <field.CheckboxField label="Active" />}
+      </form.AppField>
       <button type="submit">Save</button>
     </form>
   );
@@ -76,14 +78,14 @@ describe('form fields', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('stores the picked item by value and turns the switch off', async () => {
+  it('stores the picked item by value and unticks the checkbox', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm();
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
     await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
     await user.click(await screen.findByRole('option', { name: 'HF01 - Kankao Health Facility' }));
-    await user.click(screen.getByRole('switch', { name: 'Active' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Active' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onSubmit).toHaveBeenCalledWith({ name: 'Ada', facility: 'f2', active: false });

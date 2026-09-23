@@ -100,11 +100,19 @@ function DialogContent({
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function DialogHeader({
+  className,
+  spacing = "default",
+  ...props
+}: React.ComponentProps<"div"> & { spacing?: "default" | "tight" }) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn(
+        "flex flex-col",
+        spacing === "tight" ? "gap-1" : "gap-2",
+        className
+      )}
       {...props}
     />
   )
@@ -137,12 +145,17 @@ function DialogFooter({
   )
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+function DialogTitle({
+  className,
+  size = "default",
+  ...props
+}: DialogPrimitive.Title.Props & { size?: "default" | "lg" }) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "font-heading leading-none",
+        size === "lg" ? "text-lg/none font-semibold" : "text-base font-medium",
         className
       )}
       {...props}
@@ -152,13 +165,15 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
 
 function DialogDescription({
   className,
+  size = "default",
   ...props
-}: DialogPrimitive.Description.Props) {
+}: DialogPrimitive.Description.Props & { size?: "default" | "sm" }) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        size === "sm" ? "text-xs" : "text-sm",
         className
       )}
       {...props}

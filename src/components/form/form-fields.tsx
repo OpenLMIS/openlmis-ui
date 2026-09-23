@@ -16,9 +16,9 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  FieldTitle,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 
 type FieldProps = {
   label: ReactNode;
@@ -42,7 +42,7 @@ function useFieldErrors() {
   return { errors, isInvalid: errors.length > 0 };
 }
 
-function FieldTitle({ label, required }: Pick<FieldProps, 'label' | 'required'>) {
+function RequiredLabel({ label, required }: Pick<FieldProps, 'label' | 'required'>) {
   const field = useFieldContext<unknown>();
   return (
     <FieldLabel htmlFor={field.name}>
@@ -77,8 +77,8 @@ export function TextField({
   const { errors, isInvalid } = useFieldErrors();
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid}>
-      <FieldTitle label={label} required={required} />
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <RequiredLabel label={label} required={required} />
       <Input
         aria-invalid={isInvalid}
         aria-required={required}
@@ -98,44 +98,26 @@ export function TextField({
   );
 }
 
-/** An on/off setting: label and description at the start, the switch at the end. */
-export function SwitchField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
-  const field = useFieldContext<boolean>();
-
-  return (
-    <Field data-disabled={disabled} orientation="horizontal">
-      <FieldContent>
-        <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
-        {description && <FieldDescription>{description}</FieldDescription>}
-      </FieldContent>
-      <Switch
-        checked={field.state.value}
-        disabled={disabled}
-        id={field.name}
-        name={field.name}
-        onCheckedChange={(checked) => field.handleChange(checked)}
-      />
-    </Field>
-  );
-}
-
+/** A yes/no setting as a card: label and description at the start, the checkbox at the end, all one click target. */
 export function CheckboxField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
   const field = useFieldContext<boolean>();
 
   return (
-    <Field data-disabled={disabled} orientation="horizontal">
-      <Checkbox
-        checked={field.state.value}
-        disabled={disabled}
-        id={field.name}
-        name={field.name}
-        onCheckedChange={(checked) => field.handleChange(checked)}
-      />
-      <FieldContent>
-        <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
-        {description && <FieldDescription>{description}</FieldDescription>}
-      </FieldContent>
-    </Field>
+    <FieldLabel htmlFor={field.name}>
+      <Field data-disabled={disabled} orientation="horizontal">
+        <FieldContent>
+          <FieldTitle>{label}</FieldTitle>
+          {description && <FieldDescription size="sm">{description}</FieldDescription>}
+        </FieldContent>
+        <Checkbox
+          checked={field.state.value}
+          disabled={disabled}
+          id={field.name}
+          name={field.name}
+          onCheckedChange={(checked) => field.handleChange(checked)}
+        />
+      </Field>
+    </FieldLabel>
   );
 }
 
@@ -174,8 +156,8 @@ export function ComboboxField({
   );
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid}>
-      <FieldTitle label={label} required={required} />
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <RequiredLabel label={label} required={required} />
       <Combobox
         disabled={disabled}
         isItemEqualToValue={(item, value) => item.value === value.value}
