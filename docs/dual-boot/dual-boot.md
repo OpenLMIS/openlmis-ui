@@ -17,7 +17,7 @@ Both are served from the same address. Only the path differs.
 | New UI | `https://<server>/v2/` |
 
 So a facility on the old UI is at `/#!/administration/facilities`, and the new
-dashboard is at `/v2/dashboard`. Nothing about the old UI changes, and no existing
+home page is at `/v2/home`. Nothing about the old UI changes, and no existing
 link or bookmark breaks.
 
 The `/v2` prefix is configurable. It is chosen when the container image is built.
@@ -28,7 +28,7 @@ Per screen, not per session. Both are running, so a user can work in the old UI 
 morning, open one screen in the new one, and go back. There is no switch to flip and
 no migration a user has to opt into.
 
-Today the new UI has a dashboard and a login page, so in practice everyone still
+Today the new UI has a home page and a login page, so in practice everyone still
 works in the existing UI. That changes as screens are rebuilt.
 
 ## Signing in and out

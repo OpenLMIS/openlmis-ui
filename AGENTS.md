@@ -45,7 +45,7 @@ Routes live in `src/routes/`. The route tree is auto-generated (`src/route-tree.
 The protected layout is an icon-collapsible sidebar (`Ctrl/Cmd+B`) plus a top bar, adapted
 from the `@7ovr/app-shell-1` block. `NAV_GROUPS` in `src/lib/config.ts` is the single
 source for both the sidebar menu and the `Ctrl/Cmd+K` command palette. Entries with
-`to: '#'` are placeholders that render as non-navigating buttons and stay out of the
+`to: '#'` are pages not migrated yet: they render disabled and stay out of the
 palette, which only lists real routes.
 
 ### Data fetching pattern
@@ -229,7 +229,7 @@ Two ways out when a page needs a different treatment:
    `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
-   `SidebarFooter padding`.
+   `SidebarFooter padding`, `SidebarMenuSub end`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -336,7 +336,7 @@ carries `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)
 The token lives in a persisted zustand store (`src/features/auth/store/login-data.ts`),
 which is read outside React by the axios request interceptor (attaches the bearer token)
 and by the router guards (`_protected.tsx` redirects anonymous users to `/login`; `/login`
-redirects authenticated ones to `/dashboard`). A `401` clears the store and returns to
+redirects authenticated ones to `/home`). A `401` clears the store and returns to
 `/login`.
 
 Nothing talks to the API directly in development - the Vite dev server proxies `/api` to

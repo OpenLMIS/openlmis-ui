@@ -136,7 +136,7 @@ It also means writing legacy's cache format exactly, quirks included:
 `isDirect`. That format belongs to a specific `reference-ui` version, so this
 couples us to whichever one an environment pins.
 
-The trade is not worth it while `/v2` is a dashboard and effectively everyone starts
+The trade is not worth it while `/v2` is only a home page and effectively everyone starts
 in the legacy UI, where the handoff already works with no extra login. Revisit when
 `/v2` has screens people land on first.
 

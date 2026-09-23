@@ -2,15 +2,24 @@ import type { LinkProps } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import type { LucideIcon } from 'lucide-react';
 
-export type NavItem = {
+export type NavLink = {
   titleKey: ParseKeys;
-  /** `'#'` marks a placeholder that renders as a non-navigating button. */
+  /** `'#'` marks a page that is not migrated yet; it renders disabled. */
   to: LinkProps['to'] | '#';
   icon?: LucideIcon;
 };
 
+/** Expands in place in the sidebar and opens as a flyout menu when the sidebar is collapsed. */
+export type NavParent = {
+  titleKey: ParseKeys;
+  icon?: LucideIcon;
+  items: NavLink[];
+};
+
+export type NavItem = NavLink | NavParent;
+
 export type NavGroup = {
-  labelKey: ParseKeys;
+  labelKey?: ParseKeys;
   items: NavItem[];
 };
 

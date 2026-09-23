@@ -14,12 +14,14 @@ export function AppShellSkeleton() {
 
         <div className="flex flex-1 flex-col gap-6 p-3">
           {NAV_GROUPS.map((group) => (
-            <div className="flex flex-col gap-2" key={group.labelKey}>
-              <div className="h-3 w-16">
-                <Skeleton fill />
-              </div>
+            <div className="flex flex-col gap-2" key={group.labelKey ?? group.items[0]?.titleKey}>
+              {group.labelKey && (
+                <div className="h-3 w-16">
+                  <Skeleton fill />
+                </div>
+              )}
               {group.items.map((item) => (
-                <SidebarMenuSkeleton key={`${group.labelKey}-${item.titleKey}`} showIcon />
+                <SidebarMenuSkeleton key={item.titleKey} showIcon />
               ))}
             </div>
           ))}
