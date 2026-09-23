@@ -27,6 +27,10 @@ export const usersSearchSchema = tableSearchSchema(USER_SORT_FIELDS).extend({
     .union([z.literal('new'), z.guid()])
     .optional()
     .catch(undefined),
+  /** The user whose password is being set or reset. */
+  password: z.guid().optional().catch(undefined),
+  /** Set with `password` right after an add, when the user has no password yet. */
+  created: z.boolean().optional().catch(undefined),
 });
 
 export type UsersSearch = z.infer<typeof usersSearchSchema>;

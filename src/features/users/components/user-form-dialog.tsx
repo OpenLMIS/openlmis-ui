@@ -6,13 +6,17 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
-import { AlertCircleIcon, CheckIcon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { CheckIcon } from 'lucide-react';
+import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
-import { CheckboxField, ComboboxField, FieldLabelText } from '@/components/form/form-fields';
+import {
+  CheckboxField,
+  ChoiceCard,
+  ComboboxField,
+  FieldLabelText,
+} from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -24,27 +28,28 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldTitle,
-} from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
+import {
+  DialogLoadError,
+  ErrorAlert,
+  RetryButton,
+  SkeletonLine,
+  serverMessage,
+} from '@/features/users/components/dialog-parts';
 import type { UsersSearch } from '@/features/users/lib/search';
 import type { UserDetails } from '@/features/users/lib/types';
 import {
   countHomeFacilityRoles,
   EMPTY_USER_FORM,
+  toAuthUser,
+  toContactDetails,
   toUserFormValues,
   type UserFormValues,
   userFormSchema,
@@ -59,25 +64,17 @@ const saveKey = (target: DialogTarget) => [...queryKeys.users.all, 'save', targe
 type UserFormDialogProps = {
   target: UsersSearch['user'];
   onClose: () => void;
+  /** Takes over from `onClose` after an add, e.g. to go on to setting a password. */
+  onCreated: (userId: string) => void;
 };
 
-export function UserFormDialog({ target, onClose }: UserFormDialogProps) {
-  // Kept through the close animation, so the dialog does not blank out as it fades.
-  const [shown, setShown] = useState(target);
-  if (target !== undefined && target !== shown) setShown(target);
+export function UserFormDialog({ target, onClose, onCreated }: UserFormDialogProps) {
+  const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
-    <FormDialog
-      onOpenChange={(open) => {
-        if (!open && !isSaving) onClose();
-      }}
-      onOpenChangeComplete={(open) => {
-        if (!open) setShown(undefined);
-      }}
-      open={target !== undefined}
-    >
-      {shown === 'new' && <UserForm onDone={onClose} />}
+    <FormDialog {...dialogProps(isSaving)}>
+      {shown === 'new' && <UserForm onCreated={onCreated} onDone={onClose} />}
       {shown !== undefined && shown !== 'new' && (
         <EditUserForm key={shown} onDone={onClose} userId={shown} />
       )}
@@ -96,19 +93,7 @@ function EditUserForm({ userId, onDone }: EditUserFormProps) {
   return (
     <QueryBoundary
       errorComponent={({ reset }) => (
-        <>
-          <FormDialogHeader>
-            <FormDialogTitle>{t('users.form.edit-title')}</FormDialogTitle>
-          </FormDialogHeader>
-          <ErrorAlert
-            action={<RetryButton onClick={reset} />}
-            description={t('users.error-description')}
-            title={t('users.form.load-error-title')}
-          />
-          <FormDialogFooter>
-            <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
-          </FormDialogFooter>
-        </>
+        <DialogLoadError onRetry={reset} title={t('users.form.edit-title')} />
       )}
       pendingFallback={<UserFormSkeleton />}
       resetKey={userId}
@@ -123,19 +108,13 @@ function LoadedEditUserForm({ userId, onDone }: EditUserFormProps) {
   return <UserForm details={data} onDone={onDone} />;
 }
 
-/** The server's own message when it sent one, e.g. that a username is taken. */
-function saveErrorMessage(error: unknown): string | undefined {
-  if (!isAxiosError(error)) return undefined;
-  const message = (error.response?.data as { message?: unknown } | undefined)?.message;
-  return typeof message === 'string' && message ? message : undefined;
-}
-
 type UserFormProps = {
   details?: UserDetails;
   onDone: () => void;
+  onCreated?: (userId: string) => void;
 };
 
-function UserForm({ details, onDone }: UserFormProps) {
+function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isEdit = details !== undefined;
@@ -147,8 +126,18 @@ function UserForm({ details, onDone }: UserFormProps) {
   const save = useMutation({
     mutationKey: saveKey(details?.user.id ?? 'new'),
     mutationFn: async (values: UserFormValues) => {
-      if (details) await updateUser(details, values);
-      else await createUser(values);
+      if (details) {
+        await updateUser(details, values);
+        return details.user.id;
+      }
+      const user = await createUser(values);
+      // Setting a password comes next and needs this user; it is all known now, so it opens without a fetch.
+      queryClient.setQueryData(userDetailsOptions(user.id).queryKey, {
+        user,
+        contact: toContactDetails(user.id, values),
+        auth: toAuthUser(user.id, values),
+      });
+      return user.id;
     },
     onSuccess: (_, values) => {
       toast.success(
@@ -167,7 +156,12 @@ function UserForm({ details, onDone }: UserFormProps) {
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: userFormSchema },
     // Closing is tied to this call, so a save that ends after the dialog closed cannot close another.
-    onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
+    onSubmit: ({ value }) =>
+      save
+        .mutateAsync(value, {
+          onSuccess: (userId) => (!isEdit && onCreated ? onCreated(userId) : onDone()),
+        })
+        .catch(() => undefined),
   });
 
   return (
@@ -186,7 +180,7 @@ function UserForm({ details, onDone }: UserFormProps) {
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={saveErrorMessage(save.error) ?? t('users.form.save-error')}
+              description={serverMessage(save.error) ?? t('users.form.save-error')}
               title={t('users.form.save-error-title')}
             />
           )}
@@ -315,32 +309,6 @@ function FieldRow({ children }: { children: ReactNode }) {
   return <div className="grid gap-5 sm:grid-cols-2">{children}</div>;
 }
 
-type ErrorAlertProps = {
-  title: string;
-  description: string;
-  action?: ReactNode;
-};
-
-function ErrorAlert({ title, description, action }: ErrorAlertProps) {
-  return (
-    <Alert variant="destructive">
-      <AlertCircleIcon />
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{description}</AlertDescription>
-      {action && <AlertAction>{action}</AlertAction>}
-    </Alert>
-  );
-}
-
-function RetryButton({ onClick }: { onClick: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <Button onClick={onClick} size="sm" type="button" variant="outline">
-      {t('error.try-again')}
-    </Button>
-  );
-}
-
 function EmailStatus({ verified }: { verified: boolean }) {
   const { t } = useTranslation();
   return verified ? (
@@ -401,17 +369,6 @@ function RemoveHomeFacilityRoles({
   );
 }
 
-/** One line of small text: its line height with a bar inside, so it takes the room the text will. */
-function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
-  return (
-    <div className="flex h-4 items-center">
-      <div className={width === 'short' ? 'h-3 w-32' : 'h-3 w-56'}>
-        <Skeleton fill />
-      </div>
-    </div>
-  );
-}
-
 /** The field's real label over a placeholder input, since only the value is still loading. */
 function FieldSkeleton({ label, required = false }: { label: string; required?: boolean }) {
   return (
@@ -428,21 +385,11 @@ function FieldSkeleton({ label, required = false }: { label: string; required?: 
 
 function CheckboxSkeleton({ label, description }: { label: string; description?: string }) {
   return (
-    <FieldLabel>
-      <Field orientation="horizontal">
-        <FieldContent>
-          <FieldTitle>{label}</FieldTitle>
-          {description ? (
-            <FieldDescription size="sm">{description}</FieldDescription>
-          ) : (
-            <SkeletonLine width="medium" />
-          )}
-        </FieldContent>
-        <div className="size-4 shrink-0">
-          <Skeleton fill />
-        </div>
-      </Field>
-    </FieldLabel>
+    <ChoiceCard description={description ?? <SkeletonLine width="medium" />} label={label}>
+      <div className="size-4 shrink-0">
+        <Skeleton fill />
+      </div>
+    </ChoiceCard>
   );
 }
 

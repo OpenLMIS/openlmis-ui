@@ -126,3 +126,12 @@ export async function updateUser(details: UserDetails, values: UserFormValues): 
   await client.put(`/userContactDetails/${id}`, toContactDetails(id, values, details.contact));
   await client.post('/users/auth', toAuthUser(id, values));
 }
+
+export async function setUserPassword(username: string, newPassword: string): Promise<void> {
+  await client.post('/users/auth/passwordReset', { username, newPassword });
+}
+
+/** Emails a link where the user chooses a password themselves. */
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  await client.post('/users/auth/forgotPassword', undefined, { params: { email } });
+}

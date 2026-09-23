@@ -1,9 +1,8 @@
-import { useForm } from '@tanstack/react-form';
+import { revalidateLogic } from '@tanstack/react-form';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import type { ParseKeys } from 'i18next';
-import { EyeIcon, EyeOffIcon, Loader2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { Loader2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAppForm } from '@/components/form/form';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
 import { ThemeSwitcher } from '@/components/theme-switcher';
@@ -16,14 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { FieldGroup } from '@/components/ui/field';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -41,27 +33,20 @@ function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuthActions();
-  const [showPassword, setShowPassword] = useState(false);
 
-  const form = useForm({
+  const form = useAppForm({
     defaultValues: {
       username: '',
       password: '',
     },
-    validators: {
-      onSubmit: loginSchema,
-    },
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: loginSchema },
     onSubmit: async ({ value }) => {
       if (await login(value)) {
         await navigate({ to: '/home' });
       }
     },
   });
-
-  const translateErrors = (errors: Array<{ message?: string } | undefined>) =>
-    errors.map((error) => ({
-      message: error?.message ? t(error.message as ParseKeys) : undefined,
-    }));
 
   return (
     <section className="relative flex min-h-svh w-full flex-col items-center justify-center bg-muted px-6 py-12 text-foreground dark:bg-background">
@@ -89,69 +74,27 @@ function LoginPage() {
               noValidate
             >
               <FieldGroup>
-                <form.Field name="username">
-                  {(field) => {
-                    const isInvalid = field.state.meta.errors.length > 0;
-                    return (
-                      <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>{t('login.username')}</FieldLabel>
-                        <Input
-                          id={field.name}
-                          name={field.name}
-                          autoComplete="username"
-                          placeholder={t('login.username-placeholder')}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          aria-invalid={isInvalid}
-                        />
-                        {isInvalid && (
-                          <FieldError errors={translateErrors(field.state.meta.errors)} />
-                        )}
-                      </Field>
-                    );
-                  }}
-                </form.Field>
+                <form.AppField name="username">
+                  {(field) => (
+                    <field.TextField
+                      autoComplete="username"
+                      label={t('login.username')}
+                      placeholder={t('login.username-placeholder')}
+                    />
+                  )}
+                </form.AppField>
 
-                <form.Field name="password">
-                  {(field) => {
-                    const isInvalid = field.state.meta.errors.length > 0;
-                    return (
-                      <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>{t('login.password')}</FieldLabel>
-                        <InputGroup>
-                          <InputGroupInput
-                            id={field.name}
-                            name={field.name}
-                            type={showPassword ? 'text' : 'password'}
-                            autoComplete="current-password"
-                            placeholder={t('login.password-placeholder')}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            aria-invalid={isInvalid}
-                          />
-                          <InputGroupAddon align="inline-end">
-                            <InputGroupButton
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={() => setShowPassword((v) => !v)}
-                              aria-label={
-                                showPassword ? t('login.hide-password') : t('login.show-password')
-                              }
-                            >
-                              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                            </InputGroupButton>
-                          </InputGroupAddon>
-                        </InputGroup>
-                        {isInvalid && (
-                          <FieldError errors={translateErrors(field.state.meta.errors)} />
-                        )}
-                      </Field>
-                    );
-                  }}
-                </form.Field>
+                <form.AppField name="password">
+                  {(field) => (
+                    <field.PasswordField
+                      autoComplete="current-password"
+                      hideLabel={t('login.hide-password')}
+                      label={t('login.password')}
+                      placeholder={t('login.password-placeholder')}
+                      showLabel={t('login.show-password')}
+                    />
+                  )}
+                </form.AppField>
 
                 <form.Subscribe selector={(state) => state.isSubmitting}>
                   {(isSubmitting) => (
