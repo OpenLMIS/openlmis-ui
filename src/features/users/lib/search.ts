@@ -22,6 +22,11 @@ export const DEFAULT_USERS_SORT: DefaultSort = { id: 'username', desc: false };
 export const usersSearchSchema = tableSearchSchema(USER_SORT_FIELDS).extend({
   q: textFilterSchema,
   status: z.enum(['active', 'inactive']).optional().catch(undefined),
+  /** The open dialog: `new` to add a user, or the id of the one being edited. */
+  user: z
+    .union([z.literal('new'), z.guid()])
+    .optional()
+    .catch(undefined),
 });
 
 export type UsersSearch = z.infer<typeof usersSearchSchema>;

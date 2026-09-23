@@ -12,9 +12,10 @@ type UsersToolbarProps = {
   search: UsersSearch;
   onFilterChange: (patch: Partial<UsersSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  onAdd: () => void;
 };
 
-export function UsersToolbar({ search, onFilterChange, columnView }: UsersToolbarProps) {
+export function UsersToolbar({ search, onFilterChange, columnView, onAdd }: UsersToolbarProps) {
   const { t } = useTranslation();
 
   return (
@@ -52,8 +53,7 @@ export function UsersToolbar({ search, onFilterChange, columnView }: UsersToolba
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        {/* TODO: Open the create user screen once it exists. */}
-        <Button width="full">
+        <Button onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('users.add')}
         </Button>

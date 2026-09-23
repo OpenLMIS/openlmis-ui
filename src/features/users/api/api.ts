@@ -1,9 +1,19 @@
+import { isAxiosError } from 'axios';
 import type {
+  AuthUser,
   User,
   UserContactDetails,
+  UserDetails,
   UserListItem,
+  UserRecord,
   UsersQuery,
 } from '@/features/users/lib/types';
+import {
+  toAuthUser,
+  toContactDetails,
+  toUserRecord,
+  type UserFormValues,
+} from '@/features/users/lib/user-form';
 import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
 
@@ -71,4 +81,48 @@ export async function fetchUsers(query: UsersQuery, ids?: string[]): Promise<Pag
     ...users,
     content: users.content.map((user) => ({ ...user, email: emails.get(user.id) ?? null })),
   };
+}
+
+/** A user created before contact details or an account existed has none, which is not an error. */
+async function getIfExists<T>(url: string): Promise<T | null> {
+  try {
+    const { data } = await client.get<T>(url);
+    return data;
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function fetchUserDetails(id: string): Promise<UserDetails> {
+  const [{ data: user }, contact, auth] = await Promise.all([
+    client.get<UserRecord>(`/users/${id}`),
+    getIfExists<UserContactDetails>(`/userContactDetails/${id}`),
+    getIfExists<AuthUser>(`/users/auth/${id}`),
+  ]);
+  return { user, contact, auth };
+}
+
+/** Creates the user, then its contact details and sign-in account; undoes the user if either fails. */
+export async function createUser(values: UserFormValues): Promise<UserRecord> {
+  const { data: user } = await client.put<UserRecord>('/users', toUserRecord(values));
+
+  try {
+    await client.put(`/userContactDetails/${user.id}`, toContactDetails(user.id, values));
+    await client.post('/users/auth', toAuthUser(user.id, values));
+  } catch (error) {
+    // Without this a retry would fail on the username the half-created user still holds.
+    await client.delete(`/users/${user.id}`).catch(() => undefined);
+    throw error;
+  }
+
+  return user;
+}
+
+/** One after another, so a rejected step stops the rest instead of leaving them half applied. */
+export async function updateUser(details: UserDetails, values: UserFormValues): Promise<void> {
+  const { id } = details.user;
+  await client.put('/users', toUserRecord(values, details.user));
+  await client.put(`/userContactDetails/${id}`, toContactDetails(id, values, details.contact));
+  await client.post('/users/auth', toAuthUser(id, values));
 }

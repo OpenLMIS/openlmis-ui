@@ -1,12 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchUsers, findMatchingUserIds } from '@/features/users/api/api';
+import {
+  createUser,
+  fetchUserDetails,
+  fetchUsers,
+  findMatchingUserIds,
+  updateUser,
+} from '@/features/users/api/api';
 import type { UsersQuery } from '@/features/users/lib/types';
+import { EMPTY_USER_FORM } from '@/features/users/lib/user-form';
 import { client } from '@/integrations/axios';
 
-vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/integrations/axios', () => ({
+  client: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
 
 const get = vi.mocked(client.get);
 const post = vi.mocked(client.post);
+const put = vi.mocked(client.put);
+const remove = vi.mocked(client.delete);
 
 const query: UsersQuery = { page: 0, size: 10, sort: 'username,asc' };
 
@@ -25,6 +36,8 @@ const contact = (id: string, email: string | null) => ({
 beforeEach(() => {
   get.mockReset();
   post.mockReset();
+  put.mockReset();
+  remove.mockReset();
 });
 
 describe('fetchUsers', () => {
@@ -91,5 +104,64 @@ describe('findMatchingUserIds', () => {
         params: expect.objectContaining({ firstName: 'Ada', lastName: 'Lovelace' }),
       }),
     );
+  });
+});
+
+const newUser = { ...EMPTY_USER_FORM, username: ' ada ', firstName: 'Ada', lastName: 'Lovelace' };
+
+describe('createUser', () => {
+  it('creates the user, then its contact details and sign-in account', async () => {
+    put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
+    put.mockResolvedValueOnce({ data: {} });
+    post.mockResolvedValueOnce({ data: {} });
+
+    await createUser(newUser);
+
+    expect(put).toHaveBeenNthCalledWith(1, '/users', expect.objectContaining({ username: 'ada' }));
+    expect(put).toHaveBeenNthCalledWith(2, '/userContactDetails/u1', expect.anything());
+    expect(post).toHaveBeenCalledWith('/users/auth', { id: 'u1', username: 'ada', enabled: true });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('removes the half-created user when the account cannot be created', async () => {
+    const failure = new Error('username taken');
+    put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
+    put.mockResolvedValueOnce({ data: {} });
+    post.mockRejectedValueOnce(failure);
+    remove.mockResolvedValueOnce({ data: {} });
+
+    await expect(createUser(newUser)).rejects.toBe(failure);
+    expect(remove).toHaveBeenCalledWith('/users/u1');
+  });
+});
+
+describe('fetchUserDetails', () => {
+  it('treats missing contact details and account as none', async () => {
+    const notFound = Object.assign(new Error('not found'), {
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+    get.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
+    get.mockRejectedValueOnce(notFound);
+    get.mockRejectedValueOnce(notFound);
+
+    await expect(fetchUserDetails('u1')).resolves.toEqual({
+      user: { ...ada, roleAssignments: [] },
+      contact: null,
+      auth: null,
+    });
+  });
+});
+
+describe('updateUser', () => {
+  const details = { user: { ...ada, roleAssignments: [] }, contact: null, auth: null };
+
+  it('stops at the first rejected write', async () => {
+    put.mockResolvedValueOnce({ data: {} });
+    put.mockRejectedValueOnce(new Error('email taken'));
+
+    await expect(updateUser(details, newUser)).rejects.toThrow('email taken');
+    expect(put).toHaveBeenCalledTimes(2);
+    expect(post).not.toHaveBeenCalled();
   });
 });

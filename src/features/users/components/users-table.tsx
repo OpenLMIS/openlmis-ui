@@ -47,7 +47,7 @@ function fullName(user: UserListItem) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ');
 }
 
-function createColumns(t: TFunction) {
+function createColumns(t: TFunction, onEdit: (userId: string) => void) {
   return columnHelper.columns([
     // Shows the full name but sorts by last name, the usual order for a list of people.
     columnHelper.accessor('lastName', {
@@ -86,16 +86,18 @@ function createColumns(t: TFunction) {
       id: 'actions',
       header: () => <span className="sr-only">{t('users.actions')}</span>,
       meta: { className: 'w-16' },
-      cell: ({ row }) => <UserActions username={row.original.username} />,
+      cell: ({ row }) => (
+        <UserActions onEdit={() => onEdit(row.original.id)} username={row.original.username} />
+      ),
     }),
   ]);
 }
 
-// TODO: Wire up once the edit, roles and password reset screens exist.
-function UserActions({ username }: { username: string }) {
+// TODO: Wire up roles and password reset once those screens exist.
+function UserActions({ username, onEdit }: { username: string; onEdit: () => void }) {
   const { t } = useTranslation();
   const actions = [
-    { id: 'edit', label: t('users.edit'), icon: PencilIcon, destructive: false },
+    { id: 'edit', label: t('users.edit'), icon: PencilIcon, destructive: false, onClick: onEdit },
     { id: 'roles', label: t('users.roles'), icon: ShieldIcon, destructive: false },
     {
       id: 'reset-password',
@@ -120,8 +122,12 @@ function UserActions({ username }: { username: string }) {
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
-          {actions.map(({ id, label, icon: Icon, destructive }) => (
-            <DropdownMenuItem key={id} variant={destructive ? 'destructive' : 'default'}>
+          {actions.map(({ id, label, icon: Icon, destructive, onClick }) => (
+            <DropdownMenuItem
+              key={id}
+              onClick={onClick}
+              variant={destructive ? 'destructive' : 'default'}
+            >
               <Icon />
               {label}
             </DropdownMenuItem>
@@ -139,13 +145,14 @@ type UsersTableProps = {
     replace?: boolean,
   ) => void;
   columnVisibility: ColumnVisibilityState;
+  onEdit: (userId: string) => void;
 };
 
 const NO_USERS: UserListItem[] = [];
 
 const getRowId = (user: UserListItem) => user.id;
 
-const ignoreSearchChange = () => {};
+const noop = () => {};
 
 /** The one table setup, shared by the real table and its skeleton so both lay out the same. */
 function useUsersTable({
@@ -154,9 +161,10 @@ function useUsersTable({
   search,
   onSearchChange,
   columnVisibility,
+  onEdit,
 }: UsersTableProps & { data: UserListItem[]; rowCount: number }) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t), [t]);
+  const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_USERS_SORT,
@@ -185,14 +193,15 @@ export function UsersTableSkeleton({
     data: NO_USERS,
     rowCount: 0,
     search,
-    onSearchChange: ignoreSearchChange,
+    onSearchChange: noop,
     columnVisibility,
+    onEdit: noop,
   });
 
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
 }
 
-export function UsersTable({ search, onSearchChange, columnVisibility }: UsersTableProps) {
+export function UsersTable({ search, onSearchChange, columnVisibility, onEdit }: UsersTableProps) {
   const { t } = useTranslation();
   // Keeps the current page on screen, dimmed, while the next one loads instead of suspending.
   const deferredSearch = useDeferredValue(search);
@@ -204,6 +213,7 @@ export function UsersTable({ search, onSearchChange, columnVisibility }: UsersTa
     search: deferredSearch,
     onSearchChange,
     columnVisibility,
+    onEdit,
   });
   const isPastLastPage = data.content.length === 0 && data.totalElements > 0;
 

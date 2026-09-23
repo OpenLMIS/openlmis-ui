@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AppHeader } from '@/components/app-header';
 import { AppSidebar } from '@/components/app-sidebar';
 import { TranslatedDataTableLabels } from '@/components/translated-data-table-labels';
+import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 type AppShellProps = {
@@ -15,7 +16,9 @@ export function AppShell({ children }: AppShellProps) {
       <SidebarInset>
         <AppHeader />
         <div className="mx-auto flex w-full flex-1">
-          <TranslatedDataTableLabels>{children}</TranslatedDataTableLabels>
+          <TranslatedDataTableLabels>
+            <TranslatedFormMessages>{children}</TranslatedFormMessages>
+          </TranslatedDataTableLabels>
         </div>
       </SidebarInset>
     </SidebarProvider>

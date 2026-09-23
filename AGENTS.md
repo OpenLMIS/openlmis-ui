@@ -114,6 +114,18 @@ Each feature is self-contained under `src/features/<name>/`:
 
 Shared code lives in `src/lib/` (utils, types, constants, config, key-factory).
 
+**A feature never imports another feature**, with one exception below. When two
+features need the same thing, it moves to a shared folder, or the route composes them and
+passes data down as props. `src/routes/` may import any feature, since composing them is
+its job.
+
+**`src/features/reference-data/` is the exception: every feature may import it.** It holds
+the OpenLMIS reference data many screens look up (facilities, and soon programs,
+supervisory nodes and roles), named after the backend's `referencedata` service. It has the
+usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
+turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
+facilities list, is a feature of its own.
+
 ### Internationalization (i18next)
 
 Translations are **static assets** in `public/locales/<lang>.json`, fetched at runtime by
@@ -234,7 +246,10 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success`.
+   `Table density`/`layout`, `TableHeader surface`, `Badge success`,
+   `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+   `DialogDescription size`, `Field spacing`, `FieldDescription size`,
+   `ComboboxInput width`/`clearLabel`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -412,6 +427,32 @@ unchanged, so it follows the registry's rules rather than this app's:
 `@tanstack/react-table` is v9. Build tables with `useTable` and `dataTableFeatures`,
 not the v8 `useReactTable`. The installed package ships version-matched guides under
 `node_modules/@tanstack/react-table/skills/`.
+
+## Forms and dialogs
+
+**A dialog for a short form, a page for a task.** Add and edit screens of a handful of
+fields with one save open in a dialog over the list. Anything with its own structure,
+such as tabs, tables of child records or several steps, gets a page. Users is the
+example: Add/Edit User is a dialog, Edit User Roles is a page.
+
+**The URL owns the open dialog**, like the rest of the list state: `?user=new` or
+`?user=<id>`. Opening adds a history entry so Back closes it; closing replaces it.
+
+Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
+`FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
+`FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
+(`TextField`, `CheckboxField`, `ComboboxField`). A yes/no setting is a `CheckboxField`,
+drawn as a bordered card, not a switch. Validate with a zod schema on `onDynamic` with
+`revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
+the first submit and then follow each correction.
+
+Both folders follow the data-table's registry rules: stock shadcn primitives,
+`@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
+exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+`DialogDescription size`, `Field spacing`, `FieldDescription size` and
+`ComboboxInput width`/`clearLabel`.
+Validation messages are translation keys; `TranslatedFormMessages` in the app shell
+resolves them through `FormMessagesProvider`.
 
 ## Authentication
 

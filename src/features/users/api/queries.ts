@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchUsers, findMatchingUserIds } from '@/features/users/api/api';
+import { fetchUserDetails, fetchUsers, findMatchingUserIds } from '@/features/users/api/api';
 import type { UsersQuery } from '@/features/users/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -15,4 +15,10 @@ export const usersListOptions = (query: UsersQuery) =>
     queryKey: queryKeys.users.list(query),
     queryFn: async ({ client }) =>
       fetchUsers(query, query.q ? await client.fetchQuery(userMatchesOptions(query.q)) : undefined),
+  });
+
+export const userDetailsOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.users.detail(id),
+    queryFn: () => fetchUserDetails(id),
   });

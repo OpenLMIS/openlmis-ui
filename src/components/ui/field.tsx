@@ -50,9 +50,13 @@ function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 const fieldVariants = cva(
-  "group/field flex w-full gap-2 data-[invalid=true]:text-destructive",
+  "group/field flex w-full data-[invalid=true]:text-destructive",
   {
     variants: {
+      spacing: {
+        default: "gap-2",
+        tight: "gap-1",
+      },
       orientation: {
         vertical: "flex-col *:w-full [&>.sr-only]:w-auto",
         horizontal:
@@ -63,6 +67,7 @@ const fieldVariants = cva(
     },
     defaultVariants: {
       orientation: "vertical",
+      spacing: "default",
     },
   }
 )
@@ -70,6 +75,7 @@ const fieldVariants = cva(
 function Field({
   className,
   orientation = "vertical",
+  spacing = "default",
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
@@ -77,7 +83,7 @@ function Field({
       role="group"
       data-slot="field"
       data-orientation={orientation}
-      className={cn(fieldVariants({ orientation }), className)}
+      className={cn(fieldVariants({ orientation, spacing }), className)}
       {...props}
     />
   )
@@ -126,12 +132,17 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
+function FieldDescription({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<"p"> & { size?: "default" | "sm" }) {
   return (
     <p
       data-slot="field-description"
       className={cn(
-        "text-start text-sm leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
+        "text-start leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
+        size === "sm" ? "text-xs" : "text-sm",
         "last:mt-0 nth-last-2:-mt-1",
         "[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
         className
