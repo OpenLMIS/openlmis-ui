@@ -46,7 +46,7 @@ type FormDialogFormProps = {
   children: ReactNode;
 };
 
-/** The form itself; lays out the header, body and footer so only the body scrolls. */
+/** Lays out the header, body and footer so only the body scrolls. */
 export function FormDialogForm({ onSubmit, children }: FormDialogFormProps) {
   return (
     <form
@@ -63,21 +63,21 @@ export function FormDialogForm({ onSubmit, children }: FormDialogFormProps) {
   );
 }
 
-type FormDialogHeaderProps = {
-  title: ReactNode;
-  description?: ReactNode;
-};
-
-export function FormDialogHeader({ title, description }: FormDialogHeaderProps) {
+export function FormDialogHeader({ children }: { children: ReactNode }) {
   return (
     // Room at the end for the close button, so a long title never runs under it.
     <div className="pe-8">
-      <DialogHeader spacing="tight">
-        <DialogTitle size="lg">{title}</DialogTitle>
-        {description && <DialogDescription size="sm">{description}</DialogDescription>}
-      </DialogHeader>
+      <DialogHeader spacing="tight">{children}</DialogHeader>
     </div>
   );
+}
+
+export function FormDialogTitle({ children }: { children: ReactNode }) {
+  return <DialogTitle size="lg">{children}</DialogTitle>;
+}
+
+export function FormDialogDescription({ children }: { children: ReactNode }) {
+  return <DialogDescription size="sm">{children}</DialogDescription>;
 }
 
 /** Scrolls on its own, so the header and footer stay in view on a short screen. */

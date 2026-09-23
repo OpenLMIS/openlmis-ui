@@ -91,6 +91,12 @@ describe('toUserRecord', () => {
     ]);
     expect(countHomeFacilityRoles(details.user)).toBe(1);
   });
+
+  it('keeps the home facility roles once the facility is set back', () => {
+    const values = { ...toUserFormValues(details), removeHomeFacilityRoles: true };
+
+    expect(toUserRecord(values, details.user).roleAssignments).toHaveLength(3);
+  });
 });
 
 describe('toContactDetails', () => {

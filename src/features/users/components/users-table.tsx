@@ -152,7 +152,7 @@ const NO_USERS: UserListItem[] = [];
 
 const getRowId = (user: UserListItem) => user.id;
 
-const ignoreSearchChange = () => {};
+const noop = () => {};
 
 /** The one table setup, shared by the real table and its skeleton so both lay out the same. */
 function useUsersTable({
@@ -193,9 +193,9 @@ export function UsersTableSkeleton({
     data: NO_USERS,
     rowCount: 0,
     search,
-    onSearchChange: ignoreSearchChange,
+    onSearchChange: noop,
     columnVisibility,
-    onEdit: ignoreSearchChange,
+    onEdit: noop,
   });
 
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;

@@ -119,11 +119,10 @@ export async function createUser(values: UserFormValues): Promise<UserRecord> {
   return user;
 }
 
+/** One after another, so a rejected step stops the rest instead of leaving them half applied. */
 export async function updateUser(details: UserDetails, values: UserFormValues): Promise<void> {
   const { id } = details.user;
-  await Promise.all([
-    client.put('/users', toUserRecord(values, details.user)),
-    client.put(`/userContactDetails/${id}`, toContactDetails(id, values, details.contact)),
-    client.post('/users/auth', toAuthUser(id, values)),
-  ]);
+  await client.put('/users', toUserRecord(values, details.user));
+  await client.put(`/userContactDetails/${id}`, toContactDetails(id, values, details.contact));
+  await client.post('/users/auth', toAuthUser(id, values));
 }

@@ -9,6 +9,7 @@ import {
   FormDialogForm,
   FormDialogHeader,
   FormDialogSubmit,
+  FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 
 function renderDialog({ pending = false } = {}) {
@@ -17,7 +18,9 @@ function renderDialog({ pending = false } = {}) {
   render(
     <FormDialog onOpenChange={onOpenChange} open>
       <FormDialogForm onSubmit={onSubmit}>
-        <FormDialogHeader description="Details" title="Edit" />
+        <FormDialogHeader>
+          <FormDialogTitle>Edit</FormDialogTitle>
+        </FormDialogHeader>
         <FormDialogBody>
           <input aria-label="Name" />
         </FormDialogBody>
@@ -32,14 +35,27 @@ function renderDialog({ pending = false } = {}) {
 }
 
 describe('FormDialog', () => {
-  it('submits on the button and on Enter', async () => {
+  it('submits from the button', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderDialog();
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it('submits on Enter in a field', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderDialog();
+
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada{Enter}');
 
-    expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it('names the dialog by its title', () => {
+    renderDialog();
+    expect(screen.getByRole('dialog', { name: 'Edit' })).toBeInTheDocument();
   });
 
   it('closes from Cancel', async () => {

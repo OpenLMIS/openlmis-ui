@@ -114,6 +114,13 @@ Each feature is self-contained under `src/features/<name>/`:
 
 Shared code lives in `src/lib/` (utils, types, constants, config, key-factory).
 
+**A feature never imports another feature.** When two features need the same thing, it
+moves to a shared folder, or the route composes them and passes data down as props.
+OpenLMIS reference data that many screens look up (facilities, and soon programs,
+supervisory nodes and roles) lives in `src/lib/reference-data/`, one file per resource
+with its type, fetch and query options. `src/routes/` is the one layer that may import
+any feature, since composing them is its job.
+
 ### Internationalization (i18next)
 
 Translations are **static assets** in `public/locales/<lang>.json`, fetched at runtime by
@@ -427,8 +434,8 @@ example: Add/Edit User is a dialog, Edit User Roles is a page.
 `?user=<id>`. Opening adds a history entry so Back closes it; closing replaces it.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
-`FormDialogHeader`, `FormDialogBody`, `FormDialogFooter`, `FormDialogCancel`,
-`FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
+`FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
+`FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `CheckboxField`, `ComboboxField`). A yes/no setting is a `CheckboxField`,
 drawn as a bordered card, not a switch. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for

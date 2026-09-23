@@ -56,7 +56,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
 function renderForm() {
   const onSubmit = vi.fn();
   render(
-    <FormMessagesProvider messages={{ formatError: (message) => `translated:${message}` }}>
+    <FormMessagesProvider formatError={(message) => `translated:${message}`}>
       <TestForm onSubmit={onSubmit} />
     </FormMessagesProvider>,
   );

@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
-import { useFormMessages } from '@/components/form/form-messages';
+import { useFormatError } from '@/components/form/form-messages';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Combobox,
@@ -30,7 +30,7 @@ type FieldProps = {
 /** The field's errors as display text, and whether there are any. */
 function useFieldErrors() {
   const field = useFieldContext<unknown>();
-  const { formatError } = useFormMessages();
+  const formatError = useFormatError();
   const errors = field.state.meta.errors.map((error: unknown) => ({
     message:
       typeof error === 'string'
@@ -42,18 +42,25 @@ function useFieldErrors() {
   return { errors, isInvalid: errors.length > 0 };
 }
 
+/** A label's text with the required mark, for any label, including a skeleton's. */
+export function FieldLabelText({ label, required }: Pick<FieldProps, 'label' | 'required'>) {
+  return (
+    <span>
+      {label}
+      {required && (
+        <span aria-hidden="true" className="ms-0.5 text-destructive">
+          *
+        </span>
+      )}
+    </span>
+  );
+}
+
 function RequiredLabel({ label, required }: Pick<FieldProps, 'label' | 'required'>) {
   const field = useFieldContext<unknown>();
   return (
     <FieldLabel htmlFor={field.name}>
-      <span>
-        {label}
-        {required && (
-          <span aria-hidden="true" className="ms-0.5 text-destructive">
-            *
-          </span>
-        )}
-      </span>
+      <FieldLabelText label={label} required={required} />
     </FieldLabel>
   );
 }

@@ -1,23 +1,31 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { AlertCircleIcon, CheckIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
-import { ComboboxField } from '@/components/form/form-fields';
+import { CheckboxField, ComboboxField, FieldLabelText } from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
   FormDialogCancel,
+  FormDialogDescription,
   FormDialogFooter,
   FormDialogForm,
   FormDialogHeader,
   FormDialogSubmit,
+  FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,9 +37,9 @@ import {
   FieldTitle,
 } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
-import { minimalFacilitiesOptions } from '@/features/facilities/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
+import type { UsersSearch } from '@/features/users/lib/search';
 import type { UserDetails } from '@/features/users/lib/types';
 import {
   countHomeFacilityRoles,
@@ -41,12 +49,15 @@ import {
   userFormSchema,
 } from '@/features/users/lib/user-form';
 import { queryKeys } from '@/lib/key-factory';
+import { minimalFacilitiesOptions } from '@/lib/reference-data/facilities';
 
-/** `new` to add a user, a user id to edit one, or nothing when closed. */
-export type UserDialogTarget = 'new' | (string & {});
+type DialogTarget = NonNullable<UsersSearch['user']>;
+
+/** One key per user, so a save still running for one user never locks another user's dialog. */
+const saveKey = (target: DialogTarget) => [...queryKeys.users.all, 'save', target] as const;
 
 type UserFormDialogProps = {
-  target: UserDialogTarget | undefined;
+  target: UsersSearch['user'];
   onClose: () => void;
 };
 
@@ -54,7 +65,7 @@ export function UserFormDialog({ target, onClose }: UserFormDialogProps) {
   // Kept through the close animation, so the dialog does not blank out as it fades.
   const [shown, setShown] = useState(target);
   if (target !== undefined && target !== shown) setShown(target);
-  const [isSaving, setIsSaving] = useState(false);
+  const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
     <FormDialog
@@ -66,55 +77,50 @@ export function UserFormDialog({ target, onClose }: UserFormDialogProps) {
       }}
       open={target !== undefined}
     >
-      {shown === 'new' && <UserForm onDone={onClose} onSavingChange={setIsSaving} />}
+      {shown === 'new' && <UserForm onDone={onClose} />}
       {shown !== undefined && shown !== 'new' && (
-        <EditUserForm key={shown} onDone={onClose} onSavingChange={setIsSaving} userId={shown} />
+        <EditUserForm key={shown} onDone={onClose} userId={shown} />
       )}
     </FormDialog>
   );
 }
 
-type UserFormProps = {
-  details?: UserDetails;
+type EditUserFormProps = {
+  userId: string;
   onDone: () => void;
-  onSavingChange: (isSaving: boolean) => void;
 };
 
-function EditUserForm({ userId, ...props }: Omit<UserFormProps, 'details'> & { userId: string }) {
+function EditUserForm({ userId, onDone }: EditUserFormProps) {
   const { t } = useTranslation();
 
   return (
     <QueryBoundary
       errorComponent={({ reset }) => (
         <>
-          <FormDialogHeader title={t('users.form.edit-title')} />
-          <Alert variant="destructive">
-            <AlertCircleIcon />
-            <AlertTitle>{t('users.form.load-error-title')}</AlertTitle>
-            <AlertDescription>{t('users.form.load-error')}</AlertDescription>
-          </Alert>
+          <FormDialogHeader>
+            <FormDialogTitle>{t('users.form.edit-title')}</FormDialogTitle>
+          </FormDialogHeader>
+          <ErrorAlert
+            action={<RetryButton onClick={reset} />}
+            description={t('users.error-description')}
+            title={t('users.form.load-error-title')}
+          />
           <FormDialogFooter>
             <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
-            <Button onClick={reset} type="button">
-              {t('users.form.retry')}
-            </Button>
           </FormDialogFooter>
         </>
       )}
       pendingFallback={<UserFormSkeleton />}
       resetKey={userId}
     >
-      <LoadedEditUserForm userId={userId} {...props} />
+      <LoadedEditUserForm onDone={onDone} userId={userId} />
     </QueryBoundary>
   );
 }
 
-function LoadedEditUserForm({
-  userId,
-  ...props
-}: Omit<UserFormProps, 'details'> & { userId: string }) {
+function LoadedEditUserForm({ userId, onDone }: EditUserFormProps) {
   const { data } = useSuspenseQuery(userDetailsOptions(userId));
-  return <UserForm details={data} {...props} />;
+  return <UserForm details={data} onDone={onDone} />;
 }
 
 /** The server's own message when it sent one, e.g. that a username is taken. */
@@ -124,34 +130,35 @@ function saveErrorMessage(error: unknown): string | undefined {
   return typeof message === 'string' && message ? message : undefined;
 }
 
-function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
+type UserFormProps = {
+  details?: UserDetails;
+  onDone: () => void;
+};
+
+function UserForm({ details, onDone }: UserFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isEdit = details !== undefined;
+  const savedFacilityId = details?.user.homeFacilityId ?? null;
   const homeFacilityRoles = details ? countHomeFacilityRoles(details.user) : 0;
   const emailVerified = details?.contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = details?.contact?.emailDetails?.email ?? '';
-  const { data: facilities } = useQuery(minimalFacilitiesOptions());
-  const previousFacilityName = facilities?.find(
-    (facility) => facility.id === details?.user.homeFacilityId,
-  )?.name;
 
   const save = useMutation({
+    mutationKey: saveKey(details?.user.id ?? 'new'),
     mutationFn: async (values: UserFormValues) => {
       if (details) await updateUser(details, values);
       else await createUser(values);
     },
-    onMutate: () => onSavingChange(true),
-    onSettled: () => onSavingChange(false),
-    onSuccess: async (_, values) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    onSuccess: (_, values) => {
       toast.success(
         t(isEdit ? 'users.form.updated' : 'users.form.created', {
           username: values.username.trim(),
         }),
       );
-      onDone();
     },
+    // Refreshed either way: a failed edit may already have changed part of the user.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 
   const form = useAppForm({
@@ -159,36 +166,36 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
     // Quiet until the first submit, then each field re-checks as it is corrected.
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: userFormSchema },
-    onSubmit: ({ value }) => save.mutateAsync(value).catch(() => undefined),
+    // Closing is tied to this call, so a save that ends after the dialog closed cannot close another.
+    onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
   });
 
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
-      <FormDialogHeader
-        description={
-          isEdit
+      <FormDialogHeader>
+        <FormDialogTitle>
+          {t(isEdit ? 'users.form.edit-title' : 'users.form.create-title')}
+        </FormDialogTitle>
+        <FormDialogDescription>
+          {isEdit
             ? t('users.form.edit-description', { username: details.user.username })
-            : t('users.form.create-description')
-        }
-        title={t(isEdit ? 'users.form.edit-title' : 'users.form.create-title')}
-      />
+            : t('users.form.create-description')}
+        </FormDialogDescription>
+      </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
           {save.isError && (
-            <Alert variant="destructive">
-              <AlertCircleIcon />
-              <AlertTitle>{t('users.form.save-error-title')}</AlertTitle>
-              <AlertDescription>
-                {saveErrorMessage(save.error) ?? t('users.form.save-error')}
-              </AlertDescription>
-            </Alert>
+            <ErrorAlert
+              description={saveErrorMessage(save.error) ?? t('users.form.save-error')}
+              title={t('users.form.save-error-title')}
+            />
           )}
 
           <form.AppField name="username">
             {(field) => <field.TextField autoComplete="off" label={t('users.username')} required />}
           </form.AppField>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <FieldRow>
             <form.AppField name="firstName">
               {(field) => (
                 <field.TextField autoComplete="off" label={t('users.form.first-name')} required />
@@ -199,7 +206,7 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
                 <field.TextField autoComplete="off" label={t('users.form.last-name')} required />
               )}
             </form.AppField>
-          </div>
+          </FieldRow>
 
           <form.AppField name="email">
             {(field) => (
@@ -218,7 +225,7 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
             )}
           </form.AppField>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <FieldRow>
             <form.AppField name="jobTitle">
               {(field) => <field.TextField autoComplete="off" label={t('users.form.job-title')} />}
             </form.AppField>
@@ -231,12 +238,18 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
                 />
               )}
             </form.AppField>
-          </div>
+          </FieldRow>
 
           <form.AppField name="homeFacilityId">
             {() => (
               <QueryBoundary
-                errorComponent={() => <FacilitiesError />}
+                errorComponent={({ reset }) => (
+                  <ErrorAlert
+                    action={<RetryButton onClick={reset} />}
+                    description={t('users.error-description')}
+                    title={t('users.form.facilities-error-title')}
+                  />
+                )}
                 pendingFallback={<FieldSkeleton label={t('users.form.home-facility')} />}
                 resetKey="facilities"
               >
@@ -245,18 +258,15 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
             )}
           </form.AppField>
 
-          {isEdit && homeFacilityRoles > 0 && (
+          {homeFacilityRoles > 0 && (
             <form.Subscribe selector={(state) => state.values.homeFacilityId}>
               {(homeFacilityId) =>
-                homeFacilityId !== (details.user.homeFacilityId ?? null) && (
+                homeFacilityId !== savedFacilityId && (
                   <form.AppField name="removeHomeFacilityRoles">
-                    {(field) => (
-                      <field.CheckboxField
-                        description={t('users.form.remove-home-facility-roles-description', {
-                          count: homeFacilityRoles,
-                          facility: previousFacilityName ?? '-',
-                        })}
-                        label={t('users.form.remove-home-facility-roles')}
+                    {() => (
+                      <RemoveHomeFacilityRoles
+                        count={homeFacilityRoles}
+                        facilityId={savedFacilityId}
                       />
                     )}
                   </form.AppField>
@@ -301,6 +311,36 @@ function UserForm({ details, onDone, onSavingChange }: UserFormProps) {
   );
 }
 
+function FieldRow({ children }: { children: ReactNode }) {
+  return <div className="grid gap-5 sm:grid-cols-2">{children}</div>;
+}
+
+type ErrorAlertProps = {
+  title: string;
+  description: string;
+  action?: ReactNode;
+};
+
+function ErrorAlert({ title, description, action }: ErrorAlertProps) {
+  return (
+    <Alert variant="destructive">
+      <AlertCircleIcon />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{description}</AlertDescription>
+      {action && <AlertAction>{action}</AlertAction>}
+    </Alert>
+  );
+}
+
+function RetryButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Button onClick={onClick} size="sm" type="button" variant="outline">
+      {t('error.try-again')}
+    </Button>
+  );
+}
+
 function EmailStatus({ verified }: { verified: boolean }) {
   const { t } = useTranslation();
   return verified ? (
@@ -337,14 +377,27 @@ function HomeFacilityCombobox() {
   );
 }
 
-function FacilitiesError() {
+function RemoveHomeFacilityRoles({
+  count,
+  facilityId,
+}: {
+  count: number;
+  facilityId: string | null;
+}) {
   const { t } = useTranslation();
+  const { data: facilityName } = useQuery({
+    ...minimalFacilitiesOptions(),
+    select: (facilities) => facilities.find((facility) => facility.id === facilityId)?.name,
+  });
+
   return (
-    <Alert variant="destructive">
-      <AlertCircleIcon />
-      <AlertTitle>{t('users.form.home-facility')}</AlertTitle>
-      <AlertDescription>{t('users.form.load-error')}</AlertDescription>
-    </Alert>
+    <CheckboxField
+      description={t('users.form.remove-home-facility-roles-description', {
+        count,
+        facility: facilityName ?? '-',
+      })}
+      label={t('users.form.remove-home-facility-roles')}
+    />
   );
 }
 
@@ -364,14 +417,7 @@ function FieldSkeleton({ label, required = false }: { label: string; required?: 
   return (
     <Field spacing="tight">
       <FieldLabel>
-        <span>
-          {label}
-          {required && (
-            <span aria-hidden="true" className="ms-0.5 text-destructive">
-              *
-            </span>
-          )}
-        </span>
+        <FieldLabelText label={label} required={required} />
       </FieldLabel>
       <div className="h-8 w-full">
         <Skeleton fill />
@@ -406,23 +452,23 @@ function UserFormSkeleton() {
 
   return (
     <>
-      <FormDialogHeader
-        description={<SkeletonLine width="short" />}
-        title={t('users.form.edit-title')}
-      />
+      <FormDialogHeader>
+        <FormDialogTitle>{t('users.form.edit-title')}</FormDialogTitle>
+        <SkeletonLine width="short" />
+      </FormDialogHeader>
       <FormDialogBody>
         <div aria-busy>
           <FieldGroup>
             <FieldSkeleton label={t('users.username')} required />
-            <div className="grid gap-5 sm:grid-cols-2">
+            <FieldRow>
               <FieldSkeleton label={t('users.form.first-name')} required />
               <FieldSkeleton label={t('users.form.last-name')} required />
-            </div>
+            </FieldRow>
             <FieldSkeleton label={t('users.email')} />
-            <div className="grid gap-5 sm:grid-cols-2">
+            <FieldRow>
               <FieldSkeleton label={t('users.form.job-title')} />
               <FieldSkeleton label={t('users.form.phone-number')} />
-            </div>
+            </FieldRow>
             <FieldSkeleton label={t('users.form.home-facility')} />
             <CheckboxSkeleton
               description={t('users.form.active-description')}

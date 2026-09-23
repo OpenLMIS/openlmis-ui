@@ -80,6 +80,9 @@ export function toUserRecord(
   existing?: UserRecord,
 ): Omit<UserRecord, 'id'> & { id?: string } {
   const roleAssignments = existing?.roleAssignments ?? [];
+  // The choice only counts while the facility differs; picking the old one back hides and cancels it.
+  const removeHomeFacilityRoles =
+    values.removeHomeFacilityRoles && values.homeFacilityId !== (existing?.homeFacilityId ?? null);
   return {
     ...existing,
     username: values.username.trim(),
@@ -88,7 +91,7 @@ export function toUserRecord(
     jobTitle: orNull(values.jobTitle),
     homeFacilityId: values.homeFacilityId,
     active: values.active,
-    roleAssignments: values.removeHomeFacilityRoles
+    roleAssignments: removeHomeFacilityRoles
       ? roleAssignments.filter((role) => !isHomeFacilityRole(role))
       : roleAssignments,
   };

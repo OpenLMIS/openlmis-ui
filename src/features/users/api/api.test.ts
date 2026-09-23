@@ -154,15 +154,14 @@ describe('fetchUserDetails', () => {
 });
 
 describe('updateUser', () => {
-  it('writes all three records', async () => {
-    put.mockResolvedValue({ data: {} });
-    post.mockResolvedValue({ data: {} });
-    const details = { user: { ...ada, roleAssignments: [] }, contact: null, auth: null };
+  const details = { user: { ...ada, roleAssignments: [] }, contact: null, auth: null };
 
-    await updateUser(details, newUser);
+  it('stops at the first rejected write', async () => {
+    put.mockResolvedValueOnce({ data: {} });
+    put.mockRejectedValueOnce(new Error('email taken'));
 
-    expect(put).toHaveBeenCalledWith('/users', expect.objectContaining({ id: 'u1' }));
-    expect(put).toHaveBeenCalledWith('/userContactDetails/u1', expect.anything());
-    expect(post).toHaveBeenCalledWith('/users/auth', expect.objectContaining({ id: 'u1' }));
+    await expect(updateUser(details, newUser)).rejects.toThrow('email taken');
+    expect(put).toHaveBeenCalledTimes(2);
+    expect(post).not.toHaveBeenCalled();
   });
 });
