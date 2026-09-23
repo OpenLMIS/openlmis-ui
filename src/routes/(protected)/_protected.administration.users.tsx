@@ -1,15 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlusIcon, UsersIcon } from 'lucide-react';
+import { UsersIcon } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableError } from '@/components/data-table/data-table';
-import { useColumnVisibility } from '@/components/data-table/responsive-columns';
+import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Button } from '@/components/ui/button';
 import {
   Workspace,
-  WorkspaceActions,
   WorkspaceContent,
   WorkspaceDescription,
   WorkspaceHeader,
@@ -44,9 +42,11 @@ function UsersPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
     USER_HIDEABLE_COLUMNS,
     useStoredState('users.column-visibility', columnChoicesSchema, {}),
+    contentWidth,
   );
   const query = Route.useLoaderDeps();
 
@@ -73,39 +73,35 @@ function UsersPage() {
           <WorkspaceTitle>{t('users.title')}</WorkspaceTitle>
           <WorkspaceDescription>{t('users.description')}</WorkspaceDescription>
         </WorkspaceHeading>
-        <WorkspaceActions>
-          {/* TODO: Open the create user screen once it exists. */}
-          <Button size="lg" width="mobile-full">
-            <PlusIcon data-icon="inline-start" />
-            {t('users.add')}
-          </Button>
-        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <UsersToolbar
-          columnView={columnView}
-          onFilterChange={(patch) => updateSearch(patch, true)}
-          search={search}
-        />
-        <QueryBoundary
-          errorComponent={({ reset }) => (
-            <DataTableError
-              description={t('users.error-description')}
-              onRetry={reset}
-              title={t('users.error-title')}
-            />
-          )}
-          pendingFallback={
-            <UsersTableSkeleton columnVisibility={columnView.visibility} search={search} />
-          }
-          resetKey={JSON.stringify(query)}
-        >
-          <UsersTable
-            columnVisibility={columnView.visibility}
-            onSearchChange={updateSearch}
+        {/* Measured, because the room for columns depends on the sidebar as well as the window. */}
+        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+          <UsersToolbar
+            columnView={columnView}
+            onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
-        </QueryBoundary>
+          <QueryBoundary
+            errorComponent={({ reset }) => (
+              <DataTableError
+                description={t('users.error-description')}
+                onRetry={reset}
+                title={t('users.error-title')}
+              />
+            )}
+            pendingFallback={
+              <UsersTableSkeleton columnVisibility={columnView.visibility} search={search} />
+            }
+            resetKey={JSON.stringify(query)}
+          >
+            <UsersTable
+              columnVisibility={columnView.visibility}
+              onSearchChange={updateSearch}
+              search={search}
+            />
+          </QueryBoundary>
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

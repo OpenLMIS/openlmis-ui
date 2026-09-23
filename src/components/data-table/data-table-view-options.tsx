@@ -39,7 +39,7 @@ export function DataTableViewOptions({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" width="mobile-full" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" width="full" />}>
         <Settings2Icon data-icon="inline-start" />
         {labels.view}
       </DropdownMenuTrigger>

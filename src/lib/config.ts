@@ -10,10 +10,12 @@ import {
   WarehouseIcon,
 } from 'lucide-react';
 import type {
+  LiveNavGroup,
+  LiveNavItem,
+  LiveNavLink,
   NavGroup,
   NavItem,
   NavLink,
-  NavParent,
   SupportedLanguage,
   TextDirection,
 } from '@/lib/types';
@@ -142,7 +144,23 @@ export const NAV_GROUPS: NavGroup[] = [
 
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
 
-export const isNavParent = (item: NavItem): item is NavParent => 'items' in item;
+export const isNavParent = <T extends NavItem | LiveNavItem>(
+  item: T,
+): item is Extract<T, { items: unknown }> => 'items' in item;
+
+const isLiveLink = (link: NavLink): link is LiveNavLink => link.to !== '#';
+
+/** The nav without pages not migrated yet; a section shows once one of its pages is live. */
+export const LIVE_NAV_GROUPS: LiveNavGroup[] = NAV_GROUPS.map((group) => ({
+  ...group,
+  items: group.items.flatMap((item): LiveNavItem[] => {
+    if (!isNavParent(item)) return isLiveLink(item) ? [item] : [];
+    const items = item.items.filter(isLiveLink);
+    return items.length > 0 ? [{ ...item, items }] : [];
+  }),
+})).filter((group) => group.items.length > 0);
+
+export const LIVE_NAV_ITEMS: LiveNavItem[] = LIVE_NAV_GROUPS.flatMap((group) => group.items);
 
 type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
 

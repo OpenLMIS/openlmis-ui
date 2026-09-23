@@ -27,7 +27,7 @@ export function DataTableSearch({
   const text = placeholder ?? labels.search;
 
   return (
-    <div className="w-full sm:w-72">
+    <div className="w-full">
       <InputGroup>
         <InputGroupAddon>
           <SearchIcon />

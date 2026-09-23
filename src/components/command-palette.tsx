@@ -13,28 +13,24 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
-import { isNavParent, NAV_ITEMS } from '@/lib/config';
-import type { NavItem, NavLink } from '@/lib/types';
-
-type RoutedNavLink = NavLink & { to: Exclude<NavLink['to'], '#'> };
+import { isNavParent, LIVE_NAV_ITEMS } from '@/lib/config';
+import type { LiveNavLink } from '@/lib/types';
 
 type PaletteSection = {
   headingKey?: ParseKeys;
   icon?: LucideIcon;
-  links: RoutedNavLink[];
+  links: LiveNavLink[];
 };
 
-const isRouted = (link: NavLink): link is RoutedNavLink => link.to !== '#';
-
 // Top-level links share one unlabelled section; each parent becomes a section headed by its title.
-const toSections = (items: NavItem[]): PaletteSection[] => [
-  { links: items.filter((item): item is NavLink => !isNavParent(item)).filter(isRouted) },
-  ...items.filter(isNavParent).map((parent) => ({
+const SECTIONS: PaletteSection[] = [
+  { links: LIVE_NAV_ITEMS.filter((item): item is LiveNavLink => !isNavParent(item)) },
+  ...LIVE_NAV_ITEMS.filter(isNavParent).map((parent) => ({
     headingKey: parent.titleKey,
     ...(parent.icon && { icon: parent.icon }),
-    links: parent.items.filter(isRouted),
+    links: parent.items,
   })),
-];
+].filter((section) => section.links.length > 0);
 
 export function CommandPalette() {
   const { t } = useTranslation();
@@ -52,9 +48,6 @@ export function CommandPalette() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
-
-  // Placeholder nav entries (`to: '#'`) have nowhere to navigate, so they stay out.
-  const sections = toSections(NAV_ITEMS).filter((section) => section.links.length > 0);
 
   return (
     <>
@@ -81,7 +74,7 @@ export function CommandPalette() {
           <CommandInput placeholder={t('command.placeholder')} />
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
-            {sections.map((section) => {
+            {SECTIONS.map((section) => {
               const heading = section.headingKey && t(section.headingKey);
               return (
                 <CommandGroup heading={heading} key={section.headingKey ?? 'top-level'}>

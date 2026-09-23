@@ -45,8 +45,8 @@ Routes live in `src/routes/`. The route tree is auto-generated (`src/route-tree.
 The protected layout is an icon-collapsible sidebar (`Ctrl/Cmd+B`) plus a top bar, adapted
 from the `@7ovr/app-shell-1` block. `NAV_GROUPS` in `src/lib/config.ts` is the single
 source for both the sidebar menu and the `Ctrl/Cmd+K` command palette. Entries with
-`to: '#'` are pages not migrated yet: they render disabled and stay out of the
-palette, which only lists real routes.
+`to: '#'` are pages not migrated yet: `LIVE_NAV_GROUPS` leaves them, and any section with
+no live page, out of the sidebar and the palette until they point at a real route.
 
 ### Data fetching pattern
 
@@ -230,7 +230,7 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Button width="mobile-full"`.
+   `Table density`/`layout`, `TableHeader surface`, `Badge success`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -362,15 +362,27 @@ table reads the query through `useDeferredValue(search)`: the first load shows
 next ones arrive. Filter typing uses `replace` on navigation; paging and sorting add
 history entries so Back steps through them.
 
-**Narrow screens drop columns instead of scrolling.** The page lists its columns with a
-`hideBelow` breakpoint for the lower-priority ones (see `USER_HIDEABLE_COLUMNS`), and
-`useColumnVisibility()` combines that with the user's View menu choices, stored with
-`useStoredState`. A choice wins over the screen default; Reset Columns clears the choices.
-One visibility state drives the table, its skeleton and the View menu, so the menu always
-shows what is on screen. Keep the identifying column, status and actions always on. Row
-actions show as icon buttons with tooltips from `md` and fold into a "..." menu below it.
+**Lay out by the room the page has, not the window.** The sidebar takes up to 16rem, so
+the same window can leave very different room for the table. Everything responsive on a
+list page therefore follows the content width, never viewport breakpoints like `md:`:
+
+- Column defaults: the page lists its columns with a `hideBelow` container size for the
+  lower-priority ones (see `USER_HIDEABLE_COLUMNS`), measures its content with
+  `useElementWidth()`, and `useColumnVisibility()` combines that with the user's View menu
+  choices, stored with `useStoredState`. A choice wins over the default; Reset Columns
+  clears the choices. One visibility state drives the table, its skeleton and the View
+  menu, so the menu always shows what is on screen.
+- Column widths, row actions and the toolbar use container queries on `Workspace`'s
+  `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:flex`.
+- The pagination follows the table card's own `@container/table`.
+
+Keep the identifying column, status and actions always on. Row actions show as icon
+buttons with tooltips once there is room and fold into a "..." menu below it.
 `meta.className` sets column widths with Tailwind width classes, which keeps them steady from
 page to page.
+
+**The create action ends the toolbar**, after the View menu, rather than sitting in the
+page header, so everything that acts on the list is in one row.
 
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a

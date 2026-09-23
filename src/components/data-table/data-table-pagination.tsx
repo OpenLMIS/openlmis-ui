@@ -71,8 +71,11 @@ export function DataTablePagination<TData extends RowData>({
       }
       pageSize={
         <div className="flex items-center gap-2">
-          {/* Screen readers still get the label on phones, where there is no room to show it. */}
-          <label className="sr-only text-muted-foreground sm:not-sr-only" htmlFor={pageSizeId}>
+          {/* Screen readers still get the label when the table is too narrow to show it. */}
+          <label
+            className="sr-only text-muted-foreground @md/table:not-sr-only"
+            htmlFor={pageSizeId}
+          >
             {labels.rowsPerPage}
           </label>
           <Select
@@ -109,7 +112,7 @@ export function DataTablePaginationSkeleton() {
   return (
     <PaginationLayout
       controls={<SkeletonBlock className="h-7 w-32" />}
-      pageSize={<SkeletonBlock className="h-7 w-16 sm:w-36" />}
+      pageSize={<SkeletonBlock className="h-7 w-16 @md/table:w-36" />}
       range={<SkeletonBlock className="h-5 w-20" />}
     />
   );
@@ -133,8 +136,8 @@ function PaginationLayout({ pageSize, range, controls }: PaginationLayoutProps) 
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       {pageSize}
-      {/* On phones the range sits above the buttons, since the two do not fit side by side. */}
-      <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+      {/* In a narrow table the range sits above the buttons, since the two do not fit side by side. */}
+      <div className="flex flex-col items-end gap-1 @md/table:flex-row @md/table:items-center @md/table:gap-3">
         {range}
         {controls}
       </div>

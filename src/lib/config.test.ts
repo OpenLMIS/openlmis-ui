@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getNavTrail, getTextDirection, SUPPORTED_LANGUAGES } from '@/lib/config';
+import {
+  getNavTrail,
+  getTextDirection,
+  isNavParent,
+  LIVE_NAV_GROUPS,
+  SUPPORTED_LANGUAGES,
+} from '@/lib/config';
 
 describe('getTextDirection', () => {
   it('returns the configured direction for a supported language', () => {
@@ -40,5 +46,23 @@ describe('getNavTrail', () => {
 
   it('is empty for a path outside the nav', () => {
     expect(getNavTrail('/login')).toEqual([]);
+  });
+});
+
+describe('LIVE_NAV_GROUPS', () => {
+  const items = LIVE_NAV_GROUPS.flatMap((group) => group.items);
+  const links = items.flatMap((item) => (isNavParent(item) ? item.items : [item]));
+
+  it('leaves out pages that are not migrated yet', () => {
+    expect(links.map((link) => String(link.to))).not.toContain('#');
+  });
+
+  it('drops a section once none of its pages is live', () => {
+    expect(items.map((item) => item.titleKey)).not.toContain('nav.reports');
+    expect(items.map((item) => item.titleKey)).toContain('nav.administration');
+  });
+
+  it('drops a group left with nothing in it', () => {
+    expect(LIVE_NAV_GROUPS.every((group) => group.items.length > 0)).toBe(true);
   });
 });

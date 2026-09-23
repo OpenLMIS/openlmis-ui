@@ -1,63 +1,57 @@
 import type { ColumnVisibilityState } from '@tanstack/react-table';
-import { useSyncExternalStore } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
-/** Tailwind's default breakpoints, so a column hides at the same widths as the layout around it. */
-const BREAKPOINTS = { sm: '40rem', md: '48rem', lg: '64rem', xl: '80rem' } as const;
+/** Tailwind's container sizes in px, so defaults switch where `@md:`-style classes do. */
+const CONTAINER_WIDTHS = {
+  sm: 384,
+  md: 448,
+  lg: 512,
+  xl: 576,
+  '2xl': 672,
+  '3xl': 768,
+  '4xl': 896,
+  '5xl': 1024,
+} as const;
 
-export type Breakpoint = keyof typeof BREAKPOINTS;
+export type ContainerSize = keyof typeof CONTAINER_WIDTHS;
 
 export type ResponsiveColumn = {
   id: string;
-  /** The column is hidden by default on screens narrower than this. */
-  hideBelow?: Breakpoint;
+  /** The column is hidden by default when the table has less room than this container size. */
+  hideBelow?: ContainerSize;
 };
 
-type ScreenWidths = Record<Breakpoint, boolean>;
+/** Width of an element, kept current as it resizes; the sidebar changes it, not just the window. */
+export function useElementWidth<T extends HTMLElement>() {
+  const [element, setElement] = useState<T | null>(null);
+  const [width, setWidth] = useState<number | undefined>(undefined);
 
-const BREAKPOINT_NAMES = Object.keys(BREAKPOINTS) as Breakpoint[];
+  useLayoutEffect(() => {
+    if (!element) return;
+    setWidth(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
 
-let mediaQueries: MediaQueryList[] | undefined;
-
-// Created on first use, not at import, so the module also loads where there is no window.
-function getMediaQueries() {
-  mediaQueries ??= BREAKPOINT_NAMES.map((name) =>
-    window.matchMedia(`(min-width: ${BREAKPOINTS[name]})`),
-  );
-  return mediaQueries;
+  return [setElement, width] as const;
 }
 
-function subscribe(onChange: () => void) {
-  const lists = getMediaQueries();
-  for (const list of lists) list.addEventListener('change', onChange);
-  return () => {
-    for (const list of lists) list.removeEventListener('change', onChange);
-  };
-}
-
-// A string snapshot keeps useSyncExternalStore from seeing a new value on every read.
-function getSnapshot() {
-  return getMediaQueries()
-    .map((list) => (list.matches ? '1' : '0'))
-    .join('');
-}
-
-function useScreenWidths(): ScreenWidths {
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot);
-  return Object.fromEntries(
-    BREAKPOINT_NAMES.map((name, index) => [name, snapshot[index] === '1']),
-  ) as ScreenWidths;
-}
-
-/** What shows: the user's own choice for a column, otherwise whether the screen is wide enough. */
+/** What shows: the user's own choice for a column, otherwise whether there is room for it. */
 export function resolveColumnVisibility(
   columns: readonly ResponsiveColumn[],
   choices: ColumnVisibilityState,
-  screen: ScreenWidths,
+  width: number | undefined,
 ): ColumnVisibilityState {
+  // Before the first measurement everything counts as fitting; the layout effect corrects it before paint.
+  const available = width ?? Number.POSITIVE_INFINITY;
   return Object.fromEntries(
     columns.map((column) => [
       column.id,
-      choices[column.id] ?? (column.hideBelow ? screen[column.hideBelow] : true),
+      choices[column.id] ??
+        (column.hideBelow ? available >= CONTAINER_WIDTHS[column.hideBelow] : true),
     ]),
   );
 }
@@ -72,12 +66,13 @@ export function changedColumns(
   );
 }
 
-/** Visibility that follows the screen until the user picks; the caller stores the picks, e.g. in local storage. */
+/** Visibility that fits the room until the user picks; the caller stores the picks and measures the width. */
 export function useColumnVisibility(
   columns: readonly ResponsiveColumn[],
   [choices, setChoices]: readonly [ColumnVisibilityState, (next: ColumnVisibilityState) => void],
+  width: number | undefined,
 ) {
-  const visibility = resolveColumnVisibility(columns, choices, useScreenWidths());
+  const visibility = resolveColumnVisibility(columns, choices, width);
 
   return {
     visibility,

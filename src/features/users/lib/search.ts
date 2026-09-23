@@ -10,9 +10,9 @@ import {
 
 /** View menu columns in display order; `hideBelow` drops them on narrow screens unless the user opts in. */
 export const USER_HIDEABLE_COLUMNS = [
-  { id: 'lastName', labelKey: 'users.name', hideBelow: 'sm' },
+  { id: 'lastName', labelKey: 'users.name', hideBelow: 'xl' },
   { id: 'username', labelKey: 'users.username' },
-  { id: 'email', labelKey: 'users.email', hideBelow: 'lg' },
+  { id: 'email', labelKey: 'users.email', hideBelow: '4xl' },
   { id: 'active', labelKey: 'users.status' },
 ] as const;
 

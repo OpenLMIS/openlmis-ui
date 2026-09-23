@@ -22,6 +22,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -52,14 +53,14 @@ function createColumns(t: TFunction) {
     // Shows the full name but sorts by last name, the usual order for a list of people.
     columnHelper.accessor('lastName', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.name')} />,
-      meta: { className: 'sm:w-2/5 lg:w-1/5' },
+      meta: { className: '@xl/main:w-2/5 @4xl/main:w-1/5' },
       cell: ({ row }) => fullName(row.original) || '-',
     }),
     columnHelper.accessor('username', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.username')} />,
       cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
-      // No width below lg, so the username takes the room the hidden columns leave.
-      meta: { className: 'lg:w-1/6' },
+      // No width below 4xl, so the username takes the room the hidden columns leave.
+      meta: { className: '@4xl/main:w-1/6' },
     }),
     columnHelper.accessor('email', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.email')} />,
@@ -68,22 +69,24 @@ function createColumns(t: TFunction) {
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.status')} />,
-      meta: { className: 'w-24' },
-      cell: ({ getValue }) => {
-        const active = getValue();
-        const StatusIcon = active ? CheckIcon : XIcon;
-        return (
-          <span className={active ? 'text-success' : 'text-destructive'}>
-            <StatusIcon aria-hidden className="size-4" />
-            <span className="sr-only">{t(active ? 'users.active' : 'users.inactive')}</span>
-          </span>
-        );
-      },
+      meta: { className: 'w-32' },
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <Badge variant="success">
+            <CheckIcon data-icon="inline-start" />
+            {t('users.active')}
+          </Badge>
+        ) : (
+          <Badge variant="destructive">
+            <XIcon data-icon="inline-start" />
+            {t('users.inactive')}
+          </Badge>
+        ),
     }),
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('users.actions')}</span>,
-      meta: { className: 'w-16 md:w-32' },
+      meta: { className: 'w-16 @2xl/main:w-32' },
       cell: ({ row }) => <UserActions username={row.original.username} />,
     }),
   ]);
@@ -106,7 +109,7 @@ function UserActions({ username }: { username: string }) {
   return (
     <div className="flex justify-end">
       {/* Icon buttons where the row has room; a menu on phones, where three would crowd it. */}
-      <div className="hidden gap-1 md:flex">
+      <div className="hidden gap-1 @2xl/main:flex">
         {actions.map(({ id, label, icon: Icon, variant }) => (
           <Tooltip key={id}>
             <TooltipTrigger render={<Button aria-label={label} size="icon-sm" variant={variant} />}>
@@ -116,7 +119,7 @@ function UserActions({ username }: { username: string }) {
           </Tooltip>
         ))}
       </div>
-      <div className="md:hidden">
+      <div className="@2xl/main:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

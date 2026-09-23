@@ -1,6 +1,6 @@
 import { SidebarMenuSkeleton } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NAV_GROUPS } from '@/lib/config';
+import { LIVE_NAV_GROUPS } from '@/lib/config';
 
 export function AppShellSkeleton() {
   return (
@@ -13,7 +13,7 @@ export function AppShellSkeleton() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 p-3">
-          {NAV_GROUPS.map((group) => (
+          {LIVE_NAV_GROUPS.map((group) => (
             <div className="flex flex-col gap-2" key={group.labelKey ?? group.items[0]?.titleKey}>
               {group.labelKey && (
                 <div className="h-3 w-16">
