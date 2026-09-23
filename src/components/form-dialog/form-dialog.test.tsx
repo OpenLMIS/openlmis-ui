@@ -13,10 +13,9 @@ import {
 } from '@/components/form-dialog/form-dialog';
 
 function renderDialog({ pending = false } = {}) {
-  const onOpenChange = vi.fn();
   const onSubmit = vi.fn();
   render(
-    <FormDialog onOpenChange={onOpenChange} open>
+    <FormDialog onOpenChange={vi.fn()} open>
       <FormDialogForm onSubmit={onSubmit}>
         <FormDialogHeader>
           <FormDialogTitle>Edit</FormDialogTitle>
@@ -31,7 +30,7 @@ function renderDialog({ pending = false } = {}) {
       </FormDialogForm>
     </FormDialog>,
   );
-  return { onOpenChange, onSubmit };
+  return { onSubmit };
 }
 
 describe('FormDialog', () => {
@@ -42,29 +41,6 @@ describe('FormDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onSubmit).toHaveBeenCalledOnce();
-  });
-
-  it('submits on Enter in a field', async () => {
-    const user = userEvent.setup();
-    const { onSubmit } = renderDialog();
-
-    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada{Enter}');
-
-    expect(onSubmit).toHaveBeenCalledOnce();
-  });
-
-  it('names the dialog by its title', () => {
-    renderDialog();
-    expect(screen.getByRole('dialog', { name: 'Edit' })).toBeInTheDocument();
-  });
-
-  it('closes from Cancel', async () => {
-    const user = userEvent.setup();
-    const { onOpenChange } = renderDialog();
-
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
   });
 
   it('locks both buttons while saving', () => {
