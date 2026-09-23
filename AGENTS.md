@@ -441,8 +441,8 @@ example: Add/Edit User is a dialog, Edit User Roles is a page.
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `CheckboxField`, `ComboboxField`). A yes/no setting is a `CheckboxField`,
-drawn as a bordered card, not a switch. Validate with a zod schema on `onDynamic` with
+(`TextField`, `SwitchField`, `ComboboxField`). A yes/no setting is a `SwitchField`,
+a switch in a bordered card, not a checkbox. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
 the first submit and then follow each correction.
 

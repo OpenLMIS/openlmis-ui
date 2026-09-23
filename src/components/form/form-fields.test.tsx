@@ -53,9 +53,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
           />
         )}
       </form.AppField>
-      <form.AppField name="active">
-        {(field) => <field.CheckboxField label="Active" />}
-      </form.AppField>
+      <form.AppField name="active">{(field) => <field.SwitchField label="Active" />}</form.AppField>
       <form.AppField name="method">
         {(field) => (
           <field.RadioGroupField
@@ -100,14 +98,14 @@ describe('form fields', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('stores the picked item by value, the unticked checkbox and the chosen option', async () => {
+  it('stores the picked item by value, the switched-off setting and the chosen option', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm();
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
     await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
     await user.click(await screen.findByRole('option', { name: 'HF01 - Kankao Health Facility' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Active' }));
+    await user.click(screen.getByRole('switch', { name: 'Active' }));
     await user.click(screen.getByRole('radio', { name: 'Manual' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
