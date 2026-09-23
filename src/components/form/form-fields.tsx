@@ -117,6 +117,7 @@ export function TextField({
 
 type PasswordFieldProps = FieldProps & {
   autoComplete?: 'new-password' | 'current-password';
+  placeholder?: string;
   /** Names the button that reveals the password, for screen readers. */
   showLabel: string;
   hideLabel: string;
@@ -128,6 +129,7 @@ export function PasswordField({
   required,
   disabled,
   autoComplete = 'new-password',
+  placeholder,
   showLabel,
   hideLabel,
 }: PasswordFieldProps) {
@@ -148,6 +150,7 @@ export function PasswordField({
           name={field.name}
           onBlur={field.handleBlur}
           onChange={(event) => field.handleChange(event.target.value)}
+          placeholder={placeholder}
           type={visible ? 'text' : 'password'}
           value={field.state.value}
         />
@@ -170,26 +173,51 @@ export function PasswordField({
   );
 }
 
-/** A yes/no setting as a card: label and description at the start, the checkbox at the end, all one click target. */
+type ChoiceCardProps = {
+  /** The control's id, so a click anywhere on the card reaches it. */
+  htmlFor?: string;
+  label: ReactNode;
+  /** Text goes in a description line; any other node, such as a skeleton, is placed as it is. */
+  description?: ReactNode;
+  disabled?: boolean;
+  /** The checkbox or radio, or a placeholder while loading. */
+  children: ReactNode;
+};
+
+/** The card around one choice: label and description at the start, the control at the end. */
+export function ChoiceCard({ htmlFor, label, description, disabled, children }: ChoiceCardProps) {
+  return (
+    <FieldLabel htmlFor={htmlFor}>
+      <Field data-disabled={disabled} orientation="horizontal">
+        <FieldContent>
+          <FieldTitle>{label}</FieldTitle>
+          {typeof description === 'string' ? (
+            <FieldDescription size="sm">{description}</FieldDescription>
+          ) : (
+            description
+          )}
+        </FieldContent>
+        {children}
+      </Field>
+    </FieldLabel>
+  );
+}
+
+/** A yes/no setting as a `ChoiceCard`, all one click target. */
 export function CheckboxField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
   const field = useFieldContext<boolean>();
 
   return (
-    <FieldLabel htmlFor={field.name}>
-      <Field data-disabled={disabled} orientation="horizontal">
-        <FieldContent>
-          <FieldTitle>{label}</FieldTitle>
-          {description && <FieldDescription size="sm">{description}</FieldDescription>}
-        </FieldContent>
-        <Checkbox
-          checked={field.state.value}
-          disabled={disabled}
-          id={field.name}
-          name={field.name}
-          onCheckedChange={(checked) => field.handleChange(checked)}
-        />
-      </Field>
-    </FieldLabel>
+    <ChoiceCard description={description} disabled={disabled} htmlFor={field.name} label={label}>
+      <Checkbox
+        checked={field.state.value}
+        disabled={disabled}
+        id={field.name}
+        name={field.name}
+        onBlur={field.handleBlur}
+        onCheckedChange={(checked) => field.handleChange(checked)}
+      />
+    </ChoiceCard>
   );
 }
 
@@ -216,23 +244,22 @@ export function RadioGroupField({ label, options, disabled }: RadioGroupFieldPro
       <RadioGroup
         disabled={disabled}
         name={field.name}
+        onBlur={field.handleBlur}
         onValueChange={(value) => field.handleChange(String(value))}
         value={field.state.value}
       >
         {options.map((option) => {
           const id = `${field.name}-${option.value}`;
           return (
-            <FieldLabel htmlFor={id} key={option.value}>
-              <Field data-disabled={disabled} orientation="horizontal">
-                <FieldContent>
-                  <FieldTitle>{option.label}</FieldTitle>
-                  {option.description && (
-                    <FieldDescription size="sm">{option.description}</FieldDescription>
-                  )}
-                </FieldContent>
-                <RadioGroupItem id={id} value={option.value} />
-              </Field>
-            </FieldLabel>
+            <ChoiceCard
+              description={option.description}
+              disabled={disabled}
+              htmlFor={id}
+              key={option.value}
+              label={option.label}
+            >
+              <RadioGroupItem id={id} value={option.value} />
+            </ChoiceCard>
           );
         })}
       </RadioGroup>

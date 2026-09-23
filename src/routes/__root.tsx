@@ -4,6 +4,7 @@ import { createRootRouteWithContext, Link, Outlet } from '@tanstack/react-router
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ChevronLeft, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -26,7 +27,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   return (
     <>
-      <Outlet />
+      {/* At the root, so forms outside the app shell, like sign in, translate their messages too. */}
+      <TranslatedFormMessages>
+        <Outlet />
+      </TranslatedFormMessages>
       <Toaster />
       {import.meta.env.VITE_SHOW_DEVTOOLS === 'true' && (
         <>

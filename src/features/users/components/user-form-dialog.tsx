@@ -11,7 +11,12 @@ import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
-import { CheckboxField, ComboboxField, FieldLabelText } from '@/components/form/form-fields';
+import {
+  CheckboxField,
+  ChoiceCard,
+  ComboboxField,
+  FieldLabelText,
+} from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -26,19 +31,13 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldTitle,
-} from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
 import {
+  DialogLoadError,
   ErrorAlert,
   RetryButton,
   SkeletonLine,
@@ -49,6 +48,8 @@ import type { UserDetails } from '@/features/users/lib/types';
 import {
   countHomeFacilityRoles,
   EMPTY_USER_FORM,
+  toAuthUser,
+  toContactDetails,
   toUserFormValues,
   type UserFormValues,
   userFormSchema,
@@ -68,17 +69,11 @@ type UserFormDialogProps = {
 };
 
 export function UserFormDialog({ target, onClose, onCreated }: UserFormDialogProps) {
-  const { shown, open, onOpenChangeComplete } = useDialogTarget(target);
+  const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
-    <FormDialog
-      onOpenChange={(next) => {
-        if (!next && !isSaving) onClose();
-      }}
-      onOpenChangeComplete={onOpenChangeComplete}
-      open={open}
-    >
+    <FormDialog {...dialogProps(isSaving)}>
       {shown === 'new' && <UserForm onCreated={onCreated} onDone={onClose} />}
       {shown !== undefined && shown !== 'new' && (
         <EditUserForm key={shown} onDone={onClose} userId={shown} />
@@ -98,19 +93,7 @@ function EditUserForm({ userId, onDone }: EditUserFormProps) {
   return (
     <QueryBoundary
       errorComponent={({ reset }) => (
-        <>
-          <FormDialogHeader>
-            <FormDialogTitle>{t('users.form.edit-title')}</FormDialogTitle>
-          </FormDialogHeader>
-          <ErrorAlert
-            action={<RetryButton onClick={reset} />}
-            description={t('users.error-description')}
-            title={t('users.form.load-error-title')}
-          />
-          <FormDialogFooter>
-            <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
-          </FormDialogFooter>
-        </>
+        <DialogLoadError onRetry={reset} title={t('users.form.edit-title')} />
       )}
       pendingFallback={<UserFormSkeleton />}
       resetKey={userId}
@@ -147,7 +130,14 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
         await updateUser(details, values);
         return details.user.id;
       }
-      return (await createUser(values)).id;
+      const user = await createUser(values);
+      // Setting a password comes next and needs this user; it is all known now, so it opens without a fetch.
+      queryClient.setQueryData(userDetailsOptions(user.id).queryKey, {
+        user,
+        contact: toContactDetails(user.id, values),
+        auth: toAuthUser(user.id, values),
+      });
+      return user.id;
     },
     onSuccess: (_, values) => {
       toast.success(
@@ -395,21 +385,11 @@ function FieldSkeleton({ label, required = false }: { label: string; required?: 
 
 function CheckboxSkeleton({ label, description }: { label: string; description?: string }) {
   return (
-    <FieldLabel>
-      <Field orientation="horizontal">
-        <FieldContent>
-          <FieldTitle>{label}</FieldTitle>
-          {description ? (
-            <FieldDescription size="sm">{description}</FieldDescription>
-          ) : (
-            <SkeletonLine width="medium" />
-          )}
-        </FieldContent>
-        <div className="size-4 shrink-0">
-          <Skeleton fill />
-        </div>
-      </Field>
-    </FieldLabel>
+    <ChoiceCard description={description ?? <SkeletonLine width="medium" />} label={label}>
+      <div className="size-4 shrink-0">
+        <Skeleton fill />
+      </div>
+    </ChoiceCard>
   );
 }
 

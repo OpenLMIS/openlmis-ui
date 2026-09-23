@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { UsersIcon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableError } from '@/components/data-table/data-table';
@@ -41,6 +41,14 @@ const CLOSED_DIALOGS = {
   created: undefined,
 } satisfies Partial<UsersSearch>;
 
+declare module '@tanstack/react-router' {
+  // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
+  interface HistoryState {
+    /** On an entry this page pushed to open a dialog, so closing it can step Back. */
+    dialogOpenedHere?: boolean;
+  }
+}
+
 export const Route = createFileRoute('/(protected)/_protected/administration/users')({
   validateSearch: usersSearchSchema,
   loaderDeps: ({ search }) => ({
@@ -52,7 +60,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     queryClient.prefetchQuery(usersListOptions(deps.query));
     // A dialog's data starts with the navigation, not once the dialog has rendered.
     if (deps.user) queryClient.prefetchQuery(minimalFacilitiesOptions());
-    const detailsFor = deps.user === 'new' ? deps.password : (deps.user ?? deps.password);
+    const detailsFor = deps.user ? deps.user !== 'new' && deps.user : deps.password;
     if (detailsFor) queryClient.prefetchQuery(userDetailsOptions(detailsFor));
   },
   component: UsersPage,
@@ -68,9 +76,13 @@ function UsersPage() {
     structuralSharing: true,
   });
   const dialogs = Route.useSearch({
+    // One dialog at a time: a link that names both opens the user.
     select: ({ user, password, created }) => ({
       user,
-      password: password ? { userId: password, created: created ?? false } : undefined,
+      password:
+        password && user === undefined
+          ? { userId: password, created: created ?? false }
+          : undefined,
     }),
     structuralSharing: true,
   });
@@ -97,27 +109,28 @@ function UsersPage() {
     [navigate],
   );
   const router = useRouter();
-  // Set when this page opened a dialog, so closing steps Back instead of adding a second list entry.
-  const openedHere = useRef(false);
+  // Opening marks the entry it pushes, so closing steps Back to the list, even after Forward reopened it.
   const openDialog = useCallback(
-    (params: Partial<UsersSearch>) => {
-      openedHere.current = true;
-      updateSearch({ ...CLOSED_DIALOGS, ...params });
-    },
-    [updateSearch],
+    (params: Partial<UsersSearch>) =>
+      navigate({
+        search: (previous) => ({ ...previous, ...CLOSED_DIALOGS, ...params }),
+        state: (previous) => ({ ...previous, dialogOpenedHere: true }),
+      }),
+    [navigate],
   );
   const closeDialog = useCallback(() => {
-    if (openedHere.current) {
-      openedHere.current = false;
-      router.history.back();
-    } else {
-      updateSearch(CLOSED_DIALOGS, true);
-    }
+    if (router.state.location.state.dialogOpenedHere) router.history.back();
+    else updateSearch(CLOSED_DIALOGS, true);
   }, [router, updateSearch]);
-  // Setting a password takes the new user's place in history, so Back and Close still leave for the list.
+  // Setting a password takes the new user's place in history, keeping its mark, so Close still steps Back.
   const setNewUserPassword = useCallback(
-    (userId: string) => updateSearch({ ...CLOSED_DIALOGS, password: userId, created: true }, true),
-    [updateSearch],
+    (userId: string) =>
+      navigate({
+        search: (previous) => ({ ...previous, ...CLOSED_DIALOGS, password: userId, created: true }),
+        state: (previous) => previous,
+        replace: true,
+      }),
+    [navigate],
   );
   const editUser = useCallback((user: string) => openDialog({ user }), [openDialog]);
   const resetPassword = useCallback((password: string) => openDialog({ password }), [openDialog]);

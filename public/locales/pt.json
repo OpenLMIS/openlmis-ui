@@ -180,6 +180,7 @@
   "users.password.send": "Enviar Email",
   "users.password.set": "Definir Palavra-passe",
   "users.password.set-description": "{username} ainda não tem palavra-passe. Defina uma para que possa iniciar sessão.",
+  "users.password.set-description-email": "{username} ainda não tem palavra-passe. Envie uma ligação por email ou defina uma agora para que possa iniciar sessão.",
   "users.password.set-title": "Definir Palavra-passe",
   "users.password.show": "Mostrar Palavra-passe",
   "users.password.too-short": "Use pelo menos 8 caracteres.",

@@ -180,6 +180,7 @@
   "users.password.send": "Send Email",
   "users.password.set": "Set Password",
   "users.password.set-description": "{username} has no password yet. Set one so they can sign in.",
+  "users.password.set-description-email": "{username} has no password yet. Email a link or set one now so they can sign in.",
   "users.password.set-title": "Set Password",
   "users.password.show": "Show Password",
   "users.password.too-short": "Use at least 8 characters.",

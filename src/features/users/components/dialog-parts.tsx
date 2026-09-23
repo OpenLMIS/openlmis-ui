@@ -2,6 +2,12 @@ import { isAxiosError } from 'axios';
 import { AlertCircleIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  FormDialogCancel,
+  FormDialogFooter,
+  FormDialogHeader,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,5 +53,25 @@ export function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
         <Skeleton fill />
       </div>
     </div>
+  );
+}
+
+/** What a dialog shows when the user it needs could not be loaded: its title, the error, Try Again. */
+export function DialogLoadError({ title, onRetry }: { title: string; onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{title}</FormDialogTitle>
+      </FormDialogHeader>
+      <ErrorAlert
+        action={<RetryButton onClick={onRetry} />}
+        description={t('users.error-description')}
+        title={t('users.form.load-error-title')}
+      />
+      <FormDialogFooter>
+        <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
   );
 }

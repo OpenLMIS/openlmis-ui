@@ -180,6 +180,7 @@
   "users.password.send": "إرسال البريد",
   "users.password.set": "تعيين كلمة المرور",
   "users.password.set-description": "لا توجد كلمة مرور لـ {username} بعد. عيّن واحدة ليتمكن من تسجيل الدخول.",
+  "users.password.set-description-email": "لا توجد كلمة مرور لـ {username} بعد. أرسل رابطًا بالبريد أو عيّن واحدة الآن ليتمكن من تسجيل الدخول.",
   "users.password.set-title": "تعيين كلمة المرور",
   "users.password.show": "إظهار كلمة المرور",
   "users.password.too-short": "استخدم 8 أحرف على الأقل.",

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
+import { ChoiceCard } from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -17,21 +18,13 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-  FieldTitle,
-} from '@/components/ui/field';
+import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { sendPasswordResetEmail, setUserPassword } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
 import {
+  DialogLoadError,
   ErrorAlert,
-  RetryButton,
   SkeletonLine,
   serverMessage,
 } from '@/features/users/components/dialog-parts';
@@ -39,8 +32,8 @@ import {
   defaultPasswordForm,
   type PasswordFormValues,
   passwordFormSchema,
+  resetEmail,
 } from '@/features/users/lib/password-form';
-import type { UserDetails } from '@/features/users/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
 /** The user whose password is set, and whether they were just created and have none yet. */
@@ -58,36 +51,19 @@ type ResetPasswordDialogProps = {
 
 export function ResetPasswordDialog({ target, onClose }: ResetPasswordDialogProps) {
   const { t } = useTranslation();
-  const { shown, open, onOpenChangeComplete } = useDialogTarget(target);
+  const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: passwordKey(shown?.userId ?? '') }) > 0;
+  const title = t(shown?.created ? 'users.password.set-title' : 'users.password.reset-title');
 
   return (
-    <FormDialog
-      onOpenChange={(next) => {
-        if (!next && !isSaving) onClose();
-      }}
-      onOpenChangeComplete={onOpenChangeComplete}
-      open={open}
-    >
+    <FormDialog {...dialogProps(isSaving)}>
       {shown && (
         <QueryBoundary
-          errorComponent={({ reset }) => (
-            <>
-              <PasswordDialogHeader created={shown.created} />
-              <ErrorAlert
-                action={<RetryButton onClick={reset} />}
-                description={t('users.error-description')}
-                title={t('users.form.load-error-title')}
-              />
-              <FormDialogFooter>
-                <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
-              </FormDialogFooter>
-            </>
-          )}
-          pendingFallback={<PasswordFormSkeleton created={shown.created} />}
+          errorComponent={({ reset }) => <DialogLoadError onRetry={reset} title={title} />}
+          pendingFallback={<PasswordFormSkeleton title={title} />}
           resetKey={shown.userId}
         >
-          <LoadedPasswordForm key={shown.userId} onDone={onClose} target={shown} />
+          <PasswordForm key={shown.userId} onDone={onClose} target={shown} title={title} />
         </QueryBoundary>
       )}
     </FormDialog>
@@ -96,36 +72,15 @@ export function ResetPasswordDialog({ target, onClose }: ResetPasswordDialogProp
 
 type PasswordFormProps = {
   target: PasswordDialogTarget;
+  title: string;
   onDone: () => void;
 };
 
-function LoadedPasswordForm({ target, onDone }: PasswordFormProps) {
-  const { data } = useSuspenseQuery(userDetailsOptions(target.userId));
-  return <PasswordForm created={target.created} details={data} onDone={onDone} />;
-}
-
-function PasswordDialogHeader({ created, children }: { created: boolean; children?: ReactNode }) {
+function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const { t } = useTranslation();
-  return (
-    <FormDialogHeader>
-      <FormDialogTitle>
-        {t(created ? 'users.password.set-title' : 'users.password.reset-title')}
-      </FormDialogTitle>
-      {children}
-    </FormDialogHeader>
-  );
-}
-
-type PasswordFormFieldsProps = {
-  details: UserDetails;
-  created: boolean;
-  onDone: () => void;
-};
-
-function PasswordForm({ details, created, onDone }: PasswordFormFieldsProps) {
-  const { t } = useTranslation();
+  const { data: details } = useSuspenseQuery(userDetailsOptions(target.userId));
   const { id, username } = details.user;
-  const email = details.contact?.emailDetails?.email ?? null;
+  const email = resetEmail(details.contact?.emailDetails?.email);
 
   const save = useMutation({
     mutationKey: passwordKey(id),
@@ -143,22 +98,24 @@ function PasswordForm({ details, created, onDone }: PasswordFormFieldsProps) {
   });
 
   const form = useAppForm({
-    defaultValues: defaultPasswordForm(email !== null),
+    defaultValues: defaultPasswordForm(email),
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: passwordFormSchema },
     onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
   });
 
+  const description = target.created
+    ? t(email ? 'users.password.set-description-email' : 'users.password.set-description', {
+        username,
+      })
+    : t(email ? 'users.password.reset-description' : 'users.password.reset-description-no-email', {
+        username,
+      });
+
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
-      <PasswordDialogHeader created={created}>
-        <FormDialogDescription>
-          {created
-            ? t('users.password.set-description', { username })
-            : email
-              ? t('users.password.reset-description', { username })
-              : t('users.password.reset-description-no-email', { username })}
-        </FormDialogDescription>
+      <PasswordDialogHeader title={title}>
+        <FormDialogDescription>{description}</FormDialogDescription>
       </PasswordDialogHeader>
       <FormDialogBody>
         <FieldGroup>
@@ -224,13 +181,22 @@ function PasswordForm({ details, created, onDone }: PasswordFormFieldsProps) {
   );
 }
 
+function PasswordDialogHeader({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <FormDialogHeader>
+      <FormDialogTitle>{title}</FormDialogTitle>
+      {children}
+    </FormDialogHeader>
+  );
+}
+
 /** Laid out like the usual case, a user with an email choosing between the two methods. */
-function PasswordFormSkeleton({ created }: { created: boolean }) {
+function PasswordFormSkeleton({ title }: { title: string }) {
   const { t } = useTranslation();
 
   return (
     <>
-      <PasswordDialogHeader created={created}>
+      <PasswordDialogHeader title={title}>
         <SkeletonLine width="short" />
       </PasswordDialogHeader>
       <FormDialogBody>
@@ -240,17 +206,15 @@ function PasswordFormSkeleton({ created }: { created: boolean }) {
               <FieldLegend variant="label">{t('users.password.method')}</FieldLegend>
               {[t('users.password.method-email'), t('users.password.method-manual')].map(
                 (label) => (
-                  <FieldLabel key={label}>
-                    <Field orientation="horizontal">
-                      <FieldContent>
-                        <FieldTitle>{label}</FieldTitle>
-                        <SkeletonLine width="medium" />
-                      </FieldContent>
-                      <div className="size-4 shrink-0">
-                        <Skeleton fill shape="circle" />
-                      </div>
-                    </Field>
-                  </FieldLabel>
+                  <ChoiceCard
+                    description={<SkeletonLine width="medium" />}
+                    key={label}
+                    label={label}
+                  >
+                    <div className="size-4 shrink-0">
+                      <Skeleton fill shape="circle" />
+                    </div>
+                  </ChoiceCard>
                 ),
               )}
             </FieldSet>

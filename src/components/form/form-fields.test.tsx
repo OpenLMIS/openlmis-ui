@@ -10,6 +10,8 @@ const schema = z.object({
   name: z.string().min(1, 'name.required'),
   facility: z.string().nullable(),
   active: z.boolean(),
+  method: z.string(),
+  secret: z.string(),
 });
 
 const facilities = [
@@ -19,7 +21,13 @@ const facilities = [
 
 function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => void }) {
   const form = useAppForm({
-    defaultValues: { name: '', facility: null as string | null, active: true },
+    defaultValues: {
+      name: '',
+      facility: null as string | null,
+      active: true,
+      method: 'email',
+      secret: '',
+    },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
     onSubmit: ({ value }) => onSubmit(value),
@@ -47,6 +55,20 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       </form.AppField>
       <form.AppField name="active">
         {(field) => <field.CheckboxField label="Active" />}
+      </form.AppField>
+      <form.AppField name="method">
+        {(field) => (
+          <field.RadioGroupField
+            label="Method"
+            options={[
+              { value: 'email', label: 'Email' },
+              { value: 'manual', label: 'Manual' },
+            ]}
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="secret">
+        {(field) => <field.PasswordField hideLabel="Hide" label="Secret" showLabel="Show" />}
       </form.AppField>
       <button type="submit">Save</button>
     </form>
@@ -78,7 +100,7 @@ describe('form fields', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('stores the picked item by value and unticks the checkbox', async () => {
+  it('stores the picked item by value, the unticked checkbox and the chosen option', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm();
 
@@ -86,8 +108,26 @@ describe('form fields', () => {
     await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
     await user.click(await screen.findByRole('option', { name: 'HF01 - Kankao Health Facility' }));
     await user.click(screen.getByRole('checkbox', { name: 'Active' }));
+    await user.click(screen.getByRole('radio', { name: 'Manual' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ name: 'Ada', facility: 'f2', active: false });
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: 'Ada',
+      facility: 'f2',
+      active: false,
+      method: 'manual',
+      secret: '',
+    });
+  });
+
+  it('reveals the password and names the button for what it will do', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const secret = screen.getByLabelText('Secret');
+
+    expect(secret).toHaveAttribute('type', 'password');
+    await user.click(screen.getByRole('button', { name: 'Show' }));
+    expect(secret).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();
   });
 });

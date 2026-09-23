@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPasswordForm, passwordFormSchema } from '@/features/users/lib/password-form';
+import {
+  defaultPasswordForm,
+  passwordFormSchema,
+  resetEmail,
+} from '@/features/users/lib/password-form';
 
 const messages = (values: { method: 'email' | 'manual'; password: string }) =>
   passwordFormSchema.safeParse(values).error?.issues.map((issue) => [issue.path, issue.message]);
@@ -25,7 +29,12 @@ describe('passwordFormSchema', () => {
 
 describe('defaultPasswordForm', () => {
   it('starts with the emailed link only when there is an address to send it to', () => {
-    expect(defaultPasswordForm(true).method).toBe('email');
-    expect(defaultPasswordForm(false).method).toBe('manual');
+    expect(defaultPasswordForm('ada@example.org').method).toBe('email');
+    expect(defaultPasswordForm(null).method).toBe('manual');
+  });
+
+  it('treats a blank stored address as none, so a typed password is asked for', () => {
+    expect(resetEmail('  ')).toBeNull();
+    expect(defaultPasswordForm(resetEmail('')).method).toBe('manual');
   });
 });

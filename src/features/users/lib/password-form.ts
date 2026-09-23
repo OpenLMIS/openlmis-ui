@@ -23,7 +23,12 @@ export const passwordFormSchema = z
 
 export type PasswordFormValues = z.input<typeof passwordFormSchema>;
 
+/** The address to send a reset link to; empty text counts as none, so it never hides the password field. */
+export function resetEmail(email: string | null | undefined): string | null {
+  return email?.trim() || null;
+}
+
 /** An emailed link when the user has an address, as the legacy UI does, otherwise a typed password. */
-export function defaultPasswordForm(hasEmail: boolean): PasswordFormValues {
-  return { method: hasEmail ? 'email' : 'manual', password: '' };
+export function defaultPasswordForm(email: string | null): PasswordFormValues {
+  return { method: email ? 'email' : 'manual', password: '' };
 }
