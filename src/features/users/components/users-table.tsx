@@ -30,7 +30,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usersListOptions } from '@/features/users/api/queries';
 import {
   CLEARED_USER_FILTERS,
@@ -53,14 +52,14 @@ function createColumns(t: TFunction) {
     // Shows the full name but sorts by last name, the usual order for a list of people.
     columnHelper.accessor('lastName', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.name')} />,
-      meta: { className: '@xl/main:w-2/5 @4xl/main:w-1/5' },
+      meta: { className: '@xl/main:w-2/5 @4xl/main:w-1/4' },
       cell: ({ row }) => fullName(row.original) || '-',
     }),
     columnHelper.accessor('username', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.username')} />,
       cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
       // No width below 4xl, so the username takes the room the hidden columns leave.
-      meta: { className: '@4xl/main:w-1/6' },
+      meta: { className: '@4xl/main:w-1/4' },
     }),
     columnHelper.accessor('email', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.email')} />,
@@ -86,7 +85,7 @@ function createColumns(t: TFunction) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('users.actions')}</span>,
-      meta: { className: 'w-16 @2xl/main:w-32' },
+      meta: { className: 'w-16' },
       cell: ({ row }) => <UserActions username={row.original.username} />,
     }),
   ]);
@@ -96,55 +95,39 @@ function createColumns(t: TFunction) {
 function UserActions({ username }: { username: string }) {
   const { t } = useTranslation();
   const actions = [
-    { id: 'edit', label: t('users.edit'), icon: PencilIcon, variant: 'default' },
-    { id: 'roles', label: t('users.roles'), icon: ShieldIcon, variant: 'outline' },
+    { id: 'edit', label: t('users.edit'), icon: PencilIcon, destructive: false },
+    { id: 'roles', label: t('users.roles'), icon: ShieldIcon, destructive: false },
     {
       id: 'reset-password',
       label: t('users.reset-password'),
       icon: KeyRoundIcon,
-      variant: 'destructive',
+      destructive: true,
     },
-  ] as const;
+  ];
 
   return (
     <div className="flex justify-end">
-      {/* Icon buttons where the row has room; a menu on phones, where three would crowd it. */}
-      <div className="hidden gap-1 @2xl/main:flex">
-        {actions.map(({ id, label, icon: Icon, variant }) => (
-          <Tooltip key={id}>
-            <TooltipTrigger render={<Button aria-label={label} size="icon-sm" variant={variant} />}>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={t('users.actions-for', { username })}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width="auto">
+          {actions.map(({ id, label, icon: Icon, destructive }) => (
+            <DropdownMenuItem key={id} variant={destructive ? 'destructive' : 'default'}>
               <Icon />
-            </TooltipTrigger>
-            <TooltipContent>{label}</TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
-      <div className="@2xl/main:hidden">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                aria-label={t('users.actions-for', { username })}
-                size="icon-sm"
-                variant="ghost"
-              />
-            }
-          >
-            <EllipsisIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" width="auto">
-            {actions.map(({ id, label, icon: Icon, variant }) => (
-              <DropdownMenuItem
-                key={id}
-                variant={variant === 'destructive' ? 'destructive' : 'default'}
-              >
-                <Icon />
-                {label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+              {label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

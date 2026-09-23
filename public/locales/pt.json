@@ -7,7 +7,7 @@
   "command.placeholder": "Pesquisar páginas e ações...",
   "command.search": "Pesquisar...",
   "command.title": "Paleta de Comandos",
-  "data-table.all": "Todos",
+  "data-table.clear-filter": "Limpar {label}",
   "data-table.clear-search": "Limpar Pesquisa",
   "data-table.first-page": "Primeira Página",
   "data-table.last-page": "Última Página",

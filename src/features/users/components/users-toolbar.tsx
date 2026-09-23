@@ -27,7 +27,7 @@ export function UsersToolbar({ search, onFilterChange, columnView }: UsersToolba
           value={search.q ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-40 @2xl/main:flex-none">
+      <div className="flex-1 @2xl/main:w-48 @2xl/main:flex-none">
         <DataTableSelectFilter
           label={t('users.status')}
           onValueChange={(value) =>
@@ -51,11 +51,13 @@ export function UsersToolbar({ search, onFilterChange, columnView }: UsersToolba
           visibility={columnView.visibility}
         />
       </div>
-      {/* TODO: Open the create user screen once it exists. */}
-      <Button>
-        <PlusIcon data-icon="inline-start" />
-        {t('users.add')}
-      </Button>
+      <div className="w-full @2xl/main:w-auto">
+        {/* TODO: Open the create user screen once it exists. */}
+        <Button width="full">
+          <PlusIcon data-icon="inline-start" />
+          {t('users.add')}
+        </Button>
+      </div>
     </DataTableToolbar>
   );
 }

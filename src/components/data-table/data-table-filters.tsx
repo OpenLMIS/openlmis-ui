@@ -1,4 +1,6 @@
+import { XIcon } from 'lucide-react';
 import { useDataTableLabels } from '@/components/data-table/data-table-labels';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -13,7 +15,7 @@ type DataTableSelectFilterOption = {
 };
 
 type DataTableSelectFilterProps = {
-  /** Shown muted before the selected option, e.g. "Status: All". */
+  /** Shown muted, alone while nothing is picked and before the pick after, e.g. "Status: Active". */
   label: string;
   /** An empty string means no filter. */
   value: string;
@@ -21,7 +23,7 @@ type DataTableSelectFilterProps = {
   options: DataTableSelectFilterOption[];
 };
 
-/** A toolbar dropdown that narrows the rows to one value, or shows them all. */
+/** A toolbar dropdown that narrows the rows to one value, with a button to clear it. */
 export function DataTableSelectFilter({
   label,
   value,
@@ -29,23 +31,47 @@ export function DataTableSelectFilter({
   options,
 }: DataTableSelectFilterProps) {
   const labels = useDataTableLabels();
-  const items = [{ value: '', label: labels.all }, ...options];
 
   return (
-    <Select items={items} onValueChange={(next) => onValueChange(next ?? '')} value={value}>
-      <SelectTrigger width="full">
-        <span className="flex min-w-0 items-center gap-1">
-          <span className="text-muted-foreground">{label}:</span>
-          <SelectValue />
-        </span>
-      </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false}>
-        {items.map((item) => (
-          <SelectItem key={item.value} value={item.value}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="relative">
+      <Select
+        items={options}
+        onValueChange={(next) => onValueChange(next ?? '')}
+        value={value || null}
+      >
+        <SelectTrigger width="full">
+          <span className="flex min-w-0 items-center gap-1 pe-8">
+            {value ? (
+              <>
+                <span className="text-muted-foreground">{label}:</span>
+                <SelectValue />
+              </>
+            ) : (
+              <span className="text-muted-foreground">{label}</span>
+            )}
+          </span>
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false}>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {/* A sibling of the trigger, not inside it, since a button cannot hold another button. */}
+      {value && (
+        <div className="absolute inset-y-0 end-7 flex items-center">
+          <Button
+            aria-label={labels.clearFilter(label)}
+            onClick={() => onValueChange('')}
+            size="icon-xs"
+            variant="ghost"
+          >
+            <XIcon />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

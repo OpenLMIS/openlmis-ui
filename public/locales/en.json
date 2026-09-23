@@ -7,7 +7,7 @@
   "command.placeholder": "Search pages and actions...",
   "command.search": "Search...",
   "command.title": "Command Palette",
-  "data-table.all": "All",
+  "data-table.clear-filter": "Clear {label}",
   "data-table.clear-search": "Clear Search",
   "data-table.first-page": "First Page",
   "data-table.last-page": "Last Page",

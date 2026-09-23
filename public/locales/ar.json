@@ -7,7 +7,7 @@
   "command.placeholder": "ابحث في الصفحات والإجراءات...",
   "command.search": "بحث...",
   "command.title": "لوحة الأوامر",
-  "data-table.all": "الكل",
+  "data-table.clear-filter": "مسح {label}",
   "data-table.clear-search": "مسح البحث",
   "data-table.first-page": "الصفحة الأولى",
   "data-table.last-page": "الصفحة الأخيرة",

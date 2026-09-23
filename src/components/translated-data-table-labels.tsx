@@ -11,7 +11,7 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
     (): Partial<DataTableLabels> => ({
       search: t('data-table.search'),
       clearSearch: t('data-table.clear-search'),
-      all: t('data-table.all'),
+      clearFilter: (label) => t('data-table.clear-filter', { label }),
       view: t('data-table.view'),
       toggleColumns: t('data-table.toggle-columns'),
       resetColumns: t('data-table.reset-columns'),

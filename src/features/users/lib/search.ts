@@ -13,7 +13,7 @@ export const USER_HIDEABLE_COLUMNS = [
   { id: 'lastName', labelKey: 'users.name', hideBelow: 'xl' },
   { id: 'username', labelKey: 'users.username' },
   { id: 'email', labelKey: 'users.email', hideBelow: '4xl' },
-  { id: 'active', labelKey: 'users.status' },
+  { id: 'active', labelKey: 'users.status', hideBelow: 'md' },
 ] as const;
 
 const USER_SORT_FIELDS = ['username', 'firstName', 'lastName', 'active'] as const;

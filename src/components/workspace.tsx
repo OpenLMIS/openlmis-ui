@@ -10,7 +10,7 @@ type WorkspaceProps = {
 
 export function Workspace({ children }: WorkspaceProps) {
   return (
-    <div className="@container/main mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+    <div className="@container/main mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
       <AppBreadcrumbs />
       {children}
     </div>
@@ -52,7 +52,8 @@ export function WorkspaceTitle({ children }: WorkspaceProps) {
 }
 
 export function WorkspaceDescription({ children }: WorkspaceProps) {
-  return <p className="text-pretty text-muted-foreground text-sm">{children}</p>;
+  // One line at most, so every header keeps the same height; longer text is cut with an ellipsis.
+  return <p className="min-w-0 truncate text-muted-foreground text-sm">{children}</p>;
 }
 
 export function WorkspaceActions({ children }: WorkspaceProps) {

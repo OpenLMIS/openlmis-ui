@@ -99,7 +99,11 @@ export function DataTablePagination<TData extends RowData>({
         </div>
       }
       range={
-        <p aria-live="polite" className="whitespace-nowrap text-muted-foreground tabular-nums">
+        // Screen readers keep the range when the table is too narrow to show it.
+        <p
+          aria-live="polite"
+          className="sr-only whitespace-nowrap text-muted-foreground tabular-nums @md/table:not-sr-only"
+        >
           {labels.range(from, to, total)}
         </p>
       }
@@ -113,7 +117,11 @@ export function DataTablePaginationSkeleton() {
     <PaginationLayout
       controls={<SkeletonBlock className="h-7 w-32" />}
       pageSize={<SkeletonBlock className="h-7 w-16 @md/table:w-36" />}
-      range={<SkeletonBlock className="h-5 w-20" />}
+      range={
+        <div className="hidden @md/table:block">
+          <SkeletonBlock className="h-5 w-20" />
+        </div>
+      }
     />
   );
 }
@@ -136,8 +144,7 @@ function PaginationLayout({ pageSize, range, controls }: PaginationLayoutProps) 
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       {pageSize}
-      {/* In a narrow table the range sits above the buttons, since the two do not fit side by side. */}
-      <div className="flex flex-col items-end gap-1 @md/table:flex-row @md/table:items-center @md/table:gap-3">
+      <div className="flex items-center gap-3">
         {range}
         {controls}
       </div>

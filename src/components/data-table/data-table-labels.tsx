@@ -3,7 +3,8 @@ import { createContext, type ReactNode, use, useMemo } from 'react';
 export type DataTableLabels = {
   search: string;
   clearSearch: string;
-  all: string;
+  /** Names the button that clears a dropdown filter, e.g. 'Clear Status'. */
+  clearFilter: (label: string) => string;
   view: string;
   toggleColumns: string;
   resetColumns: string;
@@ -20,7 +21,7 @@ export type DataTableLabels = {
 export const defaultDataTableLabels: DataTableLabels = {
   search: 'Search...',
   clearSearch: 'Clear Search',
-  all: 'All',
+  clearFilter: (label) => `Clear ${label}`,
   view: 'View',
   toggleColumns: 'Toggle Columns',
   resetColumns: 'Reset Columns',

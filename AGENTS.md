@@ -372,12 +372,13 @@ list page therefore follows the content width, never viewport breakpoints like `
   choices, stored with `useStoredState`. A choice wins over the default; Reset Columns
   clears the choices. One visibility state drives the table, its skeleton and the View
   menu, so the menu always shows what is on screen.
-- Column widths, row actions and the toolbar use container queries on `Workspace`'s
-  `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:flex`.
+- Column widths and the toolbar use container queries on `Workspace`'s
+  `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:w-72`.
 - The pagination follows the table card's own `@container/table`.
 
-Keep the identifying column, status and actions always on. Row actions show as icon
-buttons with tooltips once there is room and fold into a "..." menu below it.
+Keep the identifying column and actions always on; everything else, status included,
+can drop on a narrow page and come back from the View menu. Row actions live in a "..." menu
+at the end of the row at every width, so the actions column stays narrow.
 `meta.className` sets column widths with Tailwind width classes, which keeps them steady from
 page to page.
 

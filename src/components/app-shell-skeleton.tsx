@@ -62,7 +62,7 @@ export function AppShellSkeleton() {
         </header>
 
         <div className="flex flex-1 flex-col gap-4 p-2 md:p-4">
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
             <div className="h-8 w-48">
               <Skeleton fill />
             </div>
