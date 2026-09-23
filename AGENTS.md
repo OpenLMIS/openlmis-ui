@@ -249,7 +249,7 @@ Two ways out when a page needs a different treatment:
    `Table density`/`layout`, `TableHeader surface`, `Badge success`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-   `ComboboxInput width`/`clearLabel`.
+   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -453,6 +453,25 @@ exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTit
 `ComboboxInput width`/`clearLabel`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
+
+## Rights and pages not migrated yet
+
+**A screen shows only what the user's rights allow.** `rightsOptions(userId)` in
+`src/features/auth/api/queries.ts` loads the user's permission strings once per session
+as a set of right names, and `RIGHTS` names the ones this app checks. A route that
+depends on them awaits `ensureQueryData(rightsOptions(...))` in its loader, since that is
+a permission check, then prefetches only the parts the user may see and passes plain
+flags down. Features stay free of auth imports; the Home route is the example.
+
+**Link to a legacy page with `legacyUrl()`** from `src/lib/legacy-url.ts`, e.g.
+`legacyUrl('requisitions/approvalList')`. The legacy UI shares this app's origin, and in
+`pnpm dev` it is the instance `VITE_API_PROXY_TARGET` points at. Swap the link for a
+route once that page is migrated.
+
+**Charts use the `--chart-1`..`--chart-5` ramp**: one blue hue, light to dark, checked
+for even steps and contrast in both modes. Use it in order for anything with an order
+(pipeline stages); status meaning (good to critical) uses `success`, `warning` and
+`destructive` with an icon and a label, never colour alone.
 
 ## Authentication
 
