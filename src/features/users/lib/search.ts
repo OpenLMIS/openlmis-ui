@@ -8,10 +8,9 @@ import {
   toSortParam,
 } from '@/lib/table-search';
 
-/** View menu columns in display order; `hideBelow` drops them on narrow screens unless the user opts in. */
+/** View menu columns in display order; username is left out, so it always shows. `hideBelow` drops a column when the page has no room. */
 export const USER_HIDEABLE_COLUMNS = [
   { id: 'lastName', labelKey: 'users.name', hideBelow: 'xl' },
-  { id: 'username', labelKey: 'users.username' },
   { id: 'email', labelKey: 'users.email', hideBelow: '4xl' },
   { id: 'active', labelKey: 'users.status', hideBelow: 'md' },
 ] as const;

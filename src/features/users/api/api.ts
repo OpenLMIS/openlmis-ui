@@ -26,30 +26,37 @@ async function fetchContactDetails(params: { id?: string[]; email?: string }) {
   return data.content;
 }
 
-/** Ids of users whose username, first name, last name or email contains `term`. */
-async function findMatchingUserIds(term: string) {
+/** Ids of users whose username, first name, last name or email contains `term`, or whose full name matches it. */
+export async function findMatchingUserIds(term: string): Promise<string[]> {
+  const [firstName, ...rest] = term.split(/\s+/);
+  const lastName = rest.join(' ');
+  const lookups = MATCHED_USER_FIELDS.map((field) => ({ [field]: term }));
+  // A full name as the list shows it, "John Smith", lives in two fields, so it gets its own lookup.
+  if (firstName && lastName) lookups.push({ firstName, lastName });
+
   const [contacts, ...pages] = await Promise.all([
     fetchContactDetails({ email: term }),
-    ...MATCHED_USER_FIELDS.map((field) =>
-      client.get<Page<User>>('/users', { params: { [field]: term, size: MATCH_LIMIT } }),
+    ...lookups.map((params) =>
+      client.get<Page<User>>('/users', { params: { ...params, size: MATCH_LIMIT } }),
     ),
   ]);
-  return new Set([
-    ...contacts.map((contact) => contact.referenceDataUserId),
-    ...pages.flatMap(({ data }) => data.content.map((user) => user.id)),
-  ]);
+  return [
+    ...new Set([
+      ...contacts.map((contact) => contact.referenceDataUserId),
+      ...pages.flatMap(({ data }) => data.content.map((user) => user.id)),
+    ]),
+  ];
 }
 
-/** One page of users with their emails, which live in the notification service. */
-export async function fetchUsers(query: UsersQuery): Promise<Page<UserListItem>> {
-  const { page, size, sort, q, active } = query;
-  const ids = q ? await findMatchingUserIds(q) : undefined;
-  if (ids?.size === 0) return emptyPage(query);
+/** One page of users with their emails; `ids`, when given, narrows the users to a search's matches. */
+export async function fetchUsers(query: UsersQuery, ids?: string[]): Promise<Page<UserListItem>> {
+  const { page, size, sort, active } = query;
+  if (ids?.length === 0) return emptyPage(query);
 
   // The search endpoint takes the ids in the body, so a long list never hits a URL length limit.
   const { data: users } = await client.post<Page<User>>(
     '/users/search',
-    { id: ids && [...ids], active },
+    { id: ids, active },
     { params: { page, size, sort } },
   );
 

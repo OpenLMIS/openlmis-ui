@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { z } from 'zod';
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/components/data-table/data-table-pagination';
 
-export const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 /** Table state as it lives in the URL. Defaults are left out so links stay short. */
 export type TableSearch = {

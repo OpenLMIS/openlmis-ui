@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 
-/** Draft for a text input that reports after a pause; an upstream change it did not cause replaces the draft. */
+/** Draft for a text input that reports after a pause and otherwise follows the upstream value. */
 export function useDebouncedInput(
   value: string,
   onValueChange: (value: string) => void,
@@ -15,7 +15,7 @@ export function useDebouncedInput(
 ) {
   const [draft, setDraft] = useState(value);
   const [syncedValue, setSyncedValue] = useState(value);
-  const [lastEmitted, setLastEmitted] = useState(value);
+  const [isTyping, setIsTyping] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pending = useRef<string | undefined>(undefined);
   const latestOnValueChange = useRef(onValueChange);
@@ -24,29 +24,25 @@ export function useDebouncedInput(
     latestOnValueChange.current = onValueChange;
   });
 
+  // Upstream wins unless the user is mid-typing; an echo that only trims the draft keeps it.
   if (value !== syncedValue) {
     setSyncedValue(value);
-    if (value !== lastEmitted) setDraft(value);
+    if (!isTyping && value !== draft.trim()) setDraft(value);
   }
 
-  // Unmounting, e.g. a popover closing, sends a pending value instead of dropping it.
-  useEffect(
-    () => () => {
-      clearTimeout(timer.current);
-      if (pending.current !== undefined) latestOnValueChange.current(pending.current);
-    },
-    [],
-  );
+  // Leaving the page drops unsent typing; sending it would navigate from a page already gone.
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   const emit = (next: string) => {
     clearTimeout(timer.current);
     pending.current = undefined;
-    setLastEmitted(next);
+    setIsTyping(false);
     latestOnValueChange.current(next);
   };
 
   const change = (next: string) => {
     setDraft(next);
+    setIsTyping(true);
     pending.current = next;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => emit(next), delay);
@@ -57,7 +53,7 @@ export function useDebouncedInput(
     emit(next);
   };
 
-  // Leaving the field, e.g. to press Reset, sends what was typed first so nothing arrives after it.
+  // Leaving the field, e.g. to press Clear Filters, sends what was typed first so nothing arrives after it.
   const flush = () => {
     if (pending.current !== undefined) emit(pending.current);
   };

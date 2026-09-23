@@ -19,7 +19,7 @@ export type DataTableViewColumn = {
 };
 
 type DataTableViewOptionsProps = {
-  /** The columns a user may hide; leave out ones that must always show, such as actions. */
+  /** The columns a user may hide; leave out the identifying column and actions, which always show. */
   columns: DataTableViewColumn[];
   visibility: ColumnVisibilityState;
   onVisibilityChange: (visibility: ColumnVisibilityState) => void;
@@ -35,7 +35,6 @@ export function DataTableViewOptions({
 }: DataTableViewOptionsProps) {
   const labels = useDataTableLabels();
   const isVisible = (id: string) => visibility[id] !== false;
-  const visibleCount = columns.filter((column) => isVisible(column.id)).length;
 
   return (
     <DropdownMenu>
@@ -49,8 +48,6 @@ export function DataTableViewOptions({
           {columns.map((column) => (
             <DropdownMenuCheckboxItem
               checked={isVisible(column.id)}
-              // An empty table is never what anyone wants, so the last column stays.
-              disabled={isVisible(column.id) && visibleCount === 1}
               key={column.id}
               onCheckedChange={(checked) =>
                 onVisibilityChange({ ...visibility, [column.id]: checked })

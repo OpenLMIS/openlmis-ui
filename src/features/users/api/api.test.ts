@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchUsers } from '@/features/users/api/api';
+import { fetchUsers, findMatchingUserIds } from '@/features/users/api/api';
 import type { UsersQuery } from '@/features/users/lib/types';
 import { client } from '@/integrations/axios';
 
@@ -46,29 +46,50 @@ describe('fetchUsers', () => {
     ]);
   });
 
-  it('matches the search against username, names and email, and pages the union', async () => {
+  it('narrows the page to the given ids', async () => {
+    post.mockResolvedValueOnce(page([alan]));
+    get.mockResolvedValueOnce(page([]));
+
+    await fetchUsers(query, ['u2']);
+
+    expect(post).toHaveBeenCalledWith(
+      '/users/search',
+      { id: ['u2'], active: undefined },
+      expect.anything(),
+    );
+  });
+
+  it('skips paging when the search matched nobody', async () => {
+    const result = await fetchUsers(query, []);
+
+    expect(post).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ content: [], totalElements: 0 });
+  });
+});
+
+describe('findMatchingUserIds', () => {
+  it('merges matches on username, first name, last name and email', async () => {
     get.mockImplementation(async (url, config) => {
       const params = (config?.params ?? {}) as Record<string, unknown>;
-      if (url === '/userContactDetails' && params.email) return page([contact('u3', 'a@t.org')]);
-      if (url === '/userContactDetails') return page([]);
+      if (url === '/userContactDetails') return page([contact('u3', 'a@t.org')]);
       if (params.username) return page([ada]);
       if (params.firstName) return page([ada, alan]);
       return page([]);
     });
-    post.mockResolvedValueOnce(page([alan]));
 
-    await fetchUsers({ ...query, q: 'a' });
-
-    const [, body] = post.mock.calls[0] ?? [];
-    expect(new Set((body as { id: string[] }).id)).toEqual(new Set(['u1', 'u2', 'u3']));
+    expect(new Set(await findMatchingUserIds('a'))).toEqual(new Set(['u1', 'u2', 'u3']));
   });
 
-  it('skips paging when nothing matches the search', async () => {
+  it('also matches a full name across the first and last name', async () => {
     get.mockResolvedValue(page([]));
 
-    const result = await fetchUsers({ ...query, q: 'nobody' });
+    await findMatchingUserIds('Ada Lovelace');
 
-    expect(post).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ content: [], totalElements: 0 });
+    expect(get).toHaveBeenCalledWith(
+      '/users',
+      expect.objectContaining({
+        params: expect.objectContaining({ firstName: 'Ada', lastName: 'Lovelace' }),
+      }),
+    );
   });
 });

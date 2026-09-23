@@ -99,10 +99,11 @@ export function DataTablePagination<TData extends RowData>({
         </div>
       }
       range={
-        // Screen readers keep the range when the table is too narrow to show it.
+        // Read aloud but hidden in a narrow table; `ltr` stops right-to-left text reordering "1-10 / 522".
         <p
           aria-live="polite"
           className="sr-only whitespace-nowrap text-muted-foreground tabular-nums @md/table:not-sr-only"
+          dir="ltr"
         >
           {labels.range(from, to, total)}
         </p>

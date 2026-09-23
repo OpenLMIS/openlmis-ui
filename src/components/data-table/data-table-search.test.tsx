@@ -88,7 +88,7 @@ describe('DataTableSearch', () => {
     expect(onValueChange).toHaveBeenCalledOnce();
   });
 
-  it('sends pending typing instead of dropping it when unmounted', () => {
+  it('drops unsent typing when unmounted instead of navigating from a page that is gone', () => {
     const onValueChange = vi.fn();
     const { unmount } = render(
       <DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />,
@@ -96,7 +96,38 @@ describe('DataTableSearch', () => {
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search' }), { target: { value: 'jo' } });
     unmount();
+    act(() => vi.advanceTimersByTime(300));
 
-    expect(onValueChange).toHaveBeenCalledWith('jo');
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('follows the URL back to a value it sent before', () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />,
+    );
+    const input = screen.getByRole('textbox', { name: 'Search' });
+
+    fireEvent.change(input, { target: { value: 'zzz' } });
+    act(() => vi.advanceTimersByTime(300));
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="zzz" />);
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />);
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="zzz" />);
+
+    expect(input).toHaveValue('zzz');
+  });
+
+  it('keeps a lone space typed before a pause', () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />,
+    );
+    const input = screen.getByRole('textbox', { name: 'Search' });
+
+    fireEvent.change(input, { target: { value: ' ' } });
+    act(() => vi.advanceTimersByTime(300));
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />);
+
+    expect(input).toHaveValue(' ');
   });
 });

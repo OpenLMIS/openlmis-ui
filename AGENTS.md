@@ -173,6 +173,10 @@ Do **not** flip icons whose meaning is not reading-order: `RotateCcwIcon` (undo)
 `DropdownMenuContent`, popovers) take logical sides - use `"inline-start"`/`"inline-end"`
 so they follow `DirectionProvider`, not `"left"`/`"right"`.
 
+Classes keyed off a physical `data-[side=left]`/`data-[side=right]` value (the slide-in
+animations in `select.tsx` and `dropdown-menu.tsx`) stay physical too, since the value they
+match is physical.
+
 `Sidebar` and `Sheet` are the exception: their `side` is physical, so every rule keyed off
 `data-[side=...]` has to stay physical too. A `side="right"` sidebar borders on its left in
 either direction. `AppSidebar` picks the side from `useDirection()` instead. If a future
@@ -376,8 +380,8 @@ list page therefore follows the content width, never viewport breakpoints like `
   `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:w-72`.
 - The pagination follows the table card's own `@container/table`.
 
-Keep the identifying column and actions always on; everything else, status included,
-can drop on a narrow page and come back from the View menu. Row actions live in a "..." menu
+Keep the identifying column and actions always on by leaving them out of the View menu;
+everything else, status included, can drop on a narrow page and come back from it. Row actions live in a "..." menu
 at the end of the row at every width, so the actions column stays narrow.
 `meta.className` sets column widths with Tailwind width classes, which keeps them steady from
 page to page.
