@@ -31,3 +31,12 @@ export type SupportedLanguage = {
   name: string;
   dir: TextDirection;
 };
+
+/** A Spring Data page, the shape every paginated OpenLMIS endpoint returns. */
+export type Page<T> = {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+};

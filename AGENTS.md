@@ -229,7 +229,8 @@ Two ways out when a page needs a different treatment:
    `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
-   `SidebarFooter padding`, `SidebarMenuSub end`.
+   `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
+   `Table density`/`layout`, `TableHeader surface`, `Button width="mobile-full"`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -310,11 +311,14 @@ hand-rolling padding:
 <Workspace>
   <WorkspaceHeader>
     <WorkspaceHeading>
+      <WorkspaceIcon>
+        <ClipboardListIcon />
+      </WorkspaceIcon>
       <WorkspaceTitle>{t('requisitions.title')}</WorkspaceTitle>
       <WorkspaceDescription>{t('requisitions.description')}</WorkspaceDescription>
     </WorkspaceHeading>
     <WorkspaceActions>
-      <Button>{t('requisitions.create')}</Button>
+      <Button size="lg">{t('requisitions.create')}</Button>
     </WorkspaceActions>
   </WorkspaceHeader>
   <WorkspaceContent>{/* page body */}</WorkspaceContent>
@@ -322,10 +326,75 @@ hand-rolling padding:
 ```
 
 Every part takes only `children` - no boolean props, no `renderX` callbacks. A page
-without a description or actions just leaves those parts out. None of them accept a
+without an icon, a description or actions just leaves those parts out.
+
+Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
+outrank the toolbar controls below them.
+
+`Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
+so a page gets Home / Section / Page for free once its nav entry points at its route.
+They are hidden on Home and on pages outside the nav. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
 at the call site.
+
+## List pages
+
+Server-paged lists follow the Users page (`src/routes/(protected)/_protected.administration.users.tsx`).
+Copy its shape rather than inventing a new one.
+
+**The URL owns the state.** Page, size, sort and every filter are search params, validated
+by a zod schema built from `tableSearchSchema()` and `textFilterSchema` in
+`src/lib/table-search.ts`. Invalid params fall back to their default and defaults stay
+out of the URL, so links are short and shareable. The loader prefetches from
+`loaderDeps`, deferred as usual.
+
+**The server does the work.** `useTable` runs with `manualPagination` and `manualSorting`
+and gets `rowCount` from the response. `useTableSearchState()` wires its pagination and
+sorting to the URL. Every change is computed from the latest search, not the rendered
+one, so quick repeated clicks never build on a stale page. A new sort, filter or page
+size returns to page 1.
+
+**Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
+(`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The
+table reads the query through `useDeferredValue(search)`: the first load shows
+`DataTableSkeleton`, and later pages keep the current rows on screen, dimmed, until the
+next ones arrive. Filter typing uses `replace` on navigation; paging and sorting add
+history entries so Back steps through them.
+
+**Narrow screens drop columns instead of scrolling.** The page lists its columns with a
+`hideBelow` breakpoint for the lower-priority ones (see `USER_HIDEABLE_COLUMNS`), and
+`useColumnVisibility()` combines that with the user's View menu choices, stored with
+`useStoredState`. A choice wins over the screen default; Reset Columns clears the choices.
+One visibility state drives the table, its skeleton and the View menu, so the menu always
+shows what is on screen. Keep the identifying column, status and actions always on. Row
+actions show as icon buttons with tooltips from `md` and fold into a "..." menu below it.
+`meta.className` sets column widths with Tailwind width classes, which keeps them steady from
+page to page.
+
+**Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
+two different empty states: no records at all, and no matches for the filters with a
+Clear Filters action.
+
+### The data-table components
+
+`src/components/data-table/` is written to move into the SolDevelo shadcn registry
+unchanged, so it follows the registry's rules rather than this app's:
+
+- It imports only stock shadcn primitives from `@/components/ui/`, `@/lib/utils`,
+  `@tanstack/react-table`, `lucide-react`, and its sibling files, and nothing from
+  `src/hooks`, other `src/lib` modules, `src/features` or i18next. It avoids app variants
+  such as `Button tone`; the exceptions are `SelectTrigger width`, `Table density` and
+  `layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`
+  and `Skeleton fill`, which become plain `className`s in the registry, where layout
+  classes are allowed.
+- Text comes from `DataTableLabelsProvider`, which defaults to English.
+  `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
+- Table state and the URL are app glue and stay in `src/lib/table-search.ts`.
+
+`@tanstack/react-table` is v9. Build tables with `useTable` and `dataTableFeatures`,
+not the v8 `useReactTable`. The installed package ships version-matched guides under
+`node_modules/@tanstack/react-table/skills/`.
 
 ## Authentication
 

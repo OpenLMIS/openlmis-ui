@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getTextDirection, SUPPORTED_LANGUAGES } from '@/lib/config';
+import { getNavTrail, getTextDirection, SUPPORTED_LANGUAGES } from '@/lib/config';
 
 describe('getTextDirection', () => {
   it('returns the configured direction for a supported language', () => {
@@ -23,5 +23,22 @@ describe('getTextDirection', () => {
     for (const lang of SUPPORTED_LANGUAGES) {
       expect(['ltr', 'rtl']).toContain(lang.dir);
     }
+  });
+});
+
+describe('getNavTrail', () => {
+  it('returns a top-level page on its own', () => {
+    expect(getNavTrail('/home')).toEqual([{ titleKey: 'home.title', to: '/home' }]);
+  });
+
+  it('leads a nested page with its section, which has no page of its own', () => {
+    expect(getNavTrail('/administration/users')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.users', to: '/administration/users' },
+    ]);
+  });
+
+  it('is empty for a path outside the nav', () => {
+    expect(getNavTrail('/login')).toEqual([]);
   });
 });

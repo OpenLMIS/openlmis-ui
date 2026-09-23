@@ -34,7 +34,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { isNavParent, NAV_GROUPS, NAV_ITEMS } from '@/lib/config';
+import { getNavTrail, isNavParent, NAV_GROUPS } from '@/lib/config';
 import type { NavItem, NavLink, NavParent } from '@/lib/types';
 
 export function AppSidebar() {
@@ -117,10 +117,10 @@ export function AppSidebar() {
   );
 }
 
-const findActiveParent = (pathname: string) =>
-  NAV_ITEMS.filter(isNavParent).find((parent) =>
-    parent.items.some((child) => child.to === pathname),
-  )?.titleKey ?? null;
+const findActiveParent = (pathname: string) => {
+  const trail = getNavTrail(pathname);
+  return trail.length > 1 ? (trail[0]?.titleKey ?? null) : null;
+};
 
 // Accordion: opening one parent closes the rest, and navigating opens the new one.
 function useOpenNavParent(pathname: string) {
