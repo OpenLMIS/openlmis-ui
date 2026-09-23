@@ -6,4 +6,6 @@ export const createQueryKeys = <T extends string>(scope: T) => ({
 });
 
 /** Register each feature's scope here, e.g. `facilities: createQueryKeys('facilities')`. */
-export const queryKeys = {} as const;
+export const queryKeys = {
+  users: createQueryKeys('users'),
+} as const;

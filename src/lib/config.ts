@@ -9,7 +9,16 @@ import {
   TruckIcon,
   WarehouseIcon,
 } from 'lucide-react';
-import type { NavGroup, NavItem, NavParent, SupportedLanguage, TextDirection } from '@/lib/types';
+import type {
+  LiveNavGroup,
+  LiveNavItem,
+  LiveNavLink,
+  NavGroup,
+  NavItem,
+  NavLink,
+  SupportedLanguage,
+  TextDirection,
+} from '@/lib/types';
 
 export const appConfig = {
   BRAND: 'OpenLMIS',
@@ -124,7 +133,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.supply-lines', to: '#' },
           { titleKey: 'nav.administration.supply-partners', to: '#' },
           { titleKey: 'nav.administration.system-notifications', to: '#' },
-          { titleKey: 'nav.administration.users', to: '#' },
+          { titleKey: 'nav.administration.users', to: '/administration/users' },
           { titleKey: 'nav.administration.valid-destinations', to: '#' },
           { titleKey: 'nav.administration.valid-sources', to: '#' },
         ],
@@ -133,6 +142,37 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
+const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
 
-export const isNavParent = (item: NavItem): item is NavParent => 'items' in item;
+export const isNavParent = <T extends NavItem | LiveNavItem>(
+  item: T,
+): item is Extract<T, { items: unknown }> => 'items' in item;
+
+const isLiveLink = (link: NavLink): link is LiveNavLink => link.to !== '#';
+
+/** The nav without pages not migrated yet; a section shows once one of its pages is live. */
+export const LIVE_NAV_GROUPS: LiveNavGroup[] = NAV_GROUPS.map((group) => ({
+  ...group,
+  items: group.items.flatMap((item): LiveNavItem[] => {
+    if (!isNavParent(item)) return isLiveLink(item) ? [item] : [];
+    const items = item.items.filter(isLiveLink);
+    return items.length > 0 ? [{ ...item, items }] : [];
+  }),
+})).filter((group) => group.items.length > 0);
+
+export const LIVE_NAV_ITEMS: LiveNavItem[] = LIVE_NAV_GROUPS.flatMap((group) => group.items);
+
+type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
+
+/** The nav entries leading to `pathname`, outermost first; empty when it is not in the nav. */
+export function getNavTrail(pathname: string): NavTrailItem[] {
+  for (const item of NAV_ITEMS) {
+    if (!isNavParent(item)) {
+      if (item.to === pathname) return [{ titleKey: item.titleKey, to: item.to }];
+      continue;
+    }
+    const child = item.items.find((link) => link.to === pathname);
+    if (child) return [{ titleKey: item.titleKey }, { titleKey: child.titleKey, to: child.to }];
+  }
+  return [];
+}

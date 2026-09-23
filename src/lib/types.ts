@@ -18,6 +18,15 @@ export type NavParent = {
 
 export type NavItem = NavLink | NavParent;
 
+/** A nav link to a page that exists, as opposed to a `'#'` placeholder. */
+export type LiveNavLink = NavLink & { to: Exclude<NavLink['to'], '#'> };
+
+export type LiveNavParent = Omit<NavParent, 'items'> & { items: LiveNavLink[] };
+
+export type LiveNavItem = LiveNavLink | LiveNavParent;
+
+export type LiveNavGroup = Omit<NavGroup, 'items'> & { items: LiveNavItem[] };
+
 export type NavGroup = {
   labelKey?: ParseKeys;
   items: NavItem[];
@@ -30,4 +39,13 @@ export type SupportedLanguage = {
   /** Endonym, so the switcher reads in the language it selects. */
   name: string;
   dir: TextDirection;
+};
+
+/** A Spring Data page, the shape every paginated OpenLMIS endpoint returns. */
+export type Page<T> = {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
 };

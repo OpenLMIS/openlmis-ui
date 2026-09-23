@@ -34,8 +34,8 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { isNavParent, NAV_GROUPS, NAV_ITEMS } from '@/lib/config';
-import type { NavItem, NavLink, NavParent } from '@/lib/types';
+import { getNavTrail, isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
+import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
   const { t } = useTranslation();
@@ -74,7 +74,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {NAV_GROUPS.map((group) => (
+        {LIVE_NAV_GROUPS.map((group) => (
           <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
             {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
             <SidebarGroupContent>
@@ -117,15 +117,15 @@ export function AppSidebar() {
   );
 }
 
-const findActiveParent = (pathname: string) =>
-  NAV_ITEMS.filter(isNavParent).find((parent) =>
-    parent.items.some((child) => child.to === pathname),
-  )?.titleKey ?? null;
+const findActiveParent = (pathname: string) => {
+  const trail = getNavTrail(pathname);
+  return trail.length > 1 ? (trail[0]?.titleKey ?? null) : null;
+};
 
 // Accordion: opening one parent closes the rest, and navigating opens the new one.
 function useOpenNavParent(pathname: string) {
   const activeParent = findActiveParent(pathname);
-  const [openParent, setOpenParent] = useState<NavParent['titleKey'] | null>(activeParent);
+  const [openParent, setOpenParent] = useState<LiveNavParent['titleKey'] | null>(activeParent);
   const [trackedParent, setTrackedParent] = useState(activeParent);
 
   if (activeParent !== trackedParent) {
@@ -137,7 +137,7 @@ function useOpenNavParent(pathname: string) {
 }
 
 type NavMenuItemProps = {
-  item: NavItem;
+  item: LiveNavItem;
   pathname: string;
   isCollapsed: boolean;
   open: boolean;
@@ -158,24 +158,11 @@ function NavMenuItem({ item, isCollapsed, ...props }: NavMenuItemProps) {
   return <NavLinkItem item={item} onNavigate={props.onNavigate} pathname={props.pathname} />;
 }
 
-type NavLinkItemProps = Pick<NavMenuItemProps, 'pathname' | 'onNavigate'> & { item: NavLink };
+type NavLinkItemProps = Pick<NavMenuItemProps, 'pathname' | 'onNavigate'> & { item: LiveNavLink };
 
 function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
   const { t } = useTranslation();
   const title = t(item.titleKey);
-
-  if (item.to === '#') {
-    // A tooltip trigger swallows `disabled`, and a disabled button cannot be hovered anyway.
-    return (
-      <SidebarMenuItem>
-        <SidebarMenuButton aria-label={title} disabled>
-          {item.icon && <item.icon />}
-          <span className="truncate">{title}</span>
-          <SoonLabel />
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    );
-  }
 
   return (
     <SidebarMenuItem>
@@ -192,7 +179,7 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
 }
 
 type NavParentProps = Omit<NavMenuItemProps, 'item' | 'isCollapsed'> & {
-  item: NavParent;
+  item: LiveNavParent;
   isActive: boolean;
 };
 
@@ -217,26 +204,17 @@ function NavCollapsible({
           {item.items.map((child) => (
             <SidebarMenuSubItem key={child.titleKey}>
               <SidebarMenuSubButton
-                isActive={child.to !== '#' && pathname === child.to}
-                render={subButtonRender(child, onNavigate)}
+                isActive={pathname === child.to}
+                render={<Link onClick={onNavigate} to={child.to} />}
               >
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
-                {child.to === '#' && <SoonLabel />}
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
           ))}
         </SidebarMenuSub>
       </CollapsibleContent>
     </Collapsible>
-  );
-}
-
-function subButtonRender(child: NavLink, onNavigate: () => void) {
-  return child.to === '#' ? (
-    <button disabled type="button" />
-  ) : (
-    <Link onClick={onNavigate} to={child.to} />
   );
 }
 
@@ -255,14 +233,9 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
           <DropdownMenuGroup>
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
             {item.items.map((child) => (
-              <DropdownMenuItem
-                disabled={child.to === '#'}
-                key={child.titleKey}
-                render={child.to === '#' ? undefined : <Link to={child.to} />}
-              >
+              <DropdownMenuItem key={child.titleKey} render={<Link to={child.to} />}>
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
-                {child.to === '#' && <SoonLabel />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
@@ -270,9 +243,4 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
       </DropdownMenu>
     </SidebarMenuItem>
   );
-}
-
-function SoonLabel() {
-  const { t } = useTranslation();
-  return <span className="ms-auto shrink-0 text-2xs italic">{t('nav.soon')}</span>;
 }

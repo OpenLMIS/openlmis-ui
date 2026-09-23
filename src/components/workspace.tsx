@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AppBreadcrumbs } from '@/components/app-breadcrumbs';
 
 // Page layout for everything inside the app shell. Parts take only `children` and
 // no `className`, which is what keeps padding and heading scale equal across pages.
@@ -9,7 +10,8 @@ type WorkspaceProps = {
 
 export function Workspace({ children }: WorkspaceProps) {
   return (
-    <div className="@container/main mx-auto flex w-full flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+    <div className="@container/main mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <AppBreadcrumbs />
       {children}
     </div>
   );
@@ -23,8 +25,24 @@ export function WorkspaceHeader({ children }: WorkspaceProps) {
   );
 }
 
+// With an icon, the icon spans both text rows; without one, the heading is a single column.
 export function WorkspaceHeading({ children }: WorkspaceProps) {
-  return <div className="flex min-w-0 flex-col gap-1">{children}</div>;
+  return (
+    <div className="grid min-w-0 content-start gap-y-1 has-data-[slot=workspace-icon]:grid-cols-label-value has-data-[slot=workspace-icon]:gap-x-3">
+      {children}
+    </div>
+  );
+}
+
+export function WorkspaceIcon({ children }: WorkspaceProps) {
+  return (
+    <div
+      className="row-span-2 flex size-10 items-center justify-center self-center rounded-lg border bg-card text-muted-foreground shadow-xs [&_svg]:size-5"
+      data-slot="workspace-icon"
+    >
+      {children}
+    </div>
+  );
 }
 
 export function WorkspaceTitle({ children }: WorkspaceProps) {
@@ -34,7 +52,8 @@ export function WorkspaceTitle({ children }: WorkspaceProps) {
 }
 
 export function WorkspaceDescription({ children }: WorkspaceProps) {
-  return <p className="text-pretty text-muted-foreground text-sm">{children}</p>;
+  // One line at most, so every header keeps the same height; longer text is cut with an ellipsis.
+  return <p className="min-w-0 truncate text-muted-foreground text-sm">{children}</p>;
 }
 
 export function WorkspaceActions({ children }: WorkspaceProps) {
