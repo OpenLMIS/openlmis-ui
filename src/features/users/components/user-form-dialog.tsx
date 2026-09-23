@@ -12,10 +12,10 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
 import {
-  CheckboxField,
   ChoiceCard,
   ComboboxField,
   FieldLabelText,
+  SwitchField,
 } from '@/components/form/form-fields';
 import {
   FormDialog,
@@ -271,7 +271,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
 
           <form.AppField name="active">
             {(field) => (
-              <field.CheckboxField
+              <field.SwitchField
                 description={t('users.form.active-description')}
                 label={t('users.form.active')}
               />
@@ -281,7 +281,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
           {isEdit && (
             <form.AppField name="allowNotify">
               {(field) => (
-                <field.CheckboxField
+                <field.SwitchField
                   description={
                     emailVerified
                       ? t('users.form.allow-notify-description')
@@ -359,7 +359,7 @@ function RemoveHomeFacilityRoles({
   });
 
   return (
-    <CheckboxField
+    <SwitchField
       description={t('users.form.remove-home-facility-roles-description', {
         count,
         facility: facilityName ?? '-',
@@ -383,11 +383,11 @@ function FieldSkeleton({ label, required = false }: { label: string; required?: 
   );
 }
 
-function CheckboxSkeleton({ label, description }: { label: string; description?: string }) {
+function SwitchSkeleton({ label, description }: { label: string; description?: string }) {
   return (
     <ChoiceCard description={description ?? <SkeletonLine width="medium" />} label={label}>
-      <div className="size-4 shrink-0">
-        <Skeleton fill />
+      <div className="h-4.5 w-8 shrink-0">
+        <Skeleton fill shape="circle" />
       </div>
     </ChoiceCard>
   );
@@ -417,11 +417,11 @@ function UserFormSkeleton() {
               <FieldSkeleton label={t('users.form.phone-number')} />
             </FieldRow>
             <FieldSkeleton label={t('users.form.home-facility')} />
-            <CheckboxSkeleton
+            <SwitchSkeleton
               description={t('users.form.active-description')}
               label={t('users.form.active')}
             />
-            <CheckboxSkeleton label={t('users.form.allow-notify')} />
+            <SwitchSkeleton label={t('users.form.allow-notify')} />
           </FieldGroup>
         </div>
       </FormDialogBody>

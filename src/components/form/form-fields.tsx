@@ -2,7 +2,6 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Combobox,
   ComboboxContent,
@@ -29,6 +28,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 
 type FieldProps = {
   label: ReactNode;
@@ -180,7 +180,7 @@ type ChoiceCardProps = {
   /** Text goes in a description line; any other node, such as a skeleton, is placed as it is. */
   description?: ReactNode;
   disabled?: boolean;
-  /** The checkbox or radio, or a placeholder while loading. */
+  /** The switch or radio, or a placeholder while loading. */
   children: ReactNode;
 };
 
@@ -204,12 +204,12 @@ export function ChoiceCard({ htmlFor, label, description, disabled, children }: 
 }
 
 /** A yes/no setting as a `ChoiceCard`, all one click target. */
-export function CheckboxField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
+export function SwitchField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
   const field = useFieldContext<boolean>();
 
   return (
     <ChoiceCard description={description} disabled={disabled} htmlFor={field.name} label={label}>
-      <Checkbox
+      <Switch
         checked={field.state.value}
         disabled={disabled}
         id={field.name}
@@ -234,7 +234,7 @@ type RadioGroupFieldProps = {
   disabled?: boolean;
 };
 
-/** One choice from a few, each drawn as a card like `CheckboxField`. */
+/** One choice from a few, each drawn as a card like `SwitchField`. */
 export function RadioGroupField({ label, options, disabled }: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
 
