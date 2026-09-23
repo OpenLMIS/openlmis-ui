@@ -47,7 +47,7 @@ function fullName(user: UserListItem) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ');
 }
 
-function createColumns(t: TFunction, onEdit: (userId: string) => void) {
+function createColumns(t: TFunction, actions: UserRowActions) {
   return columnHelper.columns([
     // Shows the full name but sorts by last name, the usual order for a list of people.
     columnHelper.accessor('lastName', {
@@ -87,14 +87,29 @@ function createColumns(t: TFunction, onEdit: (userId: string) => void) {
       header: () => <span className="sr-only">{t('users.actions')}</span>,
       meta: { className: 'w-16' },
       cell: ({ row }) => (
-        <UserActions onEdit={() => onEdit(row.original.id)} username={row.original.username} />
+        <UserActions
+          onEdit={() => actions.onEdit(row.original.id)}
+          onResetPassword={() => actions.onResetPassword(row.original.id)}
+          username={row.original.username}
+        />
       ),
     }),
   ]);
 }
 
-// TODO: Wire up roles and password reset once those screens exist.
-function UserActions({ username, onEdit }: { username: string; onEdit: () => void }) {
+type UserRowActions = {
+  onEdit: (userId: string) => void;
+  onResetPassword: (userId: string) => void;
+};
+
+type UserActionsProps = {
+  username: string;
+  onEdit: () => void;
+  onResetPassword: () => void;
+};
+
+// TODO: Wire up roles once that screen exists.
+function UserActions({ username, onEdit, onResetPassword }: UserActionsProps) {
   const { t } = useTranslation();
   const actions = [
     { id: 'edit', label: t('users.edit'), icon: PencilIcon, destructive: false, onClick: onEdit },
@@ -104,6 +119,7 @@ function UserActions({ username, onEdit }: { username: string; onEdit: () => voi
       label: t('users.reset-password'),
       icon: KeyRoundIcon,
       destructive: true,
+      onClick: onResetPassword,
     },
   ];
 
@@ -145,8 +161,7 @@ type UsersTableProps = {
     replace?: boolean,
   ) => void;
   columnVisibility: ColumnVisibilityState;
-  onEdit: (userId: string) => void;
-};
+} & UserRowActions;
 
 const NO_USERS: UserListItem[] = [];
 
@@ -162,9 +177,13 @@ function useUsersTable({
   onSearchChange,
   columnVisibility,
   onEdit,
+  onResetPassword,
 }: UsersTableProps & { data: UserListItem[]; rowCount: number }) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
+  const columns = useMemo(
+    () => createColumns(t, { onEdit, onResetPassword }),
+    [t, onEdit, onResetPassword],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_USERS_SORT,
@@ -196,12 +215,19 @@ export function UsersTableSkeleton({
     onSearchChange: noop,
     columnVisibility,
     onEdit: noop,
+    onResetPassword: noop,
   });
 
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
 }
 
-export function UsersTable({ search, onSearchChange, columnVisibility, onEdit }: UsersTableProps) {
+export function UsersTable({
+  search,
+  onSearchChange,
+  columnVisibility,
+  onEdit,
+  onResetPassword,
+}: UsersTableProps) {
   const { t } = useTranslation();
   // Keeps the current page on screen, dimmed, while the next one loads instead of suspending.
   const deferredSearch = useDeferredValue(search);
@@ -214,6 +240,7 @@ export function UsersTable({ search, onSearchChange, columnVisibility, onEdit }:
     onSearchChange,
     columnVisibility,
     onEdit,
+    onResetPassword,
   });
   const isPastLastPage = data.content.length === 0 && data.totalElements > 0;
 

@@ -48,6 +48,16 @@ describe('userFormSchema', () => {
     ]);
   });
 
+  it('takes only letters and digits in a username, as the server does', () => {
+    const username = (value: string) =>
+      userFormSchema.shape.username.safeParse(value).error?.issues[0]?.message;
+
+    expect(username('ada-l')).toBe('users.form.username-invalid');
+    expect(username('ada l')).toBe('users.form.username-invalid');
+    expect(username('ada2')).toBeUndefined();
+    expect(username('أحمد')).toBeUndefined();
+  });
+
   it('accepts an empty email', () => {
     const result = userFormSchema.safeParse({
       ...EMPTY_USER_FORM,

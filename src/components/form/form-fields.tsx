@@ -1,4 +1,5 @@
-import { type ReactNode, useMemo } from 'react';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,9 +17,18 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
   FieldTitle,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type FieldProps = {
   label: ReactNode;
@@ -105,6 +115,61 @@ export function TextField({
   );
 }
 
+type PasswordFieldProps = FieldProps & {
+  autoComplete?: 'new-password' | 'current-password';
+  /** Names the button that reveals the password, for screen readers. */
+  showLabel: string;
+  hideLabel: string;
+};
+
+export function PasswordField({
+  label,
+  description,
+  required,
+  disabled,
+  autoComplete = 'new-password',
+  showLabel,
+  hideLabel,
+}: PasswordFieldProps) {
+  const field = useFieldContext<string>();
+  const { errors, isInvalid } = useFieldErrors();
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <RequiredLabel label={label} required={required} />
+      <InputGroup>
+        <InputGroupInput
+          aria-invalid={isInvalid}
+          aria-required={required}
+          autoComplete={autoComplete}
+          disabled={disabled}
+          id={field.name}
+          name={field.name}
+          onBlur={field.handleBlur}
+          onChange={(event) => field.handleChange(event.target.value)}
+          type={visible ? 'text' : 'password'}
+          value={field.state.value}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            aria-label={visible ? hideLabel : showLabel}
+            disabled={disabled}
+            onClick={() => setVisible((shown) => !shown)}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          >
+            {visible ? <EyeOffIcon /> : <EyeIcon />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+      {description && <FieldDescription>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} />}
+    </Field>
+  );
+}
+
 /** A yes/no setting as a card: label and description at the start, the checkbox at the end, all one click target. */
 export function CheckboxField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
   const field = useFieldContext<boolean>();
@@ -125,6 +190,53 @@ export function CheckboxField({ label, description, disabled }: Omit<FieldProps,
         />
       </Field>
     </FieldLabel>
+  );
+}
+
+export type RadioGroupFieldOption = {
+  value: string;
+  label: ReactNode;
+  description?: ReactNode;
+};
+
+type RadioGroupFieldProps = {
+  /** Names the group; shown above the options. */
+  label: ReactNode;
+  options: readonly RadioGroupFieldOption[];
+  disabled?: boolean;
+};
+
+/** One choice from a few, each drawn as a card like `CheckboxField`. */
+export function RadioGroupField({ label, options, disabled }: RadioGroupFieldProps) {
+  const field = useFieldContext<string>();
+
+  return (
+    <FieldSet>
+      <FieldLegend variant="label">{label}</FieldLegend>
+      <RadioGroup
+        disabled={disabled}
+        name={field.name}
+        onValueChange={(value) => field.handleChange(String(value))}
+        value={field.state.value}
+      >
+        {options.map((option) => {
+          const id = `${field.name}-${option.value}`;
+          return (
+            <FieldLabel htmlFor={id} key={option.value}>
+              <Field data-disabled={disabled} orientation="horizontal">
+                <FieldContent>
+                  <FieldTitle>{option.label}</FieldTitle>
+                  {option.description && (
+                    <FieldDescription size="sm">{option.description}</FieldDescription>
+                  )}
+                </FieldContent>
+                <RadioGroupItem id={id} value={option.value} />
+              </Field>
+            </FieldLabel>
+          );
+        })}
+      </RadioGroup>
+    </FieldSet>
   );
 }
 

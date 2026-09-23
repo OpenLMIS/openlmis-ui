@@ -28,20 +28,32 @@ import {
 import { useStoredState } from '@/hooks/use-stored-state';
 import type { SearchUpdate } from '@/lib/table-search';
 
-// Its own chunk: the list paints without the form, and the chunk is fetched right after.
-const loadUserFormDialog = () => import('@/features/users/components/user-form-dialog');
-const UserFormDialog = lazy(() =>
-  loadUserFormDialog().then((module) => ({ default: module.UserFormDialog })),
+// Their own chunk: the list paints without the forms, and the chunk is fetched right after.
+const loadUserDialogs = () => import('@/features/users/components/user-dialogs');
+const UserDialogs = lazy(() =>
+  loadUserDialogs().then((module) => ({ default: module.UserDialogs })),
 );
+
+/** Every dialog closed; the params a dialog adds to the list's URL. */
+const CLOSED_DIALOGS = {
+  user: undefined,
+  password: undefined,
+  created: undefined,
+} satisfies Partial<UsersSearch>;
 
 export const Route = createFileRoute('/(protected)/_protected/administration/users')({
   validateSearch: usersSearchSchema,
-  loaderDeps: ({ search }) => ({ query: toUsersQuery(search), user: search.user }),
+  loaderDeps: ({ search }) => ({
+    query: toUsersQuery(search),
+    user: search.user,
+    password: search.password,
+  }),
   loader: ({ context: { queryClient }, deps }) => {
     queryClient.prefetchQuery(usersListOptions(deps.query));
-    // The dialog's data starts with the navigation, not once the dialog has rendered.
+    // A dialog's data starts with the navigation, not once the dialog has rendered.
     if (deps.user) queryClient.prefetchQuery(minimalFacilitiesOptions());
-    if (deps.user && deps.user !== 'new') queryClient.prefetchQuery(userDetailsOptions(deps.user));
+    const detailsFor = deps.user === 'new' ? deps.password : (deps.user ?? deps.password);
+    if (detailsFor) queryClient.prefetchQuery(userDetailsOptions(detailsFor));
   },
   component: UsersPage,
 });
@@ -50,12 +62,19 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 function UsersPage() {
   const { t } = useTranslation();
-  // Without the dialog's param, and shared structurally, so opening a dialog leaves the table alone.
+  // Without the dialogs' params, and shared structurally, so opening a dialog leaves the table alone.
   const search = Route.useSearch({
-    select: ({ user: _dialog, ...list }): UsersSearch => list,
+    select: ({ user: _user, password: _password, created: _created, ...list }): UsersSearch => list,
     structuralSharing: true,
   });
-  const dialogTarget = Route.useSearch({ select: (current) => current.user });
+  const dialogs = Route.useSearch({
+    select: ({ user, password, created }) => ({
+      user,
+      password: password ? { userId: password, created: created ?? false } : undefined,
+    }),
+    structuralSharing: true,
+  });
+  const anyDialogOpen = dialogs.user !== undefined || dialogs.password !== undefined;
   const navigate = Route.useNavigate();
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
@@ -78,28 +97,35 @@ function UsersPage() {
     [navigate],
   );
   const router = useRouter();
-  // Set when this page opened the dialog, so closing steps Back instead of adding a second list entry.
+  // Set when this page opened a dialog, so closing steps Back instead of adding a second list entry.
   const openedHere = useRef(false);
-  const openUserDialog = useCallback(
-    (user: NonNullable<UsersSearch['user']>) => {
+  const openDialog = useCallback(
+    (params: Partial<UsersSearch>) => {
       openedHere.current = true;
-      updateSearch({ user });
+      updateSearch({ ...CLOSED_DIALOGS, ...params });
     },
     [updateSearch],
   );
-  const closeUserDialog = useCallback(() => {
+  const closeDialog = useCallback(() => {
     if (openedHere.current) {
       openedHere.current = false;
       router.history.back();
     } else {
-      updateSearch({ user: undefined }, true);
+      updateSearch(CLOSED_DIALOGS, true);
     }
   }, [router, updateSearch]);
-  // Mounted from the first open on, so it can still animate closed.
-  const [dialogMounted, setDialogMounted] = useState(dialogTarget !== undefined);
-  if (dialogTarget !== undefined && !dialogMounted) setDialogMounted(true);
+  // Setting a password takes the new user's place in history, so Back and Close still leave for the list.
+  const setNewUserPassword = useCallback(
+    (userId: string) => updateSearch({ ...CLOSED_DIALOGS, password: userId, created: true }, true),
+    [updateSearch],
+  );
+  const editUser = useCallback((user: string) => openDialog({ user }), [openDialog]);
+  const resetPassword = useCallback((password: string) => openDialog({ password }), [openDialog]);
+  // Mounted from the first open on, so a dialog can still animate closed.
+  const [dialogsMounted, setDialogsMounted] = useState(anyDialogOpen);
+  if (anyDialogOpen && !dialogsMounted) setDialogsMounted(true);
   useEffect(() => {
-    void loadUserFormDialog();
+    void loadUserDialogs();
   }, []);
 
   return (
@@ -118,7 +144,7 @@ function UsersPage() {
         <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
           <UsersToolbar
             columnView={columnView}
-            onAdd={() => openUserDialog('new')}
+            onAdd={() => openDialog({ user: 'new' })}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
@@ -137,15 +163,21 @@ function UsersPage() {
           >
             <UsersTable
               columnVisibility={columnView.visibility}
-              onEdit={openUserDialog}
+              onEdit={editUser}
+              onResetPassword={resetPassword}
               onSearchChange={updateSearch}
               search={search}
             />
           </QueryBoundary>
         </div>
-        {dialogMounted && (
+        {dialogsMounted && (
           <Suspense fallback={null}>
-            <UserFormDialog onClose={closeUserDialog} target={dialogTarget} />
+            <UserDialogs
+              onClose={closeDialog}
+              onCreated={setNewUserPassword}
+              password={dialogs.password}
+              user={dialogs.user}
+            />
           </Suspense>
         )}
       </WorkspaceContent>

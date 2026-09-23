@@ -4,6 +4,8 @@ import {
   fetchUserDetails,
   fetchUsers,
   findMatchingUserIds,
+  sendPasswordResetEmail,
+  setUserPassword,
   updateUser,
 } from '@/features/users/api/api';
 import type { UsersQuery } from '@/features/users/lib/types';
@@ -163,5 +165,24 @@ describe('updateUser', () => {
     await expect(updateUser(details, newUser)).rejects.toThrow('email taken');
     expect(put).toHaveBeenCalledTimes(2);
     expect(post).not.toHaveBeenCalled();
+  });
+});
+
+describe('passwords', () => {
+  it('sets a typed password for the username', async () => {
+    post.mockResolvedValueOnce({ data: {} });
+    await setUserPassword('ada', 'secret123');
+    expect(post).toHaveBeenCalledWith('/users/auth/passwordReset', {
+      username: 'ada',
+      newPassword: 'secret123',
+    });
+  });
+
+  it('sends the reset link to the address as a query parameter', async () => {
+    post.mockResolvedValueOnce({ data: {} });
+    await sendPasswordResetEmail('ada@example.org');
+    expect(post).toHaveBeenCalledWith('/users/auth/forgotPassword', undefined, {
+      params: { email: 'ada@example.org' },
+    });
   });
 });
