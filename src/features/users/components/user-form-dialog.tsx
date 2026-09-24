@@ -136,11 +136,10 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       return user.id;
     },
     onSuccess: (_, values) => {
-      toast.success(
-        t(isEdit ? 'users.form.updated' : 'users.form.created', {
-          username: values.username.trim(),
-        }),
-      );
+      const username = values.username.trim();
+      toast.success(t(isEdit ? 'users.form.updated-title' : 'users.form.created-title'), {
+        description: t(isEdit ? 'users.form.updated' : 'users.form.created', { username }),
+      });
     },
     // Refreshed either way: a failed edit may already have changed part of the user.
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),

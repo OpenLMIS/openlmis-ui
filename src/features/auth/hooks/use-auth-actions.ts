@@ -21,12 +21,14 @@ export function useAuthActions(): AuthActions {
       const { referenceDataUserId, username, access_token } = await authApi.login(credentials);
 
       setLoginData({ referenceDataUserId, username, accessToken: access_token });
-      toast.success(t('auth.login-success'));
+      toast.success(t('auth.login-success-title'), {
+        description: t('auth.login-success', { username }),
+      });
 
       return true;
     } catch (error) {
       console.error('[useAuthActions.login]', error);
-      toast.error(t('auth.login-error'));
+      toast.error(t('auth.login-error-title'), { description: t('auth.login-error') });
 
       return false;
     }
@@ -37,7 +39,7 @@ export function useAuthActions(): AuthActions {
       await authApi.logout();
     } catch (error) {
       console.error('[useAuthActions.logout]', error);
-      toast.error(t('auth.logout-error'));
+      toast.error(t('auth.logout-error-title'), { description: t('auth.logout-error') });
     } finally {
       // Clear locally even if the call failed, or an offline user stays stuck logged in.
       clearLoginData();

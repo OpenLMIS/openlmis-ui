@@ -152,7 +152,9 @@ function RolesEditor({ details }: { details: UserDetails }) {
       );
       const editedMeanwhile = countChanges(sent, latestDraft.current) > 0;
       draft.commit(sent, saved.roleAssignments);
-      toast.success(t('users.roles.saved', { username: user.username }));
+      toast.success(t('users.roles.saved-title'), {
+        description: t('users.roles.saved', { username: user.username }),
+      });
       // Your own roles decide what this app shows you.
       if (user.id === signedInUserId) {
         void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
@@ -184,7 +186,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
       remove(row.assignment);
       // The row and its menu are gone, so focus moves to the list instead of the page body.
       rolesRegion.current?.focus();
-      toast(t('users.roles.removed', { role: row.role ?? t('users.roles.unknown') }), {
+      toast(t('users.roles.removed-title'), {
+        description: t('users.roles.removed', { role: row.role ?? t('users.roles.unknown') }),
         action: { label: t('users.roles.undo'), onClick: () => add(row.assignment) },
       });
     },
@@ -249,9 +252,12 @@ function RolesEditor({ details }: { details: UserDetails }) {
                 onClose={closeDialog}
                 onImport={(assignments, fromUsername) => {
                   const { added } = draft.merge(assignments);
-                  toast.success(
-                    t('users.roles.import.imported', { count: added, username: fromUsername }),
-                  );
+                  toast.success(t('users.roles.import.imported-title'), {
+                    description: t('users.roles.import.imported', {
+                      count: added,
+                      username: fromUsername,
+                    }),
+                  });
                 }}
                 rightsRoleId={search.rights}
                 userId={user.id}

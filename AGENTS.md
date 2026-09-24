@@ -465,6 +465,10 @@ exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTit
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 
+**Every toast has a title and a description**: a short title in Title Case (`users.roles.saved-title`,
+"Roles Saved") and a sentence of detail as `description`, which is cut at two lines. The
+shared `Toaster` adds the close button, so a call never passes one.
+
 ## Rights and dashboards
 
 **A screen shows only what the user's rights allow.** `rightsOptions(userId)` in
