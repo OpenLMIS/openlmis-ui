@@ -28,7 +28,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import type { RightType, Role } from '@/features/reference-data/lib/types';
 import { ErrorAlert, FieldSkeleton, RetryButton } from '@/features/users/components/dialog-parts';
-import { rightLabel, roleTypeOf } from '@/features/users/lib/role-assignments';
+import { roleTypeOf } from '@/features/users/lib/role-assignments';
 import {
   EMPTY_ROLE_FORM,
   type RoleFormValues,
@@ -36,6 +36,7 @@ import {
   toRoleAssignment,
 } from '@/features/users/lib/role-form';
 import type { RoleAssignment } from '@/features/users/lib/types';
+import { useRightLabel } from '@/features/users/lib/use-right-label';
 
 type AddRoleDialogProps = {
   /** The type of role being added; the dialog is open while it is set. */
@@ -57,11 +58,7 @@ export function AddRoleDialog({ type, onClose, ...props }: AddRoleDialogProps) {
         <QueryBoundary
           errorComponent={({ reset }) => (
             <AddRoleFrame type={shown}>
-              <ErrorAlert
-                action={<RetryButton onClick={reset} />}
-                description={t('users.roles.error-description')}
-                title={t('users.roles.form.options-error-title')}
-              />
+              <OptionsError onRetry={reset} />
             </AddRoleFrame>
           )}
           pendingFallback={
@@ -85,17 +82,35 @@ export function AddRoleDialog({ type, onClose, ...props }: AddRoleDialogProps) {
   );
 }
 
+function AddRoleHeader({ type }: { type: RightType }) {
+  const { t } = useTranslation();
+  return (
+    <FormDialogHeader>
+      <FormDialogTitle>{t('users.roles.form.add-title', { type })}</FormDialogTitle>
+      <FormDialogDescription>
+        {t('users.roles.form.add-description', { type })}
+      </FormDialogDescription>
+    </FormDialogHeader>
+  );
+}
+
+function OptionsError({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <ErrorAlert
+      action={<RetryButton onClick={onRetry} />}
+      description={t('users.roles.error-description')}
+      title={t('users.roles.form.options-error-title')}
+    />
+  );
+}
+
 /** The dialog's title and buttons around whatever its body is showing. */
 function AddRoleFrame({ type, children }: { type: RightType; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <>
-      <FormDialogHeader>
-        <FormDialogTitle>{t('users.roles.form.add-title', { type })}</FormDialogTitle>
-        <FormDialogDescription>
-          {t('users.roles.form.add-description', { type })}
-        </FormDialogDescription>
-      </FormDialogHeader>
+      <AddRoleHeader type={type} />
       <FormDialogBody>{children}</FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('users.roles.form.cancel')}</FormDialogCancel>
@@ -144,12 +159,7 @@ function AddRoleForm({
 
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
-      <FormDialogHeader>
-        <FormDialogTitle>{t('users.roles.form.add-title', { type })}</FormDialogTitle>
-        <FormDialogDescription>
-          {t('users.roles.form.add-description', { type })}
-        </FormDialogDescription>
-      </FormDialogHeader>
+      <AddRoleHeader type={type} />
       <FormDialogBody>
         <FieldGroup>
           {type === 'SUPERVISION' && (
@@ -211,16 +221,9 @@ function SlowField({
   required?: boolean;
   children: ReactNode;
 }) {
-  const { t } = useTranslation();
   return (
     <QueryBoundary
-      errorComponent={({ reset }) => (
-        <ErrorAlert
-          action={<RetryButton onClick={reset} />}
-          description={t('users.roles.error-description')}
-          title={t('users.roles.form.options-error-title')}
-        />
-      )}
+      errorComponent={({ reset }) => <OptionsError onRetry={reset} />}
       pendingFallback={<FieldSkeleton label={label} required={required} />}
       resetKey={label}
     >
@@ -248,7 +251,7 @@ function ProgramCombobox() {
   );
 }
 
-/** Each node with its facility, as legacy names them, e.g. "FP Approval Point (Comfort Health Clinic)". */
+/** Each node with its facility, as legacy names them, e.g. "FP Approval Point (Balaka)". */
 function NodeCombobox() {
   const { t } = useTranslation();
   const { data: nodes } = useSuspenseQuery(supervisoryNodesOptions());
@@ -277,7 +280,7 @@ function FacilityCombobox() {
   const { data: facilities } = useSuspenseQuery(minimalFacilitiesOptions());
   const items = useMemo(
     () =>
-      facilities.map((facility) => ({
+      [...facilities].sort(byName).map((facility) => ({
         value: facility.id,
         label: `${facility.code} - ${facility.name}`,
       })),
@@ -286,6 +289,7 @@ function FacilityCombobox() {
   return (
     <ComboboxField
       clearLabel={t('users.roles.form.facility-clear')}
+      description={t('users.roles.form.facility-description', { count: items.length })}
       emptyMessage={t('users.roles.form.facility-empty')}
       items={items}
       label={t('users.roles.form.facility')}
@@ -298,6 +302,7 @@ function FacilityCombobox() {
 /** The roles of this type; once one is picked, the rights it grants show beneath. */
 function RoleCombobox({ roles, roleId }: { roles: Role[]; roleId: string | null }) {
   const { t } = useTranslation();
+  const rightLabel = useRightLabel();
   const items = useMemo(() => roles.map((role) => ({ value: role.id, label: role.name })), [roles]);
   const rights = roles
     .find((role) => role.id === roleId)

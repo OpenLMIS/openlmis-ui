@@ -16,7 +16,6 @@ export const ROLE_TABS = [
 ] as const satisfies readonly { id: string; type: RightType; labelKey: string }[];
 
 export type RoleTab = (typeof ROLE_TABS)[number];
-export type RoleTabId = RoleTab['id'];
 
 /** A supervision role with no supervisory node applies at the user's home facility. */
 export function isHomeFacilityRole(assignment: RoleAssignment) {
@@ -73,6 +72,20 @@ export function mergeAssignments(current: RoleAssignment[], incoming: RoleAssign
     added: added.length,
     skipped: incoming.length - added.length,
   };
+}
+
+/** The saved roles plus whatever changed in `draft` after `sent` went to the server. */
+export function rebaseDraft(
+  sent: RoleAssignment[],
+  saved: RoleAssignment[],
+  draft: RoleAssignment[],
+) {
+  const sentKeys = new Set(sent.map(assignmentKey));
+  const draftKeys = new Set(draft.map(assignmentKey));
+  const removedSince = new Set([...sentKeys].filter((key) => !draftKeys.has(key)));
+  const addedSince = draft.filter((assignment) => !sentKeys.has(assignmentKey(assignment)));
+  const kept = saved.filter((assignment) => !removedSince.has(assignmentKey(assignment)));
+  return mergeAssignments(kept, addedSince).assignments.map(toSavedAssignment);
 }
 
 /** How many assignments were added and removed since `saved`; zero when nothing changed. */
@@ -141,7 +154,7 @@ function toRoleRow(assignment: RoleAssignment, { lookups, savedKeys, homeFacilit
   } satisfies RoleRow;
 }
 
-/** The rows of one tab, in the order the server would never give: by role, then program, then node. */
+/** The rows of one tab, by role, then program, then node. */
 export function toRoleRows(
   assignments: RoleAssignment[],
   type: RightType,
@@ -211,7 +224,7 @@ const ACRONYMS: Record<string, string> = {
   PORALG: 'PORALG',
 };
 
-/** A right's code as words, e.g. `REQUISITION_VIEW` as "Requisition View" and `PODS_MANAGE` as "PODs Manage". */
+/** A right's code as words, e.g. `PODS_MANAGE` as "PODs Manage", for rights with no label. */
 export function rightLabel(name: string) {
   return name
     .split('_')

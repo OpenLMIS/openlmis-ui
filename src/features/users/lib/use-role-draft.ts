@@ -3,6 +3,7 @@ import {
   assignmentKey,
   countChanges,
   mergeAssignments,
+  rebaseDraft,
   toSavedAssignment,
 } from '@/features/users/lib/role-assignments';
 import type { RoleAssignment } from '@/features/users/lib/types';
@@ -21,19 +22,25 @@ export function useRoleDraft(saved: RoleAssignment[]) {
     const key = assignmentKey(assignment);
     setDraft((current) => current.filter((item) => assignmentKey(item) !== key));
   }, []);
-
-  return {
-    draft,
-    changes,
-    add,
-    remove,
-    /** Adds another user's roles; returns how many were new and how many were already held. */
-    merge: (incoming: RoleAssignment[]) => {
+  /** Adds another user's roles; returns how many were new and how many were already held. */
+  const merge = useCallback(
+    (incoming: RoleAssignment[]) => {
       const result = mergeAssignments(draft, incoming);
       setDraft(result.assignments);
       return result;
     },
-    /** Back to the saved roles, or to `next` once a save has replaced them. */
-    reset: (next: RoleAssignment[] = saved) => setDraft(next.map(toSavedAssignment)),
-  };
+    [draft],
+  );
+  const discard = useCallback(() => setDraft(saved.map(toSavedAssignment)), [saved]);
+  /** After a save of `sent`, keeps any change made while it was on its way. */
+  const commit = useCallback(
+    (sent: RoleAssignment[], next: RoleAssignment[]) =>
+      setDraft((current) => rebaseDraft(sent, next, current)),
+    [],
+  );
+
+  return useMemo(
+    () => ({ draft, changes, add, remove, merge, discard, commit }),
+    [draft, changes, add, remove, merge, discard, commit],
+  );
 }

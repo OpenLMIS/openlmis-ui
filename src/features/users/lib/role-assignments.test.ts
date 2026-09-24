@@ -9,6 +9,7 @@ import {
   filterRows,
   mergeAssignments,
   type RoleLookups,
+  rebaseDraft,
   rightLabel,
   toRoleRows,
   toSavedAssignment,
@@ -88,6 +89,19 @@ describe('mergeAssignments', () => {
     const result = mergeAssignments([atNode, direct], [atNode, atHome, atHome]);
     expect(result.assignments).toEqual([atNode, direct, atHome]);
     expect(result).toMatchObject({ added: 1, skipped: 2 });
+  });
+});
+
+describe('rebaseDraft', () => {
+  it('keeps what changed after the save was sent', () => {
+    const sent = [atNode, direct];
+    // During the save the user added one role and removed another.
+    const draft = [atNode, atHome];
+    expect(rebaseDraft(sent, [atNode, direct], draft)).toEqual([atNode, atHome]);
+  });
+
+  it('is the saved roles when nothing changed meanwhile', () => {
+    expect(rebaseDraft([atNode], [atNode], [atNode])).toEqual([atNode]);
   });
 });
 

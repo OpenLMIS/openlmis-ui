@@ -124,8 +124,8 @@ passes data down as props. `src/routes/` may import any feature, since composing
 its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
-the OpenLMIS reference data many screens look up (facilities, and soon programs,
-supervisory nodes and roles), named after the backend's `referencedata` service. It has the
+the OpenLMIS reference data many screens look up (facilities, programs, supervisory nodes
+and roles), named after the backend's `referencedata` service. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own.
@@ -356,6 +356,8 @@ outrank the toolbar controls below them.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
+A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
+its own last crumb from the route's `staticData.crumbKey`; the parents link back.
 They are hidden on Home and on pages outside the nav. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding

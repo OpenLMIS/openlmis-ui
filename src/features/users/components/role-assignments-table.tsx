@@ -37,8 +37,9 @@ import {
   type RoleTab,
 } from '@/features/users/lib/role-assignments';
 import { DEFAULT_ROLES_SORT, type RolesSearch, TAB_RESET } from '@/features/users/lib/roles-search';
+import type { LookupStatus } from '@/features/users/lib/use-role-lookups';
 import {
-  type SearchUpdate,
+  type SearchChange,
   toPaginationState,
   toSortingState,
   useTableSearchState,
@@ -56,7 +57,7 @@ type ColumnOptions = RowActions & {
   tab: RoleTab;
   /** Too narrow for a column each, so the role cell carries the rest on lines of its own. */
   compact: boolean;
-  pending: { nodes: boolean; facilities: boolean };
+  status: LookupStatus;
 };
 
 function Pending() {
@@ -67,24 +68,28 @@ function Pending() {
   );
 }
 
-/** A name, a placeholder while its lookup loads, or "Unknown" when the record is gone. */
-function Name({ value, pending }: { value: string | undefined; pending: boolean }) {
+type NameStatus = LookupStatus['nodes'];
+
+/** A name; a placeholder while loading, a dash if its lookup failed, "Unknown" if gone. */
+function Name({ value, status = 'ready' }: { value: string | undefined; status?: NameStatus }) {
   const { t } = useTranslation();
   if (value !== undefined) return <span className="truncate">{value}</span>;
-  if (pending) return <Pending />;
+  if (status === 'pending') return <Pending />;
+  if (status === 'failed') return <span className="text-muted-foreground">-</span>;
   return <span className="text-muted-foreground">{t('users.roles.unknown')}</span>;
 }
 
 /** The node with its facility beneath, or Home Facility with the user's home facility. */
-function NodeCell({ row, pending }: { row: RoleRow; pending: ColumnOptions['pending'] }) {
+function NodeCell({ row, status }: { row: RoleRow; status: LookupStatus }) {
   const { t } = useTranslation();
-  const facilityPending = pending.facilities || (!row.isHomeFacility && pending.nodes);
+  const facilityPending =
+    status.facilities === 'pending' || (!row.isHomeFacility && status.nodes === 'pending');
   return (
     <span className="flex min-w-0 flex-col">
       {row.isHomeFacility ? (
         <span className="truncate">{t('users.roles.home-facility')}</span>
       ) : (
-        <Name pending={pending.nodes} value={row.node} />
+        <Name status={status.nodes} value={row.node} />
       )}
       {row.nodeFacility !== undefined ? (
         <span className="truncate text-muted-foreground text-xs">{row.nodeFacility}</span>
@@ -97,23 +102,23 @@ function NodeCell({ row, pending }: { row: RoleRow; pending: ColumnOptions['pend
 
 function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
   const { t } = useTranslation();
-  const { tab, compact, pending } = options;
+  const { tab, compact, status } = options;
 
   return (
     <span className="flex min-w-0 flex-col gap-1">
       <span className="flex min-w-0 items-center gap-2 font-medium">
-        <Name pending={false} value={row.role} />
+        <Name value={row.role} />
         {row.isUnsaved && <Badge variant="secondary">{t('users.roles.unsaved')}</Badge>}
       </span>
       {compact && tab.type === 'SUPERVISION' && (
         <span className="flex min-w-0 flex-col text-muted-foreground text-xs">
-          <Name pending={false} value={row.program} />
-          <NodeCell pending={pending} row={row} />
+          <Name value={row.program} />
+          <NodeCell row={row} status={status} />
         </span>
       )}
       {compact && tab.type === 'ORDER_FULFILLMENT' && (
         <span className="text-muted-foreground text-xs">
-          <Name pending={pending.facilities} value={row.facility} />
+          <Name status={status.facilities} value={row.facility} />
         </span>
       )}
       {row.isIgnored && (
@@ -129,7 +134,7 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
 }
 
 function createColumns(options: ColumnOptions) {
-  const { t, tab, compact, pending } = options;
+  const { t, tab, compact, status } = options;
   const role = columnHelper.accessor('role', {
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t('users.roles.column.role')} />
@@ -159,14 +164,14 @@ function createColumns(options: ColumnOptions) {
           <DataTableColumnHeader column={column} title={t('users.roles.column.program')} />
         ),
         meta: { className: 'w-1/5' },
-        cell: ({ getValue }) => <Name pending={false} value={getValue()} />,
+        cell: ({ getValue }) => <Name value={getValue()} />,
       }),
       columnHelper.accessor('node', {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('users.roles.column.node')} />
         ),
         meta: { className: 'w-2/5' },
-        cell: ({ row }) => <NodeCell pending={pending} row={row.original} />,
+        cell: ({ row }) => <NodeCell row={row.original} status={status} />,
       }),
       actions,
     ]);
@@ -179,7 +184,7 @@ function createColumns(options: ColumnOptions) {
           <DataTableColumnHeader column={column} title={t('users.roles.column.facility')} />
         ),
         meta: { className: 'w-1/2' },
-        cell: ({ getValue }) => <Name pending={pending.facilities} value={getValue()} />,
+        cell: ({ getValue }) => <Name status={status.facilities} value={getValue()} />,
       }),
       actions,
     ]);
@@ -244,23 +249,22 @@ type RoleAssignmentsTableProps = RowActions & {
   tab: RoleTab;
   /** Every row of the tab, unfiltered; the table filters, sorts and pages them. */
   rows: RoleRow[];
-  pending: ColumnOptions['pending'];
+  status: LookupStatus;
   compact: boolean;
   search: RolesSearch;
-  onSearchChange: (
-    update: Partial<RolesSearch> | SearchUpdate<RolesSearch>,
-    replace?: boolean,
-  ) => void;
+  onSearchChange: SearchChange<RolesSearch>;
   onAdd: () => void;
 };
 
 const noop = () => {};
 
+const SKELETON_STATUS: LookupStatus = { nodes: 'pending', facilities: 'pending' };
+
 function useRoleTable({
   rows,
   tab,
   compact,
-  pending,
+  status,
   search,
   onSearchChange,
   onRemove,
@@ -268,8 +272,8 @@ function useRoleTable({
 }: Omit<RoleAssignmentsTableProps, 'onAdd'>) {
   const { t } = useTranslation();
   const columns = useMemo(
-    () => createColumns({ t, tab, compact, pending, onRemove, onViewRights }),
-    [t, tab, compact, pending, onRemove, onViewRights],
+    () => createColumns({ t, tab, compact, status, onRemove, onViewRights }),
+    [t, tab, compact, status, onRemove, onViewRights],
   );
   const searchState = useTableSearchState({
     search,
@@ -302,7 +306,7 @@ function useRoleTable({
     ...searchState,
   });
 
-  return { table, matching: matching.length, shown: data.length };
+  return { table, matching: matching.length };
 }
 
 export function RoleAssignmentsTableSkeleton({
@@ -314,7 +318,7 @@ export function RoleAssignmentsTableSkeleton({
     rows: [],
     tab,
     compact,
-    pending: { nodes: true, facilities: true },
+    status: SKELETON_STATUS,
     search,
     onSearchChange: noop,
     onRemove: noop,
@@ -325,10 +329,10 @@ export function RoleAssignmentsTableSkeleton({
 
 export function RoleAssignmentsTable({ onAdd, ...props }: RoleAssignmentsTableProps) {
   const { t } = useTranslation();
-  const { rows, tab, search, onSearchChange } = props;
-  const { table, matching, shown } = useRoleTable(props);
-  const pageCount = Math.max(1, Math.ceil(matching / toPaginationState(search).pageSize));
-  const isPastLastPage = shown === 0 && matching > 0;
+  const { rows, tab, onSearchChange } = props;
+  const { table, matching } = useRoleTable(props);
+  const pageCount = table.getPageCount();
+  const isPastLastPage = table.getRowModel().rows.length === 0 && matching > 0;
 
   // A removal or a stale link can leave the page past the end; move to the last page that exists.
   useEffect(() => {

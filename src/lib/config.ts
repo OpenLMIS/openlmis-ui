@@ -162,9 +162,9 @@ export const LIVE_NAV_GROUPS: LiveNavGroup[] = NAV_GROUPS.map((group) => ({
 
 export const LIVE_NAV_ITEMS: LiveNavItem[] = LIVE_NAV_GROUPS.flatMap((group) => group.items);
 
-type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
+export type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
 
-/** The nav entries leading to `pathname`, outermost first; a page below an entry, such as a user's roles, gets that entry's trail. Empty when it is not in the nav. */
+/** The nav entries leading to `pathname`, or to the entry it sits below; empty off the nav. */
 export function getNavTrail(pathname: string): NavTrailItem[] {
   return (
     findNavTrail((to) => to === pathname) ??

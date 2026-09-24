@@ -1,5 +1,5 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   minimalFacilitiesOptions,
   programsOptions,
@@ -11,7 +11,7 @@ import type { RoleLookups } from '@/features/users/lib/role-assignments';
 const byId = <T extends { id: string }>(items: T[] | undefined) =>
   items && new Map(items.map((item) => [item.id, item]));
 
-/** Suspends on roles and programs, which are quick; nodes and facilities fill in when they arrive. */
+/** Suspends on roles and programs; nodes and facilities are slow and fill in later. */
 export function useRoleLookups() {
   const { data: roles } = useSuspenseQuery(rolesOptions());
   const { data: programs } = useSuspenseQuery(programsOptions());
@@ -27,10 +27,23 @@ export function useRoleLookups() {
     }),
     [roles, programs, nodes.data, facilities.data],
   );
+  // Names still on their way show as placeholders, and ones that failed as a dash, never "Unknown".
+  const status = useMemo(
+    () =>
+      ({
+        nodes: nodes.isPending ? 'pending' : nodes.isError ? 'failed' : 'ready',
+        facilities: facilities.isPending ? 'pending' : facilities.isError ? 'failed' : 'ready',
+      }) as const,
+    [nodes.isPending, nodes.isError, facilities.isPending, facilities.isError],
+  );
+  const { refetch: refetchNodes } = nodes;
+  const { refetch: refetchFacilities } = facilities;
+  const retry = useCallback(() => {
+    if (status.nodes === 'failed') void refetchNodes();
+    if (status.facilities === 'failed') void refetchFacilities();
+  }, [status, refetchNodes, refetchFacilities]);
 
-  return {
-    lookups,
-    /** Names still on their way, shown as placeholders rather than "Unknown". */
-    pending: { nodes: nodes.isPending, facilities: facilities.isPending },
-  };
+  return { lookups, status, retry };
 }
+
+export type LookupStatus = ReturnType<typeof useRoleLookups>['status'];

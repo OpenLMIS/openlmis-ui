@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
+  CatchBoundary,
   createFileRoute,
   type ErrorComponentProps,
   Link,
@@ -7,14 +8,12 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
-import { CopyPlusIcon, PlusIcon, ShieldIcon, UserXIcon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { CopyPlusIcon, ShieldIcon, UserXIcon } from 'lucide-react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableError, DataTableToolbar } from '@/components/data-table/data-table';
-import { DataTableSearch } from '@/components/data-table/data-table-search';
+import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +25,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Workspace,
   WorkspaceActions,
@@ -49,29 +47,19 @@ import { updateUserRoles } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
 import { ErrorAlert, serverMessage } from '@/features/users/components/dialog-parts';
 import { DiscardChangesDialog } from '@/features/users/components/discard-changes-dialog';
-import {
-  RoleAssignmentsTable,
-  RoleAssignmentsTableSkeleton,
-} from '@/features/users/components/role-assignments-table';
-import {
-  assignmentKey,
-  countByType,
-  ROLE_TABS,
-  type RoleRow,
-  type RoleTab,
-  toRoleRows,
-} from '@/features/users/lib/role-assignments';
+import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
+import { RoleTabs } from '@/features/users/components/role-tabs';
+import { fullName } from '@/features/users/lib/names';
+import { ROLE_TABS, type RoleRow } from '@/features/users/lib/role-assignments';
 import {
   CLOSED_ROLE_DIALOGS,
   type RolesSearch,
   rolesSearchSchema,
-  TAB_RESET,
 } from '@/features/users/lib/roles-search';
 import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
-import { useRoleLookups } from '@/features/users/lib/use-role-lookups';
 import { queryKeys } from '@/lib/key-factory';
-import type { SearchUpdate } from '@/lib/table-search';
+import type { SearchChange } from '@/lib/table-search';
 
 // Their own chunk, fetched once the page has painted.
 const loadRoleDialogs = () => import('@/features/users/components/role-dialogs');
@@ -88,7 +76,8 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     // Slow, so they start now and fill in the rows when they arrive.
     queryClient.prefetchQuery(supervisoryNodesOptions());
     queryClient.prefetchQuery(minimalFacilitiesOptions());
-    void loadRoleDialogs();
+    // A failed preload is retried when the dialogs render, where the boundary below catches it.
+    loadRoleDialogs().catch(() => undefined);
     // A user that does not exist has no roles page, so the page waits for the user.
     return queryClient.ensureQueryData(userDetailsOptions(params.id));
   },
@@ -99,10 +88,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
 
 /** Too narrow for a column per name, so each row lists them under the role. */
 const COMPACT_BELOW = 576;
-
-function fullName(details: UserDetails) {
-  return [details.user.firstName, details.user.lastName].filter(Boolean).join(' ');
-}
 
 function UserRolesPage() {
   const { id: userId } = Route.useParams();
@@ -125,7 +110,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
   const updateSearch = useCallback(
-    (update: Partial<RolesSearch> | SearchUpdate<RolesSearch>, replace = false) =>
+    (update: Parameters<SearchChange<RolesSearch>>[0], replace = false) =>
       navigate({
         search: (previous) => ({
           ...previous,
@@ -150,12 +135,12 @@ function RolesEditor({ details }: { details: UserDetails }) {
   }, [router, updateSearch]);
 
   const save = useMutation({
-    mutationFn: () => updateUserRoles(user.id, draft.draft),
-    onSuccess: (saved) => {
+    mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
+    onSuccess: (saved, sent) => {
       queryClient.setQueryData(userDetailsOptions(user.id).queryKey, (previous) =>
         previous ? { ...previous, user: saved } : previous,
       );
-      draft.reset(saved.roleAssignments);
+      draft.commit(sent, saved.roleAssignments);
       toast.success(t('users.roles.saved', { username: user.username }));
       // Your own roles decide what this app shows you.
       if (user.id === signedInUserId) {
@@ -173,15 +158,18 @@ function RolesEditor({ details }: { details: UserDetails }) {
     withResolver: true,
   });
 
+  const { add, remove } = draft;
+  const rolesRegion = useRef<HTMLDivElement>(null);
   const removeRole = useCallback(
     (row: RoleRow) => {
-      const { remove, add } = draft;
       remove(row.assignment);
+      // The row and its menu are gone, so focus moves to the list instead of the page body.
+      rolesRegion.current?.focus();
       toast(t('users.roles.removed', { role: row.role ?? t('users.roles.unknown') }), {
         action: { label: t('users.roles.undo'), onClick: () => add(row.assignment) },
       });
     },
-    [draft, t],
+    [add, remove, t],
   );
   const viewRights = useCallback((roleId: string) => openDialog({ rights: roleId }), [openDialog]);
 
@@ -193,7 +181,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
             <ShieldIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>
-            {t('users.roles.title', { name: fullName(details) || user.username })}
+            {t('users.roles.title', { name: fullName(user) || user.username })}
           </WorkspaceTitle>
           <WorkspaceDescription>
             {t('users.roles.description', { username: user.username })}
@@ -215,19 +203,16 @@ function RolesEditor({ details }: { details: UserDetails }) {
             </Button>
           )}
           <Button
-            aria-describedby="unsaved-changes"
             disabled={draft.changes === 0 || save.isPending}
-            onClick={() => save.mutate()}
+            onClick={() => save.mutate(draft.draft)}
             size="lg"
           >
             {t('users.roles.save')}
             {draft.changes > 0 && (
               <Badge variant="secondary">
-                <span id="unsaved-changes">
-                  <span aria-hidden="true">{draft.changes}</span>
-                  <span className="sr-only">
-                    {t('users.roles.unsaved-count', { count: draft.changes })}
-                  </span>
+                <span aria-hidden="true">{draft.changes}</span>
+                <span className="sr-only">
+                  {t('users.roles.unsaved-count', { count: draft.changes })}
                 </span>
               </Badge>
             )}
@@ -242,42 +227,47 @@ function RolesEditor({ details }: { details: UserDetails }) {
               title={t('users.roles.save-error-title')}
             />
           )}
-          <RoleTabs
-            compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
-            draft={draft.draft}
-            homeFacilityId={user.homeFacilityId}
-            onAdd={() => openDialog({ dialog: 'add' })}
-            onRemove={removeRole}
-            onSearchChange={updateSearch}
-            onViewRights={viewRights}
-            saved={user.roleAssignments}
-            search={search}
-            tab={tab}
-          />
+          <div className="outline-none" ref={rolesRegion} tabIndex={-1}>
+            <RoleTabs
+              compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
+              draft={draft.draft}
+              homeFacilityId={user.homeFacilityId}
+              onAdd={() => openDialog({ dialog: 'add' })}
+              onRemove={removeRole}
+              onSearchChange={updateSearch}
+              onViewRights={viewRights}
+              saved={user.roleAssignments}
+              search={search}
+              tab={tab}
+            />
+          </div>
         </div>
-        <Suspense fallback={null}>
-          <RoleDialogs
-            addType={search.dialog === 'add' ? tab.type : undefined}
-            draft={draft.draft}
-            hasHomeFacility={Boolean(user.homeFacilityId)}
-            importOpen={search.dialog === 'import'}
-            onAdd={draft.add}
-            onClose={closeDialog}
-            onImport={(assignments, fromUsername) => {
-              const { added } = draft.merge(assignments);
-              toast.success(
-                t('users.roles.import.imported', { count: added, username: fromUsername }),
-              );
-            }}
-            rightsRoleId={search.rights}
-            userId={user.id}
-            username={user.username}
-          />
-        </Suspense>
+        {/* A dialogs chunk that fails to load must not take the page, and the draft, with it. */}
+        <CatchBoundary errorComponent={() => null} getResetKey={() => search.dialog ?? ''}>
+          <Suspense fallback={null}>
+            <RoleDialogs
+              addType={search.dialog === 'add' ? tab.type : undefined}
+              draft={draft.draft}
+              hasHomeFacility={Boolean(user.homeFacilityId)}
+              importOpen={search.dialog === 'import'}
+              onAdd={draft.add}
+              onClose={closeDialog}
+              onImport={(assignments, fromUsername) => {
+                const { added } = draft.merge(assignments);
+                toast.success(
+                  t('users.roles.import.imported', { count: added, username: fromUsername }),
+                );
+              }}
+              rightsRoleId={search.rights}
+              userId={user.id}
+              username={user.username}
+            />
+          </Suspense>
+        </CatchBoundary>
         <DiscardChangesDialog
           changes={draft.changes}
           onDiscard={() => {
-            draft.reset();
+            draft.discard();
             setConfirmingDiscard(false);
             blocker.proceed?.();
           }}
@@ -291,108 +281,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
       </WorkspaceContent>
     </Workspace>
   );
-}
-
-type RoleTabsProps = {
-  tab: RoleTab;
-  draft: RoleAssignment[];
-  saved: RoleAssignment[];
-  homeFacilityId: string | null | undefined;
-  compact: boolean;
-  search: RolesSearch;
-  onSearchChange: (
-    update: Partial<RolesSearch> | SearchUpdate<RolesSearch>,
-    replace?: boolean,
-  ) => void;
-  onAdd: () => void;
-  onRemove: (row: RoleRow) => void;
-  onViewRights: (roleId: string) => void;
-};
-
-function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props }: RoleTabsProps) {
-  const { t } = useTranslation();
-  // Counted once the roles are known, which says which tab an assignment belongs on.
-  const { data: counts } = useQuery({
-    ...rolesOptions(),
-    select: (roles) => countByType(draft, new Map(roles.map((role) => [role.id, role]))),
-  });
-
-  return (
-    <Tabs
-      onValueChange={(value: RoleTab['id']) =>
-        onSearchChange({ ...TAB_RESET, tab: value === 'supervision' ? undefined : value })
-      }
-      value={tab.id}
-    >
-      {/* Scrolls sideways on a phone rather than wrapping four tabs onto two rows. */}
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <TabsList aria-label={t('users.roles.tabs-label')}>
-          {ROLE_TABS.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
-              {t(item.labelKey)}
-              {counts && <Badge variant="secondary">{counts[item.type]}</Badge>}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-      {ROLE_TABS.map((item) => (
-        <TabsContent key={item.id} value={item.id}>
-          {item.id === tab.id && (
-            <div className="flex flex-col gap-4">
-              <DataTableToolbar>
-                <div className="w-full @xl/main:w-72">
-                  <DataTableSearch
-                    label={t('users.roles.search-label')}
-                    onValueChange={(q) => onSearchChange({ q, page: undefined }, true)}
-                    placeholder={t('users.roles.search')}
-                    value={search.q ?? ''}
-                  />
-                </div>
-                <div className="ms-auto">
-                  <Button onClick={props.onAdd}>
-                    <PlusIcon data-icon="inline-start" />
-                    {t('users.roles.add')}
-                  </Button>
-                </div>
-              </DataTableToolbar>
-              <QueryBoundary
-                errorComponent={({ reset }) => (
-                  <DataTableError
-                    description={t('users.roles.error-description')}
-                    onRetry={reset}
-                    title={t('users.roles.error-title')}
-                  />
-                )}
-                pendingFallback={
-                  <RoleAssignmentsTableSkeleton compact={compact} search={search} tab={item} />
-                }
-                resetKey={item.id}
-              >
-                <TabTable
-                  compact={compact}
-                  draft={draft}
-                  onSearchChange={onSearchChange}
-                  search={search}
-                  tab={item}
-                  {...props}
-                />
-              </QueryBoundary>
-            </div>
-          )}
-        </TabsContent>
-      ))}
-    </Tabs>
-  );
-}
-
-function TabTable({ draft, saved, homeFacilityId, tab, ...props }: RoleTabsProps) {
-  const { lookups, pending } = useRoleLookups();
-  const savedKeys = useMemo(() => new Set(saved.map(assignmentKey)), [saved]);
-  const rows = useMemo(
-    () => toRoleRows(draft, tab.type, { lookups, savedKeys, homeFacilityId }),
-    [draft, tab.type, lookups, savedKeys, homeFacilityId],
-  );
-  return <RoleAssignmentsTable pending={pending} rows={rows} tab={tab} {...props} />;
 }
 
 /** While the user loads: the page's frame with placeholders where their name and roles go. */

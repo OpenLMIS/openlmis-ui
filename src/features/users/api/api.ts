@@ -144,10 +144,7 @@ export async function fetchAllUsers(): Promise<User[]> {
   return data.content;
 }
 
-/**
- * Replaces the user's roles and nothing else. The user is read fresh, so a change made
- * elsewhere since the page loaded is kept, and sign-in and contact details are left alone.
- */
+/** Replaces only the roles, on the user as it is now, so edits made elsewhere meanwhile survive. */
 export async function updateUserRoles(
   userId: string,
   roleAssignments: RoleAssignment[],

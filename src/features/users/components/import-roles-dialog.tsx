@@ -26,6 +26,7 @@ import {
   RetryButton,
   SkeletonLine,
 } from '@/features/users/components/dialog-parts';
+import { fullName } from '@/features/users/lib/names';
 import { mergeAssignments } from '@/features/users/lib/role-assignments';
 import type { RoleAssignment } from '@/features/users/lib/types';
 
@@ -140,7 +141,7 @@ function UserCombobox({ excludeId }: { excludeId: string }) {
       users
         .filter((user) => user.id !== excludeId)
         .map((user) => {
-          const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+          const name = fullName(user);
           return { value: user.id, label: name ? `${user.username} (${name})` : user.username };
         }),
     [users, excludeId],
@@ -148,6 +149,7 @@ function UserCombobox({ excludeId }: { excludeId: string }) {
   return (
     <ComboboxField
       clearLabel={t('users.roles.import.user-clear')}
+      description={t('users.roles.import.user-description', { count: items.length })}
       emptyMessage={t('users.roles.import.user-empty')}
       items={items}
       label={t('users.roles.import.user')}

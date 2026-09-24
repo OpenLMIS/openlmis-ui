@@ -39,7 +39,7 @@ No ticket, so these are derived from legacy and its known problems.
 | Unsaved work is never lost silently | Router blocker and `beforeunload` while there are changes; Discard asks first | Browser |
 | A home facility role for a user without a home facility is flagged before and after adding | Warning in the dialog, badge on the row | Browser, unit test for `isIgnored` |
 | Duplicates are refused inline | Zod issue on the role field | `role-form.test.ts` |
-| The page is usable on a phone and in RTL | Container queries, two-line rows on narrow widths, logical classes | Browser at 390 px, Arabic |
+| The page is usable on a phone and in RTL | Rows go two-line when the content is narrow, logical classes | Browser at 390 px, Arabic |
 | Server errors are shown as the server wrote them | `serverMessage()` in the save alert | Browser with a stubbed 400 |
 
 ## Legacy Today

@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { usersListOptions } from '@/features/users/api/queries';
+import { fullName } from '@/features/users/lib/names';
 import {
   CLEARED_USER_FILTERS,
   DEFAULT_USERS_SORT,
@@ -39,13 +40,9 @@ import {
   type UsersSearch,
 } from '@/features/users/lib/search';
 import type { UserListItem } from '@/features/users/lib/types';
-import { type SearchUpdate, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, UserListItem>();
-
-function fullName(user: UserListItem) {
-  return [user.firstName, user.lastName].filter(Boolean).join(' ');
-}
 
 function createColumns(t: TFunction, actions: UserRowActions) {
   return columnHelper.columns([
@@ -164,10 +161,7 @@ function UserActions({ username, onEdit, onResetPassword, onRoles }: UserActions
 
 type UsersTableProps = {
   search: UsersSearch;
-  onSearchChange: (
-    update: Partial<UsersSearch> | SearchUpdate<UsersSearch>,
-    replace?: boolean,
-  ) => void;
+  onSearchChange: SearchChange<UsersSearch>;
   columnVisibility: ColumnVisibilityState;
 } & UserRowActions;
 
