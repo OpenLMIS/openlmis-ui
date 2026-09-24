@@ -12,8 +12,8 @@ import {
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace';
 
-/** Where a page's content would be, for a user whose roles do not reach it. */
-export function NoAccess() {
+/** Where a page's content would be, for a user whose roles do not reach it; `h1` when it is the whole page. */
+export function NoAccess({ heading: Heading = 'h2' }: { heading?: 'h1' | 'h2' }) {
   const { t } = useTranslation();
 
   return (
@@ -23,7 +23,7 @@ export function NoAccess() {
           <LockIcon />
         </EmptyMedia>
         <EmptyTitle>
-          <h1>{t('no-access.title')}</h1>
+          <Heading>{t('no-access.title')}</Heading>
         </EmptyTitle>
         <EmptyDescription>{t('no-access.description')}</EmptyDescription>
       </EmptyHeader>
@@ -42,7 +42,7 @@ export function NoAccessPage() {
   return (
     <Workspace>
       <WorkspaceContent>
-        <NoAccess />
+        <NoAccess heading="h1" />
       </WorkspaceContent>
     </Workspace>
   );
