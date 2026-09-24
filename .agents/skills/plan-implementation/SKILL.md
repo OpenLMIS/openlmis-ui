@@ -43,7 +43,10 @@ account the user gave, and walks every screen the ticket covers:
 - The API calls each step makes, captured from the network: method, path, query, the
   response fields the screen actually uses, and the status codes seen
 - What is slow, confusing, broken or missing, with timings
-- Screenshots at desktop and phone width, saved outside the repo
+- Work the screen does in the browser: a request with no paging, sort or filter params
+  that returns everything, then pages, sorts, filters or counts locally
+- Screenshots at desktop and phone width, saved to `.screenshots/<KEY>/` as the browser
+  rules say, where `review-pr` later compares the new screens against them
 
 For plumbing tickets with no screen (auth, caching, errors), it observes the behaviour
 instead: what legacy stores, when it redirects, what the user sees.
@@ -61,6 +64,9 @@ extension, in repos such as
 - Each endpoint: method, path, parameters, paging and sorting, request and response
   shape, the right it requires, and its error responses
 - Business rules the legacy UI enforces client-side that the new UI must enforce too
+- Work legacy does client-side that belongs on the server (sorting, filtering, paging,
+  searching, counting): for each, whether the endpoint already supports it and with
+  which params, or why it cannot and what that costs on large data
 - Caching, offline or batching tricks legacy relies on
 - File and line references for everything it claims
 
@@ -111,11 +117,14 @@ referenced by legacy URL.
 ## Agent Brief
 - API map: | Step | Method and path | Params | Fields used | Right | Legacy ref |
 - Data flow: which loader blocks and which defers, query keys, what lives in the URL
+- Server-side work: what legacy does in the browser that moves to the server, and what
+  stays client-side because the API cannot do it
 - Files: to add and to change, following the feature layout
 - Reuse: existing components, hooks and lookups
 - Rules: the business rules to enforce, with their legacy source
 - Translations: new keys
-- Tests: what to unit test (our logic, not shadcn primitives) and what to check in the browser
+- Tests: what to unit test (our logic, not shadcn primitives), written before the code
+  they cover, and what to check in the browser, which `review-pr` runs
 - Risks and edge cases
 
 ## UI/UX
@@ -146,7 +155,9 @@ Once approved:
 
 1. Create the branch (`feat/<key>-<slug>`, lowercase), and commit the plan first as
    `docs: plan <KEY>`.
-2. Build it step by step, and keep the plan true. When the build departs from the plan,
-   update the plan in the same PR rather than leaving it stale.
+2. Build it step by step, test first: never write a unit test after the code. Each step
+   starts with a failing test for the logic it adds, then the code that makes it pass.
+   Keep the plan true: when the build departs from the plan, update the plan in the
+   same PR rather than leaving it stale.
 3. Link the ticket at the top of the PR description, and run `review-pr` before asking to
    merge.
