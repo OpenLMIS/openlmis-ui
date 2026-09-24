@@ -126,16 +126,68 @@ function ComboboxContent({
   )
 }
 
+/** Which ends of a scrolling element still hide content, kept current as it scrolls, resizes or filters. */
+function useScrollEdges() {
+  const [edges, setEdges] = React.useState({ above: false, below: false })
+  const observer = React.useRef<{ disconnect: () => void } | null>(null)
+
+  const ref = React.useCallback((element: HTMLDivElement | null) => {
+    observer.current?.disconnect()
+    observer.current = null
+    if (!element) return
+
+    const update = () => {
+      const above = element.scrollTop > 1
+      const below = element.scrollTop + element.clientHeight < element.scrollHeight - 1
+      setEdges((current) =>
+        current.above === above && current.below === below ? current : { above, below }
+      )
+    }
+    const resize = new ResizeObserver(update)
+    const mutation = new MutationObserver(update)
+    resize.observe(element)
+    mutation.observe(element, { childList: true, subtree: true })
+    element.addEventListener("scroll", update, { passive: true })
+    update()
+    observer.current = {
+      disconnect: () => {
+        resize.disconnect()
+        mutation.disconnect()
+        element.removeEventListener("scroll", update)
+      },
+    }
+  }, [])
+
+  return [ref, edges] as const
+}
+
 function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
+  const [ref, { above, below }] = useScrollEdges()
+
   return (
-    <ComboboxPrimitive.List
-      data-slot="combobox-list"
-      className={cn(
-        "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-1 overflow-y-auto overscroll-contain p-1 data-empty:p-0",
-        className
+    <div className="relative">
+      <ComboboxPrimitive.List
+        ref={ref}
+        data-slot="combobox-list"
+        data-scroll-above={above || undefined}
+        data-scroll-below={below || undefined}
+        className={cn(
+          "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-1 overflow-y-auto overscroll-contain p-1 data-empty:p-0 data-scroll-above:mask-t-from-[calc(100%-2rem)] data-scroll-below:mask-b-from-[calc(100%-3rem)]",
+          className
+        )}
+        {...props}
+      />
+      {/* More items below: a quiet hint, not a control, since the list scrolls by wheel, touch and keys. */}
+      {below && (
+        <span
+          aria-hidden="true"
+          data-slot="combobox-scroll-hint"
+          className="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center text-muted-foreground"
+        >
+          <ChevronDownIcon className="size-4" />
+        </span>
       )}
-      {...props}
-    />
+    </div>
   )
 }
 
