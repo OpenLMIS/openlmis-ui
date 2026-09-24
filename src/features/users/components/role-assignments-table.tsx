@@ -91,7 +91,14 @@ function NodeCell({ row, status }: { row: RoleRow; status: LookupStatus }) {
       ) : (
         <Name status={status.nodes} value={row.node} />
       )}
-      {row.nodeFacility !== undefined ? (
+      {row.isIgnored ? (
+        <span className="pt-1">
+          <Badge variant="warning">
+            <TriangleAlertIcon data-icon="inline-start" />
+            {t('users.roles.ignored')}
+          </Badge>
+        </span>
+      ) : row.nodeFacility !== undefined ? (
         <span className="truncate text-muted-foreground text-xs">{row.nodeFacility}</span>
       ) : (
         facilityPending && <Pending />
@@ -108,7 +115,7 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
     <span className="flex min-w-0 flex-col gap-1">
       <span className="flex min-w-0 items-center gap-2 font-medium">
         <Name value={row.role} />
-        {row.isUnsaved && <Badge variant="secondary">{t('users.roles.unsaved')}</Badge>}
+        {row.isUnsaved && <Badge variant="info">{t('users.roles.unsaved')}</Badge>}
       </span>
       {compact && tab.type === 'SUPERVISION' && (
         <span className="flex min-w-0 flex-col text-muted-foreground text-xs">
@@ -119,14 +126,6 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
       {compact && tab.type === 'ORDER_FULFILLMENT' && (
         <span className="text-muted-foreground text-xs">
           <Name status={status.facilities} value={row.facility} />
-        </span>
-      )}
-      {row.isIgnored && (
-        <span>
-          <Badge variant="warning">
-            <TriangleAlertIcon data-icon="inline-start" />
-            {t('users.roles.ignored')}
-          </Badge>
         </span>
       )}
     </span>
