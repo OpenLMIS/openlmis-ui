@@ -43,7 +43,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         // A short title over a description of at most two lines, and a plain X at the end edge.
         classNames: {
-          toast: "cn-toast pe-10!",
+          toast: "cn-toast pe-10! items-start!",
+          icon: "mt-0.5!",
           title: "font-medium",
           description: "line-clamp-2 text-muted-foreground!",
           closeButton:
