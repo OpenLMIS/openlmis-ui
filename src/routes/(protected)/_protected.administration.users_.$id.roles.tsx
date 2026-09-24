@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { NoAccessPage } from '@/components/no-access-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +38,8 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { rightsOptions } from '@/features/auth/api/queries';
+import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   minimalFacilitiesOptions,
@@ -59,6 +62,7 @@ import {
 } from '@/features/users/lib/roles-search';
 import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
+import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -71,7 +75,7 @@ const RoleDialogs = lazy(() =>
 export const Route = createFileRoute('/(protected)/_protected/administration/users_/$id/roles')({
   validateSearch: rolesSearchSchema,
   staticData: { crumbKey: 'users.roles' },
-  loader: ({ context: { queryClient }, params }) => {
+  loader: async ({ context: { queryClient }, params }) => {
     queryClient.prefetchQuery(rolesOptions());
     queryClient.prefetchQuery(programsOptions());
     // Slow, so they start now and fill in the rows when they arrive.
@@ -79,8 +83,12 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     queryClient.prefetchQuery(minimalFacilitiesOptions());
     // A failed preload is retried when the dialogs render, where the boundary below catches it.
     loadRoleDialogs().catch(() => undefined);
-    // A user that does not exist has no roles page, so the page waits for the user.
-    return queryClient.ensureQueryData(userDetailsOptions(params.id));
+    // The page waits for the right it needs and for the user, which must exist; both at once.
+    const [, details] = await Promise.all([
+      requireRight(queryClient, RIGHTS.usersManage),
+      queryClient.ensureQueryData(userDetailsOptions(params.id)),
+    ]);
+    return details;
   },
   pendingComponent: RolesPagePending,
   errorComponent: RolesPageError,
@@ -148,6 +156,9 @@ function RolesEditor({ details }: { details: UserDetails }) {
     [navigate, listSearch],
   );
 
+  // A sign out waiting on the discard dialog; set by the leave guard below.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+
   const save = useMutation({
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
     onSuccess: (saved, sent) => {
@@ -162,6 +173,12 @@ function RolesEditor({ details }: { details: UserDetails }) {
       // Your own roles decide what this app shows you.
       if (user.id === signedInUserId) {
         void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
+      }
+      // A sign out asked for during the save goes ahead, now that nothing is left to lose.
+      if (pendingLeave && !editedMeanwhile) {
+        setPendingLeave(null);
+        pendingLeave();
+        return;
       }
       // Back to the list, as legacy does, unless that would drop edits made during the save.
       if (!editedMeanwhile) {
@@ -182,6 +199,9 @@ function RolesEditor({ details }: { details: UserDetails }) {
     enableBeforeUnload: () => draft.changes > 0,
     withResolver: true,
   });
+  // Signing out leaves without the router, so it asks through the same dialog.
+  const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
+  useLeaveGuard(draft.changes > 0, askToLeave);
 
   const { add, remove } = draft;
   const rolesRegion = useRef<HTMLDivElement>(null);
@@ -282,9 +302,17 @@ function RolesEditor({ details }: { details: UserDetails }) {
           </CatchBoundary>
           <DiscardChangesDialog
             changes={draft.changes}
-            onDiscard={() => blocker.proceed?.()}
-            onKeepEditing={() => blocker.reset?.()}
-            open={blocker.status === 'blocked'}
+            confirmLabel={t(pendingLeave ? 'users.roles.discard-sign-out' : 'users.roles.discard')}
+            onDiscard={() => {
+              if (!pendingLeave) return blocker.proceed?.();
+              setPendingLeave(null);
+              pendingLeave();
+            }}
+            onKeepEditing={() => {
+              setPendingLeave(null);
+              blocker.reset?.();
+            }}
+            open={blocker.status === 'blocked' || pendingLeave !== null}
             username={user.username}
           />
         </WorkspaceContent>
@@ -346,6 +374,7 @@ function RolesPageError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const notFound = isAxiosError(error) && error.response?.status === 404;
+  if (isForbidden(error)) return <NoAccessPage />;
 
   return (
     <Workspace>

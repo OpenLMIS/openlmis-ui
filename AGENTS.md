@@ -50,7 +50,9 @@ The protected layout is an icon-collapsible sidebar (`Ctrl/Cmd+B`) plus a top ba
 from the `@7ovr/app-shell-1` block. `NAV_GROUPS` in `src/lib/config.ts` is the single
 source for both the sidebar menu and the `Ctrl/Cmd+K` command palette. Entries with
 `to: '#'` are pages not migrated yet: `LIVE_NAV_GROUPS` leaves them, and any section with
-no live page, out of the sidebar and the palette until they point at a real route.
+no live page, out of the sidebar and the palette until they point at a real route. Both then
+show only the pages the user's rights reach, through `useNavGroups()` in
+`src/components/nav-access.ts`.
 
 ### Data fetching pattern
 
@@ -484,6 +486,21 @@ as a set of right names, and `RIGHTS` names the ones this app checks. A route th
 depends on them awaits `ensureQueryData(rightsOptions(...))` in its loader, since that is
 a permission check, then prefetches only the parts the user may see and passes plain
 flags down. Features stay free of auth imports; the Home route is the example.
+
+**A page that needs one right checks it before it loads.** Its loader awaits
+`requireRight(queryClient, RIGHTS.x)` from `src/features/auth/lib/access.ts`, alongside the
+data it must have, and a missing right throws a `ForbiddenError`. The default error component
+shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
+`errorComponent` checks `isForbidden(error)` first, and so does a `QueryBoundary` whose data
+the server may refuse, showing `NoAccess`. Add the page to `NAV_RIGHTS` in
+`src/components/nav-access.ts` too, so the sidebar, the palette and the breadcrumbs never offer
+it. The Users routes are the example.
+
+**Unsaved work asks before it is lost.** A page with a draft blocks router navigation with
+`useBlocker` and, for leaving the router cannot see, such as signing out, registers
+`useLeaveGuard` from `src/hooks/use-leave-guard.ts`; the sign-out calls `whenLeaveAllowed`.
+Both open the page's own "Discard Unsaved Changes?" dialog. A reload or a closed tab gets the
+browser's own prompt, which is the only one a page is allowed there.
 
 **Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
 ramp: one blue hue, light to dark, checked for even steps and contrast in both modes, used

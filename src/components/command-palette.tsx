@@ -1,8 +1,9 @@
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SearchIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavGroups } from '@/components/nav-access';
 import {
   Command,
   CommandDialog,
@@ -13,8 +14,8 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
-import { isNavParent, LIVE_NAV_ITEMS } from '@/lib/config';
-import type { LiveNavLink } from '@/lib/types';
+import { isNavParent } from '@/lib/config';
+import type { LiveNavItem, LiveNavLink } from '@/lib/types';
 
 type PaletteSection = {
   headingKey?: ParseKeys;
@@ -23,19 +24,26 @@ type PaletteSection = {
 };
 
 // Top-level links share one unlabelled section; each parent becomes a section headed by its title.
-const SECTIONS: PaletteSection[] = [
-  { links: LIVE_NAV_ITEMS.filter((item): item is LiveNavLink => !isNavParent(item)) },
-  ...LIVE_NAV_ITEMS.filter(isNavParent).map((parent) => ({
-    headingKey: parent.titleKey,
-    ...(parent.icon && { icon: parent.icon }),
-    links: parent.items,
-  })),
-].filter((section) => section.links.length > 0);
+function toSections(items: LiveNavItem[]): PaletteSection[] {
+  return [
+    { links: items.filter((item): item is LiveNavLink => !isNavParent(item)) },
+    ...items.filter(isNavParent).map((parent) => ({
+      headingKey: parent.titleKey,
+      ...(parent.icon && { icon: parent.icon }),
+      links: parent.items,
+    })),
+  ].filter((section) => section.links.length > 0);
+}
 
 export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const navGroups = useNavGroups();
+  const sections = useMemo(
+    () => toSections(navGroups.flatMap((group) => group.items)),
+    [navGroups],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -74,7 +82,7 @@ export function CommandPalette() {
           <CommandInput placeholder={t('command.placeholder')} />
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
-            {SECTIONS.map((section) => {
+            {sections.map((section) => {
               const heading = section.headingKey && t(section.headingKey);
               return (
                 <CommandGroup heading={heading} key={section.headingKey ?? 'top-level'}>

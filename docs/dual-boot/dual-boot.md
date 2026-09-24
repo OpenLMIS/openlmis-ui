@@ -34,7 +34,7 @@ Today the new UI has these screens:
 | --- | --- |
 | Login | Sign in |
 | Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment |
-| Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles |
+| Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles. Needs the Manage Users right; without it the menu leaves Users out and the page says so |
 
 Everything else is still in the existing UI, and the new UI's menu shows only the
 screens above. More move over as they are rebuilt.
@@ -47,7 +47,7 @@ Sessions are shared, with one exception.
 | --- | --- |
 | Sign into the old UI, then open `/v2` | Already signed in, nothing to do |
 | Sign out of the old UI | The new UI signs out too |
-| Sign out of the new UI | The old UI signs out too |
+| Sign out of the new UI | The old UI signs out too. If a page has unsaved changes, it asks first |
 | Sign into the new UI, then open the old one | **Asks you to sign in once** |
 
 That last row is the exception. Signing into the new UI does not sign you into the

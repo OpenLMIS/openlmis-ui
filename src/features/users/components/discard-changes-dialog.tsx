@@ -14,6 +14,8 @@ type DiscardChangesDialogProps = {
   open: boolean;
   changes: number;
   username: string;
+  /** What discarding leads to, e.g. signing out. */
+  confirmLabel: string;
   onKeepEditing: () => void;
   onDiscard: () => void;
 };
@@ -23,6 +25,7 @@ export function DiscardChangesDialog({
   open,
   changes,
   username,
+  confirmLabel,
   onKeepEditing,
   onDiscard,
 }: DiscardChangesDialogProps) {
@@ -39,7 +42,7 @@ export function DiscardChangesDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>{t('users.roles.keep-editing')}</AlertDialogCancel>
           <Button onClick={onDiscard} variant="destructive">
-            {t('users.roles.discard')}
+            {confirmLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

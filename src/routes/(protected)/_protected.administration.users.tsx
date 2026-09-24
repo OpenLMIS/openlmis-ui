@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -15,6 +16,8 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { userDetailsOptions, usersListOptions } from '@/features/users/api/queries';
 import { UsersTable, UsersTableSkeleton } from '@/features/users/components/users-table';
@@ -58,13 +61,16 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     user: search.user,
     password: search.password,
   }),
-  loader: ({ context: { queryClient }, deps }) => {
+  // Managing users takes a right; checked before anything loads, since the list would only fail.
+  loader: async ({ context: { queryClient }, deps }) => {
+    await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery(usersListOptions(deps.query));
     // A dialog's data starts with the navigation, not once the dialog has rendered.
     if (deps.user) queryClient.prefetchQuery(minimalFacilitiesOptions());
     const detailsFor = deps.user ? deps.user !== 'new' && deps.user : deps.password;
     if (detailsFor) queryClient.prefetchQuery(userDetailsOptions(detailsFor));
   },
+  pendingComponent: UsersPagePending,
   component: UsersPage,
 });
 
@@ -164,13 +170,18 @@ function UsersPage() {
             search={search}
           />
           <QueryBoundary
-            errorComponent={({ reset }) => (
-              <DataTableError
-                description={t('users.error-description')}
-                onRetry={reset}
-                title={t('users.error-title')}
-              />
-            )}
+            errorComponent={({ error, reset }) =>
+              // Rights read at sign in can be revoked since; the server's refusal says so.
+              isForbidden(error) ? (
+                <NoAccess />
+              ) : (
+                <DataTableError
+                  description={t('users.error-description')}
+                  onRetry={reset}
+                  title={t('users.error-title')}
+                />
+              )
+            }
             pendingFallback={
               <UsersTableSkeleton columnVisibility={columnView.visibility} search={search} />
             }
@@ -195,6 +206,27 @@ function UsersPage() {
             />
           </Suspense>
         )}
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+/** While the rights check runs on a first visit: the page's header over a table skeleton. */
+function UsersPagePending() {
+  const { t } = useTranslation();
+  return (
+    <Workspace>
+      <WorkspaceHeader>
+        <WorkspaceHeading>
+          <WorkspaceIcon>
+            <UsersIcon />
+          </WorkspaceIcon>
+          <WorkspaceTitle>{t('users.title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('users.description')}</WorkspaceDescription>
+        </WorkspaceHeading>
+      </WorkspaceHeader>
+      <WorkspaceContent>
+        <UsersTableSkeleton columnVisibility={{}} search={{}} />
       </WorkspaceContent>
     </Workspace>
   );

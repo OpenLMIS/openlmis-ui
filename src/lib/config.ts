@@ -160,8 +160,6 @@ export const LIVE_NAV_GROUPS: LiveNavGroup[] = NAV_GROUPS.map((group) => ({
   }),
 })).filter((group) => group.items.length > 0);
 
-export const LIVE_NAV_ITEMS: LiveNavItem[] = LIVE_NAV_GROUPS.flatMap((group) => group.items);
-
 export type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
 
 /** The nav entries leading to `pathname`, or to the entry it sits below; empty off the nav. */

@@ -49,7 +49,9 @@ function NotFoundContent() {
         <p className="font-medium text-muted-foreground text-xs uppercase tracking-label">
           {t('not-found.eyebrow')}
         </p>
-        <EmptyTitle size="lg">{t('not-found.title')}</EmptyTitle>
+        <EmptyTitle size="lg">
+          <h1>{t('not-found.title')}</h1>
+        </EmptyTitle>
         <EmptyDescription size="lg">{t('not-found.description')}</EmptyDescription>
         <code className="max-w-full truncate rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs">
           {pathname}
