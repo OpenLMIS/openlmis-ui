@@ -123,8 +123,8 @@ referenced by legacy URL.
 - Reuse: existing components, hooks and lookups
 - Rules: the business rules to enforce, with their legacy source
 - Translations: new keys
-- Tests: what to unit test (our logic, not shadcn primitives) and what to check in the
-  browser, which `review-pr` runs
+- Tests: what to unit test (our logic, not shadcn primitives), written before the code
+  they cover, and what to check in the browser, which `review-pr` runs
 - Risks and edge cases
 
 ## UI/UX
@@ -155,7 +155,9 @@ Once approved:
 
 1. Create the branch (`feat/<key>-<slug>`, lowercase), and commit the plan first as
    `docs: plan <KEY>`.
-2. Build it step by step, and keep the plan true. When the build departs from the plan,
-   update the plan in the same PR rather than leaving it stale.
+2. Build it step by step, test first: never write a unit test after the code. Each step
+   starts with a failing test for the logic it adds, then the code that makes it pass.
+   Keep the plan true: when the build departs from the plan, update the plan in the
+   same PR rather than leaving it stale.
 3. Link the ticket at the top of the PR description, and run `review-pr` before asking to
    merge.
