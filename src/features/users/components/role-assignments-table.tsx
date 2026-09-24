@@ -2,6 +2,7 @@ import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import {
   EllipsisIcon,
+  InfoIcon,
   ListChecksIcon,
   PlusIcon,
   SearchXIcon,
@@ -87,18 +88,19 @@ function NodeCell({ row, status }: { row: RoleRow; status: LookupStatus }) {
   return (
     <span className="flex min-w-0 flex-col">
       {row.isHomeFacility ? (
-        <span className="truncate">{t('users.roles.home-facility')}</span>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="truncate">{t('users.roles.home-facility')}</span>
+          {row.isIgnored && (
+            <Badge variant="warning">
+              <TriangleAlertIcon data-icon="inline-start" />
+              {t('users.roles.ignored')}
+            </Badge>
+          )}
+        </span>
       ) : (
         <Name status={status.nodes} value={row.node} />
       )}
-      {row.isIgnored ? (
-        <span className="pt-1">
-          <Badge variant="warning">
-            <TriangleAlertIcon data-icon="inline-start" />
-            {t('users.roles.ignored')}
-          </Badge>
-        </span>
-      ) : row.nodeFacility !== undefined ? (
+      {row.isIgnored ? null : row.nodeFacility !== undefined ? (
         <span className="truncate text-muted-foreground text-xs">{row.nodeFacility}</span>
       ) : (
         facilityPending && <Pending />
@@ -115,7 +117,12 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
     <span className="flex min-w-0 flex-col gap-1">
       <span className="flex min-w-0 items-center gap-2 font-medium">
         <Name value={row.role} />
-        {row.isUnsaved && <Badge variant="info">{t('users.roles.unsaved')}</Badge>}
+        {row.isUnsaved && (
+          <Badge variant="info">
+            <InfoIcon data-icon="inline-start" />
+            {t('users.roles.unsaved')}
+          </Badge>
+        )}
       </span>
       {compact && tab.type === 'SUPERVISION' && (
         <span className="flex min-w-0 flex-col text-muted-foreground text-xs">
