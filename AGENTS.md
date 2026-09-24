@@ -249,7 +249,7 @@ Two ways out when a page needs a different treatment:
    `Table density`/`layout`, `TableHeader surface`, `Badge success`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-   `ComboboxInput width`/`clearLabel`.
+   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -454,6 +454,20 @@ exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTit
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 
+## Rights and dashboards
+
+**A screen shows only what the user's rights allow.** `rightsOptions(userId)` in
+`src/features/auth/api/queries.ts` loads the user's permission strings once per session
+as a set of right names, and `RIGHTS` names the ones this app checks. A route that
+depends on them awaits `ensureQueryData(rightsOptions(...))` in its loader, since that is
+a permission check, then prefetches only the parts the user may see and passes plain
+flags down. Features stay free of auth imports; the Home route is the example.
+
+**Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
+ramp: one blue hue, light to dark, checked for even steps and contrast in both modes, used
+in order for anything with an order (pipeline stages). Status meaning (good to critical)
+uses `success`, `warning` and `destructive` with an icon and a label, never colour alone.
+
 ## Authentication
 
 `/login` exchanges credentials for a token at `POST /api/oauth/token?grant_type=password`.
@@ -488,6 +502,11 @@ what a real single sign-on would cost.
 
 Anything touching auth state should go through the store rather than reading localStorage
 directly, or these two views of the session drift apart again.
+
+Cached query data belongs to whoever fetched it: `src/integrations/tanstack-query.ts`
+clears the whole cache whenever the store's user changes, on sign-out, on sign-in as
+someone else, and when the session follows the legacy UI. Query keys therefore need no
+user id, except for per-user data such as rights.
 
 ## Environment Variables
 

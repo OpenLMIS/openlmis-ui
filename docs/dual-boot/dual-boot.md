@@ -28,8 +28,16 @@ Per screen, not per session. Both are running, so a user can work in the old UI 
 morning, open one screen in the new one, and go back. There is no switch to flip and
 no migration a user has to opt into.
 
-Today the new UI has a home page and a login page, so in practice everyone still
-works in the existing UI. That changes as screens are rebuilt.
+Today the new UI has these screens:
+
+| Screen | What you can do |
+| --- | --- |
+| Login | Sign in |
+| Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment |
+| Administration / Users | Find, add and edit users, and reset their passwords |
+
+Everything else is still in the existing UI, and the new UI's menu shows only the
+screens above. More move over as they are rebuilt.
 
 ## Signing in and out
 

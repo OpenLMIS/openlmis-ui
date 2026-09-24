@@ -14,14 +14,26 @@ type QueryBoundaryProps = {
 export function QueryBoundary({
   resetKey,
   pendingFallback,
-  errorComponent,
+  errorComponent: ErrorComponent,
   children,
 }: QueryBoundaryProps) {
   const { reset } = useQueryErrorResetBoundary();
 
   return (
-    // Resetting on catch lets the failed query refetch once the boundary renders children again.
-    <CatchBoundary errorComponent={errorComponent} getResetKey={() => resetKey} onCatch={reset}>
+    // Reset again on retry: another reader of the same query may have cleared the reset on catch.
+    <CatchBoundary
+      errorComponent={(props) => (
+        <ErrorComponent
+          {...props}
+          reset={() => {
+            reset();
+            props.reset();
+          }}
+        />
+      )}
+      getResetKey={() => resetKey}
+      onCatch={reset}
+    >
       <Suspense fallback={pendingFallback}>{children}</Suspense>
     </CatchBoundary>
   );
