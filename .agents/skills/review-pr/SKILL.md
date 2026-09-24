@@ -84,8 +84,8 @@ conventions. A lint pass catches only a few of them. The ones most often broken:
   Users page (URL owns the state, container queries not viewport breakpoints, the create
   action ends the toolbar); short forms are URL-owned dialogs built from `form-dialog/`
   and `useAppForm`, yes/no settings are `SwitchField`s
-- **Code**: `@/` imports, kebab-case files, `type` over `interface`, tests colocated and
-  written first (logic with no test, or a test added in a later commit than its code),
+- **Code**: `@/` imports, kebab-case files, `type` over `interface`, tests colocated, no new
+  logic without a unit test,
   logical CSS only, `BASE_URL` for assets, no `import.meta.env` for anything that varies
   per environment, auth state only through the store
 - **Text**: English labels in Title Case, flat and sorted translation keys present in
