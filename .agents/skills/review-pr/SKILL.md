@@ -19,7 +19,8 @@ everything its legacy counterpart does, and feel clearly better doing it.
 2. Get the diff with `gh pr diff <n>` (or `git diff origin/master...HEAD`) and the changed
    files with `gh pr diff <n> --name-only`.
    `gh pr view <n> --json title,body,commits` gives the description and commit messages
-   the conventions reviewer checks.
+   the conventions reviewer checks. The ticket key in the description or branch names
+   the plan, `plans/<KEY>.md`; every reviewer reads it.
 3. `git status -s`: uncommitted changes are not in the PR. Commit or stash them first, or
    say they are out of scope. Do not edit files while reviewers run; they read the tree
    and would review a moving target.
@@ -40,6 +41,7 @@ every reviewer the same brief:
 - PR number, URL, base and head branch, the diff command, and the changed-file list
 - The gate results from step 1
 - The screens touched and their legacy URLs
+- The plan file, `plans/<KEY>.md`, when there is one
 - AGENTS.md is the rulebook; read it first
 - The **browser rules** below, copied verbatim
 - Return findings only, most severe first, each with: `file:line`, a one-sentence
@@ -92,6 +94,8 @@ conventions. A lint pass catches only a few of them. The ones most often broken:
   `## Changes` as one-line bullets, screenshots for visible changes, empty sections left
   out), commits are conventional (`feat:`, `fix:`, `refactor:`...), no Co-Authored-By
   lines, and the diff contains nothing unrelated to the PR's purpose
+- **The plan**: a ticket PR carries `plans/<KEY>.md`; every acceptance criterion in it
+  is met, and the plan still matches what was built
 
 It quotes the AGENTS.md rule each finding breaks. A rule the diff breaks for a good
 reason is still reported, so the user can decide whether the rule or the code changes.

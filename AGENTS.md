@@ -5,12 +5,16 @@ Working reference for anyone writing code in this repository, human or agent.
 OpenLMIS UI is the web frontend for OpenLMIS. It runs beside the legacy AngularJS UI under
 a URL prefix rather than replacing it in one step.
 
-Three places, three audiences. Keep them apart rather than repeating:
+Four places, four audiences. Keep them apart rather than repeating:
 
 - **AGENTS.md**, this file: how to write code here. Conventions, patterns, constraints.
 - **README.md**: setup, environment variables, scripts, project layout.
 - **[docs/](docs/README.md)**: written for humans using, supporting or deploying the
   system. Plain language, no conventions, no internals unless a reader needs them.
+- **plans/**: one `plans/<KEY>.md` per Jira ticket, written by the `plan-implementation`
+  skill before any code and committed with that ticket's PR. A plain summary for the team,
+  then an agent brief with every API call mapped, and the UI/UX calls. Keep it true: when
+  the build departs from the plan, update the plan in the same PR.
 
 ## Commands
 
@@ -529,6 +533,7 @@ Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lo
 | Skill | Source | Use for |
 |---|---|---|
 | `sync-translations` | local | Syncing `public/locales/*` with `en.json` after changing keys |
+| `plan-implementation` | local | Researching a Jira ticket against legacy and writing `plans/<KEY>.md` before any code |
 | `review-pr` | local | Reviewing a PR diff in parallel (correctness, simplify, conventions, React/shadcn, legacy UI parity), then getting it ready to merge |
 | `shadcn` | `shadcn/ui` | Adding, debugging, styling and composing shadcn components |
 | `frontend-design` | `anthropics/skills` | Building new UI with real design quality |
