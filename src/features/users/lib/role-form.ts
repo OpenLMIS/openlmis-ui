@@ -43,11 +43,11 @@ export function roleFormSchema(type: RightType, assigned: readonly RoleAssignmen
     const require = (path: keyof RoleFormValues, message: ParseKeys) => {
       if (!values[path]) context.addIssue({ code: 'custom', path: [path], message });
     };
-    if (type === 'SUPERVISION') require('programId', errorKey('users.roles.form.program-required'));
+    if (type === 'SUPERVISION') require('programId', 'users.roles.form.program-required');
     if (type === 'ORDER_FULFILLMENT') {
-      require('warehouseId', errorKey('users.roles.form.facility-required'));
+      require('warehouseId', 'users.roles.form.facility-required');
     }
-    require('roleId', errorKey('users.roles.form.role-required'));
+    require('roleId', 'users.roles.form.role-required');
 
     if (values.roleId && assignedKeys.has(assignmentKey(toRoleAssignment(type, values)))) {
       context.addIssue({

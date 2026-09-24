@@ -134,17 +134,15 @@ function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
       data-slot="combobox-scroll-area"
       className="group/combobox-scroll relative"
     >
-      <ScrollAreaPrimitive.Viewport
-        render={
-          <ComboboxPrimitive.List
-            data-slot="combobox-list"
-            className={cn(
-              "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-1 overflow-y-auto overscroll-contain p-1 outline-none mask-no-repeat mask-[linear-gradient(to_bottom,transparent_0,black_min(2.5rem,var(--scroll-area-overflow-y-start)),black_calc(100%_-_min(2.5rem,var(--scroll-area-overflow-y-end,0px))),transparent_100%)] data-empty:p-0",
-              className
-            )}
-            {...props}
-          />
-        }
+      {/* The list renders the viewport, not the reverse, so its listbox role and tab index win. */}
+      <ComboboxPrimitive.List
+        render={<ScrollAreaPrimitive.Viewport />}
+        data-slot="combobox-list"
+        className={cn(
+          "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-10 overflow-y-auto overscroll-contain p-1 outline-none mask-no-repeat mask-[linear-gradient(to_bottom,transparent_0,black_min(2.5rem,var(--scroll-area-overflow-y-start)),black_calc(100%_-_min(2.5rem,var(--scroll-area-overflow-y-end,0px))),transparent_100%)] data-empty:p-0",
+          className
+        )}
+        {...props}
       />
       {/* Hints, not controls: the list already scrolls by wheel, touch and keys. */}
       <span

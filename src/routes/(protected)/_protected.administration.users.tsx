@@ -46,6 +46,8 @@ declare module '@tanstack/react-router' {
   interface HistoryState {
     /** On an entry this page pushed to open a dialog, so closing it can step Back. */
     dialogOpenedHere?: boolean;
+    /** The list's search when a user's roles were opened from it, so leaving them returns there. */
+    usersListSearch?: UsersSearch;
   }
 }
 
@@ -134,10 +136,6 @@ function UsersPage() {
   );
   const editUser = useCallback((user: string) => openDialog({ user }), [openDialog]);
   const resetPassword = useCallback((password: string) => openDialog({ password }), [openDialog]);
-  const editRoles = useCallback(
-    (userId: string) => navigate({ to: '/administration/users/$id/roles', params: { id: userId } }),
-    [navigate],
-  );
   // Mounted from the first open on, so a dialog can still animate closed.
   const [dialogsMounted, setDialogsMounted] = useState(anyDialogOpen);
   if (anyDialogOpen && !dialogsMounted) setDialogsMounted(true);
@@ -182,7 +180,6 @@ function UsersPage() {
               columnVisibility={columnView.visibility}
               onEdit={editUser}
               onResetPassword={resetPassword}
-              onRoles={editRoles}
               onSearchChange={updateSearch}
               search={search}
             />

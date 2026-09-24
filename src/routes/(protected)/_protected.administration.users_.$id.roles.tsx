@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
@@ -136,12 +136,16 @@ function RolesEditor({ details }: { details: UserDetails }) {
 
   // The draft as it is now, for a save that finishes after later edits.
   const latestDraft = useRef(draft.draft);
-  latestDraft.current = draft.draft;
+  useEffect(() => {
+    latestDraft.current = draft.draft;
+  });
   // Set once the page may be left without asking, e.g. right after a save.
   const leaving = useRef(false);
+  // The list as it was when this page was opened from it, with its page, sort and filters.
+  const [listSearch] = useState(() => router.state.location.state.usersListSearch ?? {});
   const backToUsers = useCallback(
-    () => navigate({ to: '/administration/users', search: {} }),
-    [navigate],
+    () => navigate({ to: '/administration/users', search: listSearch }),
+    [navigate, listSearch],
   );
 
   const save = useMutation({
@@ -181,15 +185,24 @@ function RolesEditor({ details }: { details: UserDetails }) {
 
   const { add, remove } = draft;
   const rolesRegion = useRef<HTMLDivElement>(null);
+  // Their Undo edits this page's draft, so they go when the page does.
+  const removalToasts = useRef(new Set<string | number>());
+  useEffect(() => {
+    const toasts = removalToasts.current;
+    return () => {
+      for (const id of toasts) toast.dismiss(id);
+    };
+  }, []);
   const removeRole = useCallback(
     (row: RoleRow) => {
       remove(row.assignment);
       // The row and its menu are gone, so focus moves to the list instead of the page body.
       rolesRegion.current?.focus();
-      toast(t('users.roles.removed-title'), {
+      const id = toast(t('users.roles.removed-title'), {
         description: t('users.roles.removed', { role: row.role ?? t('users.roles.unknown') }),
         action: { label: t('users.roles.undo'), onClick: () => add(row.assignment) },
       });
+      removalToasts.current.add(id);
     },
     [add, remove, t],
   );
@@ -267,10 +280,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           </CatchBoundary>
           <DiscardChangesDialog
             changes={draft.changes}
-            onDiscard={() => {
-              draft.discard();
-              blocker.proceed?.();
-            }}
+            onDiscard={() => blocker.proceed?.()}
             onKeepEditing={() => blocker.reset?.()}
             open={blocker.status === 'blocked'}
             username={user.username}

@@ -352,12 +352,16 @@ Every part takes only `children` - no boolean props, no `renderX` callbacks. A p
 without an icon, a description or actions just leaves those parts out.
 
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
-outrank the toolbar controls below them.
+outrank the toolbar controls below them. When the header stacks on a narrow page, they share
+its full width; each button is a direct child, so a loading skeleton renders one block per
+button to stretch the same way.
 
 A page that edits a draft and saves it at once, like Edit User Roles, renders
 `WorkspaceFooter` right after `Workspace`, as its sibling: a muted bar across the content area
 that sticks to the bottom of the window, with Cancel at the start and Save at the end, both
-`size="lg"` and lined up with the page. Save returns to where the page was opened from.
+`size="lg"` and lined up with the page. Save and Cancel return to the list the page was
+opened from, with its page, sort and filters, which the opening link passes in history
+state. Toasts rise above the footer while it is on screen.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
@@ -467,7 +471,7 @@ resolves them through `FormMessagesProvider`.
 
 **Every toast has a title and a description**: a short title in Title Case (`users.roles.saved-title`,
 "Roles Saved") and a sentence of detail as `description`, which is cut at two lines. The
-shared `Toaster` adds the close button, so a call never passes one.
+shared `Toaster` adds a translated close button, so a call never passes one.
 
 ## Rights and dashboards
 

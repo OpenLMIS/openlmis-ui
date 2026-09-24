@@ -18,7 +18,7 @@ type DiscardChangesDialogProps = {
   onDiscard: () => void;
 };
 
-/** Asked before unsaved roles are thrown away, by Discard Changes or by leaving the page. */
+/** Asked before leaving the page with unsaved roles. */
 export function DiscardChangesDialog({
   open,
   changes,

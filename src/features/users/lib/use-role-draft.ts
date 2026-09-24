@@ -4,7 +4,6 @@ import {
   countChanges,
   mergeAssignments,
   rebaseDraft,
-  toSavedAssignment,
 } from '@/features/users/lib/role-assignments';
 import type { RoleAssignment } from '@/features/users/lib/types';
 
@@ -31,7 +30,6 @@ export function useRoleDraft(saved: RoleAssignment[]) {
     },
     [draft],
   );
-  const discard = useCallback(() => setDraft(saved.map(toSavedAssignment)), [saved]);
   /** After a save of `sent`, keeps any change made while it was on its way. */
   const commit = useCallback(
     (sent: RoleAssignment[], next: RoleAssignment[]) =>
@@ -40,7 +38,7 @@ export function useRoleDraft(saved: RoleAssignment[]) {
   );
 
   return useMemo(
-    () => ({ draft, changes, add, remove, merge, discard, commit }),
-    [draft, changes, add, remove, merge, discard, commit],
+    () => ({ draft, changes, add, remove, merge, commit }),
+    [draft, changes, add, remove, merge, commit],
   );
 }

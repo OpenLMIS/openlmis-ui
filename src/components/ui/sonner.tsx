@@ -5,7 +5,10 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { useDirection } from "@/components/ui/direction"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-const Toaster = ({ ...props }: ToasterProps) => {
+// Above a sticky page footer when there is one; `--workspace-footer-height` is set in globals.css.
+const clearOfFooter = (gap: string) => ({ bottom: `calc(${gap} + var(--workspace-footer-height, 0px))` })
+
+const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
   const dir = useDirection()
 
@@ -13,6 +16,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       closeButton
       dir={dir}
+      // The end corner, so a toast never covers the Save at the end of a page footer.
+      position={dir === "rtl" ? "bottom-left" : "bottom-right"}
+      offset={clearOfFooter("24px")}
+      mobileOffset={clearOfFooter("16px")}
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
@@ -41,6 +48,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        ...toastOptions,
         // A short title over a description of at most two lines, and a plain X at the end edge.
         classNames: {
           toast: "cn-toast pe-10! items-start!",
@@ -49,6 +57,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           description: "line-clamp-2 text-muted-foreground!",
           closeButton:
             "start-auto! end-2! top-2! transform-none! size-6! rounded-md! border-0! bg-transparent! text-muted-foreground! hover:bg-muted! hover:text-foreground!",
+          ...toastOptions?.classNames,
         },
       }}
       {...props}

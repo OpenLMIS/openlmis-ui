@@ -36,7 +36,7 @@ No ticket, so these are derived from legacy and its known problems.
 | Every legacy capability is kept: four role types, add, remove, import from another user, save all at once | Tabs per type, Add Role dialog, row Remove, Import Roles dialog, one Save | Browser walk of every tab |
 | Saving changes only the roles | `updateUserRoles` reads the user fresh and sends one `PUT /users`; no auth or contact writes | `api.test.ts` |
 | Unknown programs, nodes, facilities or roles never break the page | Rows keep the assignment and show "Unknown" | `role-assignments.test.ts` |
-| Unsaved work is never lost silently | Router blocker and `beforeunload` while there are changes; Discard asks first | Browser |
+| Unsaved work is never lost silently | Router blocker and `beforeunload` while there are changes; Cancel and any link ask first | Browser |
 | A home facility role for a user without a home facility is flagged before and after adding | Warning in the dialog, badge on the row | Browser, unit test for `isIgnored` |
 | Duplicates are refused inline | Zod issue on the role field | `role-form.test.ts` |
 | The page is usable on a phone and in RTL | Rows go two-line when the content is narrow, logical classes | Browser at 390 px, Arabic |
@@ -106,10 +106,16 @@ the field is always sent.
   `import-roles-dialog.tsx`, `role-rights-dialog.tsx`, `discard-changes-dialog.tsx`, and
   `role-dialogs.tsx`, which loads the dialogs as one chunk.
 - `src/routes/(protected)/_protected.administration.users_.$id.roles.tsx`.
-- `users-table.tsx`: wire the Roles action. `app-breadcrumbs.tsx` and `config.ts`: crumbs
-  for pages below a nav entry.
-- `src/components/ui/tabs.tsx`, `alert-dialog.tsx` from shadcn; `Badge warning` and
-  `Alert warning` variants.
+- `users-table.tsx`: the Roles action as a link that carries the list's search, so leaving
+  the roles page returns to the same page of the list. `app-breadcrumbs.tsx` and
+  `config.ts`: crumbs for pages below a nav entry.
+- `src/components/workspace.tsx`: `WorkspaceFooter`, and header actions that share the full
+  width on a stacked header.
+- `src/components/ui/`: `tabs` and `alert-dialog` from shadcn; `Badge warning`/`info`,
+  `Alert warning`, `Tabs spacing` and `TabsList wrap` variants; combobox lists that fade at
+  an edge with more items past it; toasts with a title, a two-line description and a close
+  button, kept above a page footer.
+- `src/components/not-found-page.tsx`: a clearer 404, inside the app shell when signed in.
 
 ### Rules
 
@@ -122,13 +128,15 @@ the field is always sent.
 
 ### Translations
 
-`users.roles.*` keys in en, pt and ar.
+`users.roles.*` keys, a label for each of the 79 rights (`rights.*`), toast titles and the
+404 texts, in en, pt and ar.
 
 ### Tests
 
 Unit: keys, merge, change count, rows, filter and sort, form schema, `updateUserRoles`.
 Browser: every tab, add, duplicate, home facility warning, remove and undo, import,
-discard and the leave guard, save with a stubbed `PUT`, 390 px, Arabic.
+Cancel and the leave guard, save with a stubbed `PUT` and the return to the list, toasts,
+390 px, Arabic.
 
 ### Risks
 
@@ -151,6 +159,8 @@ discard and the leave guard, save with a stubbed `PUT`, 390 px, Arabic.
 | Import Roles | Improve: searchable user picker and a preview of how many roles it adds | One blind dropdown today |
 | Save rewriting active, contact, auth | Drop | Reactivated deactivated users |
 | Single role preselected | Port | Saves a click on Reports and Fulfillment |
+| Toasts | Improve: a short title, a description of at most two lines and a close button | Each message says what happened and what to do next |
+| Long pickers | Improve: the list fades and shows a chevron where more items follow | 511 nodes and 2,735 facilities give no hint of their length today |
 
 States: page skeleton while the user loads, Not Found, table skeleton, empty tab with Add
 Role, no matches with Clear Filters, lookup error with Try Again, save error with the

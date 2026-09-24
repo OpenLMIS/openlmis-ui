@@ -72,7 +72,10 @@ export function WorkspaceContent({ children }: WorkspaceProps) {
 /** Rendered after `Workspace`: full width, stuck to the bottom, buttons aligned with the page. */
 export function WorkspaceFooter({ children }: WorkspaceProps) {
   return (
-    <div className="sticky bottom-0 z-10 border-t bg-muted/80 backdrop-blur-sm">
+    <div
+      className="sticky bottom-0 z-10 border-t bg-muted/80 backdrop-blur-sm"
+      data-slot="workspace-footer"
+    >
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 lg:px-6">
         {children}
       </div>
