@@ -5,15 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   Empty,
   EmptyDescription,
@@ -31,9 +23,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { APPROVALS_SHOWN, approvalsOptions } from '@/features/home/api/queries';
-import { LegacyLink, WidgetError } from '@/features/home/components/dashboard-parts';
+import { CountBadge, CountedTitle, WidgetError } from '@/features/home/components/dashboard-parts';
 import type { RequisitionSummary } from '@/features/home/lib/types';
-import { legacyUrl } from '@/lib/legacy-url';
 
 /** The requisitions waiting on this user, so the most urgent approval is one click away. */
 export function ApprovalsTable() {
@@ -42,21 +33,10 @@ export function ApprovalsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('home.approvals.title')}</CardTitle>
-        <QueryBoundary
-          errorComponent={() => null}
-          pendingFallback={
-            <div className="h-5 w-40 py-0.5">
-              <Skeleton fill />
-            </div>
-          }
-          resetKey="approvals-total"
-        >
+        <CountedTitle title={t('home.approvals.title')}>
           <ApprovalsTotal />
-        </QueryBoundary>
-        <CardAction>
-          <LegacyLink route="requisitions/approvalList">{t('home.view-all')}</LegacyLink>
-        </CardAction>
+        </CountedTitle>
+        <CardDescription>{t('home.approvals.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <QueryBoundary
@@ -72,11 +52,8 @@ export function ApprovalsTable() {
 }
 
 function ApprovalsTotal() {
-  const { t } = useTranslation();
   const { data } = useSuspenseQuery(approvalsOptions());
-  return (
-    <CardDescription>{t('home.approvals.description', { count: data.total })}</CardDescription>
-  );
+  return <CountBadge count={data.total} />;
 }
 
 /** When the requisition reached the approver: authorized, or submitted where there is no authorize step. */
@@ -123,9 +100,6 @@ function ApprovalRows() {
             {wide && <TableHead>{t('home.approvals.facility')}</TableHead>}
             {wide && <TableHead>{t('home.approvals.period')}</TableHead>}
             {wide && <TableHead>{t('home.approvals.waiting-since')}</TableHead>}
-            <TableHead>
-              <span className="sr-only">{t('home.approvals.actions')}</span>
-            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -139,7 +113,7 @@ function ApprovalRows() {
             return (
               <TableRow key={requisition.id}>
                 <TableCell>
-                  {/* On a narrow card everything but the action stacks here, so Review always fits. */}
+                  {/* On a narrow card the facility and period stack here instead of taking columns. */}
                   <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{requisition.program.name}</span>
@@ -164,18 +138,6 @@ function ApprovalRows() {
                     </span>
                   </TableCell>
                 )}
-                <TableCell>
-                  <div className="flex justify-end">
-                    <Button
-                      nativeButton={false}
-                      render={<a href={legacyUrl(`requisition/${requisition.id}/fullSupply`)} />}
-                      size="sm"
-                      variant="outline"
-                    >
-                      {t('home.approvals.review')}
-                    </Button>
-                  </div>
-                </TableCell>
               </TableRow>
             );
           })}

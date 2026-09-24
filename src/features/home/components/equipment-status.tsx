@@ -8,20 +8,14 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/query-boundary';
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EQUIPMENT_STATUSES } from '@/features/home/api/api';
 import { equipmentStatusCountsOptions } from '@/features/home/api/queries';
 import {
-  LegacyLink,
+  CountBadge,
+  CountedTitle,
   useFormatNumber,
   WidgetError,
 } from '@/features/home/components/dashboard-parts';
@@ -73,21 +67,10 @@ export function EquipmentStatusCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('home.equipment.title')}</CardTitle>
-        <QueryBoundary
-          errorComponent={() => null}
-          pendingFallback={
-            <div className="h-5 w-32 py-0.5">
-              <Skeleton fill />
-            </div>
-          }
-          resetKey="equipment-total"
-        >
+        <CountedTitle title={t('home.equipment.title')}>
           <EquipmentTotal />
-        </QueryBoundary>
-        <CardAction>
-          <LegacyLink route="cce/inventory">{t('home.view-all')}</LegacyLink>
-        </CardAction>
+        </CountedTitle>
+        <CardDescription>{t('home.equipment.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <QueryBoundary
@@ -107,10 +90,8 @@ export function EquipmentStatusCard() {
 }
 
 function EquipmentTotal() {
-  const { t } = useTranslation();
   const { data } = useSuspenseQuery(equipmentStatusCountsOptions());
-  const total = EQUIPMENT_STATUSES.reduce((sum, status) => sum + data[status], 0);
-  return <CardDescription>{t('home.equipment.description', { count: total })}</CardDescription>;
+  return <CountBadge count={EQUIPMENT_STATUSES.reduce((sum, status) => sum + data[status], 0)} />;
 }
 
 function EquipmentRows() {

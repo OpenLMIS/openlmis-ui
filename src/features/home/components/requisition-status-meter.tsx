@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   type ChartConfig,
   ChartContainer,
@@ -14,7 +14,12 @@ import { useDirection } from '@/components/ui/direction';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type PipelineStatus, REQUISITION_PIPELINE } from '@/features/home/api/api';
 import { requisitionStatusCountsOptions } from '@/features/home/api/queries';
-import { useFormatNumber, WidgetError } from '@/features/home/components/dashboard-parts';
+import {
+  CountBadge,
+  CountedTitle,
+  useFormatNumber,
+  WidgetError,
+} from '@/features/home/components/dashboard-parts';
 
 /** One step of the chart ramp per status, lightest first, so the order of the pipeline reads in the colour. */
 const STATUS_COLOR: Record<PipelineStatus, { fill: string; dot: string }> = {
@@ -40,18 +45,10 @@ export function RequisitionStatusMeter() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('home.statuses.title')}</CardTitle>
-        <QueryBoundary
-          errorComponent={() => null}
-          pendingFallback={
-            <div className="h-5 w-40 py-0.5">
-              <Skeleton fill />
-            </div>
-          }
-          resetKey="statuses-total"
-        >
+        <CountedTitle title={t('home.statuses.title')}>
           <StatusTotal />
-        </QueryBoundary>
+        </CountedTitle>
+        <CardDescription>{t('home.statuses.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <QueryBoundary
@@ -71,10 +68,8 @@ export function RequisitionStatusMeter() {
 }
 
 function StatusTotal() {
-  const { t } = useTranslation();
   const { data } = useSuspenseQuery(requisitionStatusCountsOptions());
-  const total = REQUISITION_PIPELINE.reduce((sum, status) => sum + data[status], 0);
-  return <CardDescription>{t('home.statuses.description', { count: total })}</CardDescription>;
+  return <CountBadge count={REQUISITION_PIPELINE.reduce((sum, status) => sum + data[status], 0)} />;
 }
 
 function StatusMeter() {

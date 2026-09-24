@@ -13,7 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   type ChartConfig,
   ChartContainer,
@@ -32,17 +32,73 @@ import {
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { recentRequisitionsOptions } from '@/features/home/api/queries';
-import { useFormatNumber, WidgetError } from '@/features/home/components/dashboard-parts';
-import { type PeriodTotals, totalsByPeriod } from '@/features/home/lib/periods';
+import {
+  CountBadge,
+  CountedTitle,
+  useFormatNumber,
+  WidgetError,
+} from '@/features/home/components/dashboard-parts';
+import { type MonthTotals, totalsByMonth } from '@/features/home/lib/periods';
 
-/** Requisitions sent in each of the latest periods, split into still in progress and approved. */
+function useMonthTotals() {
+  const { data: requisitions } = useSuspenseQuery(recentRequisitionsOptions());
+  return useMemo(() => totalsByMonth(requisitions), [requisitions]);
+}
+
+/** Month and year in the reader's language, read from a `YYYY-MM` key. */
+function useMonthFormats() {
+  const { i18n } = useTranslation();
+  return useMemo(() => {
+    const format = (options: Intl.DateTimeFormatOptions) => {
+      const formatter = new Intl.DateTimeFormat(i18n.language, { ...options, timeZone: 'UTC' });
+      return (key: string) => formatter.format(new Date(`${key}-01T00:00:00Z`));
+    };
+    return {
+      full: format({ month: 'short', year: 'numeric' }),
+      month: format({ month: 'short' }),
+      year: format({ year: 'numeric' }),
+    };
+  }, [i18n.language]);
+}
+
+type MonthTickProps = {
+  x?: number;
+  y?: number;
+  index?: number;
+  payload?: { value: string };
+  months: readonly MonthTotals[];
+  formats: ReturnType<typeof useMonthFormats>;
+};
+
+/** The month, with its year beneath where the year starts or changes, so six ticks fit a phone. */
+function MonthTick({ x = 0, y = 0, index = 0, payload, months, formats }: MonthTickProps) {
+  if (!payload) return null;
+  const key = payload.value;
+  const showYear = index === 0 || months[index - 1]?.month.slice(0, 4) !== key.slice(0, 4);
+  return (
+    <text className="fill-muted-foreground text-xs" textAnchor="middle" x={x} y={y}>
+      <tspan dy="0.8em" x={x}>
+        {formats.month(key)}
+      </tspan>
+      {showYear && (
+        <tspan dy="1.3em" x={x}>
+          {formats.year(key)}
+        </tspan>
+      )}
+    </text>
+  );
+}
+
+/** Sent requisitions in each of the latest months, split into still in progress and approved. */
 export function RequisitionsByPeriod() {
   const { t } = useTranslation();
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('home.periods.title')}</CardTitle>
+        <CountedTitle title={t('home.periods.title')}>
+          <MonthsTotal />
+        </CountedTitle>
         <CardDescription>{t('home.periods.description')}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -55,19 +111,24 @@ export function RequisitionsByPeriod() {
           }
           resetKey="recent-requisitions"
         >
-          <PeriodChart />
+          <MonthChart />
         </QueryBoundary>
       </CardContent>
     </Card>
   );
 }
 
-function PeriodChart() {
+function MonthsTotal() {
+  const months = useMonthTotals();
+  return <CountBadge count={months.reduce((sum, m) => sum + m.inProgress + m.approved, 0)} />;
+}
+
+function MonthChart() {
   const { t } = useTranslation();
   const format = useFormatNumber();
+  const formats = useMonthFormats();
   const isRtl = useDirection() === 'rtl';
-  const { data: requisitions } = useSuspenseQuery(recentRequisitionsOptions());
-  const periods = useMemo(() => totalsByPeriod(requisitions), [requisitions]);
+  const months = useMonthTotals();
   const config = useMemo(
     () =>
       ({
@@ -77,7 +138,7 @@ function PeriodChart() {
     [t],
   );
 
-  if (periods.length === 0) {
+  if (months.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
@@ -94,9 +155,19 @@ function PeriodChart() {
   return (
     <>
       <ChartContainer config={config} height="plot">
-        <BarChart accessibilityLayer data={periods} margin={{ top: 20 }}>
+        <BarChart accessibilityLayer data={months} margin={{ top: 20 }}>
           <CartesianGrid vertical={false} />
-          <XAxis axisLine={false} dataKey="name" reversed={isRtl} tickLine={false} tickMargin={8} />
+          {/* Every month is labelled; there are at most six, so none is skipped. */}
+          <XAxis
+            axisLine={false}
+            dataKey="month"
+            interval={0}
+            reversed={isRtl}
+            height={36}
+            tick={<MonthTick formats={formats} months={months} />}
+            tickLine={false}
+            tickMargin={4}
+          />
           <YAxis
             allowDecimals={false}
             axisLine={false}
@@ -105,7 +176,12 @@ function PeriodChart() {
             tickLine={false}
             width={32}
           />
-          <ChartTooltip content={<ChartTooltipContent />} cursor={false} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent labelFormatter={(month) => formats.full(String(month))} />
+            }
+            cursor={false}
+          />
           {/* Recharts sorts the legend by name; the stacking order reads better. */}
           <ChartLegend content={<ChartLegendContent />} itemSorter={null} />
           {/* The card-coloured stroke is the 2px gap that keeps stacked segments apart. */}
@@ -114,7 +190,7 @@ function PeriodChart() {
             fill="var(--color-inProgress)"
             maxBarSize={24}
             shape={InProgressSegment}
-            stackId="period"
+            stackId="month"
             stroke="var(--card)"
             strokeWidth={2}
           />
@@ -123,7 +199,7 @@ function PeriodChart() {
             fill="var(--color-approved)"
             maxBarSize={24}
             radius={[4, 4, 0, 0]}
-            stackId="period"
+            stackId="month"
             stroke="var(--card)"
             strokeWidth={2}
           >
@@ -131,7 +207,7 @@ function PeriodChart() {
               className="fill-muted-foreground"
               formatter={(value) => (typeof value === 'number' ? format(value) : value)}
               position="top"
-              valueAccessor={(entry: { payload: { inProgress: number; approved: number } }) =>
+              valueAccessor={(entry: { payload: MonthTotals }) =>
                 entry.payload.inProgress + entry.payload.approved
               }
             />
@@ -142,17 +218,17 @@ function PeriodChart() {
         <caption>{t('home.periods.title')}</caption>
         <thead>
           <tr>
-            <th scope="col">{t('home.periods.period')}</th>
+            <th scope="col">{t('home.periods.month')}</th>
             <th scope="col">{t('home.periods.in-progress')}</th>
             <th scope="col">{t('home.periods.approved')}</th>
           </tr>
         </thead>
         <tbody>
-          {periods.map((period) => (
-            <tr key={period.periodId}>
-              <th scope="row">{period.name}</th>
-              <td>{format(period.inProgress)}</td>
-              <td>{format(period.approved)}</td>
+          {months.map((month) => (
+            <tr key={month.month}>
+              <th scope="row">{formats.full(month.month)}</th>
+              <td>{format(month.inProgress)}</td>
+              <td>{format(month.approved)}</td>
             </tr>
           ))}
         </tbody>
@@ -162,6 +238,6 @@ function PeriodChart() {
 }
 
 /** The lower segment, rounded on top only when nothing is stacked above it. */
-function InProgressSegment(props: RectangleProps & { payload?: PeriodTotals }) {
+function InProgressSegment(props: RectangleProps & { payload?: MonthTotals }) {
   return <Rectangle {...props} radius={props.payload?.approved ? 0 : [4, 4, 0, 0]} />;
 }

@@ -1,10 +1,4 @@
-import {
-  ClipboardCheckIcon,
-  LayoutDashboardIcon,
-  PackageIcon,
-  TruckIcon,
-  WrenchIcon,
-} from 'lucide-react';
+import { LayoutDashboardIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -21,17 +15,50 @@ import {
   openOrdersCountOptions,
 } from '@/features/home/api/queries';
 import { ApprovalsTable } from '@/features/home/components/approvals-table';
-import { LegacyLink } from '@/features/home/components/dashboard-parts';
 import { EquipmentStatusCard } from '@/features/home/components/equipment-status';
 import { RequisitionStatusMeter } from '@/features/home/components/requisition-status-meter';
 import { RequisitionsByPeriod } from '@/features/home/components/requisitions-by-period';
-import { StatTile } from '@/features/home/components/stat-tile';
+import { Stat, StatStrip } from '@/features/home/components/stat-strip';
 import { SystemNotifications } from '@/features/home/components/system-notifications';
 import { type DashboardAccess, hasAnyWidget } from '@/features/home/lib/access';
 
 /** The home page body: only the parts the user's rights allow, laid out by the room the page has. */
 export function HomeDashboard({ access }: { access: DashboardAccess }) {
   const { t } = useTranslation();
+  const stats = [
+    access.approve && (
+      <Stat
+        key="approve"
+        label={t('home.stats.approve')}
+        query={approvalsOptions()}
+        select={(approvals) => approvals.total}
+      />
+    ),
+    access.convert && (
+      <Stat
+        key="convert"
+        label={t('home.stats.convert')}
+        query={convertCountOptions()}
+        select={(count) => count}
+      />
+    ),
+    access.orders && (
+      <Stat
+        key="orders"
+        label={t('home.stats.orders')}
+        query={openOrdersCountOptions()}
+        select={(count) => count}
+      />
+    ),
+    access.equipment && (
+      <Stat
+        key="equipment"
+        label={t('home.stats.equipment')}
+        query={equipmentStatusCountsOptions()}
+        select={(counts) => counts.AWAITING_REPAIR + counts.UNSERVICEABLE}
+      />
+    ),
+  ].filter(Boolean);
 
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
@@ -51,54 +78,7 @@ export function HomeDashboard({ access }: { access: DashboardAccess }) {
         </Empty>
       )}
 
-      <div className="grid grid-cols-2 gap-4 @5xl/main:grid-cols-4">
-        {access.approve && (
-          <StatTile
-            action={
-              <LegacyLink route="requisitions/approvalList">
-                {t('home.tiles.approve-action')}
-              </LegacyLink>
-            }
-            icon={<ClipboardCheckIcon />}
-            label={t('home.tiles.approve')}
-            query={approvalsOptions()}
-            select={(approvals) => approvals.total}
-          />
-        )}
-        {access.convert && (
-          <StatTile
-            action={
-              <LegacyLink route="requisitions/convertToOrder">
-                {t('home.tiles.convert-action')}
-              </LegacyLink>
-            }
-            icon={<PackageIcon />}
-            label={t('home.tiles.convert')}
-            query={convertCountOptions()}
-            select={(count) => count}
-          />
-        )}
-        {access.orders && (
-          <StatTile
-            action={<LegacyLink route="orders/view">{t('home.tiles.orders-action')}</LegacyLink>}
-            icon={<TruckIcon />}
-            label={t('home.tiles.orders')}
-            query={openOrdersCountOptions()}
-            select={(count) => count}
-          />
-        )}
-        {access.equipment && (
-          <StatTile
-            action={
-              <LegacyLink route="cce/inventory">{t('home.tiles.equipment-action')}</LegacyLink>
-            }
-            icon={<WrenchIcon />}
-            label={t('home.tiles.equipment')}
-            query={equipmentStatusCountsOptions()}
-            select={(counts) => counts.AWAITING_REPAIR + counts.UNSERVICEABLE}
-          />
-        )}
-      </div>
+      {stats.length > 0 && <StatStrip count={stats.length as 1 | 2 | 3 | 4}>{stats}</StatStrip>}
 
       {/* Each row pairs a wide card with a narrow one; a grid cell stretches its card to the row. */}
       {access.requisitions && (

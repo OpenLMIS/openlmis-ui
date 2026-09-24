@@ -6,6 +6,7 @@ export const RIGHTS = {
   ordersView: 'ORDERS_VIEW',
   podsManage: 'PODS_MANAGE',
   cceInventoryView: 'CCE_INVENTORY_VIEW',
+  usersManage: 'USERS_MANAGE',
 } as const;
 
 export type Right = (typeof RIGHTS)[keyof typeof RIGHTS];

@@ -12,34 +12,28 @@ const APPROVED: ReadonlySet<RequisitionStatus> = new Set<RequisitionStatus>([
   'RELEASED_WITHOUT_ORDER',
 ]);
 
-export type PeriodTotals = {
-  periodId: string;
-  name: string;
-  startDate: string;
+export type MonthTotals = {
+  /** `YYYY-MM`, the month the requisitions' periods start. */
+  month: string;
   inProgress: number;
   approved: number;
 };
 
-/** The most recent periods that have requisitions in either group, oldest first, as a chart reads. */
-export function totalsByPeriod(
+/** The latest months with requisitions, oldest first; monthly and quarterly periods meet on one timeline. */
+export function totalsByMonth(
   requisitions: readonly RequisitionSummary[],
   limit = 6,
-): PeriodTotals[] {
-  const periods = new Map<string, PeriodTotals>();
+): MonthTotals[] {
+  const months = new Map<string, MonthTotals>();
 
   for (const { status, processingPeriod } of requisitions) {
     const group = IN_PROGRESS.has(status) ? 'inProgress' : APPROVED.has(status) ? 'approved' : null;
     if (!group) continue;
-    const totals = periods.get(processingPeriod.id) ?? {
-      periodId: processingPeriod.id,
-      name: processingPeriod.name,
-      startDate: processingPeriod.startDate,
-      inProgress: 0,
-      approved: 0,
-    };
+    const month = processingPeriod.startDate.slice(0, 7);
+    const totals = months.get(month) ?? { month, inProgress: 0, approved: 0 };
     totals[group] += 1;
-    periods.set(processingPeriod.id, totals);
+    months.set(month, totals);
   }
 
-  return [...periods.values()].sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(-limit);
+  return [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-limit);
 }

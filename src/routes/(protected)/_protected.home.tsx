@@ -1,10 +1,12 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { useIsFetching, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import {
   Workspace,
+  WorkspaceActions,
   WorkspaceContent,
   WorkspaceDescription,
   WorkspaceHeader,
@@ -25,8 +27,10 @@ import {
   systemNotificationsOptions,
 } from '@/features/home/api/queries';
 import { WaitingSummary, WelcomeTitle } from '@/features/home/components/dashboard-greeting';
+import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/dashboard-skeleton';
 import { HomeDashboard } from '@/features/home/components/home-dashboard';
 import type { DashboardAccess } from '@/features/home/lib/access';
+import { queryKeys } from '@/lib/key-factory';
 
 /** Each part of the dashboard needs the right its legacy page asks for. */
 function toAccess(rights: ReadonlySet<string>): DashboardAccess {
@@ -90,6 +94,19 @@ function HomePage() {
             </QueryBoundary>
           </WorkspaceDescription>
         </WorkspaceHeading>
+        <WorkspaceActions>
+          <RefreshButton />
+          {rights.has(RIGHTS.usersManage) && (
+            <Button
+              nativeButton={false}
+              render={<Link search={{ user: 'new' }} to="/administration/users" />}
+              size="lg"
+            >
+              <PlusIcon data-icon="inline-start" />
+              {t('home.add-user')}
+            </Button>
+          )}
+        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
         <HomeDashboard access={access} />
@@ -98,7 +115,27 @@ function HomePage() {
   );
 }
 
-/** While the rights load, the page's frame: a title and four tiles' worth of room. */
+/** Reloads every number on the page; spins while any of them is still loading. */
+function RefreshButton() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const isFetching = useIsFetching({ queryKey: queryKeys.home.all }) > 0;
+
+  return (
+    <Button
+      disabled={isFetching}
+      onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.home.all })}
+      size="lg"
+      type="button"
+      variant="outline"
+    >
+      <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} data-icon="inline-start" />
+      {t('home.refresh')}
+    </Button>
+  );
+}
+
+/** While the rights load, the dashboard's own layout with placeholder values. */
 function HomePending() {
   const { t } = useTranslation();
 
@@ -109,15 +146,12 @@ function HomePending() {
           <WorkspaceTitle>{t('home.title')}</WorkspaceTitle>
           <WorkspaceDescription>{t('home.description')}</WorkspaceDescription>
         </WorkspaceHeading>
+        <WorkspaceActions>
+          <ActionsSkeleton />
+        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <div aria-busy className="grid grid-cols-2 gap-4 @5xl/main:grid-cols-4">
-          {['approve', 'convert', 'orders', 'equipment'].map((tile) => (
-            <div className="h-32" key={tile}>
-              <Skeleton fill />
-            </div>
-          ))}
-        </div>
+        <DashboardSkeleton />
       </WorkspaceContent>
     </Workspace>
   );
