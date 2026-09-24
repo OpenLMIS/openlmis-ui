@@ -529,6 +529,7 @@ Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lo
 | Skill | Source | Use for |
 |---|---|---|
 | `sync-translations` | local | Syncing `public/locales/*` with `en.json` after changing keys |
+| `review-pr` | local | Reviewing a PR diff in parallel (correctness, simplify, React/shadcn, legacy UI parity), then getting it ready to merge |
 | `shadcn` | `shadcn/ui` | Adding, debugging, styling and composing shadcn components |
 | `frontend-design` | `anthropics/skills` | Building new UI with real design quality |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | Compound components, render props, provider design |
