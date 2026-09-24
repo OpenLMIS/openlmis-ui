@@ -10,7 +10,8 @@ plan at `plans/<KEY>.md`: what the feature is and how legacy does it today, a br
 agent can build from (every API call mapped), and a UI/UX proposal. The plan is
 committed with the implementation PR, and `review-pr` checks the PR against it.
 
-A one-line fix gets a short plan. It still gets one.
+A one-line fix gets a short plan. It still gets one. Work with no ticket yet gets a
+short kebab-case name instead of a key, `plans/<slug>.md`, renamed once a ticket exists.
 
 ## 1. Read the ticket
 
@@ -31,7 +32,8 @@ Launch three background `Agent`s in a single message. Give each the ticket key, 
 the parent story, and the **browser rules** from the `review-pr` skill
 (`.agents/skills/review-pr/SKILL.md`), copied verbatim: nothing may write to the shared
 server, and legacy is look-only. Each returns findings with evidence, not opinions, and
-changes no files.
+changes no files. When the test server answers `5xx`, researchers wait and retry, and
+report what they could not see rather than guessing.
 
 ### Researcher A: legacy in the browser
 
@@ -103,6 +105,11 @@ Write `plans/<KEY>.md` with these sections, leaving out any that do not apply:
 
 <ticket URL> · Parent: <parent key and summary>
 
+## Scope
+What this PR changes and what it does not. A change that reaches every page (the app
+shell, `src/components/ui/`, toasts, the header) gets its own small PR rather than
+riding along, unless the feature cannot ship without it.
+
 ## Summary
 Plain language for anyone on the team: what the feature is for, how it works in legacy
 today, what the new UI will do and what changes for users. No code.
@@ -148,7 +155,8 @@ instead. Follow the house rules: Title Case headings and labels, no em dashes.
 ## 5. Stop for approval
 
 Show the user the Summary, the UX calls (port, improve, drop), the Decisions and the
-Open Questions, and link the plan file. Then wait. Do not write code, create the
+Open Questions, and link the plan file. Then wait, unless the user asked to build without
+waiting; then go on, and show the same in the final report. Do not write code, create the
 feature branch's commits, or touch Jira until the user approves or amends the plan.
 
 Once approved:

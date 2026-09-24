@@ -22,16 +22,24 @@ everything its legacy counterpart does, and feel clearly better doing it.
    the conventions reviewer checks. The ticket key in the description or branch
    (`feat/fm-14-...` is `FM-14`) names the plan, `plans/<KEY>.md`; every reviewer reads it.
 3. `git status -s`: uncommitted changes are not in the PR. Commit or stash them first, or
-   say they are out of scope. Do not edit files while reviewers run; they read the tree
-   and would review a moving target.
-4. Run the gates once here, so reviewers get the results instead of each re-running them:
+   say they are out of scope.
+4. Review a fixed commit in a worktree of its own, never the shared working copy, which
+   the user may switch to another branch mid-review:
+   `git worktree add ../<repo>-pr-<n> <head-sha>`, then `pnpm install --frozen-lockfile`
+   and copy `.env` into it. Note the head SHA in every brief; if the branch moves on
+   during the review, the findings are about the old commit, so say so. Do not edit files
+   in the worktree while reviewers run.
+5. Run the gates once here, in the worktree, so reviewers get the results instead of each re-running them:
    `pnpm tsc --noEmit`, `pnpm lint`, `pnpm lint:ds`, `pnpm test:run`, `pnpm build`. Avoid
    `pnpm check` at this stage, since it rewrites files.
-5. List the screens the diff touches (routes under `src/routes/`, features, shared
-   components) and, for each, its legacy counterpart. The legacy UI lives under
+6. List the screens the diff touches (routes under `src/routes/`, features, shared
+   components) and, for each, its legacy counterpart. Note any change that reaches every
+   page (the app shell, `src/components/ui/`, toasts, the header): it gets checked on a
+   page outside the PR's feature too. The legacy UI lives under
    `/#!/...` on the instance `VITE_API_PROXY_TARGET` points at, e.g.
    `/#!/administration/users`.
-6. Start `pnpm dev` if a browser check is needed, and read the port from its output.
+7. Start `pnpm dev --port <free port> --strictPort` from the worktree if a browser check
+   is needed. Other dev servers may be running, the user's among them; leave those alone.
 
 ## 2. Launch the five reviewers in parallel
 
@@ -45,7 +53,12 @@ every reviewer the same brief:
   while planning, in `.screenshots/<KEY>/`. The plan is the baseline: its API map,
   server-side work and browser checks say what was intended, and its drops are deliberate
 - AGENTS.md is the rulebook; read it first
-- The **browser rules** below, copied verbatim
+- The worktree path and head SHA, and that it is the only tree to read or run
+- The **browser rules** below, copied verbatim, and who drives the browser: only
+  Reviewer E does, since the agents share one. The others work from code, tests and the
+  screenshots in `.screenshots/`
+- Scratch work (throwaway tests, copies) goes under the worktree's `.screenshots/` folder
+  or is deleted before reporting; never copy the repo or `.env` anywhere else
 - Return findings only, most severe first, each with: `file:line`, a one-sentence
   defect, a concrete failure scenario (inputs or steps, then the wrong result), and the
   evidence that confirmed it (code path read, test run, browser observation). Say
@@ -96,7 +109,8 @@ conventions. A lint pass catches only a few of them. The ones most often broken:
 - **The PR itself**: the description follows the Pull Request Format (ticket link,
   `## Changes` as one-line bullets, screenshots for visible changes, empty sections left
   out), commits are conventional (`feat:`, `fix:`, `refactor:`...), no Co-Authored-By
-  lines, and the diff contains nothing unrelated to the PR's purpose
+  lines, and the diff contains nothing unrelated to the PR's purpose. A change that
+  reaches every page riding in a feature PR is reported with a suggestion to split it
 - **The plan**: a ticket PR carries `plans/<KEY>.md`; every acceptance criterion in it
   is met, and the plan still matches what was built
 
@@ -115,10 +129,15 @@ roles, focus, keyboard, colour never the only signal), and the four states of ev
 (rows, skeleton, empty, error with retry). It checks the screen in Arabic as well as in
 English, and at a phone width as well as a desktop one.
 
+When the diff touches `src/components/ui/`, it renders the changed component in a
+throwaway test and checks roles and names with `getByRole` (a listbox stays a listbox, a
+button keeps its name), since a change can look right and still break screen readers.
+A screenshot counts as evidence only if it was taken from the head SHA.
+
 ### Reviewer E: legacy UI parity
 
 Opens each touched screen in both UIs, signed in as the same user, and compares them from
-the user's side, not the code's:
+the user's side, not the code's. It is the one reviewer that drives the browser:
 
 - **Capability**: every field, column, filter, sort, action, validation rule, message and
   rights check the legacy screen has. Anything missing in the new UI is a regression
@@ -155,9 +174,20 @@ anchor to the new UI's file and line, and quote what legacy does.
 - Recharts animates on mount and resize, so wait before judging a chart.
 - Save screenshots, at desktop and phone width, to `.screenshots/<KEY>/` in the project,
   or `.screenshots/pr-<n>/` when there is no ticket. The folder is gitignored; never save
-  them anywhere else.
+  them anywhere else. In `browser_run_code`, use `page.screenshot({ path })`.
+- A page with unsaved changes raises the browser's own leave prompt on reload or a new
+  address. The browser tool intercepts it and waits; answer it with `browser_handle_dialog`,
+  and prefer in-app navigation between checks.
+- In `browser_run_code`, wait with `page.waitForTimeout`; `setTimeout` is not defined there.
+- When the server answers `502` or other `5xx`, wait a minute and retry. If it stays
+  down, say which checks could not run; never report them as passing.
+- Stop only the processes you started, by PID. `pkill -f` with a pattern that appears in
+  your own command line kills your own shell.
 
 ## 3. Verify
+
+A reviewer that tested the wrong tree or commit, or stopped half way, is rerun rather than
+trusted.
 
 When all five have reported, merge their findings and drop duplicates. For every
 finding that remains, check it yourself or with a verification agent. Read the code path,
@@ -184,5 +214,9 @@ continue:
    branch. No Co-Authored-By lines.
 5. Wait for CI (`gh pr checks <n>`) and confirm `gh pr view <n> --json mergeStateStatus`
    is `CLEAN`.
+6. When the PR has grown a lot since the review, above all with changes that reach every
+   page, run the review again before asking to merge.
+7. Clean up: stop the dev server you started, and remove the worktree and every scratch
+   folder, since they may hold a copy of `.env`.
 
 **Never merge.** Merging is the user's call, every time.
