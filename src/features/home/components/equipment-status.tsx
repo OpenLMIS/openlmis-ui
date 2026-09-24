@@ -16,7 +16,7 @@ import {
   useFormatNumber,
 } from '@/features/home/components/dashboard-parts';
 import { PENDING } from '@/features/home/components/dashboard-skeleton';
-import { sum } from '@/features/home/lib/requisitions';
+import { sum } from '@/features/home/lib/sum';
 import type { EquipmentStatus } from '@/features/home/lib/types';
 
 type StatusStyle = {
@@ -58,17 +58,14 @@ const STATUS_STYLE: Record<EquipmentStatus, StatusStyle> = {
   },
 };
 
+const totalCount = (counts: Record<EquipmentStatus, number>) => sum(Object.values(counts));
+
 /** How much cold chain equipment works, needs work or is out of service. */
 export function EquipmentStatusCard() {
   const { t } = useTranslation();
   return (
     <DashboardCard
-      badge={
-        <CountBadge
-          query={equipmentStatusCountsOptions()}
-          select={(counts) => sum(EQUIPMENT_STATUSES.map((status) => counts[status]))}
-        />
-      }
+      badge={<CountBadge query={equipmentStatusCountsOptions()} select={totalCount} />}
       description={t('home.equipment.description')}
       name="equipment"
       pending={PENDING.equipment}
@@ -83,7 +80,7 @@ function EquipmentRows() {
   const { t } = useTranslation();
   const format = useFormatNumber();
   const { data } = useSuspenseQuery(equipmentStatusCountsOptions());
-  const total = sum(EQUIPMENT_STATUSES.map((status) => data[status]));
+  const total = sum(Object.values(data));
 
   return (
     <ul className="flex flex-col gap-3">

@@ -17,7 +17,7 @@ import {
   useFormatNumber,
 } from '@/features/home/components/dashboard-parts';
 import { PENDING } from '@/features/home/components/dashboard-skeleton';
-import { sum } from '@/features/home/lib/requisitions';
+import { sum } from '@/features/home/lib/sum';
 
 /** One step of the chart ramp per status, lightest first, so the order of the pipeline reads in the colour. */
 const STATUS_COLOR: Record<PipelineStatus, { fill: string; dot: string }> = {
@@ -36,17 +36,14 @@ const STATUS_LABEL = {
   RELEASED: 'home.statuses.released',
 } as const satisfies Record<PipelineStatus, string>;
 
+const totalCount = (counts: Record<PipelineStatus, number>) => sum(Object.values(counts));
+
 /** Where sent requisitions stand, from submitted to released. */
 export function RequisitionStatusMeter() {
   const { t } = useTranslation();
   return (
     <DashboardCard
-      badge={
-        <CountBadge
-          query={requisitionStatusCountsOptions()}
-          select={(counts) => sum(REQUISITION_PIPELINE.map((status) => counts[status]))}
-        />
-      }
+      badge={<CountBadge query={requisitionStatusCountsOptions()} select={totalCount} />}
       description={t('home.statuses.description')}
       name="statuses"
       pending={PENDING.statuses}
@@ -62,7 +59,7 @@ function StatusMeter() {
   const format = useFormatNumber();
   const isRtl = useDirection() === 'rtl';
   const { data } = useSuspenseQuery(requisitionStatusCountsOptions());
-  const total = sum(REQUISITION_PIPELINE.map((status) => data[status]));
+  const total = sum(Object.values(data));
   const config = useMemo(
     () =>
       Object.fromEntries(

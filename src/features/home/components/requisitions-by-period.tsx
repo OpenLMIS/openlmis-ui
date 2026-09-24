@@ -36,7 +36,7 @@ import {
 } from '@/features/home/components/dashboard-parts';
 import { PENDING } from '@/features/home/components/dashboard-skeleton';
 import { type MonthTotals, showsYear, totalsByMonth } from '@/features/home/lib/periods';
-import { sum } from '@/features/home/lib/requisitions';
+import { sum } from '@/features/home/lib/sum';
 
 function useMonthTotals() {
   const { data: requisitions } = useSuspenseQuery(recentRequisitionsOptions());
@@ -87,19 +87,15 @@ function MonthTick({ x = 0, y = 0, index = 0, payload, months, formats }: MonthT
   );
 }
 
+const recentTotal = (requisitions: Parameters<typeof totalsByMonth>[0]) =>
+  sum(totalsByMonth(requisitions).map((month) => month.inProgress + month.approved));
+
 /** Sent requisitions in each of the latest months, split into still in progress and approved. */
 export function RequisitionsByPeriod() {
   const { t } = useTranslation();
   return (
     <DashboardCard
-      badge={
-        <CountBadge
-          query={recentRequisitionsOptions()}
-          select={(requisitions) =>
-            sum(totalsByMonth(requisitions).map((month) => month.inProgress + month.approved))
-          }
-        />
-      }
+      badge={<CountBadge query={recentRequisitionsOptions()} select={recentTotal} />}
       description={t('home.periods.description')}
       name="periods"
       pending={PENDING.periods}

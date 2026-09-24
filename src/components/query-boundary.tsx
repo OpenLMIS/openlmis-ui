@@ -20,8 +20,7 @@ export function QueryBoundary({
   const { reset } = useQueryErrorResetBoundary();
 
   return (
-    // Resetting on catch lets a new resetKey refetch; resetting on retry too, because any other
-    // component still reading the same query clears the first reset before the user clicks.
+    // Reset again on retry: another reader of the same query may have cleared the reset on catch.
     <CatchBoundary
       errorComponent={(props) => (
         <ErrorComponent

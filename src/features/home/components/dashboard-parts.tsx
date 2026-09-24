@@ -42,11 +42,11 @@ export function CountBadge<TData, TKey extends QueryKey>({
   query,
   select,
 }: CountBadgeProps<TData, TKey>) {
-  const { data, isPending } = useQuery(query);
+  const { data: count, isPending } = useQuery({ ...query, select });
   const format = useFormatNumber();
   if (isPending) return <Block className="h-5 w-8" shape="circle" />;
-  if (data === undefined) return null;
-  return <Badge variant="secondary">{format(select(data))}</Badge>;
+  if (count === undefined) return null;
+  return <Badge variant="secondary">{format(count)}</Badge>;
 }
 
 export function WidgetError({ onRetry }: { onRetry: () => void }) {

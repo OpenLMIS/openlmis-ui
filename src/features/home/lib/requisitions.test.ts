@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { sum, waitingSince } from '@/features/home/lib/requisitions';
+import { waitingSince } from '@/features/home/lib/requisitions';
+import { sum } from '@/features/home/lib/sum';
 import type { RequisitionSummary } from '@/features/home/lib/types';
 
 const requisition = (statusChanges: RequisitionSummary['statusChanges']): RequisitionSummary => ({

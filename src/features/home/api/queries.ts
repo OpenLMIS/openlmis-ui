@@ -14,7 +14,7 @@ import { queryKeys } from '@/lib/key-factory';
 const key = (...parts: string[]) => [...queryKeys.home.all, ...parts] as const;
 
 /** Rows the approvals table shows; its total also feeds the To Approve tile. */
-export const APPROVALS_SHOWN = 5;
+const APPROVALS_SHOWN = 5;
 
 export const approvalsOptions = () =>
   queryOptions({ queryKey: key('approvals'), queryFn: () => fetchApprovals(APPROVALS_SHOWN) });
