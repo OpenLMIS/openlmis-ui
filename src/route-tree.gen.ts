@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as protectedProtectedRouteImport } from './routes/(protected)/_protected'
 import { Route as protectedProtectedHomeRouteImport } from './routes/(protected)/_protected.home'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
+import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,18 +41,26 @@ const protectedProtectedAdministrationUsersRoute =
     path: '/administration/users',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedAdministrationUsersIdRolesRoute =
+  protectedProtectedAdministrationUsersIdRolesRouteImport.update({
+    id: '/administration/users_/$id/roles',
+    path: '/administration/users/$id/roles',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/home': typeof protectedProtectedHomeRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/home': typeof protectedProtectedHomeRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -60,12 +69,23 @@ export interface FileRoutesById {
   '/(protected)/_protected': typeof protectedProtectedRouteWithChildren
   '/(protected)/_protected/home': typeof protectedProtectedHomeRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/home' | '/administration/users'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/home'
+    | '/administration/users'
+    | '/administration/users/$id/roles'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/home' | '/administration/users'
+  to:
+    | '/'
+    | '/login'
+    | '/home'
+    | '/administration/users'
+    | '/administration/users/$id/roles'
   id:
     | '__root__'
     | '/'
@@ -73,6 +93,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected'
     | '/(protected)/_protected/home'
     | '/(protected)/_protected/administration/users'
+    | '/(protected)/_protected/administration/users_/$id/roles'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -118,18 +139,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationUsersRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/administration/users_/$id/roles': {
+      id: '/(protected)/_protected/administration/users_/$id/roles'
+      path: '/administration/users/$id/roles'
+      fullPath: '/administration/users/$id/roles'
+      preLoaderRoute: typeof protectedProtectedAdministrationUsersIdRolesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
   }
 }
 
 interface protectedProtectedRouteChildren {
   protectedProtectedHomeRoute: typeof protectedProtectedHomeRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
+  protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 
 const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
   protectedProtectedHomeRoute: protectedProtectedHomeRoute,
   protectedProtectedAdministrationUsersRoute:
     protectedProtectedAdministrationUsersRoute,
+  protectedProtectedAdministrationUsersIdRolesRoute:
+    protectedProtectedAdministrationUsersIdRolesRoute,
 }
 
 const protectedProtectedRouteWithChildren =

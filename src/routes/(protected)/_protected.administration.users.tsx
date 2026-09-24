@@ -134,6 +134,10 @@ function UsersPage() {
   );
   const editUser = useCallback((user: string) => openDialog({ user }), [openDialog]);
   const resetPassword = useCallback((password: string) => openDialog({ password }), [openDialog]);
+  const editRoles = useCallback(
+    (userId: string) => navigate({ to: '/administration/users/$id/roles', params: { id: userId } }),
+    [navigate],
+  );
   // Mounted from the first open on, so a dialog can still animate closed.
   const [dialogsMounted, setDialogsMounted] = useState(anyDialogOpen);
   if (anyDialogOpen && !dialogsMounted) setDialogsMounted(true);
@@ -178,6 +182,7 @@ function UsersPage() {
               columnVisibility={columnView.visibility}
               onEdit={editUser}
               onResetPassword={resetPassword}
+              onRoles={editRoles}
               onSearchChange={updateSearch}
               search={search}
             />

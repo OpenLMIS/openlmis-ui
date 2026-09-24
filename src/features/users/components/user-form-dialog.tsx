@@ -11,12 +11,7 @@ import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
-import {
-  ChoiceCard,
-  ComboboxField,
-  FieldLabelText,
-  SwitchField,
-} from '@/components/form/form-fields';
+import { ChoiceCard, ComboboxField, SwitchField } from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -31,7 +26,7 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldGroup } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
@@ -39,6 +34,7 @@ import { userDetailsOptions } from '@/features/users/api/queries';
 import {
   DialogLoadError,
   ErrorAlert,
+  FieldSkeleton,
   RetryButton,
   SkeletonLine,
   serverMessage,
@@ -366,20 +362,6 @@ function RemoveHomeFacilityRoles({
       })}
       label={t('users.form.remove-home-facility-roles')}
     />
-  );
-}
-
-/** The field's real label over a placeholder input, since only the value is still loading. */
-function FieldSkeleton({ label, required = false }: { label: string; required?: boolean }) {
-  return (
-    <Field spacing="tight">
-      <FieldLabel>
-        <FieldLabelText label={label} required={required} />
-      </FieldLabel>
-      <div className="h-8 w-full">
-        <Skeleton fill />
-      </div>
-    </Field>
   );
 }
 

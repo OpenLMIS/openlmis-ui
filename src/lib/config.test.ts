@@ -44,6 +44,17 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it("gives a page below a nav entry that entry's trail", () => {
+    expect(getNavTrail('/administration/users/u1/roles')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.users', to: '/administration/users' },
+    ]);
+  });
+
+  it('does not match a path that only starts with the same letters', () => {
+    expect(getNavTrail('/administration/users-archive')).toEqual([]);
+  });
+
   it('is empty for a path outside the nav', () => {
     expect(getNavTrail('/login')).toEqual([]);
   });

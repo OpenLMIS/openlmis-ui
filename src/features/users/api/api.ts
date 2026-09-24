@@ -1,6 +1,8 @@
 import { isAxiosError } from 'axios';
+import { toSavedAssignment } from '@/features/users/lib/role-assignments';
 import type {
   AuthUser,
+  RoleAssignment,
   User,
   UserContactDetails,
   UserDetails,
@@ -134,4 +136,26 @@ export async function setUserPassword(username: string, newPassword: string): Pr
 /** Emails a link where the user chooses a password themselves. */
 export async function sendPasswordResetEmail(email: string): Promise<void> {
   await client.post('/users/auth/forgotPassword', undefined, { params: { email } });
+}
+
+/** Every user by username, for picking one; the list is short enough to search in the browser. */
+export async function fetchAllUsers(): Promise<User[]> {
+  const { data } = await client.get<Page<User>>('/users', { params: { sort: 'username,asc' } });
+  return data.content;
+}
+
+/**
+ * Replaces the user's roles and nothing else. The user is read fresh, so a change made
+ * elsewhere since the page loaded is kept, and sign-in and contact details are left alone.
+ */
+export async function updateUserRoles(
+  userId: string,
+  roleAssignments: RoleAssignment[],
+): Promise<UserRecord> {
+  const { data: user } = await client.get<UserRecord>(`/users/${userId}`);
+  const { data: saved } = await client.put<UserRecord>('/users', {
+    ...user,
+    roleAssignments: roleAssignments.map(toSavedAssignment),
+  });
+  return saved;
 }

@@ -10,5 +10,8 @@ export const queryKeys = {
   auth: createQueryKeys('auth'),
   facilities: createQueryKeys('facilities'),
   home: createQueryKeys('home'),
+  programs: createQueryKeys('programs'),
+  roles: createQueryKeys('roles'),
+  supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
 } as const;

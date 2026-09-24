@@ -250,7 +250,7 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning`, `Alert warning`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
    `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`.
@@ -281,7 +281,7 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 ## Code Conventions
 
 - **pnpm** - always use pnpm, not npm
-- **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`)
+- **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`). Route files are the exception: TanStack Router's `$param` and `users_` (no nesting) syntax
 - **`type` over `interface`** - enforced by Biome
 - **`@/*` path aliases** - always use for imports (maps to `src/*`)
 - **Logical CSS properties only** - `ms`/`me`/`ps`/`pe`/`start`/`end`/`text-start`, never

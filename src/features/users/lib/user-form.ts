@@ -1,8 +1,8 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
+import { isHomeFacilityRole } from '@/features/users/lib/role-assignments';
 import type {
   AuthUser,
-  RoleAssignment,
   UserContactDetails,
   UserDetails,
   UserRecord,
@@ -65,10 +65,6 @@ export function toUserFormValues({ user, contact, auth }: UserDetails): UserForm
     allowNotify: contact?.allowNotify ?? false,
     removeHomeFacilityRoles: false,
   };
-}
-
-function isHomeFacilityRole(role: RoleAssignment) {
-  return Boolean(role.programId) && !role.supervisoryNodeId;
 }
 
 /** Roles that only apply at the home facility; they lose their meaning when it changes. */
