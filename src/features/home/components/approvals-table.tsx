@@ -23,6 +23,7 @@ import { approvalsOptions } from '@/features/home/api/queries';
 import { CountBadge, DashboardCard } from '@/features/home/components/dashboard-parts';
 import { PENDING } from '@/features/home/components/dashboard-skeleton';
 import { waitingSince } from '@/features/home/lib/requisitions';
+import type { RequisitionSummary } from '@/features/home/lib/types';
 
 /** The requisitions waiting on this user, most urgent first. */
 export function ApprovalsTable() {
@@ -40,7 +41,7 @@ export function ApprovalsTable() {
   );
 }
 
-/** Below this the facility and period fold under the program and the date is left out. */
+/** Below this the table becomes a two-line list, which fits a phone without scrolling sideways. */
 const WIDE_TABLE = 560;
 
 function ApprovalRows() {
@@ -67,58 +68,96 @@ function ApprovalRows() {
     );
   }
 
+  const rows = data.requisitions.map((requisition) => ({
+    requisition,
+    waiting: formatDate(new Date(waitingSince(requisition))),
+  }));
+
   return (
-    <div ref={measure}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('home.approvals.program')}</TableHead>
-            {wide && <TableHead>{t('home.approvals.facility')}</TableHead>}
-            {wide && <TableHead>{t('home.approvals.period')}</TableHead>}
-            {wide && <TableHead>{t('home.approvals.waiting-since')}</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.requisitions.map((requisition) => {
-            const facility = (
+    <div ref={measure}>{wide ? <ApprovalsGrid rows={rows} /> : <ApprovalsList rows={rows} />}</div>
+  );
+}
+
+type ApprovalRow = {
+  requisition: RequisitionSummary;
+  waiting: string;
+};
+
+function EmergencyBadge({ requisition }: { requisition: RequisitionSummary }) {
+  const { t } = useTranslation();
+  if (!requisition.emergency) return null;
+  return <Badge variant="destructive">{t('home.approvals.emergency')}</Badge>;
+}
+
+/** A column per detail, when the card has the room. */
+function ApprovalsGrid({ rows }: { rows: readonly ApprovalRow[] }) {
+  const { t } = useTranslation();
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t('home.approvals.program')}</TableHead>
+          <TableHead>{t('home.approvals.facility')}</TableHead>
+          <TableHead>{t('home.approvals.period')}</TableHead>
+          <TableHead>{t('home.approvals.waiting-since')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map(({ requisition, waiting }) => (
+          <TableRow key={requisition.id}>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{requisition.program.name}</span>
+                <EmergencyBadge requisition={requisition} />
+              </div>
+            </TableCell>
+            <TableCell>
               <div className="flex flex-col">
                 <span>{requisition.facility.name}</span>
                 <span className="text-xs text-muted-foreground">{requisition.facility.code}</span>
               </div>
-            );
-            return (
-              <TableRow key={requisition.id}>
-                <TableCell>
-                  {/* On a narrow card the facility and period stack here instead of taking columns. */}
-                  <div className="flex flex-col items-start gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{requisition.program.name}</span>
-                      {requisition.emergency && (
-                        <Badge variant="destructive">{t('home.approvals.emergency')}</Badge>
-                      )}
-                    </div>
-                    {!wide && facility}
-                    {!wide && (
-                      <span className="text-xs text-muted-foreground">
-                        {requisition.processingPeriod.name}
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-                {wide && <TableCell>{facility}</TableCell>}
-                {wide && <TableCell>{requisition.processingPeriod.name}</TableCell>}
-                {wide && (
-                  <TableCell>
-                    <span className="text-muted-foreground">
-                      {formatDate(new Date(waitingSince(requisition)))}
-                    </span>
-                  </TableCell>
-                )}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+            </TableCell>
+            <TableCell>{requisition.processingPeriod.name}</TableCell>
+            <TableCell>
+              <span className="text-muted-foreground">{waiting}</span>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+/** Two lines per requisition on a narrow card: where and since when, then what for. */
+function ApprovalsList({ rows }: { rows: readonly ApprovalRow[] }) {
+  const { t } = useTranslation();
+
+  return (
+    <ul className="flex flex-col divide-y">
+      {rows.map(({ requisition, waiting }) => (
+        <li className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0" key={requisition.id}>
+          <div className="flex items-baseline justify-between gap-3">
+            {/* Separate items, so the gap holds even where Latin names sit in a right-to-left line. */}
+            <span className="flex min-w-0 items-baseline gap-1.5">
+              <span className="truncate text-sm font-medium">{requisition.facility.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {requisition.facility.code}
+              </span>
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              <span className="sr-only">{t('home.approvals.waiting-since')} </span>
+              {waiting}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="min-w-0 truncate">
+              {requisition.program.name} · {requisition.processingPeriod.name}
+            </span>
+            <EmergencyBadge requisition={requisition} />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
