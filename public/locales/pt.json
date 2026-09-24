@@ -44,7 +44,7 @@
   "home.equipment.unserviceable": "Inutilizável",
   "home.load-error": "Não foi possível carregar isto.",
   "home.periods.approved": "Aprovadas",
-  "home.periods.description": "Em curso e aprovadas, pelo mês em que o seu período começa.",
+  "home.periods.description": "Requisições recentes, em curso e aprovadas, pelo mês em que o seu período começa.",
   "home.periods.empty-description": "As requisições aparecem aqui assim que forem submetidas.",
   "home.periods.empty-title": "Ainda Sem Requisições",
   "home.periods.in-progress": "Em Curso",

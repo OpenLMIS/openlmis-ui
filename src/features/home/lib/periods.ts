@@ -37,3 +37,8 @@ export function totalsByMonth(
 
   return [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-limit);
 }
+
+/** Whether a month's tick shows its year: on the first month and wherever the year changes. */
+export function showsYear(months: readonly MonthTotals[], index: number): boolean {
+  return index === 0 || months[index - 1]?.month.slice(0, 4) !== months[index]?.month.slice(0, 4);
+}

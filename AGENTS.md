@@ -503,6 +503,11 @@ what a real single sign-on would cost.
 Anything touching auth state should go through the store rather than reading localStorage
 directly, or these two views of the session drift apart again.
 
+Cached query data belongs to whoever fetched it: `src/integrations/tanstack-query.ts`
+clears the whole cache whenever the store's user changes, on sign-out, on sign-in as
+someone else, and when the session follows the legacy UI. Query keys therefore need no
+user id, except for per-user data such as rights.
+
 ## Environment Variables
 
 `.env.example` is the source of truth and README.md has the annotated table. Two that

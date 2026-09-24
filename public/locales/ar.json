@@ -44,7 +44,7 @@
   "home.equipment.unserviceable": "غير صالح للخدمة",
   "home.load-error": "تعذر تحميل هذا.",
   "home.periods.approved": "تمت الموافقة",
-  "home.periods.description": "قيد التنفيذ وتمت الموافقة، حسب الشهر الذي تبدأ فيه فترتها.",
+  "home.periods.description": "الطلبات الأخيرة، قيد التنفيذ وتمت الموافقة، حسب الشهر الذي تبدأ فيه فترتها.",
   "home.periods.empty-description": "تظهر الطلبات هنا بمجرد تقديمها.",
   "home.periods.empty-title": "لا توجد طلبات بعد",
   "home.periods.in-progress": "قيد التنفيذ",

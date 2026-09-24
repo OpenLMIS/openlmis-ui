@@ -3,9 +3,7 @@ import { CircleCheckIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   Empty,
   EmptyDescription,
@@ -13,7 +11,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -22,45 +19,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { APPROVALS_SHOWN, approvalsOptions } from '@/features/home/api/queries';
-import { CountBadge, CountedTitle, WidgetError } from '@/features/home/components/dashboard-parts';
-import type { RequisitionSummary } from '@/features/home/lib/types';
+import { approvalsOptions } from '@/features/home/api/queries';
+import { CountBadge, DashboardCard } from '@/features/home/components/dashboard-parts';
+import { PENDING } from '@/features/home/components/dashboard-skeleton';
+import { waitingSince } from '@/features/home/lib/requisitions';
 
-/** The requisitions waiting on this user, so the most urgent approval is one click away. */
+/** The requisitions waiting on this user, most urgent first. */
 export function ApprovalsTable() {
   const { t } = useTranslation();
-
   return (
-    <Card>
-      <CardHeader>
-        <CountedTitle title={t('home.approvals.title')}>
-          <ApprovalsTotal />
-        </CountedTitle>
-        <CardDescription>{t('home.approvals.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <QueryBoundary
-          errorComponent={({ reset }) => <WidgetError onRetry={reset} />}
-          pendingFallback={<ApprovalsSkeleton />}
-          resetKey="approvals"
-        >
-          <ApprovalRows />
-        </QueryBoundary>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ApprovalsTotal() {
-  const { data } = useSuspenseQuery(approvalsOptions());
-  return <CountBadge count={data.total} />;
-}
-
-/** When the requisition reached the approver: authorized, or submitted where there is no authorize step. */
-function waitingSince(requisition: RequisitionSummary) {
-  const { statusChanges, createdDate } = requisition;
-  return (
-    statusChanges?.AUTHORIZED?.changeDate ?? statusChanges?.SUBMITTED?.changeDate ?? createdDate
+    <DashboardCard
+      badge={<CountBadge query={approvalsOptions()} select={(approvals) => approvals.total} />}
+      description={t('home.approvals.description')}
+      name="approvals"
+      pending={PENDING.approvals}
+      title={t('home.approvals.title')}
+    >
+      <ApprovalRows />
+    </DashboardCard>
   );
 }
 
@@ -143,19 +119,6 @@ function ApprovalRows() {
           })}
         </TableBody>
       </Table>
-    </div>
-  );
-}
-
-function ApprovalsSkeleton() {
-  return (
-    <div aria-busy className="flex flex-col gap-3">
-      {Array.from({ length: APPROVALS_SHOWN }, (_, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: identical placeholders with nothing else to key on.
-        <div className="h-10 w-full" key={index}>
-          <Skeleton fill />
-        </div>
-      ))}
     </div>
   );
 }

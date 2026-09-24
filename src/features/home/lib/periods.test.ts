@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { totalsByMonth } from '@/features/home/lib/periods';
+import { showsYear, totalsByMonth } from '@/features/home/lib/periods';
 import type { RequisitionStatus, RequisitionSummary } from '@/features/home/lib/types';
 
 const requisition = (
@@ -11,9 +11,9 @@ const requisition = (
   emergency: false,
   status,
   createdDate: '2018-01-01T00:00:00Z',
-  program: { id: 'p', name: 'Family Planning' },
-  facility: { id: 'f', code: 'HC01', name: 'Comfort Health Clinic' },
-  processingPeriod: { id: name, name, startDate },
+  program: { name: 'Family Planning' },
+  facility: { code: 'HC01', name: 'Comfort Health Clinic' },
+  processingPeriod: { name, startDate },
 });
 
 describe('totalsByMonth', () => {
@@ -55,5 +55,16 @@ describe('totalsByMonth', () => {
       2,
     );
     expect(totals.map(({ month }) => month)).toEqual(['2017-02', '2017-03']);
+  });
+});
+
+describe('showsYear', () => {
+  it('shows the year on the first month and where it changes', () => {
+    const months = ['2017-11', '2017-12', '2018-01', '2018-02'].map((month) => ({
+      month,
+      inProgress: 0,
+      approved: 1,
+    }));
+    expect(months.map((_, index) => showsYear(months, index))).toEqual([true, false, true, false]);
   });
 });

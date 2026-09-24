@@ -9,4 +9,5 @@ export const rightsOptions = (userId: string) =>
     queryFn: async () => toRights(await fetchPermissionStrings(userId)),
     // An admin can hold thousands of grants; they change rarely, so the session keeps one copy.
     staleTime: 30 * 60 * 1000,
+    gcTime: Number.POSITIVE_INFINITY,
   });

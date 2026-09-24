@@ -1,8 +1,8 @@
 import { useIsFetching, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -27,9 +27,10 @@ import {
   systemNotificationsOptions,
 } from '@/features/home/api/queries';
 import { WaitingSummary, WelcomeTitle } from '@/features/home/components/dashboard-greeting';
+import { DashboardRevision } from '@/features/home/components/dashboard-parts';
 import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/dashboard-skeleton';
-import { HomeDashboard } from '@/features/home/components/home-dashboard';
-import type { DashboardAccess } from '@/features/home/lib/access';
+import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
+import type { DashboardAccess } from '@/features/home/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
 /** Each part of the dashboard needs the right its legacy page asks for. */
@@ -57,6 +58,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     if (access.orders) queryClient.prefetchQuery(openOrdersCountOptions());
     if (access.equipment) queryClient.prefetchQuery(equipmentStatusCountsOptions());
     if (access.requisitions) {
+      preloadCharts();
       queryClient.prefetchQuery(recentRequisitionsOptions());
       queryClient.prefetchQuery(requisitionStatusCountsOptions());
     }
@@ -70,32 +72,21 @@ function HomePage() {
   const userId = useLoginData((state) => state.referenceDataUserId) ?? '';
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
   const access = toAccess(rights);
+  const [revision, setRevision] = useState(0);
 
   return (
     <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceTitle>
-            <QueryBoundary
-              errorComponent={() => t('home.title')}
-              pendingFallback={t('home.title')}
-              resetKey={userId}
-            >
-              <WelcomeTitle userId={userId} />
-            </QueryBoundary>
+            <WelcomeTitle userId={userId} />
           </WorkspaceTitle>
           <WorkspaceDescription>
-            <QueryBoundary
-              errorComponent={() => t('home.description')}
-              pendingFallback={t('home.description')}
-              resetKey={userId}
-            >
-              <WaitingSummary canApprove={access.approve} canConvert={access.convert} />
-            </QueryBoundary>
+            <WaitingSummary canApprove={access.approve} canConvert={access.convert} />
           </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
-          <RefreshButton />
+          <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
           {rights.has(RIGHTS.usersManage) && (
             <Button
               nativeButton={false}
@@ -109,26 +100,28 @@ function HomePage() {
         </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <HomeDashboard access={access} />
+        <DashboardRevision value={revision}>
+          <HomeDashboard access={access} />
+        </DashboardRevision>
       </WorkspaceContent>
     </Workspace>
   );
 }
 
-/** Reloads every number on the page; spins while any of them is still loading. */
-function RefreshButton() {
+/** Reloads every number and the user's rights; cards that had failed mount again and retry. */
+function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isFetching = useIsFetching({ queryKey: queryKeys.home.all }) > 0;
 
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey });
+    void queryClient.resetQueries({ queryKey: queryKeys.home.all });
+    onRefresh();
+  };
+
   return (
-    <Button
-      disabled={isFetching}
-      onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.home.all })}
-      size="lg"
-      type="button"
-      variant="outline"
-    >
+    <Button disabled={isFetching} onClick={refresh} size="lg" type="button" variant="outline">
       <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} data-icon="inline-start" />
       {t('home.refresh')}
     </Button>

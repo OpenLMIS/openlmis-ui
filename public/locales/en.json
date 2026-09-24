@@ -44,7 +44,7 @@
   "home.equipment.unserviceable": "Unserviceable",
   "home.load-error": "Could not load this.",
   "home.periods.approved": "Approved",
-  "home.periods.description": "In progress and approved, by the month their period starts.",
+  "home.periods.description": "Recent requisitions, in progress and approved, by the month their period starts.",
   "home.periods.empty-description": "Requisitions appear here once they are submitted.",
   "home.periods.empty-title": "No Requisitions Yet",
   "home.periods.in-progress": "In Progress",

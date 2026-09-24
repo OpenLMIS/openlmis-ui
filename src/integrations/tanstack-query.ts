@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { useLoginData } from '@/features/auth/store/login-data';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,4 +14,9 @@ export const queryClient = new QueryClient({
       retry: 0,
     },
   },
+});
+
+// Cached data belongs to whoever fetched it, so signing out or in as someone else drops all of it.
+useLoginData.subscribe((state, previous) => {
+  if (state.referenceDataUserId !== previous.referenceDataUserId) queryClient.clear();
 });

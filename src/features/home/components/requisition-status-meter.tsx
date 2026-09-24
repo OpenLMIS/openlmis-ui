@@ -2,8 +2,6 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   type ChartConfig,
   ChartContainer,
@@ -11,15 +9,15 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { useDirection } from '@/components/ui/direction';
-import { Skeleton } from '@/components/ui/skeleton';
 import { type PipelineStatus, REQUISITION_PIPELINE } from '@/features/home/api/api';
 import { requisitionStatusCountsOptions } from '@/features/home/api/queries';
 import {
   CountBadge,
-  CountedTitle,
+  DashboardCard,
   useFormatNumber,
-  WidgetError,
 } from '@/features/home/components/dashboard-parts';
+import { PENDING } from '@/features/home/components/dashboard-skeleton';
+import { sum } from '@/features/home/lib/requisitions';
 
 /** One step of the chart ramp per status, lightest first, so the order of the pipeline reads in the colour. */
 const STATUS_COLOR: Record<PipelineStatus, { fill: string; dot: string }> = {
@@ -41,35 +39,22 @@ const STATUS_LABEL = {
 /** Where sent requisitions stand, from submitted to released. */
 export function RequisitionStatusMeter() {
   const { t } = useTranslation();
-
   return (
-    <Card>
-      <CardHeader>
-        <CountedTitle title={t('home.statuses.title')}>
-          <StatusTotal />
-        </CountedTitle>
-        <CardDescription>{t('home.statuses.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <QueryBoundary
-          errorComponent={({ reset }) => <WidgetError onRetry={reset} />}
-          pendingFallback={
-            <div className="h-36 w-full">
-              <Skeleton fill />
-            </div>
-          }
-          resetKey="statuses"
-        >
-          <StatusMeter />
-        </QueryBoundary>
-      </CardContent>
-    </Card>
+    <DashboardCard
+      badge={
+        <CountBadge
+          query={requisitionStatusCountsOptions()}
+          select={(counts) => sum(REQUISITION_PIPELINE.map((status) => counts[status]))}
+        />
+      }
+      description={t('home.statuses.description')}
+      name="statuses"
+      pending={PENDING.statuses}
+      title={t('home.statuses.title')}
+    >
+      <StatusMeter />
+    </DashboardCard>
   );
-}
-
-function StatusTotal() {
-  const { data } = useSuspenseQuery(requisitionStatusCountsOptions());
-  return <CountBadge count={REQUISITION_PIPELINE.reduce((sum, status) => sum + data[status], 0)} />;
 }
 
 function StatusMeter() {
@@ -77,7 +62,7 @@ function StatusMeter() {
   const format = useFormatNumber();
   const isRtl = useDirection() === 'rtl';
   const { data } = useSuspenseQuery(requisitionStatusCountsOptions());
-  const total = REQUISITION_PIPELINE.reduce((sum, status) => sum + data[status], 0);
+  const total = sum(REQUISITION_PIPELINE.map((status) => data[status]));
   const config = useMemo(
     () =>
       Object.fromEntries(

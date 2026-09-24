@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   approvalsOptions,
@@ -6,10 +6,11 @@ import {
   firstNameOptions,
 } from '@/features/home/api/queries';
 
+/** The user's name once it loads; the page's plain title until then or if it cannot. */
 export function WelcomeTitle({ userId }: { userId: string }) {
   const { t } = useTranslation();
-  const { data: firstName } = useSuspenseQuery(firstNameOptions(userId));
-  return t('home.welcome-name', { name: firstName });
+  const { data: firstName } = useQuery(firstNameOptions(userId));
+  return firstName ? t('home.welcome-name', { name: firstName }) : t('home.title');
 }
 
 type WaitingSummaryProps = {
@@ -20,27 +21,19 @@ type WaitingSummaryProps = {
 /** One sentence on what is waiting, from the counts this user's rights let them see. */
 export function WaitingSummary({ canApprove, canConvert }: WaitingSummaryProps) {
   const { t } = useTranslation();
-  if (canApprove && canConvert) return <ApproveAndConvert />;
-  if (canApprove) return <ApproveOnly />;
-  if (canConvert) return <ConvertOnly />;
-  return t('home.summary.default');
-}
+  const approvals = useQuery({ ...approvalsOptions(), enabled: canApprove });
+  const convert = useQuery({ ...convertCountOptions(), enabled: canConvert });
+  const toApprove = approvals.data?.total;
+  const toConvert = convert.data;
 
-function ApproveAndConvert() {
-  const { t } = useTranslation();
-  const { data: approvals } = useSuspenseQuery(approvalsOptions());
-  const { data: convert } = useSuspenseQuery(convertCountOptions());
-  return t('home.summary.approve-and-convert', { approve: approvals.total, convert });
-}
-
-function ApproveOnly() {
-  const { t } = useTranslation();
-  const { data: approvals } = useSuspenseQuery(approvalsOptions());
-  return t('home.summary.approve', { count: approvals.total });
-}
-
-function ConvertOnly() {
-  const { t } = useTranslation();
-  const { data: convert } = useSuspenseQuery(convertCountOptions());
-  return t('home.summary.convert', { count: convert });
+  if (canApprove && canConvert && toApprove !== undefined && toConvert !== undefined) {
+    return t('home.summary.approve-and-convert', { approve: toApprove, convert: toConvert });
+  }
+  if (canApprove && !canConvert && toApprove !== undefined) {
+    return t('home.summary.approve', { count: toApprove });
+  }
+  if (canConvert && !canApprove && toConvert !== undefined) {
+    return t('home.summary.convert', { count: toConvert });
+  }
+  return canApprove || canConvert ? t('home.description') : t('home.summary.default');
 }

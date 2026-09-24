@@ -12,8 +12,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   type ChartConfig,
   ChartContainer,
@@ -30,15 +28,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
 import { recentRequisitionsOptions } from '@/features/home/api/queries';
 import {
   CountBadge,
-  CountedTitle,
+  DashboardCard,
   useFormatNumber,
-  WidgetError,
 } from '@/features/home/components/dashboard-parts';
-import { type MonthTotals, totalsByMonth } from '@/features/home/lib/periods';
+import { PENDING } from '@/features/home/components/dashboard-skeleton';
+import { type MonthTotals, showsYear, totalsByMonth } from '@/features/home/lib/periods';
+import { sum } from '@/features/home/lib/requisitions';
 
 function useMonthTotals() {
   const { data: requisitions } = useSuspenseQuery(recentRequisitionsOptions());
@@ -74,7 +72,7 @@ type MonthTickProps = {
 function MonthTick({ x = 0, y = 0, index = 0, payload, months, formats }: MonthTickProps) {
   if (!payload) return null;
   const key = payload.value;
-  const showYear = index === 0 || months[index - 1]?.month.slice(0, 4) !== key.slice(0, 4);
+  const showYear = showsYear(months, index);
   return (
     <text className="fill-muted-foreground text-xs" textAnchor="middle" x={x} y={y}>
       <tspan dy="0.8em" x={x}>
@@ -92,35 +90,24 @@ function MonthTick({ x = 0, y = 0, index = 0, payload, months, formats }: MonthT
 /** Sent requisitions in each of the latest months, split into still in progress and approved. */
 export function RequisitionsByPeriod() {
   const { t } = useTranslation();
-
   return (
-    <Card>
-      <CardHeader>
-        <CountedTitle title={t('home.periods.title')}>
-          <MonthsTotal />
-        </CountedTitle>
-        <CardDescription>{t('home.periods.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <QueryBoundary
-          errorComponent={({ reset }) => <WidgetError onRetry={reset} />}
-          pendingFallback={
-            <div className="h-64 w-full">
-              <Skeleton fill />
-            </div>
+    <DashboardCard
+      badge={
+        <CountBadge
+          query={recentRequisitionsOptions()}
+          select={(requisitions) =>
+            sum(totalsByMonth(requisitions).map((month) => month.inProgress + month.approved))
           }
-          resetKey="recent-requisitions"
-        >
-          <MonthChart />
-        </QueryBoundary>
-      </CardContent>
-    </Card>
+        />
+      }
+      description={t('home.periods.description')}
+      name="periods"
+      pending={PENDING.periods}
+      title={t('home.periods.title')}
+    >
+      <MonthChart />
+    </DashboardCard>
   );
-}
-
-function MonthsTotal() {
-  const months = useMonthTotals();
-  return <CountBadge count={months.reduce((sum, m) => sum + m.inProgress + m.approved, 0)} />;
 }
 
 function MonthChart() {

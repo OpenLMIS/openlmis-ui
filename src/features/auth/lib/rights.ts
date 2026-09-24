@@ -9,8 +9,6 @@ export const RIGHTS = {
   usersManage: 'USERS_MANAGE',
 } as const;
 
-export type Right = (typeof RIGHTS)[keyof typeof RIGHTS];
-
 /** The right names a user holds anywhere; a permission string is `RIGHT`, `RIGHT|facility|program` or `RIGHT|facility`. */
 export function toRights(permissionStrings: readonly string[]): ReadonlySet<string> {
   return new Set(permissionStrings.map((permission) => permission.split('|', 1)[0]));

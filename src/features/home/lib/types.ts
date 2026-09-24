@@ -15,9 +15,9 @@ export type RequisitionSummary = {
   emergency: boolean;
   status: RequisitionStatus;
   createdDate: string;
-  program: { id: string; name: string };
-  facility: { id: string; code: string; name: string };
-  processingPeriod: { id: string; name: string; startDate: string };
+  program: { name: string };
+  facility: { code: string; name: string };
+  processingPeriod: { name: string; startDate: string };
   statusChanges?: Partial<Record<RequisitionStatus, { changeDate: string }>>;
 };
 
@@ -31,4 +31,13 @@ export type SystemNotification = {
   id: string;
   title: string | null;
   message: string;
+};
+
+/** What the signed-in user's rights let the dashboard show; the route works it out from their rights. */
+export type DashboardAccess = {
+  approve: boolean;
+  convert: boolean;
+  orders: boolean;
+  equipment: boolean;
+  requisitions: boolean;
 };

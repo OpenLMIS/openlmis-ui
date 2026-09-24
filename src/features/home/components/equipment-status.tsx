@@ -7,18 +7,16 @@ import {
   WrenchIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EQUIPMENT_STATUSES } from '@/features/home/api/api';
 import { equipmentStatusCountsOptions } from '@/features/home/api/queries';
 import {
   CountBadge,
-  CountedTitle,
+  DashboardCard,
   useFormatNumber,
-  WidgetError,
 } from '@/features/home/components/dashboard-parts';
+import { PENDING } from '@/features/home/components/dashboard-skeleton';
+import { sum } from '@/features/home/lib/requisitions';
 import type { EquipmentStatus } from '@/features/home/lib/types';
 
 type StatusStyle = {
@@ -63,42 +61,29 @@ const STATUS_STYLE: Record<EquipmentStatus, StatusStyle> = {
 /** How much cold chain equipment works, needs work or is out of service. */
 export function EquipmentStatusCard() {
   const { t } = useTranslation();
-
   return (
-    <Card>
-      <CardHeader>
-        <CountedTitle title={t('home.equipment.title')}>
-          <EquipmentTotal />
-        </CountedTitle>
-        <CardDescription>{t('home.equipment.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <QueryBoundary
-          errorComponent={({ reset }) => <WidgetError onRetry={reset} />}
-          pendingFallback={
-            <div className="h-40 w-full">
-              <Skeleton fill />
-            </div>
-          }
-          resetKey="equipment"
-        >
-          <EquipmentRows />
-        </QueryBoundary>
-      </CardContent>
-    </Card>
+    <DashboardCard
+      badge={
+        <CountBadge
+          query={equipmentStatusCountsOptions()}
+          select={(counts) => sum(EQUIPMENT_STATUSES.map((status) => counts[status]))}
+        />
+      }
+      description={t('home.equipment.description')}
+      name="equipment"
+      pending={PENDING.equipment}
+      title={t('home.equipment.title')}
+    >
+      <EquipmentRows />
+    </DashboardCard>
   );
-}
-
-function EquipmentTotal() {
-  const { data } = useSuspenseQuery(equipmentStatusCountsOptions());
-  return <CountBadge count={EQUIPMENT_STATUSES.reduce((sum, status) => sum + data[status], 0)} />;
 }
 
 function EquipmentRows() {
   const { t } = useTranslation();
   const format = useFormatNumber();
   const { data } = useSuspenseQuery(equipmentStatusCountsOptions());
-  const total = EQUIPMENT_STATUSES.reduce((sum, status) => sum + data[status], 0);
+  const total = sum(EQUIPMENT_STATUSES.map((status) => data[status]));
 
   return (
     <ul className="flex flex-col gap-3">

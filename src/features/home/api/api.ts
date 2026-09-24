@@ -10,6 +10,18 @@ import type { Page } from '@/lib/types';
 // Spring binds repeated params (`status=a&status=b`), not axios's default `status[]=a`.
 const repeatArrays = { indexes: null };
 
+/** One count per status, fetched together, keyed by status. */
+async function countEach<TStatus extends string>(
+  statuses: readonly TStatus[],
+  count: (status: TStatus) => Promise<number>,
+): Promise<Record<TStatus, number>> {
+  const counts = await Promise.all(statuses.map(count));
+  return Object.fromEntries(statuses.map((status, index) => [status, counts[index]])) as Record<
+    TStatus,
+    number
+  >;
+}
+
 /** How many records match, read from a one-row page so nothing else is transferred. */
 async function countOf(url: string, params: Record<string, unknown> = {}): Promise<number> {
   const { data } = await client.get<Page<unknown>>(url, {
@@ -19,7 +31,7 @@ async function countOf(url: string, params: Record<string, unknown> = {}): Promi
   return data.totalElements;
 }
 
-export type ApprovalsPage = {
+type ApprovalsPage = {
   requisitions: RequisitionSummary[];
   total: number;
 };
@@ -58,15 +70,10 @@ export const REQUISITION_PIPELINE = [
 
 export type PipelineStatus = (typeof REQUISITION_PIPELINE)[number];
 
-export async function fetchRequisitionStatusCounts(): Promise<Record<PipelineStatus, number>> {
-  const counts = await Promise.all(
-    REQUISITION_PIPELINE.map((status) =>
-      countOf('/requisitions/search', { requisitionStatus: status }),
-    ),
+export function fetchRequisitionStatusCounts(): Promise<Record<PipelineStatus, number>> {
+  return countEach(REQUISITION_PIPELINE, (requisitionStatus) =>
+    countOf('/requisitions/search', { requisitionStatus }),
   );
-  return Object.fromEntries(
-    REQUISITION_PIPELINE.map((status, index) => [status, counts[index]]),
-  ) as Record<PipelineStatus, number>;
 }
 
 /** How many of the latest requisitions the period chart groups; enough to fill six periods. */
@@ -86,16 +93,13 @@ export const EQUIPMENT_STATUSES = [
   'UNSERVICEABLE',
 ] as const satisfies readonly EquipmentStatus[];
 
-export async function fetchEquipmentStatusCounts(): Promise<Record<EquipmentStatus, number>> {
-  const counts = await Promise.all(
-    EQUIPMENT_STATUSES.map((functionalStatus) => countOf('/inventoryItems', { functionalStatus })),
+export function fetchEquipmentStatusCounts(): Promise<Record<EquipmentStatus, number>> {
+  return countEach(EQUIPMENT_STATUSES, (functionalStatus) =>
+    countOf('/inventoryItems', { functionalStatus }),
   );
-  return Object.fromEntries(
-    EQUIPMENT_STATUSES.map((status, index) => [status, counts[index]]),
-  ) as Record<EquipmentStatus, number>;
 }
 
-/** Notices an administrator has published for everyone, as the legacy header shows them. */
+/** Notices an administrator has published for everyone. */
 export async function fetchSystemNotifications(): Promise<SystemNotification[]> {
   const { data } = await client.get<Page<SystemNotification>>('/systemNotifications', {
     params: { isDisplayed: true, page: 0, size: 5 },
