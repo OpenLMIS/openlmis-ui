@@ -1,12 +1,12 @@
 ---
 name: review-pr
-description: Review an openlmis-ui pull request's diff with four reviewers in parallel - correctness, simplification, React/shadcn best practices, and a side-by-side comparison with the legacy OpenLMIS UI so nothing regresses for users - then verify each finding, fix what is real, and get the PR ready to merge. Use whenever the user asks to review a PR or a branch, "run the review again", "code review and code simplify", "check for regressions against the old UI", or "make sure the PR is ready to merge", even if they don't name the skill.
+description: Review an openlmis-ui pull request's diff with five reviewers in parallel - correctness, simplification, project conventions, React/shadcn best practices, and a side-by-side comparison with the legacy OpenLMIS UI so nothing regresses for users - then verify each finding, fix what is real, and get the PR ready to merge. Use whenever the user asks to review a PR or a branch, "run the review again", "code review and code simplify", "check our conventions", "check for regressions against the old UI", or "make sure the PR is ready to merge", even if they don't name the skill.
 ---
 
 # Review PR
 
 Every change to this app is reviewed against its PR diff, never against the whole
-codebase. Four reviewers run in parallel because they look for different things, and none
+codebase. Five reviewers run in parallel because they look for different things, and none
 of them is allowed to report a finding it has not checked.
 
 The bar for the new UI is higher than "works": every screen in it must do at least
@@ -18,6 +18,8 @@ everything its legacy counterpart does, and feel clearly better doing it.
    for the current branch. With no PR, review the branch against `master`.
 2. Get the diff with `gh pr diff <n>` (or `git diff origin/master...HEAD`) and the changed
    files with `gh pr diff <n> --name-only`.
+   `gh pr view <n> --json title,body,commits` gives the description and commit messages
+   the conventions reviewer checks.
 3. `git status -s`: uncommitted changes are not in the PR. Commit or stash them first, or
    say they are out of scope. Do not edit files while reviewers run; they read the tree
    and would review a moving target.
@@ -30,9 +32,9 @@ everything its legacy counterpart does, and feel clearly better doing it.
    `/#!/administration/users`.
 6. Start `pnpm dev` if a browser check is needed, and read the port from its output.
 
-## 2. Launch the four reviewers in parallel
+## 2. Launch the five reviewers in parallel
 
-Send all four `Agent` calls in a single message, each running in the background. Give
+Send all five `Agent` calls in a single message, each running in the background. Give
 every reviewer the same brief:
 
 - PR number, URL, base and head branch, the diff command, and the changed-file list
@@ -60,14 +62,41 @@ earlier fixes on the branch still hold.
 
 Looks for code that is harder than it needs to be: duplication, dead or unused exports,
 helpers that already exist in `src/lib/` or `src/components/`, needless state or effects,
-abstractions with one caller, props nobody passes, types that could be inferred. It also
-checks the house rules: feature isolation (only `reference-data` is shared between
-features), `@/` imports, kebab-case files, `type` over `interface`, comments of at most
-one line with no ticket references, no em dashes anywhere, flat and sorted translation
-keys, and `docs/` or AGENTS.md drift the diff caused. Each suggestion names the smaller
-version.
+abstractions with one caller, props nobody passes, types that could be inferred. Each
+suggestion names the smaller version.
 
-### Reviewer C: React and shadcn practice
+### Reviewer C: conventions
+
+Checks the diff against AGENTS.md, section by section, since that file is the
+conventions. A lint pass catches only a few of them. The ones most often broken:
+
+- **Structure**: features never import each other (only `reference-data` is shared);
+  a feature keeps the `api/api.ts`, `api/queries.ts`, `components/`, `lib/types.ts`
+  layout; query options use the key factory; shared code lives in `src/lib/` or
+  `src/components/`
+- **Data**: loaders defer with an unawaited `prefetchQuery` and block only for a
+  permission check or a must-404 record; every `useSuspenseQuery` has a boundary above it
+- **Pages**: `Workspace` parts rather than hand-rolled padding; list pages copy the
+  Users page (URL owns the state, container queries not viewport breakpoints, the create
+  action ends the toolbar); short forms are URL-owned dialogs built from `form-dialog/`
+  and `useAppForm`, yes/no settings are `SwitchField`s
+- **Code**: `@/` imports, kebab-case files, `type` over `interface`, tests colocated,
+  logical CSS only, `BASE_URL` for assets, no `import.meta.env` for anything that varies
+  per environment, auth state only through the store
+- **Text**: English labels in Title Case, flat and sorted translation keys present in
+  every locale, Zod messages as keys, comments of at most one line with no ticket
+  references, no em dashes anywhere (code, copy, docs, commits, PR)
+- **Docs**: AGENTS.md, README.md and `docs/` updated where the diff changes what they
+  describe, each kept to its own audience
+- **The PR itself**: the description follows the Pull Request Format (ticket link,
+  `## Changes` as one-line bullets, screenshots for visible changes, empty sections left
+  out), commits are conventional (`feat:`, `fix:`, `refactor:`...), no Co-Authored-By
+  lines, and the diff contains nothing unrelated to the PR's purpose
+
+It quotes the AGENTS.md rule each finding breaks. A rule the diff breaks for a good
+reason is still reported, so the user can decide whether the rule or the code changes.
+
+### Reviewer D: React and shadcn practice
 
 Loads the `vercel-react-best-practices`, `vercel-composition-patterns` and `shadcn` skills
 and applies them to the diff. Covers: re-renders and memoization that matter, waterfalls,
@@ -79,7 +108,7 @@ roles, focus, keyboard, colour never the only signal), and the four states of ev
 (rows, skeleton, empty, error with retry). It checks the screen in Arabic as well as in
 English, and at a phone width as well as a desktop one.
 
-### Reviewer D: legacy UI parity
+### Reviewer E: legacy UI parity
 
 Opens each touched screen in both UIs, signed in as the same user, and compares them from
 the user's side, not the code's:
@@ -113,7 +142,7 @@ anchor to the new UI's file and line, and quote what legacy does.
 
 ## 3. Verify
 
-When all four have reported, merge their findings and drop duplicates. For every
+When all five have reported, merge their findings and drop duplicates. For every
 finding that remains, check it yourself or with a verification agent. Read the code path,
 reproduce the scenario, and keep only what is **confirmed**. Mark anything that is likely
 but not reproduced as **plausible**. Discard style preferences that AGENTS.md does not
@@ -121,7 +150,7 @@ back.
 
 ## 4. Report, then fix
 
-Report confirmed findings first, ranked by severity, each in one or two lines with
+Report confirmed findings first, including broken conventions, ranked by severity, each in one or two lines with
 `file:line`. Then list plausible ones and what would confirm them. List parity gaps
 separately, since they are product calls: the fix may belong in a later PR.
 
