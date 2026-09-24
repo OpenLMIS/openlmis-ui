@@ -17,6 +17,9 @@ dist-ssr
 .env.*
 !.env.example
 
+# Screenshots taken by the review-pr and plan-implementation skills
+.screenshots
+
 # TanStack Router plugin cache
 .tanstack
 

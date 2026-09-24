@@ -19,8 +19,8 @@ everything its legacy counterpart does, and feel clearly better doing it.
 2. Get the diff with `gh pr diff <n>` (or `git diff origin/master...HEAD`) and the changed
    files with `gh pr diff <n> --name-only`.
    `gh pr view <n> --json title,body,commits` gives the description and commit messages
-   the conventions reviewer checks. The ticket key in the description or branch names
-   the plan, `plans/<KEY>.md`; every reviewer reads it.
+   the conventions reviewer checks. The ticket key in the description or branch
+   (`feat/fm-14-...` is `FM-14`) names the plan, `plans/<KEY>.md`; every reviewer reads it.
 3. `git status -s`: uncommitted changes are not in the PR. Commit or stash them first, or
    say they are out of scope. Do not edit files while reviewers run; they read the tree
    and would review a moving target.
@@ -41,7 +41,9 @@ every reviewer the same brief:
 - PR number, URL, base and head branch, the diff command, and the changed-file list
 - The gate results from step 1
 - The screens touched and their legacy URLs
-- The plan file, `plans/<KEY>.md`, when there is one
+- The plan file, `plans/<KEY>.md`, when there is one, and the legacy screenshots taken
+  while planning, in `.screenshots/<KEY>/`. The plan is the baseline: its API map,
+  server-side work and browser checks say what was intended, and its drops are deliberate
 - AGENTS.md is the rulebook; read it first
 - The **browser rules** below, copied verbatim
 - Return findings only, most severe first, each with: `file:line`, a one-sentence
@@ -57,8 +59,8 @@ leaks, wrong query keys, loaders that block when they should defer (or the rever
 suspended subtrees without a boundary, rights gating that shows or hides the wrong thing,
 auth and session flows (sign in, sign out, 401, user switch, legacy session sync), URL
 state that breaks Back or a shared link. It traces each suspicion through the code and
-reproduces it in the browser or with a test before reporting. It also confirms that
-earlier fixes on the branch still hold.
+reproduces it in the browser or with a test before reporting. It runs the plan's
+browser checks and confirms that earlier fixes on the branch still hold.
 
 ### Reviewer B: simplify
 
@@ -119,19 +121,26 @@ the user's side, not the code's:
 
 - **Capability**: every field, column, filter, sort, action, validation rule, message and
   rights check the legacy screen has. Anything missing in the new UI is a regression
-  unless the PR says it is deliberately dropped.
+  unless the PR or the plan names it as a drop.
 - **Data**: the same records, counts and values for the same user and filters. A number
   that differs is a bug in one of them; find out which.
 - **Experience**: where the new screen is not clearly better, say so. Compare clicks to
   finish the task, loading and empty states, error recovery, wording, mobile and
   keyboard use.
+- **Server-side work**: sorting, filtering, paging, searching or counting done in the
+  browser, in either UI: a request with no paging, sort or filter params that returns
+  everything and is then worked on locally. For each, check the endpoint's API definition
+  (`src/main/resources/api-definition.yaml` in the service repo) for params that do it on
+  the server. The new UI doing it client-side when the server can is a finding, unless
+  the plan records why it stays client-side; legacy doing it is a chance to improve,
+  reported with the params to use.
 
-The legacy source is on GitHub under `OpenLMIS` (for example `openlmis-referencedata-ui`,
-`openlmis-requisition-ui`, `openlmis-auth-ui`, `openlmis-ui-components`); read it with
+The legacy source is on GitHub under `OpenLMIS` (`openlmis-*-ui`,
+`openlmis-ui-components`, `openlmis-ui-layout`); read it with
 `gh api` or `gh search code` when the behaviour behind a screen is unclear. Findings
 anchor to the new UI's file and line, and quote what legacy does.
 
-### Browser rules (give these to every reviewer)
+### Browser rules (give these to every reviewer, and to every `plan-implementation` researcher)
 
 - The API target is a shared server. **Never let a write reach it**: route every
   non-`GET` request under `/api/` to a stub (`route.fulfill`), except
@@ -143,6 +152,9 @@ anchor to the new UI's file and line, and quote what legacy does.
   rather than reporting the redirect to `/login` as a bug.
 - Legacy UI is read-only as well: look, filter and open things, never save.
 - Recharts animates on mount and resize, so wait before judging a chart.
+- Save screenshots, at desktop and phone width, to `.screenshots/<KEY>/` in the project,
+  or `.screenshots/pr-<n>/` when there is no ticket. The folder is gitignored; never save
+  them anywhere else.
 
 ## 3. Verify
 
@@ -162,6 +174,7 @@ If the user asked for a review only, stop there. If they asked for the PR to be 
 continue:
 
 1. Fix each confirmed finding. Keep fixes small and in the style of the surrounding code.
+   When a fix changes what the plan says, update `plans/<KEY>.md` in the same commit.
 2. Re-run the gates from step 1, plus `pnpm check`.
 3. Recheck any fixed behaviour in the browser, under the browser rules.
 4. Commit with a conventional message (`fix:`, `refactor:`, `docs:`) and push to the PR
