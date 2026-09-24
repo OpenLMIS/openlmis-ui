@@ -335,6 +335,7 @@
   "users.roles.description": "ما يمكن لـ {username} فعله، وأين. تُطبَّق التغييرات عند حفظها.",
   "users.roles.discard": "تجاهل التغييرات",
   "users.roles.discard-description": "{count, plural, zero {لا توجد تغييرات على أدوار {username}} one {لم يُحفظ تغيير واحد على أدوار {username}} two {لم يُحفظ تغييران على أدوار {username}} few {لم تُحفظ # تغييرات على أدوار {username}} many {لم يُحفظ # تغييرًا على أدوار {username}} other {لم يُحفظ # تغيير على أدوار {username}}}. لا يمكن التراجع عن التجاهل.",
+  "users.roles.discard-sign-out": "تجاهل وتسجيل الخروج",
   "users.roles.discard-title": "تجاهل التغييرات غير المحفوظة؟",
   "users.roles.empty-title": "لا توجد أدوار بعد",
   "users.roles.empty.administration": "تتيح أدوار الإدارة لهذا المستخدم إدارة النظام.",

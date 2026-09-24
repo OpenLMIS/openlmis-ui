@@ -20,6 +20,9 @@ dist-ssr
 # Screenshots taken by the review-pr and plan-implementation skills
 .screenshots
 
+# Console logs and page snapshots from the Playwright browser tool
+.playwright-mcp
+
 # TanStack Router plugin cache
 .tanstack
 

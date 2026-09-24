@@ -5,7 +5,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 
 /** Thrown by a route whose user lacks the right the page needs. */
 export class ForbiddenError extends Error {
-  constructor(readonly right: string) {
+  constructor(right: string) {
     super(`Missing right ${right}`);
     this.name = 'ForbiddenError';
   }
@@ -19,6 +19,7 @@ export function isForbidden(error: unknown) {
 /** For a loader: resolves once the signed-in user is known to hold `right`, throws otherwise. */
 export async function requireRight(queryClient: QueryClient, right: string) {
   const userId = useLoginData.getState().referenceDataUserId;
-  const rights = userId ? await queryClient.ensureQueryData(rightsOptions(userId)) : new Set();
+  // Refetched once stale or invalidated, e.g. after saving your own roles, so a lost right counts.
+  const rights = userId ? await queryClient.fetchQuery(rightsOptions(userId)) : new Set();
   if (!rights.has(right)) throw new ForbiddenError(right);
 }

@@ -2,6 +2,7 @@ import type { ErrorComponentProps } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangleIcon, ChevronLeft, RotateCcwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { NoAccessPage } from '@/components/no-access-page';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -10,9 +11,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { isForbidden } from '@/features/auth/lib/access';
 
 export function ErrorFallback({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
+  // A route that needs a right it lacks, or a refusal from the server, is not an error.
+  if (isForbidden(error)) return <NoAccessPage />;
   const parsedError = error instanceof Error ? error : new Error(String(error));
 
   return (
@@ -21,7 +25,9 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
         <EmptyMedia variant="icon">
           <AlertTriangleIcon />
         </EmptyMedia>
-        <EmptyTitle>{t('error.title')}</EmptyTitle>
+        <EmptyTitle>
+          <h1>{t('error.title')}</h1>
+        </EmptyTitle>
         <EmptyDescription>{t('error.description')}</EmptyDescription>
       </EmptyHeader>
       {import.meta.env.DEV && (

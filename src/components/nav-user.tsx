@@ -54,7 +54,6 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        {/* A page with unsaved changes asks first. */}
         <DropdownMenuItem
           onClick={() => whenLeaveAllowed(() => void handleLogout())}
           variant="destructive"

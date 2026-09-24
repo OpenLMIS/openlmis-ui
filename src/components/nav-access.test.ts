@@ -1,31 +1,49 @@
+import { HouseIcon } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
-import { navWithinRights } from '@/components/nav-access';
-import { LIVE_NAV_GROUPS } from '@/lib/config';
+import { canOpen, navWithinRights } from '@/components/nav-access';
+import { isNavParent } from '@/lib/config';
+import type { LiveNavGroup } from '@/lib/types';
 
-const links = (groups: ReturnType<typeof navWithinRights>) =>
+// A nav of its own, so adding pages to the real one never breaks these tests.
+const nav: LiveNavGroup[] = [
+  { items: [{ titleKey: 'home.title', to: '/home', icon: HouseIcon }] },
+  {
+    labelKey: 'nav.menu',
+    items: [
+      {
+        titleKey: 'nav.administration',
+        items: [{ titleKey: 'nav.administration.users', to: '/administration/users' }],
+      },
+    ],
+  },
+];
+
+const links = (groups: LiveNavGroup[]) =>
   groups.flatMap((group) =>
-    group.items.flatMap((item) => ('items' in item ? item.items : [item]).map((link) => link.to)),
+    group.items.flatMap((item) => (isNavParent(item) ? item.items : [item]).map((link) => link.to)),
   );
 
 describe('navWithinRights', () => {
   it('offers Users only to someone who may manage users', () => {
-    expect(links(navWithinRights(LIVE_NAV_GROUPS, new Set(['USERS_MANAGE'])))).toContain(
+    expect(links(navWithinRights(nav, new Set(['USERS_MANAGE'])))).toEqual([
+      '/home',
       '/administration/users',
-    );
-    expect(links(navWithinRights(LIVE_NAV_GROUPS, new Set(['REQUISITION_VIEW'])))).not.toContain(
-      '/administration/users',
-    );
+    ]);
+    expect(links(navWithinRights(nav, new Set(['REQUISITION_VIEW'])))).toEqual(['/home']);
   });
 
-  it('drops a section left with no page, and keeps pages that need no right', () => {
-    const groups = navWithinRights(LIVE_NAV_GROUPS, new Set());
-    expect(links(groups)).toEqual(['/home']);
-    expect(groups.some((group) => group.items.some((item) => 'items' in item))).toBe(false);
+  it('drops a section left with no page', () => {
+    expect(navWithinRights(nav, new Set())).toHaveLength(1);
   });
 
   it('hides gated pages while the rights are still loading', () => {
-    expect(links(navWithinRights(LIVE_NAV_GROUPS, undefined))).not.toContain(
-      '/administration/users',
-    );
+    expect(links(navWithinRights(nav, undefined))).toEqual(['/home']);
+  });
+});
+
+describe('canOpen', () => {
+  it('lets anyone open a page that needs no right', () => {
+    expect(canOpen('/home', undefined)).toBe(true);
+    expect(canOpen('/administration/users', new Set())).toBe(false);
   });
 });

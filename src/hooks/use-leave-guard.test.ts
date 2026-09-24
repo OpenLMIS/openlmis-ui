@@ -25,4 +25,24 @@ describe('useLeaveGuard', () => {
     expect(proceed).toHaveBeenCalledOnce();
     unmount();
   });
+
+  it('keeps asking while another guarded page still has changes', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const a = renderHook(({ active }) => useLeaveGuard(active, first), {
+      initialProps: { active: true },
+    });
+    const b = renderHook(({ active }) => useLeaveGuard(active, second), {
+      initialProps: { active: true },
+    });
+    const proceed = vi.fn();
+
+    b.rerender({ active: false });
+    whenLeaveAllowed(proceed);
+    expect(first).toHaveBeenCalledWith(proceed);
+    expect(proceed).not.toHaveBeenCalled();
+
+    a.unmount();
+    b.unmount();
+  });
 });

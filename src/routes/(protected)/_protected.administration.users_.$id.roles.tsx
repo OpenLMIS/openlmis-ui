@@ -76,7 +76,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
   validateSearch: rolesSearchSchema,
   staticData: { crumbKey: 'users.roles' },
   loader: async ({ context: { queryClient }, params }) => {
-    await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery(rolesOptions());
     queryClient.prefetchQuery(programsOptions());
     // Slow, so they start now and fill in the rows when they arrive.
@@ -84,8 +83,12 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     queryClient.prefetchQuery(minimalFacilitiesOptions());
     // A failed preload is retried when the dialogs render, where the boundary below catches it.
     loadRoleDialogs().catch(() => undefined);
-    // A user that does not exist has no roles page, so the page waits for the user.
-    return queryClient.ensureQueryData(userDetailsOptions(params.id));
+    // The page waits for the right it needs and for the user, which must exist; both at once.
+    const [, details] = await Promise.all([
+      requireRight(queryClient, RIGHTS.usersManage),
+      queryClient.ensureQueryData(userDetailsOptions(params.id)),
+    ]);
+    return details;
   },
   pendingComponent: RolesPagePending,
   errorComponent: RolesPageError,
@@ -153,6 +156,9 @@ function RolesEditor({ details }: { details: UserDetails }) {
     [navigate, listSearch],
   );
 
+  // A sign out waiting on the discard dialog; set by the leave guard below.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+
   const save = useMutation({
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
     onSuccess: (saved, sent) => {
@@ -167,6 +173,12 @@ function RolesEditor({ details }: { details: UserDetails }) {
       // Your own roles decide what this app shows you.
       if (user.id === signedInUserId) {
         void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
+      }
+      // A sign out asked for during the save goes ahead, now that nothing is left to lose.
+      if (pendingLeave && !editedMeanwhile) {
+        setPendingLeave(null);
+        pendingLeave();
+        return;
       }
       // Back to the list, as legacy does, unless that would drop edits made during the save.
       if (!editedMeanwhile) {
@@ -188,7 +200,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
     withResolver: true,
   });
   // Signing out leaves without the router, so it asks through the same dialog.
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
   useLeaveGuard(draft.changes > 0, askToLeave);
 
@@ -291,12 +302,11 @@ function RolesEditor({ details }: { details: UserDetails }) {
           </CatchBoundary>
           <DiscardChangesDialog
             changes={draft.changes}
+            confirmLabel={t(pendingLeave ? 'users.roles.discard-sign-out' : 'users.roles.discard')}
             onDiscard={() => {
-              if (pendingLeave) {
-                leaving.current = true;
-                setPendingLeave(null);
-                pendingLeave();
-              } else blocker.proceed?.();
+              if (!pendingLeave) return blocker.proceed?.();
+              setPendingLeave(null);
+              pendingLeave();
             }}
             onKeepEditing={() => {
               setPendingLeave(null);

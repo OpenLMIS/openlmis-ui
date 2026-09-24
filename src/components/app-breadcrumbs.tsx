@@ -2,6 +2,7 @@ import { Link, useLocation, useMatches } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useCanOpen } from '@/components/nav-access';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,6 +25,7 @@ declare module '@tanstack/react-router' {
 export function AppBreadcrumbs() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const canOpen = useCanOpen();
   const crumbKey = useMatches({ select: (matches) => matches.at(-1)?.staticData.crumbKey });
   const navTrail = getNavTrail(pathname).filter((item) => item.to !== '/home');
   const trail: NavTrailItem[] =
@@ -43,7 +45,7 @@ export function AppBreadcrumbs() {
             <BreadcrumbItem>
               {index === trail.length - 1 ? (
                 <BreadcrumbPage>{t(item.titleKey)}</BreadcrumbPage>
-              ) : item.to && item.to !== '#' ? (
+              ) : item.to && item.to !== '#' && canOpen(item.to) ? (
                 <BreadcrumbLink render={<Link to={item.to} />}>{t(item.titleKey)}</BreadcrumbLink>
               ) : (
                 <span>{t(item.titleKey)}</span>

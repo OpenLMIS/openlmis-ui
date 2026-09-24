@@ -1,16 +1,11 @@
-import {
-  createFileRoute,
-  ErrorComponent,
-  type ErrorComponentProps,
-  useRouter,
-} from '@tanstack/react-router';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { UsersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
-import { NoAccessPage } from '@/components/no-access-page';
+import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -75,13 +70,9 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     const detailsFor = deps.user ? deps.user !== 'new' && deps.user : deps.password;
     if (detailsFor) queryClient.prefetchQuery(userDetailsOptions(detailsFor));
   },
-  errorComponent: UsersPageError,
+  pendingComponent: UsersPagePending,
   component: UsersPage,
 });
-
-function UsersPageError(props: ErrorComponentProps) {
-  return isForbidden(props.error) ? <NoAccessPage /> : <ErrorComponent {...props} />;
-}
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
@@ -179,13 +170,18 @@ function UsersPage() {
             search={search}
           />
           <QueryBoundary
-            errorComponent={({ reset }) => (
-              <DataTableError
-                description={t('users.error-description')}
-                onRetry={reset}
-                title={t('users.error-title')}
-              />
-            )}
+            errorComponent={({ error, reset }) =>
+              // Rights read at sign in can be revoked since; the server's refusal says so.
+              isForbidden(error) ? (
+                <NoAccess />
+              ) : (
+                <DataTableError
+                  description={t('users.error-description')}
+                  onRetry={reset}
+                  title={t('users.error-title')}
+                />
+              )
+            }
             pendingFallback={
               <UsersTableSkeleton columnVisibility={columnView.visibility} search={search} />
             }
@@ -210,6 +206,27 @@ function UsersPage() {
             />
           </Suspense>
         )}
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+/** While the rights check runs on a first visit: the page's header over a table skeleton. */
+function UsersPagePending() {
+  const { t } = useTranslation();
+  return (
+    <Workspace>
+      <WorkspaceHeader>
+        <WorkspaceHeading>
+          <WorkspaceIcon>
+            <UsersIcon />
+          </WorkspaceIcon>
+          <WorkspaceTitle>{t('users.title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('users.description')}</WorkspaceDescription>
+        </WorkspaceHeading>
+      </WorkspaceHeader>
+      <WorkspaceContent>
+        <UsersTableSkeleton columnVisibility={{}} search={{}} />
       </WorkspaceContent>
     </Workspace>
   );

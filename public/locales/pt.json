@@ -335,6 +335,7 @@
   "users.roles.description": "O que {username} pode fazer, e onde. As alterações aplicam-se quando as guardar.",
   "users.roles.discard": "Descartar Alterações",
   "users.roles.discard-description": "{count, plural, one {# alteração às funções de {username} não foi guardada} other {# alterações às funções de {username} não foram guardadas}}. Descartar não pode ser anulado.",
+  "users.roles.discard-sign-out": "Descartar e Terminar Sessão",
   "users.roles.discard-title": "Descartar Alterações Por Guardar?",
   "users.roles.empty-title": "Ainda Sem Funções",
   "users.roles.empty.administration": "As funções de administração permitem a este utilizador gerir o sistema.",
