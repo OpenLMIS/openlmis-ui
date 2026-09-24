@@ -166,6 +166,10 @@ anchor to the new UI's file and line, and quote what legacy does.
   non-`GET` request under `/api/` to a stub (`route.fulfill`), except
   `POST /api/oauth/token` for signing in. A real write needs the user's explicit
   permission for that one request.
+- Match stubs on the app's origin, `http://localhost:<port>/api/**`, not `**/api/**`: in
+  `pnpm dev` the second also catches source modules such as `src/features/*/api/api.ts`, and
+  a stubbed module leaves a blank page. Register them on the browser context when a check
+  opens more than one tab.
 - Always `page.unrouteAll({ behavior: 'ignoreErrors' })` in a `finally`, or a stale route
   breaks the next check.
 - Sign in with the account the user gave. If the session has expired, sign in again
