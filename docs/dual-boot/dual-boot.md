@@ -34,7 +34,7 @@ Today the new UI has these screens:
 | --- | --- |
 | Login | Sign in |
 | Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment |
-| Administration / Users | Find, add and edit users, and reset their passwords |
+| Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles |
 
 Everything else is still in the existing UI, and the new UI's menu shows only the
 screens above. More move over as they are rebuilt.

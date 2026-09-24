@@ -162,17 +162,25 @@ export const LIVE_NAV_GROUPS: LiveNavGroup[] = NAV_GROUPS.map((group) => ({
 
 export const LIVE_NAV_ITEMS: LiveNavItem[] = LIVE_NAV_GROUPS.flatMap((group) => group.items);
 
-type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
+export type NavTrailItem = { titleKey: NavItem['titleKey']; to?: NavLink['to'] };
 
-/** The nav entries leading to `pathname`, outermost first; empty when it is not in the nav. */
+/** The nav entries leading to `pathname`, or to the entry it sits below; empty off the nav. */
 export function getNavTrail(pathname: string): NavTrailItem[] {
+  return (
+    findNavTrail((to) => to === pathname) ??
+    findNavTrail((to) => to !== '#' && pathname.startsWith(`${to}/`)) ??
+    []
+  );
+}
+
+function findNavTrail(matches: (to: NavLink['to']) => boolean): NavTrailItem[] | undefined {
   for (const item of NAV_ITEMS) {
     if (!isNavParent(item)) {
-      if (item.to === pathname) return [{ titleKey: item.titleKey, to: item.to }];
+      if (matches(item.to)) return [{ titleKey: item.titleKey, to: item.to }];
       continue;
     }
-    const child = item.items.find((link) => link.to === pathname);
+    const child = item.items.find((link) => matches(link.to));
     if (child) return [{ titleKey: item.titleKey }, { titleKey: child.titleKey, to: child.to }];
   }
-  return [];
+  return undefined;
 }

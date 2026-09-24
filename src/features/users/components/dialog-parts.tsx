@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { AlertCircleIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FieldLabelText } from '@/components/form/form-fields';
 import {
   FormDialogCancel,
   FormDialogFooter,
@@ -10,6 +11,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** The server's own message when it sent one, e.g. that a username is taken. */
@@ -73,5 +75,19 @@ export function DialogLoadError({ title, onRetry }: { title: string; onRetry: ()
         <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
       </FormDialogFooter>
     </>
+  );
+}
+
+/** The field's real label over a placeholder input, since only the value is still loading. */
+export function FieldSkeleton({ label, required = false }: { label: string; required?: boolean }) {
+  return (
+    <Field spacing="tight">
+      <FieldLabel>
+        <FieldLabelText label={label} required={required} />
+      </FieldLabel>
+      <div className="h-8 w-full">
+        <Skeleton fill />
+      </div>
+    </Field>
   );
 }

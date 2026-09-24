@@ -14,7 +14,7 @@ export function AppShell({ children }: AppShellProps) {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <div className="mx-auto flex w-full flex-1">
+        <div className="mx-auto flex w-full flex-1 flex-col">
           <TranslatedDataTableLabels>{children}</TranslatedDataTableLabels>
         </div>
       </SidebarInset>

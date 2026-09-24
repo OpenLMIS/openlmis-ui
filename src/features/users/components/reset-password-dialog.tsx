@@ -89,11 +89,15 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
       else await setUserPassword(username, password);
     },
     onSuccess: (_, { method }) => {
-      toast.success(
-        method === 'email' && email
-          ? t('users.password.email-sent', { email })
-          : t('users.password.password-set', { username }),
-      );
+      if (method === 'email' && email) {
+        toast.success(t('users.password.email-sent-title'), {
+          description: t('users.password.email-sent', { email }),
+        });
+      } else {
+        toast.success(t('users.password.password-set-title'), {
+          description: t('users.password.password-set', { username }),
+        });
+      }
     },
   });
 

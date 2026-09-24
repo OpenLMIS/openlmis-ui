@@ -85,6 +85,12 @@ export function toSortParam(search: TableSearch, defaultSort: DefaultSort) {
 /** Receives the latest URL search, so a change never builds on a stale render. */
 export type SearchUpdate<TSearch> = (previous: TSearch) => Partial<TSearch>;
 
+/** Changes the URL search; `replace` for typing, so only paging and sorting add history. */
+export type SearchChange<TSearch> = (
+  update: Partial<TSearch> | SearchUpdate<TSearch>,
+  replace?: boolean,
+) => void;
+
 type TableSearchStateOptions<TSearch extends TableSearch> = {
   search: TableSearch;
   defaultSort: DefaultSort;

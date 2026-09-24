@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
+import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronUpIcon, XIcon, CheckIcon } from "lucide-react"
 
 const Combobox = ComboboxPrimitive.Root
 
@@ -126,16 +127,37 @@ function ComboboxContent({
   )
 }
 
+/** The list scrolls as a ScrollArea viewport, so its edges fade where items continue past them. */
 function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
   return (
-    <ComboboxPrimitive.List
-      data-slot="combobox-list"
-      className={cn(
-        "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-1 overflow-y-auto overscroll-contain p-1 data-empty:p-0",
-        className
-      )}
-      {...props}
-    />
+    <ScrollAreaPrimitive.Root
+      data-slot="combobox-scroll-area"
+      className="group/combobox-scroll relative"
+    >
+      {/* The list renders the viewport, not the reverse, so its listbox role and tab index win. */}
+      <ComboboxPrimitive.List
+        render={<ScrollAreaPrimitive.Viewport />}
+        data-slot="combobox-list"
+        className={cn(
+          "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-10 overflow-y-auto overscroll-contain p-1 outline-none mask-no-repeat mask-[linear-gradient(to_bottom,transparent_0,black_min(2.5rem,var(--scroll-area-overflow-y-start)),black_calc(100%_-_min(2.5rem,var(--scroll-area-overflow-y-end,0px))),transparent_100%)] data-empty:p-0",
+          className
+        )}
+        {...props}
+      />
+      {/* Hints, not controls: the list already scrolls by wheel, touch and keys. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-1 hidden justify-center text-muted-foreground group-data-overflow-y-start/combobox-scroll:flex"
+      >
+        <ChevronUpIcon className="size-4" />
+      </span>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-1 hidden justify-center text-muted-foreground group-data-overflow-y-end/combobox-scroll:flex"
+      >
+        <ChevronDownIcon className="size-4" />
+      </span>
+    </ScrollAreaPrimitive.Root>
   )
 }
 

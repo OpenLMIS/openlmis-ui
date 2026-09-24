@@ -52,9 +52,10 @@ export function DashboardSkeleton() {
 /** Where the header's buttons will be, so the heading does not shift when they arrive. */
 export function ActionsSkeleton() {
   return (
-    <div className="flex gap-2">
+    // Two children, like the buttons, so a stacked header stretches them the same way.
+    <>
       <Block className="h-10 w-28" />
       <Block className="h-10 w-28" />
-    </div>
+    </>
   );
 }

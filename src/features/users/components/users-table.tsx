@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import {
@@ -31,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { usersListOptions } from '@/features/users/api/queries';
+import { fullName } from '@/features/users/lib/names';
 import {
   CLEARED_USER_FILTERS,
   DEFAULT_USERS_SORT,
@@ -39,13 +41,9 @@ import {
   type UsersSearch,
 } from '@/features/users/lib/search';
 import type { UserListItem } from '@/features/users/lib/types';
-import { type SearchUpdate, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, UserListItem>();
-
-function fullName(user: UserListItem) {
-  return [user.firstName, user.lastName].filter(Boolean).join(' ');
-}
 
 function createColumns(t: TFunction, actions: UserRowActions) {
   return columnHelper.columns([
@@ -88,8 +86,10 @@ function createColumns(t: TFunction, actions: UserRowActions) {
       meta: { className: 'w-16' },
       cell: ({ row }) => (
         <UserActions
+          listSearch={actions.listSearch}
           onEdit={() => actions.onEdit(row.original.id)}
           onResetPassword={() => actions.onResetPassword(row.original.id)}
+          userId={row.original.id}
           username={row.original.username}
         />
       ),
@@ -100,28 +100,20 @@ function createColumns(t: TFunction, actions: UserRowActions) {
 type UserRowActions = {
   onEdit: (userId: string) => void;
   onResetPassword: (userId: string) => void;
+  /** Handed to the roles page, so leaving it returns to this page of the list. */
+  listSearch: UsersSearch;
 };
 
 type UserActionsProps = {
+  userId: string;
   username: string;
+  listSearch: UsersSearch;
   onEdit: () => void;
   onResetPassword: () => void;
 };
 
-// TODO: Wire up roles once that screen exists.
-function UserActions({ username, onEdit, onResetPassword }: UserActionsProps) {
+function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: UserActionsProps) {
   const { t } = useTranslation();
-  const actions = [
-    { id: 'edit', label: t('users.edit'), icon: PencilIcon, destructive: false, onClick: onEdit },
-    { id: 'roles', label: t('users.roles'), icon: ShieldIcon, destructive: false },
-    {
-      id: 'reset-password',
-      label: t('users.reset-password'),
-      icon: KeyRoundIcon,
-      destructive: true,
-      onClick: onResetPassword,
-    },
-  ];
 
   return (
     <div className="flex justify-end">
@@ -138,16 +130,27 @@ function UserActions({ username, onEdit, onResetPassword }: UserActionsProps) {
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
-          {actions.map(({ id, label, icon: Icon, destructive, onClick }) => (
-            <DropdownMenuItem
-              key={id}
-              onClick={onClick}
-              variant={destructive ? 'destructive' : 'default'}
-            >
-              <Icon />
-              {label}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuItem onClick={onEdit}>
+            <PencilIcon />
+            {t('users.edit')}
+          </DropdownMenuItem>
+          {/* A link, so it can open in a new tab to compare two users' roles. */}
+          <DropdownMenuItem
+            render={
+              <Link
+                params={{ id: userId }}
+                state={{ usersListSearch: listSearch }}
+                to="/administration/users/$id/roles"
+              />
+            }
+          >
+            <ShieldIcon />
+            {t('users.roles')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onResetPassword} variant="destructive">
+            <KeyRoundIcon />
+            {t('users.reset-password')}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -156,12 +159,9 @@ function UserActions({ username, onEdit, onResetPassword }: UserActionsProps) {
 
 type UsersTableProps = {
   search: UsersSearch;
-  onSearchChange: (
-    update: Partial<UsersSearch> | SearchUpdate<UsersSearch>,
-    replace?: boolean,
-  ) => void;
+  onSearchChange: SearchChange<UsersSearch>;
   columnVisibility: ColumnVisibilityState;
-} & UserRowActions;
+} & Omit<UserRowActions, 'listSearch'>;
 
 const NO_USERS: UserListItem[] = [];
 
@@ -181,8 +181,8 @@ function useUsersTable({
 }: UsersTableProps & { data: UserListItem[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(
-    () => createColumns(t, { onEdit, onResetPassword }),
-    [t, onEdit, onResetPassword],
+    () => createColumns(t, { onEdit, onResetPassword, listSearch: search }),
+    [t, onEdit, onResetPassword, search],
   );
   const searchState = useTableSearchState({
     search,

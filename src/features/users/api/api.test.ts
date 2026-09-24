@@ -7,6 +7,7 @@ import {
   sendPasswordResetEmail,
   setUserPassword,
   updateUser,
+  updateUserRoles,
 } from '@/features/users/api/api';
 import type { UsersQuery } from '@/features/users/lib/types';
 import { EMPTY_USER_FORM } from '@/features/users/lib/user-form';
@@ -184,5 +185,30 @@ describe('passwords', () => {
     expect(post).toHaveBeenCalledWith('/users/auth/forgotPassword', undefined, {
       params: { email: 'ada@example.org' },
     });
+  });
+});
+
+describe('updateUserRoles', () => {
+  it('saves the fresh user with only the new roles changed, and touches nothing else', async () => {
+    const fresh = { ...ada, homeFacilityId: 'f1', active: false, roleAssignments: [] };
+    get.mockResolvedValueOnce({ data: fresh });
+    put.mockResolvedValueOnce({ data: { ...fresh, roleAssignments: [{ roleId: 'r' }] } });
+
+    const saved = await updateUserRoles('u1', [
+      { roleId: 'r', programId: null, supervisoryNodeId: undefined },
+    ]);
+
+    expect(get).toHaveBeenCalledWith('/users/u1');
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put).toHaveBeenCalledWith('/users', { ...fresh, roleAssignments: [{ roleId: 'r' }] });
+    expect(post).not.toHaveBeenCalled();
+    expect(saved.roleAssignments).toEqual([{ roleId: 'r' }]);
+  });
+
+  it('saves nothing when the user cannot be read', async () => {
+    get.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(updateUserRoles('u1', [])).rejects.toThrow('offline');
+    expect(put).not.toHaveBeenCalled();
   });
 });

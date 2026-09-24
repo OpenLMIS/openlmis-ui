@@ -124,8 +124,8 @@ passes data down as props. `src/routes/` may import any feature, since composing
 its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
-the OpenLMIS reference data many screens look up (facilities, and soon programs,
-supervisory nodes and roles), named after the backend's `referencedata` service. It has the
+the OpenLMIS reference data many screens look up (facilities, programs, supervisory nodes
+and roles), named after the backend's `referencedata` service. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own.
@@ -250,10 +250,10 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`.
+   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -281,7 +281,7 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 ## Code Conventions
 
 - **pnpm** - always use pnpm, not npm
-- **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`)
+- **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`). Route files are the exception: TanStack Router's `$param` and `users_` (no nesting) syntax
 - **`type` over `interface`** - enforced by Biome
 - **`@/*` path aliases** - always use for imports (maps to `src/*`)
 - **Logical CSS properties only** - `ms`/`me`/`ps`/`pe`/`start`/`end`/`text-start`, never
@@ -355,10 +355,21 @@ Every part takes only `children` - no boolean props, no `renderX` callbacks. A p
 without an icon, a description or actions just leaves those parts out.
 
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
-outrank the toolbar controls below them.
+outrank the toolbar controls below them. When the header stacks on a narrow page, they share
+its full width; each button is a direct child, so a loading skeleton renders one block per
+button to stretch the same way.
+
+A page that edits a draft and saves it at once, like Edit User Roles, renders
+`WorkspaceFooter` right after `Workspace`, as its sibling: a muted bar across the content area
+that sticks to the bottom of the window, with Cancel at the start and Save at the end, both
+`size="lg"` and lined up with the page. Save and Cancel return to the list the page was
+opened from, with its page, sort and filters, which the opening link passes in history
+state. Toasts rise above the footer while it is on screen.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
+A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
+its own last crumb from the route's `staticData.crumbKey`; the parents link back.
 They are hidden on Home and on pages outside the nav. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
@@ -460,6 +471,10 @@ exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTit
 `ComboboxInput width`/`clearLabel`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
+
+**Every toast has a title and a description**: a short title in Title Case (`users.roles.saved-title`,
+"Roles Saved") and a sentence of detail as `description`, which is cut at two lines. The
+shared `Toaster` adds a translated close button, so a call never passes one.
 
 ## Rights and dashboards
 

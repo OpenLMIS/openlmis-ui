@@ -46,6 +46,8 @@ declare module '@tanstack/react-router' {
   interface HistoryState {
     /** On an entry this page pushed to open a dialog, so closing it can step Back. */
     dialogOpenedHere?: boolean;
+    /** The list's search when a user's roles were opened from it, so leaving them returns there. */
+    usersListSearch?: UsersSearch;
   }
 }
 

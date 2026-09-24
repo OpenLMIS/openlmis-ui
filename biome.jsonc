@@ -71,6 +71,11 @@
   // shadcn/ui components and the TanStack Router generated route tree are
   // generated code - leave them completely untouched.
   "overrides": [
+    // Route file names are TanStack Router syntax: `$id` is a param, a trailing `_` stops nesting.
+    {
+      "includes": ["src/routes/**"],
+      "linter": { "rules": { "style": { "useFilenamingConvention": "off" } } }
+    },
     {
       "includes": ["src/components/ui/**", "src/route-tree.gen.ts"],
       "linter": { "enabled": false },
