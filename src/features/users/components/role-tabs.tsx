@@ -51,6 +51,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
 
   return (
     <Tabs
+      spacing="page"
       onValueChange={(value: RoleTab['id']) =>
         onSearchChange({ ...TAB_RESET, tab: value === 'supervision' ? undefined : value })
       }
@@ -72,7 +73,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
           {item.id === tab.id && (
             <div className="flex flex-col gap-4">
               <DataTableToolbar>
-                <div className="w-full @xl/main:w-72">
+                <div className="min-w-0 flex-1 @xl/main:w-72 @xl/main:flex-none">
                   <DataTableSearch
                     label={t('users.roles.search-label')}
                     onValueChange={(q) => onSearchChange({ q, page: undefined }, true)}

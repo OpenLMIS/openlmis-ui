@@ -253,7 +253,7 @@ Two ways out when a page needs a different treatment:
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`, `TabsList wrap`.
+   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
