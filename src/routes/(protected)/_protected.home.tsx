@@ -68,8 +68,13 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
 });
 
 function HomePage() {
+  const userId = useLoginData((state) => state.referenceDataUserId);
+  // Signing out clears the cache before leaving, so the page must not load rights for no one.
+  return userId ? <HomeContent userId={userId} /> : null;
+}
+
+function HomeContent({ userId }: { userId: string }) {
   const { t } = useTranslation();
-  const userId = useLoginData((state) => state.referenceDataUserId) ?? '';
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
   const access = toAccess(rights);
   const [revision, setRevision] = useState(0);
