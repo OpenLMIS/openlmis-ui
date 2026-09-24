@@ -193,82 +193,84 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const viewRights = useCallback((roleId: string) => openDialog({ rights: roleId }), [openDialog]);
 
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <ShieldIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>
-            {t('users.roles.title', { name: fullName(user) || user.username })}
-          </WorkspaceTitle>
-          <WorkspaceDescription>
-            {t('users.roles.description', { username: user.username })}
-          </WorkspaceDescription>
-        </WorkspaceHeading>
-        <WorkspaceActions>
-          <Button onClick={() => openDialog({ dialog: 'import' })} size="lg" variant="outline">
-            <CopyPlusIcon data-icon="inline-start" />
-            {t('users.roles.import')}
-          </Button>
-        </WorkspaceActions>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
-          {save.isError && (
-            <ErrorAlert
-              description={serverMessage(save.error) ?? t('users.roles.save-error')}
-              title={t('users.roles.save-error-title')}
-            />
-          )}
-          <div className="outline-none" ref={rolesRegion} tabIndex={-1}>
-            <RoleTabs
-              compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
-              draft={draft.draft}
-              homeFacilityId={user.homeFacilityId}
-              onAdd={() => openDialog({ dialog: 'add' })}
-              onRemove={removeRole}
-              onSearchChange={updateSearch}
-              onViewRights={viewRights}
-              saved={user.roleAssignments}
-              search={search}
-              tab={tab}
-            />
+    <>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <ShieldIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>
+              {t('users.roles.title', { name: fullName(user) || user.username })}
+            </WorkspaceTitle>
+            <WorkspaceDescription>
+              {t('users.roles.description', { username: user.username })}
+            </WorkspaceDescription>
+          </WorkspaceHeading>
+          <WorkspaceActions>
+            <Button onClick={() => openDialog({ dialog: 'import' })} size="lg" variant="outline">
+              <CopyPlusIcon data-icon="inline-start" />
+              {t('users.roles.import')}
+            </Button>
+          </WorkspaceActions>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+            {save.isError && (
+              <ErrorAlert
+                description={serverMessage(save.error) ?? t('users.roles.save-error')}
+                title={t('users.roles.save-error-title')}
+              />
+            )}
+            <div className="outline-none" ref={rolesRegion} tabIndex={-1}>
+              <RoleTabs
+                compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
+                draft={draft.draft}
+                homeFacilityId={user.homeFacilityId}
+                onAdd={() => openDialog({ dialog: 'add' })}
+                onRemove={removeRole}
+                onSearchChange={updateSearch}
+                onViewRights={viewRights}
+                saved={user.roleAssignments}
+                search={search}
+                tab={tab}
+              />
+            </div>
           </div>
-        </div>
-        {/* A dialogs chunk that fails to load must not take the page, and the draft, with it. */}
-        <CatchBoundary errorComponent={() => null} getResetKey={() => search.dialog ?? ''}>
-          <Suspense fallback={null}>
-            <RoleDialogs
-              addType={search.dialog === 'add' ? tab.type : undefined}
-              draft={draft.draft}
-              hasHomeFacility={Boolean(user.homeFacilityId)}
-              importOpen={search.dialog === 'import'}
-              onAdd={draft.add}
-              onClose={closeDialog}
-              onImport={(assignments, fromUsername) => {
-                const { added } = draft.merge(assignments);
-                toast.success(
-                  t('users.roles.import.imported', { count: added, username: fromUsername }),
-                );
-              }}
-              rightsRoleId={search.rights}
-              userId={user.id}
-              username={user.username}
-            />
-          </Suspense>
-        </CatchBoundary>
-        <DiscardChangesDialog
-          changes={draft.changes}
-          onDiscard={() => {
-            draft.discard();
-            blocker.proceed?.();
-          }}
-          onKeepEditing={() => blocker.reset?.()}
-          open={blocker.status === 'blocked'}
-          username={user.username}
-        />
-      </WorkspaceContent>
+          {/* A dialogs chunk that fails to load must not take the page, and the draft, with it. */}
+          <CatchBoundary errorComponent={() => null} getResetKey={() => search.dialog ?? ''}>
+            <Suspense fallback={null}>
+              <RoleDialogs
+                addType={search.dialog === 'add' ? tab.type : undefined}
+                draft={draft.draft}
+                hasHomeFacility={Boolean(user.homeFacilityId)}
+                importOpen={search.dialog === 'import'}
+                onAdd={draft.add}
+                onClose={closeDialog}
+                onImport={(assignments, fromUsername) => {
+                  const { added } = draft.merge(assignments);
+                  toast.success(
+                    t('users.roles.import.imported', { count: added, username: fromUsername }),
+                  );
+                }}
+                rightsRoleId={search.rights}
+                userId={user.id}
+                username={user.username}
+              />
+            </Suspense>
+          </CatchBoundary>
+          <DiscardChangesDialog
+            changes={draft.changes}
+            onDiscard={() => {
+              draft.discard();
+              blocker.proceed?.();
+            }}
+            onKeepEditing={() => blocker.reset?.()}
+            open={blocker.status === 'blocked'}
+            username={user.username}
+          />
+        </WorkspaceContent>
+      </Workspace>
       <WorkspaceFooter>
         {/* Leaving with unsaved changes asks first, through the blocker. */}
         <Button disabled={save.isPending} onClick={backToUsers} size="lg" variant="outline">
@@ -291,7 +293,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           )}
         </Button>
       </WorkspaceFooter>
-    </Workspace>
+    </>
   );
 }
 

@@ -64,11 +64,13 @@ export function WorkspaceContent({ children }: WorkspaceProps) {
   return <div className="flex flex-1 flex-col gap-4 lg:gap-6">{children}</div>;
 }
 
-/** Stays at the bottom of the window while the page scrolls: Cancel first, then Save. */
+/** Rendered after `Workspace`: full width, stuck to the bottom, buttons aligned with the page. */
 export function WorkspaceFooter({ children }: WorkspaceProps) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center justify-between gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur-sm lg:-mx-6 lg:-mb-6 lg:px-6">
-      {children}
+    <div className="sticky bottom-0 z-10 border-t bg-muted/80 backdrop-blur-sm">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 lg:px-6">
+        {children}
+      </div>
     </div>
   );
 }

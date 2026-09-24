@@ -253,7 +253,7 @@ Two ways out when a page needs a different treatment:
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning`, `Alert warning`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`.
+   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`, `TabsList wrap`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -354,9 +354,10 @@ without an icon, a description or actions just leaves those parts out.
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
 outrank the toolbar controls below them.
 
-A page that edits a draft and saves it at once, like Edit User Roles, ends with
-`WorkspaceFooter`: a bar that sticks to the bottom of the window with Cancel at the start and
-Save at the end, both `size="lg"`. Save returns to where the page was opened from.
+A page that edits a draft and saves it at once, like Edit User Roles, renders
+`WorkspaceFooter` right after `Workspace`, as its sibling: a muted bar across the content area
+that sticks to the bottom of the window, with Cancel at the start and Save at the end, both
+`size="lg"` and lined up with the page. Save returns to where the page was opened from.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.

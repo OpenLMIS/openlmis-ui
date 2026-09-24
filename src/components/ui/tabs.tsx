@@ -28,9 +28,15 @@ const tabsListVariants = cva(
         default: "bg-muted",
         line: "gap-1 bg-transparent",
       },
+      // Two by two in a narrow container (the nearest `@container`), one row once they fit.
+      wrap: {
+        false: "",
+        true: "grid w-full grid-cols-2 group-data-horizontal/tabs:h-auto @lg:inline-flex @lg:w-fit @lg:group-data-horizontal/tabs:h-8",
+      },
     },
     defaultVariants: {
       variant: "default",
+      wrap: false,
     },
   }
 )
@@ -38,13 +44,14 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  wrap = false,
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
+      className={cn(tabsListVariants({ variant, wrap }), className)}
       {...props}
     />
   )

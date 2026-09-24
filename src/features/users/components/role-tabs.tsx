@@ -56,9 +56,9 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
       }
       value={tab.id}
     >
-      {/* Scrolls sideways on a phone rather than wrapping four tabs onto two rows. */}
-      <div className="no-scrollbar -mx-1 overflow-x-auto px-1 pb-1">
-        <TabsList aria-label={t('users.roles.tabs-label')}>
+      {/* A size container, so the tabs go two by two when four do not fit in a row. */}
+      <div className="@container">
+        <TabsList aria-label={t('users.roles.tabs-label')} wrap>
           {ROLE_TABS.map((item) => (
             <TabsTrigger key={item.id} value={item.id}>
               {t(item.labelKey)}
