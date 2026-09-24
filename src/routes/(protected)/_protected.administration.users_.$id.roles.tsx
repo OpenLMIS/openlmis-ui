@@ -8,8 +8,8 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
-import { CopyPlusIcon, ShieldIcon, UserXIcon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useRef, useState } from 'react';
+import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
+import { lazy, Suspense, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
@@ -30,6 +30,7 @@ import {
   WorkspaceActions,
   WorkspaceContent,
   WorkspaceDescription,
+  WorkspaceFooter,
   WorkspaceHeader,
   WorkspaceHeading,
   WorkspaceIcon,
@@ -50,7 +51,7 @@ import { DiscardChangesDialog } from '@/features/users/components/discard-change
 import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
 import { RoleTabs } from '@/features/users/components/role-tabs';
 import { fullName } from '@/features/users/lib/names';
-import { ROLE_TABS, type RoleRow } from '@/features/users/lib/role-assignments';
+import { countChanges, ROLE_TABS, type RoleRow } from '@/features/users/lib/role-assignments';
 import {
   CLOSED_ROLE_DIALOGS,
   type RolesSearch,
@@ -107,7 +108,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const draft = useRoleDraft(user.roleAssignments);
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
   const updateSearch = useCallback(
     (update: Parameters<SearchChange<RolesSearch>>[0], replace = false) =>
@@ -134,17 +134,33 @@ function RolesEditor({ details }: { details: UserDetails }) {
     else updateSearch(CLOSED_ROLE_DIALOGS, true);
   }, [router, updateSearch]);
 
+  // The draft as it is now, for a save that finishes after later edits.
+  const latestDraft = useRef(draft.draft);
+  latestDraft.current = draft.draft;
+  // Set once the page may be left without asking, e.g. right after a save.
+  const leaving = useRef(false);
+  const backToUsers = useCallback(
+    () => navigate({ to: '/administration/users', search: {} }),
+    [navigate],
+  );
+
   const save = useMutation({
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
     onSuccess: (saved, sent) => {
       queryClient.setQueryData(userDetailsOptions(user.id).queryKey, (previous) =>
         previous ? { ...previous, user: saved } : previous,
       );
+      const editedMeanwhile = countChanges(sent, latestDraft.current) > 0;
       draft.commit(sent, saved.roleAssignments);
       toast.success(t('users.roles.saved', { username: user.username }));
       // Your own roles decide what this app shows you.
       if (user.id === signedInUserId) {
         void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
+      }
+      // Back to the list, as legacy does, unless that would drop edits made during the save.
+      if (!editedMeanwhile) {
+        leaving.current = true;
+        void backToUsers();
       }
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
@@ -153,7 +169,10 @@ function RolesEditor({ details }: { details: UserDetails }) {
   // Tabs, dialogs and paging stay on this page; only leaving it can lose the draft.
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
-      draft.changes > 0 && current.pathname !== next.pathname && next.pathname !== '/login',
+      !leaving.current &&
+      draft.changes > 0 &&
+      current.pathname !== next.pathname &&
+      next.pathname !== '/login',
     enableBeforeUnload: () => draft.changes > 0,
     withResolver: true,
   });
@@ -191,31 +210,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
           <Button onClick={() => openDialog({ dialog: 'import' })} size="lg" variant="outline">
             <CopyPlusIcon data-icon="inline-start" />
             {t('users.roles.import')}
-          </Button>
-          {draft.changes > 0 && (
-            <Button
-              disabled={save.isPending}
-              onClick={() => setConfirmingDiscard(true)}
-              size="lg"
-              variant="outline"
-            >
-              {t('users.roles.discard')}
-            </Button>
-          )}
-          <Button
-            disabled={draft.changes === 0 || save.isPending}
-            onClick={() => save.mutate(draft.draft)}
-            size="lg"
-          >
-            {t('users.roles.save')}
-            {draft.changes > 0 && (
-              <Badge variant="secondary">
-                <span aria-hidden="true">{draft.changes}</span>
-                <span className="sr-only">
-                  {t('users.roles.unsaved-count', { count: draft.changes })}
-                </span>
-              </Badge>
-            )}
           </Button>
         </WorkspaceActions>
       </WorkspaceHeader>
@@ -268,17 +262,35 @@ function RolesEditor({ details }: { details: UserDetails }) {
           changes={draft.changes}
           onDiscard={() => {
             draft.discard();
-            setConfirmingDiscard(false);
             blocker.proceed?.();
           }}
-          onKeepEditing={() => {
-            setConfirmingDiscard(false);
-            blocker.reset?.();
-          }}
-          open={confirmingDiscard || blocker.status === 'blocked'}
+          onKeepEditing={() => blocker.reset?.()}
+          open={blocker.status === 'blocked'}
           username={user.username}
         />
       </WorkspaceContent>
+      <WorkspaceFooter>
+        {/* Leaving with unsaved changes asks first, through the blocker. */}
+        <Button disabled={save.isPending} onClick={backToUsers} size="lg" variant="outline">
+          {t('users.roles.cancel')}
+        </Button>
+        <Button
+          disabled={draft.changes === 0 || save.isPending}
+          onClick={() => save.mutate(draft.draft)}
+          size="lg"
+        >
+          {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
+          {t('users.roles.save')}
+          {draft.changes > 0 && (
+            <Badge variant="secondary">
+              <span aria-hidden="true">{draft.changes}</span>
+              <span className="sr-only">
+                {t('users.roles.unsaved-count', { count: draft.changes })}
+              </span>
+            </Badge>
+          )}
+        </Button>
+      </WorkspaceFooter>
     </Workspace>
   );
 }

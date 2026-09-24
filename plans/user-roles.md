@@ -22,8 +22,8 @@ the rest:
 - Adding a role happens in a short dialog with searchable lists, clear required fields,
   and a warning before adding a home facility role the user cannot use.
 - Each tab can be searched and sorted. Removing a role can be undone.
-- Leaving with unsaved changes asks first. Saving stays on the page and changes nothing
-  but the roles.
+- Save and Cancel sit in a bar at the bottom, as in the old UI. Leaving with unsaved
+  changes asks first, and saving changes nothing but the roles.
 - Import Roles copies another user's roles and says how many it will add before it does.
 - It works on a phone and in Arabic.
 
@@ -146,8 +146,8 @@ discard and the leave guard, save with a stubbed `PUT`, 390 px, Arabic.
 | Rights popover on hover | Improve: rights listed in the Add dialog and a View Rights row action | Hover fails on touch and keyboard |
 | Remove confirm with user count | Improve: remove at once with Undo | The count is wrong and the change is not saved yet anyway |
 | Table | Improve: search, sortable columns, pagination with page size | Long supervision lists |
-| Save returns to the list | Improve: stay, toast, Save disabled until something changes | Keep working; breadcrumb goes back |
-| Cancel | Improve: Discard Changes, confirmed; leaving asks too | No silent loss |
+| Save and Cancel in a bar at the bottom | Port: sticky at the bottom of the window; Save returns to the list | The flow legacy users know; Save stays disabled until something changes |
+| Cancel | Improve: returns to the list, and asks first when there are unsaved changes | No silent loss |
 | Import Roles | Improve: searchable user picker and a preview of how many roles it adds | One blind dropdown today |
 | Save rewriting active, contact, auth | Drop | Reactivated deactivated users |
 | Single role preselected | Port | Saves a click on Reports and Fulfillment |

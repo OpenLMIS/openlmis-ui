@@ -354,6 +354,10 @@ without an icon, a description or actions just leaves those parts out.
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
 outrank the toolbar controls below them.
 
+A page that edits a draft and saves it at once, like Edit User Roles, ends with
+`WorkspaceFooter`: a bar that sticks to the bottom of the window with Cancel at the start and
+Save at the end, both `size="lg"`. Save returns to where the page was opened from.
+
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with

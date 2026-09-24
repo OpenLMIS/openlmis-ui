@@ -312,6 +312,7 @@
   "users.roles.actions-for": "Actions for {role}",
   "users.roles.add": "Add Role",
   "users.roles.back": "Back To Users",
+  "users.roles.cancel": "Cancel",
   "users.roles.clear-filters": "Clear Filters",
   "users.roles.column.description": "Description",
   "users.roles.column.facility": "Facility",

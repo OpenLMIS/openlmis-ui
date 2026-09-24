@@ -57,7 +57,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
       value={tab.id}
     >
       {/* Scrolls sideways on a phone rather than wrapping four tabs onto two rows. */}
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+      <div className="no-scrollbar -mx-1 overflow-x-auto px-1 pb-1">
         <TabsList aria-label={t('users.roles.tabs-label')}>
           {ROLE_TABS.map((item) => (
             <TabsTrigger key={item.id} value={item.id}>

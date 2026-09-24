@@ -63,3 +63,12 @@ export function WorkspaceActions({ children }: WorkspaceProps) {
 export function WorkspaceContent({ children }: WorkspaceProps) {
   return <div className="flex flex-1 flex-col gap-4 lg:gap-6">{children}</div>;
 }
+
+/** Stays at the bottom of the window while the page scrolls: Cancel first, then Save. */
+export function WorkspaceFooter({ children }: WorkspaceProps) {
+  return (
+    <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center justify-between gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur-sm lg:-mx-6 lg:-mb-6 lg:px-6">
+      {children}
+    </div>
+  );
+}

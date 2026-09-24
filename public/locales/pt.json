@@ -312,6 +312,7 @@
   "users.roles.actions-for": "Ações para {role}",
   "users.roles.add": "Adicionar Função",
   "users.roles.back": "Voltar aos Utilizadores",
+  "users.roles.cancel": "Cancelar",
   "users.roles.clear-filters": "Limpar Filtros",
   "users.roles.column.description": "Descrição",
   "users.roles.column.facility": "Instalação",

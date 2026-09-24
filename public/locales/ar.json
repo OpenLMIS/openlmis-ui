@@ -312,6 +312,7 @@
   "users.roles.actions-for": "إجراءات {role}",
   "users.roles.add": "إضافة دور",
   "users.roles.back": "العودة إلى المستخدمين",
+  "users.roles.cancel": "إلغاء",
   "users.roles.clear-filters": "مسح عوامل التصفية",
   "users.roles.column.description": "الوصف",
   "users.roles.column.facility": "المرفق",
