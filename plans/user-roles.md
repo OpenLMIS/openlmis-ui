@@ -173,14 +173,13 @@ server's message.
 - Keep every facility as a fulfillment facility, as legacy decided in OLMIS-3805.
 - A home facility role for a user without one is allowed, with a warning, as legacy and
   the server allow it.
-- No rights check added in the route: the Users page has none either, and the server
-  refuses without `USERS_MANAGE`.
-
-## Open Questions
-
-- Should the Users routes check `USERS_MANAGE` up front, instead of relying on the
-  server's refusal?
-- Should fulfillment facilities be limited to warehouses after all?
+- The Users list and the roles page check `USERS_MANAGE` before they load and show a
+  No Access page without it; the nav hides Users too, as legacy guards the page.
+- Fulfillment facilities stay every facility; limiting them to warehouses was dropped.
+- A reload or a closed tab with unsaved roles keeps the browser's own prompt. Signing out
+  asks through the page's Discard Unsaved Changes dialog.
+- Pickers list the first 50 matches until you type, with a hint; that is how OpenLMIS
+  pickers work, so a server-side search is not planned.
 
 ## Steps
 

@@ -485,6 +485,19 @@ depends on them awaits `ensureQueryData(rightsOptions(...))` in its loader, sinc
 a permission check, then prefetches only the parts the user may see and passes plain
 flags down. Features stay free of auth imports; the Home route is the example.
 
+**A page that needs one right checks it before it loads.** Its loader awaits
+`requireRight(queryClient, RIGHTS.x)` from `src/features/auth/lib/access.ts`, which throws a
+`ForbiddenError`; the route's `errorComponent` renders `NoAccessPage` when `isForbidden(error)`,
+which also covers a `403` from the server. Add the page to `NAV_RIGHTS` in
+`src/components/nav-access.ts` too, so the sidebar and the command palette never offer it.
+The Users routes are the example.
+
+**Unsaved work asks before it is lost.** A page with a draft blocks router navigation with
+`useBlocker` and, for leaving the router cannot see, such as signing out, registers
+`useLeaveGuard` from `src/hooks/use-leave-guard.ts`; the sign-out calls `whenLeaveAllowed`.
+Both open the page's own "Discard Unsaved Changes?" dialog. A reload or a closed tab gets the
+browser's own prompt, which is the only one a page is allowed there.
+
 **Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
 ramp: one blue hue, light to dark, checked for even steps and contrast in both modes, used
 in order for anything with an order (pipeline stages). Status meaning (good to critical)

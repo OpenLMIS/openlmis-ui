@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
+import { useNavGroups } from '@/components/nav-access';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -34,7 +35,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { getNavTrail, isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
+import { getNavTrail, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
@@ -43,6 +44,7 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
   const settingsLabel = t('sidebar.settings');
+  const navGroups = useNavGroups();
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
   const isCollapsed = !isMobile && state === 'collapsed';
@@ -74,7 +76,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {LIVE_NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
             {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
             <SidebarGroupContent>

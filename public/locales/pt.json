@@ -149,6 +149,8 @@
   "nav.stock-management.receive": "Receber",
   "nav.stock-management.stock-on-hand": "Stock Disponível",
   "nav.stock-management.unpack": "Desembalar",
+  "no-access.description": "As suas funções não incluem as permissões de que esta página precisa. Peça a um administrador se precisar dela.",
+  "no-access.title": "Sem Acesso a Esta Página",
   "not-found.back-home": "Voltar ao Início",
   "not-found.description": "O endereço pode estar mal escrito, ou a página mudou de lugar ou ainda não existe na nova interface.",
   "not-found.eyebrow": "Erro 404",

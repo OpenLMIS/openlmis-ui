@@ -1,10 +1,16 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  ErrorComponent,
+  type ErrorComponentProps,
+  useRouter,
+} from '@tanstack/react-router';
 import { UsersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import { NoAccessPage } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -15,6 +21,8 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { userDetailsOptions, usersListOptions } from '@/features/users/api/queries';
 import { UsersTable, UsersTableSkeleton } from '@/features/users/components/users-table';
@@ -58,15 +66,22 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     user: search.user,
     password: search.password,
   }),
-  loader: ({ context: { queryClient }, deps }) => {
+  // Managing users takes a right; checked before anything loads, since the list would only fail.
+  loader: async ({ context: { queryClient }, deps }) => {
+    await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery(usersListOptions(deps.query));
     // A dialog's data starts with the navigation, not once the dialog has rendered.
     if (deps.user) queryClient.prefetchQuery(minimalFacilitiesOptions());
     const detailsFor = deps.user ? deps.user !== 'new' && deps.user : deps.password;
     if (detailsFor) queryClient.prefetchQuery(userDetailsOptions(detailsFor));
   },
+  errorComponent: UsersPageError,
   component: UsersPage,
 });
+
+function UsersPageError(props: ErrorComponentProps) {
+  return isForbidden(props.error) ? <NoAccessPage /> : <ErrorComponent {...props} />;
+}
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 

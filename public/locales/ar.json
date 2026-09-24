@@ -149,6 +149,8 @@
   "nav.stock-management.receive": "الاستلام",
   "nav.stock-management.stock-on-hand": "المخزون المتوفر",
   "nav.stock-management.unpack": "فك التعبئة",
+  "no-access.description": "لا تتضمن أدوارك الصلاحيات التي تحتاجها هذه الصفحة. اطلبها من المسؤول إذا كنت بحاجة إليها.",
+  "no-access.title": "لا يمكنك الوصول إلى هذه الصفحة",
   "not-found.back-home": "العودة إلى الرئيسية",
   "not-found.description": "ربما كُتب العنوان بشكل خاطئ، أو نُقلت الصفحة، أو لم تُضف إلى الواجهة الجديدة بعد.",
   "not-found.eyebrow": "خطأ 404",

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 
 type NavUserProps = {
   /** Rendered as the menu trigger so each call site styles its own. */
@@ -53,7 +54,11 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} variant="destructive">
+        {/* A page with unsaved changes asks first. */}
+        <DropdownMenuItem
+          onClick={() => whenLeaveAllowed(() => void handleLogout())}
+          variant="destructive"
+        >
           <LogOutIcon className="rtl:rotate-180" />
           {t('nav-user.log-out')}
         </DropdownMenuItem>

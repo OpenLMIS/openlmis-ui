@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { NoAccessPage } from '@/components/no-access-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +38,8 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { rightsOptions } from '@/features/auth/api/queries';
+import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   minimalFacilitiesOptions,
@@ -59,6 +62,7 @@ import {
 } from '@/features/users/lib/roles-search';
 import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
+import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -71,7 +75,8 @@ const RoleDialogs = lazy(() =>
 export const Route = createFileRoute('/(protected)/_protected/administration/users_/$id/roles')({
   validateSearch: rolesSearchSchema,
   staticData: { crumbKey: 'users.roles' },
-  loader: ({ context: { queryClient }, params }) => {
+  loader: async ({ context: { queryClient }, params }) => {
+    await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery(rolesOptions());
     queryClient.prefetchQuery(programsOptions());
     // Slow, so they start now and fill in the rows when they arrive.
@@ -182,6 +187,10 @@ function RolesEditor({ details }: { details: UserDetails }) {
     enableBeforeUnload: () => draft.changes > 0,
     withResolver: true,
   });
+  // Signing out leaves without the router, so it asks through the same dialog.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
+  useLeaveGuard(draft.changes > 0, askToLeave);
 
   const { add, remove } = draft;
   const rolesRegion = useRef<HTMLDivElement>(null);
@@ -282,9 +291,18 @@ function RolesEditor({ details }: { details: UserDetails }) {
           </CatchBoundary>
           <DiscardChangesDialog
             changes={draft.changes}
-            onDiscard={() => blocker.proceed?.()}
-            onKeepEditing={() => blocker.reset?.()}
-            open={blocker.status === 'blocked'}
+            onDiscard={() => {
+              if (pendingLeave) {
+                leaving.current = true;
+                setPendingLeave(null);
+                pendingLeave();
+              } else blocker.proceed?.();
+            }}
+            onKeepEditing={() => {
+              setPendingLeave(null);
+              blocker.reset?.();
+            }}
+            open={blocker.status === 'blocked' || pendingLeave !== null}
             username={user.username}
           />
         </WorkspaceContent>
@@ -346,6 +364,7 @@ function RolesPageError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const notFound = isAxiosError(error) && error.response?.status === 404;
+  if (isForbidden(error)) return <NoAccessPage />;
 
   return (
     <Workspace>
