@@ -72,10 +72,6 @@ query options and keys, shared components (`data-table/`, `form-dialog/`, `form/
 the closest existing screen to copy (the Users page for lists, the user dialog for short
 forms). It lists what is missing and which AGENTS.md rules apply.
 
-If `../openlmis-migration-backlog/` exists locally, researchers may use its
-`screens.md`, `backlog.md` and `evidence/` screenshots as a head start. They are a
-snapshot, so confirm them against the live legacy UI.
-
 ## 3. Think about the UI/UX
 
 With the research in hand, and the `frontend-design` and `shadcn` skills loaded, decide
