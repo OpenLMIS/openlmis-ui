@@ -332,6 +332,7 @@ function HomeFacilityCombobox() {
   return (
     <ComboboxField
       clearLabel={t('users.form.home-facility-clear')}
+      description={t('users.form.home-facility-description', { count: items.length })}
       emptyMessage={t('users.form.home-facility-empty')}
       items={items}
       label={t('users.form.home-facility')}

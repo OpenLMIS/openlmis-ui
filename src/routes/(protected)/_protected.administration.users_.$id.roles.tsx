@@ -201,6 +201,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
       const id = toast(t('users.roles.removed-title'), {
         description: t('users.roles.removed', { role: row.role ?? t('users.roles.unknown') }),
         action: { label: t('users.roles.undo'), onClick: () => add(row.assignment) },
+        // Twice the usual time, so Undo can be reached by keyboard too.
+        duration: 8000,
       });
       removalToasts.current.add(id);
     },

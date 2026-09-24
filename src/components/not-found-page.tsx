@@ -37,8 +37,8 @@ function NotFoundContent() {
   const { t } = useTranslation();
   const router = useRouter();
   const { pathname } = useLocation();
-  // Only when there is somewhere to go back to, e.g. not on a link opened in a new tab.
-  const canGoBack = router.history.canGoBack();
+  // The browser's history, so a typed or bookmarked address can go back too; a new tab cannot.
+  const canGoBack = window.history.length > 1;
 
   return (
     <>

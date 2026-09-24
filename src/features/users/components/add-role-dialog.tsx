@@ -266,7 +266,7 @@ function NodeCombobox() {
   return (
     <ComboboxField
       clearLabel={t('users.roles.form.node-clear')}
-      description={t('users.roles.form.node-description')}
+      description={t('users.roles.form.node-description', { count: items.length })}
       emptyMessage={t('users.roles.form.node-empty')}
       items={items}
       label={t('users.roles.form.node')}
