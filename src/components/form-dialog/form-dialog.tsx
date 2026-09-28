@@ -199,7 +199,8 @@ export function FormDialogSubmit({
   children,
 }: FormDialogSubmitProps) {
   return (
-    <Button disabled={pending || disabled} type="submit">
+    // Focusable while pending, so pressing it does not drop keyboard focus out of the dialog.
+    <Button disabled={pending || disabled} focusableWhenDisabled={pending} type="submit">
       {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
       {children}
     </Button>

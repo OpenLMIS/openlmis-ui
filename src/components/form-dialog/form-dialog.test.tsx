@@ -47,7 +47,7 @@ describe('FormDialog', () => {
   it('locks both buttons while saving', () => {
     renderDialog({ pending: true });
 
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   });
 });
@@ -240,5 +240,57 @@ describe('FormDialog focus on touch', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.getByRole('dialog')).toHaveFocus();
+  });
+});
+
+describe('FormDialogSubmit', () => {
+  it('keeps focus while it saves, so keyboard users are not dropped out of the dialog', async () => {
+    const { rerender } = render(
+      <FormDialog onOpenChange={vi.fn()} open>
+        <FormDialogForm onSubmit={vi.fn()}>
+          <FormDialogFooter>
+            <FormDialogSubmit>Save</FormDialogSubmit>
+          </FormDialogFooter>
+        </FormDialogForm>
+      </FormDialog>,
+    );
+    screen.getByRole('button', { name: 'Save' }).focus();
+
+    rerender(
+      <FormDialog onOpenChange={vi.fn()} open>
+        <FormDialogForm onSubmit={vi.fn()}>
+          <FormDialogFooter>
+            <FormDialogSubmit pending>Save</FormDialogSubmit>
+          </FormDialogFooter>
+        </FormDialogForm>
+      </FormDialog>,
+    );
+
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toHaveFocus();
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('FormDialogForm while saving', () => {
+  it('does not submit again when Enter is pressed in a field', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <FormDialog onOpenChange={vi.fn()} open>
+        <FormDialogForm onSubmit={onSubmit}>
+          <FormDialogBody>
+            <input aria-label="Name" />
+          </FormDialogBody>
+          <FormDialogFooter>
+            <FormDialogSubmit pending>Save</FormDialogSubmit>
+          </FormDialogFooter>
+        </FormDialogForm>
+      </FormDialog>,
+    );
+
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada{Enter}');
+
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
