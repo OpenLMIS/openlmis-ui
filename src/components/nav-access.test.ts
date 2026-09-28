@@ -47,6 +47,13 @@ describe('canOpen', () => {
     expect(canOpen('/administration/users', new Set())).toBe(false);
   });
 
+  it('opens Service Accounts only to someone who may manage them', () => {
+    expect(canOpen('/administration/service-accounts', new Set(['SERVICE_ACCOUNTS_MANAGE']))).toBe(
+      true,
+    );
+    expect(canOpen('/administration/service-accounts', new Set(['USERS_MANAGE']))).toBe(false);
+  });
+
   it('opens Roles to someone who may manage users', () => {
     expect(canOpen('/administration/roles', new Set(['USERS_MANAGE']))).toBe(true);
     expect(canOpen('/administration/roles', new Set(['USER_ROLES_MANAGE']))).toBe(false);

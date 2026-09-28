@@ -128,7 +128,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.requisition-groups', to: '#' },
           { titleKey: 'nav.administration.requisition-templates', to: '#' },
           { titleKey: 'nav.administration.roles', to: '/administration/roles' },
-          { titleKey: 'nav.administration.service-accounts', to: '#' },
+          {
+            titleKey: 'nav.administration.service-accounts',
+            to: '/administration/service-accounts',
+          },
           { titleKey: 'nav.administration.supervisory-nodes', to: '#' },
           { titleKey: 'nav.administration.supply-lines', to: '#' },
           { titleKey: 'nav.administration.supply-partners', to: '#' },
