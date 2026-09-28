@@ -50,8 +50,8 @@ type FieldProps = {
   disabled?: boolean;
 };
 
-/** The field's errors as display text, and whether there are any. */
-function useFieldErrors() {
+/** The field's errors as display text, whether there are any, and what the control is described by. */
+function useFieldErrors(description?: ReactNode, extraDescribedBy?: string) {
   const field = useFieldContext<unknown>();
   const formatError = useFormatError();
   const errors = field.state.meta.errors.map((error: unknown) => ({
@@ -62,7 +62,15 @@ function useFieldErrors() {
           ? formatError(String(error.message))
           : undefined,
   }));
-  return { errors, isInvalid: errors.length > 0 };
+  const isInvalid = errors.length > 0;
+  const descriptionId = `${field.name}-description`;
+  const errorId = `${field.name}-error`;
+  // Read out with the control, so a screen reader hears the hint and, after a submit, the error.
+  const describedBy =
+    [description ? descriptionId : '', extraDescribedBy ?? '', isInvalid ? errorId : '']
+      .filter(Boolean)
+      .join(' ') || undefined;
+  return { errors, isInvalid, descriptionId, errorId, describedBy };
 }
 
 /** A label's text with the required mark, for any label, including a skeleton's. */
@@ -107,12 +115,19 @@ export function TextField({
   dir,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
-  const { errors, isInvalid } = useFieldErrors();
+  const {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    describedBy: ariaDescribedBy,
+  } = useFieldErrors(description);
 
   return (
     <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
       <RequiredLabel label={label} required={required} />
       <Input
+        aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         aria-required={required}
         autoComplete={autoComplete}
@@ -126,8 +141,8 @@ export function TextField({
         type={type}
         value={field.state.value}
       />
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} />}
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
     </Field>
   );
 }
@@ -144,12 +159,19 @@ export function TextareaField({
   placeholder,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
-  const { errors, isInvalid } = useFieldErrors();
+  const {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    describedBy: ariaDescribedBy,
+  } = useFieldErrors(description);
 
   return (
     <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
       <RequiredLabel label={label} required={required} />
       <Textarea
+        aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         aria-required={required}
         disabled={disabled}
@@ -160,8 +182,8 @@ export function TextareaField({
         placeholder={placeholder}
         value={field.state.value}
       />
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} />}
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
     </Field>
   );
 }
@@ -187,7 +209,13 @@ export function PasswordField({
   describedBy,
 }: PasswordFieldProps) {
   const field = useFieldContext<string>();
-  const { errors, isInvalid } = useFieldErrors();
+  const {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    describedBy: ariaDescribedBy,
+  } = useFieldErrors(description, describedBy);
   const [visible, setVisible] = useState(false);
 
   return (
@@ -195,7 +223,7 @@ export function PasswordField({
       <RequiredLabel label={label} required={required} />
       <InputGroup>
         <InputGroupInput
-          aria-describedby={describedBy}
+          aria-describedby={ariaDescribedBy}
           aria-invalid={isInvalid}
           aria-required={required}
           autoComplete={autoComplete}
@@ -221,8 +249,8 @@ export function PasswordField({
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} />}
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
     </Field>
   );
 }
@@ -334,7 +362,13 @@ type SelectFieldProps = FieldProps & {
 /** One of a short, fixed list; the field's value is the item's `value`. */
 export function SelectField({ label, description, required, disabled, items }: SelectFieldProps) {
   const field = useFieldContext<string>();
-  const { errors, isInvalid } = useFieldErrors();
+  const {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    describedBy: ariaDescribedBy,
+  } = useFieldErrors(description);
 
   return (
     <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
@@ -346,6 +380,7 @@ export function SelectField({ label, description, required, disabled, items }: S
         value={field.state.value}
       >
         <SelectTrigger
+          aria-describedby={ariaDescribedBy}
           aria-invalid={isInvalid}
           aria-required={required}
           id={field.name}
@@ -362,8 +397,8 @@ export function SelectField({ label, description, required, disabled, items }: S
           ))}
         </SelectContent>
       </Select>
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} />}
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
     </Field>
   );
 }
@@ -396,7 +431,13 @@ export function ComboboxField({
   limit = 50,
 }: ComboboxFieldProps) {
   const field = useFieldContext<string | null>();
-  const { errors, isInvalid } = useFieldErrors();
+  const {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    describedBy: ariaDescribedBy,
+  } = useFieldErrors(description);
   const selected = useMemo(
     () => items.find((item) => item.value === field.state.value) ?? null,
     [items, field.state.value],
@@ -419,6 +460,7 @@ export function ComboboxField({
         value={selected}
       >
         <ComboboxInput
+          aria-describedby={ariaDescribedBy}
           aria-invalid={isInvalid}
           aria-required={required}
           clearLabel={clearLabel}
@@ -440,8 +482,8 @@ export function ComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} />}
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
     </Field>
   );
 }
@@ -464,7 +506,13 @@ export function MultiComboboxField({
   removeLabel,
 }: MultiComboboxFieldProps) {
   const field = useFieldContext<string[]>();
-  const { errors, isInvalid } = useFieldErrors();
+  const {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    describedBy: ariaDescribedBy,
+  } = useFieldErrors(description);
   const anchor = useComboboxAnchor();
   const selected = useMemo(() => {
     const chosen = new Set(field.state.value);
@@ -497,6 +545,7 @@ export function MultiComboboxField({
                   </ComboboxChip>
                 ))}
                 <ComboboxChipsInput
+                  aria-describedby={ariaDescribedBy}
                   aria-invalid={isInvalid}
                   aria-required={required}
                   disabled={disabled}
@@ -519,8 +568,8 @@ export function MultiComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} />}
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
     </Field>
   );
 }

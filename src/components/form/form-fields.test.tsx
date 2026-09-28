@@ -55,7 +55,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       }}
     >
       <form.AppField name="name">
-        {(field) => <field.TextField label="Name" required />}
+        {(field) => <field.TextField description="As on the ID card" label="Name" required />}
       </form.AppField>
       <form.AppField name="facility">
         {(field) => (
@@ -103,6 +103,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       <form.AppField name="channel">
         {(field) => (
           <field.SelectField
+            description="How messages reach you"
             items={[
               { value: 'EMAIL', label: 'Email' },
               { value: 'SMS', label: 'SMS' },
@@ -247,5 +248,24 @@ describe('form fields', () => {
   it('keeps a code-like value left to right in any language', () => {
     renderForm();
     expect(screen.getByRole('textbox', { name: 'Code' })).toHaveAttribute('dir', 'ltr');
+  });
+
+  it('tells screen readers what a field is for and, after a failed submit, what is wrong', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const described = (element: HTMLElement) =>
+      (element.getAttribute('aria-describedby') ?? '')
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(' | ');
+
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    expect(described(name)).toBe('As on the ID card');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(described(name)).toBe('As on the ID card | translated:name.required');
+
+    expect(described(screen.getByRole('combobox', { name: 'Channel' }))).toBe(
+      'How messages reach you',
+    );
   });
 });
