@@ -1,12 +1,19 @@
 import { QueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { useLoginData } from '@/features/auth/store/login-data';
+
+/** One more try for a failure that may pass, none for a refusal that will not. */
+export function shouldRetry(failureCount: number, error: unknown) {
+  const status = isAxiosError(error) ? error.response?.status : undefined;
+  return failureCount < 1 && status !== 401 && status !== 403;
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Hovering a link preloads its route; without this, the click would fetch the same data again.
       staleTime: 30_000,
-      retry: 1,
+      retry: shouldRetry,
       refetchOnWindowFocus: false,
     },
     mutations: {

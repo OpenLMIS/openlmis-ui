@@ -6,8 +6,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TextDirectionProvider } from '@/components/text-direction';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { LEGACY_TOKEN_STORAGE_KEY } from '@/features/auth/lib/legacy-session';
-import { syncLegacySession, useLoginData } from '@/features/auth/store/login-data';
+import { syncLegacySession, syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { initI18n } from '@/integrations/i18n';
 import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
@@ -21,11 +20,12 @@ await Promise.all([initI18n(), loadRuntimeConfig()]);
 // Before the router guards read the store, so a legacy session lands on /home.
 syncLegacySession();
 
-// `storage` fires in the other tabs, so signing out of the legacy UI signs us out too.
-window.addEventListener('storage', (event) => {
-  if (event.key !== null && event.key !== LEGACY_TOKEN_STORAGE_KEY) return;
+// `storage` fires in the other tabs, so signing out anywhere, here or in the legacy UI, reaches this one.
+window.addEventListener('storage', async (event) => {
+  const wasAuthenticated = useLoginData.getState().isAuthenticated;
+  await syncOtherTab(event.key);
 
-  if (syncLegacySession() && !useLoginData.getState().isAuthenticated) {
+  if (wasAuthenticated && !useLoginData.getState().isAuthenticated) {
     router.navigate({ to: '/login' });
   }
 });

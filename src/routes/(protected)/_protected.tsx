@@ -4,9 +4,11 @@ import { AppShellSkeleton } from '@/components/app-shell-skeleton';
 import { useLoginData } from '@/features/auth/store/login-data';
 
 export const Route = createFileRoute('/(protected)/_protected')({
-  beforeLoad: () => {
+  beforeLoad: ({ location }) => {
     if (!useLoginData.getState().isAuthenticated) {
-      throw redirect({ to: '/login' });
+      // Home is where signing in lands anyway, so only another page is worth carrying along.
+      const search = location.pathname === '/home' ? {} : { redirect: location.href };
+      throw redirect({ to: '/login', search });
     }
   },
   component: ProtectedLayout,

@@ -2,6 +2,7 @@ import { revalidateLogic } from '@tanstack/react-form';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Loader2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import * as z from 'zod';
 import { useAppForm } from '@/components/form/form';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
@@ -19,11 +20,16 @@ import { FieldGroup } from '@/components/ui/field';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { safeRedirect } from '@/lib/redirect';
+
+// The page a signed-out user asked for, opened once they sign in.
+const loginSearchSchema = z.object({ redirect: z.string().optional().catch(undefined) });
 
 export const Route = createFileRoute('/login')({
-  beforeLoad: () => {
+  validateSearch: loginSearchSchema,
+  beforeLoad: ({ search }) => {
     if (useLoginData.getState().isAuthenticated) {
-      throw redirect({ to: '/home' });
+      throw redirect({ href: safeRedirect(search.redirect) });
     }
   },
   component: LoginPage,
@@ -32,6 +38,7 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { login } = useAuthActions();
 
   const form = useAppForm({
@@ -43,7 +50,7 @@ function LoginPage() {
     validators: { onDynamic: loginSchema },
     onSubmit: async ({ value }) => {
       if (await login(value)) {
-        await navigate({ to: '/home' });
+        await navigate({ href: safeRedirect(search.redirect) });
       }
     },
   });

@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import * as authApi from '@/features/auth/api/api';
@@ -18,9 +19,15 @@ export function useAuthActions(): AuthActions {
 
   const login = async (credentials: LoginInput) => {
     try {
-      const { referenceDataUserId, username, access_token } = await authApi.login(credentials);
+      const { referenceDataUserId, username, access_token, expires_in } =
+        await authApi.login(credentials);
 
-      setLoginData({ referenceDataUserId, username, accessToken: access_token });
+      setLoginData({
+        referenceDataUserId,
+        username,
+        accessToken: access_token,
+        expiresIn: expires_in,
+      });
       toast.success(t('auth.login-success-title'), {
         description: t('auth.login-success', { username }),
       });
@@ -38,8 +45,11 @@ export function useAuthActions(): AuthActions {
     try {
       await authApi.logout();
     } catch (error) {
-      console.error('[useAuthActions.logout]', error);
-      toast.error(t('auth.logout-error-title'), { description: t('auth.logout-error') });
+      // Refused because the session had already ended, which is what signing out wants anyway.
+      if (!isAxiosError(error) || error.response?.status !== 401) {
+        console.error('[useAuthActions.logout]', error);
+        toast.error(t('auth.logout-error-title'), { description: t('auth.logout-error') });
+      }
     } finally {
       // Clear locally even if the call failed, or an offline user stays stuck logged in.
       clearLoginData();

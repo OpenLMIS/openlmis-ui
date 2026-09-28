@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { clearLegacySession, readLegacySession } from '@/features/auth/lib/legacy-session';
+import { waitForSession } from '@/features/auth/lib/session';
 import { syncLegacySession, useLoginData } from '@/features/auth/store/login-data';
 
 function signInLegacy(token: string, username = 'administrator') {
@@ -122,6 +123,18 @@ describe('syncLegacySession', () => {
 
     expect(syncLegacySession()).toBe(false);
     expect(useLoginData.getState().isAuthenticated).toBe(true);
+  });
+
+  it('picks up a new legacy token for the same user without ending the session', async () => {
+    signInLegacy('first-token');
+    syncLegacySession();
+    useLoginData.getState().expireSession();
+    const waiting = waitForSession('legacy-user-id');
+
+    signInLegacy('second-token');
+
+    expect(syncLegacySession()).toBe(true);
+    await expect(waiting).resolves.toBe('second-token');
   });
 
   it('is a no-op when neither side is signed in', () => {
