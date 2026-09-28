@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
 
-/** For a menu whose items open a dialog: the menu hands focus back to its trigger only when no dialog took it. */
 export function useMenuOpensDialog() {
   const opened = useRef(false);
 

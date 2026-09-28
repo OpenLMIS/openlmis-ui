@@ -392,7 +392,6 @@ type MultiComboboxFieldProps = FieldProps & {
   items: readonly ComboboxFieldItem[];
   placeholder?: string;
   emptyMessage: ReactNode;
-  /** Names each chip's remove button, for screen readers, e.g. `Remove ${label}`. */
   removeLabel: (label: string) => string;
 };
 
