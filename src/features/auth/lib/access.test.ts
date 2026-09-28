@@ -14,9 +14,11 @@ beforeEach(() => {
 });
 
 describe('requireRight', () => {
-  it('resolves when the user holds the right anywhere', async () => {
+  it('resolves with all the rights when the user holds the one asked for anywhere', async () => {
     permissionStrings.mockResolvedValueOnce(['USERS_MANAGE', 'REQUISITION_VIEW|f1|p1']);
-    await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).resolves.toBeUndefined();
+    await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).resolves.toEqual(
+      new Set(['USERS_MANAGE', 'REQUISITION_VIEW']),
+    );
   });
 
   it('throws a forbidden error when the user does not', async () => {

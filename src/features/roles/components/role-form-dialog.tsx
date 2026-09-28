@@ -5,7 +5,6 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,7 +32,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -64,7 +62,8 @@ import {
   toRoleBody,
   toRoleFormValues,
 } from '@/features/roles/lib/role-form';
-import { isNotFound } from '@/lib/http';
+import { withSavedRole } from '@/features/roles/lib/roles-list';
+import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
 /** One key per role, so a save still running for one never locks another's dialog. */
@@ -167,6 +166,9 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
       return role ? updateRole(role.id, body) : createRole(body);
     },
     onSuccess: (saved) => {
+      queryClient.setQueryData(rolesOptions().queryKey, (roles) =>
+        roles ? withSavedRole(roles, saved) : roles,
+      );
       if (role) {
         toast.success(t('roles.form.updated-title'), {
           description: t('roles.form.updated', { role: saved.name, count: holders }),
@@ -178,7 +180,10 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
       }
       onSaved();
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.roles.all }),
+    // Not awaited: the list already shows the saved role, so the dialog closes without waiting for it.
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
+    },
   });
 
   const submit = (values: RoleFormValues) =>
@@ -250,8 +255,11 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
                     <QueryBoundary
                       errorComponent={({ error, reset }) =>
                         // View Rights can be taken away since the page checked it.
-                        isAxiosError(error) && error.response?.status === 403 ? (
-                          <NoAccess />
+                        isRefused(error) ? (
+                          <ErrorAlert
+                            description={t('roles.form.no-access')}
+                            title={t('roles.form.no-access-title')}
+                          />
                         ) : (
                           <ErrorAlert
                             action={<RetryButton onClick={reset} />}
@@ -387,8 +395,8 @@ function NoAccessContent({ title }: { title: string }) {
     <>
       <FormDialogHeader>
         <FormDialogTitle>{title}</FormDialogTitle>
+        <FormDialogDescription>{t('roles.form.no-access')}</FormDialogDescription>
       </FormDialogHeader>
-      <NoAccess />
       <FormDialogFooter>
         <FormDialogCancel>{t('roles.form.close')}</FormDialogCancel>
       </FormDialogFooter>

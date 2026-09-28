@@ -26,6 +26,8 @@ export function FormDialog({
   onOpenChangeComplete,
   children,
 }: FormDialogProps) {
+  const popupRef = useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       // A click outside would throw away everything typed, so only Cancel, Close and Escape close it.
@@ -34,7 +36,15 @@ export function FormDialog({
       onOpenChangeComplete={onOpenChangeComplete}
       open={open}
     >
-      <DialogContent layout="scroll" size="lg">
+      <DialogContent
+        // Until a field is there the popup holds focus; on touch it keeps it, so no keyboard pops up.
+        initialFocus={() =>
+          (!lastPressWasTouch && firstField(popupRef.current)) || popupRef.current
+        }
+        layout="scroll"
+        ref={popupRef}
+        size="lg"
+      >
         {children}
       </DialogContent>
     </Dialog>
@@ -42,8 +52,40 @@ export function FormDialog({
 }
 
 const FIELD_SELECTOR = ['input:not([type=hidden])', 'textarea', 'select', 'button', '[tabindex]']
-  .map((control) => `${control}:not(:disabled):not([tabindex="-1"]):not([aria-disabled="true"])`)
+  .map(
+    (control) =>
+      `${control}:not(:disabled):not([hidden]):not([tabindex="-1"]):not([aria-disabled="true"])`,
+  )
   .join(', ');
+
+// A dialog opened from the URL never learns what opened it, so the last press is kept here.
+let lastPressWasTouch = false;
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      lastPressWasTouch = event.pointerType === 'touch';
+    },
+    true,
+  );
+  document.addEventListener(
+    'keydown',
+    () => {
+      lastPressWasTouch = false;
+    },
+    true,
+  );
+}
+
+/** The first field of the form's body; the footer's buttons are never where a form starts. */
+function firstField(root: Element | null | undefined) {
+  const form = root?.matches('form') ? root : root?.querySelector('form');
+  const body = form?.querySelector('[data-slot=form-dialog-body]') ?? form;
+  return body?.querySelector<HTMLElement>(FIELD_SELECTOR) ?? null;
+}
+
+// Long enough for a slow lookup to arrive, short enough that a late field never surprises anyone.
+const WAIT_FOR_FIELD_MS = 10_000;
 
 type FormDialogFormProps = {
   onSubmit: () => void;
@@ -54,10 +96,35 @@ type FormDialogFormProps = {
 export function FormDialogForm({ onSubmit, children }: FormDialogFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
-  // The dialog focuses its loading placeholder; when the form replaces it, focus would be left on the page.
+  // Moves focus from the popup to the first field once there is one, e.g. after a loading placeholder.
   useEffect(() => {
-    if (document.activeElement && document.activeElement !== document.body) return;
-    formRef.current?.querySelector<HTMLElement>(FIELD_SELECTOR)?.focus();
+    const form = formRef.current;
+    if (!form || lastPressWasTouch) return;
+    const popup = form.closest('[role=dialog]');
+    const observer = new MutationObserver(() => tryFocus());
+    const stop = () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+    function tryFocus() {
+      const active = document.activeElement;
+      // Focus someone put on another part of the dialog is theirs to keep.
+      if (active && active !== popup && popup?.contains(active)) return stop();
+      const field = firstField(form);
+      if (!field) return;
+      field.focus();
+      stop();
+    }
+    // A frame late, since a radio group makes its checked item tabbable only once it has mounted.
+    const frame = requestAnimationFrame(tryFocus);
+    const timer = setTimeout(stop, WAIT_FOR_FIELD_MS);
+    observer.observe(form, {
+      subtree: true,
+      childList: true,
+      attributeFilter: ['tabindex', 'disabled'],
+    });
+    return stop;
   }, []);
 
   return (
@@ -96,7 +163,11 @@ export function FormDialogDescription({ children }: { children: ReactNode }) {
 /** Scrolls on its own, so the header and footer stay in view on a short screen. */
 export function FormDialogBody({ children }: { children: ReactNode }) {
   // Bleeds to the dialog's edges, so focus rings are not clipped and the scrollbar sits at the edge.
-  return <div className="-mx-4 min-h-0 flex-1 overflow-y-auto px-4 py-1">{children}</div>;
+  return (
+    <div className="-mx-4 min-h-0 flex-1 overflow-y-auto px-4 py-1" data-slot="form-dialog-body">
+      {children}
+    </div>
+  );
 }
 
 export function FormDialogFooter({ children }: { children: ReactNode }) {
@@ -128,7 +199,8 @@ export function FormDialogSubmit({
   children,
 }: FormDialogSubmitProps) {
   return (
-    <Button disabled={pending || disabled} type="submit">
+    // Focusable while pending, so pressing it does not drop keyboard focus out of the dialog.
+    <Button disabled={pending || disabled} focusableWhenDisabled={pending} type="submit">
       {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
       {children}
     </Button>
