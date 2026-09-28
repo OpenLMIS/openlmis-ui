@@ -348,7 +348,7 @@
   "roles.form.name": "Name",
   "roles.form.name-required": "Enter a name.",
   "roles.form.name-taken": "Another role already has this name.",
-  "roles.form.no-access": "Creating and editing roles needs the Manage User Roles and View Rights rights. Ask an administrator if you need them.",
+  "roles.form.no-access": "Creating and editing roles needs Manage User Roles and View Rights. Ask an administrator if you need them.",
   "roles.form.no-access-title": "No Access",
   "roles.form.not-found": "This role no longer exists.",
   "roles.form.other-type-description": "{count, plural, one {This role also holds a right of another type, {rights}. Saving removes it,} other {This role also holds # rights of another type: {rights}. Saving removes them,}} since a role holds rights of one type.",

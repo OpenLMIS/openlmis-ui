@@ -54,12 +54,10 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
   validateSearch: rolesSearchSchema,
   loaderDeps: ({ search }) => ({ role: search.role }),
   loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.usersManage);
+    const rights = await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery({ ...rolesOptions(), staleTime: LIST_FRESH_FOR });
-    const userId = useLoginData.getState().referenceDataUserId ?? '';
-    // Already loaded by the check above; the dialog's data is only worth loading for someone who can edit.
-    const { canEdit } = toRoleAccess(await queryClient.ensureQueryData(rightsOptions(userId)));
-    if (!canEdit) return;
+    // The dialog's data is only worth loading for someone who can edit.
+    if (!toRoleAccess(rights).canEdit) return;
     if (deps.role === 'new') {
       // Every tab's rights, so switching the type never waits.
       for (const { type } of ROLE_TYPES) queryClient.prefetchQuery(rightsByTypeOptions(type));

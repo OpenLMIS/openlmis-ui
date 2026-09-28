@@ -50,7 +50,10 @@ export function FormDialog({
 }
 
 const FIELD_SELECTOR = ['input:not([type=hidden])', 'textarea', 'select', 'button', '[tabindex]']
-  .map((control) => `${control}:not(:disabled):not([tabindex="-1"]):not([aria-disabled="true"])`)
+  .map(
+    (control) =>
+      `${control}:not(:disabled):not([hidden]):not([tabindex="-1"]):not([aria-disabled="true"])`,
+  )
   .join(', ');
 
 const firstField = (root: Element | null | undefined) =>

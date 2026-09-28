@@ -146,3 +146,20 @@ describe('FormDialog focus', () => {
     expect(screen.getByRole('radio', { name: 'Send Reset Email' })).toHaveFocus();
   });
 });
+
+describe('FormDialog focus with a hidden field', () => {
+  it('skips a hidden input, such as a username kept for password managers', async () => {
+    render(
+      <FormDialog onOpenChange={vi.fn()} open>
+        <FormDialogForm onSubmit={vi.fn()}>
+          <FormDialogBody>
+            <input autoComplete="username" hidden readOnly value="ada" />
+            <input aria-label="New Password" type="password" />
+          </FormDialogBody>
+        </FormDialogForm>
+      </FormDialog>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('New Password')).toHaveFocus());
+  });
+});

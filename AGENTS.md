@@ -502,7 +502,9 @@ flags down. Features stay free of auth imports; the Home route is the example.
 data it must have, and a missing right throws a `ForbiddenError`. The default error component
 shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
 `errorComponent` checks `isForbidden(error)` first, and so does a `QueryBoundary` whose data
-the server may refuse, showing `NoAccess`. Add the page to `NAV_RIGHTS` in
+the server may refuse, showing `NoAccess`. Inside a feature, which has no auth imports, such a
+boundary checks `isRefused(error)` from `src/lib/http.ts` and shows a short message in place,
+not the full-page panel. Add the page to `NAV_RIGHTS` in
 `src/components/nav-access.ts` too, so the sidebar, the palette and the breadcrumbs never offer
 it. The Users routes are the example.
 
