@@ -3,6 +3,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorAlert, FieldSkeleton, RetryButton } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ComboboxField } from '@/components/form/form-fields';
 import {
@@ -26,9 +27,9 @@ import {
   rolesOptions,
   supervisoryNodesOptions,
 } from '@/features/reference-data/api/queries';
+import { roleTypeOf } from '@/features/reference-data/lib/roles';
 import type { RightType, Role } from '@/features/reference-data/lib/types';
-import { ErrorAlert, FieldSkeleton, RetryButton } from '@/features/users/components/dialog-parts';
-import { roleTypeOf } from '@/features/users/lib/role-assignments';
+import { useRightLabel } from '@/features/reference-data/lib/use-right-label';
 import {
   EMPTY_ROLE_FORM,
   type RoleFormValues,
@@ -36,7 +37,6 @@ import {
   toRoleAssignment,
 } from '@/features/users/lib/role-form';
 import type { RoleAssignment } from '@/features/users/lib/types';
-import { useRightLabel } from '@/features/users/lib/use-right-label';
 
 type AddRoleDialogProps = {
   /** The type of role being added; the dialog is open while it is set. */

@@ -1,7 +1,7 @@
+import { RoleRightsDialog } from '@/components/role-rights-dialog';
 import type { RightType } from '@/features/reference-data/lib/types';
 import { AddRoleDialog } from '@/features/users/components/add-role-dialog';
 import { ImportRolesDialog } from '@/features/users/components/import-roles-dialog';
-import { RoleRightsDialog } from '@/features/users/components/role-rights-dialog';
 import type { RoleAssignment } from '@/features/users/lib/types';
 
 type RoleDialogsProps = {

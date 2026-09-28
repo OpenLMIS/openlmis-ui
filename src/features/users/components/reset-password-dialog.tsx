@@ -3,6 +3,12 @@ import { useIsMutating, useMutation, useSuspenseQuery } from '@tanstack/react-qu
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import {
+  DialogLoadError,
+  ErrorAlert,
+  SkeletonLine,
+  serverMessage,
+} from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard } from '@/components/form/form-fields';
 import {
@@ -22,12 +28,6 @@ import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { sendPasswordResetEmail, setUserPassword } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import {
-  DialogLoadError,
-  ErrorAlert,
-  SkeletonLine,
-  serverMessage,
-} from '@/features/users/components/dialog-parts';
 import { PasswordRequirements } from '@/features/users/components/password-requirements';
 import {
   defaultPasswordForm,
@@ -61,7 +61,13 @@ export function ResetPasswordDialog({ target, onClose }: ResetPasswordDialogProp
     <FormDialog {...dialogProps(isSaving)}>
       {shown && (
         <QueryBoundary
-          errorComponent={({ reset }) => <DialogLoadError onRetry={reset} title={title} />}
+          errorComponent={({ reset }) => (
+            <DialogLoadError
+              errorTitle={t('users.form.load-error-title')}
+              onRetry={reset}
+              title={title}
+            />
+          )}
           pendingFallback={<PasswordFormSkeleton title={title} />}
           resetKey={shown.userId}
         >

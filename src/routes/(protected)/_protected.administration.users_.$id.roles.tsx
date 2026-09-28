@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { NoAccessPage } from '@/components/no-access-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,6 @@ import {
 } from '@/features/reference-data/api/queries';
 import { updateUserRoles } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import { ErrorAlert, serverMessage } from '@/features/users/components/dialog-parts';
 import { DiscardChangesDialog } from '@/features/users/components/discard-changes-dialog';
 import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
 import { RoleTabs } from '@/features/users/components/role-tabs';

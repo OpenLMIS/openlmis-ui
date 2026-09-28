@@ -4,12 +4,12 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableError, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
+import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { rolesOptions } from '@/features/reference-data/api/queries';
-import { ErrorAlert, RetryButton } from '@/features/users/components/dialog-parts';
 import {
   RoleAssignmentsTable,
   RoleAssignmentsTableSkeleton,

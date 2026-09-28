@@ -10,6 +10,14 @@ import { CheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import {
+  DialogLoadError,
+  ErrorAlert,
+  FieldSkeleton,
+  RetryButton,
+  SkeletonLine,
+  serverMessage,
+} from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard, ComboboxField, SwitchField } from '@/components/form/form-fields';
 import {
@@ -32,14 +40,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { createUser, updateUser } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import {
-  DialogLoadError,
-  ErrorAlert,
-  FieldSkeleton,
-  RetryButton,
-  SkeletonLine,
-  serverMessage,
-} from '@/features/users/components/dialog-parts';
 import type { UsersSearch } from '@/features/users/lib/search';
 import type { UserDetails } from '@/features/users/lib/types';
 import {
@@ -91,7 +91,11 @@ function EditUserForm({ userId, onDone }: EditUserFormProps) {
   return (
     <QueryBoundary
       errorComponent={({ reset }) => (
-        <DialogLoadError onRetry={reset} title={t('users.form.edit-title')} />
+        <DialogLoadError
+          errorTitle={t('users.form.load-error-title')}
+          onRetry={reset}
+          title={t('users.form.edit-title')}
+        />
       )}
       pendingFallback={<UserFormSkeleton />}
       resetKey={userId}

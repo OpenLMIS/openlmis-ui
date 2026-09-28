@@ -1,3 +1,4 @@
+import { roleTypeOf } from '@/features/reference-data/lib/roles';
 import type {
   MinimalFacility,
   Program,
@@ -9,10 +10,10 @@ import type { RoleAssignment } from '@/features/users/lib/types';
 
 /** The tabs of the roles page, one per role type, in the order legacy shows them. */
 export const ROLE_TABS = [
-  { id: 'supervision', type: 'SUPERVISION', labelKey: 'users.roles.tab.supervision' },
-  { id: 'fulfillment', type: 'ORDER_FULFILLMENT', labelKey: 'users.roles.tab.fulfillment' },
-  { id: 'reports', type: 'REPORTS', labelKey: 'users.roles.tab.reports' },
-  { id: 'administration', type: 'GENERAL_ADMIN', labelKey: 'users.roles.tab.administration' },
+  { id: 'supervision', type: 'SUPERVISION', labelKey: 'role-types.supervision' },
+  { id: 'fulfillment', type: 'ORDER_FULFILLMENT', labelKey: 'role-types.fulfillment' },
+  { id: 'reports', type: 'REPORTS', labelKey: 'role-types.reports' },
+  { id: 'administration', type: 'GENERAL_ADMIN', labelKey: 'role-types.administration' },
 ] as const satisfies readonly { id: string; type: RightType; labelKey: string }[];
 
 export type RoleTab = (typeof ROLE_TABS)[number];
@@ -42,8 +43,6 @@ export function toSavedAssignment({
     ...(warehouseId && { warehouseId }),
   };
 }
-
-export const roleTypeOf = (role: Role | undefined): RightType | undefined => role?.rights[0]?.type;
 
 /** The type an assignment belongs to: its role's, or what its ids imply if the role is gone. */
 export function assignmentType(
@@ -212,23 +211,4 @@ export function filterRows(rows: RoleRow[], query: string | undefined) {
   return rows.filter((row) =>
     [row.role, row.program, row.node, row.nodeFacility, row.facility].some(matches),
   );
-}
-
-// Kept as written rather than capitalized like a word.
-const ACRONYMS: Record<string, string> = {
-  BUQ: 'BUQ',
-  CCE: 'CCE',
-  DHIS2: 'DHIS2',
-  MOH: 'MOH',
-  PODS: 'PODs',
-  PORALG: 'PORALG',
-};
-
-/** A right's code as words, e.g. `PODS_MANAGE` as "PODs Manage", for rights with no label. */
-export function rightLabel(name: string) {
-  return name
-    .split('_')
-    .filter(Boolean)
-    .map((word) => ACRONYMS[word] ?? word.charAt(0) + word.slice(1).toLowerCase())
-    .join(' ');
 }

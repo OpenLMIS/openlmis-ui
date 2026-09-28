@@ -58,8 +58,15 @@ export function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
   );
 }
 
-/** What a dialog shows when the user it needs could not be loaded: its title, the error, Try Again. */
-export function DialogLoadError({ title, onRetry }: { title: string; onRetry: () => void }) {
+type DialogLoadErrorProps = {
+  title: string;
+  /** Says what could not load, e.g. "Could Not Load User". */
+  errorTitle: string;
+  onRetry: () => void;
+};
+
+/** What a dialog shows when the record it needs could not be loaded: its title, the error, Try Again. */
+export function DialogLoadError({ title, errorTitle, onRetry }: DialogLoadErrorProps) {
   const { t } = useTranslation();
   return (
     <>
@@ -68,11 +75,11 @@ export function DialogLoadError({ title, onRetry }: { title: string; onRetry: ()
       </FormDialogHeader>
       <ErrorAlert
         action={<RetryButton onClick={onRetry} />}
-        description={t('users.error-description')}
-        title={t('users.form.load-error-title')}
+        description={t('error.check-connection')}
+        title={errorTitle}
       />
       <FormDialogFooter>
-        <FormDialogCancel>{t('users.form.cancel')}</FormDialogCancel>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
       </FormDialogFooter>
     </>
   );
