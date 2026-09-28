@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useSuspenseQuery } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -8,7 +8,7 @@ import {
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { saveProfile } from '@/features/profile/api/api';
+import { fetchProfile, saveProfile } from '@/features/profile/api/api';
 import { profileOptions } from '@/features/profile/api/queries';
 import { BasicInformation } from '@/features/profile/components/basic-information';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
@@ -33,6 +33,12 @@ const profile: Profile = {
   },
   contact: null,
 };
+
+/** As the route renders it: the profile read from the cache, so a save's refresh reaches the form. */
+function FromCache() {
+  const { data } = useSuspenseQuery(profileOptions('u1'));
+  return <BasicInformation onSaved={vi.fn()} profile={data} />;
+}
 
 describe('BasicInformation', () => {
   it('refreshes the profile after a save that failed part way, since part of it may be stored', async () => {
@@ -62,9 +68,40 @@ describe('BasicInformation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'profile.save' }));
 
     await waitFor(() => expect(saveProfile).toHaveBeenCalledOnce());
-    await waitFor(() =>
-      expect(queryClient.getQueryState(profileOptions('u1').queryKey)?.isInvalidated).toBe(true),
-    );
+    await waitFor(() => expect(fetchProfile).toHaveBeenCalled());
     expect(onSaved).toHaveBeenCalledOnce();
+  });
+
+  it('keeps what was saved on screen when the refresh after a save fails', async () => {
+    vi.mocked(saveProfile).mockReset().mockResolvedValue();
+    vi.mocked(fetchProfile).mockRejectedValue(new Error('offline'));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(profileOptions('u1').queryKey, profile);
+    const root = createRootRoute({
+      component: () => (
+        <ProfileWorkspace username="ada">
+          <FromCache />
+        </ProfileWorkspace>
+      ),
+    });
+    const router = createRouter({
+      routeTree: root,
+      history: createMemoryHistory({ initialEntries: ['/profile'] }),
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    const firstName = await screen.findByRole('textbox', { name: /users.form.first-name/ });
+    await userEvent.clear(firstName);
+    await userEvent.type(firstName, 'Augusta');
+    await userEvent.click(screen.getByRole('button', { name: 'profile.save' }));
+
+    await waitFor(() => expect(fetchProfile).toHaveBeenCalled());
+    await waitFor(() => expect(saveProfile).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(firstName).toHaveValue('Augusta');
   });
 });

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applySaved,
   profileChanges,
   profileFormSchema,
+  toContactDetails,
   toProfileFormValues,
 } from '@/features/profile/lib/profile-form';
 import type { Profile } from '@/features/profile/lib/types';
@@ -96,5 +98,43 @@ describe('profileChanges', () => {
 
   it('sees the switch turned off as a contact change', () => {
     expect(profileChanges(profile, { ...values, allowNotify: false }).contact).toBe(true);
+  });
+});
+
+describe('toContactDetails', () => {
+  it('keeps the verified flag and trims what was typed', () => {
+    expect(toContactDetails(profile, { ...values, phoneNumber: ' 123 ' })).toEqual({
+      referenceDataUserId: 'u1',
+      phoneNumber: '123',
+      allowNotify: true,
+      emailDetails: { email: 'ada@example.org', emailVerified: true },
+    });
+  });
+
+  it('never asks for notifications without an email to send them to', () => {
+    expect(toContactDetails(profile, { ...values, email: ' ' })).toMatchObject({
+      allowNotify: false,
+      emailDetails: { email: null },
+    });
+  });
+});
+
+describe('applySaved', () => {
+  it('takes the saved names, phone and switch, but keeps the email until it is verified', () => {
+    const next = applySaved(profile, {
+      ...values,
+      firstName: ' Augusta ',
+      phoneNumber: '123',
+      allowNotify: false,
+      email: 'new@example.org',
+    });
+
+    expect(next.user).toMatchObject({ firstName: 'Augusta', lastName: 'Lovelace' });
+    expect(next.contact).toEqual({
+      referenceDataUserId: 'u1',
+      phoneNumber: '123',
+      allowNotify: false,
+      emailDetails: { email: 'ada@example.org', emailVerified: true },
+    });
   });
 });

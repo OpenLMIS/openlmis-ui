@@ -17,6 +17,7 @@ import { resendVerification, saveProfile } from '@/features/profile/api/api';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
 import { ProfileFooter } from '@/features/profile/components/profile-workspace';
 import {
+  applySaved,
   type ProfileFormValues,
   profileChanges,
   profileFormSchema,
@@ -25,7 +26,6 @@ import {
 import type { Profile } from '@/features/profile/lib/types';
 import { facilityOptions } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
-import { queryKeys } from '@/lib/key-factory';
 
 const FORM_ID = 'profile-form';
 
@@ -52,13 +52,17 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
       });
     },
     // Either way: a save that failed part way may already have stored the names.
-    onSettled: async (_, error) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.profile.all });
+    onSettled: async (_, error, values) => {
+      const saved = await queryClient
+        .fetchQuery({ ...profileOptions(user.id), staleTime: 0 })
+        .catch(() => undefined);
+      void queryClient.invalidateQueries({ queryKey: pendingEmailOptions(user.id).queryKey });
       onSaved();
       if (error) return;
-      // The form starts again from what the server now holds; a new email stays pending until verified.
-      const saved = queryClient.getQueryData(profileOptions(user.id).queryKey);
-      if (saved) form.reset(toProfileFormValues(saved));
+      // The form starts again from what the server now holds; if it cannot be read, from what it took.
+      const next = saved ?? applySaved(profile, values);
+      if (!saved) queryClient.setQueryData(profileOptions(user.id).queryKey, next);
+      form.reset(toProfileFormValues(next));
     },
   });
 
@@ -81,7 +85,10 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
       <ProfileFooter>
         <Button
           disabled={!changed || save.isPending}
-          onClick={() => form.reset(toProfileFormValues(profile))}
+          onClick={() => {
+            save.reset();
+            form.reset(toProfileFormValues(profile));
+          }}
           size="lg"
           variant="outline"
         >
@@ -164,19 +171,23 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
                     />
                   )}
                 </form.AppField>
-                <form.AppField name="allowNotify">
-                  {(field) => (
-                    <field.SwitchField
-                      description={t(
-                        emailVerified
-                          ? 'profile.allow-notify.description'
-                          : 'profile.allow-notify.needs-verified',
+                <form.Subscribe selector={(state) => state.values.email.trim() !== ''}>
+                  {(hasEmail) => (
+                    <form.AppField name="allowNotify">
+                      {(field) => (
+                        <field.SwitchField
+                          description={t(
+                            emailVerified && hasEmail
+                              ? 'profile.allow-notify.description'
+                              : 'profile.allow-notify.needs-verified',
+                          )}
+                          disabled={!emailVerified || !hasEmail}
+                          label={t('users.form.allow-notify')}
+                        />
                       )}
-                      disabled={!emailVerified}
-                      label={t('users.form.allow-notify')}
-                    />
+                    </form.AppField>
                   )}
-                </form.AppField>
+                </form.Subscribe>
               </FieldGroup>
             </form>
           </CardContent>

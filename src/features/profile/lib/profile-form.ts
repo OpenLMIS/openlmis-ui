@@ -56,11 +56,28 @@ export function toContactDetails(
   return {
     referenceDataUserId: user.id,
     phoneNumber: orNull(values.phoneNumber),
-    allowNotify: values.allowNotify,
+    // Nothing can be sent without an address, as the legacy UI has it.
+    allowNotify: values.allowNotify && orNull(values.email) !== null,
     // The notification service verifies a new address itself; the stored flag goes back unchanged.
     emailDetails: {
       email: orNull(values.email),
       emailVerified: contact?.emailDetails?.emailVerified ?? false,
+    },
+  };
+}
+
+/** The profile as a successful save left it; the email stays until its link is opened. */
+export function applySaved(profile: Profile, values: ProfileFormValues): Profile {
+  const contact = toContactDetails(profile, values);
+  return {
+    user: {
+      ...profile.user,
+      firstName: values.firstName.trim(),
+      lastName: values.lastName.trim(),
+    },
+    contact: {
+      ...contact,
+      emailDetails: profile.contact?.emailDetails ?? contact.emailDetails,
     },
   };
 }

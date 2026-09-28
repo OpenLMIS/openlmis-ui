@@ -113,12 +113,16 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
         description: t('profile.notifications.saved'),
       });
     },
-    onSettled: async (_, error) => {
-      const { queryKey } = subscriptionsOptions(userId);
-      await queryClient.invalidateQueries({ queryKey });
-      // After a save the form starts again from what the server now holds.
-      const saved = queryClient.getQueryData(queryKey);
-      if (!error && saved) form.reset({ rows: toDigestRows(configurations, saved) });
+    onSettled: async (_, error, rows) => {
+      const options = subscriptionsOptions(userId);
+      const saved = await queryClient
+        .fetchQuery({ ...options, staleTime: 0 })
+        .catch(() => undefined);
+      if (error) return;
+      // The form starts again from what the server now holds; if it cannot be read, from what it took.
+      const next = saved ?? toSubscriptions(rows);
+      if (!saved) queryClient.setQueryData(options.queryKey, next);
+      form.reset({ rows: toDigestRows(configurations, next) });
     },
   });
 
@@ -151,20 +155,25 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
 
   return (
     <>
-      <ProfileFooter>
-        <Button
-          disabled={changes === 0 || save.isPending}
-          onClick={() => form.reset({ rows: savedRows })}
-          size="lg"
-          variant="outline"
-        >
-          {t('profile.cancel')}
-        </Button>
-        <Button disabled={changes === 0 || save.isPending} form={FORM_ID} size="lg" type="submit">
-          {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
-          {t('profile.notifications.save')}
-        </Button>
-      </ProfileFooter>
+      {savedRows.length > 0 && (
+        <ProfileFooter>
+          <Button
+            disabled={changes === 0 || save.isPending}
+            onClick={() => {
+              save.reset();
+              form.reset({ rows: savedRows });
+            }}
+            size="lg"
+            variant="outline"
+          >
+            {t('profile.cancel')}
+          </Button>
+          <Button disabled={changes === 0 || save.isPending} form={FORM_ID} size="lg" type="submit">
+            {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
+            {t('profile.notifications.save')}
+          </Button>
+        </ProfileFooter>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>{t('profile.notifications.title')}</CardTitle>
