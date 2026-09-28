@@ -24,7 +24,7 @@ export const ROLE_TYPES = [
   },
 ] as const satisfies readonly { type: RightType; labelKey: string; descriptionKey: string }[];
 
-export type RoleTypeInfo = (typeof ROLE_TYPES)[number];
+type RoleTypeInfo = (typeof ROLE_TYPES)[number];
 
 export function roleTypeInfo(type: RightType): RoleTypeInfo {
   return ROLE_TYPES.find((item) => item.type === type) ?? ROLE_TYPES[0];

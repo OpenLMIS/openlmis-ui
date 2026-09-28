@@ -9,18 +9,18 @@ export const ROLE_HIDEABLE_COLUMNS = [
   { id: 'count', labelKey: 'roles.users', hideBelow: 'xl' },
 ] as const;
 
-export const ROLE_SORT_FIELDS = ['name', 'type', 'count'] as const;
+const ROLE_SORT_FIELDS = ['name', 'type', 'count'] as const;
 
 export type RoleSortField = (typeof ROLE_SORT_FIELDS)[number];
 
 export const DEFAULT_ROLES_SORT: DefaultSort = { id: 'name', desc: false };
 
+type RoleTypeValue = (typeof ROLE_TYPES)[number]['type'];
+
 const roleType = z
   .enum(ROLE_TYPES.map((item) => item.type) as [RoleTypeValue, ...RoleTypeValue[]])
   .optional()
   .catch(undefined);
-
-type RoleTypeValue = (typeof ROLE_TYPES)[number]['type'];
 
 export const rolesSearchSchema = tableSearchSchema(ROLE_SORT_FIELDS).extend({
   q: textFilterSchema,

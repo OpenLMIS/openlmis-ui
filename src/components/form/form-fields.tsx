@@ -161,6 +161,8 @@ type PasswordFieldProps = FieldProps & {
   /** Names the button that reveals the password, for screen readers. */
   showLabel: string;
   hideLabel: string;
+  /** The id of text outside the field that explains it, such as a list of rules. */
+  describedBy?: string;
 };
 
 export function PasswordField({
@@ -172,6 +174,7 @@ export function PasswordField({
   placeholder,
   showLabel,
   hideLabel,
+  describedBy,
 }: PasswordFieldProps) {
   const field = useFieldContext<string>();
   const { errors, isInvalid } = useFieldErrors();
@@ -182,6 +185,7 @@ export function PasswordField({
       <RequiredLabel label={label} required={required} />
       <InputGroup>
         <InputGroupInput
+          aria-describedby={describedBy}
           aria-invalid={isInvalid}
           aria-required={required}
           autoComplete={autoComplete}
@@ -271,17 +275,23 @@ type RadioGroupFieldProps = {
   /** Names the group; shown above the options. */
   label: ReactNode;
   options: readonly RadioGroupFieldOption[];
+  required?: boolean;
   disabled?: boolean;
 };
 
 /** One choice from a few, each drawn as a card like `SwitchField`. */
-export function RadioGroupField({ label, options, disabled }: RadioGroupFieldProps) {
+export function RadioGroupField({ label, options, required, disabled }: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
+  const { errors, isInvalid } = useFieldErrors();
 
   return (
-    <FieldSet>
-      <FieldLegend variant="label">{label}</FieldLegend>
+    <FieldSet data-invalid={isInvalid}>
+      <FieldLegend variant="label">
+        <FieldLabelText label={label} required={required} />
+      </FieldLegend>
       <RadioGroup
+        aria-invalid={isInvalid}
+        aria-required={required}
         disabled={disabled}
         name={field.name}
         onBlur={field.handleBlur}
@@ -303,6 +313,7 @@ export function RadioGroupField({ label, options, disabled }: RadioGroupFieldPro
           );
         })}
       </RadioGroup>
+      {isInvalid && <FieldError errors={errors} />}
     </FieldSet>
   );
 }
@@ -350,7 +361,11 @@ export function ComboboxField({
         itemToStringLabel={(item) => item.label}
         items={items}
         limit={limit}
-        onValueChange={(item) => field.handleChange(item?.value ?? null)}
+        onValueChange={(item, details) => {
+          // Base UI clears the field on Escape once the list is closed; let Escape close the dialog instead.
+          if (details.reason === 'escape-key' && !item) return details.allowPropagation();
+          field.handleChange(item?.value ?? null);
+        }}
         value={selected}
       >
         <ComboboxInput
@@ -417,7 +432,11 @@ export function MultiComboboxField({
         itemToStringLabel={(item) => item.label}
         items={items}
         multiple
-        onValueChange={(chosen) => field.handleChange(chosen.map((item) => item.value))}
+        onValueChange={(chosen, details) => {
+          if (details.reason === 'escape-key' && chosen.length === 0)
+            return details.allowPropagation();
+          field.handleChange(chosen.map((item) => item.value));
+        }}
         value={selected}
       >
         <ComboboxChips ref={anchor}>

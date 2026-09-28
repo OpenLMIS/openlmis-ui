@@ -76,7 +76,14 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
         )}
       </form.AppField>
       <form.AppField name="secret">
-        {(field) => <field.PasswordField hideLabel="Hide" label="Secret" showLabel="Show" />}
+        {(field) => (
+          <field.PasswordField
+            describedBy="secret-rules"
+            hideLabel="Hide"
+            label="Secret"
+            showLabel="Show"
+          />
+        )}
       </form.AppField>
       <form.AppField name="notes">{(field) => <field.TextareaField label="Notes" />}</form.AppField>
       <form.AppField name="rights">
@@ -168,14 +175,81 @@ describe('form fields', () => {
     );
   });
 
+  it('keeps the picked items when Escape is pressed with the list closed', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm();
+
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
+    await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
+    await user.click(await screen.findByRole('option', { name: 'HF01 - Kankao Health Facility' }));
+    await user.click(screen.getByRole('combobox', { name: 'Rights' }));
+    await user.keyboard('{Escape}{Escape}');
+    await user.click(screen.getByRole('combobox', { name: 'Facility' }));
+    await user.keyboard('{Escape}{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ facility: 'f2', rights: ['r1'] }),
+    );
+  });
+
   it('reveals the password and names the button for what it will do', async () => {
     const user = userEvent.setup();
     renderForm();
     const secret = screen.getByLabelText('Secret');
 
     expect(secret).toHaveAttribute('type', 'password');
+    expect(secret).toHaveAttribute('aria-describedby', 'secret-rules');
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(secret).toHaveAttribute('type', 'text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();
+  });
+});
+
+function ChoiceForm() {
+  const form = useAppForm({
+    defaultValues: { kind: '' },
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: z.object({ kind: z.string().min(1, 'kind.required') }) },
+  });
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        form.handleSubmit();
+      }}
+    >
+      <form.AppField name="kind">
+        {(field) => (
+          <field.RadioGroupField
+            label="Kind"
+            options={[
+              { value: 'a', label: 'First' },
+              { value: 'b', label: 'Second' },
+            ]}
+            required
+          />
+        )}
+      </form.AppField>
+      <button type="submit">Continue</button>
+    </form>
+  );
+}
+
+describe('RadioGroupField', () => {
+  it('marks the group invalid and shows the formatted error until a choice is made', async () => {
+    const user = userEvent.setup();
+    render(
+      <FormMessagesProvider formatError={(message) => `translated:${message}`}>
+        <ChoiceForm />
+      </FormMessagesProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('translated:kind.required');
+    expect(screen.getByRole('radiogroup')).toHaveAttribute('aria-invalid', 'true');
+
+    await user.click(screen.getByRole('radio', { name: 'Second' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

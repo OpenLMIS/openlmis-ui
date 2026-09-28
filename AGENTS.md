@@ -255,7 +255,7 @@ Two ways out when a page needs a different treatment:
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-   `ComboboxInput width`/`clearLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap`.
+   `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap`.
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -461,16 +461,18 @@ example: Add/Edit User is a dialog, Edit User Roles is a page.
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `SwitchField`, `ComboboxField`). A yes/no setting is a `SwitchField`,
-a switch in a bordered card, not a checkbox. Validate with a zod schema on `onDynamic` with
+(`TextField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
+`ComboboxField`, `MultiComboboxField`). A yes/no setting is a `SwitchField`,
+a switch in a bordered card, not a checkbox; picking several of a list is a
+`MultiComboboxField` with chips, not a column of checkboxes. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
 the first submit and then follow each correction.
 
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-`DialogDescription size`, `Field spacing`, `FieldDescription size` and
-`ComboboxInput width`/`clearLabel`.
+`DialogDescription size`, `Field spacing`, `FieldDescription size`,
+`ComboboxInput width`/`clearLabel` and `ComboboxChip removeLabel`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 

@@ -17,17 +17,18 @@ const RULE_LABELS: Record<PasswordRule, ParseKeys> = {
 };
 
 type PasswordRequirementsProps = {
+  id: string;
   password: string;
   owner: PasswordOwner;
 };
 
 /** The auth service's rules under the password field, each ticked off once the password meets it. */
-export function PasswordRequirements({ password, owner }: PasswordRequirementsProps) {
+export function PasswordRequirements({ id, password, owner }: PasswordRequirementsProps) {
   const { t } = useTranslation();
   const checks = passwordChecks(password, owner);
 
   return (
-    <ul aria-label={t('users.password.requirements')} className="grid gap-1 text-sm">
+    <ul aria-label={t('users.password.requirements')} className="grid gap-1 text-sm" id={id}>
       {PASSWORD_RULES.map((rule) => {
         const met = checks[rule];
         const Icon = met ? CheckIcon : CircleIcon;

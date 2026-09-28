@@ -22,6 +22,7 @@ import { isForbidden, requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { rolesOptions } from '@/features/reference-data/api/queries';
+import { roleTypeOf } from '@/features/reference-data/lib/roles';
 import type { RightType } from '@/features/reference-data/lib/types';
 import { rightsByTypeOptions, roleDetailOptions } from '@/features/roles/api/queries';
 import { RolesTable, RolesTableSkeleton } from '@/features/roles/components/roles-table';
@@ -56,8 +57,14 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
   loader: async ({ context: { queryClient }, deps }) => {
     await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery({ ...rolesOptions(), staleTime: LIST_FRESH_FOR });
+    const listed =
+      deps.role && deps.role !== 'new'
+        ? queryClient.getQueryData(rolesOptions().queryKey)?.find((role) => role.id === deps.role)
+        : undefined;
     if (deps.role && deps.role !== 'new') queryClient.prefetchQuery(roleDetailOptions(deps.role));
-    if (deps.roleType) queryClient.prefetchQuery(rightsByTypeOptions(deps.roleType));
+    // A saved role's type is in the list already, so its rights load beside the role, not after it.
+    const type = deps.roleType ?? roleTypeOf(listed);
+    if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
   },
   pendingComponent: RolesPagePending,
   component: RolesPage,
@@ -139,8 +146,9 @@ function RolesPage() {
   );
   const editRole = useCallback((role: string) => openDialog({ role }), [openDialog]);
   const viewRights = useCallback((rights: string) => openDialog({ rights }), [openDialog]);
+  // Refetched rather than invalidated, so the rights check on closing the dialog never waits for it.
   const reloadOwnRights = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey }),
+    () => queryClient.refetchQueries({ queryKey: rightsOptions(userId).queryKey }),
     [queryClient, userId],
   );
   const [dialogsMounted, setDialogsMounted] = useState(anyDialogOpen);
@@ -203,7 +211,7 @@ function RolesPage() {
               onClose={closeDialog}
               onPickType={setRoleType}
               onSaved={reloadOwnRights}
-              rightsRoleId={dialogs.rights}
+              rightsRoleId={canViewRights ? dialogs.rights : undefined}
               role={dialogs.role}
             />
           </Suspense>

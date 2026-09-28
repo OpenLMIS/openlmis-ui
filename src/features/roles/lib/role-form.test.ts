@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Right, Role } from '@/features/reference-data/lib/types';
 import {
+  asksBeforeSaving,
   EMPTY_ROLE_FORM,
   roleFormSchema,
   toRoleBody,
@@ -49,7 +50,7 @@ describe('roleFormSchema', () => {
 
 describe('toRoleFormValues', () => {
   it("fills the form from a role, with its rights' ids", () => {
-    expect(toRoleFormValues(supervisor)).toEqual({
+    expect(toRoleFormValues(supervisor, 'SUPERVISION')).toEqual({
       name: 'Program Supervisor',
       description: 'Approves requisitions',
       rightIds: ['r1', 'r2'],
@@ -57,7 +58,18 @@ describe('toRoleFormValues', () => {
   });
 
   it('treats a missing description as empty', () => {
-    expect(toRoleFormValues({ ...supervisor, description: null }).description).toBe('');
+    expect(toRoleFormValues({ ...supervisor, description: null }, 'SUPERVISION').description).toBe(
+      '',
+    );
+  });
+
+  it('leaves out a right of another type, which the form cannot show or keep', () => {
+    const admin: Role = {
+      id: 'role3',
+      name: 'System Administrator',
+      rights: [{ id: 'a1', name: 'USERS_MANAGE', type: 'GENERAL_ADMIN' }, view],
+    };
+    expect(toRoleFormValues(admin, 'GENERAL_ADMIN').rightIds).toEqual(['a1']);
   });
 });
 
@@ -86,5 +98,16 @@ describe('toRoleBody', () => {
     expect(toRoleBody({ name: 'A', description: 'B', rightIds: ['r1'] }, [extra]).rights).toEqual([
       view,
     ]);
+  });
+});
+
+describe('asksBeforeSaving', () => {
+  it('asks before changing a role that users hold', () => {
+    expect(asksBeforeSaving(supervisor, 3)).toBe(true);
+  });
+
+  it('saves at once for a new role or one nobody holds', () => {
+    expect(asksBeforeSaving(undefined, 0)).toBe(false);
+    expect(asksBeforeSaving(supervisor, 0)).toBe(false);
   });
 });

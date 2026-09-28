@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
-import type { Right, Role } from '@/features/reference-data/lib/types';
+import type { Right, RightType, Role } from '@/features/reference-data/lib/types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;
@@ -27,12 +27,18 @@ export type RoleFormValues = z.input<ReturnType<typeof roleFormSchema>>;
 
 export const EMPTY_ROLE_FORM: RoleFormValues = { name: '', description: '', rightIds: [] };
 
-export function toRoleFormValues(role: Role): RoleFormValues {
+/** Only the rights of `type`: the form lists no others, and the server takes one type per role. */
+export function toRoleFormValues(role: Role, type: RightType): RoleFormValues {
   return {
     name: role.name,
     description: role.description ?? '',
-    rightIds: role.rights.map((right) => right.id),
+    rightIds: role.rights.filter((right) => right.type === type).map((right) => right.id),
   };
+}
+
+/** Changing a role changes what everyone who holds it can do, so that is asked first. */
+export function asksBeforeSaving(role: Role | undefined, holders: number) {
+  return role !== undefined && holders > 0;
 }
 
 export type RoleBody = {

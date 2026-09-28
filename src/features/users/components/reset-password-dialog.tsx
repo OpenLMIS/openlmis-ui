@@ -175,12 +175,17 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
                   {(field) => (
                     <div className="grid gap-3">
                       <field.PasswordField
+                        describedBy="password-requirements"
                         hideLabel={t('users.password.hide')}
                         label={t('users.password.new-password')}
                         required
                         showLabel={t('users.password.show')}
                       />
-                      <PasswordRequirements owner={details.user} password={field.state.value} />
+                      <PasswordRequirements
+                        id="password-requirements"
+                        owner={details.user}
+                        password={field.state.value}
+                      />
                     </div>
                   )}
                 </form.AppField>

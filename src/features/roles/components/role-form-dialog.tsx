@@ -54,6 +54,7 @@ import { useRightLabel } from '@/features/reference-data/lib/use-right-label';
 import { createRole, updateRole } from '@/features/roles/api/api';
 import { rightsByTypeOptions, roleDetailOptions } from '@/features/roles/api/queries';
 import {
+  asksBeforeSaving,
   EMPTY_ROLE_FORM,
   type RoleFormValues,
   roleFormSchema,
@@ -88,7 +89,7 @@ export function RoleFormDialog({ target, canEdit, onClose, ...steps }: RoleFormD
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && !canEdit && <NoAccessContent />}
+      {shown && !canEdit && <NoAccessContent isNew={shown.role === 'new'} />}
       {shown && canEdit && <RoleDialogContent onDone={onClose} target={shown} {...steps} />}
     </FormDialog>
   );
@@ -117,7 +118,12 @@ function RoleDialogContent({ target, ...props }: RoleDialogContentProps) {
           />
         )
       }
-      pendingFallback={<RoleFormSkeleton title={title} />}
+      pendingFallback={
+        <RoleFormSkeleton
+          submitLabel={t(isNew ? 'roles.form.create' : 'roles.form.save')}
+          title={title}
+        />
+      }
       resetKey={target.role}
     >
       {isNew ? (
@@ -130,8 +136,6 @@ function RoleDialogContent({ target, ...props }: RoleDialogContentProps) {
 }
 
 function NewRole({ target, onPickType, onBackToTypes, onDone, onSaved }: RoleDialogContentProps) {
-  // The list is on screen behind the dialog; it is here for the duplicate name check.
-  useSuspenseQuery(rolesOptions());
   return target.roleType ? (
     <RoleForm
       key={target.roleType}
@@ -154,7 +158,6 @@ function ExistingRole({
   onSaved,
 }: RoleDialogContentProps & { roleId: string }) {
   const { data: role } = useSuspenseQuery(roleDetailOptions(roleId));
-  useSuspenseQuery(rolesOptions());
   // A role saved without rights has no type yet, so it is asked for first, as legacy does.
   const savedType = roleTypeOf(role);
   const type = savedType ?? target.roleType;
@@ -209,18 +212,10 @@ function TypeStep({
                   label: t(item.labelKey),
                   description: t(item.descriptionKey),
                 }))}
+                required
               />
             )}
           </form.AppField>
-          <form.Subscribe selector={(state) => (state.fieldMeta.type?.errors.length ?? 0) > 0}>
-            {(invalid) =>
-              invalid && (
-                <p className="text-sm text-destructive" role="alert">
-                  {t('roles.form.type-required')}
-                </p>
-              )
-            }
-          </form.Subscribe>
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>
@@ -276,11 +271,11 @@ function RoleForm({ role, type, onBack, onDone, onSaved }: RoleFormProps) {
     save.mutateAsync(values, { onSuccess: onDone }).catch(() => undefined);
 
   const form = useAppForm({
-    defaultValues: role ? toRoleFormValues(role) : EMPTY_ROLE_FORM,
+    defaultValues: role ? toRoleFormValues(role, type) : EMPTY_ROLE_FORM,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
-    // Changing a role changes what everyone who holds it can do, so that is asked first.
-    onSubmit: ({ value }) => (role && holders > 0 ? setConfirming(value) : submit(value)),
+    onSubmit: ({ value }) =>
+      asksBeforeSaving(role, holders) ? setConfirming(value) : submit(value),
   });
 
   return (
@@ -330,8 +325,14 @@ function RoleForm({ role, type, onBack, onDone, onSaved }: RoleFormProps) {
       </FormDialogBody>
       <FormDialogFooter>
         {onBack && (
-          <div className="me-auto">
-            <Button disabled={save.isPending} onClick={onBack} type="button" variant="ghost">
+          <div className="w-full sm:me-auto sm:w-auto">
+            <Button
+              disabled={save.isPending}
+              onClick={onBack}
+              type="button"
+              variant="ghost"
+              width="full"
+            >
               <ArrowLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
               {t('roles.form.back')}
             </Button>
@@ -383,7 +384,8 @@ function RightsField({ type }: { type: RightType }) {
     [rights, rightLabel],
   );
 
-  const selected = useFieldContext<string[]>().state.value.length;
+  const value = useFieldContext<string[]>().state.value;
+  const selected = items.filter((item) => value.includes(item.value)).length;
 
   return (
     <MultiComboboxField
@@ -398,12 +400,14 @@ function RightsField({ type }: { type: RightType }) {
   );
 }
 
-function NoAccessContent() {
+function NoAccessContent({ isNew }: { isNew: boolean }) {
   const { t } = useTranslation();
   return (
     <>
       <FormDialogHeader>
-        <FormDialogTitle>{t('roles.form.edit-title')}</FormDialogTitle>
+        <FormDialogTitle>
+          {t(isNew ? 'roles.form.create-title' : 'roles.form.edit-title')}
+        </FormDialogTitle>
       </FormDialogHeader>
       <NoAccess />
       <FormDialogFooter>
@@ -429,7 +433,7 @@ function NotFoundContent({ title }: { title: string }) {
 }
 
 /** Laid out like the form, so nothing moves when the role arrives. */
-function RoleFormSkeleton({ title }: { title: string }) {
+function RoleFormSkeleton({ title, submitLabel }: { title: string; submitLabel: string }) {
   const { t } = useTranslation();
   return (
     <>
@@ -448,7 +452,7 @@ function RoleFormSkeleton({ title }: { title: string }) {
       </FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('roles.form.cancel')}</FormDialogCancel>
-        <FormDialogSubmit disabled>{t('roles.form.save')}</FormDialogSubmit>
+        <FormDialogSubmit disabled>{submitLabel}</FormDialogSubmit>
       </FormDialogFooter>
     </>
   );
