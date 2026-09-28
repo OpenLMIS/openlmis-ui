@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   FormDialog,
@@ -161,5 +161,84 @@ describe('FormDialog focus with a hidden field', () => {
     );
 
     await waitFor(() => expect(screen.getByLabelText('New Password')).toHaveFocus());
+  });
+});
+
+/** Like a combobox in its own loading boundary: the field arrives after the form. */
+function LateField() {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setLoaded(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+  return loaded ? <input aria-label="User" /> : <div aria-busy />;
+}
+
+function OpenedWith({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)} type="button">
+        Open
+      </button>
+      <FormDialog onOpenChange={setOpen} open={open}>
+        <FormDialogForm onSubmit={vi.fn()}>
+          <FormDialogBody>{children}</FormDialogBody>
+          <FormDialogFooter>
+            <FormDialogCancel>Cancel</FormDialogCancel>
+          </FormDialogFooter>
+        </FormDialogForm>
+      </FormDialog>
+    </>
+  );
+}
+
+describe('FormDialog focus with fields that load late', () => {
+  it('waits for a field still loading instead of starting on Cancel', async () => {
+    const user = userEvent.setup();
+    render(
+      <OpenedWith>
+        <LateField />
+      </OpenedWith>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'User' })).toHaveFocus());
+  });
+
+  it('leaves focus where the user put it while the field loads', async () => {
+    const user = userEvent.setup();
+    render(
+      <OpenedWith>
+        <input aria-label="Note" tabIndex={-1} />
+        <LateField />
+      </OpenedWith>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    await user.click(screen.getByRole('textbox', { name: 'Note' }));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'User' })).toBeInTheDocument());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveFocus();
+  });
+});
+
+describe('FormDialog focus on touch', () => {
+  it('keeps focus on the dialog when a tap opened it, so no on-screen keyboard pops up', async () => {
+    render(
+      <OpenedWith>
+        <input aria-label="Name" />
+      </OpenedWith>,
+    );
+    const open = screen.getByRole('button', { name: 'Open' });
+
+    fireEvent.pointerDown(open, { pointerType: 'touch' });
+    fireEvent.click(open);
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole('dialog')).toHaveFocus();
   });
 });
