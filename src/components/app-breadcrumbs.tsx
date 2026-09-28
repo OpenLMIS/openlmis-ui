@@ -11,25 +11,23 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { getNavTrail, type NavTrailItem } from '@/lib/config';
+import { getBreadcrumbTrail } from '@/lib/config';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
   interface StaticDataRouteOption {
-    /** The last crumb of a page below a nav entry, e.g. a user's roles below Users. */
+    /** The last crumb: a page below a nav entry, e.g. a user's roles, or a page off the nav. */
     crumbKey?: ParseKeys;
   }
 }
 
-/** Home, then the current page's place in the nav. Hidden on Home itself and off-nav pages. */
+/** Home, then the current page's place in the nav. Hidden on Home and on off-nav pages without a crumb. */
 export function AppBreadcrumbs() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const canOpen = useCanOpen();
   const crumbKey = useMatches({ select: (matches) => matches.at(-1)?.staticData.crumbKey });
-  const navTrail = getNavTrail(pathname).filter((item) => item.to !== '/home');
-  const trail: NavTrailItem[] =
-    crumbKey && navTrail.length > 0 ? [...navTrail, { titleKey: crumbKey }] : navTrail;
+  const trail = getBreadcrumbTrail(pathname, crumbKey);
 
   if (trail.length === 0) return null;
 

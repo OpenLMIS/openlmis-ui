@@ -6,8 +6,8 @@ import type {
   Role,
   SupervisoryNode,
 } from '@/features/reference-data/lib/types';
-import type { RoleAssignment } from '@/features/users/lib/types';
 import { fold } from '@/lib/text';
+import type { RoleAssignment } from '@/lib/user-types';
 
 /** The tabs of the roles page, one per role type, in the order legacy shows them. */
 export const ROLE_TABS = [

@@ -1,5 +1,6 @@
-import { useNavigate } from '@tanstack/react-router';
-import { LogOutIcon, SettingsIcon, UserIcon } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { LogOutIcon, UserIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,7 +13,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { profileOptions } from '@/features/profile/api/queries';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { fullName } from '@/lib/text';
 
 type NavUserProps = {
   /** Rendered as the menu trigger so each call site styles its own. */
@@ -36,21 +39,12 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
     <DropdownMenu>
       <DropdownMenuTrigger render={trigger} />
       <DropdownMenuContent align={align} width="wide">
-        <div className="flex flex-col gap-0.5 px-2 py-1.5">
-          <p className="truncate font-semibold text-foreground text-xs">{username}</p>
-          {/* TODO: Swap the reference-data id for the real profile once that endpoint is wired up. */}
-          <p className="truncate text-2xs text-muted-foreground">{referenceDataUserId}</p>
-        </div>
+        <SignedInAs userId={referenceDataUserId} username={username} />
         <DropdownMenuSeparator />
-        {/* TODO: Wire up onClick handlers (navigate to /account, /settings). */}
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          <DropdownMenuItem render={<Link to="/profile" />}>
             <UserIcon />
             {t('nav-user.account')}
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <SettingsIcon />
-            {t('nav-user.settings')}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -63,5 +57,21 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** The user's name over their username; rendered in the open menu, so it loads only then. */
+function SignedInAs({ userId, username }: { userId: string | null; username: string | null }) {
+  const { data: name } = useQuery({
+    ...profileOptions(userId ?? ''),
+    enabled: userId !== null,
+    select: ({ user }) => fullName(user),
+  });
+
+  return (
+    <div className="flex flex-col gap-0.5 px-2 py-1.5">
+      <p className="truncate font-semibold text-foreground text-xs">{name || username}</p>
+      {name && <p className="truncate text-2xs text-muted-foreground">{username}</p>}
+    </div>
   );
 }

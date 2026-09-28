@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getBreadcrumbTrail,
   getNavTrail,
   getTextDirection,
   isNavParent,
@@ -64,6 +65,37 @@ describe('getNavTrail', () => {
 
   it('is empty for a path outside the nav', () => {
     expect(getNavTrail('/login')).toEqual([]);
+  });
+});
+
+describe('getBreadcrumbTrail', () => {
+  it('is empty on Home, which the breadcrumbs always start with', () => {
+    expect(getBreadcrumbTrail('/home')).toEqual([]);
+  });
+
+  it('follows the nav for a nav page', () => {
+    expect(getBreadcrumbTrail('/administration/users')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.users', to: '/administration/users' },
+    ]);
+  });
+
+  it('ends a page below a nav entry with its own crumb', () => {
+    expect(getBreadcrumbTrail('/administration/users/u1/roles', 'users.roles')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.users', to: '/administration/users' },
+      { titleKey: 'users.roles' },
+    ]);
+  });
+
+  it('gives a page outside the nav its own crumb', () => {
+    expect(getBreadcrumbTrail('/profile', 'profile.title')).toEqual([
+      { titleKey: 'profile.title' },
+    ]);
+  });
+
+  it('is empty for a page outside the nav without a crumb', () => {
+    expect(getBreadcrumbTrail('/login')).toEqual([]);
   });
 });
 

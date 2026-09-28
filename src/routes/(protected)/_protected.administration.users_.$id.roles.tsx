@@ -4,10 +4,8 @@ import {
   createFileRoute,
   type ErrorComponentProps,
   Link,
-  useBlocker,
   useRouter,
 } from '@tanstack/react-router';
-import { isAxiosError } from 'axios';
 import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +13,7 @@ import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { NoAccessPage } from '@/components/no-access-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,21 +49,22 @@ import {
 } from '@/features/reference-data/api/queries';
 import { updateUserRoles } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import { DiscardChangesDialog } from '@/features/users/components/discard-changes-dialog';
 import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
 import { RoleTabs } from '@/features/users/components/role-tabs';
-import { fullName } from '@/features/users/lib/names';
 import { countChanges, ROLE_TABS, type RoleRow } from '@/features/users/lib/role-assignments';
 import {
   CLOSED_ROLE_DIALOGS,
   type RolesSearch,
   rolesSearchSchema,
 } from '@/features/users/lib/roles-search';
-import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
+import type { UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
-import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import type { SearchChange } from '@/lib/table-search';
+import { fullName } from '@/lib/text';
+import type { RoleAssignment } from '@/lib/user-types';
 
 // Their own chunk, fetched once the page has painted.
 const loadRoleDialogs = () => import('@/features/users/components/role-dialogs');
@@ -117,30 +117,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
 
-  const updateSearch = useCallback(
-    (update: Parameters<SearchChange<RolesSearch>>[0], replace = false) =>
-      navigate({
-        search: (previous) => ({
-          ...previous,
-          ...(typeof update === 'function' ? update(previous) : update),
-        }),
-        replace,
-      }),
-    [navigate],
-  );
-  // Opening marks the entry it pushes, so closing steps Back instead of stacking history.
-  const openDialog = useCallback(
-    (params: Partial<RolesSearch>) =>
-      navigate({
-        search: (previous) => ({ ...previous, ...CLOSED_ROLE_DIALOGS, ...params }),
-        state: (previous) => ({ ...previous, dialogOpenedHere: true }),
-      }),
-    [navigate],
-  );
-  const closeDialog = useCallback(() => {
-    if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else updateSearch(CLOSED_ROLE_DIALOGS, true);
-  }, [router, updateSearch]);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<RolesSearch>(CLOSED_ROLE_DIALOGS);
 
   // The draft as it is now, for a save that finishes after later edits.
   const latestDraft = useRef(draft.draft);
@@ -155,9 +133,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
     () => navigate({ to: '/administration/users', search: listSearch }),
     [navigate, listSearch],
   );
-
-  // A sign out waiting on the discard dialog; set by the leave guard below.
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
 
   const save = useMutation({
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
@@ -175,11 +150,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
         void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
       }
       // A sign out asked for during the save goes ahead, now that nothing is left to lose.
-      if (pendingLeave && !editedMeanwhile) {
-        setPendingLeave(null);
-        pendingLeave();
-        return;
-      }
+      if (!editedMeanwhile && guard.leaveIfAsked()) return;
       // Back to the list, as legacy does, unless that would drop edits made during the save.
       if (!editedMeanwhile) {
         leaving.current = true;
@@ -189,19 +160,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 
-  // Tabs, dialogs and paging stay on this page; only leaving it can lose the draft.
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      !leaving.current &&
-      draft.changes > 0 &&
-      current.pathname !== next.pathname &&
-      next.pathname !== '/login',
-    enableBeforeUnload: () => draft.changes > 0,
-    withResolver: true,
-  });
-  // Signing out leaves without the router, so it asks through the same dialog.
-  const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
-  useLeaveGuard(draft.changes > 0, askToLeave);
+  // Tabs, dialogs and paging stay on this page; only leaving it, or signing out, can lose the draft.
+  const guard = useDiscardGuard(draft.changes > 0, { allowLeave: () => leaving.current });
 
   const { add, remove } = draft;
   const rolesRegion = useRef<HTMLDivElement>(null);
@@ -301,19 +261,11 @@ function RolesEditor({ details }: { details: UserDetails }) {
             </Suspense>
           </CatchBoundary>
           <DiscardChangesDialog
-            changes={draft.changes}
-            confirmLabel={t(pendingLeave ? 'users.roles.discard-sign-out' : 'users.roles.discard')}
-            onDiscard={() => {
-              if (!pendingLeave) return blocker.proceed?.();
-              setPendingLeave(null);
-              pendingLeave();
-            }}
-            onKeepEditing={() => {
-              setPendingLeave(null);
-              blocker.reset?.();
-            }}
-            open={blocker.status === 'blocked' || pendingLeave !== null}
-            username={user.username}
+            description={t('users.roles.discard-description', {
+              count: draft.changes,
+              username: user.username,
+            })}
+            {...guard.dialog}
           />
         </WorkspaceContent>
       </Workspace>
@@ -373,7 +325,7 @@ function RolesPagePending() {
 function RolesPageError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const notFound = isAxiosError(error) && error.response?.status === 404;
+  const notFound = isNotFound(error);
   if (isForbidden(error)) return <NoAccessPage />;
 
   return (

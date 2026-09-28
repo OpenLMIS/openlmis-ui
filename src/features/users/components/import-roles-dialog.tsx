@@ -21,9 +21,9 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldDescription, FieldGroup } from '@/components/ui/field';
 import { allUsersOptions, userDetailsOptions } from '@/features/users/api/queries';
-import { fullName } from '@/features/users/lib/names';
 import { mergeAssignments } from '@/features/users/lib/role-assignments';
-import type { RoleAssignment } from '@/features/users/lib/types';
+import { fullName } from '@/lib/text';
+import type { RoleAssignment } from '@/lib/user-types';
 
 const importSchema = z.object({
   userId: z.string().nullable().refine(Boolean, 'users.roles.import.user-required'),

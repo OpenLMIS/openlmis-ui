@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { UsersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,8 +28,8 @@ import {
   type UsersSearch,
   usersSearchSchema,
 } from '@/features/users/lib/search';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import type { SearchUpdate } from '@/lib/table-search';
 
 // Their own chunk: the list paints without the forms, and the chunk is fetched right after.
 const loadUserDialogs = () => import('@/features/users/components/user-dialogs');
@@ -47,8 +47,6 @@ const CLOSED_DIALOGS = {
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
   interface HistoryState {
-    /** On an entry this page pushed to open a dialog, so closing it can step Back. */
-    dialogOpenedHere?: boolean;
     /** The list's search when a user's roles were opened from it, so leaving them returns there. */
     usersListSearch?: UsersSearch;
   }
@@ -105,31 +103,8 @@ function UsersPage() {
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
 
   // Typing in a filter replaces the history entry; paging and sorting add one, so Back steps through them.
-  const updateSearch = useCallback(
-    (update: Partial<UsersSearch> | SearchUpdate<UsersSearch>, replace = false) =>
-      navigate({
-        search: (previous) => ({
-          ...previous,
-          ...(typeof update === 'function' ? update(previous) : update),
-        }),
-        replace,
-      }),
-    [navigate],
-  );
-  const router = useRouter();
-  // Opening marks the entry it pushes, so closing steps Back to the list, even after Forward reopened it.
-  const openDialog = useCallback(
-    (params: Partial<UsersSearch>) =>
-      navigate({
-        search: (previous) => ({ ...previous, ...CLOSED_DIALOGS, ...params }),
-        state: (previous) => ({ ...previous, dialogOpenedHere: true }),
-      }),
-    [navigate],
-  );
-  const closeDialog = useCallback(() => {
-    if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else updateSearch(CLOSED_DIALOGS, true);
-  }, [router, updateSearch]);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<UsersSearch>(CLOSED_DIALOGS);
   // Setting a password takes the new user's place in history, keeping its mark, so Close still steps Back.
   const setNewUserPassword = useCallback(
     (userId: string) =>

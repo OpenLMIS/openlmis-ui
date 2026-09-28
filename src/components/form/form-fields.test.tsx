@@ -14,6 +14,8 @@ const schema = z.object({
   secret: z.string(),
   notes: z.string(),
   rights: z.array(z.string()),
+  channel: z.string(),
+  code: z.string(),
 });
 
 const facilities = [
@@ -37,6 +39,8 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       secret: '',
       notes: '',
       rights: ['r1'] as string[],
+      channel: 'EMAIL',
+      code: '',
     },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
@@ -51,7 +55,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       }}
     >
       <form.AppField name="name">
-        {(field) => <field.TextField label="Name" required />}
+        {(field) => <field.TextField description="As on the ID card" label="Name" required />}
       </form.AppField>
       <form.AppField name="facility">
         {(field) => (
@@ -95,6 +99,22 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
             removeLabel={(label) => `Remove ${label}`}
           />
         )}
+      </form.AppField>
+      <form.AppField name="channel">
+        {(field) => (
+          <field.SelectField
+            description="How messages reach you"
+            items={[
+              { value: 'EMAIL', label: 'Email' },
+              { value: 'SMS', label: 'SMS' },
+              { value: 'FAX', label: 'Fax', disabled: true },
+            ]}
+            label="Channel"
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="code">
+        {(field) => <field.TextField dir="ltr" label="Code" />}
       </form.AppField>
       <button type="submit">Save</button>
     </form>
@@ -156,6 +176,8 @@ describe('form fields', () => {
       secret: '',
       notes: '',
       rights: ['r1'],
+      channel: 'EMAIL',
+      code: '',
     });
   });
 
@@ -203,5 +225,47 @@ describe('form fields', () => {
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(secret).toHaveAttribute('type', 'text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();
+  });
+
+  it('shows the chosen item by its label and stores it by value', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm();
+
+    const channel = screen.getByRole('combobox', { name: 'Channel' });
+    expect(channel).toHaveTextContent('Email');
+    await user.click(channel);
+    expect(await screen.findByRole('option', { name: 'Fax' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await user.click(screen.getByRole('option', { name: 'SMS' }));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ channel: 'SMS' }));
+  });
+
+  it('keeps a code-like value left to right in any language', () => {
+    renderForm();
+    expect(screen.getByRole('textbox', { name: 'Code' })).toHaveAttribute('dir', 'ltr');
+  });
+
+  it('tells screen readers what a field is for and, after a failed submit, what is wrong', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const described = (element: HTMLElement) =>
+      (element.getAttribute('aria-describedby') ?? '')
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(' | ');
+
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    expect(described(name)).toBe('As on the ID card');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(described(name)).toBe('As on the ID card | translated:name.required');
+
+    expect(described(screen.getByRole('combobox', { name: 'Channel' }))).toBe(
+      'How messages reach you',
+    );
   });
 });

@@ -32,7 +32,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { usersListOptions } from '@/features/users/api/queries';
-import { fullName } from '@/features/users/lib/names';
 import {
   CLEARED_USER_FILTERS,
   DEFAULT_USERS_SORT,
@@ -43,6 +42,7 @@ import {
 import type { UserListItem } from '@/features/users/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { fullName } from '@/lib/text';
 
 const columnHelper = createColumnHelper<DataTableFeatures, UserListItem>();
 

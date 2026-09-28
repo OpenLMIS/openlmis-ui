@@ -22,10 +22,10 @@ import {
   type RoleTab,
   toRoleRows,
 } from '@/features/users/lib/role-assignments';
-import { type RolesSearch, TAB_RESET } from '@/features/users/lib/roles-search';
-import type { RoleAssignment } from '@/features/users/lib/types';
+import { type RolesTableSearch, TAB_RESET } from '@/features/users/lib/roles-search';
 import { useRoleLookups } from '@/features/users/lib/use-role-lookups';
 import type { SearchChange } from '@/lib/table-search';
+import type { RoleAssignment } from '@/lib/user-types';
 
 type RoleTabsProps = {
   tab: RoleTab;
@@ -33,10 +33,11 @@ type RoleTabsProps = {
   saved: RoleAssignment[];
   homeFacilityId: string | null | undefined;
   compact: boolean;
-  search: RolesSearch;
-  onSearchChange: SearchChange<RolesSearch>;
-  onAdd: () => void;
-  onRemove: (row: RoleRow) => void;
+  search: RolesTableSearch;
+  onSearchChange: SearchChange<RolesTableSearch>;
+  /** Both left out where the roles are only shown, e.g. on the user's own profile. */
+  onAdd?: () => void;
+  onRemove?: (row: RoleRow) => void;
   onViewRights: (roleId: string) => void;
 };
 
@@ -81,12 +82,14 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
                     value={search.q ?? ''}
                   />
                 </div>
-                <div className="ms-auto">
-                  <Button onClick={props.onAdd}>
-                    <PlusIcon data-icon="inline-start" />
-                    {t('users.roles.add')}
-                  </Button>
-                </div>
+                {props.onAdd && (
+                  <div className="ms-auto">
+                    <Button onClick={props.onAdd}>
+                      <PlusIcon data-icon="inline-start" />
+                      {t('users.roles.add')}
+                    </Button>
+                  </div>
+                )}
               </DataTableToolbar>
               <QueryBoundary
                 errorComponent={({ reset }) => (

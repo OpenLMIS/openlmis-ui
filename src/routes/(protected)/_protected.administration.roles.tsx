@@ -1,5 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { ShieldIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -31,8 +31,8 @@ import {
   type RolesSearch,
   rolesSearchSchema,
 } from '@/features/roles/lib/search';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import type { SearchUpdate } from '@/lib/table-search';
 
 // Their own chunk: the list paints without the forms, and the chunk is fetched right after.
 const loadRoleDialogs = () => import('@/features/roles/components/role-dialogs');
@@ -104,7 +104,6 @@ function RolesPage() {
     structuralSharing: true,
   });
   const anyDialogOpen = dialogs.role !== undefined || dialogs.rights !== undefined;
-  const navigate = Route.useNavigate();
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
     ROLE_HIDEABLE_COLUMNS,
@@ -113,31 +112,8 @@ function RolesPage() {
   );
 
   // Typing in a filter replaces the history entry; paging and sorting add one, so Back steps through them.
-  const updateSearch = useCallback(
-    (update: Partial<RolesSearch> | SearchUpdate<RolesSearch>, replace = false) =>
-      navigate({
-        search: (previous) => ({
-          ...previous,
-          ...(typeof update === 'function' ? update(previous) : update),
-        }),
-        replace,
-      }),
-    [navigate],
-  );
-  const router = useRouter();
-  // Opening marks the entry it pushes, so closing steps Back to the list, even after Forward reopened it.
-  const openDialog = useCallback(
-    (params: Partial<RolesSearch>) =>
-      navigate({
-        search: (previous) => ({ ...previous, ...CLOSED_DIALOGS, ...params }),
-        state: (previous) => ({ ...previous, dialogOpenedHere: true }),
-      }),
-    [navigate],
-  );
-  const closeDialog = useCallback(() => {
-    if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else updateSearch(CLOSED_DIALOGS, true);
-  }, [router, updateSearch]);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<RolesSearch>(CLOSED_DIALOGS);
   const editRole = useCallback((role: string) => openDialog({ role }), [openDialog]);
   const viewRights = useCallback((rights: string) => openDialog({ rights }), [openDialog]);
   // Refetched rather than invalidated, so the rights check on closing the dialog never waits for it.

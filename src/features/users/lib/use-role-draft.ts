@@ -5,7 +5,7 @@ import {
   mergeAssignments,
   rebaseDraft,
 } from '@/features/users/lib/role-assignments';
-import type { RoleAssignment } from '@/features/users/lib/types';
+import type { RoleAssignment } from '@/lib/user-types';
 
 /** The roles being edited, kept apart from the saved ones until they are saved. */
 export function useRoleDraft(saved: RoleAssignment[]) {

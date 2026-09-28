@@ -12,20 +12,19 @@ import { Button } from '@/components/ui/button';
 
 type DiscardChangesDialogProps = {
   open: boolean;
-  changes: number;
-  username: string;
-  /** What discarding leads to, e.g. signing out. */
-  confirmLabel: string;
+  /** What is about to be lost, e.g. how many changes to whose roles. */
+  description: string;
+  /** Whether discarding also signs out, rather than leaving the page. */
+  signingOut: boolean;
   onKeepEditing: () => void;
   onDiscard: () => void;
 };
 
-/** Asked before leaving the page with unsaved roles. */
+/** Asked before a page with unsaved changes is left. */
 export function DiscardChangesDialog({
   open,
-  changes,
-  username,
-  confirmLabel,
+  description,
+  signingOut,
   onKeepEditing,
   onDiscard,
 }: DiscardChangesDialogProps) {
@@ -34,15 +33,13 @@ export function DiscardChangesDialog({
     <AlertDialog onOpenChange={(next) => !next && onKeepEditing()} open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('users.roles.discard-title')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('users.roles.discard-description', { count: changes, username })}
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t('discard-changes.title')}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('users.roles.keep-editing')}</AlertDialogCancel>
+          <AlertDialogCancel>{t('discard-changes.keep-editing')}</AlertDialogCancel>
           <Button onClick={onDiscard} variant="destructive">
-            {confirmLabel}
+            {t(signingOut ? 'discard-changes.discard-sign-out' : 'discard-changes.discard')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useMutation, useSuspenseQuery } from '@tanstack/react-query';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -23,20 +23,20 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { PasswordRequirements } from '@/components/password-requirements';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { sendPasswordResetEmail, setUserPassword } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import { PasswordRequirements } from '@/features/users/components/password-requirements';
 import {
   defaultPasswordForm,
   type PasswordFormValues,
-  passwordErrorKey,
   passwordFormSchema,
   resetEmail,
 } from '@/features/users/lib/password-form';
 import { queryKeys } from '@/lib/key-factory';
+import { passwordErrorKey } from '@/lib/password-rules';
 
 /** The user whose password is set, and whether they were just created and have none yet. */
 export type PasswordDialogTarget = {
@@ -86,6 +86,7 @@ type PasswordFormProps = {
 
 function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const { t } = useTranslation();
+  const requirementsId = useId();
   const { data: details } = useSuspenseQuery(userDetailsOptions(target.userId));
   const { id, username } = details.user;
   const schema = useMemo(() => passwordFormSchema(details.user), [details.user]);
@@ -175,14 +176,14 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
                   {(field) => (
                     <div className="grid gap-3">
                       <field.PasswordField
-                        describedBy="password-requirements"
+                        describedBy={requirementsId}
                         hideLabel={t('users.password.hide')}
                         label={t('users.password.new-password')}
                         required
                         showLabel={t('users.password.show')}
                       />
                       <PasswordRequirements
-                        id="password-requirements"
+                        id={requirementsId}
                         owner={details.user}
                         password={field.state.value}
                       />

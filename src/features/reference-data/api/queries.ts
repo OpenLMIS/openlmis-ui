@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchFacility,
   fetchMinimalFacilities,
   fetchPrograms,
   fetchRoles,
@@ -14,6 +15,13 @@ export const minimalFacilitiesOptions = () =>
   queryOptions({
     queryKey: [...queryKeys.facilities.all, 'minimal'] as const,
     queryFn: fetchMinimalFacilities,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const facilityOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.facilities.detail(id),
+    queryFn: () => fetchFacility(id),
     staleTime: LOOKUP_STALE_TIME,
   });
 

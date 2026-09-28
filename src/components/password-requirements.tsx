@@ -6,7 +6,7 @@ import {
   type PasswordOwner,
   type PasswordRule,
   passwordChecks,
-} from '@/features/users/lib/password-form';
+} from '@/lib/password-rules';
 import { cn } from '@/lib/utils';
 
 const RULE_LABELS: Record<PasswordRule, ParseKeys> = {

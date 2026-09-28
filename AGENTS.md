@@ -366,13 +366,17 @@ A page that edits a draft and saves it at once, like Edit User Roles, renders
 that sticks to the bottom of the window, with Cancel at the start and Save at the end, both
 `size="lg"` and lined up with the page. Save and Cancel return to the list the page was
 opened from, with its page, sort and filters, which the opening link passes in history
-state. Toasts rise above the footer while it is on screen.
+state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
+the saved values back and Save stays. Pages that share a header across tabs, like Profile,
+render it once in the layout route and put the footer in through `ProfileFooter`, so a tab
+switch never remounts the header. Toasts rise above the footer while it is on screen.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
-They are hidden on Home and on pages outside the nav. None of them accept a
+A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
+They are hidden on Home and on pages outside the nav without one. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
 at the call site.
@@ -456,15 +460,19 @@ such as tabs, tables of child records or several steps, gets a page. Users is th
 example: Add/Edit User is a dialog, Edit User Roles is a page.
 
 **The URL owns the open dialog**, like the rest of the list state: `?user=new` or
-`?user=<id>`. Opening adds a history entry so Back closes it; closing replaces it.
+`?user=<id>`. Opening adds a history entry so Back closes it; closing steps back over it,
+or replaces it when the page was opened with the dialog from a link. A page gets this, and
+its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
+`src/hooks/use-search-navigation.ts` rather than writing its own.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`). A yes/no setting is a `SwitchField`,
+`ComboboxField`, `MultiComboboxField`, `SelectField`). A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes. Validate with a zod schema on `onDynamic` with
+`MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
+`SelectField`. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
 the first submit and then follow each correction.
 
@@ -472,7 +480,7 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-`ComboboxInput width`/`clearLabel` and `ComboboxChip removeLabel`.
+`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel` and `SelectTrigger width`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 
@@ -498,10 +506,12 @@ the server may refuse, showing `NoAccess`. Add the page to `NAV_RIGHTS` in
 `src/components/nav-access.ts` too, so the sidebar, the palette and the breadcrumbs never offer
 it. The Users routes are the example.
 
-**Unsaved work asks before it is lost.** A page with a draft blocks router navigation with
-`useBlocker` and, for leaving the router cannot see, such as signing out, registers
-`useLeaveGuard` from `src/hooks/use-leave-guard.ts`; the sign-out calls `whenLeaveAllowed`.
-Both open the page's own "Discard Unsaved Changes?" dialog. A reload or a closed tab gets the
+**Unsaved work asks before it is lost.** A page with a draft calls `useDiscardGuard` from
+`src/hooks/use-discard-guard.ts`, which blocks router navigation to another page and, for
+leaving the router cannot see, such as signing out, registers `useLeaveGuard`; the sign-out
+calls `whenLeaveAllowed`, and so does anything else that signs the user out, such as a
+password change, before it acts. Both open the shared "Discard Unsaved Changes?" dialog,
+`src/components/discard-changes-dialog.tsx`, fed by the hook. A reload or a closed tab gets the
 browser's own prompt, which is the only one a page is allowed there.
 
 **Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
