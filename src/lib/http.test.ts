@@ -1,7 +1,7 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/integrations/axios';
-import { getIfExists, isNotFound } from '@/lib/http';
+import { getIfExists, isNotFound, isRefused } from '@/lib/http';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 
@@ -23,6 +23,14 @@ describe('isNotFound', () => {
     expect(isNotFound(failed(404))).toBe(true);
     expect(isNotFound(failed(500))).toBe(false);
     expect(isNotFound(new Error('offline'))).toBe(false);
+  });
+});
+
+describe('isRefused', () => {
+  it('is true only for a 403 from the server', () => {
+    expect(isRefused(failed(403))).toBe(true);
+    expect(isRefused(failed(401))).toBe(false);
+    expect(isRefused(new Error('offline'))).toBe(false);
   });
 });
 

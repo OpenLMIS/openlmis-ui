@@ -31,3 +31,10 @@ export function sortRoles(roles: Role[], field: RoleSortField, desc: boolean) {
   const compare = COMPARE[field];
   return [...roles].sort((a, b) => (desc ? -compare(a, b) : compare(a, b)) || byName(a, b));
 }
+
+// The save response has no user count, so the listed one is kept until the list reloads.
+export function withSavedRole(roles: Role[], saved: Role): Role[] {
+  const listed = roles.find((role) => role.id === saved.id);
+  if (!listed) return [...roles, { ...saved, count: 0 }];
+  return roles.map((role) => (role.id === saved.id ? { ...saved, count: listed.count } : role));
+}

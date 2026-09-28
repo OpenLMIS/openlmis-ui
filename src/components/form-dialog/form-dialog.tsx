@@ -26,6 +26,8 @@ export function FormDialog({
   onOpenChangeComplete,
   children,
 }: FormDialogProps) {
+  const popupRef = useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       // A click outside would throw away everything typed, so only Cancel, Close and Escape close it.
@@ -34,7 +36,13 @@ export function FormDialog({
       onOpenChangeComplete={onOpenChangeComplete}
       open={open}
     >
-      <DialogContent layout="scroll" size="lg">
+      <DialogContent
+        // Until the form is there, the popup holds focus, so no placeholder button takes it and vanishes.
+        initialFocus={() => firstField(popupRef.current?.querySelector('form')) ?? popupRef.current}
+        layout="scroll"
+        ref={popupRef}
+        size="lg"
+      >
         {children}
       </DialogContent>
     </Dialog>
@@ -45,6 +53,9 @@ const FIELD_SELECTOR = ['input:not([type=hidden])', 'textarea', 'select', 'butto
   .map((control) => `${control}:not(:disabled):not([tabindex="-1"]):not([aria-disabled="true"])`)
   .join(', ');
 
+const firstField = (root: Element | null | undefined) =>
+  root?.querySelector<HTMLElement>(FIELD_SELECTOR) ?? null;
+
 type FormDialogFormProps = {
   onSubmit: () => void;
   children: ReactNode;
@@ -54,10 +65,15 @@ type FormDialogFormProps = {
 export function FormDialogForm({ onSubmit, children }: FormDialogFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
-  // The dialog focuses its loading placeholder; when the form replaces it, focus would be left on the page.
+  // Takes focus from the popup or the page a frame late, once a radio group has made its checked item tabbable.
   useEffect(() => {
-    if (document.activeElement && document.activeElement !== document.body) return;
-    formRef.current?.querySelector<HTMLElement>(FIELD_SELECTOR)?.focus();
+    const frame = requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const popup = formRef.current?.closest('[role=dialog]');
+      if (active && active !== document.body && active !== popup) return;
+      firstField(formRef.current)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   return (

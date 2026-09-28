@@ -20,6 +20,7 @@ import {
 import { rightsOptions } from '@/features/auth/api/queries';
 import { isForbidden, requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
+import { toRoleAccess } from '@/features/auth/lib/role-access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { rolesOptions } from '@/features/reference-data/api/queries';
 import { ROLE_TYPES, roleTypeOf } from '@/features/reference-data/lib/roles';
@@ -55,6 +56,10 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
   loader: async ({ context: { queryClient }, deps }) => {
     await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery({ ...rolesOptions(), staleTime: LIST_FRESH_FOR });
+    const userId = useLoginData.getState().referenceDataUserId ?? '';
+    // Already loaded by the check above; the dialog's data is only worth loading for someone who can edit.
+    const { canEdit } = toRoleAccess(await queryClient.ensureQueryData(rightsOptions(userId)));
+    if (!canEdit) return;
     if (deps.role === 'new') {
       // Every tab's rights, so switching the type never waits.
       for (const { type } of ROLE_TYPES) queryClient.prefetchQuery(rightsByTypeOptions(type));
@@ -80,10 +85,7 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 function useRoleAccess() {
   const userId = useLoginData((state) => state.referenceDataUserId) ?? '';
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
-  const canViewRights = rights.has(RIGHTS.rightsView);
-  // Picking rights needs View Rights too, so editing without it would fail half way.
-  const canEdit = canViewRights && rights.has(RIGHTS.userRolesManage);
-  return { userId, canViewRights, canEdit };
+  return { userId, ...toRoleAccess(rights) };
 }
 
 function RolesPage() {

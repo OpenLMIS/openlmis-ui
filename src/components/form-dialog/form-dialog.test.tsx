@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useEffect, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   FormDialog,
@@ -52,7 +53,7 @@ describe('FormDialog', () => {
 });
 
 describe('FormDialogForm', () => {
-  it('takes focus to its first field when it replaces a loading placeholder that had it', async () => {
+  it('keeps focus off a loading placeholder, then takes it to the first field', async () => {
     const { rerender } = render(
       <FormDialog onOpenChange={vi.fn()} open>
         <FormDialogFooter>
@@ -60,7 +61,7 @@ describe('FormDialogForm', () => {
         </FormDialogFooter>
       </FormDialog>,
     );
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
 
     rerender(
       <FormDialog onOpenChange={vi.fn()} open>
@@ -73,5 +74,75 @@ describe('FormDialogForm', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name' })).toHaveFocus());
+  });
+});
+
+/** Like Base UI's radio group, which makes its checked item tabbable only after it mounts. */
+function LateTabbableRadio() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: mirrors Base UI's radio, a span with the radio role.
+    <span
+      aria-checked="true"
+      aria-label="Send Reset Email"
+      role="radio"
+      tabIndex={ready ? 0 : -1}
+    />
+  );
+}
+
+function OpenedByClick({ loaded = true }: { loaded?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)} type="button">
+        Open
+      </button>
+      <FormDialog onOpenChange={setOpen} open={open}>
+        {loaded ? (
+          <FormDialogForm onSubmit={vi.fn()}>
+            <FormDialogBody>
+              <LateTabbableRadio />
+            </FormDialogBody>
+            <FormDialogFooter>
+              <FormDialogCancel>Cancel</FormDialogCancel>
+            </FormDialogFooter>
+          </FormDialogForm>
+        ) : (
+          <FormDialogFooter>
+            <FormDialogCancel>Loading Cancel</FormDialogCancel>
+          </FormDialogFooter>
+        )}
+      </FormDialog>
+    </>
+  );
+}
+
+describe('FormDialog focus', () => {
+  it('starts on the first field of the form, not a footer button, when opened with the mouse', async () => {
+    const user = userEvent.setup();
+    render(<OpenedByClick />);
+
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: 'Send Reset Email' })).toHaveFocus(),
+    );
+  });
+
+  it('moves to the first field once the form replaces its loading placeholder', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<OpenedByClick loaded={false} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    rerender(<OpenedByClick loaded />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: 'Send Reset Email' })).toHaveFocus(),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByRole('radio', { name: 'Send Reset Email' })).toHaveFocus();
   });
 });

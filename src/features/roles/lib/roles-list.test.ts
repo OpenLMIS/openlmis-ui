@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Role } from '@/features/reference-data/lib/types';
-import { filterRoles, sortRoles } from '@/features/roles/lib/roles-list';
+import { filterRoles, sortRoles, withSavedRole } from '@/features/roles/lib/roles-list';
 
 const role = (
   id: string,
@@ -82,5 +82,24 @@ describe('sortRoles', () => {
     const copy = [...roles];
     sortRoles(roles, 'name', true);
     expect(roles).toEqual(copy);
+  });
+});
+
+describe('withSavedRole', () => {
+  it('replaces an edited role, keeping how many users hold it', () => {
+    const saved = { ...role('3', 'Warehouse Lead', 'ORDER_FULFILLMENT'), count: undefined };
+    const list = withSavedRole(roles, saved);
+
+    expect(list.find((item) => item.id === '3')).toMatchObject({
+      name: 'Warehouse Lead',
+      count: 9,
+    });
+    expect(list).toHaveLength(5);
+  });
+
+  it('adds a new role, held by nobody yet', () => {
+    const saved = { ...role('6', 'Clerk', 'REPORTS'), count: undefined };
+
+    expect(withSavedRole(roles, saved).at(-1)).toMatchObject({ id: '6', count: 0 });
   });
 });

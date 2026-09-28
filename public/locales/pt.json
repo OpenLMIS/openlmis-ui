@@ -348,6 +348,8 @@
   "roles.form.name": "Nome",
   "roles.form.name-required": "Introduza um nome.",
   "roles.form.name-taken": "Outra função já tem este nome.",
+  "roles.form.no-access": "Criar e editar funções requer as permissões Gerir Funções de Utilizadores e Ver Permissões. Peça-as a um administrador se precisar delas.",
+  "roles.form.no-access-title": "Sem Acesso",
   "roles.form.not-found": "Esta função já não existe.",
   "roles.form.other-type-description": "{count, plural, one {Esta função também tem uma permissão de outro tipo, {rights}. Guardar remove-a,} other {Esta função também tem # permissões de outro tipo: {rights}. Guardar remove-as,}} pois uma função só tem permissões de um tipo.",
   "roles.form.other-type-title": "Permissões de Outro Tipo",
