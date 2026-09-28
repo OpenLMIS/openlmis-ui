@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import {
   type ProfileFormValues,
   profileChanges,
@@ -12,18 +11,8 @@ import type {
   ProfileUser,
 } from '@/features/profile/lib/types';
 import { client } from '@/integrations/axios';
+import { getIfExists } from '@/lib/http';
 import type { Page } from '@/lib/types';
-
-/** A user without contact details has no verification or subscriptions either, which is not an error. */
-async function getIfExists<T>(url: string): Promise<T | null> {
-  try {
-    const { data } = await client.get<T>(url);
-    return data;
-  } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 404) return null;
-    throw error;
-  }
-}
 
 export async function fetchProfile(userId: string): Promise<Profile> {
   const [{ data: user }, contact] = await Promise.all([

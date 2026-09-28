@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import { toSavedAssignment } from '@/features/users/lib/role-assignments';
 import type {
   AuthUser,
@@ -17,6 +16,7 @@ import {
   type UserFormValues,
 } from '@/features/users/lib/user-form';
 import { client } from '@/integrations/axios';
+import { getIfExists } from '@/lib/http';
 import type { Page } from '@/lib/types';
 
 // Spring binds repeated params (`id=a&id=b`), not axios's default `id[]=a`.
@@ -83,17 +83,6 @@ export async function fetchUsers(query: UsersQuery, ids?: string[]): Promise<Pag
     ...users,
     content: users.content.map((user) => ({ ...user, email: emails.get(user.id) ?? null })),
   };
-}
-
-/** A user created before contact details or an account existed has none, which is not an error. */
-async function getIfExists<T>(url: string): Promise<T | null> {
-  try {
-    const { data } = await client.get<T>(url);
-    return data;
-  } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 404) return null;
-    throw error;
-  }
 }
 
 export async function fetchUserDetails(id: string): Promise<UserDetails> {

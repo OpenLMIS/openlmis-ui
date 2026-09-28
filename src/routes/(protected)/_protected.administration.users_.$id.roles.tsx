@@ -6,7 +6,6 @@ import {
   Link,
   useRouter,
 } from '@tanstack/react-router';
-import { isAxiosError } from 'axios';
 import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -62,6 +61,7 @@ import {
 import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -349,7 +349,7 @@ function RolesPagePending() {
 function RolesPageError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const notFound = isAxiosError(error) && error.response?.status === 404;
+  const notFound = isNotFound(error);
   if (isForbidden(error)) return <NoAccessPage />;
 
   return (

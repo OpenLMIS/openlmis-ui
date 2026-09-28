@@ -64,6 +64,7 @@ import {
   toRoleBody,
   toRoleFormValues,
 } from '@/features/roles/lib/role-form';
+import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
 /** One key per role, so a save still running for one never locks another's dialog. */
@@ -108,7 +109,7 @@ function RoleDialogContent({ target, onDone, onSaved }: RoleDialogContentProps) 
   return (
     <QueryBoundary
       errorComponent={({ error, reset }) =>
-        isAxiosError(error) && error.response?.status === 404 ? (
+        isNotFound(error) ? (
           <NotFoundContent title={title} />
         ) : (
           <DialogLoadError
