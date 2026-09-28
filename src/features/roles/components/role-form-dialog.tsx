@@ -70,12 +70,10 @@ import { queryKeys } from '@/lib/key-factory';
 const saveKey = (role: string) => [...queryKeys.roles.all, 'save', role] as const;
 
 type RoleFormDialogProps = {
-  /** `new` to create a role, or the id of the one being edited; open while set. */
   target: 'new' | string | undefined;
   /** Whether the user may create and edit roles; a link opened without the rights shows No Access. */
   canEdit: boolean;
   onClose: () => void;
-  /** After a save, e.g. to reload the signed-in user's rights, which a role they hold may change. */
   onSaved: () => void;
 };
 
@@ -143,7 +141,6 @@ function ExistingRole({ roleId, ...props }: Omit<RoleFormProps, 'role'> & { role
 }
 
 type RoleFormProps = {
-  /** The role being edited; none when creating one. */
   role?: Role;
   onDone: () => void;
   onSaved: () => void;
@@ -310,14 +307,11 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
 
 type RoleTypeTabsProps = {
   type: RightType;
-  /** Only the current type can be picked, for a saved role. */
   locked: boolean;
   onChange: (type: RightType) => void;
-  /** The form below the tabs, as the panel of the chosen type. */
   children: ReactNode;
 };
 
-/** The four role types as tabs over the form, each with a line on what it is for. */
 function RoleTypeTabs({ type, locked, onChange, children }: RoleTypeTabsProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -431,7 +425,6 @@ function RoleFormSkeleton({ title, submitLabel }: { title: string; submitLabel: 
             <FieldTitle>
               <FieldLabelText label={t('roles.type')} required />
             </FieldTitle>
-            {/* Two by two in a narrow dialog, one row once the tabs fit, as the tabs themselves. */}
             <div className="@container">
               <div className="h-15 w-full @md:h-8">
                 <Skeleton fill />

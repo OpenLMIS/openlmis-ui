@@ -44,7 +44,6 @@ export function DataTableSelectFilter({
             {value ? (
               <>
                 <span className="shrink-0 text-muted-foreground">{label}:</span>
-                {/* Truncates a long pick, so it never runs under the clear button. */}
                 <span className="min-w-0 truncate">
                   <SelectValue />
                 </span>

@@ -60,7 +60,6 @@ export function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
 
 type DialogLoadErrorProps = {
   title: string;
-  /** Says what could not load, e.g. "Could Not Load User". */
   errorTitle: string;
   onRetry: () => void;
 };

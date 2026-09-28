@@ -41,7 +41,6 @@ export function FormDialog({
   );
 }
 
-// The first control Tab would reach: enabled and not taken out of the tab order.
 const FIELD_SELECTOR = ['input:not([type=hidden])', 'textarea', 'select', 'button', '[tabindex]']
   .map((control) => `${control}:not(:disabled):not([tabindex="-1"]):not([aria-disabled="true"])`)
   .join(', ');

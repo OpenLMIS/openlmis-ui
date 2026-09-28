@@ -61,7 +61,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
     } else if (deps.role) {
       const roleId = deps.role;
       queryClient.prefetchQuery(roleDetailOptions(roleId));
-      // A saved role's type is in the list, so its rights load beside the role, not after it; never awaited.
+      // A saved role's type is in the list, so its rights load beside the role, not after it.
       queryClient
         .ensureQueryData(rolesOptions())
         .then((roles) => {

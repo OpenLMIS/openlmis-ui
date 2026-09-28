@@ -30,7 +30,6 @@ export function roleTypeInfo(type: RightType): RoleTypeInfo {
   return ROLE_TYPES.find((item) => item.type === type) ?? ROLE_TYPES[0];
 }
 
-/** A role's type is its first right's; a role with no rights has none. */
 export const roleTypeOf = (role: Role | undefined): RightType | undefined => role?.rights[0]?.type;
 
 // Kept as written rather than capitalized like a word.

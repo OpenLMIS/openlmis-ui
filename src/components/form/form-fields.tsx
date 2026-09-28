@@ -161,7 +161,6 @@ type PasswordFieldProps = FieldProps & {
   /** Names the button that reveals the password, for screen readers. */
   showLabel: string;
   hideLabel: string;
-  /** The id of text outside the field that explains it, such as a list of rules. */
   describedBy?: string;
 };
 
