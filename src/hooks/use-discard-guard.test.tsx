@@ -15,19 +15,20 @@ let guard: ReturnType<typeof useDiscardGuard>;
 
 let leaving = false;
 
-function Draft({ changes }: { changes: number }) {
-  guard = useDiscardGuard(changes, { allowLeave: () => leaving });
-  return <p>{guard.open ? `asking${guard.signingOut ? ' to sign out' : ''}` : 'editing'}</p>;
+function Draft({ dirty }: { dirty: boolean }) {
+  guard = useDiscardGuard(dirty, { allowLeave: () => leaving });
+  const { open, signingOut } = guard.dialog;
+  return <p>{open ? `asking${signingOut ? ' to sign out' : ''}` : 'editing'}</p>;
 }
 
-async function renderAt(changes: number) {
+async function renderAt(dirty: boolean) {
   leaving = false;
   const root = createRootRoute({ component: Outlet });
   const routes = ['/profile', '/profile/roles', '/login'].map((path) =>
     createRoute({
       getParentRoute: () => root,
       path,
-      component: () => (path === '/profile' ? <Draft changes={changes} /> : <p>{path}</p>),
+      component: () => (path === '/profile' ? <Draft dirty={dirty} /> : <p>{path}</p>),
     }),
   );
   const router = createRouter({
@@ -41,59 +42,59 @@ async function renderAt(changes: number) {
 
 describe('useDiscardGuard', () => {
   it('lets the page go when nothing changed', async () => {
-    const router = await renderAt(0);
+    const router = await renderAt(false);
     await act(() => router.navigate({ to: '/profile/roles' }));
     expect(await screen.findByText('/profile/roles')).toBeInTheDocument();
   });
 
   it('asks before leaving for another page, and stays on Keep Editing', async () => {
-    const router = await renderAt(1);
+    const router = await renderAt(true);
     act(() => void router.navigate({ to: '/profile/roles' }));
     expect(await screen.findByText('asking')).toBeInTheDocument();
-    act(() => guard.onKeepEditing());
+    act(() => guard.dialog.onKeepEditing());
     expect(await screen.findByText('editing')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/profile');
   });
 
   it('leaves once the changes are discarded', async () => {
-    const router = await renderAt(1);
+    const router = await renderAt(true);
     act(() => void router.navigate({ to: '/profile/roles' }));
     await screen.findByText('asking');
-    act(() => guard.onDiscard());
+    act(() => guard.dialog.onDiscard());
     expect(await screen.findByText('/profile/roles')).toBeInTheDocument();
   });
 
   it('never blocks a change on the same page, such as opening a dialog', async () => {
-    const router = await renderAt(1);
+    const router = await renderAt(true);
     await act(() => router.navigate({ to: '/profile', search: { dialog: 'password' } }));
     expect(screen.getByText('editing')).toBeInTheDocument();
   });
 
   it('never blocks the way to sign in', async () => {
-    const router = await renderAt(1);
+    const router = await renderAt(true);
     await act(() => router.navigate({ to: '/login' }));
     expect(await screen.findByText('/login')).toBeInTheDocument();
   });
 
   it('holds a sign out until the changes are discarded', async () => {
-    await renderAt(1);
+    await renderAt(true);
     const signOut = vi.fn();
     act(() => whenLeaveAllowed(signOut));
     expect(await screen.findByText('asking to sign out')).toBeInTheDocument();
     expect(signOut).not.toHaveBeenCalled();
-    act(() => guard.onDiscard());
+    act(() => guard.dialog.onDiscard());
     expect(signOut).toHaveBeenCalledOnce();
   });
 
   it('lets the page go without asking once it allows it, e.g. right after a save', async () => {
-    const router = await renderAt(1);
+    const router = await renderAt(true);
     leaving = true;
     await act(() => router.navigate({ to: '/profile/roles' }));
     expect(await screen.findByText('/profile/roles')).toBeInTheDocument();
   });
 
   it('runs a waiting sign out on request, e.g. once a save has kept the changes', async () => {
-    await renderAt(1);
+    await renderAt(true);
     const signOut = vi.fn();
     act(() => whenLeaveAllowed(signOut));
     await screen.findByText('asking to sign out');

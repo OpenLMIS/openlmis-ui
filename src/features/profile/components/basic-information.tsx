@@ -41,6 +41,15 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   const { user, contact } = profile;
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
+  // The saved address shows whether it is verified; a new one, that it waits for its link.
+  const emailDescription = (typed: string) => {
+    if (!typed) return undefined;
+    return typed === savedEmail ? (
+      <EmailStatus verified={emailVerified} />
+    ) : (
+      t('profile.email.change-hint')
+    );
+  };
 
   const save = useMutation({
     mutationFn: (values: ProfileFormValues) => saveProfile(profile, values),
@@ -78,7 +87,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
     const changes = profileChanges(profile, state.values);
     return changes.user || changes.contact;
   });
-  const guard = useDiscardGuard(changed ? 1 : 0);
+  const guard = useDiscardGuard(changed);
 
   return (
     <>
@@ -147,15 +156,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
                     <field.TextField
                       autoComplete="email"
                       dir="ltr"
-                      description={
-                        savedEmail && field.state.value.trim() === savedEmail ? (
-                          <EmailStatus verified={emailVerified} />
-                        ) : (
-                          savedEmail !== field.state.value.trim() &&
-                          field.state.value.trim() !== '' &&
-                          t('profile.email.change-hint')
-                        )
-                      }
+                      description={emailDescription(field.state.value.trim())}
                       label={t('users.email')}
                       type="email"
                     />
@@ -194,13 +195,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           </CardContent>
         </Card>
       </div>
-      <DiscardChangesDialog
-        description={t('profile.discard-description')}
-        onDiscard={guard.onDiscard}
-        onKeepEditing={guard.onKeepEditing}
-        open={guard.open}
-        signingOut={guard.signingOut}
-      />
+      <DiscardChangesDialog description={t('profile.discard-description')} {...guard.dialog} />
     </>
   );
 }

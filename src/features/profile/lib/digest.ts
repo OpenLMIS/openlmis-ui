@@ -1,31 +1,37 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
-import type {
-  DigestConfiguration,
-  DigestSubscription,
-  NotificationChannel,
+import {
+  type DigestConfiguration,
+  type DigestSubscription,
+  NOTIFICATION_CHANNELS,
 } from '@/features/profile/lib/types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;
 
-export type Frequency = 'daily' | 'weekly' | 'custom';
+export const FREQUENCIES = ['daily', 'weekly', 'custom'] as const;
 
 /** A schedule as the form edits it; `weekday` is Sunday 0 to Saturday 6, as in cron. */
-type Schedule = {
-  frequency: Frequency;
-  weekday: string;
-  time: string;
-  cron: string;
-};
+const scheduleSchema = z.object({
+  frequency: z.enum(FREQUENCIES),
+  weekday: z.string(),
+  time: z.string(),
+  cron: z.string(),
+});
 
-export type DigestRow = {
-  configurationId: string;
-  tag: string;
-  channel: NotificationChannel;
-  useDigest: boolean;
-  schedule: Schedule;
-};
+const rowFields = z.object({
+  configurationId: z.string(),
+  tag: z.string(),
+  channel: z.enum(NOTIFICATION_CHANNELS),
+  useDigest: z.boolean(),
+  schedule: scheduleSchema,
+});
+
+export type Frequency = (typeof FREQUENCIES)[number];
+
+type Schedule = z.infer<typeof scheduleSchema>;
+
+export type DigestRow = z.infer<typeof rowFields>;
 
 export const WEEKDAYS = ['0', '1', '2', '3', '4', '5', '6'] as const;
 
@@ -109,45 +115,30 @@ export function countDigestChanges(saved: DigestRow[], rows: DigestRow[]): numbe
     .length;
 }
 
-const scheduleSchema = z.object({
-  frequency: z.enum(['daily', 'weekly', 'custom']),
-  weekday: z.string(),
-  time: z.string(),
-  cron: z.string(),
+const rowSchema = rowFields.superRefine(({ useDigest, channel, schedule }, context) => {
+  if (!useDigest) return;
+  if (channel !== 'EMAIL') {
+    context.addIssue({
+      code: 'custom',
+      path: ['channel'],
+      message: errorKey('profile.notifications.digest-email-only'),
+    });
+  }
+  if (schedule.frequency === 'custom') {
+    if (!isValidCron(schedule.cron)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['schedule', 'cron'],
+        message: errorKey('profile.notifications.cron-invalid'),
+      });
+    }
+  } else if (!TIME.test(schedule.time)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['schedule', 'time'],
+      message: errorKey('profile.notifications.time-required'),
+    });
+  }
 });
-
-const rowSchema = z
-  .object({
-    configurationId: z.string(),
-    tag: z.string(),
-    channel: z.enum(['EMAIL', 'SMS']),
-    useDigest: z.boolean(),
-    schedule: scheduleSchema,
-  })
-  .superRefine(({ useDigest, channel, schedule }, context) => {
-    if (!useDigest) return;
-    if (channel !== 'EMAIL') {
-      context.addIssue({
-        code: 'custom',
-        path: ['channel'],
-        message: errorKey('profile.notifications.digest-email-only'),
-      });
-    }
-    if (schedule.frequency === 'custom') {
-      if (!isValidCron(schedule.cron)) {
-        context.addIssue({
-          code: 'custom',
-          path: ['schedule', 'cron'],
-          message: errorKey('profile.notifications.cron-invalid'),
-        });
-      }
-    } else if (!TIME.test(schedule.time)) {
-      context.addIssue({
-        code: 'custom',
-        path: ['schedule', 'time'],
-        message: errorKey('profile.notifications.time-required'),
-      });
-    }
-  });
 
 export const digestFormSchema = z.object({ rows: z.array(rowSchema) });

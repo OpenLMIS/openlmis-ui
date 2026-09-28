@@ -161,7 +161,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
   });
 
   // Tabs, dialogs and paging stay on this page; only leaving it, or signing out, can lose the draft.
-  const guard = useDiscardGuard(draft.changes, { allowLeave: () => leaving.current });
+  const guard = useDiscardGuard(draft.changes > 0, { allowLeave: () => leaving.current });
 
   const { add, remove } = draft;
   const rolesRegion = useRef<HTMLDivElement>(null);
@@ -265,10 +265,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
               count: draft.changes,
               username: user.username,
             })}
-            onDiscard={guard.onDiscard}
-            onKeepEditing={guard.onKeepEditing}
-            open={guard.open}
-            signingOut={guard.signingOut}
+            {...guard.dialog}
           />
         </WorkspaceContent>
       </Workspace>

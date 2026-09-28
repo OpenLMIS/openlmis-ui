@@ -6,7 +6,9 @@ export type Profile = {
   contact: UserContactDetails | null;
 };
 
-export type NotificationChannel = 'EMAIL' | 'SMS';
+export const NOTIFICATION_CHANNELS = ['EMAIL', 'SMS'] as const;
+
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 /** A kind of notification that can be gathered into a digest, e.g. `requisition-actionRequired`. */
 export type DigestConfiguration = {

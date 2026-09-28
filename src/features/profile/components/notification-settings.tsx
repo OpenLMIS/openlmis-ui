@@ -27,6 +27,7 @@ import {
   countDigestChanges,
   type DigestRow,
   digestFormSchema,
+  FREQUENCIES,
   type Frequency,
   tagLabel,
   toCron,
@@ -134,13 +135,13 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
   });
   const rows = useStore(form.store, (state) => state.values.rows);
   const changes = countDigestChanges(savedRows, rows);
-  const guard = useDiscardGuard(changes);
+  const guard = useDiscardGuard(changes > 0);
 
   const channels = (useDigest: boolean) => [
     { value: 'EMAIL', label: t('profile.notifications.email') },
     { value: 'SMS', label: t('profile.notifications.sms'), disabled: useDigest },
   ];
-  const frequencies = (['daily', 'weekly', 'custom'] as const).map((value) => ({
+  const frequencies = FREQUENCIES.map((value) => ({
     value,
     label: t(`profile.notifications.${value}`),
   }));
@@ -311,10 +312,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
       </Card>
       <DiscardChangesDialog
         description={t('profile.notifications.discard-description', { count: changes })}
-        onDiscard={guard.onDiscard}
-        onKeepEditing={guard.onKeepEditing}
-        open={guard.open}
-        signingOut={guard.signingOut}
+        {...guard.dialog}
       />
     </>
   );
