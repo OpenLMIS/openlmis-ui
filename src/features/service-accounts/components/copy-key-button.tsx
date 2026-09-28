@@ -4,7 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
-export function CopyKeyButton({ token }: { token: string }) {
+export function CopyKeyButton({
+  token,
+  autoFocus = false,
+}: {
+  token: string;
+  autoFocus?: boolean;
+}) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
@@ -28,6 +34,7 @@ export function CopyKeyButton({ token }: { token: string }) {
   return (
     <Button
       aria-label={t(copied ? 'service-accounts.copied' : 'service-accounts.copy')}
+      autoFocus={autoFocus}
       onClick={copy}
       size="icon-xs"
       type="button"

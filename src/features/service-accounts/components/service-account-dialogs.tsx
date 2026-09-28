@@ -77,7 +77,8 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
                 {t('service-accounts.added-description')}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <KeyBox token={created.token} />
+            {/* The new key is what the dialog is now about, so focus moves to its Copy button. */}
+            <KeyBox autoFocus token={created.token} />
             <AlertDialogFooter>
               <Button onClick={onClose}>{t('service-accounts.done')}</Button>
             </AlertDialogFooter>
@@ -107,6 +108,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
               <AlertDialogCancel disabled={add.isPending}>{t('dialog.cancel')}</AlertDialogCancel>
               <Button
                 disabled={add.isPending}
+                focusableWhenDisabled
                 onClick={() => add.mutate(undefined, { onSuccess: setCreated })}
               >
                 {add.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
@@ -120,13 +122,13 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
   );
 }
 
-function KeyBox({ token }: { token: string }) {
+function KeyBox({ token, autoFocus = false }: { token: string; autoFocus?: boolean }) {
   return (
     <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
       <span className="min-w-0 flex-1 font-mono text-sm" dir="ltr">
         {token}
       </span>
-      <CopyKeyButton token={token} />
+      <CopyKeyButton autoFocus={autoFocus} token={token} />
     </div>
   );
 }
@@ -189,6 +191,7 @@ function DeleteServiceAccountDialog({
           </AlertDialogCancel>
           <Button
             disabled={remove.isPending}
+            focusableWhenDisabled
             onClick={() => shown && remove.mutate(shown, { onSuccess: onClose })}
             variant="destructive"
           >
