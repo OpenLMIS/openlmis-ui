@@ -54,6 +54,7 @@ Sessions are shared, with one exception.
 | Change your password in the new UI | You are signed out of both, and sign in again with the new password |
 | Leave the new UI idle for 30 minutes | It asks for your password over the page you were on. Sign in and carry on; nothing unsaved is lost |
 | Open a link to a new UI page while signed out | You sign in, then land on that page |
+| Sign out of the new UI while offline | It asks first, since you can't sign in again until you are back online |
 | Sign into the new UI, then open the old one | **Asks you to sign in once** |
 
 That last row is the exception. Signing into the new UI does not sign you into the

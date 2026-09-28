@@ -18,6 +18,8 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import * as authApi from '@/features/auth/api/api';
@@ -61,6 +63,8 @@ function SignInAgainForm({ username }: { username: string }) {
   const { logout } = useAuthActions();
   const signIn = useMutation({
     mutationFn: (password: string) => authApi.login({ username, password }),
+    // Offline, Query would hold these until the network is back; the dialog handles offline itself.
+    networkMode: 'always',
     // Back in the field, ready to type again.
     onError: () => {
       const field = document.querySelector<HTMLInputElement>('#sessionPassword');
@@ -77,15 +81,22 @@ function SignInAgainForm({ username }: { username: string }) {
   });
 
   const signOut = useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
       await logout();
       await navigate({ to: '/login' });
     },
   });
   const pending = signIn.isPending || signOut.isPending;
+  const offlineSignOut = useOfflineSignOut();
+  const cannotConnect = signIn.isError && signInErrorKey(signIn.error) === 'session.cannot-connect';
 
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
+      {/* Where a close button would be, so a user who cannot read the dialog can change it. */}
+      <div className="absolute top-2 end-2">
+        <LanguageSwitcher />
+      </div>
       <FormDialogHeader>
         <FormDialogTitle>{t('session.expired-title')}</FormDialogTitle>
         <FormDialogDescription>{t('session.expired-description')}</FormDialogDescription>
@@ -117,7 +128,9 @@ function SignInAgainForm({ username }: { username: string }) {
       <FormDialogFooter>
         <Button
           disabled={pending}
-          onClick={() => whenLeaveAllowed(() => signOut.mutate())}
+          onClick={() =>
+            offlineSignOut.confirm(() => whenLeaveAllowed(() => signOut.mutate()), cannotConnect)
+          }
           type="button"
           variant="outline"
         >
@@ -127,6 +140,7 @@ function SignInAgainForm({ username }: { username: string }) {
           {signIn.isPending ? t('session.signing-in') : t('session.sign-in')}
         </FormDialogSubmit>
       </FormDialogFooter>
+      {offlineSignOut.dialog}
     </FormDialogForm>
   );
 }

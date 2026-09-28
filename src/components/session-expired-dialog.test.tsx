@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -173,6 +173,47 @@ describe('SessionExpiredDialog', () => {
     expect(router.state.location.pathname).toBe('/login');
     expect(useLoginData.getState().isAuthenticated).toBe(false);
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  });
+
+  it('warns before signing out when the server was out of reach', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+    await screen.findByText('session.cannot-connect');
+
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-out' }));
+
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-offline.title');
+    expect(authApi.logout).not.toHaveBeenCalled();
+  });
+
+  it('lets the user change the language without leaving it', async () => {
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    const dialog = await screen.findByRole('dialog');
+
+    expect(within(dialog).getByRole('button', { name: 'sidebar.change-language' })).toBeVisible();
+  });
+
+  it('tries to sign in and out even while offline, rather than waiting for the network', async () => {
+    onlineManager.setOnline(false);
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+    vi.mocked(authApi.logout).mockResolvedValue();
+    useLoginData.getState().expireSession();
+    const router = await renderAt('/users');
+
+    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+    expect(await screen.findByText('session.cannot-connect')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-out' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'sign-out-offline.confirm' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    onlineManager.setOnline(true);
   });
 
   it('holds both buttons while signing out', async () => {

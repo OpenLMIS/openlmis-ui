@@ -546,6 +546,11 @@ treated as a new expiry. Signing in and out pass `session: false`, so their own 
 never open the dialog, and a request that brings its own `Authorization` (the login's Basic
 header) keeps it. Queries never retry a `401` or `403`.
 
+Anything that signs the user out on purpose goes through `useOfflineSignOut()`
+(`src/components/offline-sign-out.tsx`) before `whenLeaveAllowed`: offline, it asks first,
+since signing in again needs the server. The dialog also counts a sign-in that could not
+reach the server as offline, whatever `navigator.onLine` says.
+
 The server slides a token's expiry with every call, so `expiresAt` (from `expires_in`) is
 only the earliest it could end. Nothing signs a user out on it; the `401` decides. One
 user's token is the same in both UIs, so our logout signs them out of the legacy UI too.
