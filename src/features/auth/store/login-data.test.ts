@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
+import { type LoginDataStore, syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 
 const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'ada-token' };
 
@@ -9,7 +9,7 @@ beforeEach(() => {
 });
 
 describe('useLoginData', () => {
-  it('keeps the user but drops the token when the session expires', () => {
+  it('keeps the user and marks the session expired', () => {
     useLoginData.getState().setLoginData(ada);
 
     useLoginData.getState().expireSession();
@@ -17,7 +17,6 @@ describe('useLoginData', () => {
     expect(useLoginData.getState()).toMatchObject({
       referenceDataUserId: 'ada-id',
       username: 'ada',
-      accessToken: null,
       isAuthenticated: true,
       expired: true,
     });
@@ -65,7 +64,7 @@ describe('useLoginData', () => {
 });
 
 /** What another tab leaves in the shared storage after changing its session. */
-function otherTabSaves(state: Partial<ReturnType<typeof useLoginData.getState>>) {
+function otherTabSaves(state: Partial<LoginDataStore>) {
   const saved = { ...useLoginData.getState(), ...state };
   localStorage.setItem('login-data-storage', JSON.stringify({ state: saved, version: 0 }));
 }
@@ -81,9 +80,17 @@ describe('syncOtherTab', () => {
       sessionSource: null,
     });
 
-    await syncOtherTab('login-data-storage');
+    await expect(syncOtherTab('login-data-storage')).resolves.toBe(true);
 
     expect(useLoginData.getState().isAuthenticated).toBe(false);
+  });
+
+  it('ignores storage that has nothing to do with the session', async () => {
+    useLoginData.getState().setLoginData(ada);
+
+    await expect(syncOtherTab('i18nextLng')).resolves.toBe(false);
+
+    expect(useLoginData.getState().accessToken).toBe('ada-token');
   });
 
   it('carries on here once another tab signs in again', async () => {
@@ -91,7 +98,7 @@ describe('syncOtherTab', () => {
     useLoginData.getState().expireSession();
     otherTabSaves({ accessToken: 'new-token', expired: false });
 
-    await syncOtherTab('login-data-storage');
+    await expect(syncOtherTab('login-data-storage')).resolves.toBe(false);
 
     expect(useLoginData.getState()).toMatchObject({ accessToken: 'new-token', expired: false });
   });

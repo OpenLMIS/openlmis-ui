@@ -1,11 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { isRefused, isUnauthorized } from '@/lib/http';
 
 /** One more try for a failure that may pass, none for a refusal that will not. */
 export function shouldRetry(failureCount: number, error: unknown) {
-  const status = isAxiosError(error) ? error.response?.status : undefined;
-  return failureCount < 1 && status !== 401 && status !== 403;
+  return failureCount < 1 && !isUnauthorized(error) && !isRefused(error);
 }
 
 export const queryClient = new QueryClient({

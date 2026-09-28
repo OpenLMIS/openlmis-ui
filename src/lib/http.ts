@@ -5,6 +5,9 @@ export const isNotFound = (error: unknown) => isAxiosError(error) && error.respo
 
 export const isRefused = (error: unknown) => isAxiosError(error) && error.response?.status === 403;
 
+export const isUnauthorized = (error: unknown) =>
+  isAxiosError(error) && error.response?.status === 401;
+
 /** A record that may not exist yet, such as a user's contact details; missing is null, not an error. */
 export async function getIfExists<T>(url: string): Promise<T | null> {
   try {

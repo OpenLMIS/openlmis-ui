@@ -1,21 +1,17 @@
 import { act, renderHook } from '@testing-library/react';
-import { AxiosError, AxiosHeaders } from 'axios';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { httpError } from '@/tests/http-error';
 
-vi.mock('@/features/auth/api/api', () => ({ login: vi.fn(), logout: vi.fn() }));
+vi.mock('@/features/auth/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/auth/api/api')>()),
+  login: vi.fn(),
+  logout: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-
-const unauthorized = new AxiosError('failed', '401', undefined, undefined, {
-  status: 401,
-  statusText: '',
-  data: {},
-  headers: {},
-  config: { headers: new AxiosHeaders() },
-});
 
 beforeEach(() => {
   useLoginData.getState().clearLoginData();
@@ -47,7 +43,7 @@ describe('useAuthActions', () => {
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'dead' });
-    vi.mocked(authApi.logout).mockRejectedValue(unauthorized);
+    vi.mocked(authApi.logout).mockRejectedValue(httpError(401));
     const { result } = renderHook(() => useAuthActions());
 
     await act(() => result.current.logout());

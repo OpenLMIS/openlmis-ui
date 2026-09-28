@@ -7,34 +7,30 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError, AxiosHeaders } from 'axios';
+import { AxiosError } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionExpiredDialog } from '@/components/session-expired-dialog';
 import * as authApi from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { httpError } from '@/tests/http-error';
 
-vi.mock('@/features/auth/api/api', () => ({ login: vi.fn(), logout: vi.fn() }));
+vi.mock('@/features/auth/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/auth/api/api')>()),
+  login: vi.fn(),
+  logout: vi.fn(),
+}));
 
 const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'old-token' };
-
-const refused = (status: number) =>
-  new AxiosError('failed', String(status), undefined, undefined, {
-    status,
-    statusText: '',
-    data: {},
-    headers: {},
-    config: { headers: new AxiosHeaders() },
-  });
 
 function UnsavedDraft({ ask }: { ask: (proceed: () => void) => void }) {
   useLeaveGuard(true, ask);
   return null;
 }
 
-async function renderAt(path: string, ask?: (proceed: () => void) => void) {
+async function renderAt(path: string, ask?: (proceed: () => void) => void, page?: React.ReactNode) {
   const root = createRootRoute({
     component: () => (
       <>
@@ -50,6 +46,7 @@ async function renderAt(path: string, ask?: (proceed: () => void) => void) {
       component: () => (
         <>
           <p>{routePath}</p>
+          {page}
           {ask && routePath === '/users' && <UnsavedDraft ask={ask} />}
         </>
       ),
@@ -100,8 +97,32 @@ describe('SessionExpiredDialog', () => {
     expect(authApi.login).not.toHaveBeenCalled();
   });
 
+  it('labels its own password field when the page behind has one too', async () => {
+    useLoginData.getState().expireSession();
+    await renderAt('/users', undefined, <input aria-label="page password" id="password" />);
+
+    const field = within(await screen.findByRole('dialog')).getByLabelText('login.password');
+
+    expect(document.querySelectorAll(`[id="${field.id}"]`)).toHaveLength(1);
+  });
+
+  it.each([
+    [httpError(400), 'session.wrong-password'],
+    [new AxiosError('Network Error', 'ERR_NETWORK'), 'session.cannot-connect'],
+    [httpError(500), 'session.sign-in-failed'],
+  ])('explains why signing in failed (%s)', async (error, message) => {
+    vi.mocked(authApi.login).mockRejectedValue(error);
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
   it('says the password is wrong and stays open', async () => {
-    vi.mocked(authApi.login).mockRejectedValue(refused(400));
+    vi.mocked(authApi.login).mockRejectedValue(httpError(400));
     useLoginData.getState().expireSession();
     await renderAt('/users');
 
@@ -110,6 +131,10 @@ describe('SessionExpiredDialog', () => {
 
     expect(await screen.findByText('session.wrong-password')).toBeInTheDocument();
     expect(useLoginData.getState().expired).toBe(true);
+    expect(screen.getByLabelText('login.password')).toHaveFocus();
+    expect(screen.getByLabelText('login.password')).toHaveAccessibleDescription(
+      'session.signed-in-as',
+    );
   });
 
   it('signs the same user back in and closes', async () => {
@@ -148,6 +173,17 @@ describe('SessionExpiredDialog', () => {
     expect(router.state.location.pathname).toBe('/login');
     expect(useLoginData.getState().isAuthenticated).toBe(false);
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  });
+
+  it('holds both buttons while signing out', async () => {
+    vi.mocked(authApi.logout).mockReturnValue(new Promise(() => {}));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'session.sign-out' }));
+
+    expect(screen.getByRole('button', { name: 'session.sign-out' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'session.sign-in' })).toBeDisabled();
   });
 
   it('is not shown on the sign-in page itself', async () => {

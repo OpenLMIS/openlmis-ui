@@ -6,7 +6,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TextDirectionProvider } from '@/components/text-direction';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { syncLegacySession, syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
+import { syncLegacySession, syncOtherTab } from '@/features/auth/store/login-data';
 import { initI18n } from '@/integrations/i18n';
 import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
@@ -20,14 +20,9 @@ await Promise.all([initI18n(), loadRuntimeConfig()]);
 // Before the router guards read the store, so a legacy session lands on /home.
 syncLegacySession();
 
-// `storage` fires in the other tabs, so signing out anywhere, here or in the legacy UI, reaches this one.
+// `storage` fires in the other tabs, so a sign out anywhere, even in the legacy UI, reaches this one.
 window.addEventListener('storage', async (event) => {
-  const wasAuthenticated = useLoginData.getState().isAuthenticated;
-  await syncOtherTab(event.key);
-
-  if (wasAuthenticated && !useLoginData.getState().isAuthenticated) {
-    router.navigate({ to: '/login' });
-  }
+  if (await syncOtherTab(event.key)) router.navigate({ to: '/login' });
 });
 
 createRoot(root).render(

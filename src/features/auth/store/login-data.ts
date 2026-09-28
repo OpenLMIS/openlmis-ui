@@ -13,7 +13,7 @@ export type LoginData = {
 /** Where the current session came from. Only a borrowed one follows the lender out. */
 export type SessionSource = 'own' | 'legacy';
 
-type LoginDataStore = {
+export type LoginDataStore = {
   referenceDataUserId: string | null;
   username: string | null;
   accessToken: string | null;
@@ -28,7 +28,7 @@ type LoginDataStore = {
   clearLoginData: () => void;
 };
 
-export const LOGIN_DATA_STORAGE_KEY = 'login-data-storage';
+const LOGIN_DATA_STORAGE_KEY = 'login-data-storage';
 
 // Read outside React via `getState()` by the axios interceptors and route guards.
 export const useLoginData = create<LoginDataStore>()(
@@ -51,10 +51,9 @@ export const useLoginData = create<LoginDataStore>()(
           expired: false,
           expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
         }),
+      // The refused token is kept, so the legacy UI still holding it is not mistaken for a new one.
       expireSession: () =>
-        set((state) =>
-          state.isAuthenticated ? { accessToken: null, expired: true, expiresAt: null } : state,
-        ),
+        set((state) => (state.isAuthenticated ? { expired: true, expiresAt: null } : state)),
       clearLoginData: () =>
         set({
           referenceDataUserId: null,
@@ -74,14 +73,14 @@ export const useLoginData = create<LoginDataStore>()(
  * Keeps us in step with the legacy AngularJS UI, which shares our origin.
  *
  * Adopts its session when we have none, so crossing over is not a second login.
- * Drops ours when a session we borrowed from it disappears or changes, so its
- * logout is our logout rather than a dead token that still looks signed in. A
- * session we established ourselves is never touched.
+ * When a session we borrowed from it disappears, ours expires, so the page asks
+ * to sign in again rather than losing unsaved work; when it changes user, we
+ * follow. A session we established ourselves is never touched.
  *
  * @returns whether our session changed
  */
 export function syncLegacySession(): boolean {
-  const { isAuthenticated, accessToken, sessionSource } = useLoginData.getState();
+  const { isAuthenticated, accessToken, sessionSource, expired } = useLoginData.getState();
   const legacy = readLegacySession();
 
   if (!isAuthenticated) {
@@ -93,30 +92,35 @@ export function syncLegacySession(): boolean {
 
   if (sessionSource !== 'legacy' || legacy?.accessToken === accessToken) return false;
 
+  // Signing out and refusing the shared token both wipe legacy's keys; either way, keep the page.
+  if (!legacy) {
+    useLoginData.getState().expireSession();
+    return !expired;
+  }
+
   // The same user with a new token carries on, so requests waiting on the session resume.
-  if (legacy?.referenceDataUserId === useLoginData.getState().referenceDataUserId) {
+  if (legacy.referenceDataUserId === useLoginData.getState().referenceDataUserId) {
     useLoginData.getState().setLoginData(legacy, 'legacy');
     return true;
   }
 
   useLoginData.getState().clearLoginData();
-  if (legacy) useLoginData.getState().setLoginData(legacy, 'legacy');
+  useLoginData.getState().setLoginData(legacy, 'legacy');
 
   return true;
 }
 
-/**
- * Brings this tab in step with a change another tab made to the shared storage: a sign out, a
- * sign in again, or the legacy UI wiping the whole origin, which it does on every refused token.
- */
-export async function syncOtherTab(key: string | null): Promise<void> {
+/** Follows a change another tab made to the shared storage; resolves `true` if it signed this tab out. */
+export async function syncOtherTab(key: string | null): Promise<boolean> {
+  const wasAuthenticated = useLoginData.getState().isAuthenticated;
+
   if (key === LOGIN_DATA_STORAGE_KEY) {
     await useLoginData.persist.rehydrate();
-    return;
+  } else if (key === null || key === LEGACY_TOKEN_STORAGE_KEY) {
+    syncLegacySession();
+    // The legacy UI wipes the whole origin on a refused token; our session in memory stays ours.
+    if (key === null && useLoginData.getState().isAuthenticated) useLoginData.setState({});
   }
-  if (key !== null && key !== LEGACY_TOKEN_STORAGE_KEY) return;
 
-  syncLegacySession();
-  // A wipe took our saved session too; the one in memory is still ours, so save it again.
-  if (key === null && useLoginData.getState().isAuthenticated) useLoginData.setState({});
+  return wasAuthenticated && !useLoginData.getState().isAuthenticated;
 }

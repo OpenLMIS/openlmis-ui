@@ -79,15 +79,23 @@ describe('syncLegacySession', () => {
     expect(useLoginData.getState().sessionSource).toBe('legacy');
   });
 
-  it('signs us out when the legacy UI signs out', () => {
+  it('asks to sign in again when the legacy UI signs out, so the page is not lost', () => {
     signInLegacy('legacy-token');
     syncLegacySession();
 
     signOutLegacy();
 
     expect(syncLegacySession()).toBe(true);
-    expect(useLoginData.getState().isAuthenticated).toBe(false);
-    expect(useLoginData.getState().accessToken).toBeNull();
+    expect(useLoginData.getState()).toMatchObject({ isAuthenticated: true, expired: true });
+  });
+
+  it('does not bring an expired session back with the token that expired', () => {
+    signInLegacy('dead-token');
+    syncLegacySession();
+    useLoginData.getState().expireSession();
+
+    expect(syncLegacySession()).toBe(false);
+    expect(useLoginData.getState().expired).toBe(true);
   });
 
   it('follows the legacy UI to a different user', () => {

@@ -124,6 +124,27 @@ describe('client', () => {
     await expect(request).rejects.toBeInstanceOf(SessionEndedError);
   });
 
+  it('never resends a refusal of one user as another who has signed in since', async () => {
+    let answer = () => {};
+    const { sent } = serve(
+      'alan-token',
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const request = client.put('/users');
+    await flush();
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    answer();
+
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual(['/users Bearer old-token']);
+  });
+
   it('expires again when the resent request is refused too', async () => {
     const { adapter } = serve('never');
     const request = client.get('/a');

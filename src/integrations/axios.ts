@@ -1,12 +1,14 @@
 import axios, { isAxiosError } from 'axios';
-import { waitForSession } from '@/features/auth/lib/session';
+import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 
 declare module 'axios' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: module augmentation requires interface
   interface AxiosRequestConfig {
-    /** `false` for signing in and out, whose refusal is theirs to handle, never an expired session. */
+    /** `false` for signing in and out, whose refusal is never an expired session. */
     session?: boolean;
+    /** The user the request was sent for, so a refusal is never resent as someone else. */
+    sentFor?: string | null;
   }
 }
 
@@ -24,9 +26,10 @@ const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined)
 
 // While the session is expired a request waits for the user to sign in again rather than fail.
 client.interceptors.request.use(async (config) => {
+  const { accessToken, expired, referenceDataUserId } = useLoginData.getState();
+  config.sentFor ??= referenceDataUserId;
   if (config.headers.Authorization) return config;
 
-  const { accessToken, expired, referenceDataUserId } = useLoginData.getState();
   const token =
     expired && referenceDataUserId && config.session !== false
       ? await waitForSession(referenceDataUserId)
@@ -52,6 +55,7 @@ client.interceptors.response.use(
     ) {
       throw error;
     }
+    if (config.sentFor !== referenceDataUserId) throw new SessionEndedError();
 
     const current = expired ? undefined : bearer(accessToken);
     // Refused under a token that has since been replaced, so the newer session is not to blame.
