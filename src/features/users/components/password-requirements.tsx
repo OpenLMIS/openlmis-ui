@@ -22,7 +22,6 @@ type PasswordRequirementsProps = {
   owner: PasswordOwner;
 };
 
-/** The auth service's rules under the password field, each ticked off once the password meets it. */
 export function PasswordRequirements({ id, password, owner }: PasswordRequirementsProps) {
   const { t } = useTranslation();
   const checks = passwordChecks(password, owner);

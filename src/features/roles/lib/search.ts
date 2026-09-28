@@ -25,18 +25,15 @@ const roleTypeFilter = z
 export const rolesSearchSchema = tableSearchSchema(ROLE_SORT_FIELDS).extend({
   q: textFilterSchema,
   type: roleTypeFilter,
-  /** The open dialog: `new` to create a role, or the id of the one being edited. */
   role: z
     .union([z.literal('new'), z.guid()])
     .optional()
     .catch(undefined),
-  /** The role whose rights are shown. */
   rights: z.guid().optional().catch(undefined),
 });
 
 export type RolesSearch = z.infer<typeof rolesSearchSchema>;
 
-/** Every filter off and back to the first page. */
 export const CLEARED_ROLE_FILTERS = {
   q: undefined,
   type: undefined,

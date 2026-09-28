@@ -67,7 +67,7 @@ export function toUserFormValues({ user, contact, auth }: UserDetails): UserForm
   };
 }
 
-/** How the list's status and the sign-in account disagree, when they do; saving sets both to the switch. */
+/** The list shows the user's `active` flag, while sign-in follows the account's `enabled` flag. */
 export function statusMismatch({
   user,
   auth,

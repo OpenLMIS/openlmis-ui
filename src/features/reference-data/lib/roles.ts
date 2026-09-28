@@ -1,6 +1,5 @@
 import type { RightType, Role } from '@/features/reference-data/lib/types';
 
-/** The four role types, in the order every screen lists them. */
 export const ROLE_TYPES = [
   {
     type: 'SUPERVISION',

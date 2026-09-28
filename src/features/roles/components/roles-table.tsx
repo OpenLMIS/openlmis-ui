@@ -39,7 +39,6 @@ import {
   useTableSearchState,
 } from '@/lib/table-search';
 
-/** What the signed-in user may do with a role; an action left out is not offered. */
 type RoleRowActions = {
   onEdit?: (roleId: string) => void;
   onViewRights?: (roleId: string) => void;

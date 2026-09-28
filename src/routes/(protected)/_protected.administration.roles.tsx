@@ -77,7 +77,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-/** What the signed-in user's rights let them do here; the page itself needs Manage Users. */
 function useRoleAccess() {
   const userId = useLoginData((state) => state.referenceDataUserId) ?? '';
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));

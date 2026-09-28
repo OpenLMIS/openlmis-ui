@@ -396,7 +396,6 @@ type MultiComboboxFieldProps = FieldProps & {
   removeLabel: (label: string) => string;
 };
 
-/** Picks any number of items by typing to filter, shown as removable chips; the value is their `value`s. */
 export function MultiComboboxField({
   label,
   description,

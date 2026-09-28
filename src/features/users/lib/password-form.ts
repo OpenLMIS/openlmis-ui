@@ -5,7 +5,6 @@ import type { User } from '@/features/users/lib/types';
 
 export type PasswordMethod = 'email' | 'manual';
 
-/** The names a password may not contain. */
 export type PasswordOwner = Pick<User, 'username' | 'firstName' | 'lastName'>;
 
 /** The fixed rules the auth service checks, in the order it reports them; strength is left to the server. */
@@ -63,7 +62,6 @@ const SERVER_ERRORS: Record<string, ParseKeys> = {
   'users.passwordReset.tooWeak': 'users.password.error.too-weak',
 };
 
-/** Our own wording for an error the auth service sent, when we have one. */
 export function passwordErrorKey(error: unknown): ParseKeys | undefined {
   if (!isAxiosError(error)) return undefined;
   const key = (error.response?.data as { messageKey?: unknown } | undefined)?.messageKey;

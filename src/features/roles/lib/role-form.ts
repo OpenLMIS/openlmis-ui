@@ -64,7 +64,6 @@ export type RoleBody = {
   rights: Right[];
 };
 
-/** The role to save: the chosen rights out of the type's `rights`, with only the fields the API reads. */
 export function toRoleBody(
   values: RoleFormValues,
   rights: readonly Right[],

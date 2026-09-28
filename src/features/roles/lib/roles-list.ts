@@ -3,7 +3,6 @@ import type { RightType, Role } from '@/features/reference-data/lib/types';
 import type { RoleSortField } from '@/features/roles/lib/search';
 import { fold } from '@/lib/text';
 
-/** Roles whose name or description contains `q`, ignoring case and accents, of `type` when given. */
 export function filterRoles(roles: Role[], { q, type }: { q?: string; type?: RightType }) {
   const term = q && fold(q.trim());
   return roles.filter(
@@ -28,7 +27,6 @@ const COMPARE: Record<RoleSortField, (a: Role, b: Role) => number> = {
   count: (a, b) => (a.count ?? 0) - (b.count ?? 0),
 };
 
-/** A sorted copy; ties fall back to the name, so the order is always the same. */
 export function sortRoles(roles: Role[], field: RoleSortField, desc: boolean) {
   const compare = COMPARE[field];
   return [...roles].sort((a, b) => (desc ? -compare(a, b) : compare(a, b)) || byName(a, b));

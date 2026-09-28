@@ -9,7 +9,6 @@ type RoleDialogsProps = {
   onSaved: () => void;
 };
 
-/** The dialogs the roles list opens, loaded together as one chunk. */
 export function RoleDialogs({ role, rightsRoleId, canEdit, onClose, onSaved }: RoleDialogsProps) {
   return (
     <>

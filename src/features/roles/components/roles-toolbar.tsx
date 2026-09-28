@@ -13,7 +13,6 @@ type RolesToolbarProps = {
   search: RolesSearch;
   onFilterChange: (patch: Partial<RolesSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
-  /** Left out for a user who may not create roles. */
   onCreate?: () => void;
 };
 
