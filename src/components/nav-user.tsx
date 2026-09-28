@@ -3,6 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { LogOutIcon, UserIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineSignOut } from '@/components/offline-sign-out';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,33 +31,40 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
   const username = useLoginData((state) => state.username);
   const referenceDataUserId = useLoginData((state) => state.referenceDataUserId);
 
+  const offlineSignOut = useOfflineSignOut();
+
   const handleLogout = async () => {
     await logout();
     await navigate({ to: '/login' });
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={trigger} />
-      <DropdownMenuContent align={align} width="wide">
-        <SignedInAs userId={referenceDataUserId} username={username} />
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link to="/profile" />}>
-            <UserIcon />
-            {t('nav-user.account')}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={trigger} />
+        <DropdownMenuContent align={align} width="wide">
+          <SignedInAs userId={referenceDataUserId} username={username} />
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem render={<Link to="/profile" />}>
+              <UserIcon />
+              {t('nav-user.account')}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() =>
+              offlineSignOut.confirm(() => whenLeaveAllowed(() => void handleLogout()))
+            }
+            variant="destructive"
+          >
+            <LogOutIcon className="rtl:rotate-180" />
+            {t('nav-user.log-out')}
           </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => whenLeaveAllowed(() => void handleLogout())}
-          variant="destructive"
-        >
-          <LogOutIcon className="rtl:rotate-180" />
-          {t('nav-user.log-out')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {offlineSignOut.dialog}
+    </>
   );
 }
 

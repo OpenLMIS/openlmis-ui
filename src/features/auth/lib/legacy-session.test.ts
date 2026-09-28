@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { clearLegacySession, readLegacySession } from '@/features/auth/lib/legacy-session';
+import { waitForSession } from '@/features/auth/lib/session';
 import { syncLegacySession, useLoginData } from '@/features/auth/store/login-data';
 
 function signInLegacy(token: string, username = 'administrator') {
@@ -78,15 +79,23 @@ describe('syncLegacySession', () => {
     expect(useLoginData.getState().sessionSource).toBe('legacy');
   });
 
-  it('signs us out when the legacy UI signs out', () => {
+  it('asks to sign in again when the legacy UI signs out, so the page is not lost', () => {
     signInLegacy('legacy-token');
     syncLegacySession();
 
     signOutLegacy();
 
     expect(syncLegacySession()).toBe(true);
-    expect(useLoginData.getState().isAuthenticated).toBe(false);
-    expect(useLoginData.getState().accessToken).toBeNull();
+    expect(useLoginData.getState()).toMatchObject({ isAuthenticated: true, expired: true });
+  });
+
+  it('does not bring an expired session back with the token that expired', () => {
+    signInLegacy('dead-token');
+    syncLegacySession();
+    useLoginData.getState().expireSession();
+
+    expect(syncLegacySession()).toBe(false);
+    expect(useLoginData.getState().expired).toBe(true);
   });
 
   it('follows the legacy UI to a different user', () => {
@@ -122,6 +131,18 @@ describe('syncLegacySession', () => {
 
     expect(syncLegacySession()).toBe(false);
     expect(useLoginData.getState().isAuthenticated).toBe(true);
+  });
+
+  it('picks up a new legacy token for the same user without ending the session', async () => {
+    signInLegacy('first-token');
+    syncLegacySession();
+    useLoginData.getState().expireSession();
+    const waiting = waitForSession('legacy-user-id');
+
+    signInLegacy('second-token');
+
+    expect(syncLegacySession()).toBe(true);
+    await expect(waiting).resolves.toBe('second-token');
   });
 
   it('is a no-op when neither side is signed in', () => {

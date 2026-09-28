@@ -4,6 +4,7 @@ import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { useTranslation } from 'react-i18next';
 import { NotFoundPage } from '@/components/not-found-page';
+import { SessionExpiredDialog } from '@/components/session-expired-dialog';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -24,6 +25,8 @@ function RootLayout() {
       {/* At the root, so forms outside the app shell, like sign in, translate their messages too. */}
       <TranslatedFormMessages>
         <Outlet />
+        {/* At the root, so it also covers a page whose loader is waiting for the session. */}
+        <SessionExpiredDialog />
       </TranslatedFormMessages>
       <Toaster toastOptions={{ closeButtonAriaLabel: t('toast.close') }} />
       {import.meta.env.VITE_SHOW_DEVTOOLS === 'true' && (

@@ -49,9 +49,12 @@ Sessions are shared, with one exception.
 | What you do | What happens |
 | --- | --- |
 | Sign into the old UI, then open `/v2` | Already signed in, nothing to do |
-| Sign out of the old UI | The new UI signs out too |
+| Sign out of the old UI | If you signed in through the old UI, the new UI asks for your password again, over the page you were on. Sign in to carry on, or choose Sign Out |
 | Sign out of the new UI | The old UI signs out too. If a page has unsaved changes, it asks first |
 | Change your password in the new UI | You are signed out of both, and sign in again with the new password |
+| Leave the new UI idle for 30 minutes | It asks for your password over the page you were on. Sign in and carry on; nothing unsaved is lost |
+| Open a link to a new UI page while signed out | You sign in, then land on that page |
+| Sign out of the new UI while offline | It asks first, since you can't sign in again until you are back online |
 | Sign into the new UI, then open the old one | **Asks you to sign in once** |
 
 That last row is the exception. Signing into the new UI does not sign you into the
@@ -62,7 +65,7 @@ The reason is that the old UI caches a large amount of permission data when it s
 in, and handing it only a session token leaves it unable to open most of its pages.
 Giving it a genuine login is better than giving it half of one.
 
-Signing out anywhere signs you out everywhere, including in other browser tabs that
+Signing out of the new UI signs you out everywhere, including in other browser tabs that
 are already open. Your language choice is kept.
 
 ## Languages and direction

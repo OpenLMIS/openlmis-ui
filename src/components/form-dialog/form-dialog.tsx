@@ -16,6 +16,8 @@ type FormDialogProps = {
   onOpenChange: (open: boolean) => void;
   /** Runs once the close animation ends, e.g. to drop the content it was showing. */
   onOpenChangeComplete?: (open: boolean) => void;
+  /** `false` for a dialog the user must answer, which has no close button. */
+  closeButton?: boolean;
   children: ReactNode;
 };
 
@@ -24,6 +26,7 @@ export function FormDialog({
   open,
   onOpenChange,
   onOpenChangeComplete,
+  closeButton = true,
   children,
 }: FormDialogProps) {
   const popupRef = useRef<HTMLDivElement>(null);
@@ -43,6 +46,7 @@ export function FormDialog({
         }
         layout="scroll"
         ref={popupRef}
+        showCloseButton={closeButton}
         size="lg"
       >
         {children}

@@ -79,7 +79,7 @@ logout work both ways without signing out people who only use the new UI:
 | Event | Result |
 | --- | --- |
 | Legacy signs in, we have no session | We adopt it, marked `legacy` |
-| Legacy signs out | A `legacy`-sourced session of ours is cleared too |
+| Legacy signs out | A `legacy`-sourced session of ours asks to sign in again, over the page, so nothing unsaved is lost |
 | Legacy switches user | We follow to the new user |
 | We sign out | `clearLegacySession()` drops the legacy keys as well |
 | We signed in ourselves (`own`) | Legacy signing out does not touch us |
@@ -92,8 +92,27 @@ a dead token while still rendering as signed in, because nothing forced the 401 
 would have corrected it.
 
 `clearLegacySession()` is unconditional: signing out of the new UI ends a legacy
-session even if that session was established separately and shares no token with
-ours. To a user these are one application, so one logout ending both is the intent.
+session even if that session was established separately. To a user these are one
+application, so one logout ending both is the intent.
+
+### Where the token lives
+
+The token is kept in the browser's localStorage, in the new UI's own
+`login-data-storage` entry. It is never written into the legacy keys (see below).
+
+The auth service hands out one token per user and OAuth client, so a user signed into
+both UIs holds the same token in each, even when they signed in separately. Signing
+out of either one ends it on the server for both.
+
+A token lasts 30 minutes after its last use (`TOKEN_DURATION` on the auth service),
+and every API call extends it. The `expires_in` in the sign-in response is only the
+time left at that moment. When a token has expired, or the auth service was restarted,
+which drops every token, the new UI asks the user to sign in again over the page they
+are on, and nothing they had on screen is lost.
+
+The legacy UI wipes all of the site's localStorage whenever the server refuses its
+token, including the new UI's entry. A new UI tab that is still signed in saves its
+session again, so a reload keeps working.
 
 ### Decision: login carries one way
 

@@ -1,4 +1,5 @@
 import type { LoginInput, LoginResponse } from '@/features/auth/lib/types';
+import type { LoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
 import { getAuthClientCredentials } from '@/lib/runtime-config';
 
@@ -25,14 +26,23 @@ export async function login({ username, password }: LoginInput): Promise<LoginRe
         Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
+      session: false,
     },
   );
 
   return data;
 }
 
+/** The session the store keeps from a token response. */
+export const toLoginData = (response: LoginResponse): LoginData => ({
+  referenceDataUserId: response.referenceDataUserId,
+  username: response.username,
+  accessToken: response.access_token,
+  expiresIn: response.expires_in,
+});
+
 export async function logout(): Promise<void> {
-  await client.post('/users/auth/logout');
+  await client.post('/users/auth/logout', undefined, { session: false });
 }
 
 /** Every right the user holds, one string per grant, e.g. `REQUISITION_VIEW|facilityId|programId`. */

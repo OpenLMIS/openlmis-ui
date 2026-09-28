@@ -529,9 +529,31 @@ carries `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)
 
 The token lives in a persisted zustand store (`src/features/auth/store/login-data.ts`),
 which is read outside React by the axios request interceptor (attaches the bearer token)
-and by the router guards (`_protected.tsx` redirects anonymous users to `/login`; `/login`
-redirects authenticated ones to `/home`). A `401` clears the store and returns to
-`/login`.
+and by the router guards (`_protected.tsx` redirects anonymous users to
+`/login?redirect=<page>`; `/login` sends authenticated ones to that page, through
+`safeRedirect()` in `src/lib/redirect.ts`, or to `/home`).
+
+**A `401` never leaves the page.** The response interceptor in `src/integrations/axios.ts`
+marks the session `expired` (the user and the refused token stay, so the legacy UI still
+holding that token is never mistaken for a new one), and `SessionExpiredDialog`,
+mounted at the root, asks the same user for their password. Every refused request, and
+every new one while expired, waits in `waitForSession()` (`src/features/auth/lib/session.ts`)
+and is sent once more with the new token, so pages finish loading and a pressed Save goes
+through. Sign Out from the dialog, or another user signing in, fails the waiting requests
+with a `SessionEndedError`, and so does a refusal of a request sent for a user who is no
+longer the one signed in (`sentFor`), so nothing is ever resent as someone else. A `401` for a token that has since been replaced is resent, not
+treated as a new expiry. Signing in and out pass `session: false`, so their own refusals
+never open the dialog, and a request that brings its own `Authorization` (the login's Basic
+header) keeps it. Queries never retry a `401` or `403`.
+
+Anything that signs the user out on purpose goes through `useOfflineSignOut()`
+(`src/components/offline-sign-out.tsx`) before `whenLeaveAllowed`: offline, it asks first,
+since signing in again needs the server. The dialog also counts a sign-in that could not
+reach the server as offline, whatever `navigator.onLine` says.
+
+The server slides a token's expiry with every call, so `expiresAt` (from `expires_in`) is
+only the earliest it could end. Nothing signs a user out on it; the `401` decides. One
+user's token is the same in both UIs, so our logout signs them out of the legacy UI too.
 
 Nothing talks to the API directly in development - the Vite dev server proxies `/api` to
 `VITE_API_PROXY_TARGET`, keeping the browser same-origin.
@@ -539,11 +561,16 @@ Nothing talks to the API directly in development - the Vite dev server proxies `
 Both UIs share an origin, so `syncLegacySession()` keeps the two sessions in step. The
 legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,
 `openlmis.USERNAME`. It runs on boot and on the `storage` event, so signing in or out of
-the legacy UI reaches a `/v2` tab that is already open.
+the legacy UI reaches a `/v2` tab that is already open. `syncOtherTab()` handles the same
+event for our own store, so a sign-out or a sign-in again in one `/v2` tab reaches the
+others. The legacy UI wipes the whole origin's localStorage on every `401`; a live session
+of ours saves itself again rather than reading that as a sign-out.
 
 The store records a `sessionSource` (`own` or `legacy`). Only a `legacy`-sourced session
-follows the legacy UI out, so a user who signed into the new UI directly is unaffected by
-what the old one does. Our own logout calls `clearLegacySession()`, since the token is
+follows the legacy UI, so a user who signed into the new UI directly is unaffected by
+what the old one does. When legacy's session disappears, ours expires rather than clears:
+legacy wipes its keys the same way on a sign-out and on a refused token, and expiring keeps
+the page and its unsaved work behind the dialog. A change of user is followed at once. Our own logout calls `clearLegacySession()`, since the token is
 shared and killing it server-side while leaving the keys behind would only render a dead
 session. Preferences such as `openlmis.current_locale` are left alone.
 

@@ -1,0 +1,160 @@
+import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionEndedError } from '@/features/auth/lib/session';
+import { useLoginData } from '@/features/auth/store/login-data';
+import { client } from '@/integrations/axios';
+
+const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'old-token' };
+
+/** Answers like the server: 401 for any bearer but `valid`, and records every request it got. */
+function serve(valid: string, hold?: Promise<void>) {
+  const sent: string[] = [];
+  const adapter = vi.fn(async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+    const authorization = String(config.headers.Authorization ?? '');
+    sent.push(`${config.url} ${authorization}`);
+    if (hold) await hold;
+    const response = { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    if (authorization.startsWith('Bearer ') && authorization !== `Bearer ${valid}`) {
+      throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+        ...response,
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+    }
+    return response;
+  });
+  client.defaults.adapter = adapter;
+  return { sent, adapter };
+}
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+beforeEach(() => {
+  useLoginData.getState().clearLoginData();
+  useLoginData.getState().setLoginData(ada);
+});
+
+afterEach(() => {
+  client.defaults.adapter = undefined;
+});
+
+describe('client', () => {
+  it('sends the current token', async () => {
+    const { sent } = serve('old-token');
+
+    await client.get('/users/ada-id');
+
+    expect(sent).toEqual(['/users/ada-id Bearer old-token']);
+  });
+
+  it('keeps a request its own Authorization, as signing in does', async () => {
+    const { sent } = serve('old-token');
+
+    await client.post('/oauth/token', {}, { headers: { Authorization: 'Basic abc' } });
+
+    expect(sent).toEqual(['/oauth/token Basic abc']);
+  });
+
+  it('expires the session once for many refusals and resends each after signing in again', async () => {
+    const { sent } = serve('new-token');
+
+    const requests = ['/a', '/b', '/c'].map((url) => client.get(url));
+    await flush();
+
+    expect(useLoginData.getState().expired).toBe(true);
+    useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+    await Promise.all(requests);
+
+    expect(sent.filter((line) => line.endsWith('Bearer new-token')).sort()).toEqual([
+      '/a Bearer new-token',
+      '/b Bearer new-token',
+      '/c Bearer new-token',
+    ]);
+  });
+
+  it('holds new requests while the session is expired instead of sending them', async () => {
+    const { sent } = serve('new-token');
+    useLoginData.getState().expireSession();
+
+    const request = client.get('/later');
+    await flush();
+
+    expect(sent).toEqual([]);
+    useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+    await request;
+    expect(sent).toEqual(['/later Bearer new-token']);
+  });
+
+  it('resends a refusal of an older token rather than expiring the newer session', async () => {
+    let answer = () => {};
+    const { sent } = serve(
+      'new-token',
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const request = client.get('/slow');
+    await flush();
+    useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+    answer();
+
+    await request;
+
+    expect(useLoginData.getState().expired).toBe(false);
+    expect(sent).toEqual(['/slow Bearer old-token', '/slow Bearer new-token']);
+  });
+
+  it('never opens the session prompt for a request that manages its own session', async () => {
+    serve('something-else');
+
+    await expect(
+      client.post('/users/auth/logout', undefined, { session: false }),
+    ).rejects.toThrow();
+
+    expect(useLoginData.getState().expired).toBe(false);
+  });
+
+  it('fails the waiting requests when the user signs out instead', async () => {
+    serve('new-token');
+    const request = client.get('/a');
+    await flush();
+
+    useLoginData.getState().clearLoginData();
+
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+  });
+
+  it('never resends a refusal of one user as another who has signed in since', async () => {
+    let answer = () => {};
+    const { sent } = serve(
+      'alan-token',
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const request = client.put('/users');
+    await flush();
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    answer();
+
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual(['/users Bearer old-token']);
+  });
+
+  it('expires again when the resent request is refused too', async () => {
+    const { adapter } = serve('never');
+    const request = client.get('/a');
+    await flush();
+    useLoginData.getState().setLoginData({ ...ada, accessToken: 'still-bad' });
+    await flush();
+
+    expect(useLoginData.getState().expired).toBe(true);
+    expect(adapter).toHaveBeenCalledTimes(2);
+    useLoginData.getState().clearLoginData();
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+  });
+});
