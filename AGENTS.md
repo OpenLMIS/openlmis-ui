@@ -534,12 +534,14 @@ and by the router guards (`_protected.tsx` redirects anonymous users to
 `safeRedirect()` in `src/lib/redirect.ts`, or to `/home`).
 
 **A `401` never leaves the page.** The response interceptor in `src/integrations/axios.ts`
-marks the session `expired` (the user stays, the token goes), and `SessionExpiredDialog`,
+marks the session `expired` (the user and the refused token stay, so the legacy UI still
+holding that token is never mistaken for a new one), and `SessionExpiredDialog`,
 mounted at the root, asks the same user for their password. Every refused request, and
 every new one while expired, waits in `waitForSession()` (`src/features/auth/lib/session.ts`)
 and is sent once more with the new token, so pages finish loading and a pressed Save goes
 through. Sign Out from the dialog, or another user signing in, fails the waiting requests
-with a `SessionEndedError`. A `401` for a token that has since been replaced is resent, not
+with a `SessionEndedError`, and so does a refusal of a request sent for a user who is no
+longer the one signed in (`sentFor`), so nothing is ever resent as someone else. A `401` for a token that has since been replaced is resent, not
 treated as a new expiry. Signing in and out pass `session: false`, so their own refusals
 never open the dialog, and a request that brings its own `Authorization` (the login's Basic
 header) keeps it. Queries never retry a `401` or `403`.
@@ -560,8 +562,10 @@ others. The legacy UI wipes the whole origin's localStorage on every `401`; a li
 of ours saves itself again rather than reading that as a sign-out.
 
 The store records a `sessionSource` (`own` or `legacy`). Only a `legacy`-sourced session
-follows the legacy UI out, so a user who signed into the new UI directly is unaffected by
-what the old one does. Our own logout calls `clearLegacySession()`, since the token is
+follows the legacy UI, so a user who signed into the new UI directly is unaffected by
+what the old one does. When legacy's session disappears, ours expires rather than clears:
+legacy wipes its keys the same way on a sign-out and on a refused token, and expiring keeps
+the page and its unsaved work behind the dialog. A change of user is followed at once. Our own logout calls `clearLegacySession()`, since the token is
 shared and killing it server-side while leaving the keys behind would only render a dead
 session. Preferences such as `openlmis.current_locale` are left alone.
 

@@ -79,7 +79,7 @@ logout work both ways without signing out people who only use the new UI:
 | Event | Result |
 | --- | --- |
 | Legacy signs in, we have no session | We adopt it, marked `legacy` |
-| Legacy signs out | A `legacy`-sourced session of ours is cleared too |
+| Legacy signs out | A `legacy`-sourced session of ours asks to sign in again, over the page, so nothing unsaved is lost |
 | Legacy switches user | We follow to the new user |
 | We sign out | `clearLegacySession()` drops the legacy keys as well |
 | We signed in ourselves (`own`) | Legacy signing out does not touch us |
