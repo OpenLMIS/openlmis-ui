@@ -10,8 +10,9 @@ import {
   saveProfile,
   saveSubscriptions,
 } from '@/features/profile/api/api';
-import type { ContactDetails, Profile, ProfileUser } from '@/features/profile/lib/types';
+import type { Profile } from '@/features/profile/lib/types';
 import { client } from '@/integrations/axios';
+import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 vi.mock('@/integrations/axios', () => ({
   client: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
@@ -30,7 +31,7 @@ const notFound = () =>
     config: { headers: new AxiosHeaders() },
   });
 
-const user: ProfileUser = {
+const user: UserRecord = {
   id: 'u1',
   username: 'ada',
   firstName: 'Ada',
@@ -43,7 +44,7 @@ const user: ProfileUser = {
   roleAssignments: [{ roleId: 'r1', programId: 'p1' }],
 };
 
-const contact: ContactDetails = {
+const contact: UserContactDetails = {
   referenceDataUserId: 'u1',
   phoneNumber: '123',
   allowNotify: true,

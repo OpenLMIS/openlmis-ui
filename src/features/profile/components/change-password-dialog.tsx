@@ -20,16 +20,16 @@ import { PasswordRequirements } from '@/components/password-requirements';
 import { FieldGroup } from '@/components/ui/field';
 import { changePassword } from '@/features/profile/api/api';
 import { changePasswordSchema } from '@/features/profile/lib/password-form';
-import type { ProfileUser } from '@/features/profile/lib/types';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
 import { passwordErrorKey } from '@/lib/password-rules';
+import type { UserRecord } from '@/lib/user-types';
 
 const passwordKey = [...queryKeys.profile.all, 'password'] as const;
 
 type ChangePasswordDialogProps = {
   open: boolean;
-  user: ProfileUser;
+  user: UserRecord;
   onClose: () => void;
   /** After the new password is set, e.g. to sign out so it is used at once. */
   onChanged: () => void;

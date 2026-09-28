@@ -1,12 +1,8 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import { isHomeFacilityRole } from '@/features/users/lib/role-assignments';
-import type {
-  AuthUser,
-  UserContactDetails,
-  UserDetails,
-  UserRecord,
-} from '@/features/users/lib/types';
+import type { AuthUser, UserDetails } from '@/features/users/lib/types';
+import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;

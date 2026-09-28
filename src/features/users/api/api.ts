@@ -1,14 +1,5 @@
 import { toSavedAssignment } from '@/features/users/lib/role-assignments';
-import type {
-  AuthUser,
-  RoleAssignment,
-  User,
-  UserContactDetails,
-  UserDetails,
-  UserListItem,
-  UserRecord,
-  UsersQuery,
-} from '@/features/users/lib/types';
+import type { AuthUser, UserDetails, UserListItem, UsersQuery } from '@/features/users/lib/types';
 import {
   toAuthUser,
   toContactDetails,
@@ -18,6 +9,7 @@ import {
 import { client } from '@/integrations/axios';
 import { getIfExists } from '@/lib/http';
 import type { Page } from '@/lib/types';
+import type { RoleAssignment, User, UserContactDetails, UserRecord } from '@/lib/user-types';
 
 // Spring binds repeated params (`id=a&id=b`), not axios's default `id[]=a`.
 const repeatArrays = { indexes: null };

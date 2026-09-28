@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { changePassword } from '@/features/profile/api/api';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
-import type { ProfileUser } from '@/features/profile/lib/types';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import type { UserRecord } from '@/lib/user-types';
 
 vi.mock('@/features/profile/api/api', () => ({ changePassword: vi.fn() }));
 
-const user: ProfileUser = {
+const user: UserRecord = {
   id: 'u1',
   username: 'ada',
   firstName: 'Ada',

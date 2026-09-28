@@ -57,13 +57,14 @@ import {
   type RolesSearch,
   rolesSearchSchema,
 } from '@/features/users/lib/roles-search';
-import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
+import type { UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
+import type { RoleAssignment } from '@/lib/user-types';
 
 // Their own chunk, fetched once the page has painted.
 const loadRoleDialogs = () => import('@/features/users/components/role-dialogs');

@@ -2,7 +2,7 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { RightType } from '@/features/reference-data/lib/types';
 import { assignmentKey, toSavedAssignment } from '@/features/users/lib/role-assignments';
-import type { RoleAssignment } from '@/features/users/lib/types';
+import type { RoleAssignment } from '@/lib/user-types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;

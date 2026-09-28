@@ -36,7 +36,7 @@ import {
   roleFormSchema,
   toRoleAssignment,
 } from '@/features/users/lib/role-form';
-import type { RoleAssignment } from '@/features/users/lib/types';
+import type { RoleAssignment } from '@/lib/user-types';
 
 type AddRoleDialogProps = {
   /** The type of role being added; the dialog is open while it is set. */

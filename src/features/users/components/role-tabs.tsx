@@ -23,9 +23,9 @@ import {
   toRoleRows,
 } from '@/features/users/lib/role-assignments';
 import { type RolesTableSearch, TAB_RESET } from '@/features/users/lib/roles-search';
-import type { RoleAssignment } from '@/features/users/lib/types';
 import { useRoleLookups } from '@/features/users/lib/use-role-lookups';
 import type { SearchChange } from '@/lib/table-search';
+import type { RoleAssignment } from '@/lib/user-types';
 
 type RoleTabsProps = {
   tab: RoleTab;

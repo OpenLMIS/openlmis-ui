@@ -4,20 +4,19 @@ import {
   toContactDetails,
 } from '@/features/profile/lib/profile-form';
 import type {
-  ContactDetails,
   DigestConfiguration,
   DigestSubscription,
   Profile,
-  ProfileUser,
 } from '@/features/profile/lib/types';
 import { client } from '@/integrations/axios';
 import { getIfExists } from '@/lib/http';
 import type { Page } from '@/lib/types';
+import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 export async function fetchProfile(userId: string): Promise<Profile> {
   const [{ data: user }, contact] = await Promise.all([
-    client.get<ProfileUser>(`/users/${userId}`),
-    getIfExists<ContactDetails>(`/userContactDetails/${userId}`),
+    client.get<UserRecord>(`/users/${userId}`),
+    getIfExists<UserContactDetails>(`/userContactDetails/${userId}`),
   ]);
   return { user, contact };
 }
@@ -36,7 +35,7 @@ export async function saveProfile(profile: Profile, values: ProfileFormValues): 
   const changes = profileChanges(profile, values);
   if (changes.user) {
     // The user as it is now, so roles an admin changed meanwhile survive.
-    const { data: user } = await client.get<ProfileUser>(`/users/${profile.user.id}`);
+    const { data: user } = await client.get<UserRecord>(`/users/${profile.user.id}`);
     await client.put('/users', {
       ...user,
       firstName: values.firstName.trim(),

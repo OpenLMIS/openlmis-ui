@@ -1,6 +1,7 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
-import type { ContactDetails, Profile } from '@/features/profile/lib/types';
+import type { Profile } from '@/features/profile/lib/types';
+import type { UserContactDetails } from '@/lib/user-types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;
@@ -51,7 +52,7 @@ export function profileChanges({ user, contact }: Profile, values: ProfileFormVa
 export function toContactDetails(
   { user, contact }: Profile,
   values: ProfileFormValues,
-): ContactDetails {
+): UserContactDetails {
   return {
     referenceDataUserId: user.id,
     phoneNumber: orNull(values.phoneNumber),
