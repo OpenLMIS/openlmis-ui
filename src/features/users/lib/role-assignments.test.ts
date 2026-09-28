@@ -10,7 +10,6 @@ import {
   mergeAssignments,
   type RoleLookups,
   rebaseDraft,
-  rightLabel,
   toRoleRows,
   toSavedAssignment,
 } from '@/features/users/lib/role-assignments';
@@ -185,13 +184,5 @@ describe('filterRows and compareRows', () => {
       'Clerk',
       'Approver',
     ]);
-  });
-});
-
-describe('rightLabel', () => {
-  it('turns a right code into words', () => {
-    expect(rightLabel('REQUISITION_VIEW')).toBe('Requisition View');
-    expect(rightLabel('APPROVE_BUQ')).toBe('Approve BUQ');
-    expect(rightLabel('PODS_MANAGE')).toBe('PODs Manage');
   });
 });

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CheckIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorAlert, RetryButton, SkeletonLine } from '@/components/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,8 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { rolesOptions } from '@/features/reference-data/api/queries';
-import { ErrorAlert, RetryButton, SkeletonLine } from '@/features/users/components/dialog-parts';
-import { useRightLabel } from '@/features/users/lib/use-right-label';
+import { useRightLabel } from '@/features/reference-data/lib/use-right-label';
 
 type RoleRightsDialogProps = {
   /** The role whose rights are shown; open while set. */
@@ -36,25 +36,23 @@ export function RoleRightsDialog({ roleId, onClose }: RoleRightsDialogProps) {
       <DialogContent layout="scroll">
         <DialogHeader spacing="tight">
           <DialogTitle size="lg">
-            {role
-              ? t('users.roles.rights.title', { role: role.name })
-              : t('users.roles.view-rights')}
+            {role ? t('role-rights.title', { role: role.name }) : t('role-rights.fallback-title')}
           </DialogTitle>
           {roles.isPending ? (
             <SkeletonLine width="medium" />
           ) : (
             <DialogDescription size="sm">
               {role
-                ? role.description || t('users.roles.rights.description', { count: rights.length })
-                : !roles.isError && t('users.roles.rights.missing')}
+                ? role.description || t('role-rights.description', { count: rights.length })
+                : !roles.isError && t('role-rights.missing')}
             </DialogDescription>
           )}
         </DialogHeader>
         {roles.isError && (
           <ErrorAlert
             action={<RetryButton onClick={() => void roles.refetch()} />}
-            description={t('users.roles.error-description')}
-            title={t('users.roles.error-title')}
+            description={t('role-rights.error-description')}
+            title={t('role-rights.error-title')}
           />
         )}
         {rights.length > 0 && (
@@ -69,7 +67,7 @@ export function RoleRightsDialog({ roleId, onClose }: RoleRightsDialogProps) {
         )}
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>
-            {t('users.roles.rights.close')}
+            {t('role-rights.close')}
           </DialogClose>
         </DialogFooter>
       </DialogContent>

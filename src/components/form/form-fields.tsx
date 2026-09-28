@@ -4,11 +4,16 @@ import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
 import {
   Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
 } from '@/components/ui/combobox';
 import {
   Field,
@@ -29,6 +34,7 @@ import {
 } from '@/components/ui/input-group';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 
 type FieldProps = {
   label: ReactNode;
@@ -115,12 +121,47 @@ export function TextField({
   );
 }
 
+type TextareaFieldProps = FieldProps & {
+  placeholder?: string;
+};
+
+export function TextareaField({
+  label,
+  description,
+  required,
+  disabled,
+  placeholder,
+}: TextareaFieldProps) {
+  const field = useFieldContext<string>();
+  const { errors, isInvalid } = useFieldErrors();
+
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <RequiredLabel label={label} required={required} />
+      <Textarea
+        aria-invalid={isInvalid}
+        aria-required={required}
+        disabled={disabled}
+        id={field.name}
+        name={field.name}
+        onBlur={field.handleBlur}
+        onChange={(event) => field.handleChange(event.target.value)}
+        placeholder={placeholder}
+        value={field.state.value}
+      />
+      {description && <FieldDescription>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} />}
+    </Field>
+  );
+}
+
 type PasswordFieldProps = FieldProps & {
   autoComplete?: 'new-password' | 'current-password';
   placeholder?: string;
   /** Names the button that reveals the password, for screen readers. */
   showLabel: string;
   hideLabel: string;
+  describedBy?: string;
 };
 
 export function PasswordField({
@@ -132,6 +173,7 @@ export function PasswordField({
   placeholder,
   showLabel,
   hideLabel,
+  describedBy,
 }: PasswordFieldProps) {
   const field = useFieldContext<string>();
   const { errors, isInvalid } = useFieldErrors();
@@ -142,6 +184,7 @@ export function PasswordField({
       <RequiredLabel label={label} required={required} />
       <InputGroup>
         <InputGroupInput
+          aria-describedby={describedBy}
           aria-invalid={isInvalid}
           aria-required={required}
           autoComplete={autoComplete}
@@ -310,7 +353,11 @@ export function ComboboxField({
         itemToStringLabel={(item) => item.label}
         items={items}
         limit={limit}
-        onValueChange={(item) => field.handleChange(item?.value ?? null)}
+        onValueChange={(item, details) => {
+          // Base UI clears the field on Escape once the list is closed; let Escape close the dialog instead.
+          if (details.reason === 'escape-key' && !item) return details.allowPropagation();
+          field.handleChange(item?.value ?? null);
+        }}
         value={selected}
       >
         <ComboboxInput
@@ -325,6 +372,85 @@ export function ComboboxField({
           width="full"
         />
         <ComboboxContent>
+          <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
+          <ComboboxList>
+            {(item: ComboboxFieldItem) => (
+              <ComboboxItem key={item.value} value={item}>
+                {item.label}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {description && <FieldDescription>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} />}
+    </Field>
+  );
+}
+
+type MultiComboboxFieldProps = FieldProps & {
+  items: readonly ComboboxFieldItem[];
+  placeholder?: string;
+  emptyMessage: ReactNode;
+  removeLabel: (label: string) => string;
+};
+
+export function MultiComboboxField({
+  label,
+  description,
+  required,
+  disabled,
+  items,
+  placeholder,
+  emptyMessage,
+  removeLabel,
+}: MultiComboboxFieldProps) {
+  const field = useFieldContext<string[]>();
+  const { errors, isInvalid } = useFieldErrors();
+  const anchor = useComboboxAnchor();
+  const selected = useMemo(() => {
+    const chosen = new Set(field.state.value);
+    return items.filter((item) => chosen.has(item.value));
+  }, [items, field.state.value]);
+
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <RequiredLabel label={label} required={required} />
+      <Combobox
+        disabled={disabled}
+        isItemEqualToValue={(item, value) => item.value === value.value}
+        itemToStringLabel={(item) => item.label}
+        items={items}
+        multiple
+        onValueChange={(chosen, details) => {
+          if (details.reason === 'escape-key' && chosen.length === 0)
+            return details.allowPropagation();
+          field.handleChange(chosen.map((item) => item.value));
+        }}
+        value={selected}
+      >
+        <ComboboxChips ref={anchor}>
+          <ComboboxValue>
+            {(values: ComboboxFieldItem[]) => (
+              <>
+                {values.map((item) => (
+                  <ComboboxChip key={item.value} removeLabel={removeLabel(item.label)}>
+                    {item.label}
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput
+                  aria-invalid={isInvalid}
+                  aria-required={required}
+                  disabled={disabled}
+                  id={field.name}
+                  onBlur={field.handleBlur}
+                  placeholder={values.length === 0 ? placeholder : undefined}
+                />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor}>
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
             {(item: ComboboxFieldItem) => (

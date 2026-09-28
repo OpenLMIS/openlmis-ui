@@ -43,6 +43,7 @@ const tabsListVariants = cva(
       wrap: {
         false: "",
         true: "grid w-full grid-cols-2 group-data-horizontal/tabs:h-auto @lg:inline-flex @lg:w-fit @lg:group-data-horizontal/tabs:h-8",
+        md: "grid w-full grid-cols-2 group-data-horizontal/tabs:h-auto @md:flex @md:group-data-horizontal/tabs:h-8",
       },
     },
     defaultVariants: {

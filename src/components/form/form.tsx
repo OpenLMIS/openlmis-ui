@@ -2,9 +2,11 @@ import { createFormHook } from '@tanstack/react-form';
 import { fieldContext, formContext } from '@/components/form/form-context';
 import {
   ComboboxField,
+  MultiComboboxField,
   PasswordField,
   RadioGroupField,
   SwitchField,
+  TextareaField,
   TextField,
 } from '@/components/form/form-fields';
 
@@ -12,6 +14,14 @@ import {
 export const { useAppForm } = createFormHook({
   fieldContext,
   formContext,
-  fieldComponents: { TextField, PasswordField, SwitchField, RadioGroupField, ComboboxField },
+  fieldComponents: {
+    TextField,
+    TextareaField,
+    PasswordField,
+    SwitchField,
+    RadioGroupField,
+    ComboboxField,
+    MultiComboboxField,
+  },
   formComponents: {},
 });

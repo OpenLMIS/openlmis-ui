@@ -51,6 +51,13 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Roles under Administration', () => {
+    expect(getNavTrail('/administration/roles')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.roles', to: '/administration/roles' },
+    ]);
+  });
+
   it('does not match a path that only starts with the same letters', () => {
     expect(getNavTrail('/administration/users-archive')).toEqual([]);
   });

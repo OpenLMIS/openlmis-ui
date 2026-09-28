@@ -1,5 +1,5 @@
 import { Loader2Icon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -41,6 +41,10 @@ export function FormDialog({
   );
 }
 
+const FIELD_SELECTOR = ['input:not([type=hidden])', 'textarea', 'select', 'button', '[tabindex]']
+  .map((control) => `${control}:not(:disabled):not([tabindex="-1"]):not([aria-disabled="true"])`)
+  .join(', ');
+
 type FormDialogFormProps = {
   onSubmit: () => void;
   children: ReactNode;
@@ -48,10 +52,19 @@ type FormDialogFormProps = {
 
 /** Lays out the header, body and footer so only the body scrolls. */
 export function FormDialogForm({ onSubmit, children }: FormDialogFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // The dialog focuses its loading placeholder; when the form replaces it, focus would be left on the page.
+  useEffect(() => {
+    if (document.activeElement && document.activeElement !== document.body) return;
+    formRef.current?.querySelector<HTMLElement>(FIELD_SELECTOR)?.focus();
+  }, []);
+
   return (
     <form
       className="flex min-h-0 flex-1 flex-col gap-4"
       noValidate
+      ref={formRef}
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();

@@ -46,4 +46,9 @@ describe('canOpen', () => {
     expect(canOpen('/home', undefined)).toBe(true);
     expect(canOpen('/administration/users', new Set())).toBe(false);
   });
+
+  it('opens Roles to someone who may manage users', () => {
+    expect(canOpen('/administration/roles', new Set(['USERS_MANAGE']))).toBe(true);
+    expect(canOpen('/administration/roles', new Set(['USER_ROLES_MANAGE']))).toBe(false);
+  });
 });

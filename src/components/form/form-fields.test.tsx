@@ -12,11 +12,19 @@ const schema = z.object({
   active: z.boolean(),
   method: z.string(),
   secret: z.string(),
+  notes: z.string(),
+  rights: z.array(z.string()),
 });
 
 const facilities = [
   { value: 'f1', label: 'HC01 - Comfort Health Clinic' },
   { value: 'f2', label: 'HF01 - Kankao Health Facility' },
+];
+
+const rights = [
+  { value: 'r1', label: 'View Orders' },
+  { value: 'r2', label: 'Edit Orders' },
+  { value: 'r3', label: 'Transfer Orders' },
 ];
 
 function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => void }) {
@@ -27,6 +35,8 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       active: true,
       method: 'email',
       secret: '',
+      notes: '',
+      rights: ['r1'] as string[],
     },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
@@ -66,7 +76,25 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
         )}
       </form.AppField>
       <form.AppField name="secret">
-        {(field) => <field.PasswordField hideLabel="Hide" label="Secret" showLabel="Show" />}
+        {(field) => (
+          <field.PasswordField
+            describedBy="secret-rules"
+            hideLabel="Hide"
+            label="Secret"
+            showLabel="Show"
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="notes">{(field) => <field.TextareaField label="Notes" />}</form.AppField>
+      <form.AppField name="rights">
+        {(field) => (
+          <field.MultiComboboxField
+            emptyMessage="None found"
+            items={rights}
+            label="Rights"
+            removeLabel={(label) => `Remove ${label}`}
+          />
+        )}
       </form.AppField>
       <button type="submit">Save</button>
     </form>
@@ -126,7 +154,43 @@ describe('form fields', () => {
       active: false,
       method: 'manual',
       secret: '',
+      notes: '',
+      rights: ['r1'],
     });
+  });
+
+  it('keeps the values of the picked items and drops one when its chip is removed', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm();
+
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
+    await user.type(screen.getByLabelText('Notes'), 'Night shift');
+    await user.type(screen.getByRole('combobox', { name: 'Rights' }), 'transfer');
+    await user.click(await screen.findByRole('option', { name: 'Transfer Orders' }));
+    await user.click(screen.getByRole('button', { name: 'Remove View Orders' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ notes: 'Night shift', rights: ['r3'] }),
+    );
+  });
+
+  it('keeps the picked items when Escape is pressed with the list closed', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm();
+
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
+    await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
+    await user.click(await screen.findByRole('option', { name: 'HF01 - Kankao Health Facility' }));
+    await user.click(screen.getByRole('combobox', { name: 'Rights' }));
+    await user.keyboard('{Escape}{Escape}');
+    await user.click(screen.getByRole('combobox', { name: 'Facility' }));
+    await user.keyboard('{Escape}{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ facility: 'f2', rights: ['r1'] }),
+    );
   });
 
   it('reveals the password and names the button for what it will do', async () => {
@@ -135,6 +199,7 @@ describe('form fields', () => {
     const secret = screen.getByLabelText('Secret');
 
     expect(secret).toHaveAttribute('type', 'password');
+    expect(secret).toHaveAttribute('aria-describedby', 'secret-rules');
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(secret).toHaveAttribute('type', 'text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();

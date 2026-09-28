@@ -41,6 +41,7 @@ import {
   type UsersSearch,
 } from '@/features/users/lib/search';
 import type { UserListItem } from '@/features/users/lib/types';
+import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, UserListItem>();
@@ -114,10 +115,11 @@ type UserActionsProps = {
 
 function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: UserActionsProps) {
   const { t } = useTranslation();
+  const menu = useMenuOpensDialog();
 
   return (
     <div className="flex justify-end">
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={menu.onOpenChange}>
         <DropdownMenuTrigger
           render={
             <Button
@@ -129,8 +131,8 @@ function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: 
         >
           <EllipsisIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuItem onClick={onEdit}>
+        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
+          <DropdownMenuItem onClick={menu.opensDialog(onEdit)}>
             <PencilIcon />
             {t('users.edit')}
           </DropdownMenuItem>
@@ -147,7 +149,7 @@ function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: 
             <ShieldIcon />
             {t('users.roles')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onResetPassword} variant="destructive">
+          <DropdownMenuItem onClick={menu.opensDialog(onResetPassword)} variant="destructive">
             <KeyRoundIcon />
             {t('users.reset-password')}
           </DropdownMenuItem>

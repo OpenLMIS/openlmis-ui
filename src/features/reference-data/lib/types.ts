@@ -20,6 +20,8 @@ export type Role = {
   name: string;
   description?: string | null;
   rights: Right[];
+  /** How many users hold the role; only the list of all roles carries it. */
+  count?: number;
 };
 
 export type Program = {

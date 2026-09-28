@@ -11,6 +11,7 @@ export const queryKeys = {
   facilities: createQueryKeys('facilities'),
   home: createQueryKeys('home'),
   programs: createQueryKeys('programs'),
+  rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
