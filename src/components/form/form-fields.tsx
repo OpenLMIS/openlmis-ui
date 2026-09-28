@@ -33,6 +33,13 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -82,9 +89,11 @@ function RequiredLabel({ label, required }: Pick<FieldProps, 'label' | 'required
 }
 
 type TextFieldProps = FieldProps & {
-  type?: 'text' | 'email' | 'tel';
+  type?: 'text' | 'email' | 'tel' | 'time';
   autoComplete?: string;
   placeholder?: string;
+  /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
+  dir?: 'ltr';
 };
 
 export function TextField({
@@ -95,6 +104,7 @@ export function TextField({
   type = 'text',
   autoComplete,
   placeholder,
+  dir,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
   const { errors, isInvalid } = useFieldErrors();
@@ -106,6 +116,7 @@ export function TextField({
         aria-invalid={isInvalid}
         aria-required={required}
         autoComplete={autoComplete}
+        dir={dir}
         disabled={disabled}
         id={field.name}
         name={field.name}
@@ -307,6 +318,53 @@ export function RadioGroupField({ label, options, disabled }: RadioGroupFieldPro
         })}
       </RadioGroup>
     </FieldSet>
+  );
+}
+
+export type SelectFieldItem = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+type SelectFieldProps = FieldProps & {
+  items: readonly SelectFieldItem[];
+};
+
+/** One of a short, fixed list; the field's value is the item's `value`. */
+export function SelectField({ label, description, required, disabled, items }: SelectFieldProps) {
+  const field = useFieldContext<string>();
+  const { errors, isInvalid } = useFieldErrors();
+
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <RequiredLabel label={label} required={required} />
+      <Select
+        disabled={disabled}
+        items={items}
+        onValueChange={(value) => value !== null && field.handleChange(value)}
+        value={field.state.value}
+      >
+        <SelectTrigger
+          aria-invalid={isInvalid}
+          aria-required={required}
+          id={field.name}
+          onBlur={field.handleBlur}
+          width="full"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem disabled={item.disabled} key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {description && <FieldDescription>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} />}
+    </Field>
   );
 }
 

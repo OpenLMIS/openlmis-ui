@@ -171,6 +171,15 @@ export function getNavTrail(pathname: string): NavTrailItem[] {
   );
 }
 
+/** The crumbs after Home: the nav trail, then the page's own `crumbKey` when it has one. */
+export function getBreadcrumbTrail(
+  pathname: string,
+  crumbKey?: NavTrailItem['titleKey'],
+): NavTrailItem[] {
+  const navTrail = getNavTrail(pathname).filter((item) => item.to !== '/home');
+  return crumbKey ? [...navTrail, { titleKey: crumbKey }] : navTrail;
+}
+
 function findNavTrail(matches: (to: NavLink['to']) => boolean): NavTrailItem[] | undefined {
   for (const item of NAV_ITEMS) {
     if (!isNavParent(item)) {

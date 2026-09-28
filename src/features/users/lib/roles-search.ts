@@ -21,13 +21,16 @@ export const rolesSearchSchema = tableSearchSchema(ROLE_SORT_FIELDS).extend({
 
 export type RolesSearch = z.infer<typeof rolesSearchSchema>;
 
+/** What the role tabs and their table read and change: the tab, filter, paging and sort. */
+export type RolesTableSearch = Omit<RolesSearch, 'dialog' | 'rights'>;
+
 /** A different tab lists different rows, so its filter, paging and sort start over. */
 export const TAB_RESET = {
   q: undefined,
   page: undefined,
   sort: undefined,
   dir: undefined,
-} satisfies Partial<RolesSearch>;
+} satisfies Partial<RolesTableSearch>;
 
 export const CLOSED_ROLE_DIALOGS = {
   dialog: undefined,

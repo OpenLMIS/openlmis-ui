@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { ChevronRightIcon, SettingsIcon } from 'lucide-react';
+import { ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CustomTrigger } from '@/components/custom-trigger';
@@ -34,7 +34,6 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getNavTrail, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
@@ -43,7 +42,6 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
-  const settingsLabel = t('sidebar.settings');
   const navGroups = useNavGroups();
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
@@ -102,17 +100,6 @@ export function AppSidebar() {
         <div className="flex items-center group-data-[collapsible=icon]:hidden">
           <ThemeSwitcher tone="sidebar" />
           <LanguageSwitcher tone="sidebar" />
-          {/* TODO: Wire up onClick (open settings dialog or navigate to /settings). */}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button aria-label={settingsLabel} size="icon-sm" tone="sidebar" variant="ghost" />
-              }
-            >
-              <SettingsIcon />
-            </TooltipTrigger>
-            <TooltipContent>{settingsLabel}</TooltipContent>
-          </Tooltip>
         </div>
       </SidebarFooter>
     </Sidebar>

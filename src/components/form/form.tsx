@@ -5,6 +5,7 @@ import {
   MultiComboboxField,
   PasswordField,
   RadioGroupField,
+  SelectField,
   SwitchField,
   TextareaField,
   TextField,
@@ -22,6 +23,7 @@ export const { useAppForm } = createFormHook({
     RadioGroupField,
     ComboboxField,
     MultiComboboxField,
+    SelectField,
   },
   formComponents: {},
 });

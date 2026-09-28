@@ -14,6 +14,8 @@ const schema = z.object({
   secret: z.string(),
   notes: z.string(),
   rights: z.array(z.string()),
+  channel: z.string(),
+  code: z.string(),
 });
 
 const facilities = [
@@ -37,6 +39,8 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       secret: '',
       notes: '',
       rights: ['r1'] as string[],
+      channel: 'EMAIL',
+      code: '',
     },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
@@ -95,6 +99,21 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
             removeLabel={(label) => `Remove ${label}`}
           />
         )}
+      </form.AppField>
+      <form.AppField name="channel">
+        {(field) => (
+          <field.SelectField
+            items={[
+              { value: 'EMAIL', label: 'Email' },
+              { value: 'SMS', label: 'SMS' },
+              { value: 'FAX', label: 'Fax', disabled: true },
+            ]}
+            label="Channel"
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="code">
+        {(field) => <field.TextField dir="ltr" label="Code" />}
       </form.AppField>
       <button type="submit">Save</button>
     </form>
@@ -156,6 +175,8 @@ describe('form fields', () => {
       secret: '',
       notes: '',
       rights: ['r1'],
+      channel: 'EMAIL',
+      code: '',
     });
   });
 
@@ -203,5 +224,28 @@ describe('form fields', () => {
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(secret).toHaveAttribute('type', 'text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();
+  });
+
+  it('shows the chosen item by its label and stores it by value', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm();
+
+    const channel = screen.getByRole('combobox', { name: 'Channel' });
+    expect(channel).toHaveTextContent('Email');
+    await user.click(channel);
+    expect(await screen.findByRole('option', { name: 'Fax' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await user.click(screen.getByRole('option', { name: 'SMS' }));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ channel: 'SMS' }));
+  });
+
+  it('keeps a code-like value left to right in any language', () => {
+    renderForm();
+    expect(screen.getByRole('textbox', { name: 'Code' })).toHaveAttribute('dir', 'ltr');
   });
 });

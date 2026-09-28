@@ -13,8 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as protectedProtectedRouteImport } from './routes/(protected)/_protected'
 import { Route as protectedProtectedHomeRouteImport } from './routes/(protected)/_protected.home'
+import { Route as protectedProtectedProfileRouteImport } from './routes/(protected)/_protected.profile'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
+import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(protected)/_protected.profile.index'
+import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
+import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
 
 const IndexRoute = IndexRouteImport.update({
@@ -36,6 +40,12 @@ const protectedProtectedHomeRoute = protectedProtectedHomeRouteImport.update({
   path: '/home',
   getParentRoute: () => protectedProtectedRoute,
 } as any)
+const protectedProtectedProfileRoute =
+  protectedProtectedProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationRolesRoute =
   protectedProtectedAdministrationRolesRouteImport.update({
     id: '/administration/roles',
@@ -48,6 +58,24 @@ const protectedProtectedAdministrationUsersRoute =
     path: '/administration/users',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedProfileIndexRoute =
+  protectedProtectedProfileIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => protectedProtectedProfileRoute,
+  } as any)
+const protectedProtectedProfileNotificationsRoute =
+  protectedProtectedProfileNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => protectedProtectedProfileRoute,
+  } as any)
+const protectedProtectedProfileRolesRoute =
+  protectedProtectedProfileRolesRouteImport.update({
+    id: '/roles',
+    path: '/roles',
+    getParentRoute: () => protectedProtectedProfileRoute,
+  } as any)
 const protectedProtectedAdministrationUsersIdRolesRoute =
   protectedProtectedAdministrationUsersIdRolesRouteImport.update({
     id: '/administration/users_/$id/roles',
@@ -59,8 +87,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/home': typeof protectedProtectedHomeRoute
+  '/profile': typeof protectedProtectedProfileRouteWithChildren
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
+  '/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/profile/': typeof protectedProtectedProfileIndexRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +101,9 @@ export interface FileRoutesByTo {
   '/home': typeof protectedProtectedHomeRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
+  '/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/profile': typeof protectedProtectedProfileIndexRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 export interface FileRoutesById {
@@ -77,8 +112,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/(protected)/_protected': typeof protectedProtectedRouteWithChildren
   '/(protected)/_protected/home': typeof protectedProtectedHomeRoute
+  '/(protected)/_protected/profile': typeof protectedProtectedProfileRouteWithChildren
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
+  '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 export interface FileRouteTypes {
@@ -87,8 +126,12 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/home'
+    | '/profile'
     | '/administration/roles'
     | '/administration/users'
+    | '/profile/notifications'
+    | '/profile/roles'
+    | '/profile/'
     | '/administration/users/$id/roles'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -97,6 +140,9 @@ export interface FileRouteTypes {
     | '/home'
     | '/administration/roles'
     | '/administration/users'
+    | '/profile/notifications'
+    | '/profile/roles'
+    | '/profile'
     | '/administration/users/$id/roles'
   id:
     | '__root__'
@@ -104,8 +150,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/(protected)/_protected'
     | '/(protected)/_protected/home'
+    | '/(protected)/_protected/profile'
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/users'
+    | '/(protected)/_protected/profile/notifications'
+    | '/(protected)/_protected/profile/roles'
+    | '/(protected)/_protected/profile/'
     | '/(protected)/_protected/administration/users_/$id/roles'
   fileRoutesById: FileRoutesById
 }
@@ -145,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedHomeRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/profile': {
+      id: '/(protected)/_protected/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof protectedProtectedProfileRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/administration/roles': {
       id: '/(protected)/_protected/administration/roles'
       path: '/administration/roles'
@@ -159,6 +216,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationUsersRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/profile/': {
+      id: '/(protected)/_protected/profile/'
+      path: '/'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof protectedProtectedProfileIndexRouteImport
+      parentRoute: typeof protectedProtectedProfileRoute
+    }
+    '/(protected)/_protected/profile/notifications': {
+      id: '/(protected)/_protected/profile/notifications'
+      path: '/notifications'
+      fullPath: '/profile/notifications'
+      preLoaderRoute: typeof protectedProtectedProfileNotificationsRouteImport
+      parentRoute: typeof protectedProtectedProfileRoute
+    }
+    '/(protected)/_protected/profile/roles': {
+      id: '/(protected)/_protected/profile/roles'
+      path: '/roles'
+      fullPath: '/profile/roles'
+      preLoaderRoute: typeof protectedProtectedProfileRolesRouteImport
+      parentRoute: typeof protectedProtectedProfileRoute
+    }
     '/(protected)/_protected/administration/users_/$id/roles': {
       id: '/(protected)/_protected/administration/users_/$id/roles'
       path: '/administration/users/$id/roles'
@@ -169,8 +247,28 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface protectedProtectedProfileRouteChildren {
+  protectedProtectedProfileNotificationsRoute: typeof protectedProtectedProfileNotificationsRoute
+  protectedProtectedProfileRolesRoute: typeof protectedProtectedProfileRolesRoute
+  protectedProtectedProfileIndexRoute: typeof protectedProtectedProfileIndexRoute
+}
+
+const protectedProtectedProfileRouteChildren: protectedProtectedProfileRouteChildren =
+  {
+    protectedProtectedProfileNotificationsRoute:
+      protectedProtectedProfileNotificationsRoute,
+    protectedProtectedProfileRolesRoute: protectedProtectedProfileRolesRoute,
+    protectedProtectedProfileIndexRoute: protectedProtectedProfileIndexRoute,
+  }
+
+const protectedProtectedProfileRouteWithChildren =
+  protectedProtectedProfileRoute._addFileChildren(
+    protectedProtectedProfileRouteChildren,
+  )
+
 interface protectedProtectedRouteChildren {
   protectedProtectedHomeRoute: typeof protectedProtectedHomeRoute
+  protectedProtectedProfileRoute: typeof protectedProtectedProfileRouteWithChildren
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
@@ -178,6 +276,7 @@ interface protectedProtectedRouteChildren {
 
 const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
   protectedProtectedHomeRoute: protectedProtectedHomeRoute,
+  protectedProtectedProfileRoute: protectedProtectedProfileRouteWithChildren,
   protectedProtectedAdministrationRolesRoute:
     protectedProtectedAdministrationRolesRoute,
   protectedProtectedAdministrationUsersRoute:

@@ -13,6 +13,12 @@ export async function fetchMinimalFacilities(): Promise<MinimalFacility[]> {
   return data.content;
 }
 
+/** One facility, for showing its name without loading every facility. */
+export async function fetchFacility(id: string): Promise<MinimalFacility> {
+  const { data } = await client.get<MinimalFacility>(`/facilities/${id}`);
+  return data;
+}
+
 export async function fetchRoles(): Promise<Role[]> {
   const { data } = await client.get<Role[]>('/roles');
   return data;

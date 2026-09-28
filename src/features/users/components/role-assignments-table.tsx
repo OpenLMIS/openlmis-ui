@@ -37,7 +37,11 @@ import {
   type RoleSortField,
   type RoleTab,
 } from '@/features/users/lib/role-assignments';
-import { DEFAULT_ROLES_SORT, type RolesSearch, TAB_RESET } from '@/features/users/lib/roles-search';
+import {
+  DEFAULT_ROLES_SORT,
+  type RolesTableSearch,
+  TAB_RESET,
+} from '@/features/users/lib/roles-search';
 import type { LookupStatus } from '@/features/users/lib/use-role-lookups';
 import {
   type SearchChange,
@@ -49,7 +53,8 @@ import {
 const columnHelper = createColumnHelper<DataTableFeatures, RoleRow>();
 
 type RowActions = {
-  onRemove: (row: RoleRow) => void;
+  /** Left out where the roles are only shown, e.g. on the user's own profile. */
+  onRemove?: (row: RoleRow) => void;
   onViewRights: (roleId: string) => void;
 };
 
@@ -153,7 +158,7 @@ function createColumns(options: ColumnOptions) {
     meta: { className: 'w-16' },
     cell: ({ row }) => (
       <RoleActions
-        onRemove={() => options.onRemove(row.original)}
+        onRemove={options.onRemove && (() => options.onRemove?.(row.original))}
         onViewRights={() => options.onViewRights(row.original.assignment.roleId)}
         role={row.original.role ?? t('users.roles.unknown')}
       />
@@ -217,7 +222,7 @@ function RoleActions({
   onViewRights,
 }: {
   role: string;
-  onRemove: () => void;
+  onRemove: (() => void) | undefined;
   onViewRights: () => void;
 }) {
   const { t } = useTranslation();
@@ -241,10 +246,12 @@ function RoleActions({
             <ListChecksIcon />
             {t('users.roles.view-rights')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onRemove} variant="destructive">
-            <Trash2Icon />
-            {t('users.roles.remove')}
-          </DropdownMenuItem>
+          {onRemove && (
+            <DropdownMenuItem onClick={onRemove} variant="destructive">
+              <Trash2Icon />
+              {t('users.roles.remove')}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -257,9 +264,9 @@ type RoleAssignmentsTableProps = RowActions & {
   rows: RoleRow[];
   status: LookupStatus;
   compact: boolean;
-  search: RolesSearch;
-  onSearchChange: SearchChange<RolesSearch>;
-  onAdd: () => void;
+  search: RolesTableSearch;
+  onSearchChange: SearchChange<RolesTableSearch>;
+  onAdd?: () => void;
 };
 
 const noop = () => {};
@@ -327,7 +334,6 @@ export function RoleAssignmentsTableSkeleton({
     status: SKELETON_STATUS,
     search,
     onSearchChange: noop,
-    onRemove: noop,
     onViewRights: noop,
   });
   return <DataTableSkeleton rowCount={5} table={table} />;
@@ -349,12 +355,14 @@ export function RoleAssignmentsTable({ onAdd, ...props }: RoleAssignmentsTablePr
     rows.length === 0 ? (
       <DataTableEmpty
         action={
-          <Button onClick={onAdd} variant="outline">
-            <PlusIcon data-icon="inline-start" />
-            {t('users.roles.add')}
-          </Button>
+          onAdd && (
+            <Button onClick={onAdd} variant="outline">
+              <PlusIcon data-icon="inline-start" />
+              {t('users.roles.add')}
+            </Button>
+          )
         }
-        description={t(`users.roles.empty.${tab.id}`)}
+        description={t(onAdd ? `users.roles.empty.${tab.id}` : 'users.roles.empty-read-only')}
         icon={<ShieldIcon />}
         title={t('users.roles.empty-title')}
       />

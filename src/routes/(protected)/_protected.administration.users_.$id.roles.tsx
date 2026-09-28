@@ -4,7 +4,6 @@ import {
   createFileRoute,
   type ErrorComponentProps,
   Link,
-  useBlocker,
   useRouter,
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
@@ -15,6 +14,7 @@ import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { NoAccessPage } from '@/components/no-access-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,6 @@ import {
 } from '@/features/reference-data/api/queries';
 import { updateUserRoles } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import { DiscardChangesDialog } from '@/features/users/components/discard-changes-dialog';
 import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
 import { RoleTabs } from '@/features/users/components/role-tabs';
 import { fullName } from '@/features/users/lib/names';
@@ -62,7 +61,7 @@ import {
 } from '@/features/users/lib/roles-search';
 import type { RoleAssignment, UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
-import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -156,9 +155,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
     [navigate, listSearch],
   );
 
-  // A sign out waiting on the discard dialog; set by the leave guard below.
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
-
   const save = useMutation({
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
     onSuccess: (saved, sent) => {
@@ -175,11 +171,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
         void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
       }
       // A sign out asked for during the save goes ahead, now that nothing is left to lose.
-      if (pendingLeave && !editedMeanwhile) {
-        setPendingLeave(null);
-        pendingLeave();
-        return;
-      }
+      if (!editedMeanwhile && guard.leaveIfAsked()) return;
       // Back to the list, as legacy does, unless that would drop edits made during the save.
       if (!editedMeanwhile) {
         leaving.current = true;
@@ -189,19 +181,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 
-  // Tabs, dialogs and paging stay on this page; only leaving it can lose the draft.
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      !leaving.current &&
-      draft.changes > 0 &&
-      current.pathname !== next.pathname &&
-      next.pathname !== '/login',
-    enableBeforeUnload: () => draft.changes > 0,
-    withResolver: true,
-  });
-  // Signing out leaves without the router, so it asks through the same dialog.
-  const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
-  useLeaveGuard(draft.changes > 0, askToLeave);
+  // Tabs, dialogs and paging stay on this page; only leaving it, or signing out, can lose the draft.
+  const guard = useDiscardGuard(draft.changes, { allowLeave: () => leaving.current });
 
   const { add, remove } = draft;
   const rolesRegion = useRef<HTMLDivElement>(null);
@@ -301,19 +282,14 @@ function RolesEditor({ details }: { details: UserDetails }) {
             </Suspense>
           </CatchBoundary>
           <DiscardChangesDialog
-            changes={draft.changes}
-            confirmLabel={t(pendingLeave ? 'users.roles.discard-sign-out' : 'users.roles.discard')}
-            onDiscard={() => {
-              if (!pendingLeave) return blocker.proceed?.();
-              setPendingLeave(null);
-              pendingLeave();
-            }}
-            onKeepEditing={() => {
-              setPendingLeave(null);
-              blocker.reset?.();
-            }}
-            open={blocker.status === 'blocked' || pendingLeave !== null}
-            username={user.username}
+            description={t('users.roles.discard-description', {
+              count: draft.changes,
+              username: user.username,
+            })}
+            onDiscard={guard.onDiscard}
+            onKeepEditing={guard.onKeepEditing}
+            open={guard.open}
+            signingOut={guard.signingOut}
           />
         </WorkspaceContent>
       </Workspace>
