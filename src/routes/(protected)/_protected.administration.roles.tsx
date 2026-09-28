@@ -59,13 +59,16 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
       // Every tab's rights, so switching the type never waits.
       for (const { type } of ROLE_TYPES) queryClient.prefetchQuery(rightsByTypeOptions(type));
     } else if (deps.role) {
-      queryClient.prefetchQuery(roleDetailOptions(deps.role));
-      // A saved role's type is in the list already, so its rights load beside the role, not after it.
-      const listed = queryClient
-        .getQueryData(rolesOptions().queryKey)
-        ?.find((role) => role.id === deps.role);
-      const type = roleTypeOf(listed);
-      if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
+      const roleId = deps.role;
+      queryClient.prefetchQuery(roleDetailOptions(roleId));
+      // A saved role's type is in the list, so its rights load beside the role, not after it; never awaited.
+      queryClient
+        .ensureQueryData(rolesOptions())
+        .then((roles) => {
+          const type = roleTypeOf(roles.find((role) => role.id === roleId));
+          if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
+        })
+        .catch(() => undefined);
     }
   },
   pendingComponent: RolesPagePending,

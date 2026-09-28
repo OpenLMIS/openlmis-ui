@@ -6,7 +6,8 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { type ReactNode, useMemo, useState } from 'react';
+import { TriangleAlertIcon } from 'lucide-react';
+import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -19,7 +20,7 @@ import {
 } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { useFieldContext } from '@/components/form/form-context';
-import { MultiComboboxField } from '@/components/form/form-fields';
+import { FieldLabelText, MultiComboboxField } from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -34,6 +35,7 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -44,7 +46,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { FieldGroup } from '@/components/ui/field';
+import { Field, FieldDescription, FieldGroup, FieldTitle } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { rolesOptions } from '@/features/reference-data/api/queries';
@@ -56,6 +58,7 @@ import { rightsByTypeOptions, roleDetailOptions } from '@/features/roles/api/que
 import {
   asksBeforeSaving,
   EMPTY_ROLE_FORM,
+  otherTypeRights,
   type RoleFormValues,
   roleFormSchema,
   toRoleBody,
@@ -77,12 +80,17 @@ type RoleFormDialogProps = {
 };
 
 export function RoleFormDialog({ target, canEdit, onClose, onSaved }: RoleFormDialogProps) {
+  const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && !canEdit && <NoAccessContent isNew={shown === 'new'} />}
+      {shown && !canEdit && (
+        <NoAccessContent
+          title={t(shown === 'new' ? 'roles.form.create-title' : 'roles.form.edit-title')}
+        />
+      )}
       {shown && canEdit && <RoleDialogContent onDone={onClose} onSaved={onSaved} target={shown} />}
     </FormDialog>
   );
@@ -106,7 +114,7 @@ function RoleDialogContent({ target, onDone, onSaved }: RoleDialogContentProps) 
           <NotFoundContent title={title} />
         ) : (
           <DialogLoadError
-            errorTitle={t('roles.form.load-error-title')}
+            errorTitle={t(isNew ? 'roles.error-title' : 'roles.form.load-error-title')}
             onRetry={reset}
             title={title}
           />
@@ -149,7 +157,9 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
   const schema = useMemo(() => roleFormSchema(roles, role?.id), [roles, role?.id]);
   const [confirming, setConfirming] = useState<RoleFormValues>();
   // The type of a saved role is fixed, since its holders' assignments are shaped for it.
-  const lockedType = roleTypeOf(role);
+  const typeLocked = roleTypeOf(role) !== undefined;
+  const dropped = otherTypeRights(role);
+  const rightLabel = useRightLabel();
 
   const save = useMutation({
     mutationKey: saveKey(role?.id ?? 'new'),
@@ -204,8 +214,8 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
         >
           {(field) => (
             <RoleTypeTabs
-              locked={lockedType !== undefined}
-              onChange={(type) => field.handleChange(type)}
+              locked={typeLocked}
+              onChange={field.handleChange}
               type={field.state.value}
             >
               <FieldGroup>
@@ -215,8 +225,22 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
                     title={t('roles.form.save-error-title')}
                   />
                 )}
+                {dropped.length > 0 && (
+                  <Alert variant="warning">
+                    <TriangleAlertIcon />
+                    <AlertTitle>{t('roles.form.other-type-title')}</AlertTitle>
+                    <AlertDescription>
+                      {t('roles.form.other-type-description', {
+                        count: dropped.length,
+                        rights: dropped.map((right) => rightLabel(right.name)).join(', '),
+                      })}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <form.AppField name="name">
-                  {(name) => <name.TextField autoComplete="off" label={t('roles.name')} required />}
+                  {(name) => (
+                    <name.TextField autoComplete="off" label={t('roles.form.name')} required />
+                  )}
                 </form.AppField>
                 <form.AppField name="description">
                   {(description) => (
@@ -226,13 +250,18 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
                 <form.AppField name="rightIds">
                   {() => (
                     <QueryBoundary
-                      errorComponent={({ reset }) => (
-                        <ErrorAlert
-                          action={<RetryButton onClick={reset} />}
-                          description={t('error.check-connection')}
-                          title={t('roles.form.rights-error-title')}
-                        />
-                      )}
+                      errorComponent={({ error, reset }) =>
+                        // View Rights can be taken away since the page checked it.
+                        isAxiosError(error) && error.response?.status === 403 ? (
+                          <NoAccess />
+                        ) : (
+                          <ErrorAlert
+                            action={<RetryButton onClick={reset} />}
+                            description={t('error.check-connection')}
+                            title={t('roles.form.rights-error-title')}
+                          />
+                        )
+                      }
                       pendingFallback={<FieldSkeleton label={t('roles.rights')} required />}
                       resetKey={field.state.value}
                     >
@@ -291,20 +320,39 @@ type RoleTypeTabsProps = {
 /** The four role types as tabs over the form, each with a line on what it is for. */
 function RoleTypeTabs({ type, locked, onChange, children }: RoleTypeTabsProps) {
   const { t } = useTranslation();
+  const id = useId();
 
   return (
     <Tabs onValueChange={(value) => onChange(value as RightType)} spacing="page" value={type}>
-      <div className="flex flex-col gap-2 @container">
-        <TabsList aria-label={t('roles.type')} wrap="md">
-          {ROLE_TYPES.map((item) => (
-            <TabsTrigger disabled={locked && item.type !== type} key={item.type} value={item.type}>
-              {t(item.labelKey)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <p className="text-sm text-muted-foreground">{t(roleTypeInfo(type).descriptionKey)}</p>
-      </div>
-      <TabsContent value={type}>{children}</TabsContent>
+      <Field spacing="tight">
+        <FieldTitle id={`${id}-label`}>
+          <FieldLabelText label={t('roles.type')} required />
+        </FieldTitle>
+        <div className="@container">
+          <TabsList
+            aria-describedby={`${id}-description`}
+            aria-labelledby={`${id}-label`}
+            wrap="md"
+          >
+            {ROLE_TYPES.map((item) => (
+              <TabsTrigger
+                disabled={locked && item.type !== type}
+                key={item.type}
+                value={item.type}
+              >
+                {t(item.labelKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <FieldDescription id={`${id}-description`}>
+          {t(roleTypeInfo(type).descriptionKey)}
+        </FieldDescription>
+      </Field>
+      {/* Not a tab stop of its own: the fields inside it take focus. */}
+      <TabsContent tabIndex={-1} value={type}>
+        {children}
+      </TabsContent>
     </Tabs>
   );
 }
@@ -338,14 +386,12 @@ function RightsField({ type }: { type: RightType }) {
   );
 }
 
-function NoAccessContent({ isNew }: { isNew: boolean }) {
+function NoAccessContent({ title }: { title: string }) {
   const { t } = useTranslation();
   return (
     <>
       <FormDialogHeader>
-        <FormDialogTitle>
-          {t(isNew ? 'roles.form.create-title' : 'roles.form.edit-title')}
-        </FormDialogTitle>
+        <FormDialogTitle>{title}</FormDialogTitle>
       </FormDialogHeader>
       <NoAccess />
       <FormDialogFooter>
@@ -381,11 +427,20 @@ function RoleFormSkeleton({ title, submitLabel }: { title: string; submitLabel: 
       </FormDialogHeader>
       <FormDialogBody>
         <div aria-busy className="flex flex-col gap-4">
-          <div className="h-8 w-full">
-            <Skeleton fill />
-          </div>
+          <Field spacing="tight">
+            <FieldTitle>
+              <FieldLabelText label={t('roles.type')} required />
+            </FieldTitle>
+            {/* Two by two in a narrow dialog, one row once the tabs fit, as the tabs themselves. */}
+            <div className="@container">
+              <div className="h-15 w-full @md:h-8">
+                <Skeleton fill />
+              </div>
+            </div>
+            <SkeletonLine width="medium" />
+          </Field>
           <FieldGroup>
-            <FieldSkeleton label={t('roles.name')} required />
+            <FieldSkeleton label={t('roles.form.name')} required />
             <FieldSkeleton label={t('roles.description')} required />
             <FieldSkeleton label={t('roles.rights')} required />
           </FieldGroup>

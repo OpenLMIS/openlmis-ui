@@ -31,6 +31,7 @@ import {
   type RoleSortField,
   type RolesSearch,
 } from '@/features/roles/lib/search';
+import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import {
   type SearchChange,
   toPaginationState,
@@ -95,10 +96,11 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
 function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions }) {
   const { t } = useTranslation();
   const { onEdit, onViewRights } = actions;
+  const menu = useMenuOpensDialog();
 
   return (
     <div className="flex justify-end">
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={menu.onOpenChange}>
         <DropdownMenuTrigger
           render={
             <Button
@@ -110,15 +112,15 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
         >
           <EllipsisIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
+        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
           {onEdit && (
-            <DropdownMenuItem onClick={() => onEdit(role.id)}>
+            <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(role.id))}>
               <PencilIcon />
               {t('roles.edit')}
             </DropdownMenuItem>
           )}
           {onViewRights && (
-            <DropdownMenuItem onClick={() => onViewRights(role.id)}>
+            <DropdownMenuItem onClick={menu.opensDialog(() => onViewRights(role.id))}>
               <ListChecksIcon />
               {t('roles.view-rights')}
             </DropdownMenuItem>

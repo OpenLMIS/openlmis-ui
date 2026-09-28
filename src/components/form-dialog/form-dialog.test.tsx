@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -48,5 +48,30 @@ describe('FormDialog', () => {
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  });
+});
+
+describe('FormDialogForm', () => {
+  it('takes focus to its first field when it replaces a loading placeholder that had it', async () => {
+    const { rerender } = render(
+      <FormDialog onOpenChange={vi.fn()} open>
+        <FormDialogFooter>
+          <FormDialogCancel>Cancel</FormDialogCancel>
+        </FormDialogFooter>
+      </FormDialog>,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus());
+
+    rerender(
+      <FormDialog onOpenChange={vi.fn()} open>
+        <FormDialogForm onSubmit={vi.fn()}>
+          <FormDialogBody>
+            <input aria-label="Name" />
+          </FormDialogBody>
+        </FormDialogForm>
+      </FormDialog>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name' })).toHaveFocus());
   });
 });

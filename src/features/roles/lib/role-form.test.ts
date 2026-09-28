@@ -3,6 +3,7 @@ import type { Right, Role } from '@/features/reference-data/lib/types';
 import {
   asksBeforeSaving,
   EMPTY_ROLE_FORM,
+  otherTypeRights,
   roleFormSchema,
   toRoleBody,
   toRoleFormValues,
@@ -129,5 +130,21 @@ describe('asksBeforeSaving', () => {
   it('saves at once for a new role or one nobody holds', () => {
     expect(asksBeforeSaving(undefined, 0)).toBe(false);
     expect(asksBeforeSaving(supervisor, 0)).toBe(false);
+  });
+});
+
+describe('otherTypeRights', () => {
+  it("lists the rights a save will drop, since they are not of the role's type", () => {
+    const admin: Role = {
+      id: 'role3',
+      name: 'System Administrator',
+      rights: [{ id: 'a1', name: 'USERS_MANAGE', type: 'GENERAL_ADMIN' }, view],
+    };
+    expect(otherTypeRights(admin)).toEqual([view]);
+  });
+
+  it('finds none for a role of one type or a new role', () => {
+    expect(otherTypeRights(supervisor)).toEqual([]);
+    expect(otherTypeRights(undefined)).toEqual([]);
   });
 });

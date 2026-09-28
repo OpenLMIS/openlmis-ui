@@ -29,7 +29,7 @@ export function RolesToolbar({ search, onFilterChange, columnView, onCreate }: R
           value={search.q ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-52 @2xl/main:flex-none">
+      <div className="flex-1 @2xl/main:w-64 @2xl/main:flex-none">
         <DataTableSelectFilter
           label={t('roles.type')}
           onValueChange={(value) =>

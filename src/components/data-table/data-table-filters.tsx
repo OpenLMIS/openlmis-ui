@@ -43,8 +43,11 @@ export function DataTableSelectFilter({
           <span className="flex min-w-0 items-center gap-1 pe-8">
             {value ? (
               <>
-                <span className="text-muted-foreground">{label}:</span>
-                <SelectValue />
+                <span className="shrink-0 text-muted-foreground">{label}:</span>
+                {/* Truncates a long pick, so it never runs under the clear button. */}
+                <span className="min-w-0 truncate">
+                  <SelectValue />
+                </span>
               </>
             ) : (
               <span className="text-muted-foreground">{label}</span>

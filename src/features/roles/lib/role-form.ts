@@ -46,6 +46,12 @@ export function toRoleFormValues(role: Role): RoleFormValues {
   };
 }
 
+/** Rights of another type than the role's, which the server stores but a save through this form drops. */
+export function otherTypeRights(role: Role | undefined): Right[] {
+  const type = roleTypeOf(role);
+  return role?.rights.filter((right) => right.type !== type) ?? [];
+}
+
 /** Changing a role changes what everyone who holds it can do, so that is asked first. */
 export function asksBeforeSaving(role: Role | undefined, holders: number) {
   return role !== undefined && holders > 0;

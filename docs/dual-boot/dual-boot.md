@@ -35,6 +35,7 @@ Today the new UI has these screens:
 | Login | Sign in |
 | Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment |
 | Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles. Needs the Manage Users right; without it the menu leaves Users out and the page says so |
+| Administration / Roles | Find roles, see their rights, and create or edit them. Opening the page needs Manage Users, seeing a role's rights needs View Rights, and creating or editing needs Manage User Roles and View Rights |
 
 Everything else is still in the existing UI, and the new UI's menu shows only the
 screens above. More move over as they are rebuilt.

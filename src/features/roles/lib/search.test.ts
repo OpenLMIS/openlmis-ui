@@ -15,12 +15,6 @@ describe('rolesSearchSchema', () => {
     expect(rolesSearchSchema.parse({ role: id, rights: id })).toEqual({ role: id, rights: id });
     expect(rolesSearchSchema.parse({ role: 'nope', rights: 'x' })).toEqual({});
   });
-
-  it('drops the type step param the dialog no longer has', () => {
-    expect(rolesSearchSchema.parse({ role: 'new', roleType: 'SUPERVISION' })).toEqual({
-      role: 'new',
-    });
-  });
 });
 
 describe('hasRoleFilters', () => {

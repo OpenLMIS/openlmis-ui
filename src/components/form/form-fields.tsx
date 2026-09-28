@@ -275,23 +275,17 @@ type RadioGroupFieldProps = {
   /** Names the group; shown above the options. */
   label: ReactNode;
   options: readonly RadioGroupFieldOption[];
-  required?: boolean;
   disabled?: boolean;
 };
 
 /** One choice from a few, each drawn as a card like `SwitchField`. */
-export function RadioGroupField({ label, options, required, disabled }: RadioGroupFieldProps) {
+export function RadioGroupField({ label, options, disabled }: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
-  const { errors, isInvalid } = useFieldErrors();
 
   return (
-    <FieldSet data-invalid={isInvalid}>
-      <FieldLegend variant="label">
-        <FieldLabelText label={label} required={required} />
-      </FieldLegend>
+    <FieldSet>
+      <FieldLegend variant="label">{label}</FieldLegend>
       <RadioGroup
-        aria-invalid={isInvalid}
-        aria-required={required}
         disabled={disabled}
         name={field.name}
         onBlur={field.handleBlur}
@@ -313,7 +307,6 @@ export function RadioGroupField({ label, options, required, disabled }: RadioGro
           );
         })}
       </RadioGroup>
-      {isInvalid && <FieldError errors={errors} />}
     </FieldSet>
   );
 }
