@@ -22,8 +22,7 @@ import { isForbidden, requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { rolesOptions } from '@/features/reference-data/api/queries';
-import { roleTypeOf } from '@/features/reference-data/lib/roles';
-import type { RightType } from '@/features/reference-data/lib/types';
+import { ROLE_TYPES, roleTypeOf } from '@/features/reference-data/lib/roles';
 import { rightsByTypeOptions, roleDetailOptions } from '@/features/roles/api/queries';
 import { RolesTable, RolesTableSkeleton } from '@/features/roles/components/roles-table';
 import { RolesToolbar } from '@/features/roles/components/roles-toolbar';
@@ -44,7 +43,6 @@ const RoleDialogs = lazy(() =>
 /** Every dialog closed; the params a dialog adds to the list's URL. */
 const CLOSED_DIALOGS = {
   role: undefined,
-  roleType: undefined,
   rights: undefined,
 } satisfies Partial<RolesSearch>;
 
@@ -53,18 +51,22 @@ const LIST_FRESH_FOR = 30 * 1000;
 
 export const Route = createFileRoute('/(protected)/_protected/administration/roles')({
   validateSearch: rolesSearchSchema,
-  loaderDeps: ({ search }) => ({ role: search.role, roleType: search.roleType }),
+  loaderDeps: ({ search }) => ({ role: search.role }),
   loader: async ({ context: { queryClient }, deps }) => {
     await requireRight(queryClient, RIGHTS.usersManage);
     queryClient.prefetchQuery({ ...rolesOptions(), staleTime: LIST_FRESH_FOR });
-    const listed =
-      deps.role && deps.role !== 'new'
-        ? queryClient.getQueryData(rolesOptions().queryKey)?.find((role) => role.id === deps.role)
-        : undefined;
-    if (deps.role && deps.role !== 'new') queryClient.prefetchQuery(roleDetailOptions(deps.role));
-    // A saved role's type is in the list already, so its rights load beside the role, not after it.
-    const type = deps.roleType ?? roleTypeOf(listed);
-    if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
+    if (deps.role === 'new') {
+      // Every tab's rights, so switching the type never waits.
+      for (const { type } of ROLE_TYPES) queryClient.prefetchQuery(rightsByTypeOptions(type));
+    } else if (deps.role) {
+      queryClient.prefetchQuery(roleDetailOptions(deps.role));
+      // A saved role's type is in the list already, so its rights load beside the role, not after it.
+      const listed = queryClient
+        .getQueryData(rolesOptions().queryKey)
+        ?.find((role) => role.id === deps.role);
+      const type = roleTypeOf(listed);
+      if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
+    }
   },
   pendingComponent: RolesPagePending,
   component: RolesPage,
@@ -88,13 +90,13 @@ function RolesPage() {
   const { userId, canViewRights, canEdit } = useRoleAccess();
   // Without the dialogs' params, and shared structurally, so opening a dialog leaves the table alone.
   const search = Route.useSearch({
-    select: ({ role: _role, roleType: _roleType, rights: _rights, ...list }): RolesSearch => list,
+    select: ({ role: _role, rights: _rights, ...list }): RolesSearch => list,
     structuralSharing: true,
   });
   const dialogs = Route.useSearch({
     // One dialog at a time: a link that names both opens the role.
-    select: ({ role, roleType, rights }) => ({
-      role: role ? { role, roleType } : undefined,
+    select: ({ role, rights }) => ({
+      role,
       rights: role === undefined ? rights : undefined,
     }),
     structuralSharing: true,
@@ -134,16 +136,6 @@ function RolesPage() {
     if (router.state.location.state.dialogOpenedHere) router.history.back();
     else updateSearch(CLOSED_DIALOGS, true);
   }, [router, updateSearch]);
-  // Moving between the dialog's steps keeps one history entry, so Back still closes it.
-  const setRoleType = useCallback(
-    (roleType: RightType | undefined) =>
-      navigate({
-        search: (previous) => ({ ...previous, roleType }),
-        state: (previous) => previous,
-        replace: true,
-      }),
-    [navigate],
-  );
   const editRole = useCallback((role: string) => openDialog({ role }), [openDialog]);
   const viewRights = useCallback((rights: string) => openDialog({ rights }), [openDialog]);
   // Refetched rather than invalidated, so the rights check on closing the dialog never waits for it.
@@ -207,9 +199,7 @@ function RolesPage() {
           <Suspense fallback={null}>
             <RoleDialogs
               canEdit={canEdit}
-              onBackToTypes={() => setRoleType(undefined)}
               onClose={closeDialog}
-              onPickType={setRoleType}
               onSaved={reloadOwnRights}
               rightsRoleId={canViewRights ? dialogs.rights : undefined}
               role={dialogs.role}

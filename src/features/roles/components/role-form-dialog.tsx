@@ -6,11 +6,9 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { ArrowLeftIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import {
   DialogLoadError,
   ErrorAlert,
@@ -47,6 +45,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { rolesOptions } from '@/features/reference-data/api/queries';
 import { ROLE_TYPES, roleTypeInfo, roleTypeOf } from '@/features/reference-data/lib/roles';
 import type { RightType, Role } from '@/features/reference-data/lib/types';
@@ -63,46 +63,40 @@ import {
 } from '@/features/roles/lib/role-form';
 import { queryKeys } from '@/lib/key-factory';
 
-/** The open dialog: a new role or the id of one, and the type picked for it once past the first step. */
-export type RoleDialogTarget = {
-  role: 'new' | string;
-  roleType: RightType | undefined;
-};
-
 /** One key per role, so a save still running for one never locks another's dialog. */
 const saveKey = (role: string) => [...queryKeys.roles.all, 'save', role] as const;
 
 type RoleFormDialogProps = {
-  target: RoleDialogTarget | undefined;
+  /** `new` to create a role, or the id of the one being edited; open while set. */
+  target: 'new' | string | undefined;
   /** Whether the user may create and edit roles; a link opened without the rights shows No Access. */
   canEdit: boolean;
   onClose: () => void;
-  onPickType: (type: RightType) => void;
-  onBackToTypes: () => void;
   /** After a save, e.g. to reload the signed-in user's rights, which a role they hold may change. */
   onSaved: () => void;
 };
 
-export function RoleFormDialog({ target, canEdit, onClose, ...steps }: RoleFormDialogProps) {
+export function RoleFormDialog({ target, canEdit, onClose, onSaved }: RoleFormDialogProps) {
   const { shown, dialogProps } = useDialogTarget(target, onClose);
-  const isSaving = useIsMutating({ mutationKey: saveKey(shown?.role ?? 'new') }) > 0;
+  const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && !canEdit && <NoAccessContent isNew={shown.role === 'new'} />}
-      {shown && canEdit && <RoleDialogContent onDone={onClose} target={shown} {...steps} />}
+      {shown && !canEdit && <NoAccessContent isNew={shown === 'new'} />}
+      {shown && canEdit && <RoleDialogContent onDone={onClose} onSaved={onSaved} target={shown} />}
     </FormDialog>
   );
 }
 
-type RoleDialogContentProps = Omit<RoleFormDialogProps, 'target' | 'canEdit' | 'onClose'> & {
-  target: RoleDialogTarget;
+type RoleDialogContentProps = {
+  target: string;
   onDone: () => void;
+  onSaved: () => void;
 };
 
-function RoleDialogContent({ target, ...props }: RoleDialogContentProps) {
+function RoleDialogContent({ target, onDone, onSaved }: RoleDialogContentProps) {
   const { t } = useTranslation();
-  const isNew = target.role === 'new';
+  const isNew = target === 'new';
   const title = t(isNew ? 'roles.form.create-title' : 'roles.form.edit-title');
 
   return (
@@ -124,131 +118,43 @@ function RoleDialogContent({ target, ...props }: RoleDialogContentProps) {
           title={title}
         />
       }
-      resetKey={target.role}
+      resetKey={target}
     >
       {isNew ? (
-        <NewRole target={target} {...props} />
+        <RoleForm onDone={onDone} onSaved={onSaved} />
       ) : (
-        <ExistingRole key={target.role} roleId={target.role} target={target} {...props} />
+        <ExistingRole key={target} onDone={onDone} onSaved={onSaved} roleId={target} />
       )}
     </QueryBoundary>
   );
 }
 
-function NewRole({ target, onPickType, onBackToTypes, onDone, onSaved }: RoleDialogContentProps) {
-  return target.roleType ? (
-    <RoleForm
-      key={target.roleType}
-      onBack={onBackToTypes}
-      onDone={onDone}
-      onSaved={onSaved}
-      type={target.roleType}
-    />
-  ) : (
-    <TypeStep onPick={onPickType} />
-  );
-}
-
-function ExistingRole({
-  roleId,
-  target,
-  onPickType,
-  onBackToTypes,
-  onDone,
-  onSaved,
-}: RoleDialogContentProps & { roleId: string }) {
+function ExistingRole({ roleId, ...props }: Omit<RoleFormProps, 'role'> & { roleId: string }) {
   const { data: role } = useSuspenseQuery(roleDetailOptions(roleId));
-  // A role saved without rights has no type yet, so it is asked for first, as legacy does.
-  const savedType = roleTypeOf(role);
-  const type = savedType ?? target.roleType;
-  if (!type) return <TypeStep existing onPick={onPickType} />;
-  return (
-    <RoleForm
-      key={type}
-      onBack={savedType ? undefined : onBackToTypes}
-      onDone={onDone}
-      onSaved={onSaved}
-      role={role}
-      type={type}
-    />
-  );
-}
-
-const typeStepSchema = z.object({ type: z.string().min(1, 'roles.form.type-required') });
-
-function TypeStep({
-  existing = false,
-  onPick,
-}: {
-  existing?: boolean;
-  onPick: (type: RightType) => void;
-}) {
-  const { t } = useTranslation();
-  const form = useAppForm({
-    defaultValues: { type: '' },
-    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: typeStepSchema },
-    onSubmit: ({ value }) => onPick(value.type as RightType),
-  });
-
-  return (
-    <FormDialogForm onSubmit={form.handleSubmit}>
-      <FormDialogHeader>
-        <FormDialogTitle>
-          {t(existing ? 'roles.form.edit-title' : 'roles.form.create-title')}
-        </FormDialogTitle>
-        <FormDialogDescription>
-          {t(existing ? 'roles.form.type-description-existing' : 'roles.form.type-description')}
-        </FormDialogDescription>
-      </FormDialogHeader>
-      <FormDialogBody>
-        <FieldGroup>
-          <form.AppField name="type">
-            {(field) => (
-              <field.RadioGroupField
-                label={t('roles.type')}
-                options={ROLE_TYPES.map((item) => ({
-                  value: item.type,
-                  label: t(item.labelKey),
-                  description: t(item.descriptionKey),
-                }))}
-                required
-              />
-            )}
-          </form.AppField>
-        </FieldGroup>
-      </FormDialogBody>
-      <FormDialogFooter>
-        <FormDialogCancel>{t('roles.form.cancel')}</FormDialogCancel>
-        <FormDialogSubmit>{t('roles.form.continue')}</FormDialogSubmit>
-      </FormDialogFooter>
-    </FormDialogForm>
-  );
+  return <RoleForm role={role} {...props} />;
 }
 
 type RoleFormProps = {
   /** The role being edited; none when creating one. */
   role?: Role;
-  type: RightType;
-  /** Returns to the type step; only while the type is still open to choose. */
-  onBack?: () => void;
   onDone: () => void;
   onSaved: () => void;
 };
 
-function RoleForm({ role, type, onBack, onDone, onSaved }: RoleFormProps) {
+function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: roles } = useSuspenseQuery(rolesOptions());
   const holders = roles.find((item) => item.id === role?.id)?.count ?? 0;
   const schema = useMemo(() => roleFormSchema(roles, role?.id), [roles, role?.id]);
   const [confirming, setConfirming] = useState<RoleFormValues>();
-  const typeLabel = t(roleTypeInfo(type).labelKey);
+  // The type of a saved role is fixed, since its holders' assignments are shaped for it.
+  const lockedType = roleTypeOf(role);
 
   const save = useMutation({
     mutationKey: saveKey(role?.id ?? 'new'),
     mutationFn: async (values: RoleFormValues) => {
-      const rights = await queryClient.ensureQueryData(rightsByTypeOptions(type));
+      const rights = await queryClient.ensureQueryData(rightsByTypeOptions(values.type));
       const body = toRoleBody(values, rights, role?.id);
       return role ? updateRole(role.id, body) : createRole(body);
     },
@@ -271,7 +177,7 @@ function RoleForm({ role, type, onBack, onDone, onSaved }: RoleFormProps) {
     save.mutateAsync(values, { onSuccess: onDone }).catch(() => undefined);
 
   const form = useAppForm({
-    defaultValues: role ? toRoleFormValues(role, type) : EMPTY_ROLE_FORM,
+    defaultValues: role ? toRoleFormValues(role) : EMPTY_ROLE_FORM,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
     onSubmit: ({ value }) =>
@@ -286,58 +192,60 @@ function RoleForm({ role, type, onBack, onDone, onSaved }: RoleFormProps) {
         </FormDialogTitle>
         <FormDialogDescription>
           {role
-            ? t('roles.form.edit-description', { role: role.name, type: typeLabel })
-            : t('roles.form.create-description', { type: typeLabel })}
+            ? t('roles.form.edit-description', { role: role.name })
+            : t('roles.form.create-description')}
         </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
-        <FieldGroup>
-          {save.isError && (
-            <ErrorAlert
-              description={serverMessage(save.error) ?? t('roles.form.save-error')}
-              title={t('roles.form.save-error-title')}
-            />
-          )}
-          <form.AppField name="name">
-            {(field) => <field.TextField autoComplete="off" label={t('roles.name')} required />}
-          </form.AppField>
-          <form.AppField name="description">
-            {(field) => <field.TextareaField label={t('roles.description')} required />}
-          </form.AppField>
-          <form.AppField name="rightIds">
-            {() => (
-              <QueryBoundary
-                errorComponent={({ reset }) => (
+        {/* Rights belong to one type, so changing it starts the choice of rights over. */}
+        <form.AppField
+          listeners={{ onChange: () => form.setFieldValue('rightIds', []) }}
+          name="type"
+        >
+          {(field) => (
+            <RoleTypeTabs
+              locked={lockedType !== undefined}
+              onChange={(type) => field.handleChange(type)}
+              type={field.state.value}
+            >
+              <FieldGroup>
+                {save.isError && (
                   <ErrorAlert
-                    action={<RetryButton onClick={reset} />}
-                    description={t('error.check-connection')}
-                    title={t('roles.form.rights-error-title')}
+                    description={serverMessage(save.error) ?? t('roles.form.save-error')}
+                    title={t('roles.form.save-error-title')}
                   />
                 )}
-                pendingFallback={<FieldSkeleton label={t('roles.rights')} required />}
-                resetKey={type}
-              >
-                <RightsField type={type} />
-              </QueryBoundary>
-            )}
-          </form.AppField>
-        </FieldGroup>
+                <form.AppField name="name">
+                  {(name) => <name.TextField autoComplete="off" label={t('roles.name')} required />}
+                </form.AppField>
+                <form.AppField name="description">
+                  {(description) => (
+                    <description.TextareaField label={t('roles.description')} required />
+                  )}
+                </form.AppField>
+                <form.AppField name="rightIds">
+                  {() => (
+                    <QueryBoundary
+                      errorComponent={({ reset }) => (
+                        <ErrorAlert
+                          action={<RetryButton onClick={reset} />}
+                          description={t('error.check-connection')}
+                          title={t('roles.form.rights-error-title')}
+                        />
+                      )}
+                      pendingFallback={<FieldSkeleton label={t('roles.rights')} required />}
+                      resetKey={field.state.value}
+                    >
+                      <RightsField type={field.state.value} />
+                    </QueryBoundary>
+                  )}
+                </form.AppField>
+              </FieldGroup>
+            </RoleTypeTabs>
+          )}
+        </form.AppField>
       </FormDialogBody>
       <FormDialogFooter>
-        {onBack && (
-          <div className="w-full sm:me-auto sm:w-auto">
-            <Button
-              disabled={save.isPending}
-              onClick={onBack}
-              type="button"
-              variant="ghost"
-              width="full"
-            >
-              <ArrowLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
-              {t('roles.form.back')}
-            </Button>
-          </div>
-        )}
         <FormDialogCancel disabled={save.isPending}>{t('roles.form.cancel')}</FormDialogCancel>
         <FormDialogSubmit pending={save.isPending}>
           {t(role ? 'roles.form.save' : 'roles.form.create')}
@@ -368,6 +276,36 @@ function RoleForm({ role, type, onBack, onDone, onSaved }: RoleFormProps) {
         </AlertDialogContent>
       </AlertDialog>
     </FormDialogForm>
+  );
+}
+
+type RoleTypeTabsProps = {
+  type: RightType;
+  /** Only the current type can be picked, for a saved role. */
+  locked: boolean;
+  onChange: (type: RightType) => void;
+  /** The form below the tabs, as the panel of the chosen type. */
+  children: ReactNode;
+};
+
+/** The four role types as tabs over the form, each with a line on what it is for. */
+function RoleTypeTabs({ type, locked, onChange, children }: RoleTypeTabsProps) {
+  const { t } = useTranslation();
+
+  return (
+    <Tabs onValueChange={(value) => onChange(value as RightType)} spacing="page" value={type}>
+      <div className="flex flex-col gap-2 @container">
+        <TabsList aria-label={t('roles.type')} wrap="md">
+          {ROLE_TYPES.map((item) => (
+            <TabsTrigger disabled={locked && item.type !== type} key={item.type} value={item.type}>
+              {t(item.labelKey)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <p className="text-sm text-muted-foreground">{t(roleTypeInfo(type).descriptionKey)}</p>
+      </div>
+      <TabsContent value={type}>{children}</TabsContent>
+    </Tabs>
   );
 }
 
@@ -442,7 +380,10 @@ function RoleFormSkeleton({ title, submitLabel }: { title: string; submitLabel: 
         <SkeletonLine width="medium" />
       </FormDialogHeader>
       <FormDialogBody>
-        <div aria-busy>
+        <div aria-busy className="flex flex-col gap-4">
+          <div className="h-8 w-full">
+            <Skeleton fill />
+          </div>
           <FieldGroup>
             <FieldSkeleton label={t('roles.name')} required />
             <FieldSkeleton label={t('roles.description')} required />

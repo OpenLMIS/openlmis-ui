@@ -1,5 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
+import { ROLE_TYPES, roleTypeOf } from '@/features/reference-data/lib/roles';
 import type { Right, RightType, Role } from '@/features/reference-data/lib/types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
@@ -10,6 +11,7 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 /** Role names are unique ignoring case, as the server's index is; the role being edited keeps its own. */
 export function roleFormSchema(roles: readonly Role[], editingId?: string) {
   return z.object({
+    type: z.custom<RightType>(),
     name: z
       .string()
       .trim()
@@ -25,11 +27,19 @@ export function roleFormSchema(roles: readonly Role[], editingId?: string) {
 
 export type RoleFormValues = z.input<ReturnType<typeof roleFormSchema>>;
 
-export const EMPTY_ROLE_FORM: RoleFormValues = { name: '', description: '', rightIds: [] };
+export const EMPTY_ROLE_FORM: RoleFormValues = {
+  type: ROLE_TYPES[0].type,
+  name: '',
+  description: '',
+  rightIds: [],
+};
 
-/** Only the rights of `type`: the form lists no others, and the server takes one type per role. */
-export function toRoleFormValues(role: Role, type: RightType): RoleFormValues {
+/** Only the rights of the role's type: the form lists no others, and the server takes one type per role. */
+export function toRoleFormValues(role: Role): RoleFormValues {
+  // A role saved without rights has no type yet, so it starts on the first one.
+  const type = roleTypeOf(role) ?? ROLE_TYPES[0].type;
   return {
+    type,
     name: role.name,
     description: role.description ?? '',
     rightIds: role.rights.filter((right) => right.type === type).map((right) => right.id),

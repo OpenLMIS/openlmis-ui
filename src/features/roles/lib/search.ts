@@ -17,21 +17,19 @@ export const DEFAULT_ROLES_SORT: DefaultSort = { id: 'name', desc: false };
 
 type RoleTypeValue = (typeof ROLE_TYPES)[number]['type'];
 
-const roleType = z
+const roleTypeFilter = z
   .enum(ROLE_TYPES.map((item) => item.type) as [RoleTypeValue, ...RoleTypeValue[]])
   .optional()
   .catch(undefined);
 
 export const rolesSearchSchema = tableSearchSchema(ROLE_SORT_FIELDS).extend({
   q: textFilterSchema,
-  type: roleType,
+  type: roleTypeFilter,
   /** The open dialog: `new` to create a role, or the id of the one being edited. */
   role: z
     .union([z.literal('new'), z.guid()])
     .optional()
     .catch(undefined),
-  /** The type picked for a new role, once past the first step. */
-  roleType,
   /** The role whose rights are shown. */
   rights: z.guid().optional().catch(undefined),
 });

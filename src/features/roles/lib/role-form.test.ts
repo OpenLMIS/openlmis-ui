@@ -28,6 +28,7 @@ const messages = (values: typeof EMPTY_ROLE_FORM, editingId?: string) =>
 
 describe('roleFormSchema', () => {
   it('requires a name, a description and at least one right', () => {
+    expect(EMPTY_ROLE_FORM.type).toBe('SUPERVISION');
     expect(messages({ ...EMPTY_ROLE_FORM, name: ' ' })).toEqual([
       ['name', 'roles.form.name-required'],
       ['description', 'roles.form.description-required'],
@@ -36,21 +37,30 @@ describe('roleFormSchema', () => {
   });
 
   it('rejects a name another role has, ignoring case and spaces around it', () => {
-    expect(messages({ name: ' storeroom manager ', description: 'x', rightIds: ['r1'] })).toEqual([
-      ['name', 'roles.form.name-taken'],
-    ]);
+    expect(
+      messages({
+        ...EMPTY_ROLE_FORM,
+        name: ' storeroom manager ',
+        description: 'x',
+        rightIds: ['r1'],
+      }),
+    ).toEqual([['name', 'roles.form.name-taken']]);
   });
 
   it('lets a role keep its own name', () => {
     expect(
-      messages({ name: 'Program Supervisor', description: 'x', rightIds: ['r1'] }, 'role1'),
+      messages(
+        { ...EMPTY_ROLE_FORM, name: 'Program Supervisor', description: 'x', rightIds: ['r1'] },
+        'role1',
+      ),
     ).toBeUndefined();
   });
 });
 
 describe('toRoleFormValues', () => {
   it("fills the form from a role, with its rights' ids", () => {
-    expect(toRoleFormValues(supervisor, 'SUPERVISION')).toEqual({
+    expect(toRoleFormValues(supervisor)).toEqual({
+      type: 'SUPERVISION',
       name: 'Program Supervisor',
       description: 'Approves requisitions',
       rightIds: ['r1', 'r2'],
@@ -58,9 +68,7 @@ describe('toRoleFormValues', () => {
   });
 
   it('treats a missing description as empty', () => {
-    expect(toRoleFormValues({ ...supervisor, description: null }, 'SUPERVISION').description).toBe(
-      '',
-    );
+    expect(toRoleFormValues({ ...supervisor, description: null }).description).toBe('');
   });
 
   it('leaves out a right of another type, which the form cannot show or keep', () => {
@@ -69,17 +77,24 @@ describe('toRoleFormValues', () => {
       name: 'System Administrator',
       rights: [{ id: 'a1', name: 'USERS_MANAGE', type: 'GENERAL_ADMIN' }, view],
     };
-    expect(toRoleFormValues(admin, 'GENERAL_ADMIN').rightIds).toEqual(['a1']);
+    expect(toRoleFormValues(admin)).toMatchObject({ type: 'GENERAL_ADMIN', rightIds: ['a1'] });
+  });
+
+  it('starts a role with no rights, and so no type, on the first type', () => {
+    expect(toRoleFormValues({ ...supervisor, rights: [] })).toMatchObject({
+      type: 'SUPERVISION',
+      rightIds: [],
+    });
   });
 });
 
 describe('toRoleBody', () => {
   it('sends the trimmed text and the chosen rights of the type', () => {
     expect(
-      toRoleBody({ name: ' Approver ', description: ' Approves ', rightIds: ['r2'] }, [
-        view,
-        approve,
-      ]),
+      toRoleBody(
+        { ...EMPTY_ROLE_FORM, name: ' Approver ', description: ' Approves ', rightIds: ['r2'] },
+        [view, approve],
+      ),
     ).toEqual({
       name: 'Approver',
       description: 'Approves',
@@ -89,15 +104,20 @@ describe('toRoleBody', () => {
 
   it('keeps the id when editing and drops rights not in the list', () => {
     expect(
-      toRoleBody({ name: 'A', description: 'B', rightIds: ['r1', 'gone'] }, [view], 'role1'),
+      toRoleBody(
+        { ...EMPTY_ROLE_FORM, name: 'A', description: 'B', rightIds: ['r1', 'gone'] },
+        [view],
+        'role1',
+      ),
     ).toEqual({ id: 'role1', name: 'A', description: 'B', rights: [view] });
   });
 
   it('sends only the fields the API reads for a right', () => {
     const extra = { ...view, description: 'x', attachments: [] } as Right;
-    expect(toRoleBody({ name: 'A', description: 'B', rightIds: ['r1'] }, [extra]).rights).toEqual([
-      view,
-    ]);
+    expect(
+      toRoleBody({ ...EMPTY_ROLE_FORM, name: 'A', description: 'B', rightIds: ['r1'] }, [extra])
+        .rights,
+    ).toEqual([view]);
   });
 });
 
