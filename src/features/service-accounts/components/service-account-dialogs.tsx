@@ -1,4 +1,4 @@
-import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { KeyRoundIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,13 +16,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { createServiceAccount, deleteServiceAccount } from '@/features/service-accounts/api/api';
+import {
+  createServiceAccount,
+  deleteServiceAccount,
+  KeyLeftBehindError,
+} from '@/features/service-accounts/api/api';
 import { CopyKeyButton } from '@/features/service-accounts/components/copy-key-button';
 import type { ServiceAccount } from '@/features/service-accounts/lib/types';
 import { queryKeys } from '@/lib/key-factory';
-
-const addKey = [...queryKeys.serviceAccounts.all, 'add'] as const;
-const deleteKey = (token: string) => [...queryKeys.serviceAccounts.all, 'delete', token] as const;
 
 type ServiceAccountDialogsProps = {
   adding: boolean;
@@ -43,26 +44,26 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [created, setCreated] = useState<ServiceAccount>();
-  const isSaving = useIsMutating({ mutationKey: addKey }) > 0;
+  const { dialogProps } = useDialogTarget(open || undefined, onClose);
 
   const add = useMutation({
-    mutationKey: addKey,
     mutationFn: createServiceAccount,
-    onSuccess: setCreated,
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.serviceAccounts.all });
     },
   });
 
+  const props = dialogProps(add.isPending);
+
   return (
     <AlertDialog
-      onOpenChange={(next) => !next && !isSaving && onClose()}
+      {...props}
       onOpenChangeComplete={(next) => {
+        props.onOpenChangeComplete(next);
         if (next) return;
         setCreated(undefined);
         add.reset();
       }}
-      open={open}
     >
       <AlertDialogContent>
         {created ? (
@@ -94,13 +95,20 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
             </AlertDialogHeader>
             {add.isError && (
               <ErrorAlert
-                description={serverMessage(add.error) ?? t('service-accounts.save-error')}
+                description={
+                  add.error instanceof KeyLeftBehindError
+                    ? t('service-accounts.key-left-behind', { key: add.error.token })
+                    : (serverMessage(add.error) ?? t('service-accounts.request-error'))
+                }
                 title={t('service-accounts.add-error-title')}
               />
             )}
             <AlertDialogFooter>
               <AlertDialogCancel disabled={add.isPending}>{t('dialog.cancel')}</AlertDialogCancel>
-              <Button disabled={add.isPending} onClick={() => add.mutate()}>
+              <Button
+                disabled={add.isPending}
+                onClick={() => add.mutate(undefined, { onSuccess: setCreated })}
+              >
                 {add.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
                 {t('service-accounts.add')}
               </Button>
@@ -134,27 +142,26 @@ function DeleteServiceAccountDialog({
   const queryClient = useQueryClient();
   const { shown, dialogProps } = useDialogTarget(token, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const isDeleting = useIsMutating({ mutationKey: deleteKey(shown ?? '') }) > 0;
 
   const remove = useMutation({
-    mutationKey: deleteKey(shown ?? ''),
     mutationFn: deleteServiceAccount,
     onSuccess: (_, deleted) => {
       toast.success(t('service-accounts.deleted-title'), {
         description: t('service-accounts.deleted', { key: deleted }),
       });
-      onClose();
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.serviceAccounts.all });
     },
   });
 
+  const props = dialogProps(remove.isPending);
+
   return (
     <AlertDialog
-      {...dialogProps(isDeleting)}
+      {...props}
       onOpenChangeComplete={(next) => {
-        dialogProps().onOpenChangeComplete(next);
+        props.onOpenChangeComplete(next);
         if (!next) remove.reset();
       }}
     >
@@ -172,7 +179,7 @@ function DeleteServiceAccountDialog({
         {shown && <KeyBox token={shown} />}
         {remove.isError && (
           <ErrorAlert
-            description={serverMessage(remove.error) ?? t('service-accounts.save-error')}
+            description={serverMessage(remove.error) ?? t('service-accounts.request-error')}
             title={t('service-accounts.delete-error-title')}
           />
         )}
@@ -181,8 +188,8 @@ function DeleteServiceAccountDialog({
             {t('dialog.cancel')}
           </AlertDialogCancel>
           <Button
-            disabled={remove.isPending || !shown}
-            onClick={() => shown && remove.mutate(shown)}
+            disabled={remove.isPending}
+            onClick={() => shown && remove.mutate(shown, { onSuccess: onClose })}
             variant="destructive"
           >
             {remove.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}

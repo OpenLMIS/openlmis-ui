@@ -55,7 +55,6 @@ function createColumns(
       enableSorting: false,
       cell: ({ getValue }) => (
         <div className="flex items-center gap-1 whitespace-normal">
-          {/* A key reads left to right in every language. */}
           <span className="font-mono text-sm" dir="ltr">
             {getValue()}
           </span>

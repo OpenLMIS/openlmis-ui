@@ -4,6 +4,7 @@ import {
   createServiceAccount,
   deleteServiceAccount,
   fetchServiceAccounts,
+  KeyLeftBehindError,
 } from '@/features/service-accounts/api/api';
 import { client } from '@/integrations/axios';
 
@@ -61,11 +62,13 @@ describe('createServiceAccount', () => {
     expect(remove).toHaveBeenCalledWith('/apiKeys/k1');
   });
 
-  it('still reports the failure when the clean-up fails too', async () => {
+  it('says which key was left behind when the clean-up fails too', async () => {
     post.mockResolvedValueOnce({ data: key }).mockRejectedValueOnce(failed(500));
     remove.mockRejectedValueOnce(failed(500));
 
-    await expect(createServiceAccount()).rejects.toThrow('failed');
+    const error = await createServiceAccount().catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(KeyLeftBehindError);
+    expect(error).toMatchObject({ token: 'k1' });
   });
 });
 
@@ -83,6 +86,12 @@ describe('deleteServiceAccount', () => {
 
     await deleteServiceAccount('k1');
     expect(remove).toHaveBeenNthCalledWith(2, '/apiKeys/k1');
+  });
+
+  it('counts a key someone else already deleted as deleted', async () => {
+    remove.mockRejectedValueOnce(failed(404)).mockRejectedValueOnce(failed(404));
+
+    await expect(deleteServiceAccount('k1')).resolves.toBeUndefined();
   });
 
   it('keeps the key when the service account could not be removed', async () => {

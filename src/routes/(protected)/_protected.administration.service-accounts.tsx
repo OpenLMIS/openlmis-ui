@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { KeyRoundIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +27,7 @@ import {
   serviceAccountsSearchSchema,
   toServiceAccountsQuery,
 } from '@/features/service-accounts/lib/search';
-import type { SearchUpdate } from '@/lib/table-search';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 // Their own chunk: the list paints without the dialogs, and the chunk is fetched right after.
 const loadDialogs = () => import('@/features/service-accounts/components/service-account-dialogs');
@@ -65,35 +65,8 @@ function ServiceAccountsPage() {
     structuralSharing: true,
   });
   const anyDialogOpen = dialogs.adding || dialogs.deleting !== undefined;
-  const navigate = Route.useNavigate();
-  const router = useRouter();
-
-  const updateSearch = useCallback(
-    (
-      update: Partial<ServiceAccountsSearch> | SearchUpdate<ServiceAccountsSearch>,
-      replace = false,
-    ) =>
-      navigate({
-        search: (previous) => ({
-          ...previous,
-          ...(typeof update === 'function' ? update(previous) : update),
-        }),
-        replace,
-      }),
-    [navigate],
-  );
-  const openDialog = useCallback(
-    (params: Partial<ServiceAccountsSearch>) =>
-      navigate({
-        search: (previous) => ({ ...previous, ...CLOSED_DIALOGS, ...params }),
-        state: (previous) => ({ ...previous, dialogOpenedHere: true }),
-      }),
-    [navigate],
-  );
-  const closeDialog = useCallback(() => {
-    if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else updateSearch(CLOSED_DIALOGS, true);
-  }, [router, updateSearch]);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<ServiceAccountsSearch>(CLOSED_DIALOGS);
   const addKey = useCallback(() => openDialog({ add: true }), [openDialog]);
   const deleteKey = useCallback((token: string) => openDialog({ delete: token }), [openDialog]);
   const [dialogsMounted, setDialogsMounted] = useState(anyDialogOpen);

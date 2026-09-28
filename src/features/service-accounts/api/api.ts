@@ -8,24 +8,35 @@ export async function fetchServiceAccounts(query: ServiceAccountsQuery) {
   return data;
 }
 
+/** A key whose account could not be created, and which could not be deleted again either. */
+export class KeyLeftBehindError extends Error {
+  constructor(readonly token: string) {
+    super(`Key ${token} was created without its service account`);
+    this.name = 'KeyLeftBehindError';
+  }
+}
+
 /** The key lives in the auth service and its account in reference data; a key left without one is deleted. */
 export async function createServiceAccount(): Promise<ServiceAccount> {
   const { data: key } = await client.post<ServiceAccount>('/apiKeys');
   try {
     await client.post('/serviceAccounts', { token: key.token });
   } catch (error) {
-    await client.delete(`/apiKeys/${key.token}`).catch(() => undefined);
-    throw error;
+    const removed = await client.delete(`/apiKeys/${key.token}`).then(
+      () => true,
+      () => false,
+    );
+    throw removed ? error : new KeyLeftBehindError(key.token);
   }
   return key;
 }
 
-/** The account first, as legacy does; one already gone still lets the key be removed. */
+const ignoreNotFound = (error: unknown) => {
+  if (!isNotFound(error)) throw error;
+};
+
+/** The account first, as legacy does; either one already gone counts as deleted. */
 export async function deleteServiceAccount(token: string): Promise<void> {
-  try {
-    await client.delete(`/serviceAccounts/${token}`);
-  } catch (error) {
-    if (!isNotFound(error)) throw error;
-  }
-  await client.delete(`/apiKeys/${token}`);
+  await client.delete(`/serviceAccounts/${token}`).catch(ignoreNotFound);
+  await client.delete(`/apiKeys/${token}`).catch(ignoreNotFound);
 }
