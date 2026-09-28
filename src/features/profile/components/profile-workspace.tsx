@@ -16,6 +16,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { markDialogOpened } from '@/hooks/use-search-navigation';
 
 const PROFILE_TABS = [
   { to: '/profile', labelKey: 'profile.tabs.basic' },
@@ -55,7 +56,7 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
               render={
                 <Link
                   search={(previous) => ({ ...previous, dialog: 'password' as const })}
-                  state={(previous) => ({ ...previous, dialogOpenedHere: true })}
+                  state={markDialogOpened}
                   to="."
                 />
               }

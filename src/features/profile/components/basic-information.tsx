@@ -146,6 +146,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
                   {(field) => (
                     <field.TextField
                       autoComplete="email"
+                      dir="ltr"
                       description={
                         savedEmail && field.state.value.trim() === savedEmail ? (
                           <EmailStatus verified={emailVerified} />

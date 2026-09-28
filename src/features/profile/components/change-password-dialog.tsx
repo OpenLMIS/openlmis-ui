@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useMutation } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
@@ -56,6 +56,7 @@ function ChangePasswordForm({
   onChanged,
 }: Pick<ChangePasswordDialogProps, 'user' | 'onChanged'>) {
   const { t } = useTranslation();
+  const requirementsId = useId();
   const save = useMutation({
     mutationKey: passwordKey,
     mutationFn: (password: string) => changePassword(user.username, password),
@@ -94,14 +95,14 @@ function ChangePasswordForm({
             {(field) => (
               <div className="grid gap-3">
                 <field.PasswordField
-                  describedBy="password-requirements"
+                  describedBy={requirementsId}
                   hideLabel={t('users.password.hide')}
                   label={t('users.password.new-password')}
                   required
                   showLabel={t('users.password.show')}
                 />
                 <PasswordRequirements
-                  id="password-requirements"
+                  id={requirementsId}
                   owner={user}
                   password={field.state.value}
                 />

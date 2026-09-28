@@ -104,7 +104,6 @@ function RolesPage() {
     structuralSharing: true,
   });
   const anyDialogOpen = dialogs.role !== undefined || dialogs.rights !== undefined;
-  const _navigate = Route.useNavigate();
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
     ROLE_HIDEABLE_COLUMNS,

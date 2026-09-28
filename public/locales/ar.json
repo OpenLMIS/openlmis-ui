@@ -460,7 +460,7 @@
   "users.password.rule-unmet": "(غير مستوفى بعد)",
   "users.password.rule.characters": "الأحرف اللاتينية من A إلى Z والأرقام فقط",
   "users.password.rule.length": "من 8 إلى 72 حرفًا",
-  "users.password.rule.names": "ليست اسم المستخدم أو الاسم الأول أو اسم العائلة",
+  "users.password.rule.names": "لا تحتوي على اسم المستخدم أو الاسم الأول أو اسم العائلة",
   "users.password.rule.number": "رقم واحد على الأقل",
   "users.password.send": "إرسال البريد",
   "users.password.set": "تعيين كلمة المرور",

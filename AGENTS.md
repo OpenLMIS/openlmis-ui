@@ -480,8 +480,7 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `DialogDescription size`, `Field spacing`, `FieldDescription size`,
-`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `SelectTrigger width` and
-`Skeleton fill`.
+`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel` and `SelectTrigger width`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 

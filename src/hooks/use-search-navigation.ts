@@ -1,4 +1,4 @@
-import { useNavigate, useRouter } from '@tanstack/react-router';
+import { type HistoryState, useNavigate, useRouter } from '@tanstack/react-router';
 import { useCallback } from 'react';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -9,6 +9,12 @@ declare module '@tanstack/react-router' {
     dialogOpenedHere?: boolean;
   }
 }
+
+/** The mark an opened dialog's entry carries, so closing it steps Back; also for a `Link` that opens one. */
+export const markDialogOpened = (previous: HistoryState): HistoryState => ({
+  ...previous,
+  dialogOpenedHere: true,
+});
 
 /** The current page's URL state: change its search, and open and close the dialog the URL owns. */
 export function useSearchNavigation<TSearch extends object>(closedDialogs: Partial<TSearch>) {
@@ -21,7 +27,7 @@ export function useSearchNavigation<TSearch extends object>(closedDialogs: Parti
         to: '.',
         search: search as never,
         replace: options.replace,
-        state: options.mark ? (previous) => ({ ...previous, dialogOpenedHere: true }) : undefined,
+        state: options.mark ? markDialogOpened : undefined,
       }),
     [navigate],
   );

@@ -1,9 +1,13 @@
+import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type {
   DigestConfiguration,
   DigestSubscription,
   NotificationChannel,
 } from '@/features/profile/lib/types';
+
+// Messages are translation keys so they follow a language switch, resolved at render.
+const errorKey = (key: ParseKeys) => key;
 
 export type Frequency = 'daily' | 'weekly' | 'custom';
 
@@ -126,7 +130,7 @@ const rowSchema = z
       context.addIssue({
         code: 'custom',
         path: ['channel'],
-        message: 'profile.notifications.digest-email-only',
+        message: errorKey('profile.notifications.digest-email-only'),
       });
     }
     if (schedule.frequency === 'custom') {
@@ -134,14 +138,14 @@ const rowSchema = z
         context.addIssue({
           code: 'custom',
           path: ['schedule', 'cron'],
-          message: 'profile.notifications.cron-invalid',
+          message: errorKey('profile.notifications.cron-invalid'),
         });
       }
     } else if (!TIME.test(schedule.time)) {
       context.addIssue({
         code: 'custom',
         path: ['schedule', 'time'],
-        message: 'profile.notifications.time-required',
+        message: errorKey('profile.notifications.time-required'),
       });
     }
   });

@@ -460,7 +460,7 @@
   "users.password.rule-unmet": "(ainda não cumprido)",
   "users.password.rule.characters": "Apenas letras de A a Z e números",
   "users.password.rule.length": "Entre 8 e 72 caracteres",
-  "users.password.rule.names": "Sem o nome de utilizador, nome próprio ou apelido",
+  "users.password.rule.names": "Não contém o nome de utilizador, nome próprio ou apelido",
   "users.password.rule.number": "Pelo menos 1 número",
   "users.password.send": "Enviar Email",
   "users.password.set": "Definir Palavra-passe",

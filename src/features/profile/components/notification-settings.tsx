@@ -39,8 +39,8 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
 const FORM_ID = 'notification-settings-form';
 
-// Isolated left to right, so it reads the same inside Arabic text.
-const CRON_EXAMPLE = '\u20660 0 8 * * MON-FRI\u2069';
+// Isolated left to right with no-break spaces, so it reads the same, on one line, inside Arabic text.
+const CRON_EXAMPLE = '\u20660\u00a00\u00a08\u00a0*\u00a0*\u00a0MON-FRI\u2069';
 
 type NotificationSettingsProps = {
   userId: string;

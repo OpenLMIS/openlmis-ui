@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useMutation, useSuspenseQuery } from '@tanstack/react-query';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -86,6 +86,7 @@ type PasswordFormProps = {
 
 function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const { t } = useTranslation();
+  const requirementsId = useId();
   const { data: details } = useSuspenseQuery(userDetailsOptions(target.userId));
   const { id, username } = details.user;
   const schema = useMemo(() => passwordFormSchema(details.user), [details.user]);
@@ -175,14 +176,14 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
                   {(field) => (
                     <div className="grid gap-3">
                       <field.PasswordField
-                        describedBy="password-requirements"
+                        describedBy={requirementsId}
                         hideLabel={t('users.password.hide')}
                         label={t('users.password.new-password')}
                         required
                         showLabel={t('users.password.show')}
                       />
                       <PasswordRequirements
-                        id="password-requirements"
+                        id={requirementsId}
                         owner={details.user}
                         password={field.state.value}
                       />
