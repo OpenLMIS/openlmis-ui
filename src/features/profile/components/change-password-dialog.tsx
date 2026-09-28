@@ -16,12 +16,14 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { PasswordRequirements } from '@/components/password-requirements';
 import { FieldGroup } from '@/components/ui/field';
 import { changePassword } from '@/features/profile/api/api';
 import { changePasswordSchema } from '@/features/profile/lib/password-form';
 import type { ProfileUser } from '@/features/profile/lib/types';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
+import { passwordErrorKey } from '@/lib/password-rules';
 
 const passwordKey = [...queryKeys.profile.all, 'password'] as const;
 
@@ -59,10 +61,9 @@ function ChangePasswordForm({
     mutationFn: (password: string) => changePassword(user.username, password),
     onSuccess: onChanged,
   });
-  const schema = useMemo(
-    () => changePasswordSchema([user.username, user.firstName, user.lastName]),
-    [user.username, user.firstName, user.lastName],
-  );
+  const schema = useMemo(() => changePasswordSchema(user), [user]);
+  // The server's strength check has a message of ours; its other refusals are shown as sent.
+  const errorKey = passwordErrorKey(save.error);
   const form = useAppForm({
     defaultValues: { password: '', confirm: '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
@@ -81,7 +82,9 @@ function ChangePasswordForm({
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('users.form.save-error')}
+              description={
+                errorKey ? t(errorKey) : (serverMessage(save.error) ?? t('users.form.save-error'))
+              }
               title={t('profile.password.error-title')}
             />
           )}
@@ -89,13 +92,20 @@ function ChangePasswordForm({
           <input autoComplete="username" hidden readOnly value={user.username} />
           <form.AppField name="password">
             {(field) => (
-              <field.PasswordField
-                description={t('password.requirements')}
-                hideLabel={t('users.password.hide')}
-                label={t('users.password.new-password')}
-                required
-                showLabel={t('users.password.show')}
-              />
+              <div className="grid gap-3">
+                <field.PasswordField
+                  describedBy="password-requirements"
+                  hideLabel={t('users.password.hide')}
+                  label={t('users.password.new-password')}
+                  required
+                  showLabel={t('users.password.show')}
+                />
+                <PasswordRequirements
+                  id="password-requirements"
+                  owner={user}
+                  password={field.state.value}
+                />
+              </div>
             )}
           </form.AppField>
           <form.AppField name="confirm">

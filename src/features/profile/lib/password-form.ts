@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { passwordIssue } from '@/lib/password-rules';
+import { type PasswordOwner, passwordIssue } from '@/lib/password-rules';
 
 /** The new password, typed twice; it may not contain the user's username or names. */
-export const changePasswordSchema = (userData: readonly string[]) =>
+export const changePasswordSchema = (owner: PasswordOwner) =>
   z
     .object({ password: z.string(), confirm: z.string() })
     .superRefine(({ password, confirm }, context) => {
-      const issue = passwordIssue(password, userData);
+      const issue = passwordIssue(password, owner);
       if (issue) context.addIssue({ code: 'custom', path: ['password'], message: issue });
       if (confirm === '') {
         context.addIssue({

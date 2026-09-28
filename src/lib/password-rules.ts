@@ -1,23 +1,56 @@
+import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 
-// The auth service's rules, checked here too so the user hears them before sending.
-const MIN_LENGTH = 8;
-const MAX_LENGTH = 72;
+/** Whose password it is; the server refuses one that contains any of these. */
+export type PasswordOwner = {
+  username: string;
+  firstName?: string | null;
+  lastName?: string | null;
+};
 
-/** The first rule the password breaks, as a translation key; the server also rejects weak ones. */
-export function passwordIssue(
+/** The fixed rules the auth service checks, in the order it reports them; strength is left to the server. */
+export const PASSWORD_RULES = ['length', 'characters', 'number', 'names'] as const;
+
+export type PasswordRule = (typeof PASSWORD_RULES)[number];
+
+export function passwordChecks(
   password: string,
-  userData: readonly (string | null | undefined)[] = [],
-): ParseKeys | undefined {
-  if (password === '') return 'password.required';
-  if (/\s/.test(password)) return 'password.no-spaces';
-  if (password.length < MIN_LENGTH) return 'password.too-short';
-  if (password.length > MAX_LENGTH) return 'password.too-long';
-  if (!/^[a-zA-Z0-9]+$/.test(password)) return 'password.letters-digits';
-  if (!/\d/.test(password)) return 'password.needs-number';
+  owner: PasswordOwner,
+): Record<PasswordRule, boolean> {
   const lower = password.toLowerCase();
-  if (userData.some((value) => value && lower.includes(value.toLowerCase()))) {
-    return 'password.no-user-data';
-  }
-  return undefined;
+  const names = [owner.username, owner.firstName, owner.lastName]
+    .map((name) => name?.trim().toLowerCase())
+    .filter(Boolean);
+  return {
+    length: password.length >= 8 && password.length <= 72,
+    characters: /^[a-zA-Z0-9]+$/.test(password),
+    number: /\d/.test(password),
+    names: password !== '' && names.every((name) => !lower.includes(name)),
+  };
+}
+
+const RULE_ERRORS: Record<PasswordRule, ParseKeys> = {
+  length: 'users.password.error.length',
+  characters: 'users.password.error.characters',
+  number: 'users.password.error.number',
+  names: 'users.password.error.names',
+};
+
+/** What is wrong with the password, as a translation key: missing, or the first rule it misses. */
+export function passwordIssue(password: string, owner: PasswordOwner): ParseKeys | undefined {
+  if (password === '') return 'users.password.required';
+  const checks = passwordChecks(password, owner);
+  const unmet = PASSWORD_RULES.find((rule) => !checks[rule]);
+  return unmet && RULE_ERRORS[unmet];
+}
+
+// The server words only the strength check by key; its other rules come back as English text.
+const SERVER_ERRORS: Record<string, ParseKeys> = {
+  'users.passwordReset.tooWeak': 'users.password.error.too-weak',
+};
+
+export function passwordErrorKey(error: unknown): ParseKeys | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const key = (error.response?.data as { messageKey?: unknown } | undefined)?.messageKey;
+  return typeof key === 'string' ? SERVER_ERRORS[key] : undefined;
 }

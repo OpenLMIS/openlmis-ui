@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { changePasswordSchema } from '@/features/profile/lib/password-form';
 
-const schema = changePasswordSchema(['ada', 'Ada', 'Lovelace']);
+const schema = changePasswordSchema({ username: 'ada', firstName: 'Ada', lastName: 'Lovelace' });
 
 const messages = (password: string, confirm: string) =>
   schema.safeParse({ password, confirm }).error?.issues.map((issue) => [issue.path, issue.message]);
@@ -12,11 +12,13 @@ describe('changePasswordSchema', () => {
   });
 
   it('checks the password against the auth service rules', () => {
-    expect(messages('abc1', 'abc1')).toEqual([[['password'], 'password.too-short']]);
+    expect(messages('abc1', 'abc1')).toEqual([[['password'], 'users.password.error.length']]);
   });
 
   it("refuses the user's own names", () => {
-    expect(messages('lovelace12', 'lovelace12')).toEqual([[['password'], 'password.no-user-data']]);
+    expect(messages('lovelace12', 'lovelace12')).toEqual([
+      [['password'], 'users.password.error.names'],
+    ]);
   });
 
   it('asks for the confirmation, then for it to match', () => {
@@ -26,7 +28,7 @@ describe('changePasswordSchema', () => {
 
   it('reports both fields at once', () => {
     expect(messages('', 'x')).toEqual([
-      [['password'], 'password.required'],
+      [['password'], 'users.password.required'],
       [['confirm'], 'profile.password.mismatch'],
     ]);
   });
