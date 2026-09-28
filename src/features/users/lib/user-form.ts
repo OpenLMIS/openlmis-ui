@@ -67,6 +67,15 @@ export function toUserFormValues({ user, contact, auth }: UserDetails): UserForm
   };
 }
 
+/** How the list's status and the sign-in account disagree, when they do; saving sets both to the switch. */
+export function statusMismatch({
+  user,
+  auth,
+}: UserDetails): 'listed-inactive' | 'listed-active' | undefined {
+  if (!auth || auth.enabled === user.active) return undefined;
+  return auth.enabled ? 'listed-inactive' : 'listed-active';
+}
+
 /** Roles that only apply at the home facility; they lose their meaning when it changes. */
 export function countHomeFacilityRoles(user: UserRecord) {
   return user.roleAssignments.filter(isHomeFacilityRole).length;

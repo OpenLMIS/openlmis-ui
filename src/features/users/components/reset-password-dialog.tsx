@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useMutation, useSuspenseQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAppForm } from '@/components/form/form';
@@ -28,9 +28,11 @@ import {
   SkeletonLine,
   serverMessage,
 } from '@/features/users/components/dialog-parts';
+import { PasswordRequirements } from '@/features/users/components/password-requirements';
 import {
   defaultPasswordForm,
   type PasswordFormValues,
+  passwordErrorKey,
   passwordFormSchema,
   resetEmail,
 } from '@/features/users/lib/password-form';
@@ -80,6 +82,7 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const { t } = useTranslation();
   const { data: details } = useSuspenseQuery(userDetailsOptions(target.userId));
   const { id, username } = details.user;
+  const schema = useMemo(() => passwordFormSchema(details.user), [details.user]);
   const email = resetEmail(details.contact?.emailDetails?.email);
 
   const save = useMutation({
@@ -104,9 +107,14 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const form = useAppForm({
     defaultValues: defaultPasswordForm(email),
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: passwordFormSchema },
+    validators: { onDynamic: schema },
     onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
   });
+
+  const serverError = (error: unknown) => {
+    const key = passwordErrorKey(error);
+    return key ? t(key) : (serverMessage(error) ?? t('users.form.save-error'));
+  };
 
   const description = target.created
     ? t(email ? 'users.password.set-description-email' : 'users.password.set-description', {
@@ -125,8 +133,10 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('users.form.save-error')}
-              title={t('users.password.error-title')}
+              description={serverError(save.error)}
+              title={t(
+                target.created ? 'users.password.set-error-title' : 'users.password.error-title',
+              )}
             />
           )}
 
@@ -157,13 +167,15 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
               method === 'manual' && (
                 <form.AppField name="password">
                   {(field) => (
-                    <field.PasswordField
-                      description={t('users.password.requirements')}
-                      hideLabel={t('users.password.hide')}
-                      label={t('users.password.new-password')}
-                      required
-                      showLabel={t('users.password.show')}
-                    />
+                    <div className="grid gap-3">
+                      <field.PasswordField
+                        hideLabel={t('users.password.hide')}
+                        label={t('users.password.new-password')}
+                        required
+                        showLabel={t('users.password.show')}
+                      />
+                      <PasswordRequirements owner={details.user} password={field.state.value} />
+                    </div>
                   )}
                 </form.AppField>
               )

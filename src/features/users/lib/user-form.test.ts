@@ -3,6 +3,7 @@ import type { UserDetails } from '@/features/users/lib/types';
 import {
   countHomeFacilityRoles,
   EMPTY_USER_FORM,
+  statusMismatch,
   toContactDetails,
   toUserFormValues,
   toUserRecord,
@@ -119,5 +120,26 @@ describe('toContactDetails', () => {
       allowNotify: true,
       emailDetails: { email: 'new@example.org', emailVerified: true },
     });
+  });
+});
+
+describe('statusMismatch', () => {
+  it('flags a user the list shows as inactive who can still sign in', () => {
+    expect(statusMismatch(details)).toBe('listed-inactive');
+  });
+
+  it('flags a user the list shows as active who cannot sign in', () => {
+    expect(
+      statusMismatch({
+        ...details,
+        user: { ...details.user, active: true },
+        auth: { id: 'u1', username: 'ada', enabled: false },
+      }),
+    ).toBe('listed-active');
+  });
+
+  it('says nothing when both agree or there is no sign-in account', () => {
+    expect(statusMismatch({ ...details, user: { ...details.user, active: true } })).toBeUndefined();
+    expect(statusMismatch({ ...details, auth: null })).toBeUndefined();
   });
 });

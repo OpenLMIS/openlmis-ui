@@ -6,7 +6,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { CheckIcon } from 'lucide-react';
+import { CheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { FieldGroup } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,6 +45,7 @@ import type { UserDetails } from '@/features/users/lib/types';
 import {
   countHomeFacilityRoles,
   EMPTY_USER_FORM,
+  statusMismatch,
   toAuthUser,
   toContactDetails,
   toUserFormValues,
@@ -118,6 +120,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const homeFacilityRoles = details ? countHomeFacilityRoles(details.user) : 0;
   const emailVerified = details?.contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = details?.contact?.emailDetails?.email ?? '';
+  const mismatch = details && statusMismatch(details);
 
   const save = useMutation({
     mutationKey: saveKey(details?.user.id ?? 'new'),
@@ -262,6 +265,21 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
                 )
               }
             </form.Subscribe>
+          )}
+
+          {mismatch && (
+            <Alert variant="warning">
+              <TriangleAlertIcon />
+              <AlertTitle>{t('users.form.status-mismatch-title')}</AlertTitle>
+              <AlertDescription>
+                {t(
+                  mismatch === 'listed-inactive'
+                    ? 'users.form.status-mismatch-listed-inactive'
+                    : 'users.form.status-mismatch-listed-active',
+                  { username: details.user.username },
+                )}
+              </AlertDescription>
+            </Alert>
           )}
 
           <form.AppField name="active">
