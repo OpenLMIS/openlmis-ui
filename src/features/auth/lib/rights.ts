@@ -7,6 +7,8 @@ export const RIGHTS = {
   podsManage: 'PODS_MANAGE',
   cceInventoryView: 'CCE_INVENTORY_VIEW',
   usersManage: 'USERS_MANAGE',
+  userRolesManage: 'USER_ROLES_MANAGE',
+  rightsView: 'RIGHTS_VIEW',
 } as const;
 
 /** The right names a user holds anywhere; a permission string is `RIGHT`, `RIGHT|facility|program` or `RIGHT|facility`. */

@@ -7,6 +7,7 @@ import type {
   SupervisoryNode,
 } from '@/features/reference-data/lib/types';
 import type { RoleAssignment } from '@/features/users/lib/types';
+import { fold } from '@/lib/text';
 
 /** The tabs of the roles page, one per role type, in the order legacy shows them. */
 export const ROLE_TABS = [
@@ -199,9 +200,6 @@ export function compareRows(field: RoleSortField, desc: boolean) {
     return 0;
   };
 }
-
-/** Lower case without accents, so "deposito" finds "Depósito". */
-const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase();
 
 /** Rows where any shown name contains `query`, ignoring case and accents. */
 export function filterRows(rows: RoleRow[], query: string | undefined) {
