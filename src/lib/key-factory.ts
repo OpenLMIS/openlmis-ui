@@ -14,6 +14,7 @@ export const queryKeys = {
   programs: createQueryKeys('programs'),
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
+  serviceAccounts: createQueryKeys('serviceAccounts'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
 } as const;

@@ -10,6 +10,7 @@ import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string>> = {
   '/administration/users': RIGHTS.usersManage,
   '/administration/roles': RIGHTS.usersManage,
+  '/administration/service-accounts': RIGHTS.serviceAccountsManage,
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */

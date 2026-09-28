@@ -52,6 +52,16 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Service Accounts under Administration', () => {
+    expect(getNavTrail('/administration/service-accounts')).toEqual([
+      { titleKey: 'nav.administration' },
+      {
+        titleKey: 'nav.administration.service-accounts',
+        to: '/administration/service-accounts',
+      },
+    ]);
+  });
+
   it('places Roles under Administration', () => {
     expect(getNavTrail('/administration/roles')).toEqual([
       { titleKey: 'nav.administration' },
