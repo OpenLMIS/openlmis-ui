@@ -29,11 +29,16 @@ import { pendingEmailOptions, profileOptions } from '@/features/profile/api/quer
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import { facilityOptions } from '@/features/reference-data/api/queries';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const profileSearchSchema = z.object({
   /** The open dialog; only Change Password so far. */
   dialog: z.enum(['password']).optional().catch(undefined),
 });
+
+type ProfileSearch = z.infer<typeof profileSearchSchema>;
+
+const CLOSED_DIALOGS = { dialog: undefined } satisfies Partial<ProfileSearch>;
 
 export const Route = createFileRoute('/(protected)/_protected/profile')({
   validateSearch: profileSearchSchema,
@@ -58,17 +63,12 @@ function ProfileLayout() {
 
 function ProfileDialogs({ userId }: { userId: string }) {
   const { t } = useTranslation();
-  const router = useRouter();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = useNavigate();
   const { dialog } = Route.useSearch();
   const { data: profile } = useSuspenseQuery(profileOptions(userId));
   const { logout } = useAuthActions();
 
-  const closeDialog = () => {
-    if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else
-      void navigate({ search: (previous) => ({ ...previous, dialog: undefined }), replace: true });
-  };
+  const { closeDialog } = useSearchNavigation<ProfileSearch>(CLOSED_DIALOGS);
 
   // The new password is used at once, as the legacy UI does; the dialog asked about unsaved work first.
   const signOut = async () => {

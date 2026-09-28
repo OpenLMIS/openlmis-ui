@@ -460,7 +460,10 @@ such as tabs, tables of child records or several steps, gets a page. Users is th
 example: Add/Edit User is a dialog, Edit User Roles is a page.
 
 **The URL owns the open dialog**, like the rest of the list state: `?user=new` or
-`?user=<id>`. Opening adds a history entry so Back closes it; closing replaces it.
+`?user=<id>`. Opening adds a history entry so Back closes it; closing steps back over it,
+or replaces it when the page was opened with the dialog from a link. A page gets this, and
+its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
+`src/hooks/use-search-navigation.ts` rather than writing its own.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,

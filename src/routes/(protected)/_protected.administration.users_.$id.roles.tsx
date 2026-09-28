@@ -60,9 +60,9 @@ import {
 import type { UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import type { SearchChange } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
 import type { RoleAssignment } from '@/lib/user-types';
 
@@ -117,30 +117,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
 
-  const updateSearch = useCallback(
-    (update: Parameters<SearchChange<RolesSearch>>[0], replace = false) =>
-      navigate({
-        search: (previous) => ({
-          ...previous,
-          ...(typeof update === 'function' ? update(previous) : update),
-        }),
-        replace,
-      }),
-    [navigate],
-  );
-  // Opening marks the entry it pushes, so closing steps Back instead of stacking history.
-  const openDialog = useCallback(
-    (params: Partial<RolesSearch>) =>
-      navigate({
-        search: (previous) => ({ ...previous, ...CLOSED_ROLE_DIALOGS, ...params }),
-        state: (previous) => ({ ...previous, dialogOpenedHere: true }),
-      }),
-    [navigate],
-  );
-  const closeDialog = useCallback(() => {
-    if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else updateSearch(CLOSED_ROLE_DIALOGS, true);
-  }, [router, updateSearch]);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<RolesSearch>(CLOSED_ROLE_DIALOGS);
 
   // The draft as it is now, for a save that finishes after later edits.
   const latestDraft = useRef(draft.draft);
