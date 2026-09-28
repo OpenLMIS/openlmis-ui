@@ -15,6 +15,7 @@ import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { fullName } from '@/lib/text';
 
 type NavUserProps = {
   /** Rendered as the menu trigger so each call site styles its own. */
@@ -64,7 +65,7 @@ function SignedInAs({ userId, username }: { userId: string | null; username: str
   const { data: name } = useQuery({
     ...profileOptions(userId ?? ''),
     enabled: userId !== null,
-    select: ({ user }) => [user.firstName, user.lastName].filter(Boolean).join(' '),
+    select: ({ user }) => fullName(user),
   });
 
   return (

@@ -1,14 +1,14 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckIcon, Loader2Icon, MailIcon } from 'lucide-react';
+import { Loader2Icon, MailIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { EmailStatus } from '@/components/email-status';
 import { useAppForm } from '@/components/form/form';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldGroup } from '@/components/ui/field';
@@ -195,18 +195,6 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
 
 function FieldRow({ children }: { children: ReactNode }) {
   return <div className="grid gap-5 @xl/main:grid-cols-2">{children}</div>;
-}
-
-function EmailStatus({ verified }: { verified: boolean }) {
-  const { t } = useTranslation();
-  return verified ? (
-    <Badge variant="success">
-      <CheckIcon data-icon="inline-start" />
-      {t('users.form.email-verified')}
-    </Badge>
-  ) : (
-    <Badge variant="secondary">{t('users.form.email-unverified')}</Badge>
-  );
 }
 
 /** What only an administrator can change, shown as facts rather than as locked fields. */

@@ -6,7 +6,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { CheckIcon, TriangleAlertIcon } from 'lucide-react';
+import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import {
   SkeletonLine,
   serverMessage,
 } from '@/components/dialog-parts';
+import { EmailStatus } from '@/components/email-status';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard, ComboboxField, SwitchField } from '@/components/form/form-fields';
 import {
@@ -34,7 +35,6 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { FieldGroup } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
@@ -324,18 +324,6 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
 
 function FieldRow({ children }: { children: ReactNode }) {
   return <div className="grid gap-5 sm:grid-cols-2">{children}</div>;
-}
-
-function EmailStatus({ verified }: { verified: boolean }) {
-  const { t } = useTranslation();
-  return verified ? (
-    <Badge variant="success">
-      <CheckIcon data-icon="inline-start" />
-      {t('users.form.email-verified')}
-    </Badge>
-  ) : (
-    <Badge variant="secondary">{t('users.form.email-unverified')}</Badge>
-  );
 }
 
 /** Reads its field from the surrounding `AppField`, and the facilities, which may still be loading. */

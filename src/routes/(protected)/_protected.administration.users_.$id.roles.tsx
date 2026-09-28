@@ -51,7 +51,6 @@ import { updateUserRoles } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
 import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
 import { RoleTabs } from '@/features/users/components/role-tabs';
-import { fullName } from '@/features/users/lib/names';
 import { countChanges, ROLE_TABS, type RoleRow } from '@/features/users/lib/role-assignments';
 import {
   CLOSED_ROLE_DIALOGS,
@@ -64,6 +63,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
+import { fullName } from '@/lib/text';
 
 // Their own chunk, fetched once the page has painted.
 const loadRoleDialogs = () => import('@/features/users/components/role-dialogs');
