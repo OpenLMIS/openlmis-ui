@@ -2,11 +2,19 @@ import { Radio as RadioPrimitive } from "@base-ui/react/radio"
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 import { cn } from "cn"
 
-function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
+function RadioGroup({
+  className,
+  columns = 1,
+  ...props
+}: RadioGroupPrimitive.Props & { columns?: 1 | "fill" }) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
-      className={cn("grid w-full gap-2", className)}
+      className={cn(
+        "grid w-full gap-2",
+        columns === "fill" && "@md/main:grid-cols-2 @2xl/main:grid-cols-3",
+        className
+      )}
       {...props}
     />
   )
