@@ -59,6 +59,28 @@ describe('FeatureFlagsSettings', () => {
     expect(saveButton()).toBeDisabled();
   });
 
+  it('shows a stored value equal to the deployment as Changed Here, and Reset removes it', async () => {
+    vi.mocked(updateAppConfiguration).mockResolvedValue({ ...savedConfiguration, version: 4 });
+    const saved = { ...savedConfiguration, featureFlags: { GS1_SCANNING: true } };
+    renderFlags(saved);
+    const gs1 = () => screen.findByRole('switch', { name: /feature-flags.gs1-scanning.label/ });
+
+    expect(await gs1()).toHaveAccessibleDescription(/system-settings.flags.source.admin/);
+    expect(saveButton()).toBeDisabled();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'system-settings.flags.reset-label' }),
+    );
+
+    expect(await gs1()).toHaveAccessibleDescription(/system-settings.flags.source.deployment/);
+    expect(await gs1()).toHaveFocus();
+    await userEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(updateAppConfiguration).toHaveBeenCalledWith(saved, { featureFlags: {} }),
+    );
+  });
+
   it('saves only what differs from what each flag inherits', async () => {
     vi.mocked(updateAppConfiguration).mockResolvedValue({ ...savedConfiguration, version: 4 });
     renderFlags();

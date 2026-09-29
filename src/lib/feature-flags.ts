@@ -2,21 +2,25 @@ import type { ParseKeys } from 'i18next';
 import { getAppConfiguration, useAppConfigurationStore } from '@/lib/app-configuration';
 import { getDeploymentFlags } from '@/lib/runtime-config';
 
-type MessageKey = ParseKeys;
-
 type FlagText = {
-  labelKey: MessageKey;
-  descriptionKey: MessageKey;
-  usedByKey: MessageKey;
+  labelKey: ParseKeys;
+  descriptionKey: ParseKeys;
+  usedByKey: ParseKeys;
   inNewUi: boolean;
 };
 type BooleanFlag = FlagText & { type: 'boolean'; default: boolean };
-type EnumFlag = FlagText & {
+type EnumFlag<Option extends string = string> = FlagText & {
   type: 'enum';
-  options: readonly string[];
-  optionKeys: Record<string, MessageKey>;
-  default: string;
+  options: readonly Option[];
+  optionKeys: Record<Option, ParseKeys>;
+  default: Option;
 };
+
+function enumFlag<const Option extends string>(
+  flag: Omit<EnumFlag<Option>, 'type' | 'default'> & { default: NoInfer<Option> },
+): EnumFlag<Option> {
+  return { type: 'enum', ...flag };
+}
 
 const QUANTITY_UNIT_KEYS = {
   PACKS: 'feature-flags.quantity-unit.packs',
@@ -33,8 +37,7 @@ export const FEATURE_FLAGS = {
     usedByKey: 'feature-flags.batch-approve-screen.used-by',
     inNewUi: false,
   },
-  DEFAULT_QUANTITY_UNIT: {
-    type: 'enum',
+  DEFAULT_QUANTITY_UNIT: enumFlag({
     options: ['PACKS', 'DOSES'],
     optionKeys: QUANTITY_UNIT_KEYS,
     default: 'DOSES',
@@ -42,7 +45,7 @@ export const FEATURE_FLAGS = {
     descriptionKey: 'feature-flags.default-quantity-unit.description',
     usedByKey: 'feature-flags.default-quantity-unit.used-by',
     inNewUi: false,
-  },
+  }),
   GS1_SCANNING: {
     type: 'boolean',
     default: false,
@@ -51,8 +54,7 @@ export const FEATURE_FLAGS = {
     usedByKey: 'feature-flags.gs1-scanning.used-by',
     inNewUi: false,
   },
-  QUANTITY_UNIT_OPTION: {
-    type: 'enum',
+  QUANTITY_UNIT_OPTION: enumFlag({
     options: ['PACKS', 'DOSES', 'BOTH'],
     optionKeys: QUANTITY_UNIT_KEYS,
     default: 'BOTH',
@@ -60,7 +62,7 @@ export const FEATURE_FLAGS = {
     descriptionKey: 'feature-flags.quantity-unit-option.description',
     usedByKey: 'feature-flags.quantity-unit-option.used-by',
     inNewUi: false,
-  },
+  }),
   SHOW_REQUISITION_LESS_ORDER: {
     type: 'boolean',
     default: true,
@@ -77,7 +79,7 @@ export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlagKey[];
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;
 
-export type FeatureFlagValue<K extends FeatureFlagKey> = (typeof FEATURE_FLAGS)[K] extends {
+type FeatureFlagValue<K extends FeatureFlagKey> = (typeof FEATURE_FLAGS)[K] extends {
   options: readonly (infer Option)[];
 }
   ? Option

@@ -11,7 +11,8 @@ let stop: () => void = () => {};
 
 beforeEach(() => {
   localStorage.clear();
-  document.head.innerHTML = '<link rel="icon" href="/olmis.png" />';
+  document.head.innerHTML =
+    '<title id="app-title">OpenLMIS UI</title><link rel="icon" href="/olmis.png" />';
   document.documentElement.className = '';
   useAppearanceStore.setState({ choice: null, systemDark: false });
   setAppConfiguration(
@@ -42,6 +43,19 @@ describe('startApplyingAppConfiguration', () => {
     setAppearanceChoice('light');
 
     expect(document.documentElement).not.toHaveClass('dark');
+  });
+
+  it("leaves a page's own title alone when the appearance changes", () => {
+    stop = startApplyingAppConfiguration();
+    const pageTitle = document.createElement('title');
+    pageTitle.textContent = 'Sign In - SIGECA';
+    document.head.prepend(pageTitle);
+
+    setAppearanceChoice('light');
+    setAppConfiguration(parseAppConfiguration({ appName: 'Malawi LMIS' }));
+
+    expect(document.title).toBe('Sign In - SIGECA');
+    expect(document.getElementById('app-title')?.textContent).toBe('Malawi LMIS');
   });
 
   it('applies a saved configuration at once', () => {

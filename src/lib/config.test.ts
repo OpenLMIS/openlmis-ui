@@ -3,6 +3,7 @@ import {
   getBreadcrumbTrail,
   getNavTrail,
   getTextDirection,
+  isNavActive,
   isNavParent,
   LIVE_NAV_GROUPS,
   SUPPORTED_LANGUAGES,
@@ -124,5 +125,19 @@ describe('LIVE_NAV_GROUPS', () => {
 
   it('drops a group left with nothing in it', () => {
     expect(LIVE_NAV_GROUPS.every((group) => group.items.length > 0)).toBe(true);
+  });
+});
+
+describe('isNavActive', () => {
+  it('marks the entry a page is, or sits below', () => {
+    expect(isNavActive('/administration/system-settings', '/administration/system-settings')).toBe(
+      true,
+    );
+    expect(
+      isNavActive('/administration/system-settings/theme', '/administration/system-settings'),
+    ).toBe(true);
+    expect(isNavActive('/administration/users/u1/roles', '/administration/users')).toBe(true);
+    expect(isNavActive('/administration/users', '/administration/roles')).toBe(false);
+    expect(isNavActive('/profile', '/home')).toBe(false);
   });
 });

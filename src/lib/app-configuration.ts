@@ -31,7 +31,7 @@ const configurationSchema = z.object({
   featureFlags: z.record(z.string(), z.unknown()).catch({}),
 });
 
-export type AppConfiguration = z.infer<typeof configurationSchema>;
+type AppConfiguration = z.infer<typeof configurationSchema>;
 export type Appearance = z.infer<typeof appearanceSchema>;
 
 export const DEFAULT_APP_CONFIGURATION: AppConfiguration = configurationSchema.parse({});
@@ -125,7 +125,13 @@ export function useLogoUrl(): string {
 }
 
 export function applyBranding(configuration: AppConfiguration): void {
-  document.title = getAppName(configuration);
+  let title = document.getElementById('app-title');
+  if (!title) {
+    title = document.createElement('title');
+    title.id = 'app-title';
+    document.head.append(title);
+  }
+  title.textContent = getAppName(configuration);
 
   let icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
   if (!icon) {

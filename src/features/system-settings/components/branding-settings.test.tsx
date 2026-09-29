@@ -8,6 +8,7 @@ import { appConfigurationOptions } from '@/features/system-settings/api/queries'
 import { BrandingSettings } from '@/features/system-settings/components/branding-settings';
 import { savedConfiguration } from '@/features/system-settings/components/settings-fixtures';
 import { SystemSettingsWorkspace } from '@/features/system-settings/components/system-settings-workspace';
+import { PartialSaveError } from '@/features/system-settings/lib/partial-save-error';
 import {
   DEFAULT_APP_CONFIGURATION,
   getAppConfiguration,
@@ -73,21 +74,35 @@ describe('BrandingSettings', () => {
     expect(screen.queryByText('system-settings.conflict-title')).not.toBeInTheDocument();
   });
 
-  it('shows what the server holds after a save that failed part way', async () => {
-    vi.mocked(saveBranding).mockRejectedValue(httpError(500));
+  it('keeps what a save stored before it failed, and retries only the rest', async () => {
     const stored = {
       ...savedConfiguration,
       version: 4,
       logo: { url: '/api/appConfiguration/logo?v=new', contentType: 'image/png', size: 1 },
     };
-    vi.mocked(fetchAppConfiguration).mockResolvedValue(stored);
+    vi.mocked(saveBranding).mockRejectedValueOnce(new PartialSaveError(stored, httpError(500)));
     renderBranding();
+    await nameField();
 
+    await userEvent.upload(
+      screen.getByLabelText('system-settings.branding.logo-label'),
+      new File(['x'], 'logo.png', { type: 'image/png' }),
+    );
     await userEvent.type(await nameField(), 'x');
     await userEvent.click(saveButton());
 
-    await waitFor(() => expect(getAppConfiguration().logo?.url).toBe(stored.logo.url));
     expect(await screen.findByText('system-settings.save-error-title')).toBeInTheDocument();
+    expect(getAppConfiguration().logo?.url).toBe(stored.logo.url);
+    expect(fetchAppConfiguration).not.toHaveBeenCalled();
+
+    vi.mocked(saveBranding).mockResolvedValueOnce({ ...stored, version: 5, appName: 'SIGECAx' });
+    await userEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(saveBranding).toHaveBeenLastCalledWith(stored, [
+        { kind: 'update', appName: 'SIGECAx' },
+      ]),
+    );
   });
 
   it('offers Remove only when there is a logo to remove', async () => {

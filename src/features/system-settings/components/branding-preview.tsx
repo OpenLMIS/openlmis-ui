@@ -17,16 +17,18 @@ export function BrandingPreview({ appName, logoUrl }: BrandingPreviewProps) {
         {t('system-settings.branding.preview-title')}
       </h2>
       <div className="grid gap-3 @xl/main:grid-cols-2">
-        <figure className="flex flex-col gap-2">
+        <figure className="flex min-w-0 flex-col gap-2">
           <figcaption className="text-muted-foreground text-xs">
             {t('system-settings.branding.preview-sidebar')}
           </figcaption>
           <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border bg-sidebar px-3 text-sidebar-foreground">
             <Logo alt="" src={logoUrl} />
-            <span className="truncate font-semibold text-sm">{name}</span>
+            <span className="truncate font-semibold text-sm" dir="auto">
+              {name}
+            </span>
           </div>
         </figure>
-        <figure className="flex flex-col gap-2">
+        <figure className="flex min-w-0 flex-col gap-2">
           <figcaption className="text-muted-foreground text-xs">
             {t('system-settings.branding.preview-sign-in')}
           </figcaption>

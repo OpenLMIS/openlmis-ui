@@ -4,8 +4,8 @@ import { type Appearance, useAppConfigurationStore } from '@/lib/app-configurati
 const STORAGE_KEY = 'theme';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
-export type AppearanceChoice = 'light' | 'dark' | null;
-export type ResolvedAppearance = 'light' | 'dark';
+type AppearanceChoice = 'light' | 'dark' | null;
+type ResolvedAppearance = 'light' | 'dark';
 
 function readChoice(): AppearanceChoice {
   try {

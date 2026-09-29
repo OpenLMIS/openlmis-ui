@@ -5,7 +5,13 @@ import {
   parseAppConfiguration,
   setAppConfiguration,
 } from '@/lib/app-configuration';
-import { FEATURE_FLAGS, getFlag, resolveFlag, useFlag } from '@/lib/feature-flags';
+import {
+  FEATURE_FLAGS,
+  type FeatureFlagDefinition,
+  getFlag,
+  resolveFlag,
+  useFlag,
+} from '@/lib/feature-flags';
 import en from '../../public/locales/en.json';
 
 describe('resolveFlag', () => {
@@ -64,7 +70,8 @@ describe('resolveFlag', () => {
 describe('FEATURE_FLAGS', () => {
   it('names and describes every flag, and every option of an enum', () => {
     const keys = new Set(Object.keys(en));
-    for (const definition of Object.values(FEATURE_FLAGS)) {
+    const definitions: FeatureFlagDefinition[] = Object.values(FEATURE_FLAGS);
+    for (const definition of definitions) {
       expect(keys).toContain(definition.labelKey);
       expect(keys).toContain(definition.descriptionKey);
       expect(keys).toContain(definition.usedByKey);

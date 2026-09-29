@@ -10,14 +10,14 @@ import {
   SaveFeedback,
   SettingsSaveFooter,
 } from '@/features/system-settings/components/save-feedback';
-import { useConfigurationSave } from '@/features/system-settings/components/use-configuration-save';
+import { useConfigurationSave } from '@/features/system-settings/hooks/use-configuration-save';
 import {
   buildFlagOverrides,
-  type FlagValues,
+  type FlagDraft,
   flagSource,
   inheritedFlagValue,
   isFlagsChanged,
-  toFlagValues,
+  toFlagDraft,
 } from '@/features/system-settings/lib/flags';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -25,6 +25,7 @@ import {
   FEATURE_FLAG_KEYS,
   FEATURE_FLAGS,
   type FeatureFlagDefinition,
+  type FeatureFlagKey,
   type FeatureFlagSource,
 } from '@/lib/feature-flags';
 import { getDeploymentFlags } from '@/lib/runtime-config';
@@ -41,64 +42,64 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
   const { t } = useTranslation();
   const deployment = getDeploymentFlags();
 
-  const {
-    mutation: save,
-    conflict,
-    reload,
-    blocked,
-  } = useConfigurationSave({
-    save: (values: FlagValues) =>
-      updateAppConfiguration(saved, {
-        featureFlags: buildFlagOverrides(values, saved.featureFlags, deployment),
-      }),
-    onSaved: (next) => form.reset(toFlagValues(next.featureFlags, deployment)),
-    onReloaded: (fresh) => form.reset(toFlagValues(fresh.featureFlags, deployment)),
+  const form = useAppForm({
+    defaultValues: toFlagDraft(saved.featureFlags, deployment),
+    onSubmit: ({ value }) => settings.run(value),
+  });
+  const values = useStore(form.store, (state) => state.values);
+
+  const settings = useConfigurationSave({
+    saved,
+    form,
+    formId: FORM_ID,
+    values,
+    toValues: (configuration) => toFlagDraft(configuration.featureFlags, deployment),
+    isChanged: (draft, base) => isFlagsChanged(draft, base.featureFlags, deployment),
+    save: (base, draft: FlagDraft) =>
+      updateAppConfiguration(base, { featureFlags: buildFlagOverrides(draft, base.featureFlags) }),
     toast: () => ({
       title: t('system-settings.flags.saved-title'),
       description: t('system-settings.flags.saved-description'),
     }),
   });
+  const guard = useDiscardGuard(settings.changed);
 
-  const form = useAppForm({
-    defaultValues: toFlagValues(saved.featureFlags, deployment),
-    onSubmit: ({ value }) => save.mutateAsync(value).catch(() => undefined),
-  });
-
-  const changed = useStore(form.store, (state) =>
-    isFlagsChanged(state.values, saved.featureFlags, deployment),
-  );
-  const guard = useDiscardGuard(changed);
+  const resetFlag = (flag: FeatureFlagKey, row: Element | null) => {
+    form.setFieldValue(`${flag}.value`, inheritedFlagValue(flag, deployment));
+    form.setFieldValue(`${flag}.overridden`, false);
+    row?.querySelector<HTMLElement>('[role="switch"], [data-slot="select-trigger"]')?.focus();
+  };
 
   return (
     <>
       <SettingsSaveFooter
-        canSave={changed && !conflict}
+        canSave={settings.canSave}
         form={FORM_ID}
-        onCancel={() => {
-          save.reset();
-          form.reset(toFlagValues(saved.featureFlags, deployment));
-        }}
-        pending={save.isPending}
+        onCancel={settings.cancel}
+        pending={settings.pending}
       />
       <div className="flex flex-col gap-4">
         <p className="text-muted-foreground text-sm">{t('system-settings.flags.description')}</p>
-        <SaveFeedback conflict={conflict} error={save.error} onReload={reload} />
-        <form
-          id={FORM_ID}
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (changed && !blocked) void form.handleSubmit();
-          }}
-        >
+        <SaveFeedback {...settings.feedback} />
+        <form id={FORM_ID} noValidate onSubmit={settings.submit}>
           <SettingsList>
             {FEATURE_FLAG_KEYS.map((flag) => {
               const definition: FeatureFlagDefinition = FEATURE_FLAGS[flag];
               const label = t(definition.labelKey);
               return (
-                <form.AppField key={flag} name={flag}>
+                <form.AppField
+                  key={flag}
+                  listeners={{
+                    onChange: ({ value }) =>
+                      form.setFieldValue(
+                        `${flag}.overridden`,
+                        value !== inheritedFlagValue(flag, deployment),
+                      ),
+                  }}
+                  name={`${flag}.value`}
+                >
                   {(field) => {
-                    const source = flagSource(flag, field.state.value, deployment);
+                    const source = flagSource(flag, values[flag], deployment);
                     const shared = {
                       badge: (
                         <Badge variant={source === 'admin' ? 'info' : 'secondary'}>
@@ -108,8 +109,10 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
                       action: source === 'admin' && (
                         <Button
                           aria-label={t('system-settings.flags.reset-label', { name: label })}
-                          disabled={save.isPending}
-                          onClick={() => field.handleChange(inheritedFlagValue(flag, deployment))}
+                          disabled={settings.pending}
+                          onClick={(event) =>
+                            resetFlag(flag, event.currentTarget.closest('[data-slot="field"]'))
+                          }
                           size="sm"
                           type="button"
                           variant="ghost"
@@ -129,7 +132,7 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
                           </span>
                         </>
                       ),
-                      disabled: save.isPending,
+                      disabled: settings.pending,
                       label,
                       layout: 'row' as const,
                     };
@@ -140,9 +143,7 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
                         {...shared}
                         items={definition.options.map((option) => ({
                           value: option,
-                          label: definition.optionKeys[option]
-                            ? t(definition.optionKeys[option])
-                            : option,
+                          label: t(definition.optionKeys[option]),
                         }))}
                       />
                     );

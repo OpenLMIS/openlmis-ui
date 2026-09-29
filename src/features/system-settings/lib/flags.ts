@@ -3,10 +3,12 @@ import {
   FEATURE_FLAGS,
   type FeatureFlagKey,
   type FeatureFlagSource,
+  readFlagValue,
   resolveFlag,
 } from '@/lib/feature-flags';
 
-export type FlagValues = Record<FeatureFlagKey, boolean | string>;
+export type FlagEntry = { value: boolean | string; overridden: boolean };
+export type FlagDraft = Record<FeatureFlagKey, FlagEntry>;
 type StoredFlags = Record<string, boolean | string>;
 
 const isKnown = (key: string): key is FeatureFlagKey => Object.hasOwn(FEATURE_FLAGS, key);
@@ -14,10 +16,18 @@ const isKnown = (key: string): key is FeatureFlagKey => Object.hasOwn(FEATURE_FL
 const inherited = (key: FeatureFlagKey, deployment: Record<string, unknown>) =>
   resolveFlag(key, {}, deployment);
 
-export function toFlagValues(saved: StoredFlags, deployment: Record<string, unknown>): FlagValues {
+export function toFlagDraft(saved: StoredFlags, deployment: Record<string, unknown>): FlagDraft {
   return Object.fromEntries(
-    FEATURE_FLAG_KEYS.map((key) => [key, resolveFlag(key, saved, deployment).value]),
-  ) as FlagValues;
+    FEATURE_FLAG_KEYS.map((key) => {
+      const stored = readFlagValue(FEATURE_FLAGS[key], saved[key]);
+      return [
+        key,
+        stored === undefined
+          ? { value: inherited(key, deployment).value, overridden: false }
+          : { value: stored, overridden: true },
+      ];
+    }),
+  ) as FlagDraft;
 }
 
 export function inheritedFlagValue(
@@ -29,37 +39,26 @@ export function inheritedFlagValue(
 
 export function flagSource(
   key: FeatureFlagKey,
-  value: boolean | string,
+  entry: FlagEntry,
   deployment: Record<string, unknown>,
 ): FeatureFlagSource {
-  const current = inherited(key, deployment);
-  return value === current.value ? current.source : 'admin';
+  return entry.overridden ? 'admin' : inherited(key, deployment).source;
 }
 
-export function buildFlagOverrides(
-  values: FlagValues,
-  saved: StoredFlags,
-  deployment: Record<string, unknown>,
-): StoredFlags {
+export function buildFlagOverrides(draft: FlagDraft, saved: StoredFlags): StoredFlags {
   const unknown = Object.entries(saved).filter(([key]) => !isKnown(key));
-  const changed = FEATURE_FLAG_KEYS.filter(
-    (key) => values[key] !== inherited(key, deployment).value,
-  );
-  return Object.fromEntries([...unknown, ...changed.map((key) => [key, values[key]])]);
-}
-
-function sameEntries(a: StoredFlags, b: StoredFlags) {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  return [...keys].every((key) => a[key] === b[key]);
+  const overridden = FEATURE_FLAG_KEYS.filter((key) => draft[key].overridden);
+  return Object.fromEntries([...unknown, ...overridden.map((key) => [key, draft[key].value])]);
 }
 
 export function isFlagsChanged(
-  values: FlagValues,
+  draft: FlagDraft,
   saved: StoredFlags,
   deployment: Record<string, unknown>,
 ): boolean {
-  return !sameEntries(
-    buildFlagOverrides(values, saved, deployment),
-    buildFlagOverrides(toFlagValues(saved, deployment), saved, deployment),
+  const current = toFlagDraft(saved, deployment);
+  return FEATURE_FLAG_KEYS.some(
+    (key) =>
+      draft[key].value !== current[key].value || draft[key].overridden !== current[key].overridden,
   );
 }

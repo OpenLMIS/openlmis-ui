@@ -4,14 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { THEME_PRESETS, type ThemePresetName } from '@/lib/theme-presets';
 
-const CHART_BARS = [
-  'h-4 bg-chart-1',
-  'h-6 bg-chart-2',
-  'h-9 bg-chart-3',
-  'h-7 bg-chart-4',
-  'h-10 bg-chart-5',
-];
-const CHART_STRIPES = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'];
+const CHART_COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'];
+const CHART_HEIGHTS = ['h-4', 'h-6', 'h-9', 'h-7', 'h-10'];
 
 export function ThemeSwatch({ preset }: { preset: ThemePresetName }) {
   const tokens = THEME_PRESETS[preset].light;
@@ -31,8 +25,8 @@ export function ThemeSwatch({ preset }: { preset: ThemePresetName }) {
       }
     >
       <span className="size-6 bg-primary" />
-      {CHART_STRIPES.map((stripe) => (
-        <span className={`h-6 w-2 ${stripe}`} key={stripe} />
+      {CHART_COLORS.map((color) => (
+        <span className={`h-6 w-2 ${color}`} key={color} />
       ))}
     </span>
   );
@@ -42,7 +36,7 @@ function PreviewPanel({ preset, mode }: { preset: ThemePresetName; mode: 'light'
   const { t } = useTranslation();
   const tokens = THEME_PRESETS[preset][mode];
   return (
-    <figure className="flex flex-col gap-2">
+    <figure className="flex min-w-0 flex-col gap-2">
       <figcaption className="text-muted-foreground text-xs">
         {t(
           mode === 'light'
@@ -75,8 +69,8 @@ function PreviewPanel({ preset, mode }: { preset: ThemePresetName; mode: 'light'
             <Badge>{t('system-settings.theme.preview-badge')}</Badge>
           </div>
           <div className="flex h-10 items-end gap-1.5">
-            {CHART_BARS.map((bar) => (
-              <span className={`w-5 rounded-t-sm ${bar}`} key={bar} />
+            {CHART_COLORS.map((color, step) => (
+              <span className={`w-5 rounded-t-sm ${CHART_HEIGHTS[step]} ${color}`} key={color} />
             ))}
           </div>
         </div>

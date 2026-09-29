@@ -93,6 +93,14 @@ describe('ImageField', () => {
     expect(screen.getByTestId('value')).toHaveTextContent('removed');
   });
 
+  it('moves focus to Upload when Remove goes away', async () => {
+    renderForm();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Logo' }));
+
+    expect(screen.getByRole('button', { name: 'Upload Logo' })).toHaveFocus();
+  });
+
   it('offers no Remove when there is nothing to remove', () => {
     renderForm({ canRemove: false });
 

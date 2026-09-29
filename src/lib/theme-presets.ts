@@ -72,12 +72,12 @@ export type ThemePresetName = keyof typeof THEME_PRESETS;
 
 export const DEFAULT_THEME_PRESET: ThemePresetName = 'blue';
 
-export function isThemePresetName(name: string | null): name is ThemePresetName {
+function isThemePresetName(name: string | null): name is ThemePresetName {
   return name !== null && Object.hasOwn(THEME_PRESETS, name);
 }
 
-export function resolveThemePreset(name: string | null): ThemePreset {
-  return THEME_PRESETS[isThemePresetName(name) ? name : DEFAULT_THEME_PRESET];
+export function presetName(name: string | null): ThemePresetName {
+  return isThemePresetName(name) ? name : DEFAULT_THEME_PRESET;
 }
 
 function declarations(tokens: ThemeTokens): string {
@@ -95,5 +95,5 @@ export function applyThemePreset(name: string | null): void {
     style.id = 'app-theme';
     document.head.append(style);
   }
-  style.textContent = themePresetCss(resolveThemePreset(name));
+  style.textContent = themePresetCss(THEME_PRESETS[presetName(name)]);
 }

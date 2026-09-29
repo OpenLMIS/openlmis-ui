@@ -36,7 +36,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAppName } from '@/lib/app-configuration';
-import { getNavTrail, isNavParent } from '@/lib/config';
+import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
@@ -70,9 +70,14 @@ export function AppSidebar() {
           size={isCollapsed ? 'icon' : 'lg'}
           tone="sidebar"
           variant="ghost"
+          width="shrink"
         >
           <Logo alt={isCollapsed ? undefined : ''} />
-          {!isCollapsed && <span className="truncate font-semibold">{appName}</span>}
+          {!isCollapsed && (
+            <span className="truncate font-semibold" dir="auto">
+              {appName}
+            </span>
+          )}
         </Button>
         <CustomTrigger place="sidebar" />
       </SidebarHeader>
@@ -161,7 +166,7 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        isActive={pathname === item.to}
+        isActive={isNavActive(pathname, item.to)}
         render={<Link onClick={onNavigate} to={item.to} />}
         tooltip={title}
       >
@@ -198,7 +203,7 @@ function NavCollapsible({
           {item.items.map((child) => (
             <SidebarMenuSubItem key={child.titleKey}>
               <SidebarMenuSubButton
-                isActive={pathname === child.to}
+                isActive={isNavActive(pathname, child.to)}
                 render={<Link onClick={onNavigate} to={child.to} />}
               >
                 {child.icon && <child.icon />}

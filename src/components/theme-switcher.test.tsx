@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
@@ -25,36 +25,37 @@ function renderSwitcher() {
 }
 
 async function openMenu() {
-  await userEvent.click(screen.getByRole('button', { name: 'sidebar.toggle-theme' }));
+  await userEvent.click(screen.getByRole('button', { name: 'sidebar.theme' }));
+}
+
+async function pick(name: string) {
+  await openMenu();
+  await userEvent.click(await screen.findByRole('menuitemradio', { name }));
+  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+}
+
+async function ticked(name: string) {
+  await openMenu();
+  return (await screen.findByRole('menuitemradio', { name })).getAttribute('aria-checked');
 }
 
 describe('ThemeSwitcher', () => {
-  it('keeps a light or dark choice for this browser and ticks it', async () => {
+  it('keeps a light or dark choice for this browser, closes, and ticks it', async () => {
     renderSwitcher();
-    await openMenu();
 
-    await userEvent.click(await screen.findByRole('menuitemradio', { name: 'sidebar.theme.dark' }));
+    await pick('sidebar.theme.dark');
 
     expect(localStorage.getItem('theme')).toBe('dark');
-    expect(screen.getByRole('menuitemradio', { name: 'sidebar.theme.dark' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    expect(await ticked('sidebar.theme.dark')).toBe('true');
   });
 
-  it('ticks Use Default at once when the choice is forgotten', async () => {
+  it('ticks Use Default when the choice is forgotten', async () => {
     setAppearanceChoice('dark');
     renderSwitcher();
-    await openMenu();
 
-    await userEvent.click(
-      await screen.findByRole('menuitemradio', { name: 'sidebar.theme.default' }),
-    );
+    await pick('sidebar.theme.default');
 
     expect(localStorage.getItem('theme')).toBeNull();
-    expect(screen.getByRole('menuitemradio', { name: 'sidebar.theme.default' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    expect(await ticked('sidebar.theme.default')).toBe('true');
   });
 });

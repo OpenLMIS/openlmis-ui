@@ -266,7 +266,8 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset.
+new files rather than reverting the preset. `sonner.tsx` is edited too: its `Toaster` reads
+`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed.
 
 ### Integrations
 
@@ -475,7 +476,8 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
-saved one, `null` to remove it or the picked `File`. Every field takes a `layout`: `stacked` by default; `row` for a settings
+saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
+file is flagged as soon as it is picked. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
 `inline` in a table cell, where the column header names it and the label and description
@@ -538,12 +540,18 @@ the next boot. A slow or missing server falls back to the cache, then to the bui
 `startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
 favicon, preset tokens and light or dark class in step with the store.
 
-**Never hardcode "OpenLMIS" in copy.** Messages take `{appName}` and pass
-`useAppName()`, so a renamed deployment reads its own name everywhere.
+**Never hardcode "OpenLMIS" in copy that names the deployment.** Messages take `{appName}`
+and pass `useAppName()`, so a renamed deployment reads its own name everywhere. Text about the
+platform itself, such as "Powered by OpenLMIS" or what a service account can call, keeps it.
 
 **Light or dark goes through `src/lib/appearance.ts`**, which replaces next-themes. It keeps
 the user's choice under the `theme` key; no choice follows the administrator's default
 appearance. Read it with `useResolvedAppearance()`.
+
+**A settings tab saves through `useConfigurationSave`**
+(`src/features/system-settings/hooks/use-configuration-save.ts`). It keeps the version the draft
+started from, so a refetch under unsaved changes turns the save into a conflict rather than a
+silent overwrite, and it keeps whatever part of a several-step save the server already stored.
 
 **A feature flag reads through `useFlag(key)`, or `getFlag(key)` outside React.** The
 administrator's value wins, then the deployment's `config.json`, then the code default.

@@ -1,4 +1,5 @@
 import type { BrandingStep } from '@/features/system-settings/lib/branding';
+import { PartialSaveError } from '@/features/system-settings/lib/partial-save-error';
 import type { AppConfigurationDto, EditableSettings } from '@/features/system-settings/lib/types';
 import { client } from '@/integrations/axios';
 import { getIfExists } from '@/lib/http';
@@ -51,9 +52,13 @@ export async function saveBranding(
 ): Promise<AppConfigurationDto> {
   let current = saved;
   for (const step of steps) {
-    if (step.kind === 'upload') current = await uploadLogo(current, step.file);
-    else if (step.kind === 'remove-logo') current = await removeLogo(current);
-    else current = await updateAppConfiguration(current, { appName: step.appName });
+    try {
+      if (step.kind === 'upload') current = await uploadLogo(current, step.file);
+      else if (step.kind === 'remove-logo') current = await removeLogo(current);
+      else current = await updateAppConfiguration(current, { appName: step.appName });
+    } catch (error) {
+      throw current === saved ? error : new PartialSaveError(current, error);
+    }
   }
   return current;
 }

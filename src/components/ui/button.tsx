@@ -40,6 +40,7 @@ const buttonVariants = cva(
       width: {
         default: "",
         full: "w-full",
+        shrink: "min-w-0 shrink",
       },
       // Ghost hover uses `muted`, which is invisible on the sidebar surface.
       tone: {

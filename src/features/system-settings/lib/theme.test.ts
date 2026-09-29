@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   isThemeChanged,
   isThemeDefault,
-  themeSchema,
-  toThemeSettings,
   toThemeValues,
 } from '@/features/system-settings/lib/theme';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
@@ -21,11 +19,11 @@ const unset: AppConfigurationDto = { ...saved, theme: { preset: null, defaultApp
 
 describe('toThemeValues', () => {
   it('starts from the saved theme', () => {
-    expect(toThemeValues(saved)).toEqual({ preset: 'teal', appearance: 'dark' });
+    expect(toThemeValues(saved)).toEqual({ preset: 'teal', defaultAppearance: 'dark' });
   });
 
   it('shows blue following the system when nothing is saved', () => {
-    expect(toThemeValues(unset)).toEqual({ preset: 'blue', appearance: 'system' });
+    expect(toThemeValues(unset)).toEqual({ preset: 'blue', defaultAppearance: 'system' });
   });
 
   it('shows blue for a preset this version does not know', () => {
@@ -38,21 +36,12 @@ describe('toThemeValues', () => {
 describe('isThemeChanged', () => {
   it('is false for what is already in effect, saved or not', () => {
     expect(isThemeChanged(toThemeValues(saved), saved)).toBe(false);
-    expect(isThemeChanged({ preset: 'blue', appearance: 'system' }, unset)).toBe(false);
+    expect(isThemeChanged({ preset: 'blue', defaultAppearance: 'system' }, unset)).toBe(false);
   });
 
   it('is true for another preset or appearance', () => {
-    expect(isThemeChanged({ preset: 'green', appearance: 'dark' }, saved)).toBe(true);
-    expect(isThemeChanged({ preset: 'teal', appearance: 'light' }, saved)).toBe(true);
-  });
-});
-
-describe('toThemeSettings', () => {
-  it('stores the chosen preset and appearance', () => {
-    expect(toThemeSettings({ preset: 'green', appearance: 'light' })).toEqual({
-      preset: 'green',
-      defaultAppearance: 'light',
-    });
+    expect(isThemeChanged({ preset: 'green', defaultAppearance: 'dark' }, saved)).toBe(true);
+    expect(isThemeChanged({ preset: 'teal', defaultAppearance: 'light' }, saved)).toBe(true);
   });
 });
 
@@ -60,13 +49,5 @@ describe('isThemeDefault', () => {
   it('is true only when nothing is saved', () => {
     expect(isThemeDefault(unset)).toBe(true);
     expect(isThemeDefault(saved)).toBe(false);
-  });
-});
-
-describe('themeSchema', () => {
-  it('accepts a known preset and appearance only', () => {
-    expect(themeSchema.safeParse({ preset: 'slate', appearance: 'system' }).success).toBe(true);
-    expect(themeSchema.safeParse({ preset: 'ocean', appearance: 'system' }).success).toBe(false);
-    expect(themeSchema.safeParse({ preset: 'blue', appearance: 'sepia' }).success).toBe(false);
   });
 });

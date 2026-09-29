@@ -22,8 +22,6 @@ import type {
 
 export const appConfig = {
   BRAND: 'OpenLMIS',
-  NAME: 'OpenLMIS UI',
-  DESCRIPTION: 'Web frontend for OpenLMIS.',
 } as const;
 
 export const SUPPORTED_LANGUAGES = [
@@ -176,6 +174,10 @@ export function getNavTrail(pathname: string): NavTrailItem[] {
     findNavTrail((to) => to !== '#' && pathname.startsWith(`${to}/`)) ??
     []
   );
+}
+
+export function isNavActive(pathname: string, to: NavLink['to']): boolean {
+  return getNavTrail(pathname).at(-1)?.to === to;
 }
 
 /** The crumbs after Home: the nav trail, then the page's own `crumbKey` when it has one. */

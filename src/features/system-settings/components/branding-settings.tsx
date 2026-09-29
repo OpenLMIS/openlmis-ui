@@ -13,7 +13,7 @@ import {
   SaveFeedback,
   SettingsSaveFooter,
 } from '@/features/system-settings/components/save-feedback';
-import { useConfigurationSave } from '@/features/system-settings/components/use-configuration-save';
+import { useConfigurationSave } from '@/features/system-settings/hooks/use-configuration-save';
 import {
   type BrandingStep,
   brandingSchema,
@@ -48,18 +48,24 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
   const { t } = useTranslation();
   const [resetOpen, setResetOpen] = useState(false);
 
-  const {
-    mutation: save,
-    conflict,
-    reload,
-    blocked,
-  } = useConfigurationSave({
-    save: ({ steps }: { steps: BrandingStep[]; reset?: boolean }) => saveBranding(saved, steps),
-    onSaved: (next) => {
-      form.reset(toBrandingValues(next));
-      setResetOpen(false);
-    },
-    onReloaded: (fresh) => form.reset(toBrandingValues(fresh)),
+  const form = useAppForm({
+    defaultValues: toBrandingValues(saved),
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: brandingSchema },
+    onSubmit: ({ value }) => settings.run({ steps: brandingSteps(value, settings.base) }),
+  });
+  const values = useStore(form.store, (state) => state.values);
+
+  const settings = useConfigurationSave({
+    saved,
+    form,
+    formId: FORM_ID,
+    values,
+    toValues: toBrandingValues,
+    isChanged: (draft, base) => brandingSteps(draft, base).length > 0,
+    save: (base, { steps }: { steps: BrandingStep[]; reset?: boolean }) =>
+      saveBranding(base, steps),
+    onPartiallySaved: () => form.setFieldValue('logo', undefined),
     toast: ({ reset }) =>
       reset
         ? {
@@ -71,53 +77,31 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
             description: t('system-settings.branding.saved-description'),
           },
   });
-
-  const form = useAppForm({
-    defaultValues: toBrandingValues(saved),
-    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: brandingSchema },
-    onSubmit: ({ value }) =>
-      save.mutateAsync({ steps: brandingSteps(value, saved) }).catch(() => undefined),
-  });
-
-  const changed = useStore(form.store, (state) => brandingSteps(state.values, saved).length > 0);
-  const appName = useStore(form.store, (state) => state.values.appName);
-  const logo = useStore(form.store, (state) => state.values.logo);
-  const logoUrl = useLogoPreviewUrl(logo, saved);
-  const guard = useDiscardGuard(changed);
+  const logoUrl = useLogoPreviewUrl(values.logo, settings.base);
+  const guard = useDiscardGuard(settings.changed);
 
   const reset = () =>
-    save
-      .mutateAsync({ steps: resetBrandingSteps(saved), reset: true })
-      .catch(() => setResetOpen(false));
+    settings
+      .run({ steps: resetBrandingSteps(settings.base), reset: true })
+      .finally(() => setResetOpen(false));
 
   return (
     <>
       <SettingsSaveFooter
-        canSave={changed && !conflict}
+        canSave={settings.canSave}
         form={FORM_ID}
-        onCancel={() => {
-          save.reset();
-          form.reset(toBrandingValues(saved));
-        }}
-        pending={save.isPending}
+        onCancel={settings.cancel}
+        pending={settings.pending}
       />
       <div className="flex flex-col gap-6">
-        <SaveFeedback conflict={conflict} error={save.error} onReload={reload} />
-        <form
-          id={FORM_ID}
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (changed && !blocked) void form.handleSubmit();
-          }}
-        >
+        <SaveFeedback {...settings.feedback} />
+        <form id={FORM_ID} noValidate onSubmit={settings.submit}>
           <SettingsList>
             <form.AppField name="appName">
               {(field) => (
                 <field.TextField
                   description={t('system-settings.branding.name-description')}
-                  disabled={save.isPending}
+                  disabled={settings.pending}
                   label={t('system-settings.branding.name-label')}
                   layout="row"
                   required
@@ -130,11 +114,11 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
                   accept={LOGO_TYPES.join(',')}
                   canRemove={
                     field.state.value instanceof File ||
-                    (field.state.value === undefined && saved.logo !== null)
+                    (field.state.value === undefined && settings.base.logo !== null)
                   }
                   chooseLabel={t('system-settings.branding.logo-upload')}
                   description={t('system-settings.branding.logo-description')}
-                  disabled={save.isPending}
+                  disabled={settings.pending}
                   label={t('system-settings.branding.logo-label')}
                   previewAlt={t('system-settings.branding.logo-preview')}
                   previewUrl={logoUrl}
@@ -144,10 +128,11 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
             </form.AppField>
           </SettingsList>
         </form>
-        <BrandingPreview appName={appName} logoUrl={logoUrl} />
+        <BrandingPreview appName={values.appName} logoUrl={logoUrl} />
         <div>
           <Button
-            disabled={blocked || resetBrandingSteps(saved).length === 0}
+            disabled={settings.blocked || resetBrandingSteps(settings.base).length === 0}
+            focusableWhenDisabled
             onClick={() => setResetOpen(true)}
             type="button"
             variant="outline"
@@ -163,7 +148,7 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
         onConfirm={reset}
         onOpenChange={setResetOpen}
         open={resetOpen}
-        pending={save.isPending}
+        pending={settings.pending}
         title={t('system-settings.branding.reset-title')}
       />
       <DiscardChangesDialog

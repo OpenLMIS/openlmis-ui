@@ -1,24 +1,34 @@
 import { Loader2Icon, RefreshCwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { useOfflineFailure } from '@/components/offline-notice';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 
 type SaveFeedbackProps = {
   conflict: boolean;
-  error: Error | null;
+  error: unknown;
+  reloadError: unknown;
   onReload: () => void;
 };
 
-export function SaveFeedback({ conflict, error, onReload }: SaveFeedbackProps) {
+export function SaveFeedback({ conflict, error, reloadError, onReload }: SaveFeedbackProps) {
   const { t } = useTranslation();
+  const offline = useOfflineFailure(reloadError, onReload);
+
   if (conflict) {
     return (
       <Alert variant="warning">
         <RefreshCwIcon />
         <AlertTitle>{t('system-settings.conflict-title')}</AlertTitle>
-        <AlertDescription>{t('system-settings.conflict-description')}</AlertDescription>
+        <AlertDescription>
+          {offline
+            ? t('offline.notice-description')
+            : reloadError
+              ? t('error.description')
+              : t('system-settings.conflict-description')}
+        </AlertDescription>
         <AlertAction>
           <Button onClick={onReload} size="sm" type="button" variant="outline">
             {t('system-settings.conflict-reload')}
@@ -40,30 +50,17 @@ type SettingsSaveFooterProps = {
   canSave: boolean;
   pending: boolean;
   onCancel: () => void;
-  form?: string;
-  onSave?: () => void;
+  form: string;
 };
 
-export function SettingsSaveFooter({
-  canSave,
-  pending,
-  onCancel,
-  form,
-  onSave,
-}: SettingsSaveFooterProps) {
+export function SettingsSaveFooter({ canSave, pending, onCancel, form }: SettingsSaveFooterProps) {
   const { t } = useTranslation();
   return (
     <WorkspaceFooterPortal>
       <Button disabled={pending || !canSave} onClick={onCancel} size="lg" variant="outline">
         {t('system-settings.cancel')}
       </Button>
-      <Button
-        disabled={pending || !canSave}
-        form={form}
-        onClick={onSave}
-        size="lg"
-        type={form ? 'submit' : 'button'}
-      >
+      <Button disabled={pending || !canSave} form={form} size="lg" type="submit">
         {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
         {t('system-settings.save')}
       </Button>

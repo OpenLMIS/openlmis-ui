@@ -146,6 +146,7 @@ function FieldFrame({
       <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
         <SettingsRowFrame
           badge={badge && <span id={badgeId}>{badge}</span>}
+          description={descriptionNode}
           label={
             <FieldLabel htmlFor={field.name} weight="normal">
               {labelText}
@@ -153,15 +154,11 @@ function FieldFrame({
           }
           value="control"
         >
-          {action ? (
-            <div className="flex items-center gap-2">
-              {action}
-              <div className="min-w-0 flex-1">{children}</div>
-            </div>
-          ) : (
-            children
-          )}
-          {details}
+          <div className="flex items-center gap-2">
+            {action}
+            <div className="min-w-0 flex-1">{children}</div>
+          </div>
+          {isInvalid && <FieldError errors={errors} id={errorId} />}
         </SettingsRowFrame>
       </Field>
     );
@@ -394,16 +391,10 @@ export function SwitchField({
   action,
 }: SwitchFieldProps) {
   const field = useFieldContext<boolean>();
-  const descriptionId = `${field.name}-description`;
-  const badgeId = `${field.name}-badge`;
-  const describedBy =
-    layout === 'row'
-      ? [badge ? badgeId : '', description ? descriptionId : ''].filter(Boolean).join(' ') ||
-        undefined
-      : undefined;
+  const { descriptionId, badgeId, describedBy } = useFieldErrors(description, undefined, badge);
   const control = (
     <Switch
-      aria-describedby={describedBy}
+      aria-describedby={layout === 'row' ? describedBy : undefined}
       checked={field.state.value}
       disabled={disabled}
       id={field.name}
@@ -474,6 +465,7 @@ export function ImageField({
 }: ImageFieldProps) {
   const field = useFieldContext<File | null | undefined>();
   const input = useRef<HTMLInputElement>(null);
+  const choose = useRef<HTMLButtonElement>(null);
   const state = useFieldErrors(description);
 
   return (
@@ -510,6 +502,7 @@ export function ImageField({
           aria-invalid={state.isInvalid}
           disabled={disabled}
           onClick={() => input.current?.click()}
+          ref={choose}
           size="sm"
           type="button"
           variant="outline"
@@ -519,7 +512,10 @@ export function ImageField({
         {canRemove && (
           <Button
             disabled={disabled}
-            onClick={() => field.handleChange(null)}
+            onClick={() => {
+              field.handleChange(null);
+              choose.current?.focus();
+            }}
             size="sm"
             type="button"
             variant="ghost"
@@ -553,8 +549,11 @@ export function RadioGroupField({ label, options, disabled, columns }: RadioGrou
 
   return (
     <FieldSet>
-      <FieldLegend variant="label">{label}</FieldLegend>
+      <FieldLegend id={`${field.name}-legend`} variant="label">
+        {label}
+      </FieldLegend>
       <RadioGroup
+        aria-labelledby={`${field.name}-legend`}
         columns={columns}
         disabled={disabled}
         name={field.name}

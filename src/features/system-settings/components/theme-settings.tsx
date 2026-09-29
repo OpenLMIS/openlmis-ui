@@ -1,4 +1,4 @@
-import { revalidateLogic, useStore } from '@tanstack/react-form';
+import { useStore } from '@tanstack/react-form';
 import { RotateCcwIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,13 +12,11 @@ import {
   SettingsSaveFooter,
 } from '@/features/system-settings/components/save-feedback';
 import { ThemePreview, ThemeSwatch } from '@/features/system-settings/components/theme-preview';
-import { useConfigurationSave } from '@/features/system-settings/components/use-configuration-save';
+import { useConfigurationSave } from '@/features/system-settings/hooks/use-configuration-save';
 import {
   isThemeChanged,
   isThemeDefault,
   PRESET_NAMES,
-  themeSchema,
-  toThemeSettings,
   toThemeValues,
 } from '@/features/system-settings/lib/theme';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
@@ -55,19 +53,21 @@ export function ThemeSettings({ saved }: { saved: AppConfigurationDto }) {
   const { t } = useTranslation();
   const [resetOpen, setResetOpen] = useState(false);
 
-  const {
-    mutation: save,
-    conflict,
-    reload,
-    blocked,
-  } = useConfigurationSave({
-    save: ({ theme }: { theme: AppConfigurationDto['theme']; reset?: boolean }) =>
-      updateAppConfiguration(saved, { theme }),
-    onSaved: (next) => {
-      form.reset(toThemeValues(next));
-      setResetOpen(false);
-    },
-    onReloaded: (fresh) => form.reset(toThemeValues(fresh)),
+  const form = useAppForm({
+    defaultValues: toThemeValues(saved),
+    onSubmit: ({ value }) => settings.run({ theme: value }),
+  });
+  const values = useStore(form.store, (state) => state.values);
+
+  const settings = useConfigurationSave({
+    saved,
+    form,
+    formId: FORM_ID,
+    values,
+    toValues: toThemeValues,
+    isChanged: isThemeChanged,
+    save: (base, { theme }: { theme: AppConfigurationDto['theme']; reset?: boolean }) =>
+      updateAppConfiguration(base, { theme }),
     toast: ({ reset }) =>
       reset
         ? {
@@ -79,23 +79,12 @@ export function ThemeSettings({ saved }: { saved: AppConfigurationDto }) {
             description: t('system-settings.theme.saved-description'),
           },
   });
-
-  const form = useAppForm({
-    defaultValues: toThemeValues(saved),
-    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: themeSchema },
-    onSubmit: ({ value }) =>
-      save.mutateAsync({ theme: toThemeSettings(value) }).catch(() => undefined),
-  });
-
-  const changed = useStore(form.store, (state) => isThemeChanged(state.values, saved));
-  const preset = useStore(form.store, (state) => state.values.preset);
-  const guard = useDiscardGuard(changed);
+  const guard = useDiscardGuard(settings.changed);
 
   const reset = () =>
-    save
-      .mutateAsync({ theme: { preset: null, defaultAppearance: null }, reset: true })
-      .catch(() => setResetOpen(false));
+    settings
+      .run({ theme: { preset: null, defaultAppearance: null }, reset: true })
+      .finally(() => setResetOpen(false));
 
   const presetOptions = PRESET_NAMES.map((name) => ({
     value: name,
@@ -111,49 +100,39 @@ export function ThemeSettings({ saved }: { saved: AppConfigurationDto }) {
   return (
     <>
       <SettingsSaveFooter
-        canSave={changed && !conflict}
+        canSave={settings.canSave}
         form={FORM_ID}
-        onCancel={() => {
-          save.reset();
-          form.reset(toThemeValues(saved));
-        }}
-        pending={save.isPending}
+        onCancel={settings.cancel}
+        pending={settings.pending}
       />
       <div className="flex flex-col gap-6">
-        <SaveFeedback conflict={conflict} error={save.error} onReload={reload} />
-        <form
-          className="flex flex-col gap-6"
-          id={FORM_ID}
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (changed && !blocked) void form.handleSubmit();
-          }}
-        >
+        <SaveFeedback {...settings.feedback} />
+        <form className="flex flex-col gap-6" id={FORM_ID} noValidate onSubmit={settings.submit}>
           <form.AppField name="preset">
             {(field) => (
               <field.RadioGroupField
                 columns="fill"
-                disabled={save.isPending}
+                disabled={settings.pending}
                 label={t('system-settings.theme.preset-label')}
                 options={presetOptions}
               />
             )}
           </form.AppField>
-          <form.AppField name="appearance">
+          <form.AppField name="defaultAppearance">
             {(field) => (
               <field.RadioGroupField
-                disabled={save.isPending}
+                disabled={settings.pending}
                 label={t('system-settings.theme.appearance-label')}
                 options={appearanceOptions}
               />
             )}
           </form.AppField>
         </form>
-        <ThemePreview preset={preset} />
+        <ThemePreview preset={values.preset} />
         <div>
           <Button
-            disabled={blocked || isThemeDefault(saved)}
+            disabled={settings.blocked || isThemeDefault(settings.base)}
+            focusableWhenDisabled
             onClick={() => setResetOpen(true)}
             type="button"
             variant="outline"
@@ -169,7 +148,7 @@ export function ThemeSettings({ saved }: { saved: AppConfigurationDto }) {
         onConfirm={reset}
         onOpenChange={setResetOpen}
         open={resetOpen}
-        pending={save.isPending}
+        pending={settings.pending}
         title={t('system-settings.theme.reset-title')}
       />
       <DiscardChangesDialog

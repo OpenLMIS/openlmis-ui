@@ -20,7 +20,7 @@ type ThemeSwitcherProps = {
 export function ThemeSwitcher({ tone = 'default' }: ThemeSwitcherProps) {
   const { t } = useTranslation();
   const choice = useAppearanceStore((state) => state.choice ?? DEFAULT_CHOICE);
-  const label = t('sidebar.toggle-theme');
+  const label = t('sidebar.theme');
 
   return (
     <DropdownMenu>
@@ -43,9 +43,13 @@ export function ThemeSwitcher({ tone = 'default' }: ThemeSwitcherProps) {
           }
           value={choice}
         >
-          <DropdownMenuRadioItem value="light">{t('sidebar.theme.light')}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">{t('sidebar.theme.dark')}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value={DEFAULT_CHOICE}>
+          <DropdownMenuRadioItem closeOnClick value="light">
+            {t('sidebar.theme.light')}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="dark">
+            {t('sidebar.theme.dark')}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value={DEFAULT_CHOICE}>
             {t('sidebar.theme.default')}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

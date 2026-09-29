@@ -7,6 +7,7 @@ import {
   updateAppConfiguration,
   uploadLogo,
 } from '@/features/system-settings/api/api';
+import { PartialSaveError } from '@/features/system-settings/lib/partial-save-error';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { client } from '@/integrations/axios';
 
@@ -120,5 +121,26 @@ describe('saveBranding', () => {
   it('returns the saved configuration when there is nothing to do', async () => {
     await expect(saveBranding(saved, [])).resolves.toBe(saved);
     expect(put).not.toHaveBeenCalled();
+  });
+
+  it('reports what was stored when a later step fails', async () => {
+    const file = new File(['x'], 'logo.png', { type: 'image/png' });
+    const failure = new Error('offline');
+    put.mockResolvedValueOnce(atVersion(4)).mockRejectedValueOnce(failure);
+
+    const error = await saveBranding(saved, [
+      { kind: 'upload', file },
+      { kind: 'update', appName: 'New' },
+    ]).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(PartialSaveError);
+    expect(error).toMatchObject({ saved: { ...saved, version: 4 }, cause: failure });
+  });
+
+  it('passes on the error when nothing was stored', async () => {
+    const failure = new Error('offline');
+    put.mockRejectedValueOnce(failure);
+
+    await expect(saveBranding(saved, [{ kind: 'update', appName: 'New' }])).rejects.toBe(failure);
   });
 });

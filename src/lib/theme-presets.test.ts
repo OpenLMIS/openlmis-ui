@@ -3,7 +3,7 @@ import { contrastRatio, inSrgbGamut, parseOklch } from '@/lib/color-contrast';
 import {
   applyThemePreset,
   DEFAULT_THEME_PRESET,
-  resolveThemePreset,
+  presetName,
   THEME_PRESETS,
   THEME_TOKENS,
   themePresetCss,
@@ -13,14 +13,14 @@ beforeEach(() => {
   document.head.innerHTML = '';
 });
 
-describe('resolveThemePreset', () => {
-  it('finds a known preset', () => {
-    expect(resolveThemePreset('blue')).toBe(THEME_PRESETS.blue);
+describe('presetName', () => {
+  it('keeps a known preset', () => {
+    expect(presetName('green')).toBe('green');
   });
 
   it('falls back to the default for an unknown or missing name', () => {
-    expect(resolveThemePreset('ocean')).toBe(THEME_PRESETS[DEFAULT_THEME_PRESET]);
-    expect(resolveThemePreset(null)).toBe(THEME_PRESETS[DEFAULT_THEME_PRESET]);
+    expect(presetName('ocean')).toBe(DEFAULT_THEME_PRESET);
+    expect(presetName(null)).toBe(DEFAULT_THEME_PRESET);
   });
 });
 
