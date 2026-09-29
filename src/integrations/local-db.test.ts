@@ -8,7 +8,6 @@ const signIn = (referenceDataUserId: string) =>
     .getState()
     .setLoginData({ referenceDataUserId, username: referenceDataUserId, accessToken: 'token' });
 
-/** A screen's own table, which later tickets declare; opened by name, as that screen would. */
 function withProbeTable(name: string) {
   const db = new Dexie(name);
   db.version(2).stores({ probe: 'id' });

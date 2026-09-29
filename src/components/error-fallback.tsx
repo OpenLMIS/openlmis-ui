@@ -17,7 +17,6 @@ import { isForbidden } from '@/features/auth/lib/access';
 export function ErrorFallback({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  // A failed loader put the page here, so trying again has to run the loaders again too.
   const retry = () => {
     void router.invalidate();
     reset();

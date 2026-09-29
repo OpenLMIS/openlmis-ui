@@ -19,7 +19,6 @@ export default defineConfig(({ mode }) => {
   const prefix = (env.VITE_BASE_PATH ?? '').replace(/^\/+|\/+$/g, '');
   const base = prefix ? `/${prefix}/` : '/';
 
-  // Sends `/api` to the OpenLMIS instance, so there is no CORS and no host in the bundle.
   const proxy = {
     '/api': {
       target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
@@ -34,7 +33,6 @@ export default defineConfig(({ mode }) => {
       port: env.VITE_FE_PORT ? Number(env.VITE_FE_PORT) : undefined,
       proxy,
     },
-    // `pnpm preview` serves the production build, service worker included, against the same API.
     preview: { proxy },
     // Resolves @/* path aliases defined in tsconfig.json (e.g. @/components/Button)
     resolve: {
@@ -48,15 +46,12 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       VitePWA({
-        // A new version waits for the user, who is asked before any reload.
         registerType: 'prompt',
         injectRegister: false,
         manifest: false,
         workbox: {
-          // Locales stay out of the precache, so a deployment can still correct a string.
           globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
-          // Controls the page on its first visit too, so what that visit fetches is cached.
           clientsClaim: true,
           navigateFallback: 'index.html',
           navigateFallbackDenylist: [/^\/api\//],

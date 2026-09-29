@@ -31,7 +31,6 @@ export async function loadRuntimeConfig(): Promise<void> {
       authServerClientSecret: asString(authServerClientSecret),
     };
   } catch {
-    // No network: a tab opened offline still gets it once the connection is back.
     window.addEventListener('online', () => void loadRuntimeConfig(), { once: true });
   }
 }

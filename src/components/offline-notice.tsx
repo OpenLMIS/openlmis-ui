@@ -11,7 +11,6 @@ import {
 import { isOfflineError } from '@/lib/http';
 import { useOnReconnect } from '@/lib/online';
 
-/** Whether a connection would fix `error`; if so, `retry` runs by itself once it is back. */
 export function useOfflineFailure(error: unknown, retry: () => void) {
   const offline = isOfflineError(error);
   useOnReconnect(() => {
@@ -20,7 +19,6 @@ export function useOfflineFailure(error: unknown, retry: () => void) {
   return offline;
 }
 
-/** A page whose data has not been downloaded to this device and cannot be fetched offline. */
 export function OfflineNotice({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
 

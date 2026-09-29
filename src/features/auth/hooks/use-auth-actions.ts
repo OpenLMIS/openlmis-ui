@@ -29,7 +29,6 @@ export function useAuthActions(): AuthActions {
 
       return true;
     } catch (error) {
-      // Offline, the password was never checked, so say what did happen.
       if (isOfflineError(error)) {
         toast.error(t('auth.login-error-title'), { description: t('session.cannot-connect') });
         return false;
@@ -45,7 +44,6 @@ export function useAuthActions(): AuthActions {
     try {
       await authApi.logout();
     } catch (error) {
-      // Already ended, or offline after the user agreed to sign out anyway; neither is a failure.
       if (!isUnauthorized(error) && !isOfflineError(error)) {
         console.error('[useAuthActions.logout]', error);
         toast.error(t('auth.logout-error-title'), { description: t('auth.logout-error') });

@@ -25,7 +25,6 @@ export function useLeaveGuard(active: boolean, ask: AskToLeave) {
   }, [active, ask]);
 }
 
-// Set once the user agreed to reload, so no page raises the browser's own prompt on top.
 let unloadAllowed = false;
 
 export function allowUnload() {

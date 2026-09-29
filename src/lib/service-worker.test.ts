@@ -25,7 +25,6 @@ const fire = (type: string) => {
   for (const handler of handlers[type] ?? []) handler({});
 };
 
-/** A stand-in for `navigator.serviceWorker`, whose page can be taken over and whose update can wait. */
 function stubServiceWorker({ controller = null as { scriptURL: string } | null, waiting = false }) {
   const target = new EventTarget();
   const container = Object.assign(target, {
@@ -41,7 +40,6 @@ function stubServiceWorker({ controller = null as { scriptURL: string } | null, 
   };
 }
 
-// Each test starts from a fresh module, since the worker is registered once per page.
 async function load() {
   vi.resetModules();
   return import('@/lib/service-worker');

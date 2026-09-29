@@ -27,7 +27,6 @@ const ICON_TONE: Record<Notice['variant'], string> = {
   info: 'text-primary dark:text-info',
 };
 
-/** What to tell the user about the connection and the app's version, newest last. */
 function useNotices(): Notice[] {
   const { t } = useTranslation();
   const online = useOnline();
@@ -70,7 +69,6 @@ function useNotices(): Notice[] {
   return notices;
 }
 
-/** Offline, back online and a new version, above the sidebar's footer buttons. */
 export function SidebarNotices() {
   const { t } = useTranslation();
   const { isMobile, state } = useSidebar();
@@ -78,7 +76,6 @@ export function SidebarNotices() {
 
   if (notices.length === 0) return null;
 
-  // The icon rail has room for an icon each, with its title on hover; only an action is a button.
   if (!isMobile && state === 'collapsed') {
     return (
       <SidebarMenu>
@@ -106,7 +103,6 @@ export function SidebarNotices() {
   return (
     <div className="flex flex-col gap-2">
       {notices.map(({ variant, Icon, title, description, action, onClose }) => (
-        // A note, not a live region: `StatusAnnouncer` says each change from a region always there.
         <Alert key={variant} role="note" variant={variant}>
           <Icon />
           <AlertTitle>{title}</AlertTitle>
@@ -140,7 +136,6 @@ export function SidebarNotices() {
   );
 }
 
-/** Says each notice from one region that is always there, which screen readers reliably read. */
 export function StatusAnnouncer() {
   const notices = useNotices();
   return (
@@ -150,11 +145,9 @@ export function StatusAnnouncer() {
   );
 }
 
-/** A warning dot on the menu button while offline, for when the sidebar is out of view. */
 export function OfflineDot() {
   const online = useOnline();
   const { isMobile, open, openMobile } = useSidebar();
-  // Only beside the menu button, which the header shows while the sidebar is closed.
   if (online || (isMobile ? openMobile : open)) return null;
   return (
     <span

@@ -261,7 +261,6 @@ type DataTableErrorProps = {
   title: string;
   description?: string;
   onRetry?: () => void;
-  /** Replaces the warning sign, e.g. for a missing connection rather than a failure. */
   icon?: ReactNode;
 };
 

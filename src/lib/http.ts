@@ -5,7 +5,6 @@ export const isNotFound = (error: unknown) => isAxiosError(error) && error.respo
 
 export const isRefused = (error: unknown) => isAxiosError(error) && error.response?.status === 403;
 
-/** No answer at all, as offline; a timeout is a slow server, not a missing connection. */
 export const isOfflineError = (error: unknown) =>
   isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED;
 

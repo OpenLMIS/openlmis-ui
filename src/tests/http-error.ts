@@ -10,5 +10,4 @@ export const httpError = (status: number) =>
     config: { headers: new AxiosHeaders() },
   });
 
-/** An error as Axios throws it when the request never got an answer, e.g. offline. */
 export const networkError = () => new AxiosError('Network Error', AxiosError.ERR_NETWORK);

@@ -12,26 +12,22 @@ function setBackOnline(value: boolean) {
   for (const listener of backOnlineListeners) listener();
 }
 
-// Subscribing now, not on first render, makes Query listen for the browser's events from the start.
 onlineManager.subscribe((online) => {
   clearTimeout(backOnlineTimer);
   setBackOnline(online);
   if (online) backOnlineTimer = setTimeout(() => setBackOnline(false), BACK_ONLINE_MS);
 });
 
-/** Query only hears `online`/`offline` events, so an app opened offline thinks it is online. */
 export function seedOnline() {
   onlineManager.setOnline(navigator.onLine);
 }
 
 export const isOnline = () => onlineManager.isOnline();
 
-/** Whether the browser has a connection, following it as it comes and goes. */
 export function useOnline() {
   return useSyncExternalStore((onChange) => onlineManager.subscribe(onChange), isOnline);
 }
 
-/** Runs `callback` each time the connection comes back. */
 export function useOnReconnect(callback: () => void) {
   const run = useEffectEvent(callback);
   useEffect(() => onlineManager.subscribe((online) => online && run()), []);
@@ -42,7 +38,6 @@ export const dismissBackOnline = () => {
   setBackOnline(false);
 };
 
-/** True for a few seconds after the connection comes back. */
 export function useBackOnline() {
   return useSyncExternalStore(
     (onChange) => {

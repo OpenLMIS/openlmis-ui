@@ -12,12 +12,10 @@ type ListErrorProps = {
   description: string;
 };
 
-/** What a list shows when its rows could not load: No Access, a connection to find, or an error. */
 export function ListError({ error, reset, title, description }: ListErrorProps) {
   const { t } = useTranslation();
   const offline = useOfflineFailure(error, reset);
 
-  // Rights read at sign in can be revoked since; the server's refusal says so.
   if (isForbidden(error)) return <NoAccess />;
   if (offline) {
     return (
