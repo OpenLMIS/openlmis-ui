@@ -90,8 +90,9 @@ function EditUserForm({ userId, onDone }: EditUserFormProps) {
 
   return (
     <QueryBoundary
-      errorComponent={({ reset }) => (
+      errorComponent={({ error, reset }) => (
         <DialogLoadError
+          error={error}
           errorTitle={t('users.form.load-error-title')}
           onRetry={reset}
           title={t('users.form.edit-title')}

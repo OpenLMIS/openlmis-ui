@@ -261,9 +261,11 @@ type DataTableErrorProps = {
   title: string;
   description?: string;
   onRetry?: () => void;
+  /** Replaces the warning sign, e.g. for a missing connection rather than a failure. */
+  icon?: ReactNode;
 };
 
-export function DataTableError({ title, description, onRetry }: DataTableErrorProps) {
+export function DataTableError({ title, description, onRetry, icon }: DataTableErrorProps) {
   const labels = useDataTableLabels();
 
   return (
@@ -276,7 +278,7 @@ export function DataTableError({ title, description, onRetry }: DataTableErrorPr
             </Button>
           )
         }
-        icon={<AlertTriangleIcon />}
+        icon={icon ?? <AlertTriangleIcon />}
         description={description}
         title={title}
       />

@@ -68,7 +68,7 @@ export function Stat<TData, TKey extends QueryKey>({
   return (
     <StatCell label={label}>
       <QueryBoundary
-        errorComponent={({ reset }) => <WidgetError onRetry={reset} />}
+        errorComponent={({ error, reset }) => <WidgetError error={error} onRetry={reset} />}
         pendingFallback={VALUE_PENDING}
         resetKey={`${JSON.stringify(query.queryKey)}:${revision}`}
       >

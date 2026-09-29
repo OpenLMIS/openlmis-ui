@@ -2,8 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { KeyRoundIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableError } from '@/components/data-table/data-table';
-import { NoAccess } from '@/components/no-access-page';
+import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -14,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { serviceAccountsListOptions } from '@/features/service-accounts/api/queries';
 import {
@@ -82,17 +81,14 @@ function ServiceAccountsPage() {
         <div className="flex flex-col gap-4 @4xl/main:gap-6">
           <ServiceAccountsToolbar onAdd={addKey} />
           <QueryBoundary
-            errorComponent={({ error, reset }) =>
-              isForbidden(error) ? (
-                <NoAccess />
-              ) : (
-                <DataTableError
-                  description={t('service-accounts.error-description')}
-                  onRetry={reset}
-                  title={t('service-accounts.error-title')}
-                />
-              )
-            }
+            errorComponent={({ error, reset }) => (
+              <ListError
+                description={t('service-accounts.error-description')}
+                error={error}
+                reset={reset}
+                title={t('service-accounts.error-title')}
+              />
+            )}
             pendingFallback={<ServiceAccountsTableSkeleton search={search} />}
             resetKey={JSON.stringify(search)}
           >

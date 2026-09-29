@@ -9,6 +9,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { useIsOfflineFailure, useRetryWhenOnline } from '@/components/offline-notice';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -61,12 +62,15 @@ export function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
 type DialogLoadErrorProps = {
   title: string;
   errorTitle: string;
+  error: unknown;
   onRetry: () => void;
 };
 
 /** What a dialog shows when the record it needs could not be loaded: its title, the error, Try Again. */
-export function DialogLoadError({ title, errorTitle, onRetry }: DialogLoadErrorProps) {
+export function DialogLoadError({ title, errorTitle, error, onRetry }: DialogLoadErrorProps) {
   const { t } = useTranslation();
+  const offline = useIsOfflineFailure(error);
+  useRetryWhenOnline(onRetry);
   return (
     <>
       <FormDialogHeader>
@@ -74,8 +78,8 @@ export function DialogLoadError({ title, errorTitle, onRetry }: DialogLoadErrorP
       </FormDialogHeader>
       <ErrorAlert
         action={<RetryButton onClick={onRetry} />}
-        description={t('error.check-connection')}
-        title={errorTitle}
+        description={t(offline ? 'offline.notice-description' : 'error.check-connection')}
+        title={offline ? t('offline.notice-title') : errorTitle}
       />
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>

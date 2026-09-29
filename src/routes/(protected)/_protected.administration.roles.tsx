@@ -4,9 +4,8 @@ import { ShieldIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { DataTableError } from '@/components/data-table/data-table';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
-import { NoAccess } from '@/components/no-access-page';
+import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -18,7 +17,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { rightsOptions } from '@/features/auth/api/queries';
-import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { toRoleAccess } from '@/features/auth/lib/role-access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -145,17 +144,14 @@ function RolesPage() {
             search={search}
           />
           <QueryBoundary
-            errorComponent={({ error, reset }) =>
-              isForbidden(error) ? (
-                <NoAccess />
-              ) : (
-                <DataTableError
-                  description={t('roles.error-description')}
-                  onRetry={reset}
-                  title={t('roles.error-title')}
-                />
-              )
-            }
+            errorComponent={({ error, reset }) => (
+              <ListError
+                description={t('roles.error-description')}
+                error={error}
+                reset={reset}
+                title={t('roles.error-title')}
+              />
+            )}
             pendingFallback={
               <RolesTableSkeleton
                 columnVisibility={columnView.visibility}
