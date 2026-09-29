@@ -7,6 +7,7 @@ import {
   getAppName,
   loadAppConfiguration,
   parseAppConfiguration,
+  rememberAppConfiguration,
   setAppConfiguration,
 } from '@/lib/app-configuration';
 
@@ -189,5 +190,14 @@ describe('getAppName', () => {
   it('is the configured name, or OpenLMIS', () => {
     expect(getAppName(DEFAULT_APP_CONFIGURATION)).toBe('OpenLMIS');
     expect(getAppName(parseAppConfiguration(stored))).toBe('SIGECA');
+  });
+});
+
+describe('rememberAppConfiguration', () => {
+  it('shows a saved configuration at once and keeps it for the next load', () => {
+    rememberAppConfiguration(stored);
+
+    expect(getAppConfiguration().appName).toBe('SIGECA');
+    expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
   });
 });

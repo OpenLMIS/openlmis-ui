@@ -1,0 +1,59 @@
+import type { BrandingStep } from '@/features/system-settings/lib/branding';
+import type { AppConfigurationDto, EditableSettings } from '@/features/system-settings/lib/types';
+import { client } from '@/integrations/axios';
+import { getIfExists } from '@/lib/http';
+
+const basedOn = (saved: AppConfigurationDto) => ({
+  headers: { 'If-Match': `W/"${saved.version}"` },
+});
+
+export function fetchAppConfiguration(): Promise<AppConfigurationDto | null> {
+  return getIfExists<AppConfigurationDto>('/appConfiguration');
+}
+
+export async function updateAppConfiguration(
+  saved: AppConfigurationDto,
+  changes: Partial<EditableSettings>,
+): Promise<AppConfigurationDto> {
+  const body: EditableSettings = {
+    appName: saved.appName,
+    theme: saved.theme,
+    featureFlags: saved.featureFlags,
+    ...changes,
+  };
+  const { data } = await client.put<AppConfigurationDto>('/appConfiguration', body, basedOn(saved));
+  return data;
+}
+
+export async function uploadLogo(
+  saved: AppConfigurationDto,
+  file: File,
+): Promise<AppConfigurationDto> {
+  const body = new FormData();
+  body.append('file', file);
+  const { data } = await client.put<AppConfigurationDto>('/appConfiguration/logo', body, {
+    headers: { ...basedOn(saved).headers, 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}
+
+export async function removeLogo(saved: AppConfigurationDto): Promise<AppConfigurationDto> {
+  const { data } = await client.delete<AppConfigurationDto>(
+    '/appConfiguration/logo',
+    basedOn(saved),
+  );
+  return data;
+}
+
+export async function saveBranding(
+  saved: AppConfigurationDto,
+  steps: BrandingStep[],
+): Promise<AppConfigurationDto> {
+  let current = saved;
+  for (const step of steps) {
+    if (step.kind === 'upload') current = await uploadLogo(current, step.file);
+    else if (step.kind === 'remove-logo') current = await removeLogo(current);
+    else current = await updateAppConfiguration(current, { appName: step.appName });
+  }
+  return current;
+}

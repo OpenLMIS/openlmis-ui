@@ -1,8 +1,9 @@
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
+import { Button } from '@/components/ui/button';
 import {
   Combobox,
   ComboboxChip,
@@ -416,6 +417,84 @@ export function SwitchField({
     <ChoiceCard description={description} disabled={disabled} htmlFor={field.name} label={label}>
       {control}
     </ChoiceCard>
+  );
+}
+
+type ImageFieldProps = Omit<FieldProps, 'layout' | 'required'> & {
+  accept: string;
+  previewUrl: string;
+  previewAlt: string;
+  chooseLabel: string;
+  removeLabel: string;
+  canRemove: boolean;
+};
+
+export function ImageField({
+  label,
+  description,
+  disabled,
+  accept,
+  previewUrl,
+  previewAlt,
+  chooseLabel,
+  removeLabel,
+  canRemove,
+}: ImageFieldProps) {
+  const field = useFieldContext<File | null | undefined>();
+  const input = useRef<HTMLInputElement>(null);
+  const state = useFieldErrors(description);
+
+  return (
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout="row"
+      state={state}
+    >
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span className="flex h-10 w-24 items-center justify-center overflow-hidden rounded-md border bg-background p-1">
+          <img alt={previewAlt} className="max-h-full max-w-full object-contain" src={previewUrl} />
+        </span>
+        <input
+          accept={accept}
+          aria-describedby={state.describedBy}
+          aria-invalid={state.isInvalid}
+          className="sr-only"
+          disabled={disabled}
+          id={field.name}
+          name={field.name}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) field.handleChange(file);
+            event.target.value = '';
+          }}
+          ref={input}
+          tabIndex={-1}
+          type="file"
+        />
+        <Button
+          disabled={disabled}
+          onClick={() => input.current?.click()}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {chooseLabel}
+        </Button>
+        {canRemove && (
+          <Button
+            disabled={disabled}
+            onClick={() => field.handleChange(null)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            {removeLabel}
+          </Button>
+        )}
+      </div>
+    </FieldFrame>
   );
 }
 
