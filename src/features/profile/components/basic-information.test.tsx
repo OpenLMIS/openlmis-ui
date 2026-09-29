@@ -10,7 +10,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { fetchProfile, saveProfile } from '@/features/profile/api/api';
 import { profileOptions } from '@/features/profile/api/queries';
-import { BasicInformation } from '@/features/profile/components/basic-information';
+import {
+  BasicInformation,
+  BasicInformationSkeleton,
+} from '@/features/profile/components/basic-information';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import type { Profile } from '@/features/profile/lib/types';
 
@@ -141,5 +144,23 @@ describe('BasicInformation', () => {
 
     expect(screen.queryByText('users.form.email-verified')).toBeNull();
     expect(email).toHaveAccessibleDescription('profile.email.change-hint');
+  });
+
+  it('holds every row of the form under its real label while the profile loads', () => {
+    render(<BasicInformationSkeleton />);
+
+    for (const label of [
+      'users.username',
+      'users.form.job-title',
+      'users.form.home-facility',
+      'users.form.first-name',
+      'users.form.last-name',
+      'users.email',
+      'users.form.phone-number',
+      'users.form.allow-notify',
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 });

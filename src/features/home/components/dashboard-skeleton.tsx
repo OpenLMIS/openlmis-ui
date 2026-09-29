@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Block, CardFrame, DashboardRow } from '@/features/home/components/dashboard-parts';
+import { Block } from '@/components/skeleton-block';
+import { CardFrame, DashboardRow } from '@/features/home/components/dashboard-parts';
 import { StatSkeleton, StatStrip } from '@/features/home/components/stat-strip';
 
 /** Each card's body while it loads, shared by the card and the page skeleton; no chart code here. */

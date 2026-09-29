@@ -7,7 +7,9 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { EmailStatus } from '@/components/email-status';
 import { useAppForm } from '@/components/form/form';
-import { SettingsItem, SettingsList } from '@/components/form/settings-list';
+import { FieldLabelText } from '@/components/form/form-fields';
+import { SettingsItem, SettingsList, SettingsRowFrame } from '@/components/form/settings-list';
+import { Block } from '@/components/skeleton-block';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -189,6 +191,52 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
       </form>
       <DiscardChangesDialog description={t('profile.discard-description')} {...guard.dialog} />
     </>
+  );
+}
+
+/** The form while the profile loads: every row under its real label, with placeholders for the values. */
+export function BasicInformationSkeleton() {
+  const { t } = useTranslation();
+  const inputs = [
+    { label: t('users.form.first-name'), required: true },
+    { label: t('users.form.last-name'), required: true },
+    { label: t('users.email') },
+    { label: t('users.form.phone-number') },
+  ];
+
+  return (
+    <div aria-busy>
+      <SettingsList>
+        <SettingsItem label={t('users.username')}>
+          <Block className="h-5 w-24 py-0.5" />
+        </SettingsItem>
+        <SettingsItem label={t('users.form.job-title')}>
+          <Block className="h-5 w-32 py-0.5" />
+        </SettingsItem>
+        <SettingsItem label={t('users.form.home-facility')}>
+          <Block className="h-5 w-48 py-0.5" />
+        </SettingsItem>
+        {inputs.map(({ label, required }) => (
+          <SettingsRowFrame
+            key={label}
+            label={
+              <span className="text-sm">
+                <FieldLabelText label={label} required={required} />
+              </span>
+            }
+            value="control"
+          >
+            <Block className="h-8 w-full" />
+          </SettingsRowFrame>
+        ))}
+        <SettingsRowFrame
+          description={<Block className="h-5 w-64 max-w-full py-0.5" />}
+          label={<span className="text-sm">{t('users.form.allow-notify')}</span>}
+        >
+          <Block className="h-5 w-8" shape="circle" />
+        </SettingsRowFrame>
+      </SettingsList>
+    </div>
   );
 }
 

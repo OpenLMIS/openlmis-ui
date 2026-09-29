@@ -6,6 +6,7 @@ import { DataTableError, DataTableToolbar } from '@/components/data-table/data-t
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Block } from '@/components/skeleton-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -122,6 +123,54 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
         </TabsContent>
       ))}
     </Tabs>
+  );
+}
+
+type RoleTabsSkeletonProps = Pick<RoleTabsProps, 'tab' | 'compact' | 'search'> & {
+  /** Holds the places of Add Role and each row's actions, where the roles can be changed. */
+  editable?: boolean;
+};
+
+const noop = () => {};
+
+/** The tabs while the user loads: the real tab list, with placeholders for the toolbar and rows. */
+export function RoleTabsSkeleton({
+  tab,
+  compact,
+  search,
+  editable = false,
+}: RoleTabsSkeletonProps) {
+  const { t } = useTranslation();
+  return (
+    <div aria-busy>
+      <Tabs spacing="page" value={tab.id}>
+        <div className="@container">
+          <TabsList aria-label={t('users.roles.tabs-label')} wrap>
+            {ROLE_TABS.map((item) => (
+              <TabsTrigger key={item.id} value={item.id}>
+                {t(item.labelKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value={tab.id}>
+          <div className="flex flex-col gap-4">
+            <DataTableToolbar>
+              <div className="min-w-0 flex-1 @xl/main:w-72 @xl/main:flex-none">
+                <Block className="h-8 w-full" />
+              </div>
+              {editable && <Block className="ms-auto h-8 w-28" />}
+            </DataTableToolbar>
+            <RoleAssignmentsTableSkeleton
+              compact={compact}
+              onRemove={editable ? noop : undefined}
+              search={search}
+              tab={tab}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
 
