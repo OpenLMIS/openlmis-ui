@@ -74,6 +74,20 @@ before it shows anything:
 
 Nothing about branding needs a rebuild or a redeploy.
 
+## Feature flags
+
+Optional features are turned on or off in two places:
+
+- **The container's environment**, with the same variables as the legacy UI:
+  `BATCH_APPROVE_SCREEN`, `GS1_SCANNING` and `SHOW_REQUISITION_LESS_ORDER` (`true` or `false`),
+  `QUANTITY_UNIT_OPTION` (`PACKS`, `DOSES` or `BOTH`) and `DEFAULT_QUANTITY_UNIT` (`PACKS` or
+  `DOSES`). The entrypoint writes them into `config.json`; an unset variable means the default.
+- **Administration > System Settings > Feature Flags**, where an administrator's value wins over
+  the environment's. Reset on a flag goes back to the environment's value, or the default.
+
+During dual boot the legacy UI keeps reading its own container environment, so a flag changed in
+the new UI only reaches screens that have moved to the new UI.
+
 ## Working offline
 
 The app keeps its own files in the browser so it opens without a connection. A service worker,
