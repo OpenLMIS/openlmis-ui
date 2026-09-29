@@ -10,7 +10,9 @@ import {
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionExpiredDialog } from '@/components/session-expired-dialog';
 import * as authApi from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -68,6 +70,10 @@ async function renderAt(path: string, ask?: (proceed: () => void) => void, page?
 beforeEach(() => {
   useLoginData.getState().clearLoginData();
   useLoginData.getState().setLoginData(ada);
+});
+
+beforeAll(async () => {
+  await i18n.use(initReactI18next).init({ lng: 'cimode', keySeparator: false, nsSeparator: false });
 });
 
 describe('SessionExpiredDialog', () => {

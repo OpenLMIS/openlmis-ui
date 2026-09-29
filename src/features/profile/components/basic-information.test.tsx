@@ -104,4 +104,42 @@ describe('BasicInformation', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(firstName).toHaveValue('Augusta');
   });
+
+  it('shows the saved email as verified beside its label, read with the field, and a hint once it is changed', async () => {
+    const queryClient = new QueryClient();
+    const verified: Profile = {
+      ...profile,
+      contact: {
+        referenceDataUserId: 'u1',
+        allowNotify: true,
+        emailDetails: { email: 'ada@example.org', emailVerified: true },
+      },
+    };
+    const root = createRootRoute({
+      component: () => (
+        <ProfileWorkspace username="ada">
+          <BasicInformation onSaved={vi.fn()} profile={verified} />
+        </ProfileWorkspace>
+      ),
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider
+          router={createRouter({
+            routeTree: root,
+            history: createMemoryHistory({ initialEntries: ['/profile'] }),
+          })}
+        />
+      </QueryClientProvider>,
+    );
+
+    const email = await screen.findByRole('textbox', { name: 'users.email' });
+    expect(screen.getByText('users.form.email-verified')).toBeInTheDocument();
+    expect(email).toHaveAccessibleDescription('users.form.email-verified');
+
+    await userEvent.type(email, 'x');
+
+    expect(screen.queryByText('users.form.email-verified')).toBeNull();
+    expect(email).toHaveAccessibleDescription('profile.email.change-hint');
+  });
 });

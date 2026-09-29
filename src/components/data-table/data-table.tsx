@@ -128,7 +128,7 @@ function DataTableHeader<TData extends RowData>({ table }: { table: DataTableIns
   );
 }
 
-function DataTableCard({ children }: { children: ReactNode }) {
+export function DataTableCard({ children }: { children: ReactNode }) {
   // A size container, so the pagination lays out by the table's width rather than the window's.
   return (
     <div className="@container/table overflow-hidden rounded-xl border bg-card shadow-xs">

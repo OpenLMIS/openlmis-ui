@@ -254,7 +254,7 @@ Two ways out when a page needs a different treatment:
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-   `DialogDescription size`, `Field spacing`, `FieldDescription size`,
+   `DialogDescription size`, `Field spacing`, `FieldLabel weight`, `FieldDescription size`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
@@ -354,7 +354,8 @@ hand-rolling padding:
 ```
 
 Every part takes only `children` - no boolean props, no `renderX` callbacks. A page
-without an icon, a description or actions just leaves those parts out.
+without an icon, a description or actions just leaves those parts out. The one variant is
+`width="narrow"` on `Workspace` and `WorkspaceFooter`, for a page of settings like Profile.
 
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
 outrank the toolbar controls below them. When the header stacks on a narrow page, they share
@@ -472,14 +473,18 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `ComboboxField`, `MultiComboboxField`, `SelectField`). A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
-`SelectField`. Validate with a zod schema on `onDynamic` with
+`SelectField`. Every field takes a `layout`: `stacked` by default; `row` for a settings
+page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
+the start and the value at the end, and `SettingsItem` for a value that is only shown;
+`inline` in a table cell, where the column header names it and the label and description
+are for screen readers only, so name each one after its row too. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
 the first submit and then follow each correction.
 
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-`DialogDescription size`, `Field spacing`, `FieldDescription size`,
+`DialogDescription size`, `Field spacing`, `FieldLabel weight`, `FieldDescription size`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel` and `SelectTrigger width`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.

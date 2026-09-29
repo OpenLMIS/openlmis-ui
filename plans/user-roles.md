@@ -87,7 +87,7 @@ the field is always sent.
   (`_protected.administration.users_.$id.roles.tsx`, trailing `_` so it does not nest
   under the list). Route files are exempt from Biome's kebab-case rule, since `$id` and
   `users_` are router syntax. Search: `tab`, `q`, `page`, `size`, `sort`, `dir`, `dialog`
-  (`add`/`import`), `rights` (role id).
+  (`add`/`import`).
 - Loader blocks on `userDetailsOptions(userId)` (a missing user must show Not Found) and
   prefetches roles, programs, nodes and facilities without waiting.
 - The draft lives in page state, seeded from the saved assignments; tabs, dialogs and
@@ -103,7 +103,8 @@ the field is always sent.
   `use-role-draft.ts`, `use-role-lookups.ts` + tests.
 - `src/features/users/api/api.ts`: `updateUserRoles`, `fetchAllUsers`.
 - `src/features/users/components/`: `role-assignments-table.tsx`, `add-role-dialog.tsx`,
-  `import-roles-dialog.tsx`, `role-rights-dialog.tsx`, `discard-changes-dialog.tsx`, and
+  `import-roles-dialog.tsx` (the rights popover and the discard dialog live in
+  `src/components/`), and
   `role-dialogs.tsx`, which loads the dialogs as one chunk.
 - `src/routes/(protected)/_protected.administration.users_.$id.roles.tsx`.
 - `users-table.tsx`: the Roles action as a link that carries the list's search, so leaving
@@ -151,7 +152,7 @@ Cancel and the leave guard, save with a stubbed `PUT` and the return to the list
 | Inline add form | Improve: Add Role dialog | Room for searchable lists, inline errors and warnings; works on a phone |
 | Node and facility dropdowns | Improve: searchable comboboxes, node shown with its facility | 511 nodes and 2,735 facilities |
 | Home facility warning | Improve: shown in the dialog before adding and as a row badge | Hover-only icon today |
-| Rights popover on hover | Improve: rights listed in the Add dialog and a View Rights row action | Hover fails on touch and keyboard |
+| Rights popover on hover | Improve: rights listed in the Add dialog, and a help button beside the role's name opens them in a popover | Hover fails on touch and keyboard |
 | Remove confirm with user count | Improve: remove at once with Undo | The count is wrong and the change is not saved yet anyway |
 | Table | Improve: search, sortable columns, pagination with page size | Long supervision lists |
 | Save and Cancel in a bar at the bottom | Port: sticky at the bottom of the window; Save returns to the list | The flow legacy users know; Save stays disabled until something changes |
@@ -188,6 +189,6 @@ server's message.
 3. `updateUserRoles` and `fetchAllUsers`, with tests.
 4. Tabs, alert dialog, breadcrumbs for nested pages.
 5. Route, draft, tabs and table.
-6. Add Role, Import Roles, View Rights and Discard dialogs.
+6. Add Role, Import Roles and Discard dialogs, and the rights popover.
 7. Wire the Users row action; translations in all locales.
 8. Browser walk, gates, PR, `review-pr`.

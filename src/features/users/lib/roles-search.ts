@@ -15,14 +15,12 @@ export const rolesSearchSchema = tableSearchSchema(ROLE_SORT_FIELDS).extend({
   q: textFilterSchema,
   /** The open dialog: adding a role on the current tab, or importing another user's roles. */
   dialog: z.enum(['add', 'import']).optional().catch(undefined),
-  /** The role whose rights are shown. */
-  rights: z.string().min(1).optional().catch(undefined),
 });
 
 export type RolesSearch = z.infer<typeof rolesSearchSchema>;
 
 /** What the role tabs and their table read and change: the tab, filter, paging and sort. */
-export type RolesTableSearch = Omit<RolesSearch, 'dialog' | 'rights'>;
+export type RolesTableSearch = Omit<RolesSearch, 'dialog'>;
 
 /** A different tab lists different rows, so its filter, paging and sort start over. */
 export const TAB_RESET = {
@@ -34,5 +32,4 @@ export const TAB_RESET = {
 
 export const CLOSED_ROLE_DIALOGS = {
   dialog: undefined,
-  rights: undefined,
 } satisfies Partial<RolesSearch>;

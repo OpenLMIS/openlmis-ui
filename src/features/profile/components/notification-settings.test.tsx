@@ -109,6 +109,41 @@ describe('NotificationSettings', () => {
     expect(screen.queryByText('profile.notifications.save-error-title')).not.toBeInTheDocument();
   });
 
+  it('names each control after its notification, so a screen reader can tell the rows apart', async () => {
+    await renderSettings();
+
+    expect(channel()).toHaveAccessibleName(
+      'Requisition - Action Required profile.notifications.channel',
+    );
+  });
+
+  it('describes a custom schedule by its format and says why digests are email only', async () => {
+    const user = await renderSettings();
+    await user.click(digestSwitch());
+    await user.click(screen.getByRole('combobox', { name: /profile.notifications.frequency/ }));
+    await user.click(await screen.findByRole('option', { name: 'profile.notifications.custom' }));
+
+    expect(
+      screen.getByRole('textbox', { name: /profile.notifications.cron/ }),
+    ).toHaveAccessibleDescription('profile.notifications.cron-description');
+    expect(screen.getByText('profile.notifications.digest-email-only')).toBeInTheDocument();
+  });
+
+  it('moves to the first field to correct when a save is refused', async () => {
+    const user = await renderSettings();
+    await user.click(digestSwitch());
+    await user.click(screen.getByRole('combobox', { name: /profile.notifications.frequency/ }));
+    await user.click(await screen.findByRole('option', { name: 'profile.notifications.custom' }));
+    const cron = screen.getByRole('textbox', { name: /profile.notifications.cron/ });
+    await user.clear(cron);
+    await user.type(cron, 'bad');
+
+    await user.click(screen.getByRole('button', { name: 'profile.notifications.save' }));
+
+    await waitFor(() => expect(cron).toHaveFocus());
+    expect(saveSubscriptions).not.toHaveBeenCalled();
+  });
+
   it('offers no Save or Cancel when there is nothing to set up', async () => {
     vi.mocked(fetchDigestConfigurations).mockResolvedValue([]);
     vi.mocked(fetchSubscriptions).mockResolvedValue([]);

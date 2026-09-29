@@ -1,17 +1,15 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, MailIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { EmailStatus } from '@/components/email-status';
 import { useAppForm } from '@/components/form/form';
+import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FieldGroup } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { resendVerification, saveProfile } from '@/features/profile/api/api';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
@@ -41,16 +39,6 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   const { user, contact } = profile;
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
-  // The saved address shows whether it is verified; a new one, that it waits for its link.
-  const emailDescription = (typed: string) => {
-    if (!typed) return undefined;
-    return typed === savedEmail ? (
-      <EmailStatus verified={emailVerified} />
-    ) : (
-      t('profile.email.change-hint')
-    );
-  };
-
   const save = useMutation({
     mutationFn: (values: ProfileFormValues) => saveProfile(profile, values),
     onSuccess: (_, values) => {
@@ -108,138 +96,105 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           {t('profile.save')}
         </Button>
       </ProfileFooter>
-      <div className="flex flex-col gap-4 lg:gap-6">
-        <AccountSummary profile={profile} />
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('profile.details.title')}</CardTitle>
-            <CardDescription>{t('profile.details.description')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              id={FORM_ID}
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (changed) void form.handleSubmit();
-              }}
-            >
-              <FieldGroup>
-                {save.isError && (
-                  <ErrorAlert
-                    description={serverMessage(save.error) ?? t('users.form.save-error')}
-                    title={t('profile.save-error-title')}
+      <form
+        className="flex flex-col gap-4"
+        id={FORM_ID}
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (changed) void form.handleSubmit();
+        }}
+      >
+        {save.isError && (
+          <ErrorAlert
+            description={serverMessage(save.error) ?? t('users.form.save-error')}
+            title={t('profile.save-error-title')}
+          />
+        )}
+        <PendingEmail userId={user.id} />
+        <SettingsList>
+          <SettingsItem label={t('users.username')}>{user.username}</SettingsItem>
+          <SettingsItem label={t('users.form.job-title')}>{user.jobTitle || <None />}</SettingsItem>
+          <SettingsItem label={t('users.form.home-facility')}>
+            {user.homeFacilityId ? <FacilityName id={user.homeFacilityId} /> : <None />}
+          </SettingsItem>
+          <form.AppField name="firstName">
+            {(field) => (
+              <field.TextField
+                autoComplete="given-name"
+                label={t('users.form.first-name')}
+                layout="row"
+                required
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="lastName">
+            {(field) => (
+              <field.TextField
+                autoComplete="family-name"
+                label={t('users.form.last-name')}
+                layout="row"
+                required
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="email">
+            {(field) => {
+              const typed = field.state.value.trim();
+              // The saved address shows whether it is verified; a new one, that it waits for its link.
+              const isSaved = typed !== '' && typed === savedEmail;
+              return (
+                <field.TextField
+                  autoComplete="email"
+                  badge={isSaved && <EmailStatus verified={emailVerified} />}
+                  description={typed && !isSaved && t('profile.email.change-hint')}
+                  dir="ltr"
+                  label={t('users.email')}
+                  layout="row"
+                  type="email"
+                />
+              );
+            }}
+          </form.AppField>
+          <form.AppField name="phoneNumber">
+            {(field) => (
+              <field.TextField
+                autoComplete="tel"
+                dir="ltr"
+                label={t('users.form.phone-number')}
+                layout="row"
+                type="tel"
+              />
+            )}
+          </form.AppField>
+          <form.Subscribe selector={(state) => state.values.email.trim() !== ''}>
+            {(hasEmail) => (
+              <form.AppField name="allowNotify">
+                {(field) => (
+                  <field.SwitchField
+                    description={t(
+                      emailVerified && hasEmail
+                        ? 'profile.allow-notify.description'
+                        : 'profile.allow-notify.needs-verified',
+                    )}
+                    disabled={!emailVerified || !hasEmail}
+                    label={t('users.form.allow-notify')}
+                    layout="row"
                   />
                 )}
-                <FieldRow>
-                  <form.AppField name="firstName">
-                    {(field) => (
-                      <field.TextField
-                        autoComplete="given-name"
-                        label={t('users.form.first-name')}
-                        required
-                      />
-                    )}
-                  </form.AppField>
-                  <form.AppField name="lastName">
-                    {(field) => (
-                      <field.TextField
-                        autoComplete="family-name"
-                        label={t('users.form.last-name')}
-                        required
-                      />
-                    )}
-                  </form.AppField>
-                </FieldRow>
-                <form.AppField name="email">
-                  {(field) => (
-                    <field.TextField
-                      autoComplete="email"
-                      dir="ltr"
-                      description={emailDescription(field.state.value.trim())}
-                      label={t('users.email')}
-                      type="email"
-                    />
-                  )}
-                </form.AppField>
-                <PendingEmail userId={user.id} />
-                <form.AppField name="phoneNumber">
-                  {(field) => (
-                    <field.TextField
-                      autoComplete="tel"
-                      dir="ltr"
-                      label={t('users.form.phone-number')}
-                      type="tel"
-                    />
-                  )}
-                </form.AppField>
-                <form.Subscribe selector={(state) => state.values.email.trim() !== ''}>
-                  {(hasEmail) => (
-                    <form.AppField name="allowNotify">
-                      {(field) => (
-                        <field.SwitchField
-                          description={t(
-                            emailVerified && hasEmail
-                              ? 'profile.allow-notify.description'
-                              : 'profile.allow-notify.needs-verified',
-                          )}
-                          disabled={!emailVerified || !hasEmail}
-                          label={t('users.form.allow-notify')}
-                        />
-                      )}
-                    </form.AppField>
-                  )}
-                </form.Subscribe>
-              </FieldGroup>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+              </form.AppField>
+            )}
+          </form.Subscribe>
+        </SettingsList>
+      </form>
       <DiscardChangesDialog description={t('profile.discard-description')} {...guard.dialog} />
     </>
   );
 }
 
-function FieldRow({ children }: { children: ReactNode }) {
-  return <div className="grid gap-5 @xl/main:grid-cols-2">{children}</div>;
-}
-
-/** What only an administrator can change, shown as facts rather than as locked fields. */
-function AccountSummary({ profile: { user } }: { profile: Profile }) {
+function None() {
   const { t } = useTranslation();
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('profile.summary.title')}</CardTitle>
-        <CardDescription>{t('profile.summary.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <dl className="grid gap-4 @xl/main:grid-cols-3">
-          <SummaryItem label={t('users.username')}>{user.username}</SummaryItem>
-          <SummaryItem label={t('users.form.job-title')}>
-            {user.jobTitle || t('profile.summary.none')}
-          </SummaryItem>
-          <SummaryItem label={t('users.form.home-facility')}>
-            {user.homeFacilityId ? (
-              <FacilityName id={user.homeFacilityId} />
-            ) : (
-              t('profile.summary.none')
-            )}
-          </SummaryItem>
-        </dl>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className="truncate font-medium">{children}</dd>
-    </div>
-  );
+  return <span className="text-muted-foreground">{t('profile.summary.none')}</span>;
 }
 
 function FacilityName({ id }: { id: string }) {

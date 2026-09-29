@@ -38,7 +38,6 @@ type RoleTabsProps = {
   /** Both left out where the roles are only shown, e.g. on the user's own profile. */
   onAdd?: () => void;
   onRemove?: (row: RoleRow) => void;
-  onViewRights: (roleId: string) => void;
 };
 
 /** One tab per role type, each with its count; only the open tab renders its table. */
@@ -100,7 +99,12 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
                   />
                 )}
                 pendingFallback={
-                  <RoleAssignmentsTableSkeleton compact={compact} search={search} tab={item} />
+                  <RoleAssignmentsTableSkeleton
+                    compact={compact}
+                    onRemove={props.onRemove}
+                    search={search}
+                    tab={item}
+                  />
                 }
                 resetKey={item.id}
               >

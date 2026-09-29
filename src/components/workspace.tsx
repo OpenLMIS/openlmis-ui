@@ -1,16 +1,28 @@
 import type { ReactNode } from 'react';
 import { AppBreadcrumbs } from '@/components/app-breadcrumbs';
+import { cn } from '@/lib/utils';
 
-// Page layout for everything inside the app shell. Parts take only `children` and
-// no `className`, which is what keeps padding and heading scale equal across pages.
+// Page layout inside the app shell; no part takes a `className`, so every page lines up.
 
 type WorkspaceProps = {
   children: ReactNode;
 };
 
-export function Workspace({ children }: WorkspaceProps) {
+type WorkspaceWidthProps = WorkspaceProps & {
+  /** `narrow` for a page of settings, which reads better as one short column. */
+  width?: 'default' | 'narrow';
+};
+
+const MAX_WIDTH = { default: 'max-w-6xl', narrow: 'max-w-4xl' } as const;
+
+export function Workspace({ children, width = 'default' }: WorkspaceWidthProps) {
   return (
-    <div className="@container/main mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+    <div
+      className={cn(
+        '@container/main mx-auto flex w-full flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6',
+        MAX_WIDTH[width],
+      )}
+    >
       <AppBreadcrumbs />
       {children}
     </div>
@@ -70,13 +82,18 @@ export function WorkspaceContent({ children }: WorkspaceProps) {
 }
 
 /** Rendered after `Workspace`: full width, stuck to the bottom, buttons aligned with the page. */
-export function WorkspaceFooter({ children }: WorkspaceProps) {
+export function WorkspaceFooter({ children, width = 'default' }: WorkspaceWidthProps) {
   return (
     <div
       className="sticky bottom-0 z-10 border-t bg-muted/80 backdrop-blur-sm"
       data-slot="workspace-footer"
     >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 lg:px-6">
+      <div
+        className={cn(
+          'mx-auto flex w-full items-center justify-between gap-2 px-4 py-3 lg:px-6',
+          MAX_WIDTH[width],
+        )}
+      >
         {children}
       </div>
     </div>

@@ -3,14 +3,13 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import * as z from 'zod';
 import { ErrorAlert } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
   FormDialogBody,
-  FormDialogDescription,
   FormDialogFooter,
   FormDialogForm,
   FormDialogHeader,
@@ -21,6 +20,7 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { Button } from '@/components/ui/button';
+import { DialogDescription } from '@/components/ui/dialog';
 import { FieldGroup } from '@/components/ui/field';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
@@ -99,7 +99,7 @@ function SignInAgainForm({ username }: { username: string }) {
       </div>
       <FormDialogHeader>
         <FormDialogTitle>{t('session.expired-title')}</FormDialogTitle>
-        <FormDialogDescription>{t('session.expired-description')}</FormDialogDescription>
+        <DialogDescription>{t('session.expired-description')}</DialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
@@ -115,7 +115,14 @@ function SignInAgainForm({ username }: { username: string }) {
             {(field) => (
               <field.PasswordField
                 autoComplete="current-password"
-                description={t('session.signed-in-as', { username })}
+                description={
+                  <Trans
+                    components={{ user: <span className="font-medium text-foreground" /> }}
+                    i18nKey="session.signed-in-as"
+                    t={t}
+                    values={{ username }}
+                  />
+                }
                 hideLabel={t('login.hide-password')}
                 label={t('login.password')}
                 placeholder={t('login.password-placeholder')}
@@ -132,7 +139,7 @@ function SignInAgainForm({ username }: { username: string }) {
             offlineSignOut.confirm(() => whenLeaveAllowed(() => signOut.mutate()), cannotConnect)
           }
           type="button"
-          variant="outline"
+          variant="destructive"
         >
           {t('session.sign-out')}
         </Button>

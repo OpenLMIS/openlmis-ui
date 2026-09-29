@@ -96,7 +96,7 @@ function ProfileDialogs({ userId }: { userId: string }) {
 function ProfilePending() {
   const { t } = useTranslation();
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceIcon>
@@ -130,7 +130,7 @@ function ProfileError({ error, reset }: ErrorComponentProps) {
   if (isForbidden(error)) return <NoAccessPage />;
 
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <WorkspaceContent>
         <DataTableError
           description={t('profile.error-description')}
