@@ -4,24 +4,14 @@ import { createContext, type ReactNode, use, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineFailure } from '@/components/offline-notice';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Block } from '@/components/skeleton-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
 export function useFormatNumber() {
   const { i18n } = useTranslation();
   return useMemo(() => new Intl.NumberFormat(i18n.language).format, [i18n.language]);
-}
-
-/** A placeholder whose size belongs to the layout around it, set by `className`. */
-export function Block({ className, shape }: { className: string; shape?: 'circle' }) {
-  return (
-    <span className={cn('block', className)}>
-      <Skeleton fill shape={shape} />
-    </span>
-  );
 }
 
 /** Bumped by Refresh, so every card that failed mounts again and retries. */

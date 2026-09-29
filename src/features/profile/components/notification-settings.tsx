@@ -8,8 +8,8 @@ import { DataTableCard, DataTableEmpty, DataTableError } from '@/components/data
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
+import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -349,10 +349,43 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
   );
 }
 
-function NotificationSettingsSkeleton() {
+const SKELETON_ROWS = ['a', 'b', 'c', 'd'];
+
+/** The table while the settings load: its real columns, with placeholder rows of controls. */
+export function NotificationSettingsSkeleton() {
+  const { t } = useTranslation();
   return (
-    <div aria-busy className="h-56 w-full">
-      <Skeleton fill />
+    <div aria-busy>
+      <DataTableCard>
+        <Table density="comfortable">
+          <TableHeader surface="muted">
+            <TableRow>
+              <TableHead>{t('profile.notifications.notification')}</TableHead>
+              <TableHead>{t('profile.notifications.channel')}</TableHead>
+              <TableHead>{t('profile.notifications.use-digest')}</TableHead>
+              <TableHead>{t('profile.notifications.schedule')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {SKELETON_ROWS.map((row) => (
+              <TableRow key={row}>
+                <TableCell>
+                  <Block className="h-5 w-48 py-0.5" />
+                </TableCell>
+                <TableCell>
+                  <Block className="h-8 w-28" />
+                </TableCell>
+                <TableCell>
+                  <Block className="h-5 w-8" shape="circle" />
+                </TableCell>
+                <TableCell>
+                  <Block className="h-8 w-32" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </DataTableCard>
     </div>
   );
 }

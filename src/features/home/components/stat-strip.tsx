@@ -5,8 +5,8 @@ import {
 } from '@tanstack/react-query';
 import { Children, type ReactNode } from 'react';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Block } from '@/components/skeleton-block';
 import {
-  Block,
   useDashboardRevision,
   useFormatNumber,
   WidgetError,

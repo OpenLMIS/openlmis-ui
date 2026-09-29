@@ -166,4 +166,24 @@ describe('NotificationSettings', () => {
     expect(await screen.findByText('profile.notifications.empty-title')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'profile.notifications.save' })).toBeNull();
   });
+
+  it('holds the table under its real columns while the settings load', async () => {
+    vi.mocked(fetchSubscriptions).mockReturnValue(new Promise(() => {}));
+    const root = createRootRoute({
+      component: () => <NotificationSettings hasContactDetails userId="u1" />,
+    });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider
+          router={createRouter({ routeTree: root, history: createMemoryHistory() })}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole('columnheader', { name: 'profile.notifications.schedule' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
 });

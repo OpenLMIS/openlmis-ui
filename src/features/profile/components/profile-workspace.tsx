@@ -3,6 +3,7 @@ import { KeyRoundIcon, UserRoundIcon } from 'lucide-react';
 import { createContext, type ReactNode, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -27,7 +28,8 @@ const PROFILE_TABS = [
 const FooterSlot = createContext<HTMLElement | null>(null);
 
 type ProfileWorkspaceProps = {
-  username: string;
+  /** Left out while the profile loads, which holds the places of the name and Change Password. */
+  username?: string;
   /** The open tab's page. */
   children: ReactNode;
 };
@@ -48,24 +50,34 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
               <UserRoundIcon />
             </WorkspaceIcon>
             <WorkspaceTitle>{t('profile.title')}</WorkspaceTitle>
-            <WorkspaceDescription>{t('profile.description', { username })}</WorkspaceDescription>
+            <WorkspaceDescription>
+              {username === undefined ? (
+                <Block className="h-5 w-48 py-0.5" />
+              ) : (
+                t('profile.description', { username })
+              )}
+            </WorkspaceDescription>
           </WorkspaceHeading>
           <WorkspaceActions>
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  search={(previous) => ({ ...previous, dialog: 'password' as const })}
-                  state={markDialogOpened}
-                  to="."
-                />
-              }
-              size="lg"
-              variant="outline"
-            >
-              <KeyRoundIcon data-icon="inline-start" />
-              {t('profile.password.title')}
-            </Button>
+            {username === undefined ? (
+              <Block className="h-9 w-40" />
+            ) : (
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    search={(previous) => ({ ...previous, dialog: 'password' as const })}
+                    state={markDialogOpened}
+                    to="."
+                  />
+                }
+                size="lg"
+                variant="outline"
+              >
+                <KeyRoundIcon data-icon="inline-start" />
+                {t('profile.password.title')}
+              </Button>
+            )}
           </WorkspaceActions>
         </WorkspaceHeader>
         <WorkspaceContent>

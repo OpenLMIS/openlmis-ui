@@ -15,6 +15,7 @@ import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { NoAccessPage } from '@/components/no-access-page';
+import { Block } from '@/components/skeleton-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +26,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
   WorkspaceActions,
@@ -49,8 +49,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { updateUserRoles } from '@/features/users/api/api';
 import { userDetailsOptions } from '@/features/users/api/queries';
-import { RoleAssignmentsTableSkeleton } from '@/features/users/components/role-assignments-table';
-import { RoleTabs } from '@/features/users/components/role-tabs';
+import { RoleTabs, RoleTabsSkeleton } from '@/features/users/components/role-tabs';
 import { countChanges, ROLE_TABS, type RoleRow } from '@/features/users/lib/role-assignments';
 import {
   CLOSED_ROLE_DIALOGS,
@@ -295,6 +294,8 @@ function RolesEditor({ details }: { details: UserDetails }) {
 /** While the user loads: the page's frame with placeholders where their name and roles go. */
 function RolesPagePending() {
   const { t } = useTranslation();
+  const search = Route.useSearch();
+  const tab = ROLE_TABS.find((item) => item.id === search.tab) ?? ROLE_TABS[0];
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -303,17 +304,16 @@ function RolesPagePending() {
             <ShieldIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>{t('users.roles')}</WorkspaceTitle>
-          {/* Holds the line the user's description takes, so the header does not grow. */}
-          <WorkspaceDescription>{'\u00a0'}</WorkspaceDescription>
+          <WorkspaceDescription>
+            <Block className="h-5 w-56 py-0.5" />
+          </WorkspaceDescription>
         </WorkspaceHeading>
+        <WorkspaceActions>
+          <Block className="h-9 w-36" />
+        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <div aria-busy className="flex flex-col gap-4">
-          <div className="h-8 w-80 max-w-full">
-            <Skeleton fill />
-          </div>
-          <RoleAssignmentsTableSkeleton compact={false} search={{}} tab={ROLE_TABS[0]} />
-        </div>
+        <RoleTabsSkeleton compact={false} editable search={search} tab={tab} />
       </WorkspaceContent>
     </Workspace>
   );

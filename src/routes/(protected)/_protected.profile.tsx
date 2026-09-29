@@ -3,32 +3,27 @@ import {
   createFileRoute,
   type ErrorComponentProps,
   Outlet,
+  useLocation,
   useNavigate,
   useRouter,
 } from '@tanstack/react-router';
-import { UserRoundIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { DataTableError } from '@/components/data-table/data-table';
 import { NoAccessPage } from '@/components/no-access-page';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Workspace,
-  WorkspaceContent,
-  WorkspaceDescription,
-  WorkspaceHeader,
-  WorkspaceHeading,
-  WorkspaceIcon,
-  WorkspaceTitle,
-} from '@/components/workspace';
+import { Workspace, WorkspaceContent } from '@/components/workspace';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { isForbidden } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
+import { BasicInformationSkeleton } from '@/features/profile/components/basic-information';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
+import { NotificationSettingsSkeleton } from '@/features/profile/components/notification-settings';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import { facilityOptions } from '@/features/reference-data/api/queries';
+import { RoleTabsSkeleton } from '@/features/users/components/role-tabs';
+import { ROLE_TABS } from '@/features/users/lib/role-assignments';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const profileSearchSchema = z.object({
@@ -92,35 +87,22 @@ function ProfileDialogs({ userId }: { userId: string }) {
   );
 }
 
-/** While the profile loads: the page's frame, with placeholders for the tabs and the first card. */
+/** While the profile loads: the page with its real tabs, and the open tab's own placeholders. */
 function ProfilePending() {
-  const { t } = useTranslation();
+  const { pathname, search } = useLocation();
+  const path = pathname.replace(/\/$/, '');
+  const roleTab = ROLE_TABS.find((item) => item.id === search.tab) ?? ROLE_TABS[0];
+
   return (
-    <Workspace width="narrow">
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <UserRoundIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>{t('profile.title')}</WorkspaceTitle>
-          {/* Holds the line the description takes, so the header does not grow. */}
-          <WorkspaceDescription>{'\u00a0'}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div aria-busy className="flex flex-col gap-4">
-          <div className="h-8 w-96 max-w-full">
-            <Skeleton fill />
-          </div>
-          <div className="h-32 w-full">
-            <Skeleton fill />
-          </div>
-          <div className="h-80 w-full">
-            <Skeleton fill />
-          </div>
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+    <ProfileWorkspace>
+      {path === '/profile/roles' ? (
+        <RoleTabsSkeleton compact={false} search={{}} tab={roleTab} />
+      ) : path === '/profile/notifications' ? (
+        <NotificationSettingsSkeleton />
+      ) : (
+        <BasicInformationSkeleton />
+      )}
+    </ProfileWorkspace>
   );
 }
 
