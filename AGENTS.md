@@ -254,7 +254,7 @@ Two ways out when a page needs a different treatment:
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-   `DialogDescription size`, `Field spacing`, `FieldDescription size`,
+   `DialogDescription size`, `Field spacing`, `FieldLabel weight`, `FieldDescription size`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
@@ -476,15 +476,15 @@ a switch in a bordered card, not a checkbox; picking several of a list is a
 `SelectField`. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
-`inline` in a table cell, where the column header names it and the label is for screen
-readers only. Validate with a zod schema on `onDynamic` with
+`inline` in a table cell, where the column header names it and the label and description
+are for screen readers only, so name each one after its row too. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
 the first submit and then follow each correction.
 
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-`DialogDescription size`, `Field spacing`, `FieldDescription size`,
+`DialogDescription size`, `Field spacing`, `FieldLabel weight`, `FieldDescription size`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel` and `SelectTrigger width`.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.

@@ -411,7 +411,7 @@
   "session.sign-in": "Iniciar Sessão",
   "session.sign-in-failed": "Não foi possível iniciar sessão. Tente novamente ou contacte o seu administrador.",
   "session.sign-out": "Terminar Sessão",
-  "session.signed-in-as": "Sessão iniciada como {username}",
+  "session.signed-in-as": "Sessão iniciada como <user>{username}</user>",
   "session.signing-in": "A iniciar sessão...",
   "session.wrong-password": "A palavra-passe está incorreta. Tente novamente.",
   "sidebar.change-language": "Mudar Idioma",

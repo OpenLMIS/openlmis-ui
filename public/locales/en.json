@@ -411,7 +411,7 @@
   "session.sign-in": "Sign In",
   "session.sign-in-failed": "Could not sign in. Try again, or contact your administrator.",
   "session.sign-out": "Sign Out",
-  "session.signed-in-as": "Signed in as {username}",
+  "session.signed-in-as": "Signed in as <user>{username}</user>",
   "session.signing-in": "Signing In...",
   "session.wrong-password": "The password is incorrect. Try again.",
   "sidebar.change-language": "Change Language",

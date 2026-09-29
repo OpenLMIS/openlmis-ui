@@ -46,22 +46,11 @@ export function SettingsRowFrame({
   );
 }
 
-/** A row's label text, lighter than the value beside it; red when its field is invalid. */
-export function SettingsLabel({ children }: { children: ReactNode }) {
-  return (
-    <span className="font-normal text-foreground text-sm group-data-[invalid=true]/field:text-destructive">
-      {children}
-    </span>
-  );
-}
-
 /** A row that only shows its value, such as one only an administrator can change. */
 export function SettingsItem({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
-    <SettingsRowFrame label={<SettingsLabel>{label}</SettingsLabel>}>
-      <span className="min-w-0 truncate text-end font-medium text-foreground text-sm">
-        {children}
-      </span>
+    <SettingsRowFrame label={<span className="text-sm">{label}</span>}>
+      <span className="min-w-0 wrap-break-word text-end font-medium text-sm">{children}</span>
     </SettingsRowFrame>
   );
 }

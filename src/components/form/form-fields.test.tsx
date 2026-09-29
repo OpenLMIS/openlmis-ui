@@ -269,3 +269,41 @@ describe('form fields', () => {
     );
   });
 });
+
+function LayoutForm() {
+  const form = useAppForm({ defaultValues: { email: '', digest: false, notify: true } });
+  return (
+    <form>
+      <form.AppField name="email">
+        {(field) => <field.TextField badge={<span>Verified</span>} label="Email" layout="row" />}
+      </form.AppField>
+      <form.AppField name="digest">
+        {(field) => <field.SwitchField label="Use Digest" layout="inline" />}
+      </form.AppField>
+      <form.AppField name="notify">
+        {(field) => (
+          <field.SwitchField description="Get every notification" label="Notify" layout="row" />
+        )}
+      </form.AppField>
+    </form>
+  );
+}
+
+describe('field layouts', () => {
+  it('reads a row badge out with its field', () => {
+    render(<LayoutForm />);
+
+    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveAccessibleDescription('Verified');
+  });
+
+  it('names an inline switch by its hidden label and describes it only by what is shown', () => {
+    render(<LayoutForm />);
+
+    expect(screen.getByRole('switch', { name: 'Use Digest' })).not.toHaveAttribute(
+      'aria-describedby',
+    );
+    expect(screen.getByRole('switch', { name: 'Notify' })).toHaveAccessibleDescription(
+      'Get every notification',
+    );
+  });
+});

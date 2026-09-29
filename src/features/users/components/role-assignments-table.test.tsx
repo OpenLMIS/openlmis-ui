@@ -5,7 +5,10 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { rolesOptions } from '@/features/reference-data/api/queries';
-import { RoleAssignmentsTable } from '@/features/users/components/role-assignments-table';
+import {
+  RoleAssignmentsTable,
+  RoleAssignmentsTableSkeleton,
+} from '@/features/users/components/role-assignments-table';
 import { ROLE_TABS, type RoleRow, type RoleTab } from '@/features/users/lib/role-assignments';
 
 const [supervision, , reports] = ROLE_TABS;
@@ -90,6 +93,14 @@ describe('RoleAssignmentsTable', () => {
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'users.roles.column.role',
     ]);
+  });
+
+  it('keeps the actions column while loading when roles can be removed, so nothing shifts', () => {
+    render(
+      <RoleAssignmentsTableSkeleton compact={false} onRemove={vi.fn()} search={{}} tab={reports} />,
+    );
+
+    expect(screen.getAllByRole('columnheader')).toHaveLength(2);
   });
 
   it('offers Remove when the roles can be edited', async () => {

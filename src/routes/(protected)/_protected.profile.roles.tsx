@@ -20,8 +20,6 @@ const profileRolesSearchSchema = rolesSearchSchema.omit({ dialog: true });
 
 type ProfileRolesSearch = z.infer<typeof profileRolesSearchSchema>;
 
-const NO_DIALOGS = {} satisfies Partial<ProfileRolesSearch>;
-
 export const Route = createFileRoute('/(protected)/_protected/profile/roles')({
   validateSearch: profileRolesSearchSchema,
   staticData: { crumbKey: 'profile.title' },
@@ -50,7 +48,7 @@ function RoleAssignmentsTab({ userId }: { userId: string }) {
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
 
-  const { updateSearch } = useSearchNavigation<ProfileRolesSearch>(NO_DIALOGS);
+  const { updateSearch } = useSearchNavigation<ProfileRolesSearch>({});
 
   return (
     <div ref={measureContent}>

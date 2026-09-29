@@ -99,7 +99,12 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
                   />
                 )}
                 pendingFallback={
-                  <RoleAssignmentsTableSkeleton compact={compact} search={search} tab={item} />
+                  <RoleAssignmentsTableSkeleton
+                    compact={compact}
+                    onRemove={props.onRemove}
+                    search={search}
+                    tab={item}
+                  />
                 }
                 resetKey={item.id}
               >

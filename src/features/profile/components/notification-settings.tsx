@@ -1,21 +1,14 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellOffIcon, Loader2Icon, MailXIcon } from 'lucide-react';
-import { type ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableError } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableEmpty, DataTableError } from '@/components/data-table/data-table';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -71,17 +64,13 @@ export function NotificationSettings({ userId, hasContactDetails }: Notification
 
   const failed = configurations.isError || subscriptions.isError;
   return !hasContactDetails ? (
-    <Bordered>
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <MailXIcon />
-          </EmptyMedia>
-          <EmptyTitle>{t('profile.notifications.no-contact-title')}</EmptyTitle>
-          <EmptyDescription>{t('profile.notifications.no-contact')}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </Bordered>
+    <DataTableCard>
+      <DataTableEmpty
+        description={t('profile.notifications.no-contact')}
+        icon={<MailXIcon />}
+        title={t('profile.notifications.no-contact-title')}
+      />
+    </DataTableCard>
   ) : failed ? (
     <DataTableError
       description={t('profile.notifications.error-description')}
@@ -135,6 +124,14 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: digestFormSchema },
     onSubmit: ({ value }) => save.mutateAsync(value.rows).catch(() => undefined),
+    // A refused cell may be scrolled out of the table, so the first one takes focus.
+    onSubmitInvalid: () =>
+      requestAnimationFrame(() =>
+        document
+          .getElementById(FORM_ID)
+          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+          ?.focus(),
+      ),
   });
   const rows = useStore(form.store, (state) => state.values.rows);
   const changes = countDigestChanges(savedRows, rows);
@@ -179,17 +176,13 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
         </ProfileFooter>
       )}
       {rows.length === 0 ? (
-        <Bordered>
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <BellOffIcon />
-              </EmptyMedia>
-              <EmptyTitle>{t('profile.notifications.empty-title')}</EmptyTitle>
-              <EmptyDescription>{t('profile.notifications.empty')}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </Bordered>
+        <DataTableCard>
+          <DataTableEmpty
+            description={t('profile.notifications.empty')}
+            icon={<BellOffIcon />}
+            title={t('profile.notifications.empty-title')}
+          />
+        </DataTableCard>
       ) : (
         <form
           className="flex flex-col gap-4"
@@ -206,7 +199,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
               title={t('profile.notifications.save-error-title')}
             />
           )}
-          <Bordered>
+          <DataTableCard>
             <Table density="comfortable">
               <TableHeader surface="muted">
                 <TableRow>
@@ -217,124 +210,134 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row, index) => (
-                  <TableRow key={row.configurationId}>
-                    <TableCell>
-                      <span className="whitespace-normal font-medium">{tagLabel(row.tag)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="w-28">
-                        <form.AppField name={`rows[${index}].channel`}>
+                {rows.map((row, index) => {
+                  // Every row has the same controls, so each is named after its notification too.
+                  const named = (control: string) => `${tagLabel(row.tag)} ${control}`;
+                  return (
+                    <TableRow key={row.configurationId}>
+                      <TableCell>
+                        <span className="whitespace-normal font-medium">{tagLabel(row.tag)}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="min-w-28">
+                          <form.AppField name={`rows[${index}].channel`}>
+                            {(field) => (
+                              <field.SelectField
+                                items={channels(row.useDigest)}
+                                label={named(t('profile.notifications.channel'))}
+                                layout="inline"
+                              />
+                            )}
+                          </form.AppField>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <form.AppField
+                          listeners={{
+                            onChange: ({ value }) => {
+                              if (value && form.getFieldValue(`rows[${index}].channel`) !== 'EMAIL')
+                                form.setFieldValue(`rows[${index}].channel`, 'EMAIL');
+                            },
+                          }}
+                          name={`rows[${index}].useDigest`}
+                        >
                           {(field) => (
-                            <field.SelectField
-                              items={channels(row.useDigest)}
-                              label={t('profile.notifications.channel')}
+                            <field.SwitchField
+                              label={named(t('profile.notifications.use-digest'))}
                               layout="inline"
                             />
                           )}
                         </form.AppField>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <form.AppField
-                        listeners={{
-                          onChange: ({ value }) => {
-                            if (value && form.getFieldValue(`rows[${index}].channel`) !== 'EMAIL')
-                              form.setFieldValue(`rows[${index}].channel`, 'EMAIL');
-                          },
-                        }}
-                        name={`rows[${index}].useDigest`}
-                      >
-                        {(field) => (
-                          <field.SwitchField
-                            label={t('profile.notifications.use-digest')}
-                            layout="inline"
-                          />
-                        )}
-                      </form.AppField>
-                    </TableCell>
-                    <TableCell>
-                      {row.useDigest ? (
-                        <div className="flex items-start gap-2">
-                          <div className="w-28">
-                            <form.AppField
-                              listeners={{
-                                onChange: ({ value }: { value: Frequency }) => {
-                                  // A custom schedule starts from the simple one it replaces.
-                                  if (value === 'custom' && row.schedule.frequency !== 'custom')
-                                    form.setFieldValue(
-                                      `rows[${index}].schedule.cron`,
-                                      toCron(row.schedule),
-                                    );
-                                },
-                              }}
-                              name={`rows[${index}].schedule.frequency`}
-                            >
-                              {(field) => (
-                                <field.SelectField
-                                  items={frequencies}
-                                  label={t('profile.notifications.frequency')}
-                                  layout="inline"
-                                />
-                              )}
-                            </form.AppField>
-                          </div>
-                          {row.schedule.frequency === 'weekly' && (
-                            <div className="w-36">
-                              <form.AppField name={`rows[${index}].schedule.weekday`}>
+                      </TableCell>
+                      <TableCell>
+                        {row.useDigest ? (
+                          <div className="flex items-start gap-2 whitespace-normal">
+                            <div className="min-w-28">
+                              <form.AppField
+                                listeners={{
+                                  onChange: ({ value }: { value: Frequency }) => {
+                                    // A custom schedule starts from the simple one it replaces.
+                                    if (value === 'custom' && row.schedule.frequency !== 'custom')
+                                      form.setFieldValue(
+                                        `rows[${index}].schedule.cron`,
+                                        toCron(row.schedule),
+                                      );
+                                  },
+                                }}
+                                name={`rows[${index}].schedule.frequency`}
+                              >
                                 {(field) => (
                                   <field.SelectField
-                                    items={weekdays}
-                                    label={t('profile.notifications.weekday')}
+                                    items={frequencies}
+                                    label={named(t('profile.notifications.frequency'))}
                                     layout="inline"
                                   />
                                 )}
                               </form.AppField>
                             </div>
-                          )}
-                          {row.schedule.frequency === 'custom' ? (
-                            <div className="w-44">
-                              <form.AppField name={`rows[${index}].schedule.cron`}>
-                                {(field) => (
-                                  <field.TextField
-                                    autoComplete="off"
-                                    dir="ltr"
-                                    label={t('profile.notifications.cron')}
-                                    layout="inline"
-                                    required
-                                  />
-                                )}
-                              </form.AppField>
-                            </div>
-                          ) : (
-                            <div className="w-32">
-                              <form.AppField name={`rows[${index}].schedule.time`}>
-                                {(field) => (
-                                  <field.TextField
-                                    dir="ltr"
-                                    label={t('profile.notifications.time')}
-                                    layout="inline"
-                                    required
-                                    type="time"
-                                  />
-                                )}
-                              </form.AppField>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            {row.schedule.frequency === 'weekly' && (
+                              <div className="min-w-36">
+                                <form.AppField name={`rows[${index}].schedule.weekday`}>
+                                  {(field) => (
+                                    <field.SelectField
+                                      items={weekdays}
+                                      label={named(t('profile.notifications.weekday'))}
+                                      layout="inline"
+                                    />
+                                  )}
+                                </form.AppField>
+                              </div>
+                            )}
+                            {row.schedule.frequency === 'custom' ? (
+                              <div className="w-44">
+                                <form.AppField name={`rows[${index}].schedule.cron`}>
+                                  {(field) => (
+                                    <field.TextField
+                                      autoComplete="off"
+                                      description={t('profile.notifications.cron-description', {
+                                        example: CRON_EXAMPLE,
+                                      })}
+                                      dir="ltr"
+                                      label={named(t('profile.notifications.cron'))}
+                                      layout="inline"
+                                      required
+                                    />
+                                  )}
+                                </form.AppField>
+                              </div>
+                            ) : (
+                              <div className="w-32">
+                                <form.AppField name={`rows[${index}].schedule.time`}>
+                                  {(field) => (
+                                    <field.TextField
+                                      dir="ltr"
+                                      label={named(t('profile.notifications.time'))}
+                                      layout="inline"
+                                      required
+                                      type="time"
+                                    />
+                                  )}
+                                </form.AppField>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
-          </Bordered>
-          {rows.some((row) => row.useDigest && row.schedule.frequency === 'custom') && (
-            <p className="text-muted-foreground text-sm">
-              {t('profile.notifications.cron-description', { example: CRON_EXAMPLE })}
-            </p>
+          </DataTableCard>
+          {rows.some((row) => row.useDigest) && (
+            <div className="flex flex-col gap-1 text-muted-foreground text-sm">
+              <p>{t('profile.notifications.digest-email-only')}</p>
+              {rows.some((row) => row.useDigest && row.schedule.frequency === 'custom') && (
+                <p>{t('profile.notifications.cron-description', { example: CRON_EXAMPLE })}</p>
+              )}
+            </div>
           )}
         </form>
       )}
@@ -344,10 +347,6 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
       />
     </>
   );
-}
-
-function Bordered({ children }: { children: ReactNode }) {
-  return <div className="overflow-hidden rounded-xl border bg-card">{children}</div>;
 }
 
 function NotificationSettingsSkeleton() {

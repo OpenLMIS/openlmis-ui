@@ -121,7 +121,7 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
     <span className="flex min-w-0 flex-col gap-1">
       <span className="flex min-w-0 items-center gap-2">
         {row.role === undefined ? (
-          <Name value={row.role} />
+          <Name value={undefined} />
         ) : (
           <RoleRightsPopover name={row.role} roleId={row.assignment.roleId} />
         )}
@@ -301,7 +301,8 @@ export function RoleAssignmentsTableSkeleton({
   tab,
   compact,
   search,
-}: Pick<RoleAssignmentsTableProps, 'tab' | 'compact' | 'search'>) {
+  onRemove,
+}: Pick<RoleAssignmentsTableProps, 'tab' | 'compact' | 'search' | 'onRemove'>) {
   const { table } = useRoleTable({
     rows: [],
     tab,
@@ -309,6 +310,7 @@ export function RoleAssignmentsTableSkeleton({
     status: SKELETON_STATUS,
     search,
     onSearchChange: noop,
+    onRemove,
   });
   return <DataTableSkeleton rowCount={5} table={table} />;
 }

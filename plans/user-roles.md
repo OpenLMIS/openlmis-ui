@@ -87,7 +87,7 @@ the field is always sent.
   (`_protected.administration.users_.$id.roles.tsx`, trailing `_` so it does not nest
   under the list). Route files are exempt from Biome's kebab-case rule, since `$id` and
   `users_` are router syntax. Search: `tab`, `q`, `page`, `size`, `sort`, `dir`, `dialog`
-  (`add`/`import`), `rights` (role id).
+  (`add`/`import`).
 - Loader blocks on `userDetailsOptions(userId)` (a missing user must show Not Found) and
   prefetches roles, programs, nodes and facilities without waiting.
 - The draft lives in page state, seeded from the saved assignments; tabs, dialogs and
@@ -103,7 +103,8 @@ the field is always sent.
   `use-role-draft.ts`, `use-role-lookups.ts` + tests.
 - `src/features/users/api/api.ts`: `updateUserRoles`, `fetchAllUsers`.
 - `src/features/users/components/`: `role-assignments-table.tsx`, `add-role-dialog.tsx`,
-  `import-roles-dialog.tsx`, `role-rights-dialog.tsx`, `discard-changes-dialog.tsx`, and
+  `import-roles-dialog.tsx` (the rights popover and the discard dialog live in
+  `src/components/`), and
   `role-dialogs.tsx`, which loads the dialogs as one chunk.
 - `src/routes/(protected)/_protected.administration.users_.$id.roles.tsx`.
 - `users-table.tsx`: the Roles action as a link that carries the list's search, so leaving
@@ -188,6 +189,6 @@ server's message.
 3. `updateUserRoles` and `fetchAllUsers`, with tests.
 4. Tabs, alert dialog, breadcrumbs for nested pages.
 5. Route, draft, tabs and table.
-6. Add Role, Import Roles, View Rights and Discard dialogs.
+6. Add Role, Import Roles and Discard dialogs, and the rights popover.
 7. Wire the Users row action; translations in all locales.
 8. Browser walk, gates, PR, `review-pr`.

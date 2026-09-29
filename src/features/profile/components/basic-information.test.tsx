@@ -105,7 +105,7 @@ describe('BasicInformation', () => {
     expect(firstName).toHaveValue('Augusta');
   });
 
-  it('shows the saved email as verified beside its label, and a hint instead once it is changed', async () => {
+  it('shows the saved email as verified beside its label, read with the field, and a hint once it is changed', async () => {
     const queryClient = new QueryClient();
     const verified: Profile = {
       ...profile,
@@ -135,7 +135,7 @@ describe('BasicInformation', () => {
 
     const email = await screen.findByRole('textbox', { name: 'users.email' });
     expect(screen.getByText('users.form.email-verified')).toBeInTheDocument();
-    expect(email).not.toHaveAccessibleDescription();
+    expect(email).toHaveAccessibleDescription('users.form.email-verified');
 
     await userEvent.type(email, 'x');
 

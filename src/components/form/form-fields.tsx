@@ -2,7 +2,7 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
-import { SettingsLabel, SettingsRowFrame } from '@/components/form/settings-list';
+import { SettingsRowFrame } from '@/components/form/settings-list';
 import {
   Combobox,
   ComboboxChip,
@@ -45,7 +45,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 /** `row` for a `SettingsList` row; `inline` keeps the label for screen readers only, e.g. in a table. */
-export type FieldLayout = 'stacked' | 'row' | 'inline';
+type FieldLayout = 'stacked' | 'row' | 'inline';
 
 type FieldProps = {
   label: ReactNode;
@@ -64,7 +64,7 @@ type FieldFrameProps = FieldProps & {
 };
 
 /** The field's errors as display text, whether there are any, and what the control is described by. */
-function useFieldErrors(description?: ReactNode, extraDescribedBy?: string) {
+function useFieldErrors(description?: ReactNode, extraDescribedBy?: string, badge?: ReactNode) {
   const field = useFieldContext<unknown>();
   const formatError = useFormatError();
   const errors = field.state.meta.errors.map((error: unknown) => ({
@@ -78,12 +78,18 @@ function useFieldErrors(description?: ReactNode, extraDescribedBy?: string) {
   const isInvalid = errors.length > 0;
   const descriptionId = `${field.name}-description`;
   const errorId = `${field.name}-error`;
+  const badgeId = `${field.name}-badge`;
   // Read out with the control, so a screen reader hears the hint and, after a submit, the error.
   const describedBy =
-    [description ? descriptionId : '', extraDescribedBy ?? '', isInvalid ? errorId : '']
+    [
+      badge ? badgeId : '',
+      description ? descriptionId : '',
+      extraDescribedBy ?? '',
+      isInvalid ? errorId : '',
+    ]
       .filter(Boolean)
       .join(' ') || undefined;
-  return { errors, isInvalid, descriptionId, errorId, describedBy };
+  return { errors, isInvalid, descriptionId, errorId, badgeId, describedBy };
 }
 
 /** A label's text with the required mark, for any label, including a skeleton's. */
@@ -100,6 +106,15 @@ export function FieldLabelText({ label, required }: Pick<FieldProps, 'label' | '
   );
 }
 
+/** For screen readers only; not a direct `Field` child, whose `sr-only` rule would size it to its text. */
+function HiddenFromView({ children }: { children: ReactNode }) {
+  return (
+    <div className="contents">
+      <div className="sr-only">{children}</div>
+    </div>
+  );
+}
+
 /** Label, control, description and error, laid out as the field's `layout` asks. */
 function FieldFrame({
   layout = 'stacked',
@@ -108,26 +123,29 @@ function FieldFrame({
   description,
   required,
   disabled,
-  state: { errors, isInvalid, descriptionId, errorId },
+  state: { errors, isInvalid, descriptionId, errorId, badgeId },
   children,
 }: FieldFrameProps) {
   const field = useFieldContext<unknown>();
   const labelText = <FieldLabelText label={label} required={required} />;
+  const descriptionNode = description && (
+    <FieldDescription id={descriptionId}>{description}</FieldDescription>
+  );
   const details = (
     <>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {layout === 'inline' ? <HiddenFromView>{descriptionNode}</HiddenFromView> : descriptionNode}
       {isInvalid && <FieldError errors={errors} id={errorId} />}
     </>
   );
 
-  return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      {layout === 'row' ? (
+  if (layout === 'row') {
+    return (
+      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
         <SettingsRowFrame
-          badge={badge}
+          badge={badge && <span id={badgeId}>{badge}</span>}
           label={
-            <FieldLabel htmlFor={field.name}>
-              <SettingsLabel>{labelText}</SettingsLabel>
+            <FieldLabel htmlFor={field.name} weight="normal">
+              {labelText}
             </FieldLabel>
           }
           value="control"
@@ -135,19 +153,20 @@ function FieldFrame({
           {children}
           {details}
         </SettingsRowFrame>
+      </Field>
+    );
+  }
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      {layout === 'inline' ? (
+        <HiddenFromView>
+          <label htmlFor={field.name}>{labelText}</label>
+        </HiddenFromView>
       ) : (
-        <>
-          {layout === 'inline' ? (
-            <label className="sr-only" htmlFor={field.name}>
-              {labelText}
-            </label>
-          ) : (
-            <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>
-          )}
-          {children}
-          {details}
-        </>
+        <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>
       )}
+      {children}
+      {details}
     </Field>
   );
 }
@@ -174,7 +193,7 @@ export function TextField({
   dir,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
-  const state = useFieldErrors(description);
+  const state = useFieldErrors(description, undefined, badge);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
@@ -355,7 +374,7 @@ export function SwitchField({
   const descriptionId = `${field.name}-description`;
   const control = (
     <Switch
-      aria-describedby={layout === 'row' || layout === 'inline' ? descriptionId : undefined}
+      aria-describedby={layout === 'row' && description ? descriptionId : undefined}
       checked={field.state.value}
       disabled={disabled}
       id={field.name}
@@ -377,8 +396,8 @@ export function SwitchField({
             )
           }
           label={
-            <FieldLabel htmlFor={field.name}>
-              <SettingsLabel>{label}</SettingsLabel>
+            <FieldLabel htmlFor={field.name} weight="normal">
+              {label}
             </FieldLabel>
           }
         >
@@ -390,15 +409,10 @@ export function SwitchField({
   if (layout === 'inline') {
     return (
       <Field data-disabled={disabled} orientation="horizontal">
-        <label className="sr-only" htmlFor={field.name}>
-          {label}
-        </label>
+        <HiddenFromView>
+          <label htmlFor={field.name}>{label}</label>
+        </HiddenFromView>
         {control}
-        {description && (
-          <FieldDescription id={descriptionId} size="sm">
-            {description}
-          </FieldDescription>
-        )}
       </Field>
     );
   }

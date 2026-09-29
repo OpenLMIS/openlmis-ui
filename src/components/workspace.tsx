@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { AppBreadcrumbs } from '@/components/app-breadcrumbs';
 import { cn } from '@/lib/utils';
 
-// Page layout for everything inside the app shell. Parts take only `children` and
-// no `className`, which is what keeps padding and heading scale equal across pages.
+// Page layout inside the app shell; no part takes a `className`, so every page lines up.
 
 type WorkspaceProps = {
   children: ReactNode;

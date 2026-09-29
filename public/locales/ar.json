@@ -411,7 +411,7 @@
   "session.sign-in": "تسجيل الدخول",
   "session.sign-in-failed": "تعذر تسجيل الدخول. حاول مرة أخرى، أو اتصل بالمسؤول.",
   "session.sign-out": "تسجيل الخروج",
-  "session.signed-in-as": "مسجّل الدخول باسم {username}",
+  "session.signed-in-as": "مسجّل الدخول باسم <user>{username}</user>",
   "session.signing-in": "جاري تسجيل الدخول...",
   "session.wrong-password": "كلمة المرور غير صحيحة. حاول مرة أخرى.",
   "sidebar.change-language": "تغيير اللغة",
