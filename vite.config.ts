@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
 // Splits vendor packages into separate cached chunks so browsers don't re-download them when only app code changes.
@@ -18,20 +19,24 @@ export default defineConfig(({ mode }) => {
   const prefix = (env.VITE_BASE_PATH ?? '').replace(/^\/+|\/+$/g, '');
   const base = prefix ? `/${prefix}/` : '/';
 
+  // Forwards `/api` calls to the OpenLMIS instance so the app can talk to it without CORS
+  // and without leaking the host into the bundle.
+  const proxy = {
+    '/api': {
+      target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+      changeOrigin: true,
+      secure: false,
+    },
+  };
+
   return {
     base,
-    // Dev server proxy - forwards `/api` calls to the OpenLMIS instance so the app
-    // can talk to it without CORS and without leaking the host into the bundle.
     server: {
       port: env.VITE_FE_PORT ? Number(env.VITE_FE_PORT) : undefined,
-      proxy: {
-        '/api': {
-          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
-          changeOrigin: true,
-          secure: false,
-        },
-      },
+      proxy,
     },
+    // `pnpm preview` serves the production build, service worker included, against the same API.
+    preview: { proxy },
     // Resolves @/* path aliases defined in tsconfig.json (e.g. @/components/Button)
     resolve: {
       tsconfigPaths: true,
@@ -43,6 +48,31 @@ export default defineConfig(({ mode }) => {
       }),
       react(),
       tailwindcss(),
+      VitePWA({
+        // A new version waits for the user, who is asked before any reload.
+        registerType: 'prompt',
+        injectRegister: false,
+        manifest: false,
+        workbox: {
+          // Locales stay out of the precache, so a deployment can still correct a string.
+          globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+          cleanupOutdatedCaches: true,
+          navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              urlPattern: ({ url }) => url.pathname.endsWith('/config.json'),
+              handler: 'NetworkFirst',
+              options: { cacheName: 'openlmis-ui-config', networkTimeoutSeconds: 3 },
+            },
+            {
+              urlPattern: ({ url }) => /\/locales\/[^/]+\.json$/.test(url.pathname),
+              handler: 'NetworkFirst',
+              options: { cacheName: 'openlmis-ui-locales', networkTimeoutSeconds: 3 },
+            },
+          ],
+        },
+      }),
     ],
     test: {
       environment: 'happy-dom',

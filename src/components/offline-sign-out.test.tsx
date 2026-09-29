@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -21,9 +22,9 @@ function SignOutButton({
   );
 }
 
-const goOffline = () => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+const goOffline = () => onlineManager.setOnline(false);
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => onlineManager.setOnline(true));
 
 describe('useOfflineSignOut', () => {
   it('signs out at once while online', async () => {

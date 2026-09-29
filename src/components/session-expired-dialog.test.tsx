@@ -200,7 +200,6 @@ describe('SessionExpiredDialog', () => {
 
   it('tries to sign in and out even while offline, rather than waiting for the network', async () => {
     onlineManager.setOnline(false);
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
     vi.mocked(authApi.logout).mockResolvedValue();
     useLoginData.getState().expireSession();

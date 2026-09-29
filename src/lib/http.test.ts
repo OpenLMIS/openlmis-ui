@@ -1,7 +1,8 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/integrations/axios';
-import { getIfExists, isNotFound, isRefused } from '@/lib/http';
+import { getIfExists, isNotFound, isOfflineError, isRefused } from '@/lib/http';
+import { networkError } from '@/tests/http-error';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 
@@ -31,6 +32,19 @@ describe('isRefused', () => {
     expect(isRefused(failed(403))).toBe(true);
     expect(isRefused(failed(401))).toBe(false);
     expect(isRefused(new Error('offline'))).toBe(false);
+  });
+});
+
+describe('isOfflineError', () => {
+  it('is true for a request that never got an answer', () => {
+    expect(isOfflineError(networkError())).toBe(true);
+  });
+
+  it('is false for an answer from the server, a timeout or anything else', () => {
+    expect(isOfflineError(failed(500))).toBe(false);
+    expect(isOfflineError(failed(401))).toBe(false);
+    expect(isOfflineError(new AxiosError('timeout', AxiosError.ECONNABORTED))).toBe(false);
+    expect(isOfflineError(new Error('Network Error'))).toBe(false);
   });
 });
 

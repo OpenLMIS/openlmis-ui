@@ -15,7 +15,12 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
 
-    "types": ["vite/client", "@total-typescript/ts-reset", "vitest/globals"],
+    "types": [
+      "vite/client",
+      "vite-plugin-pwa/react",
+      "@total-typescript/ts-reset",
+      "vitest/globals"
+    ],
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { queryClient, shouldRetry } from '@/integrations/tanstack-query';
-import { httpError } from '@/tests/http-error';
+import { httpError, networkError } from '@/tests/http-error';
 
 const signIn = (referenceDataUserId: string) =>
   useLoginData
@@ -52,5 +53,30 @@ describe('shouldRetry', () => {
   it('never retries a refusal, since asking again gets the same answer', () => {
     expect(shouldRetry(0, httpError(401))).toBe(false);
     expect(shouldRetry(0, httpError(403))).toBe(false);
+  });
+});
+
+describe('offline', () => {
+  afterEach(() => onlineManager.setOnline(true));
+
+  it('fails a request made offline at once, rather than waiting for the network', async () => {
+    onlineManager.setOnline(false);
+
+    await expect(
+      queryClient.fetchQuery({
+        queryKey: ['offline'],
+        queryFn: () => Promise.reject(networkError()),
+      }),
+    ).rejects.toThrow('Network Error');
+  });
+
+  it('does not retry an offline failure while still offline', () => {
+    onlineManager.setOnline(false);
+
+    expect(shouldRetry(0, networkError())).toBe(false);
+  });
+
+  it('retries a network failure once when the browser thinks it is online', () => {
+    expect(shouldRetry(0, networkError())).toBe(true);
   });
 });
