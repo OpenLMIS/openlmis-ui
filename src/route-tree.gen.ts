@@ -22,6 +22,8 @@ import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(pr
 import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
 import { Route as protectedProtectedAdministrationSystemSettingsIndexRouteImport } from './routes/(protected)/_protected.administration.system-settings.index'
+import { Route as protectedProtectedAdministrationSystemSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.administration.system-settings.feature-flags'
+import { Route as protectedProtectedAdministrationSystemSettingsThemeRouteImport } from './routes/(protected)/_protected.administration.system-settings.theme'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
 
 const IndexRoute = IndexRouteImport.update({
@@ -97,6 +99,18 @@ const protectedProtectedAdministrationSystemSettingsIndexRoute =
     path: '/',
     getParentRoute: () => protectedProtectedAdministrationSystemSettingsRoute,
   } as any)
+const protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute =
+  protectedProtectedAdministrationSystemSettingsFeatureFlagsRouteImport.update({
+    id: '/feature-flags',
+    path: '/feature-flags',
+    getParentRoute: () => protectedProtectedAdministrationSystemSettingsRoute,
+  } as any)
+const protectedProtectedAdministrationSystemSettingsThemeRoute =
+  protectedProtectedAdministrationSystemSettingsThemeRouteImport.update({
+    id: '/theme',
+    path: '/theme',
+    getParentRoute: () => protectedProtectedAdministrationSystemSettingsRoute,
+  } as any)
 const protectedProtectedAdministrationUsersIdRolesRoute =
   protectedProtectedAdministrationUsersIdRolesRouteImport.update({
     id: '/administration/users_/$id/roles',
@@ -116,6 +130,8 @@ export interface FileRoutesByFullPath {
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/profile/': typeof protectedProtectedProfileIndexRoute
+  '/administration/system-settings/feature-flags': typeof protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute
+  '/administration/system-settings/theme': typeof protectedProtectedAdministrationSystemSettingsThemeRoute
   '/administration/system-settings/': typeof protectedProtectedAdministrationSystemSettingsIndexRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -129,6 +145,8 @@ export interface FileRoutesByTo {
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/profile': typeof protectedProtectedProfileIndexRoute
+  '/administration/system-settings/feature-flags': typeof protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute
+  '/administration/system-settings/theme': typeof protectedProtectedAdministrationSystemSettingsThemeRoute
   '/administration/system-settings': typeof protectedProtectedAdministrationSystemSettingsIndexRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -146,6 +164,8 @@ export interface FileRoutesById {
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
+  '/(protected)/_protected/administration/system-settings/feature-flags': typeof protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute
+  '/(protected)/_protected/administration/system-settings/theme': typeof protectedProtectedAdministrationSystemSettingsThemeRoute
   '/(protected)/_protected/administration/system-settings/': typeof protectedProtectedAdministrationSystemSettingsIndexRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -163,6 +183,8 @@ export interface FileRouteTypes {
     | '/profile/notifications'
     | '/profile/roles'
     | '/profile/'
+    | '/administration/system-settings/feature-flags'
+    | '/administration/system-settings/theme'
     | '/administration/system-settings/'
     | '/administration/users/$id/roles'
   fileRoutesByTo: FileRoutesByTo
@@ -176,6 +198,8 @@ export interface FileRouteTypes {
     | '/profile/notifications'
     | '/profile/roles'
     | '/profile'
+    | '/administration/system-settings/feature-flags'
+    | '/administration/system-settings/theme'
     | '/administration/system-settings'
     | '/administration/users/$id/roles'
   id:
@@ -192,6 +216,8 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/profile/notifications'
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/profile/'
+    | '/(protected)/_protected/administration/system-settings/feature-flags'
+    | '/(protected)/_protected/administration/system-settings/theme'
     | '/(protected)/_protected/administration/system-settings/'
     | '/(protected)/_protected/administration/users_/$id/roles'
   fileRoutesById: FileRoutesById
@@ -295,6 +321,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationSystemSettingsIndexRouteImport
       parentRoute: typeof protectedProtectedAdministrationSystemSettingsRoute
     }
+    '/(protected)/_protected/administration/system-settings/feature-flags': {
+      id: '/(protected)/_protected/administration/system-settings/feature-flags'
+      path: '/feature-flags'
+      fullPath: '/administration/system-settings/feature-flags'
+      preLoaderRoute: typeof protectedProtectedAdministrationSystemSettingsFeatureFlagsRouteImport
+      parentRoute: typeof protectedProtectedAdministrationSystemSettingsRoute
+    }
+    '/(protected)/_protected/administration/system-settings/theme': {
+      id: '/(protected)/_protected/administration/system-settings/theme'
+      path: '/theme'
+      fullPath: '/administration/system-settings/theme'
+      preLoaderRoute: typeof protectedProtectedAdministrationSystemSettingsThemeRouteImport
+      parentRoute: typeof protectedProtectedAdministrationSystemSettingsRoute
+    }
     '/(protected)/_protected/administration/users_/$id/roles': {
       id: '/(protected)/_protected/administration/users_/$id/roles'
       path: '/administration/users/$id/roles'
@@ -325,11 +365,17 @@ const protectedProtectedProfileRouteWithChildren =
   )
 
 interface protectedProtectedAdministrationSystemSettingsRouteChildren {
+  protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute: typeof protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute
+  protectedProtectedAdministrationSystemSettingsThemeRoute: typeof protectedProtectedAdministrationSystemSettingsThemeRoute
   protectedProtectedAdministrationSystemSettingsIndexRoute: typeof protectedProtectedAdministrationSystemSettingsIndexRoute
 }
 
 const protectedProtectedAdministrationSystemSettingsRouteChildren: protectedProtectedAdministrationSystemSettingsRouteChildren =
   {
+    protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute:
+      protectedProtectedAdministrationSystemSettingsFeatureFlagsRoute,
+    protectedProtectedAdministrationSystemSettingsThemeRoute:
+      protectedProtectedAdministrationSystemSettingsThemeRoute,
     protectedProtectedAdministrationSystemSettingsIndexRoute:
       protectedProtectedAdministrationSystemSettingsIndexRoute,
   }

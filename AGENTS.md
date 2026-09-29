@@ -252,7 +252,7 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).

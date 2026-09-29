@@ -343,13 +343,22 @@ type ChoiceCardProps = {
   disabled?: boolean;
   /** The switch or radio, or a placeholder while loading. */
   children: ReactNode;
+  media?: ReactNode;
 };
 
 /** The card around one choice: label and description at the start, the control at the end. */
-export function ChoiceCard({ htmlFor, label, description, disabled, children }: ChoiceCardProps) {
+export function ChoiceCard({
+  htmlFor,
+  label,
+  description,
+  disabled,
+  children,
+  media,
+}: ChoiceCardProps) {
   return (
     <FieldLabel htmlFor={htmlFor}>
       <Field data-disabled={disabled} orientation="horizontal">
+        {media}
         <FieldContent>
           <FieldTitle>{label}</FieldTitle>
           {typeof description === 'string' ? (
@@ -502,6 +511,7 @@ export type RadioGroupFieldOption = {
   value: string;
   label: ReactNode;
   description?: ReactNode;
+  media?: ReactNode;
 };
 
 type RadioGroupFieldProps = {
@@ -509,16 +519,18 @@ type RadioGroupFieldProps = {
   label: ReactNode;
   options: readonly RadioGroupFieldOption[];
   disabled?: boolean;
+  columns?: 1 | 'fill';
 };
 
 /** One choice from a few, each drawn as a card like `SwitchField`. */
-export function RadioGroupField({ label, options, disabled }: RadioGroupFieldProps) {
+export function RadioGroupField({ label, options, disabled, columns }: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
 
   return (
     <FieldSet>
       <FieldLegend variant="label">{label}</FieldLegend>
       <RadioGroup
+        columns={columns}
         disabled={disabled}
         name={field.name}
         onBlur={field.handleBlur}
@@ -534,6 +546,7 @@ export function RadioGroupField({ label, options, disabled }: RadioGroupFieldPro
               htmlFor={id}
               key={option.value}
               label={option.label}
+              media={option.media}
             >
               <RadioGroupItem id={id} value={option.value} />
             </ChoiceCard>
