@@ -4,11 +4,15 @@ import { cn } from '@/lib/utils';
 
 type LogoProps = {
   className?: string;
+  src?: string;
+  alt?: string;
 };
 
-export function Logo({ className }: LogoProps) {
-  const appName = useAppName();
-  const logoUrl = useLogoUrl();
+export function Logo({ className, src, alt }: LogoProps) {
+  const configuredName = useAppName();
+  const configuredUrl = useLogoUrl();
+  const appName = alt ?? configuredName;
+  const logoUrl = src ?? configuredUrl;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
   return (

@@ -136,6 +136,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.supply-lines', to: '#' },
           { titleKey: 'nav.administration.supply-partners', to: '#' },
           { titleKey: 'nav.administration.system-notifications', to: '#' },
+          {
+            titleKey: 'nav.administration.system-settings',
+            to: '/administration/system-settings',
+          },
           { titleKey: 'nav.administration.users', to: '/administration/users' },
           { titleKey: 'nav.administration.valid-destinations', to: '#' },
           { titleKey: 'nav.administration.valid-sources', to: '#' },

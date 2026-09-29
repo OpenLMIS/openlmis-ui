@@ -75,6 +75,11 @@ function fallBackToCache(): void {
   setAppConfiguration(parseAppConfiguration(readCache()));
 }
 
+export function rememberAppConfiguration(value: unknown): void {
+  writeCache(value);
+  setAppConfiguration(parseAppConfiguration(value));
+}
+
 export async function loadAppConfiguration(): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
@@ -93,9 +98,7 @@ export async function loadAppConfiguration(): Promise<void> {
       fallBackToCache();
       return;
     }
-    const body: unknown = await response.json();
-    writeCache(body);
-    setAppConfiguration(parseAppConfiguration(body));
+    rememberAppConfiguration(await response.json());
   } catch {
     fallBackToCache();
   } finally {

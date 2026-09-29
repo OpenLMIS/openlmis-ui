@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE_FLAGS, resolveFlag } from '@/lib/feature-flags';
+import en from '../../public/locales/en.json';
 
 describe('resolveFlag', () => {
   it('uses the default when nobody set the flag', () => {
@@ -51,5 +52,21 @@ describe('resolveFlag', () => {
       value: false,
       source: 'default',
     });
+  });
+});
+
+describe('FEATURE_FLAGS', () => {
+  it('names and describes every flag, and every option of an enum', () => {
+    const keys = new Set(Object.keys(en));
+    for (const definition of Object.values(FEATURE_FLAGS)) {
+      expect(keys).toContain(definition.labelKey);
+      expect(keys).toContain(definition.descriptionKey);
+      expect(keys).toContain(definition.usedByKey);
+      if (definition.type === 'enum') {
+        for (const option of definition.options) {
+          expect(keys).toContain(definition.optionKeys[option]);
+        }
+      }
+    }
   });
 });

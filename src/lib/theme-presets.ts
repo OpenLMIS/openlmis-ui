@@ -1,3 +1,5 @@
+import { inSrgbGamut, parseOklch, toOklch } from '@/lib/color-contrast';
+
 export const THEME_TOKENS = [
   'primary',
   'primary-foreground',
@@ -23,25 +25,47 @@ const BLUE_CHARTS = {
   'chart-5': 'oklch(0.4 0.115 240)',
 };
 
-export const THEME_PRESETS = {
-  blue: {
-    light: {
-      primary: 'oklch(0.5 0.134 242.749)',
-      'primary-foreground': 'oklch(0.977 0.013 236.62)',
-      brand: 'oklch(0.745 0.123 230.4)',
-      'sidebar-primary': 'oklch(0.588 0.158 241.966)',
-      'sidebar-primary-foreground': 'oklch(0.977 0.013 236.62)',
-      ...BLUE_CHARTS,
-    },
-    dark: {
-      primary: 'oklch(0.443 0.11 240.79)',
-      'primary-foreground': 'oklch(0.977 0.013 236.62)',
-      brand: 'oklch(0.745 0.123 230.4)',
-      'sidebar-primary': 'oklch(0.685 0.169 237.323)',
-      'sidebar-primary-foreground': 'oklch(0.293 0.066 243.157)',
-      ...BLUE_CHARTS,
-    },
+const BLUE: ThemePreset = {
+  light: {
+    primary: 'oklch(0.5 0.134 242.749)',
+    'primary-foreground': 'oklch(0.977 0.013 236.62)',
+    brand: 'oklch(0.745 0.123 230.4)',
+    'sidebar-primary': 'oklch(0.588 0.158 241.966)',
+    'sidebar-primary-foreground': 'oklch(0.977 0.013 236.62)',
+    ...BLUE_CHARTS,
   },
+  dark: {
+    primary: 'oklch(0.443 0.11 240.79)',
+    'primary-foreground': 'oklch(0.977 0.013 236.62)',
+    brand: 'oklch(0.745 0.123 230.4)',
+    'sidebar-primary': 'oklch(0.685 0.169 237.323)',
+    'sidebar-primary-foreground': 'oklch(0.293 0.066 243.157)',
+    ...BLUE_CHARTS,
+  },
+};
+
+function shiftHue(value: string, hue: number, chromaScale: number): string {
+  const { l, c } = parseOklch(value);
+  let chroma = c * chromaScale;
+  while (chroma > 0 && !inSrgbGamut({ l, c: chroma, h: hue })) chroma -= 0.002;
+  return toOklch({ l, c: Math.max(0, chroma), h: hue });
+}
+
+function fromBlue(hue: number, chromaScale = 1): ThemePreset {
+  const derive = (tokens: ThemeTokens) =>
+    Object.fromEntries(
+      THEME_TOKENS.map((token) => [token, shiftHue(tokens[token], hue, chromaScale)]),
+    ) as ThemeTokens;
+  return { light: derive(BLUE.light), dark: derive(BLUE.dark) };
+}
+
+export const THEME_PRESETS = {
+  blue: BLUE,
+  teal: fromBlue(195),
+  green: fromBlue(150),
+  indigo: fromBlue(275),
+  purple: fromBlue(295),
+  slate: fromBlue(255, 0.3),
 } satisfies Record<string, ThemePreset>;
 
 export type ThemePresetName = keyof typeof THEME_PRESETS;
