@@ -165,15 +165,13 @@ function DialogTitle({
 
 function DialogDescription({
   className,
-  size = "default",
   ...props
-}: DialogPrimitive.Description.Props & { size?: "default" | "sm" }) {
+}: DialogPrimitive.Description.Props) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
-        size === "sm" ? "text-xs" : "text-sm",
+        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className
       )}
       {...props}

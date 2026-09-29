@@ -389,11 +389,7 @@ export function SwitchField({
       <Field data-disabled={disabled}>
         <SettingsRowFrame
           description={
-            description && (
-              <FieldDescription id={descriptionId} size="sm">
-                {description}
-              </FieldDescription>
-            )
+            description && <FieldDescription id={descriptionId}>{description}</FieldDescription>
           }
           label={
             <FieldLabel htmlFor={field.name} weight="normal">
