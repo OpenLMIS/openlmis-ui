@@ -41,7 +41,7 @@ export function RoleRightsDialog({ roleId, onClose }: RoleRightsDialogProps) {
           {roles.isPending ? (
             <SkeletonLine width="medium" />
           ) : (
-            <DialogDescription size="sm">
+            <DialogDescription>
               {role
                 ? role.description || t('role-rights.description', { count: rights.length })
                 : !roles.isError && t('role-rights.missing')}

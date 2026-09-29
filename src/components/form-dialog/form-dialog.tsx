@@ -161,7 +161,7 @@ export function FormDialogTitle({ children }: { children: ReactNode }) {
 }
 
 export function FormDialogDescription({ children }: { children: ReactNode }) {
-  return <DialogDescription size="sm">{children}</DialogDescription>;
+  return <DialogDescription>{children}</DialogDescription>;
 }
 
 /** Scrolls on its own, so the header and footer stay in view on a short screen. */

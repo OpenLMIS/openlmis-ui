@@ -352,7 +352,7 @@ export function ChoiceCard({ htmlFor, label, description, disabled, children }: 
         <FieldContent>
           <FieldTitle>{label}</FieldTitle>
           {typeof description === 'string' ? (
-            <FieldDescription size="sm">{description}</FieldDescription>
+            <FieldDescription>{description}</FieldDescription>
           ) : (
             description
           )}
@@ -389,11 +389,7 @@ export function SwitchField({
       <Field data-disabled={disabled}>
         <SettingsRowFrame
           description={
-            description && (
-              <FieldDescription id={descriptionId} size="sm">
-                {description}
-              </FieldDescription>
-            )
+            description && <FieldDescription id={descriptionId}>{description}</FieldDescription>
           }
           label={
             <FieldLabel htmlFor={field.name} weight="normal">

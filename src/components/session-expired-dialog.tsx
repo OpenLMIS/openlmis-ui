@@ -10,6 +10,7 @@ import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
   FormDialogBody,
+  FormDialogDescription,
   FormDialogFooter,
   FormDialogForm,
   FormDialogHeader,
@@ -20,7 +21,6 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { Button } from '@/components/ui/button';
-import { DialogDescription } from '@/components/ui/dialog';
 import { FieldGroup } from '@/components/ui/field';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
@@ -99,7 +99,7 @@ function SignInAgainForm({ username }: { username: string }) {
       </div>
       <FormDialogHeader>
         <FormDialogTitle>{t('session.expired-title')}</FormDialogTitle>
-        <DialogDescription>{t('session.expired-description')}</DialogDescription>
+        <FormDialogDescription>{t('session.expired-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
