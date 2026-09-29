@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { queryClient, shouldRetry } from '@/integrations/tanstack-query';
 import { httpError, networkError } from '@/tests/http-error';
@@ -57,8 +57,6 @@ describe('shouldRetry', () => {
 });
 
 describe('offline', () => {
-  afterEach(() => onlineManager.setOnline(true));
-
   it('fails a request made offline at once, rather than waiting for the network', async () => {
     onlineManager.setOnline(false);
 

@@ -18,7 +18,6 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       // Offline, a request fails at once into its error state instead of waiting unseen.
       networkMode: 'always',
-      refetchOnReconnect: true,
     },
     mutations: {
       // Retrying a write could duplicate it.

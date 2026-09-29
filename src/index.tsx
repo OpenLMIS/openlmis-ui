@@ -13,7 +13,7 @@ import { router } from '@/integrations/tanstack-router';
 import { seedOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
-import { warmOfflineCache } from '@/lib/warm-offline';
+import { registerServiceWorker } from '@/lib/service-worker';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
@@ -29,7 +29,7 @@ window.addEventListener('storage', async (event) => {
   if (await syncOtherTab(event.key)) router.navigate({ to: '/login' });
 });
 
-warmOfflineCache();
+registerServiceWorker();
 
 createRoot(root, { onCaughtError: reportCaughtError }).render(
   <StrictMode>

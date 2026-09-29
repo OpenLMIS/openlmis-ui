@@ -160,7 +160,7 @@
   "not-found.eyebrow": "Error 404",
   "not-found.go-back": "Go Back",
   "not-found.title": "Page Not Found",
-  "notice.close": "Dismiss",
+  "notice.close": "Dismiss {title}",
   "offline.back-online": "You're Back Online",
   "offline.description": "Pages you've already opened still work; anything new needs a connection.",
   "offline.notice-description": "You're offline, and this hasn't been downloaded to this device. It loads once you're back online.",

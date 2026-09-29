@@ -3,7 +3,7 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { AlertTriangleIcon, ChevronLeft, RotateCcwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NoAccessPage } from '@/components/no-access-page';
-import { OfflineNotice, useIsOfflineFailure } from '@/components/offline-notice';
+import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -17,15 +17,15 @@ import { isForbidden } from '@/features/auth/lib/access';
 export function ErrorFallback({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const offline = useIsOfflineFailure(error);
   // A failed loader put the page here, so trying again has to run the loaders again too.
   const retry = () => {
     void router.invalidate();
     reset();
   };
+  const offline = useOfflineFailure(error, retry);
   // A route that needs a right it lacks, or a refusal from the server, is not an error.
   if (isForbidden(error)) return <NoAccessPage />;
-  if (offline) return <OfflineNotice height="screen" onRetry={retry} />;
+  if (offline) return <OfflineNotice onRetry={retry} />;
   const parsedError = error instanceof Error ? error : new Error(String(error));
 
   return (

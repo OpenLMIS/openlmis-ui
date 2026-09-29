@@ -13,7 +13,7 @@ const alertVariants = cva(
         warning:
           "border-warning/30 bg-warning/5 text-warning-strong dark:border-warning/40 dark:bg-warning/10 *:data-[slot=alert-description]:text-warning-strong *:[svg]:text-current",
         success:
-          "border-success/30 bg-success/5 text-success dark:border-success/40 dark:bg-success/10 *:data-[slot=alert-description]:text-success *:[svg]:text-current",
+          "border-success/30 bg-success/5 text-success-strong dark:border-success/40 dark:bg-success/10 *:data-[slot=alert-description]:text-success-strong *:[svg]:text-current",
         info:
           "border-info/30 bg-info/5 text-primary dark:border-info/40 dark:bg-info/10 dark:text-info *:data-[slot=alert-description]:text-primary dark:*:data-[slot=alert-description]:text-info *:[svg]:text-current",
       },

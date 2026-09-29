@@ -1,7 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
 
 function SignOutButton({
@@ -23,8 +23,6 @@ function SignOutButton({
 }
 
 const goOffline = () => onlineManager.setOnline(false);
-
-afterEach(() => onlineManager.setOnline(true));
 
 describe('useOfflineSignOut', () => {
   it('signs out at once while online', async () => {

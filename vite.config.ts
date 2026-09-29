@@ -19,8 +19,7 @@ export default defineConfig(({ mode }) => {
   const prefix = (env.VITE_BASE_PATH ?? '').replace(/^\/+|\/+$/g, '');
   const base = prefix ? `/${prefix}/` : '/';
 
-  // Forwards `/api` calls to the OpenLMIS instance so the app can talk to it without CORS
-  // and without leaking the host into the bundle.
+  // Sends `/api` to the OpenLMIS instance, so there is no CORS and no host in the bundle.
   const proxy = {
     '/api': {
       target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',

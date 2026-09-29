@@ -1,6 +1,4 @@
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import { type LucideIcon, RefreshCwIcon, WifiIcon, WifiOffIcon, XIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,14 +9,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
-import { reloadWhenUpdated } from '@/lib/app-update';
-import { useOnline } from '@/lib/online';
-
-const BACK_ONLINE_MS = 4000;
-const UPDATE_CHECK_MS = 60 * 60 * 1000;
+import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
+import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
 
 type Notice = {
-  id: string;
   variant: 'warning' | 'success' | 'info';
   Icon: LucideIcon;
   title: string;
@@ -29,68 +23,36 @@ type Notice = {
 
 const ICON_TONE: Record<Notice['variant'], string> = {
   warning: 'text-warning-strong',
-  success: 'text-success',
+  success: 'text-success-strong',
   info: 'text-primary dark:text-info',
 };
 
-/** True for a few seconds after the connection comes back; `dismiss` hides it sooner. */
-function useBackOnline(online: boolean) {
-  const [shown, setShown] = useState(false);
-  const wasOnline = useRef(online);
-
-  useEffect(() => {
-    const cameBack = online && !wasOnline.current;
-    wasOnline.current = online;
-    if (!cameBack) {
-      if (!online) setShown(false);
-      return;
-    }
-    setShown(true);
-    const timer = setTimeout(() => setShown(false), BACK_ONLINE_MS);
-    return () => clearTimeout(timer);
-  }, [online]);
-
-  return [shown, () => setShown(false)] as const;
-}
-
-/** Offline, back online and a new version, above the sidebar's footer buttons. */
-export function SidebarNotices() {
+/** What to tell the user about the connection and the app's version, newest last. */
+function useNotices(): Notice[] {
   const { t } = useTranslation();
-  const { isMobile, state } = useSidebar();
   const online = useOnline();
-  const [backOnline, dismissBackOnline] = useBackOnline(online);
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    // A tab left open for days still learns of a new version.
-    onRegisteredSW: (_url, registration) => {
-      if (registration) setInterval(() => void registration.update(), UPDATE_CHECK_MS);
-    },
-  });
+  const backOnline = useBackOnline();
+  const updateReady = useUpdateReady();
 
   const notices: Notice[] = [];
   if (!online) {
     notices.push({
-      id: 'offline',
       variant: 'warning',
       Icon: WifiOffIcon,
       title: t('offline.title'),
       description: t('offline.description'),
     });
   }
-  if (backOnline) {
+  if (online && backOnline) {
     notices.push({
-      id: 'back-online',
       variant: 'success',
       Icon: WifiIcon,
       title: t('offline.back-online'),
       onClose: dismissBackOnline,
     });
   }
-  if (needRefresh) {
+  if (updateReady) {
     notices.push({
-      id: 'update',
       variant: 'info',
       Icon: RefreshCwIcon,
       title: t('update.title'),
@@ -99,26 +61,42 @@ export function SidebarNotices() {
         onClick: () =>
           whenLeaveAllowed(() => {
             allowUnload();
-            reloadWhenUpdated();
-            void updateServiceWorker(true);
+            void applyUpdate();
           }),
       },
-      onClose: () => setNeedRefresh(false),
+      onClose: dismissUpdate,
     });
   }
+  return notices;
+}
+
+/** Offline, back online and a new version, above the sidebar's footer buttons. */
+export function SidebarNotices() {
+  const { t } = useTranslation();
+  const { isMobile, state } = useSidebar();
+  const notices = useNotices();
 
   if (notices.length === 0) return null;
 
-  // The icon rail has room for an icon each, with its title on hover.
+  // The icon rail has room for an icon each, with its title on hover; only an action is a button.
   if (!isMobile && state === 'collapsed') {
     return (
-      <SidebarMenu role="status">
-        {notices.map(({ id, variant, Icon, title, action }) => (
-          <SidebarMenuItem key={id}>
-            <SidebarMenuButton onClick={action?.onClick} tooltip={title}>
-              <Icon className={ICON_TONE[variant]} />
-              <span>{title}</span>
-            </SidebarMenuButton>
+      <SidebarMenu>
+        {notices.map(({ variant, Icon, title, action }) => (
+          <SidebarMenuItem key={variant}>
+            {action ? (
+              <SidebarMenuButton
+                aria-label={action.label}
+                onClick={action.onClick}
+                tooltip={`${title}: ${action.label}`}
+              >
+                <Icon className={ICON_TONE[variant]} />
+              </SidebarMenuButton>
+            ) : (
+              <SidebarMenuButton render={<span />} tooltip={title}>
+                <Icon aria-hidden="true" className={ICON_TONE[variant]} />
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
@@ -127,8 +105,9 @@ export function SidebarNotices() {
 
   return (
     <div className="flex flex-col gap-2">
-      {notices.map(({ id, variant, Icon, title, description, action, onClose }) => (
-        <Alert key={id} role="status" variant={variant}>
+      {notices.map(({ variant, Icon, title, description, action, onClose }) => (
+        // A note, not a live region: `StatusAnnouncer` says each change from a region always there.
+        <Alert key={variant} role="note" variant={variant}>
           <Icon />
           <AlertTitle>{title}</AlertTitle>
           {(description || action) && (
@@ -146,7 +125,7 @@ export function SidebarNotices() {
           {onClose && (
             <AlertAction>
               <Button
-                aria-label={t('notice.close')}
+                aria-label={t('notice.close', { title })}
                 onClick={onClose}
                 size="icon-xs"
                 variant="ghost"
@@ -161,16 +140,26 @@ export function SidebarNotices() {
   );
 }
 
+/** Says each notice from one region that is always there, which screen readers reliably read. */
+export function StatusAnnouncer() {
+  const notices = useNotices();
+  return (
+    <div className="sr-only" role="status">
+      {notices.map(({ title }) => title).join('. ')}
+    </div>
+  );
+}
+
 /** A warning dot on the menu button while offline, for when the sidebar is out of view. */
 export function OfflineDot() {
-  const { t } = useTranslation();
   const online = useOnline();
   const { isMobile, open, openMobile } = useSidebar();
   // Only beside the menu button, which the header shows while the sidebar is closed.
   if (online || (isMobile ? openMobile : open)) return null;
   return (
-    <span className="pointer-events-none absolute top-1 end-1 size-2 rounded-full bg-warning">
-      <span className="sr-only">{t('offline.title')}</span>
-    </span>
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute top-1 end-1 size-2 rounded-full bg-warning"
+    />
   );
 }

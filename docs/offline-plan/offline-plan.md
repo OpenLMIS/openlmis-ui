@@ -8,7 +8,7 @@ plus local storage in the browser, and needs nothing new on the server.
 | Part | Status |
 | --- | --- |
 | The app opens and reloads offline after one online visit, in every language | Done (FM-175) |
-| Pages say "Connect to download this data" instead of loading forever | Done (FM-175) |
+| Pages say "Connect To Download This Data" instead of loading forever | Done (FM-175) |
 | The sidebar says when you are offline, back online, or when an update is ready | Done (FM-175) |
 | A private local database for each user and each deployment, ready for later | Done (FM-175), nothing stored yet |
 | A screen whose data and drafts work offline, then sync | Next, with the first stock screen (FM-166) |
@@ -33,7 +33,7 @@ the rules for the API and for local storage, so the page never has to switch too
   products.
 - **Offline:** data already on screen stays visible. After a reload or a browser restart, the
   app opens from its saved files and the load function reads the saved copy from Dexie.
-- **Never downloaded:** say "Connect to download this data". A read made offline always ends
+- **Never downloaded:** say "Connect To Download This Data". A read made offline always ends
   with data, a "not available" answer or a handled error. It never leaves a page loading. Data
   missing on the device is not the same as a record missing on the server.
 

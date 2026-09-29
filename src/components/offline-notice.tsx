@@ -1,5 +1,4 @@
 import { RotateCcwIcon, WifiOffIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,39 +9,23 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { isOfflineError } from '@/lib/http';
-import { useOnline } from '@/lib/online';
+import { useOnReconnect } from '@/lib/online';
 
-/** A failure that a connection would fix: no answer at all, or anything while offline. */
-export function useIsOfflineFailure(error: unknown) {
-  const online = useOnline();
-  return isOfflineError(error) || !online;
+/** Whether a connection would fix `error`; if so, `retry` runs by itself once it is back. */
+export function useOfflineFailure(error: unknown, retry: () => void) {
+  const offline = isOfflineError(error);
+  useOnReconnect(() => {
+    if (offline) retry();
+  });
+  return offline;
 }
 
-/** Calls `retry` when the connection comes back, so a page fills in by itself. */
-export function useRetryWhenOnline(retry: () => void) {
-  const online = useOnline();
-  const wasOnline = useRef(online);
-  const latestRetry = useRef(retry);
-  latestRetry.current = retry;
-
-  useEffect(() => {
-    if (online && !wasOnline.current) latestRetry.current();
-    wasOnline.current = online;
-  }, [online]);
-}
-
-type OfflineNoticeProps = {
-  onRetry?: () => void;
-  height?: 'default' | 'screen';
-};
-
-/** In place of data that has not been downloaded to this device and cannot be fetched offline. */
-export function OfflineNotice({ onRetry, height = 'default' }: OfflineNoticeProps) {
+/** A page whose data has not been downloaded to this device and cannot be fetched offline. */
+export function OfflineNotice({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
-  useRetryWhenOnline(() => onRetry?.());
 
   return (
-    <Empty height={height}>
+    <Empty height="screen">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <WifiOffIcon />
@@ -52,12 +35,10 @@ export function OfflineNotice({ onRetry, height = 'default' }: OfflineNoticeProp
         </EmptyTitle>
         <EmptyDescription>{t('offline.notice-description')}</EmptyDescription>
       </EmptyHeader>
-      {onRetry && (
-        <Button onClick={onRetry} size="sm" variant="secondary">
-          <RotateCcwIcon />
-          {t('error.try-again')}
-        </Button>
-      )}
+      <Button onClick={onRetry} size="sm" variant="secondary">
+        <RotateCcwIcon />
+        {t('error.try-again')}
+      </Button>
     </Empty>
   );
 }

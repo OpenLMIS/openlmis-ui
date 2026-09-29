@@ -9,7 +9,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { useIsOfflineFailure, useRetryWhenOnline } from '@/components/offline-notice';
+import { useOfflineFailure } from '@/components/offline-notice';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -69,8 +69,7 @@ type DialogLoadErrorProps = {
 /** What a dialog shows when the record it needs could not be loaded: its title, the error, Try Again. */
 export function DialogLoadError({ title, errorTitle, error, onRetry }: DialogLoadErrorProps) {
   const { t } = useTranslation();
-  const offline = useIsOfflineFailure(error);
-  useRetryWhenOnline(onRetry);
+  const offline = useOfflineFailure(error, onRetry);
   return (
     <>
       <FormDialogHeader>

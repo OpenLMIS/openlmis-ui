@@ -24,10 +24,9 @@ export function getLocalDb(): Dexie {
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new Error('No one is signed in, so there is no local database to open.');
 
-  const name = localDatabaseName({ deployment: deployment(), userId });
-  if (database?.name !== name) {
-    database?.close();
-    database = new Dexie(name);
+  // A user change clears it below, so a database left open always belongs to this user.
+  if (!database) {
+    database = new Dexie(localDatabaseName({ deployment: deployment(), userId }));
     database.version(1).stores({});
   }
   return database;

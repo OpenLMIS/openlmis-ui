@@ -212,7 +212,6 @@ describe('SessionExpiredDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'session.sign-out' }));
     await userEvent.click(await screen.findByRole('button', { name: 'sign-out-offline.confirm' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
-    onlineManager.setOnline(true);
   });
 
   it('holds both buttons while signing out', async () => {

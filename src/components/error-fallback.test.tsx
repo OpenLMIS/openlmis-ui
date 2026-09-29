@@ -1,3 +1,4 @@
+import { createRootRoute, createRouter, RouterContextProvider } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -26,6 +27,21 @@ describe('ErrorFallback', () => {
 
   it('runs the page loaders again on retry, since a failed loader is what put it here', async () => {
     renderFallback(networkError());
+
+    await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('runs the loaders again for any other error too, so its Try Again works', async () => {
+    invalidate.mockClear();
+    reset.mockClear();
+    render(
+      <RouterContextProvider router={createRouter({ routeTree: createRootRoute() })}>
+        <ErrorFallback error={new Error('boom')} info={undefined} reset={reset} />
+      </RouterContextProvider>,
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
 

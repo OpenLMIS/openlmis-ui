@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CommandPalette } from '@/components/command-palette';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { NavUser } from '@/components/nav-user';
-import { OfflineDot } from '@/components/sidebar-notices';
+import { OfflineDot, StatusAnnouncer } from '@/components/sidebar-notices';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export function AppHeader() {
@@ -15,6 +15,7 @@ export function AppHeader() {
         <CustomTrigger place="navbar" />
         <OfflineDot />
       </span>
+      <StatusAnnouncer />
       <CommandPalette />
       <div className="ms-auto flex items-center gap-1.5">
         <NavUser
