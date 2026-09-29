@@ -162,7 +162,7 @@
   "not-found.title": "Page Not Found",
   "notice.close": "Dismiss {title}",
   "offline.back-online": "You're Back Online",
-  "offline.description": "Pages you've already opened still work; anything new needs a connection.",
+  "offline.description": "Anything not already on screen needs a connection to load.",
   "offline.notice-description": "You're offline, and this hasn't been downloaded to this device. It loads once you're back online.",
   "offline.notice-title": "Connect To Download This Data",
   "offline.title": "You're Offline",

@@ -162,7 +162,7 @@
   "not-found.title": "Página Não Encontrada",
   "notice.close": "Fechar {title}",
   "offline.back-online": "Está Novamente Online",
-  "offline.description": "As páginas que já abriu continuam a funcionar; tudo o que for novo precisa de ligação.",
+  "offline.description": "Tudo o que ainda não está no ecrã precisa de ligação para carregar.",
   "offline.notice-description": "Está offline e isto ainda não foi transferido para este dispositivo. Carrega assim que voltar a estar online.",
   "offline.notice-title": "Ligue-se Para Transferir Estes Dados",
   "offline.title": "Está Offline",

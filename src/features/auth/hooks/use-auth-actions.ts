@@ -4,7 +4,7 @@ import * as authApi from '@/features/auth/api/api';
 import { clearLegacySession } from '@/features/auth/lib/legacy-session';
 import type { LoginInput } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { isUnauthorized } from '@/lib/http';
+import { isOfflineError, isUnauthorized } from '@/lib/http';
 
 type AuthActions = {
   login: (credentials: LoginInput) => Promise<boolean>;
@@ -29,6 +29,11 @@ export function useAuthActions(): AuthActions {
 
       return true;
     } catch (error) {
+      // Offline, the password was never checked, so say what did happen.
+      if (isOfflineError(error)) {
+        toast.error(t('auth.login-error-title'), { description: t('session.cannot-connect') });
+        return false;
+      }
       console.error('[useAuthActions.login]', error);
       toast.error(t('auth.login-error-title'), { description: t('auth.login-error') });
 
@@ -40,8 +45,8 @@ export function useAuthActions(): AuthActions {
     try {
       await authApi.logout();
     } catch (error) {
-      // Refused because the session had already ended, which is what signing out wants anyway.
-      if (!isUnauthorized(error)) {
+      // Already ended, or offline after the user agreed to sign out anyway; neither is a failure.
+      if (!isUnauthorized(error) && !isOfflineError(error)) {
         console.error('[useAuthActions.logout]', error);
         toast.error(t('auth.logout-error-title'), { description: t('auth.logout-error') });
       }
