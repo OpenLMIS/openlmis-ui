@@ -57,6 +57,8 @@ export default defineConfig(({ mode }) => {
           // Locales stay out of the precache, so a deployment can still correct a string.
           globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
+          // Controls the page on its first visit too, so what that visit fetches is cached.
+          clientsClaim: true,
           navigateFallback: 'index.html',
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [

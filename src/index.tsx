@@ -12,6 +12,7 @@ import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
 import { seedOnline } from '@/lib/online';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
+import { warmOfflineCache } from '@/lib/warm-offline';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
@@ -26,6 +27,8 @@ syncLegacySession();
 window.addEventListener('storage', async (event) => {
   if (await syncOtherTab(event.key)) router.navigate({ to: '/login' });
 });
+
+warmOfflineCache();
 
 createRoot(root).render(
   <StrictMode>
