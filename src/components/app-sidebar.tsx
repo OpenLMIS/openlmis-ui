@@ -6,6 +6,7 @@ import { CustomTrigger } from '@/components/custom-trigger';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
 import { useNavGroups } from '@/components/nav-access';
+import { SidebarNotices } from '@/components/sidebar-notices';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -97,6 +98,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <SidebarNotices />
         <div className="flex items-center group-data-[collapsible=icon]:hidden">
           <ThemeSwitcher tone="sidebar" />
           <LanguageSwitcher tone="sidebar" />

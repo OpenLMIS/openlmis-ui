@@ -1,6 +1,6 @@
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
-import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { isUnloadAllowed, useLeaveGuard } from '@/hooks/use-leave-guard';
 
 type DiscardGuardOptions = {
   /** True once the page may be left without asking, e.g. right after a save. */
@@ -13,7 +13,7 @@ export function useDiscardGuard(dirty: boolean, { allowLeave }: DiscardGuardOpti
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
       !allowLeave?.() && dirty && current.pathname !== next.pathname && next.pathname !== '/login',
-    enableBeforeUnload: () => dirty,
+    enableBeforeUnload: () => dirty && !isUnloadAllowed(),
     withResolver: true,
   });
   // A sign out waiting on the dialog; signing out leaves without the router.
