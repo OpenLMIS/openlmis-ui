@@ -1,17 +1,22 @@
-import { appConfig } from '@/lib/config';
+import { useState } from 'react';
+import { DEFAULT_LOGO_URL, useAppName, useLogoUrl } from '@/lib/app-configuration';
 import { cn } from '@/lib/utils';
 
 type LogoProps = {
   className?: string;
 };
 
-// One flat brand-blue glyph reads on both light and dark surfaces.
 export function Logo({ className }: LogoProps) {
+  const appName = useAppName();
+  const logoUrl = useLogoUrl();
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
   return (
     <img
-      alt={appConfig.BRAND}
+      alt={appName}
       className={cn('block h-5 w-auto shrink-0', className)}
-      src={`${import.meta.env.BASE_URL}olmis.png`}
+      onError={() => setFailedUrl(logoUrl)}
+      src={failedUrl === logoUrl ? DEFAULT_LOGO_URL : logoUrl}
     />
   );
 }

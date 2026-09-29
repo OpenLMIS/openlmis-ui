@@ -41,6 +41,7 @@ import {
 } from '@/features/users/lib/search';
 import type { UserListItem } from '@/features/users/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { useAppName } from '@/lib/app-configuration';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
 
@@ -231,6 +232,7 @@ export function UsersTable({
   onResetPassword,
 }: UsersTableProps) {
   const { t } = useTranslation();
+  const appName = useAppName();
   // Keeps the current page on screen, dimmed, while the next one loads instead of suspending.
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(usersListOptions(toUsersQuery(deferredSearch)));
@@ -266,7 +268,7 @@ export function UsersTable({
     />
   ) : (
     <DataTableEmpty
-      description={t('users.empty-description')}
+      description={t('users.empty-description', { appName })}
       icon={<UsersIcon />}
       title={t('users.empty-title')}
     />

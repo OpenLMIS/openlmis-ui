@@ -20,6 +20,7 @@ import { FieldGroup } from '@/components/ui/field';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { useAppName } from '@/lib/app-configuration';
 import { safeRedirect } from '@/lib/redirect';
 
 // The page a signed-out user asked for, opened once they sign in.
@@ -37,6 +38,7 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const { t } = useTranslation();
+  const appName = useAppName();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const { login } = useAuthActions();
@@ -57,7 +59,7 @@ function LoginPage() {
 
   return (
     <section className="relative flex min-h-svh w-full flex-col items-center justify-center bg-muted px-6 py-12 text-foreground dark:bg-background">
-      <title>{`${t('login.title')} - OpenLMIS UI`}</title>
+      <title>{`${t('login.title')} - ${appName}`}</title>
 
       <div className="absolute top-4 end-4 flex items-center gap-1">
         <LanguageSwitcher />
@@ -69,7 +71,7 @@ function LoginPage() {
           <CardHeader align="center">
             <Logo className="mx-auto h-12" />
             <CardTitle size="lg">{t('login.heading')}</CardTitle>
-            <CardDescription>{t('login.subtitle')}</CardDescription>
+            <CardDescription>{t('login.subtitle', { appName })}</CardDescription>
           </CardHeader>
 
           <CardContent>

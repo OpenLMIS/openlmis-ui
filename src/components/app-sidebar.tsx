@@ -35,6 +35,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { useAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
@@ -44,6 +45,7 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
   const navGroups = useNavGroups();
+  const appName = useAppName();
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
   const isCollapsed = !isMobile && state === 'collapsed';
@@ -65,11 +67,12 @@ export function AppSidebar() {
         <Button
           nativeButton={false}
           render={<Link onClick={closeMobileSidebar} to="/home" />}
-          size={isCollapsed ? 'icon' : 'icon-lg'}
+          size={isCollapsed ? 'icon' : 'lg'}
           tone="sidebar"
           variant="ghost"
         >
           <Logo />
+          {!isCollapsed && <span className="truncate font-semibold">{appName}</span>}
         </Button>
         <CustomTrigger place="sidebar" />
       </SidebarHeader>
