@@ -18,6 +18,10 @@ import {
 const SYSTEM_SETTINGS_TABS = [
   { to: '/administration/system-settings', labelKey: 'system-settings.tabs.branding' },
   { to: '/administration/system-settings/theme', labelKey: 'system-settings.tabs.theme' },
+  {
+    to: '/administration/system-settings/feature-flags',
+    labelKey: 'system-settings.tabs.feature-flags',
+  },
 ] as const;
 
 const FooterSlot = createContext<HTMLElement | null>(null);
