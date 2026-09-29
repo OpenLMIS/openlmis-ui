@@ -50,7 +50,7 @@ function PreviewPanel({ preset, mode }: { preset: ThemePresetName; mode: 'light'
             : 'system-settings.theme.preview-dark',
         )}
       </figcaption>
-      <div aria-hidden className={mode === 'dark' ? 'dark' : undefined} inert>
+      <div aria-hidden className={mode} inert>
         <div
           className="flex flex-col gap-3 rounded-xl border bg-background p-4 text-foreground"
           style={

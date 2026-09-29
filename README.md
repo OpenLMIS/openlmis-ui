@@ -57,7 +57,7 @@ Features are self-contained: each owns its API calls, queries, components and ty
 ```
 src/
   index.tsx           # Entry point
-  globals.css         # Global styles + OpenLMIS theme tokens
+  globals.css         # Global styles + base theme tokens (presets in lib/theme-presets.ts)
   routes/             # File-based routes (TanStack Router), route tree is generated
   features/<name>/    # api/, components/, hooks/, lib/, store/ per feature
   components/         # Shared components; components/ui/ is shadcn-generated

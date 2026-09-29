@@ -79,6 +79,10 @@ describe('ImageField', () => {
     );
 
     expect(screen.getByText('t(logo.type)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload Logo' })).toHaveAccessibleDescription(
+      /t\(logo.type\)/,
+    );
+    expect(screen.getByRole('button', { name: 'Upload Logo' })).toBeInvalid();
   });
 
   it('removes the image with Remove', async () => {

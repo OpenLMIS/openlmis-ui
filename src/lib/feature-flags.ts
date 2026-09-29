@@ -1,12 +1,20 @@
+import type { ParseKeys } from 'i18next';
 import { getAppConfiguration, useAppConfigurationStore } from '@/lib/app-configuration';
 import { getDeploymentFlags } from '@/lib/runtime-config';
 
-type FlagText = { labelKey: string; descriptionKey: string; usedByKey: string; inNewUi: boolean };
+type MessageKey = ParseKeys;
+
+type FlagText = {
+  labelKey: MessageKey;
+  descriptionKey: MessageKey;
+  usedByKey: MessageKey;
+  inNewUi: boolean;
+};
 type BooleanFlag = FlagText & { type: 'boolean'; default: boolean };
 type EnumFlag = FlagText & {
   type: 'enum';
   options: readonly string[];
-  optionKeys: Record<string, string>;
+  optionKeys: Record<string, MessageKey>;
   default: string;
 };
 

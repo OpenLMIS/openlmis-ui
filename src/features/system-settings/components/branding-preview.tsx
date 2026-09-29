@@ -22,7 +22,7 @@ export function BrandingPreview({ appName, logoUrl }: BrandingPreviewProps) {
             {t('system-settings.branding.preview-sidebar')}
           </figcaption>
           <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border bg-sidebar px-3 text-sidebar-foreground">
-            <Logo alt={name} src={logoUrl} />
+            <Logo alt="" src={logoUrl} />
             <span className="truncate font-semibold text-sm">{name}</span>
           </div>
         </figure>

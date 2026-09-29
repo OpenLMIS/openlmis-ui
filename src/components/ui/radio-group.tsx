@@ -4,9 +4,9 @@ import { cn } from "cn"
 
 function RadioGroup({
   className,
-  columns = 1,
+  columns,
   ...props
-}: RadioGroupPrimitive.Props & { columns?: 1 | "fill" }) {
+}: RadioGroupPrimitive.Props & { columns?: "fill" }) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"

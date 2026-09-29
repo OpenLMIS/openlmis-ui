@@ -71,7 +71,7 @@ export function AppSidebar() {
           tone="sidebar"
           variant="ghost"
         >
-          <Logo />
+          <Logo alt={isCollapsed ? undefined : ''} />
           {!isCollapsed && <span className="truncate font-semibold">{appName}</span>}
         </Button>
         <CustomTrigger place="sidebar" />

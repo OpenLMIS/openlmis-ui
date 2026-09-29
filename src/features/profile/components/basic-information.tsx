@@ -13,9 +13,9 @@ import { Block } from '@/components/skeleton-block';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import { resendVerification, saveProfile } from '@/features/profile/api/api';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
-import { ProfileFooter } from '@/features/profile/components/profile-workspace';
 import {
   applySaved,
   type ProfileFormValues,
@@ -81,7 +81,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
 
   return (
     <>
-      <ProfileFooter>
+      <WorkspaceFooterPortal>
         <Button
           disabled={!changed || save.isPending}
           onClick={() => {
@@ -97,7 +97,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {t('profile.save')}
         </Button>
-      </ProfileFooter>
+      </WorkspaceFooterPortal>
       <form
         className="flex flex-col gap-4"
         id={FORM_ID}

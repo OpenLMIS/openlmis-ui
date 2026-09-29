@@ -1,6 +1,6 @@
 "use client"
 
-import { useTheme } from "next-themes"
+import { useResolvedAppearance } from "@/lib/appearance"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { useDirection } from "@/components/ui/direction"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
@@ -9,7 +9,7 @@ import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon
 const clearOfFooter = (gap: string) => ({ bottom: `calc(${gap} + var(--workspace-footer-height, 0px))` })
 
 const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const theme = useResolvedAppearance()
   const dir = useDirection()
 
   return (
@@ -20,7 +20,7 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
       position={dir === "rtl" ? "bottom-left" : "bottom-right"}
       offset={clearOfFooter("24px")}
       mobileOffset={clearOfFooter("16px")}
-      theme={theme as ToasterProps["theme"]}
+      theme={theme}
       className="toaster group"
       icons={{
         success: (

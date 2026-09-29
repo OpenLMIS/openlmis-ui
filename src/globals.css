@@ -5,9 +5,10 @@
 /* Geist has no Arabic coverage, so Arabic glyphs fall through to Noto. */
 @import "@fontsource-variable/noto-sans-arabic";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *):not(.light, .light *));
 
-:root {
+:root,
+.light {
   --app-header-height: 3rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

@@ -6,7 +6,6 @@ import { ThemeSettings } from '@/features/system-settings/components/theme-setti
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/system-settings/theme',
 )({
-  staticData: { crumbKey: 'system-settings.tabs.theme' },
   component: ThemePage,
 });
 

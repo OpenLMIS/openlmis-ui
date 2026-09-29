@@ -176,6 +176,25 @@ describe('applyBranding', () => {
     expect(icon?.type).toBe('image/webp');
   });
 
+  it('falls back to the built-in icon when the configured logo cannot load', () => {
+    const images: { src: string; onerror: (() => void) | null }[] = [];
+    vi.stubGlobal(
+      'Image',
+      class {
+        src = '';
+        onerror: (() => void) | null = null;
+        constructor() {
+          images.push(this);
+        }
+      },
+    );
+
+    applyBranding(parseAppConfiguration(stored));
+    images[0]?.onerror?.();
+
+    expect(document.querySelector('link[rel="icon"]')?.getAttribute('href')).toBe(DEFAULT_LOGO_URL);
+  });
+
   it('falls back to the built-in name and logo under the base path', () => {
     applyBranding(DEFAULT_APP_CONFIGURATION);
 

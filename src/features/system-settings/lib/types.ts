@@ -1,8 +1,10 @@
+import type { Appearance } from '@/lib/app-configuration';
+
 export type AppConfigurationDto = {
   version: number;
   appName: string | null;
   logo: { url: string; contentType: string; size: number } | null;
-  theme: { preset: string | null; defaultAppearance: 'light' | 'dark' | 'system' | null };
+  theme: { preset: string | null; defaultAppearance: Appearance | null };
   featureFlags: Record<string, boolean | string>;
   modifiedDate: string;
 };

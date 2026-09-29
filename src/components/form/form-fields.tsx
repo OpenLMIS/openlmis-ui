@@ -59,6 +59,7 @@ type FieldProps = {
 type FieldFrameProps = FieldProps & {
   /** Beside the label in a row, such as a status badge. */
   badge?: ReactNode;
+  action?: ReactNode;
   state: ReturnType<typeof useFieldErrors>;
   /** The control, which takes the field's name as its id. */
   children: ReactNode;
@@ -121,6 +122,7 @@ function FieldFrame({
   layout = 'stacked',
   label,
   badge,
+  action,
   description,
   required,
   disabled,
@@ -151,7 +153,14 @@ function FieldFrame({
           }
           value="control"
         >
-          {children}
+          {action ? (
+            <div className="flex items-center gap-2">
+              {action}
+              <div className="min-w-0 flex-1">{children}</div>
+            </div>
+          ) : (
+            children
+          )}
           {details}
         </SettingsRowFrame>
       </Field>
@@ -373,18 +382,28 @@ export function ChoiceCard({
   );
 }
 
+type SwitchFieldProps = Omit<FieldProps, 'required'> & Pick<FieldFrameProps, 'badge' | 'action'>;
+
 /** A yes/no setting as a `ChoiceCard`, all one click target, or the switch alone in a row or a cell. */
 export function SwitchField({
   label,
   description,
   disabled,
   layout,
-}: Omit<FieldProps, 'required'>) {
+  badge,
+  action,
+}: SwitchFieldProps) {
   const field = useFieldContext<boolean>();
   const descriptionId = `${field.name}-description`;
+  const badgeId = `${field.name}-badge`;
+  const describedBy =
+    layout === 'row'
+      ? [badge ? badgeId : '', description ? descriptionId : ''].filter(Boolean).join(' ') ||
+        undefined
+      : undefined;
   const control = (
     <Switch
-      aria-describedby={layout === 'row' && description ? descriptionId : undefined}
+      aria-describedby={describedBy}
       checked={field.state.value}
       disabled={disabled}
       id={field.name}
@@ -398,6 +417,7 @@ export function SwitchField({
     return (
       <Field data-disabled={disabled}>
         <SettingsRowFrame
+          badge={badge && <span id={badgeId}>{badge}</span>}
           description={
             description && <FieldDescription id={descriptionId}>{description}</FieldDescription>
           }
@@ -407,7 +427,10 @@ export function SwitchField({
             </FieldLabel>
           }
         >
-          {control}
+          <div className="flex items-center gap-2">
+            {action}
+            {control}
+          </div>
         </SettingsRowFrame>
       </Field>
     );
@@ -483,6 +506,8 @@ export function ImageField({
           type="file"
         />
         <Button
+          aria-describedby={state.describedBy}
+          aria-invalid={state.isInvalid}
           disabled={disabled}
           onClick={() => input.current?.click()}
           size="sm"
@@ -519,7 +544,7 @@ type RadioGroupFieldProps = {
   label: ReactNode;
   options: readonly RadioGroupFieldOption[];
   disabled?: boolean;
-  columns?: 1 | 'fill';
+  columns?: 'fill';
 };
 
 /** One choice from a few, each drawn as a card like `SwitchField`. */
@@ -563,9 +588,10 @@ export type SelectFieldItem = {
   disabled?: boolean;
 };
 
-type SelectFieldProps = FieldProps & {
-  items: readonly SelectFieldItem[];
-};
+type SelectFieldProps = FieldProps &
+  Pick<FieldFrameProps, 'badge' | 'action'> & {
+    items: readonly SelectFieldItem[];
+  };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */
 export function SelectField({
@@ -575,13 +601,17 @@ export function SelectField({
   disabled,
   layout,
   items,
+  badge,
+  action,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
-  const state = useFieldErrors(description);
+  const state = useFieldErrors(description, undefined, badge);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
     <FieldFrame
+      action={action}
+      badge={badge}
       description={description}
       disabled={disabled}
       label={label}

@@ -8,7 +8,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const DEFAULT_LOGO_URL = `${import.meta.env.BASE_URL}olmis.png`;
 
-const appearanceSchema = z.enum(['light', 'dark', 'system']);
+export const APPEARANCES = ['light', 'dark', 'system'] as const;
+
+const appearanceSchema = z.enum(APPEARANCES);
 
 const configurationSchema = z.object({
   version: z.number().int().nonnegative().catch(0),
@@ -131,6 +133,17 @@ export function applyBranding(configuration: AppConfiguration): void {
     icon.rel = 'icon';
     document.head.append(icon);
   }
-  icon.href = getLogoUrl(configuration);
+  const logoUrl = getLogoUrl(configuration);
+  icon.href = logoUrl;
   icon.type = configuration.logo?.contentType ?? 'image/png';
+
+  if (logoUrl === DEFAULT_LOGO_URL) return;
+  const probe = new Image();
+  const target = icon;
+  probe.onerror = () => {
+    if (target.getAttribute('href') !== logoUrl) return;
+    target.href = DEFAULT_LOGO_URL;
+    target.type = 'image/png';
+  };
+  probe.src = logoUrl;
 }

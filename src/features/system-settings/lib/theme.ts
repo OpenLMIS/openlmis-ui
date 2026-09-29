@@ -1,9 +1,12 @@
 import { z } from 'zod';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
-import { DEFAULT_THEME_PRESET, THEME_PRESETS, type ThemePresetName } from '@/lib/theme-presets';
-
-export const APPEARANCES = ['light', 'dark', 'system'] as const;
-export type Appearance = (typeof APPEARANCES)[number];
+import { APPEARANCES, type Appearance } from '@/lib/app-configuration';
+import {
+  DEFAULT_THEME_PRESET,
+  isThemePresetName,
+  THEME_PRESETS,
+  type ThemePresetName,
+} from '@/lib/theme-presets';
 
 export const PRESET_NAMES = Object.keys(THEME_PRESETS) as ThemePresetName[];
 
@@ -14,13 +17,9 @@ export const themeSchema = z.object({
   appearance: z.enum(APPEARANCES),
 });
 
-function isPresetName(name: string | null): name is ThemePresetName {
-  return name !== null && Object.hasOwn(THEME_PRESETS, name);
-}
-
 export function toThemeValues(saved: AppConfigurationDto): ThemeValues {
   return {
-    preset: isPresetName(saved.theme.preset) ? saved.theme.preset : DEFAULT_THEME_PRESET,
+    preset: isThemePresetName(saved.theme.preset) ? saved.theme.preset : DEFAULT_THEME_PRESET,
     appearance: saved.theme.defaultAppearance ?? 'system',
   };
 }

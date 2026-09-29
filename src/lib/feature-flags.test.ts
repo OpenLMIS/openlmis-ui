@@ -1,5 +1,11 @@
+import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { FEATURE_FLAGS, resolveFlag } from '@/lib/feature-flags';
+import {
+  DEFAULT_APP_CONFIGURATION,
+  parseAppConfiguration,
+  setAppConfiguration,
+} from '@/lib/app-configuration';
+import { FEATURE_FLAGS, getFlag, resolveFlag, useFlag } from '@/lib/feature-flags';
 import en from '../../public/locales/en.json';
 
 describe('resolveFlag', () => {
@@ -68,5 +74,18 @@ describe('FEATURE_FLAGS', () => {
         }
       }
     }
+  });
+});
+
+describe('getFlag and useFlag', () => {
+  it("read the administrator's value, then the default", () => {
+    expect(getFlag('BATCH_APPROVE_SCREEN')).toBe(false);
+
+    setAppConfiguration(parseAppConfiguration({ featureFlags: { BATCH_APPROVE_SCREEN: true } }));
+    const { result } = renderHook(() => useFlag('BATCH_APPROVE_SCREEN'));
+
+    expect(getFlag('BATCH_APPROVE_SCREEN')).toBe(true);
+    expect(result.current).toBe(true);
+    setAppConfiguration(DEFAULT_APP_CONFIGURATION);
   });
 });

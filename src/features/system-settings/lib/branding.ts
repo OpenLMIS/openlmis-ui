@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
-import { appConfig } from '@/lib/config';
+import { getAppName } from '@/lib/app-configuration';
 
 export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 export const MAX_LOGO_BYTES = 512 * 1024;
 const MAX_APP_NAME_LENGTH = 64;
 
-export type BrandingValues = {
+type BrandingValues = {
   appName: string;
   logo: File | null | undefined;
 };
@@ -42,7 +42,7 @@ export const brandingSchema = z.object({
 });
 
 export function toBrandingValues(saved: AppConfigurationDto): BrandingValues {
-  return { appName: saved.appName ?? appConfig.BRAND, logo: undefined };
+  return { appName: getAppName(saved), logo: undefined };
 }
 
 export function brandingSteps(values: BrandingValues, saved: AppConfigurationDto): BrandingStep[] {
@@ -51,7 +51,7 @@ export function brandingSteps(values: BrandingValues, saved: AppConfigurationDto
   if (values.logo === null && saved.logo) steps.push({ kind: 'remove-logo' });
 
   const appName = values.appName.trim();
-  if (appName !== (saved.appName ?? appConfig.BRAND)) steps.push({ kind: 'update', appName });
+  if (appName !== getAppName(saved)) steps.push({ kind: 'update', appName });
   return steps;
 }
 

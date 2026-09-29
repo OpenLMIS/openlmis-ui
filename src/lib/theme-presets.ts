@@ -15,7 +15,7 @@ export const THEME_TOKENS = [
 
 type ThemeTokens = Record<(typeof THEME_TOKENS)[number], string>;
 
-export type ThemePreset = { light: ThemeTokens; dark: ThemeTokens };
+type ThemePreset = { light: ThemeTokens; dark: ThemeTokens };
 
 const BLUE_CHARTS = {
   'chart-1': 'oklch(0.76 0.12 240)',
@@ -72,10 +72,12 @@ export type ThemePresetName = keyof typeof THEME_PRESETS;
 
 export const DEFAULT_THEME_PRESET: ThemePresetName = 'blue';
 
+export function isThemePresetName(name: string | null): name is ThemePresetName {
+  return name !== null && Object.hasOwn(THEME_PRESETS, name);
+}
+
 export function resolveThemePreset(name: string | null): ThemePreset {
-  return name && Object.hasOwn(THEME_PRESETS, name)
-    ? THEME_PRESETS[name as ThemePresetName]
-    : THEME_PRESETS[DEFAULT_THEME_PRESET];
+  return THEME_PRESETS[isThemePresetName(name) ? name : DEFAULT_THEME_PRESET];
 }
 
 function declarations(tokens: ThemeTokens): string {

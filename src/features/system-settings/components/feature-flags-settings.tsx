@@ -1,43 +1,35 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { useStore } from '@tanstack/react-form';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { SettingsList, SettingsRowFrame } from '@/components/form/settings-list';
+import { useAppForm } from '@/components/form/form';
+import { SettingsList } from '@/components/form/settings-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { updateAppConfiguration } from '@/features/system-settings/api/api';
-import { appConfigurationOptions } from '@/features/system-settings/api/queries';
-import { ConflictAlert } from '@/features/system-settings/components/conflict-alert';
-import { SystemSettingsFooter } from '@/features/system-settings/components/system-settings-workspace';
+import {
+  SaveFeedback,
+  SettingsSaveFooter,
+} from '@/features/system-settings/components/save-feedback';
+import { useConfigurationSave } from '@/features/system-settings/components/use-configuration-save';
 import {
   buildFlagOverrides,
-  type FlagDraft,
+  type FlagValues,
+  flagSource,
+  inheritedFlagValue,
   isFlagsChanged,
-  toFlagDraft,
+  toFlagValues,
 } from '@/features/system-settings/lib/flags';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
-import { rememberAppConfiguration } from '@/lib/app-configuration';
 import {
   FEATURE_FLAG_KEYS,
   FEATURE_FLAGS,
-  type FeatureFlagKey,
+  type FeatureFlagDefinition,
   type FeatureFlagSource,
-  resolveFlag,
 } from '@/lib/feature-flags';
-import { isConflict } from '@/lib/http';
 import { getDeploymentFlags } from '@/lib/runtime-config';
+
+const FORM_ID = 'feature-flags-form';
 
 const SOURCE_LABELS = {
   admin: 'system-settings.flags.source.admin',
@@ -45,176 +37,121 @@ const SOURCE_LABELS = {
   default: 'system-settings.flags.source.default',
 } as const satisfies Record<FeatureFlagSource, string>;
 
-type FlagRowProps = {
-  flag: FeatureFlagKey;
-  draft: FlagDraft;
-  disabled: boolean;
-  onChange: (flag: FeatureFlagKey, value: boolean | string | undefined) => void;
-};
-
-function FlagRow({ flag, draft, disabled, onChange }: FlagRowProps) {
-  const { t } = useTranslation();
-  const definition = FEATURE_FLAGS[flag];
-  const { value, source } = resolveFlag(flag, draft, getDeploymentFlags());
-  const id = `flag-${flag}`;
-  const descriptionId = `${id}-description`;
-
-  return (
-    <SettingsRowFrame
-      badge={
-        <Badge variant={source === 'admin' ? 'info' : 'secondary'}>
-          {t(SOURCE_LABELS[source])}
-        </Badge>
-      }
-      description={
-        <div className="flex flex-col gap-1 text-muted-foreground text-sm" id={descriptionId}>
-          <p>{t(definition.descriptionKey)}</p>
-          <p>{t('system-settings.flags.used-by', { screen: t(definition.usedByKey) })}</p>
-          {!definition.inNewUi && <p>{t('system-settings.flags.not-in-new-ui')}</p>}
-          <code className="font-mono text-xs" dir="ltr">
-            {flag}
-          </code>
-        </div>
-      }
-      label={
-        <label className="text-sm" htmlFor={id}>
-          {t(definition.labelKey)}
-        </label>
-      }
-      value="fit"
-    >
-      <div className="flex items-center gap-2">
-        {source === 'admin' && (
-          <Button
-            disabled={disabled}
-            onClick={() => onChange(flag, undefined)}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            {t('system-settings.flags.reset')}
-          </Button>
-        )}
-        {definition.type === 'boolean' ? (
-          <Switch
-            aria-describedby={descriptionId}
-            checked={value === true}
-            disabled={disabled}
-            id={id}
-            onCheckedChange={(checked) => onChange(flag, checked)}
-          />
-        ) : (
-          <Select
-            disabled={disabled}
-            items={definition.options.map((option) => ({
-              value: option,
-              label: t(definition.optionKeys[option as keyof typeof definition.optionKeys]),
-            }))}
-            onValueChange={(next) => next !== null && onChange(flag, next)}
-            value={String(value)}
-          >
-            <SelectTrigger aria-describedby={descriptionId} id={id}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {definition.options.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {t(definition.optionKeys[option as keyof typeof definition.optionKeys])}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-    </SettingsRowFrame>
-  );
-}
-
 export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<FlagDraft>(() => toFlagDraft(saved.featureFlags));
-  const [conflict, setConflict] = useState(false);
+  const deployment = getDeploymentFlags();
 
-  const save = useMutation({
-    mutationFn: () =>
+  const {
+    mutation: save,
+    conflict,
+    reload,
+    blocked,
+  } = useConfigurationSave({
+    save: (values: FlagValues) =>
       updateAppConfiguration(saved, {
-        featureFlags: buildFlagOverrides(draft, saved.featureFlags),
+        featureFlags: buildFlagOverrides(values, saved.featureFlags, deployment),
       }),
-    onSuccess: (next) => {
-      queryClient.setQueryData(appConfigurationOptions().queryKey, next);
-      rememberAppConfiguration(next);
-      setDraft(toFlagDraft(next.featureFlags));
-      toast.success(t('system-settings.flags.saved-title'), {
-        description: t('system-settings.flags.saved-description'),
-      });
-    },
-    onError: (error) => {
-      if (isConflict(error)) setConflict(true);
-      void queryClient.invalidateQueries({ queryKey: appConfigurationOptions().queryKey });
-    },
+    onSaved: (next) => form.reset(toFlagValues(next.featureFlags, deployment)),
+    onReloaded: (fresh) => form.reset(toFlagValues(fresh.featureFlags, deployment)),
+    toast: () => ({
+      title: t('system-settings.flags.saved-title'),
+      description: t('system-settings.flags.saved-description'),
+    }),
   });
 
-  const changed = isFlagsChanged(draft, saved.featureFlags);
+  const form = useAppForm({
+    defaultValues: toFlagValues(saved.featureFlags, deployment),
+    onSubmit: ({ value }) => save.mutateAsync(value).catch(() => undefined),
+  });
+
+  const changed = useStore(form.store, (state) =>
+    isFlagsChanged(state.values, saved.featureFlags, deployment),
+  );
   const guard = useDiscardGuard(changed);
-
-  const onChange = (flag: FeatureFlagKey, value: boolean | string | undefined) =>
-    setDraft((current) => {
-      const next = { ...current };
-      if (value === undefined) delete next[flag];
-      else next[flag] = value;
-      return next;
-    });
-
-  const reload = async () => {
-    const fresh = await queryClient.fetchQuery({ ...appConfigurationOptions(), staleTime: 0 });
-    setConflict(false);
-    save.reset();
-    if (fresh) setDraft(toFlagDraft(fresh.featureFlags));
-  };
 
   return (
     <>
-      <SystemSettingsFooter>
-        <Button
-          disabled={!changed || save.isPending}
-          onClick={() => {
-            save.reset();
-            setDraft(toFlagDraft(saved.featureFlags));
-          }}
-          size="lg"
-          variant="outline"
-        >
-          {t('system-settings.cancel')}
-        </Button>
-        <Button disabled={!changed || save.isPending} onClick={() => save.mutate()} size="lg">
-          {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
-          {t('system-settings.save')}
-        </Button>
-      </SystemSettingsFooter>
+      <SettingsSaveFooter
+        canSave={changed && !conflict}
+        form={FORM_ID}
+        onCancel={() => {
+          save.reset();
+          form.reset(toFlagValues(saved.featureFlags, deployment));
+        }}
+        pending={save.isPending}
+      />
       <div className="flex flex-col gap-4">
         <p className="text-muted-foreground text-sm">{t('system-settings.flags.description')}</p>
-        {conflict ? (
-          <ConflictAlert onReload={reload} />
-        ) : (
-          save.isError && (
-            <ErrorAlert
-              description={serverMessage(save.error) ?? t('system-settings.save-error-description')}
-              title={t('system-settings.save-error-title')}
-            />
-          )
-        )}
-        <SettingsList>
-          {FEATURE_FLAG_KEYS.map((flag) => (
-            <FlagRow
-              disabled={save.isPending}
-              draft={draft}
-              flag={flag}
-              key={flag}
-              onChange={onChange}
-            />
-          ))}
-        </SettingsList>
+        <SaveFeedback conflict={conflict} error={save.error} onReload={reload} />
+        <form
+          id={FORM_ID}
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (changed && !blocked) void form.handleSubmit();
+          }}
+        >
+          <SettingsList>
+            {FEATURE_FLAG_KEYS.map((flag) => {
+              const definition: FeatureFlagDefinition = FEATURE_FLAGS[flag];
+              const label = t(definition.labelKey);
+              return (
+                <form.AppField key={flag} name={flag}>
+                  {(field) => {
+                    const source = flagSource(flag, field.state.value, deployment);
+                    const shared = {
+                      badge: (
+                        <Badge variant={source === 'admin' ? 'info' : 'secondary'}>
+                          {t(SOURCE_LABELS[source])}
+                        </Badge>
+                      ),
+                      action: source === 'admin' && (
+                        <Button
+                          aria-label={t('system-settings.flags.reset-label', { name: label })}
+                          disabled={save.isPending}
+                          onClick={() => field.handleChange(inheritedFlagValue(flag, deployment))}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          {t('system-settings.flags.reset')}
+                        </Button>
+                      ),
+                      description: (
+                        <>
+                          {t(definition.descriptionKey)}{' '}
+                          {t('system-settings.flags.used-by', { screen: t(definition.usedByKey) })}
+                          {!definition.inNewUi && ` ${t('system-settings.flags.not-in-new-ui')}`}
+                          <span className="block">
+                            <code className="font-mono text-xs" dir="ltr">
+                              {flag}
+                            </code>
+                          </span>
+                        </>
+                      ),
+                      disabled: save.isPending,
+                      label,
+                      layout: 'row' as const,
+                    };
+                    return definition.type === 'boolean' ? (
+                      <field.SwitchField {...shared} />
+                    ) : (
+                      <field.SelectField
+                        {...shared}
+                        items={definition.options.map((option) => ({
+                          value: option,
+                          label: definition.optionKeys[option]
+                            ? t(definition.optionKeys[option])
+                            : option,
+                        }))}
+                      />
+                    );
+                  }}
+                </form.AppField>
+              );
+            })}
+          </SettingsList>
+        </form>
       </div>
       <DiscardChangesDialog
         description={t('system-settings.discard-description')}

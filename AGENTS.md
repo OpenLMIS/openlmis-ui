@@ -369,8 +369,9 @@ that sticks to the bottom of the window, with Cancel at the start and Save at th
 opened from, with its page, sort and filters, which the opening link passes in history
 state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
 the saved values back and Save stays. Pages that share a header across tabs, like Profile,
-render it once in the layout route and put the footer in through `ProfileFooter`, so a tab
-switch never remounts the header. Toasts rise above the footer while it is on screen.
+render it once in the layout route through `WorkspaceTabs` and put the footer in with
+`WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch never remounts
+the header. Toasts rise above the footer while it is on screen.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
@@ -486,7 +487,9 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
-`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel` and `SelectTrigger width`.
+`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
+`SelectTrigger width`. `SwitchField` and `SelectField` take an optional `badge` beside the label
+and an `action` beside the value, such as a flag's source and its Reset.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 
@@ -523,9 +526,34 @@ password change, before it acts. Both open the shared "Discard Unsaved Changes?"
 browser's own prompt, which is the only one a page is allowed there.
 
 **Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
-ramp: one blue hue, light to dark, checked for even steps and contrast in both modes, used
+ramp: one hue from the active theme preset, light to dark, checked for even steps and contrast in both modes, used
 in order for anything with an order (pipeline stages). Status meaning (good to critical)
 uses `success`, `warning` and `destructive` with an icon and a label, never colour alone.
+
+## App configuration
+
+**Branding, theme and feature flags come from the server**, `GET /api/appConfiguration`,
+loaded in `src/lib/app-configuration.ts` before the first render and cached in localStorage for
+the next boot. A slow or missing server falls back to the cache, then to the built-in defaults.
+`startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
+favicon, preset tokens and light or dark class in step with the store.
+
+**Never hardcode "OpenLMIS" in copy.** Messages take `{appName}` and pass
+`useAppName()`, so a renamed deployment reads its own name everywhere.
+
+**Light or dark goes through `src/lib/appearance.ts`**, which replaces next-themes. It keeps
+the user's choice under the `theme` key; no choice follows the administrator's default
+appearance. Read it with `useResolvedAppearance()`.
+
+**A feature flag reads through `useFlag(key)`, or `getFlag(key)` outside React.** The
+administrator's value wins, then the deployment's `config.json`, then the code default.
+`getDeploymentFlags()` has no `import.meta.env` fallback, so `pnpm dev` sees only the defaults
+and the admin values. Adding a flag takes:
+
+1. An entry in `FEATURE_FLAGS` (`src/lib/feature-flags.ts`) with its type, default and
+   message keys, and those keys in every locale.
+2. A line in `docker/config.json.template`, its `export` and `envsubst` name in
+   `docker/entrypoint.sh`, and the variable in `docker-compose.yml`.
 
 ## Authentication
 

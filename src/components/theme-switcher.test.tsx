@@ -1,12 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
-import { ThemeProvider } from 'next-themes';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { parseAppConfiguration, setAppConfiguration } from '@/lib/app-configuration';
+import { setAppearanceChoice, useAppearanceStore } from '@/lib/appearance';
 
 beforeAll(async () => {
   await i18n.use(initReactI18next).init({ lng: 'en', resources: {} });
@@ -14,40 +13,48 @@ beforeAll(async () => {
 
 beforeEach(() => {
   localStorage.clear();
-  setAppConfiguration(parseAppConfiguration({ theme: { defaultAppearance: 'dark' } }));
+  useAppearanceStore.setState({ choice: null });
 });
 
 function renderSwitcher() {
   return render(
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <TooltipProvider>
-        <ThemeSwitcher />
-      </TooltipProvider>
-    </ThemeProvider>,
+    <TooltipProvider>
+      <ThemeSwitcher />
+    </TooltipProvider>,
   );
 }
 
-async function choose(name: string) {
+async function openMenu() {
   await userEvent.click(screen.getByRole('button', { name: 'sidebar.toggle-theme' }));
-  await userEvent.click(await screen.findByRole('menuitemradio', { name }));
 }
 
 describe('ThemeSwitcher', () => {
-  it('keeps a light or dark choice for this browser', async () => {
+  it('keeps a light or dark choice for this browser and ticks it', async () => {
     renderSwitcher();
+    await openMenu();
 
-    await choose('sidebar.theme.light');
+    await userEvent.click(await screen.findByRole('menuitemradio', { name: 'sidebar.theme.dark' }));
 
-    expect(localStorage.getItem('theme')).toBe('light');
+    expect(localStorage.getItem('theme')).toBe('dark');
+    expect(screen.getByRole('menuitemradio', { name: 'sidebar.theme.dark' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
-  it('forgets the choice with Use Default, so the deployment default applies again', async () => {
-    localStorage.setItem('theme', 'light');
+  it('ticks Use Default at once when the choice is forgotten', async () => {
+    setAppearanceChoice('dark');
     renderSwitcher();
+    await openMenu();
 
-    await choose('sidebar.theme.default');
+    await userEvent.click(
+      await screen.findByRole('menuitemradio', { name: 'sidebar.theme.default' }),
+    );
 
     expect(localStorage.getItem('theme')).toBeNull();
-    expect(document.documentElement).toHaveClass('dark');
+    expect(screen.getByRole('menuitemradio', { name: 'sidebar.theme.default' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 });

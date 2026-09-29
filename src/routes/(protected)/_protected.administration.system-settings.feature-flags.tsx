@@ -6,11 +6,10 @@ import { FeatureFlagsSettings } from '@/features/system-settings/components/feat
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/system-settings/feature-flags',
 )({
-  staticData: { crumbKey: 'system-settings.tabs.feature-flags' },
   component: FeatureFlagsPage,
 });
 
 function FeatureFlagsPage() {
   const { data: saved } = useSuspenseQuery(appConfigurationOptions());
-  return saved ? <FeatureFlagsSettings key={saved.version} saved={saved} /> : null;
+  return saved ? <FeatureFlagsSettings saved={saved} /> : null;
 }
