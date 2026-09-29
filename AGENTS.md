@@ -470,10 +470,11 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`). A yes/no setting is a `SwitchField`,
+`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
-`SelectField`. Every field takes a `layout`: `stacked` by default; `row` for a settings
+`SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
+saved one, `null` to remove it or the picked `File`. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
 `inline` in a table cell, where the column header names it and the label and description
