@@ -151,7 +151,7 @@ Cancel and the leave guard, save with a stubbed `PUT` and the return to the list
 | Inline add form | Improve: Add Role dialog | Room for searchable lists, inline errors and warnings; works on a phone |
 | Node and facility dropdowns | Improve: searchable comboboxes, node shown with its facility | 511 nodes and 2,735 facilities |
 | Home facility warning | Improve: shown in the dialog before adding and as a row badge | Hover-only icon today |
-| Rights popover on hover | Improve: rights listed in the Add dialog and a View Rights row action | Hover fails on touch and keyboard |
+| Rights popover on hover | Improve: rights listed in the Add dialog, and a help button beside the role's name opens them in a popover | Hover fails on touch and keyboard |
 | Remove confirm with user count | Improve: remove at once with Undo | The count is wrong and the change is not saved yet anyway |
 | Table | Improve: search, sortable columns, pagination with page size | Long supervision lists |
 | Save and Cancel in a bar at the bottom | Port: sticky at the bottom of the window; Save returns to the list | The flow legacy users know; Save stays disabled until something changes |

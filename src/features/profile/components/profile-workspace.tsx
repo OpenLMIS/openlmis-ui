@@ -41,7 +41,7 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
 
   return (
     <FooterSlot value={footerSlot}>
-      <Workspace>
+      <Workspace width="narrow">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -98,5 +98,7 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
 /** Save and Cancel for a tab that edits, in the bar stuck to the bottom of the window. */
 export function ProfileFooter({ children }: { children: ReactNode }) {
   const slot = useContext(FooterSlot);
-  return slot ? createPortal(<WorkspaceFooter>{children}</WorkspaceFooter>, slot) : null;
+  return slot
+    ? createPortal(<WorkspaceFooter width="narrow">{children}</WorkspaceFooter>, slot)
+    : null;
 }

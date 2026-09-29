@@ -354,7 +354,8 @@ hand-rolling padding:
 ```
 
 Every part takes only `children` - no boolean props, no `renderX` callbacks. A page
-without an icon, a description or actions just leaves those parts out.
+without an icon, a description or actions just leaves those parts out. The one variant is
+`width="narrow"` on `Workspace` and `WorkspaceFooter`, for a page of settings like Profile.
 
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
 outrank the toolbar controls below them. When the header stacks on a narrow page, they share
@@ -472,7 +473,11 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `ComboboxField`, `MultiComboboxField`, `SelectField`). A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
-`SelectField`. Validate with a zod schema on `onDynamic` with
+`SelectField`. Every field takes a `layout`: `stacked` by default; `row` for a settings
+page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
+the start and the value at the end, and `SettingsItem` for a value that is only shown;
+`inline` in a table cell, where the column header names it and the label is for screen
+readers only. Validate with a zod schema on `onDynamic` with
 `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
 the first submit and then follow each correction.
 

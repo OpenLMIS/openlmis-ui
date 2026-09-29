@@ -3,7 +3,6 @@ import type { TFunction } from 'i18next';
 import {
   EllipsisIcon,
   InfoIcon,
-  ListChecksIcon,
   PlusIcon,
   SearchXIcon,
   ShieldIcon,
@@ -21,6 +20,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { RoleRightsPopover } from '@/components/role-rights-popover';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,7 +55,6 @@ const columnHelper = createColumnHelper<DataTableFeatures, RoleRow>();
 type RowActions = {
   /** Left out where the roles are only shown, e.g. on the user's own profile. */
   onRemove?: (row: RoleRow) => void;
-  onViewRights: (roleId: string) => void;
 };
 
 type ColumnOptions = RowActions & {
@@ -120,8 +119,12 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
 
   return (
     <span className="flex min-w-0 flex-col gap-1">
-      <span className="flex min-w-0 items-center gap-2 font-medium">
-        <Name value={row.role} />
+      <span className="flex min-w-0 items-center gap-2">
+        {row.role === undefined ? (
+          <Name value={row.role} />
+        ) : (
+          <RoleRightsPopover name={row.role} roleId={row.assignment.roleId} />
+        )}
         {row.isUnsaved && (
           <Badge variant="info">
             <InfoIcon data-icon="inline-start" />
@@ -145,7 +148,7 @@ function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
 }
 
 function createColumns(options: ColumnOptions) {
-  const { t, tab, compact, status } = options;
+  const { t, tab, compact, status, onRemove } = options;
   const role = columnHelper.accessor('role', {
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t('users.roles.column.role')} />
@@ -158,18 +161,17 @@ function createColumns(options: ColumnOptions) {
     meta: { className: 'w-16' },
     cell: ({ row }) => (
       <RoleActions
-        onRemove={options.onRemove && (() => options.onRemove?.(row.original))}
-        onViewRights={() => options.onViewRights(row.original.assignment.roleId)}
+        onRemove={() => onRemove?.(row.original)}
         role={row.original.role ?? t('users.roles.unknown')}
       />
     ),
   });
+  const withActions = onRemove ? [actions] : [];
 
-  if (compact) return columnHelper.columns([role, actions]);
+  if (compact) return columnHelper.columns([role, ...withActions]);
 
   if (tab.type === 'SUPERVISION') {
     return columnHelper.columns([
-      role,
       columnHelper.accessor('program', {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('users.roles.column.program')} />
@@ -184,12 +186,12 @@ function createColumns(options: ColumnOptions) {
         meta: { className: 'w-2/5' },
         cell: ({ row }) => <NodeCell row={row.original} status={status} />,
       }),
-      actions,
+      role,
+      ...withActions,
     ]);
   }
   if (tab.type === 'ORDER_FULFILLMENT') {
     return columnHelper.columns([
-      role,
       columnHelper.accessor('facility', {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('users.roles.column.facility')} />
@@ -197,34 +199,14 @@ function createColumns(options: ColumnOptions) {
         meta: { className: 'w-1/2' },
         cell: ({ getValue }) => <Name status={status.facilities} value={getValue()} />,
       }),
-      actions,
+      role,
+      ...withActions,
     ]);
   }
-  return columnHelper.columns([
-    role,
-    columnHelper.accessor('description', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('users.roles.column.description')} />
-      ),
-      enableSorting: false,
-      meta: { className: 'w-1/2' },
-      cell: ({ getValue }) => (
-        <span className="truncate text-muted-foreground">{getValue() ?? '-'}</span>
-      ),
-    }),
-    actions,
-  ]);
+  return columnHelper.columns([role, ...withActions]);
 }
 
-function RoleActions({
-  role,
-  onRemove,
-  onViewRights,
-}: {
-  role: string;
-  onRemove: (() => void) | undefined;
-  onViewRights: () => void;
-}) {
+function RoleActions({ role, onRemove }: { role: string; onRemove: () => void }) {
   const { t } = useTranslation();
 
   return (
@@ -242,16 +224,10 @@ function RoleActions({
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuItem onClick={onViewRights}>
-            <ListChecksIcon />
-            {t('users.roles.view-rights')}
+          <DropdownMenuItem onClick={onRemove} variant="destructive">
+            <Trash2Icon />
+            {t('users.roles.remove')}
           </DropdownMenuItem>
-          {onRemove && (
-            <DropdownMenuItem onClick={onRemove} variant="destructive">
-              <Trash2Icon />
-              {t('users.roles.remove')}
-            </DropdownMenuItem>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -281,12 +257,11 @@ function useRoleTable({
   search,
   onSearchChange,
   onRemove,
-  onViewRights,
 }: Omit<RoleAssignmentsTableProps, 'onAdd'>) {
   const { t } = useTranslation();
   const columns = useMemo(
-    () => createColumns({ t, tab, compact, status, onRemove, onViewRights }),
-    [t, tab, compact, status, onRemove, onViewRights],
+    () => createColumns({ t, tab, compact, status, onRemove }),
+    [t, tab, compact, status, onRemove],
   );
   const searchState = useTableSearchState({
     search,
@@ -334,7 +309,6 @@ export function RoleAssignmentsTableSkeleton({
     status: SKELETON_STATUS,
     search,
     onSearchChange: noop,
-    onViewRights: noop,
   });
   return <DataTableSkeleton rowCount={5} table={table} />;
 }

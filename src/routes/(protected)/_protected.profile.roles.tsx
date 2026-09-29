@@ -1,9 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback } from 'react';
 import type { z } from 'zod';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
-import { RoleRightsDialog } from '@/components/role-rights-dialog';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
 import {
@@ -22,7 +20,7 @@ const profileRolesSearchSchema = rolesSearchSchema.omit({ dialog: true });
 
 type ProfileRolesSearch = z.infer<typeof profileRolesSearchSchema>;
 
-const CLOSED_RIGHTS = { rights: undefined } satisfies Partial<ProfileRolesSearch>;
+const NO_DIALOGS = {} satisfies Partial<ProfileRolesSearch>;
 
 export const Route = createFileRoute('/(protected)/_protected/profile/roles')({
   validateSearch: profileRolesSearchSchema,
@@ -52,25 +50,19 @@ function RoleAssignmentsTab({ userId }: { userId: string }) {
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
 
-  const { updateSearch, openDialog, closeDialog } =
-    useSearchNavigation<ProfileRolesSearch>(CLOSED_RIGHTS);
-  const viewRights = useCallback((rights: string) => openDialog({ rights }), [openDialog]);
+  const { updateSearch } = useSearchNavigation<ProfileRolesSearch>(NO_DIALOGS);
 
   return (
-    <>
-      <div ref={measureContent}>
-        <RoleTabs
-          compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
-          draft={user.roleAssignments}
-          homeFacilityId={user.homeFacilityId}
-          onSearchChange={updateSearch}
-          onViewRights={viewRights}
-          saved={user.roleAssignments}
-          search={search}
-          tab={tab}
-        />
-      </div>
-      <RoleRightsDialog onClose={closeDialog} roleId={search.rights} />
-    </>
+    <div ref={measureContent}>
+      <RoleTabs
+        compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
+        draft={user.roleAssignments}
+        homeFacilityId={user.homeFacilityId}
+        onSearchChange={updateSearch}
+        saved={user.roleAssignments}
+        search={search}
+        tab={tab}
+      />
+    </div>
   );
 }

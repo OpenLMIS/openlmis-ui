@@ -188,7 +188,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
     },
     [add, remove, t],
   );
-  const viewRights = useCallback((roleId: string) => openDialog({ rights: roleId }), [openDialog]);
 
   return (
     <>
@@ -228,7 +227,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
                 onAdd={() => openDialog({ dialog: 'add' })}
                 onRemove={removeRole}
                 onSearchChange={updateSearch}
-                onViewRights={viewRights}
                 saved={user.roleAssignments}
                 search={search}
                 tab={tab}
@@ -254,7 +252,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
                     }),
                   });
                 }}
-                rightsRoleId={search.rights}
                 userId={user.id}
                 username={user.username}
               />

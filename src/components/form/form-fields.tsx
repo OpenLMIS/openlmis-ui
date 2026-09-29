@@ -2,6 +2,7 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
+import { SettingsLabel, SettingsRowFrame } from '@/components/form/settings-list';
 import {
   Combobox,
   ComboboxChip,
@@ -43,11 +44,23 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
+/** `row` for a `SettingsList` row; `inline` keeps the label for screen readers only, e.g. in a table. */
+export type FieldLayout = 'stacked' | 'row' | 'inline';
+
 type FieldProps = {
   label: ReactNode;
   description?: ReactNode;
   required?: boolean;
   disabled?: boolean;
+  layout?: FieldLayout;
+};
+
+type FieldFrameProps = FieldProps & {
+  /** Beside the label in a row, such as a status badge. */
+  badge?: ReactNode;
+  state: ReturnType<typeof useFieldErrors>;
+  /** The control, which takes the field's name as its id. */
+  children: ReactNode;
 };
 
 /** The field's errors as display text, whether there are any, and what the control is described by. */
@@ -87,25 +100,71 @@ export function FieldLabelText({ label, required }: Pick<FieldProps, 'label' | '
   );
 }
 
-function RequiredLabel({ label, required }: Pick<FieldProps, 'label' | 'required'>) {
+/** Label, control, description and error, laid out as the field's `layout` asks. */
+function FieldFrame({
+  layout = 'stacked',
+  label,
+  badge,
+  description,
+  required,
+  disabled,
+  state: { errors, isInvalid, descriptionId, errorId },
+  children,
+}: FieldFrameProps) {
   const field = useFieldContext<unknown>();
+  const labelText = <FieldLabelText label={label} required={required} />;
+  const details = (
+    <>
+      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      {isInvalid && <FieldError errors={errors} id={errorId} />}
+    </>
+  );
+
   return (
-    <FieldLabel htmlFor={field.name}>
-      <FieldLabelText label={label} required={required} />
-    </FieldLabel>
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      {layout === 'row' ? (
+        <SettingsRowFrame
+          badge={badge}
+          label={
+            <FieldLabel htmlFor={field.name}>
+              <SettingsLabel>{labelText}</SettingsLabel>
+            </FieldLabel>
+          }
+          value="control"
+        >
+          {children}
+          {details}
+        </SettingsRowFrame>
+      ) : (
+        <>
+          {layout === 'inline' ? (
+            <label className="sr-only" htmlFor={field.name}>
+              {labelText}
+            </label>
+          ) : (
+            <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>
+          )}
+          {children}
+          {details}
+        </>
+      )}
+    </Field>
   );
 }
 
-type TextFieldProps = FieldProps & {
-  type?: 'text' | 'email' | 'tel' | 'time';
-  autoComplete?: string;
-  placeholder?: string;
-  /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
-  dir?: 'ltr';
-};
+type TextFieldProps = FieldProps &
+  Pick<FieldFrameProps, 'badge'> & {
+    type?: 'text' | 'email' | 'tel' | 'time';
+    autoComplete?: string;
+    placeholder?: string;
+    /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
+    dir?: 'ltr';
+  };
 
 export function TextField({
   label,
+  layout,
+  badge,
   description,
   required,
   disabled,
@@ -115,17 +174,19 @@ export function TextField({
   dir,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
-  const {
-    errors,
-    isInvalid,
-    descriptionId,
-    errorId,
-    describedBy: ariaDescribedBy,
-  } = useFieldErrors(description);
+  const state = useFieldErrors(description);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      <RequiredLabel label={label} required={required} />
+    <FieldFrame
+      badge={badge}
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
       <Input
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
@@ -141,9 +202,7 @@ export function TextField({
         type={type}
         value={field.state.value}
       />
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
-    </Field>
+    </FieldFrame>
   );
 }
 
@@ -153,23 +212,25 @@ type TextareaFieldProps = FieldProps & {
 
 export function TextareaField({
   label,
+  layout,
   description,
   required,
   disabled,
   placeholder,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
-  const {
-    errors,
-    isInvalid,
-    descriptionId,
-    errorId,
-    describedBy: ariaDescribedBy,
-  } = useFieldErrors(description);
+  const state = useFieldErrors(description);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      <RequiredLabel label={label} required={required} />
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
       <Textarea
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
@@ -182,9 +243,7 @@ export function TextareaField({
         placeholder={placeholder}
         value={field.state.value}
       />
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
-    </Field>
+    </FieldFrame>
   );
 }
 
@@ -199,6 +258,7 @@ type PasswordFieldProps = FieldProps & {
 
 export function PasswordField({
   label,
+  layout,
   description,
   required,
   disabled,
@@ -209,18 +269,19 @@ export function PasswordField({
   describedBy,
 }: PasswordFieldProps) {
   const field = useFieldContext<string>();
-  const {
-    errors,
-    isInvalid,
-    descriptionId,
-    errorId,
-    describedBy: ariaDescribedBy,
-  } = useFieldErrors(description, describedBy);
+  const state = useFieldErrors(description, describedBy);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
   const [visible, setVisible] = useState(false);
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      <RequiredLabel label={label} required={required} />
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
       <InputGroup>
         <InputGroupInput
           aria-describedby={ariaDescribedBy}
@@ -249,9 +310,7 @@ export function PasswordField({
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
-    </Field>
+    </FieldFrame>
   );
 }
 
@@ -285,20 +344,67 @@ export function ChoiceCard({ htmlFor, label, description, disabled, children }: 
   );
 }
 
-/** A yes/no setting as a `ChoiceCard`, all one click target. */
-export function SwitchField({ label, description, disabled }: Omit<FieldProps, 'required'>) {
+/** A yes/no setting as a `ChoiceCard`, all one click target, or the switch alone in a row or a cell. */
+export function SwitchField({
+  label,
+  description,
+  disabled,
+  layout,
+}: Omit<FieldProps, 'required'>) {
   const field = useFieldContext<boolean>();
+  const descriptionId = `${field.name}-description`;
+  const control = (
+    <Switch
+      aria-describedby={layout === 'row' || layout === 'inline' ? descriptionId : undefined}
+      checked={field.state.value}
+      disabled={disabled}
+      id={field.name}
+      name={field.name}
+      onBlur={field.handleBlur}
+      onCheckedChange={(checked) => field.handleChange(checked)}
+    />
+  );
 
+  if (layout === 'row') {
+    return (
+      <Field data-disabled={disabled}>
+        <SettingsRowFrame
+          description={
+            description && (
+              <FieldDescription id={descriptionId} size="sm">
+                {description}
+              </FieldDescription>
+            )
+          }
+          label={
+            <FieldLabel htmlFor={field.name}>
+              <SettingsLabel>{label}</SettingsLabel>
+            </FieldLabel>
+          }
+        >
+          {control}
+        </SettingsRowFrame>
+      </Field>
+    );
+  }
+  if (layout === 'inline') {
+    return (
+      <Field data-disabled={disabled} orientation="horizontal">
+        <label className="sr-only" htmlFor={field.name}>
+          {label}
+        </label>
+        {control}
+        {description && (
+          <FieldDescription id={descriptionId} size="sm">
+            {description}
+          </FieldDescription>
+        )}
+      </Field>
+    );
+  }
   return (
     <ChoiceCard description={description} disabled={disabled} htmlFor={field.name} label={label}>
-      <Switch
-        checked={field.state.value}
-        disabled={disabled}
-        id={field.name}
-        name={field.name}
-        onBlur={field.handleBlur}
-        onCheckedChange={(checked) => field.handleChange(checked)}
-      />
+      {control}
     </ChoiceCard>
   );
 }
@@ -360,19 +466,27 @@ type SelectFieldProps = FieldProps & {
 };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */
-export function SelectField({ label, description, required, disabled, items }: SelectFieldProps) {
+export function SelectField({
+  label,
+  description,
+  required,
+  disabled,
+  layout,
+  items,
+}: SelectFieldProps) {
   const field = useFieldContext<string>();
-  const {
-    errors,
-    isInvalid,
-    descriptionId,
-    errorId,
-    describedBy: ariaDescribedBy,
-  } = useFieldErrors(description);
+  const state = useFieldErrors(description);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      <RequiredLabel label={label} required={required} />
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
       <Select
         disabled={disabled}
         items={items}
@@ -397,9 +511,7 @@ export function SelectField({ label, description, required, disabled, items }: S
           ))}
         </SelectContent>
       </Select>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
-    </Field>
+    </FieldFrame>
   );
 }
 
@@ -421,6 +533,7 @@ type ComboboxFieldProps = FieldProps & {
 /** Picks one item by typing to filter; the field's value is the item's `value`, or null for none. */
 export function ComboboxField({
   label,
+  layout,
   description,
   required,
   disabled,
@@ -431,21 +544,22 @@ export function ComboboxField({
   limit = 50,
 }: ComboboxFieldProps) {
   const field = useFieldContext<string | null>();
-  const {
-    errors,
-    isInvalid,
-    descriptionId,
-    errorId,
-    describedBy: ariaDescribedBy,
-  } = useFieldErrors(description);
+  const state = useFieldErrors(description);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
   const selected = useMemo(
     () => items.find((item) => item.value === field.state.value) ?? null,
     [items, field.state.value],
   );
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      <RequiredLabel label={label} required={required} />
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
       <Combobox
         disabled={disabled}
         isItemEqualToValue={(item, value) => item.value === value.value}
@@ -482,9 +596,7 @@ export function ComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
-    </Field>
+    </FieldFrame>
   );
 }
 
@@ -497,6 +609,7 @@ type MultiComboboxFieldProps = FieldProps & {
 
 export function MultiComboboxField({
   label,
+  layout,
   description,
   required,
   disabled,
@@ -506,13 +619,8 @@ export function MultiComboboxField({
   removeLabel,
 }: MultiComboboxFieldProps) {
   const field = useFieldContext<string[]>();
-  const {
-    errors,
-    isInvalid,
-    descriptionId,
-    errorId,
-    describedBy: ariaDescribedBy,
-  } = useFieldErrors(description);
+  const state = useFieldErrors(description);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
   const anchor = useComboboxAnchor();
   const selected = useMemo(() => {
     const chosen = new Set(field.state.value);
@@ -520,8 +628,14 @@ export function MultiComboboxField({
   }, [items, field.state.value]);
 
   return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      <RequiredLabel label={label} required={required} />
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
       <Combobox
         disabled={disabled}
         isItemEqualToValue={(item, value) => item.value === value.value}
@@ -568,8 +682,6 @@ export function MultiComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
-    </Field>
+    </FieldFrame>
   );
 }

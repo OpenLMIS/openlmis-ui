@@ -111,7 +111,6 @@ export type RoleRow = {
   id: string;
   assignment: RoleAssignment;
   role: string | undefined;
-  description: string | undefined;
   program: string | undefined;
   /** The supervisory node, or for a home facility role, the home facility. */
   node: string | undefined;
@@ -143,7 +142,6 @@ function toRoleRow(assignment: RoleAssignment, { lookups, savedKeys, homeFacilit
     id: key,
     assignment,
     role: role?.name,
-    description: role?.description ?? undefined,
     program: assignment.programId ? lookups.programs.get(assignment.programId)?.name : undefined,
     node: node?.name,
     nodeFacility: isHomeFacility ? facilityName(homeFacilityId) : facilityName(node?.facility?.id),

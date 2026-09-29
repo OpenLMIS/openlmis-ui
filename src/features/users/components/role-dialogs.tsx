@@ -1,4 +1,3 @@
-import { RoleRightsDialog } from '@/components/role-rights-dialog';
 import type { RightType } from '@/features/reference-data/lib/types';
 import { AddRoleDialog } from '@/features/users/components/add-role-dialog';
 import { ImportRolesDialog } from '@/features/users/components/import-roles-dialog';
@@ -12,8 +11,6 @@ type RoleDialogsProps = {
   /** The type of role being added, while Add Role is open. */
   addType: RightType | undefined;
   importOpen: boolean;
-  /** The role whose rights are shown. */
-  rightsRoleId: string | undefined;
   onAdd: (assignment: RoleAssignment) => void;
   onImport: (assignments: RoleAssignment[], fromUsername: string) => void;
   onClose: () => void;
@@ -27,7 +24,6 @@ export function RoleDialogs({
   draft,
   addType,
   importOpen,
-  rightsRoleId,
   onAdd,
   onImport,
   onClose,
@@ -50,7 +46,6 @@ export function RoleDialogs({
         userId={userId}
         username={username}
       />
-      <RoleRightsDialog onClose={onClose} roleId={rightsRoleId} />
     </>
   );
 }

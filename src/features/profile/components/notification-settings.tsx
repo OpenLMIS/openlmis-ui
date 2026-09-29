@@ -1,7 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellOffIcon, Loader2Icon, MailXIcon } from 'lucide-react';
-import { Fragment, useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableError } from '@/components/data-table/data-table';
@@ -9,7 +9,6 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Empty,
   EmptyDescription,
@@ -17,9 +16,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { saveSubscriptions } from '@/features/profile/api/api';
 import { digestConfigurationsOptions, subscriptionsOptions } from '@/features/profile/api/queries';
 import { ProfileFooter } from '@/features/profile/components/profile-workspace';
@@ -66,19 +71,17 @@ export function NotificationSettings({ userId, hasContactDetails }: Notification
 
   const failed = configurations.isError || subscriptions.isError;
   return !hasContactDetails ? (
-    <Card>
-      <CardContent>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <MailXIcon />
-            </EmptyMedia>
-            <EmptyTitle>{t('profile.notifications.no-contact-title')}</EmptyTitle>
-            <EmptyDescription>{t('profile.notifications.no-contact')}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </CardContent>
-    </Card>
+    <Bordered>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <MailXIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t('profile.notifications.no-contact-title')}</EmptyTitle>
+          <EmptyDescription>{t('profile.notifications.no-contact')}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </Bordered>
   ) : failed ? (
     <DataTableError
       description={t('profile.notifications.error-description')}
@@ -175,141 +178,166 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
           </Button>
         </ProfileFooter>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('profile.notifications.title')}</CardTitle>
-          <CardDescription>{t('profile.notifications.description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {rows.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <BellOffIcon />
-                </EmptyMedia>
-                <EmptyTitle>{t('profile.notifications.empty-title')}</EmptyTitle>
-                <EmptyDescription>{t('profile.notifications.empty')}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <form
-              className="flex flex-col gap-6"
-              id={FORM_ID}
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (changes > 0) void form.handleSubmit();
-              }}
-            >
-              {save.isError && (
-                <ErrorAlert
-                  description={serverMessage(save.error) ?? t('users.form.save-error')}
-                  title={t('profile.notifications.save-error-title')}
-                />
-              )}
-              {rows.map((row, index) => (
-                <Fragment key={row.configurationId}>
-                  {index > 0 && <Separator />}
-                  <FieldSet>
-                    <FieldLegend>{tagLabel(row.tag)}</FieldLegend>
-                    <FieldGroup>
-                      <div className="grid gap-5 @2xl/main:grid-cols-2">
+      {rows.length === 0 ? (
+        <Bordered>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <BellOffIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t('profile.notifications.empty-title')}</EmptyTitle>
+              <EmptyDescription>{t('profile.notifications.empty')}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </Bordered>
+      ) : (
+        <form
+          className="flex flex-col gap-4"
+          id={FORM_ID}
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (changes > 0) void form.handleSubmit();
+          }}
+        >
+          {save.isError && (
+            <ErrorAlert
+              description={serverMessage(save.error) ?? t('users.form.save-error')}
+              title={t('profile.notifications.save-error-title')}
+            />
+          )}
+          <Bordered>
+            <Table density="comfortable">
+              <TableHeader surface="muted">
+                <TableRow>
+                  <TableHead>{t('profile.notifications.notification')}</TableHead>
+                  <TableHead>{t('profile.notifications.channel')}</TableHead>
+                  <TableHead>{t('profile.notifications.use-digest')}</TableHead>
+                  <TableHead>{t('profile.notifications.schedule')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row, index) => (
+                  <TableRow key={row.configurationId}>
+                    <TableCell>
+                      <span className="whitespace-normal font-medium">{tagLabel(row.tag)}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="w-28">
                         <form.AppField name={`rows[${index}].channel`}>
                           {(field) => (
                             <field.SelectField
-                              description={
-                                row.useDigest && t('profile.notifications.digest-email-only')
-                              }
                               items={channels(row.useDigest)}
                               label={t('profile.notifications.channel')}
-                            />
-                          )}
-                        </form.AppField>
-                        <form.AppField
-                          listeners={{
-                            onChange: ({ value }) => {
-                              if (value && form.getFieldValue(`rows[${index}].channel`) !== 'EMAIL')
-                                form.setFieldValue(`rows[${index}].channel`, 'EMAIL');
-                            },
-                          }}
-                          name={`rows[${index}].useDigest`}
-                        >
-                          {(field) => (
-                            <field.SwitchField
-                              description={t('profile.notifications.use-digest-description')}
-                              label={t('profile.notifications.use-digest')}
+                              layout="inline"
                             />
                           )}
                         </form.AppField>
                       </div>
-                      {row.useDigest && (
-                        <div className="grid gap-5 @2xl/main:grid-cols-3">
-                          <form.AppField
-                            listeners={{
-                              onChange: ({ value }: { value: Frequency }) => {
-                                // A custom schedule starts from the simple one it replaces.
-                                if (value === 'custom' && row.schedule.frequency !== 'custom')
-                                  form.setFieldValue(
-                                    `rows[${index}].schedule.cron`,
-                                    toCron(row.schedule),
-                                  );
-                              },
-                            }}
-                            name={`rows[${index}].schedule.frequency`}
-                          >
-                            {(field) => (
-                              <field.SelectField
-                                items={frequencies}
-                                label={t('profile.notifications.frequency')}
-                              />
-                            )}
-                          </form.AppField>
-                          {row.schedule.frequency === 'weekly' && (
-                            <form.AppField name={`rows[${index}].schedule.weekday`}>
+                    </TableCell>
+                    <TableCell>
+                      <form.AppField
+                        listeners={{
+                          onChange: ({ value }) => {
+                            if (value && form.getFieldValue(`rows[${index}].channel`) !== 'EMAIL')
+                              form.setFieldValue(`rows[${index}].channel`, 'EMAIL');
+                          },
+                        }}
+                        name={`rows[${index}].useDigest`}
+                      >
+                        {(field) => (
+                          <field.SwitchField
+                            label={t('profile.notifications.use-digest')}
+                            layout="inline"
+                          />
+                        )}
+                      </form.AppField>
+                    </TableCell>
+                    <TableCell>
+                      {row.useDigest ? (
+                        <div className="flex items-start gap-2">
+                          <div className="w-28">
+                            <form.AppField
+                              listeners={{
+                                onChange: ({ value }: { value: Frequency }) => {
+                                  // A custom schedule starts from the simple one it replaces.
+                                  if (value === 'custom' && row.schedule.frequency !== 'custom')
+                                    form.setFieldValue(
+                                      `rows[${index}].schedule.cron`,
+                                      toCron(row.schedule),
+                                    );
+                                },
+                              }}
+                              name={`rows[${index}].schedule.frequency`}
+                            >
                               {(field) => (
                                 <field.SelectField
-                                  items={weekdays}
-                                  label={t('profile.notifications.weekday')}
+                                  items={frequencies}
+                                  label={t('profile.notifications.frequency')}
+                                  layout="inline"
                                 />
                               )}
                             </form.AppField>
+                          </div>
+                          {row.schedule.frequency === 'weekly' && (
+                            <div className="w-36">
+                              <form.AppField name={`rows[${index}].schedule.weekday`}>
+                                {(field) => (
+                                  <field.SelectField
+                                    items={weekdays}
+                                    label={t('profile.notifications.weekday')}
+                                    layout="inline"
+                                  />
+                                )}
+                              </form.AppField>
+                            </div>
                           )}
                           {row.schedule.frequency === 'custom' ? (
-                            <form.AppField name={`rows[${index}].schedule.cron`}>
-                              {(field) => (
-                                <field.TextField
-                                  autoComplete="off"
-                                  description={t('profile.notifications.cron-description', {
-                                    example: CRON_EXAMPLE,
-                                  })}
-                                  dir="ltr"
-                                  label={t('profile.notifications.cron')}
-                                  required
-                                />
-                              )}
-                            </form.AppField>
+                            <div className="w-44">
+                              <form.AppField name={`rows[${index}].schedule.cron`}>
+                                {(field) => (
+                                  <field.TextField
+                                    autoComplete="off"
+                                    dir="ltr"
+                                    label={t('profile.notifications.cron')}
+                                    layout="inline"
+                                    required
+                                  />
+                                )}
+                              </form.AppField>
+                            </div>
                           ) : (
-                            <form.AppField name={`rows[${index}].schedule.time`}>
-                              {(field) => (
-                                <field.TextField
-                                  dir="ltr"
-                                  label={t('profile.notifications.time')}
-                                  required
-                                  type="time"
-                                />
-                              )}
-                            </form.AppField>
+                            <div className="w-32">
+                              <form.AppField name={`rows[${index}].schedule.time`}>
+                                {(field) => (
+                                  <field.TextField
+                                    dir="ltr"
+                                    label={t('profile.notifications.time')}
+                                    layout="inline"
+                                    required
+                                    type="time"
+                                  />
+                                )}
+                              </form.AppField>
+                            </div>
                           )}
                         </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
                       )}
-                    </FieldGroup>
-                  </FieldSet>
-                </Fragment>
-              ))}
-            </form>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Bordered>
+          {rows.some((row) => row.useDigest && row.schedule.frequency === 'custom') && (
+            <p className="text-muted-foreground text-sm">
+              {t('profile.notifications.cron-description', { example: CRON_EXAMPLE })}
+            </p>
           )}
-        </CardContent>
-      </Card>
+        </form>
+      )}
       <DiscardChangesDialog
         description={t('profile.notifications.discard-description', { count: changes })}
         {...guard.dialog}
@@ -318,14 +346,14 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
   );
 }
 
+function Bordered({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-xl border bg-card">{children}</div>;
+}
+
 function NotificationSettingsSkeleton() {
   return (
-    <div aria-busy className="flex flex-col gap-4">
-      {[0, 1, 2].map((item) => (
-        <div className="h-24 w-full" key={item}>
-          <Skeleton fill />
-        </div>
-      ))}
+    <div aria-busy className="h-56 w-full">
+      <Skeleton fill />
     </div>
   );
 }
