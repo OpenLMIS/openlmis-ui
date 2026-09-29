@@ -1,6 +1,11 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { useLeaveGuard, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import {
+  allowUnload,
+  isUnloadAllowed,
+  useLeaveGuard,
+  whenLeaveAllowed,
+} from '@/hooks/use-leave-guard';
 
 describe('useLeaveGuard', () => {
   it('lets a leave through at once when no page guards it', () => {
@@ -44,5 +49,13 @@ describe('useLeaveGuard', () => {
 
     a.unmount();
     b.unmount();
+  });
+
+  it('remembers that the user agreed to reload, so the browser does not ask again', () => {
+    expect(isUnloadAllowed()).toBe(false);
+
+    allowUnload();
+
+    expect(isUnloadAllowed()).toBe(true);
   });
 });

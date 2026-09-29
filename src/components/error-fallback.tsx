@@ -1,8 +1,9 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
-import { Link } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
 import { AlertTriangleIcon, ChevronLeft, RotateCcwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NoAccessPage } from '@/components/no-access-page';
+import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -15,8 +16,15 @@ import { isForbidden } from '@/features/auth/lib/access';
 
 export function ErrorFallback({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const retry = () => {
+    void router.invalidate();
+    reset();
+  };
+  const offline = useOfflineFailure(error, retry);
   // A route that needs a right it lacks, or a refusal from the server, is not an error.
   if (isForbidden(error)) return <NoAccessPage />;
+  if (offline) return <OfflineNotice onRetry={retry} />;
   const parsedError = error instanceof Error ? error : new Error(String(error));
 
   return (
@@ -45,12 +53,10 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
         </div>
       )}
       <div className="flex items-center gap-2">
-        {reset && (
-          <Button onClick={reset} size="sm" variant="secondary">
-            <RotateCcwIcon />
-            {t('error.try-again')}
-          </Button>
-        )}
+        <Button onClick={retry} size="sm" variant="secondary">
+          <RotateCcwIcon />
+          {t('error.try-again')}
+        </Button>
         <Button
           render={(props) => (
             <Link {...props} to="/">

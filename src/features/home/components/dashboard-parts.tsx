@@ -1,7 +1,8 @@
 import { type QueryKey, type UseQueryOptions, useQuery } from '@tanstack/react-query';
-import { AlertCircleIcon } from 'lucide-react';
+import { AlertCircleIcon, WifiOffIcon } from 'lucide-react';
 import { createContext, type ReactNode, use, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineFailure } from '@/components/offline-notice';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,12 +50,22 @@ export function CountBadge<TData, TKey extends QueryKey>({
   return <Badge variant="secondary">{format(count)}</Badge>;
 }
 
-export function WidgetError({ onRetry }: { onRetry: () => void }) {
+export function WidgetError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const { t } = useTranslation();
+  const offline = useOfflineFailure(error, onRetry);
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground" role="alert">
-      <AlertCircleIcon aria-hidden="true" className="size-4 shrink-0 text-destructive" />
-      <span className="min-w-0 flex-1">{t('home.load-error')}</span>
+    <div
+      className="flex items-center gap-2 text-sm text-muted-foreground"
+      role={offline ? 'status' : 'alert'}
+    >
+      {offline ? (
+        <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+      ) : (
+        <AlertCircleIcon aria-hidden="true" className="size-4 shrink-0 text-destructive" />
+      )}
+      <span className="min-w-0 flex-1">
+        {t(offline ? 'offline.notice-title' : 'home.load-error')}
+      </span>
       <Button onClick={onRetry} size="sm" type="button" variant="outline">
         {t('error.try-again')}
       </Button>
@@ -99,7 +110,7 @@ export function DashboardCard({ name, pending, children, ...frame }: DashboardCa
   return (
     <CardFrame {...frame}>
       <QueryBoundary
-        errorComponent={({ reset }) => <WidgetError onRetry={reset} />}
+        errorComponent={({ error, reset }) => <WidgetError error={error} onRetry={reset} />}
         pendingFallback={pending}
         resetKey={`${name}:${revision}`}
       >

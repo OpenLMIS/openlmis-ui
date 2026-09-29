@@ -24,3 +24,11 @@ export function useLeaveGuard(active: boolean, ask: AskToLeave) {
     };
   }, [active, ask]);
 }
+
+let unloadAllowed = false;
+
+export function allowUnload() {
+  unloadAllowed = true;
+}
+
+export const isUnloadAllowed = () => unloadAllowed;

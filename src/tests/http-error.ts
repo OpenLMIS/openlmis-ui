@@ -9,3 +9,5 @@ export const httpError = (status: number) =>
     headers: {},
     config: { headers: new AxiosHeaders() },
   });
+
+export const networkError = () => new AxiosError('Network Error', AxiosError.ERR_NETWORK);

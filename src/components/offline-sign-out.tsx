@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { isOnline } from '@/lib/online';
 
 /** Signing in again needs the server, so a sign out while offline asks first. */
 export function useOfflineSignOut() {
@@ -17,7 +18,7 @@ export function useOfflineSignOut() {
   const [pending, setPending] = useState<(() => void) | null>(null);
 
   const confirm = (proceed: () => void, knownOffline = false) => {
-    if (navigator.onLine && !knownOffline) proceed();
+    if (isOnline() && !knownOffline) proceed();
     else setPending(() => proceed);
   };
 

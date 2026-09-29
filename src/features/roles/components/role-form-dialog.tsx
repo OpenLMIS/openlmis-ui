@@ -112,6 +112,7 @@ function RoleDialogContent({ target, onDone, onSaved }: RoleDialogContentProps) 
           <NotFoundContent title={title} />
         ) : (
           <DialogLoadError
+            error={error}
             errorTitle={t(isNew ? 'roles.error-title' : 'roles.form.load-error-title')}
             onRetry={reset}
             title={title}

@@ -31,7 +31,7 @@ export async function loadRuntimeConfig(): Promise<void> {
       authServerClientSecret: asString(authServerClientSecret),
     };
   } catch {
-    // No config.json in dev, where import.meta.env already carries the values.
+    window.addEventListener('online', () => void loadRuntimeConfig(), { once: true });
   }
 }
 

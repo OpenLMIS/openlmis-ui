@@ -2,7 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
-@import "@fontsource-variable/roboto";
 /* Geist has no Arabic coverage, so Arabic glyphs fall through to Noto. */
 @import "@fontsource-variable/noto-sans-arabic";
 
@@ -34,6 +33,7 @@
   --warning-foreground: oklch(0.985 0 0);
   /* Warning as text on a light tint; the plain token is too light to read there. */
   --warning-strong: oklch(0.5 0.14 55);
+  --success-strong: oklch(0.47 0.11 163);
   --info: oklch(0.55 0.13 237);
   --info-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
@@ -78,6 +78,7 @@
   --warning: oklch(0.769 0.188 70.08);
   --warning-foreground: oklch(0.22 0.04 60);
   --warning-strong: oklch(0.769 0.188 70.08);
+  --success-strong: oklch(0.696 0.17 162.48);
   --info: oklch(0.7 0.14 237);
   --info-foreground: oklch(0.2 0.04 240);
   --border: oklch(1 0 0 / 10%);
@@ -122,6 +123,7 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-warning-strong: var(--warning-strong);
+  --color-success-strong: var(--success-strong);
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-destructive-foreground: var(--destructive-foreground);

@@ -62,6 +62,25 @@ container builds and serves fine but every login fails with
 
 `VITE_BASE_PATH` stays a build input, since it is compiled into asset URLs.
 
+## Working offline
+
+The app keeps its own files in the browser so it opens without a connection. A service worker,
+`/v2/sw.js`, looks after `/v2/` only, and never stores API or sign-in answers. It keeps a copy of
+`config.json` and the translations, but fetches them from the network first, so a changed
+config or a corrected translation reaches users on their next load.
+
+Nothing in nginx needs to change for it. Everything under `/v2/` except `assets/` is already
+served `no-cache`, `sw.js` included, which is what lets a new version be noticed; the gateway
+passes those headers through. A deployment then shows open tabs an "Update Available" notice,
+and the new version loads when the user chooses Reload.
+
+The legacy UI has its own worker for the whole site. The two keep separate caches and do not
+touch each other's.
+
+The first visit downloads the whole app, about 2 MB, in one burst. The gateway's rate limit
+applies to that too, so a host that is not on its allowlist may see a few requests refused;
+the worker simply finishes on the next visit.
+
 ## Session handoff
 
 Both UIs share an origin, so `syncLegacySession()` reads the AngularJS session out

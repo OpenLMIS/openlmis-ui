@@ -61,8 +61,9 @@ export function ResetPasswordDialog({ target, onClose }: ResetPasswordDialogProp
     <FormDialog {...dialogProps(isSaving)}>
       {shown && (
         <QueryBoundary
-          errorComponent={({ reset }) => (
+          errorComponent={({ error, reset }) => (
             <DialogLoadError
+              error={error}
               errorTitle={t('users.form.load-error-title')}
               onRetry={reset}
               title={title}

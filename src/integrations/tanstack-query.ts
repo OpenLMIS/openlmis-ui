@@ -1,9 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { isRefused, isUnauthorized } from '@/lib/http';
+import { isOfflineError, isRefused, isUnauthorized } from '@/lib/http';
+import { isOnline } from '@/lib/online';
 
-/** One more try for a failure that may pass, none for a refusal that will not. */
 export function shouldRetry(failureCount: number, error: unknown) {
+  if (isOfflineError(error) && !isOnline()) return false;
   return failureCount < 1 && !isUnauthorized(error) && !isRefused(error);
 }
 
@@ -14,10 +15,12 @@ export const queryClient = new QueryClient({
       staleTime: 30_000,
       retry: shouldRetry,
       refetchOnWindowFocus: false,
+      networkMode: 'always',
     },
     mutations: {
       // Retrying a write could duplicate it.
       retry: 0,
+      networkMode: 'always',
     },
   },
 });

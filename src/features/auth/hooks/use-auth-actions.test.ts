@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { httpError } from '@/tests/http-error';
+import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', async (original) => ({
   ...(await original<typeof import('@/features/auth/api/api')>()),
@@ -63,5 +63,31 @@ describe('useAuthActions', () => {
 
     expect(useLoginData.getState().isAuthenticated).toBe(false);
     expect(toast.error).toHaveBeenCalledOnce();
+  });
+
+  it('says the server could not be reached when signing in offline, not that the password is wrong', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(authApi.login).mockRejectedValue(networkError());
+    const { result } = renderHook(() => useAuthActions());
+
+    await act(() => result.current.login({ username: 'ada', password: 'secret' }));
+
+    expect(toast.error).toHaveBeenCalledWith('auth.login-error-title', {
+      description: 'session.cannot-connect',
+    });
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('signs out offline without an error, since the user was warned and agreed', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'token' });
+    vi.mocked(authApi.logout).mockRejectedValue(networkError());
+    const { result } = renderHook(() => useAuthActions());
+
+    await act(() => result.current.logout());
+
+    expect(useLoginData.getState().isAuthenticated).toBe(false);
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

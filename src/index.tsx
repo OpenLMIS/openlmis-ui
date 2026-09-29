@@ -10,11 +10,15 @@ import { syncLegacySession, syncOtherTab } from '@/features/auth/store/login-dat
 import { initI18n } from '@/integrations/i18n';
 import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
+import { seedOnline } from '@/lib/online';
+import { reportCaughtError } from '@/lib/report-error';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
+import { registerServiceWorker } from '@/lib/service-worker';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
 
+seedOnline();
 await Promise.all([initI18n(), loadRuntimeConfig()]);
 
 // Before the router guards read the store, so a legacy session lands on /home.
@@ -25,7 +29,9 @@ window.addEventListener('storage', async (event) => {
   if (await syncOtherTab(event.key)) router.navigate({ to: '/login' });
 });
 
-createRoot(root).render(
+registerServiceWorker();
+
+createRoot(root, { onCaughtError: reportCaughtError }).render(
   <StrictMode>
     <TextDirectionProvider>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

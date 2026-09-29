@@ -3,9 +3,8 @@ import { UsersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { DataTableError } from '@/components/data-table/data-table';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
-import { NoAccess } from '@/components/no-access-page';
+import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -16,7 +15,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { userDetailsOptions, usersListOptions } from '@/features/users/api/queries';
@@ -145,18 +144,14 @@ function UsersPage() {
             search={search}
           />
           <QueryBoundary
-            errorComponent={({ error, reset }) =>
-              // Rights read at sign in can be revoked since; the server's refusal says so.
-              isForbidden(error) ? (
-                <NoAccess />
-              ) : (
-                <DataTableError
-                  description={t('users.error-description')}
-                  onRetry={reset}
-                  title={t('users.error-title')}
-                />
-              )
-            }
+            errorComponent={({ error, reset }) => (
+              <ListError
+                description={t('users.error-description')}
+                error={error}
+                reset={reset}
+                title={t('users.error-title')}
+              />
+            )}
             pendingFallback={
               <UsersTableSkeleton columnVisibility={columnView.visibility} search={search} />
             }

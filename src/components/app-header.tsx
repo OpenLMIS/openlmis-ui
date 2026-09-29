@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CommandPalette } from '@/components/command-palette';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { NavUser } from '@/components/nav-user';
+import { OfflineDot, StatusAnnouncer } from '@/components/sidebar-notices';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export function AppHeader() {
@@ -10,7 +11,11 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-50 flex h-(--app-header-height) w-full shrink-0 items-center gap-3 border-b bg-background px-2 md:px-4">
-      <CustomTrigger place="navbar" />
+      <span className="relative inline-flex empty:hidden">
+        <CustomTrigger place="navbar" />
+        <OfflineDot />
+      </span>
+      <StatusAnnouncer />
       <CommandPalette />
       <div className="ms-auto flex items-center gap-1.5">
         <NavUser

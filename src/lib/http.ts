@@ -1,9 +1,12 @@
-import { isAxiosError } from 'axios';
+import { AxiosError, isAxiosError } from 'axios';
 import { client } from '@/integrations/axios';
 
 export const isNotFound = (error: unknown) => isAxiosError(error) && error.response?.status === 404;
 
 export const isRefused = (error: unknown) => isAxiosError(error) && error.response?.status === 403;
+
+export const isOfflineError = (error: unknown) =>
+  isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED;
 
 export const isUnauthorized = (error: unknown) =>
   isAxiosError(error) && error.response?.status === 401;

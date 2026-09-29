@@ -252,7 +252,7 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
@@ -549,7 +549,7 @@ header) keeps it. Queries never retry a `401` or `403`.
 Anything that signs the user out on purpose goes through `useOfflineSignOut()`
 (`src/components/offline-sign-out.tsx`) before `whenLeaveAllowed`: offline, it asks first,
 since signing in again needs the server. The dialog also counts a sign-in that could not
-reach the server as offline, whatever `navigator.onLine` says.
+reach the server as offline, whatever the browser's online flag says.
 
 The server slides a token's expiry with every call, so `expiresAt` (from `expires_in`) is
 only the earliest it could end. Nothing signs a user out on it; the `401` decides. One
@@ -617,9 +617,77 @@ Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lo
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance review and refactors |
 | `skill-creator` | `anthropics/skills` | Authoring or improving a skill |
 
-## Planned offline work
+## Offline
 
-The [two-page offline plan](docs/offline-plan/offline-plan.pdf) describes planned behavior.
-Build a tested online draft workflow first, then add durable local saving and synchronization.
-Update the Query/loader and auth guidance alongside the implementation. Offline reads must
-finish with data, an unavailable result or a handled error; local absence is not a server 404.
+The [offline plan](docs/offline-plan/offline-plan.md) is the design and the order of work. The
+foundation is in place; offline data and drafts come with the first stock screen.
+
+**The service worker keeps the app's files, nothing else.** `vite-plugin-pwa` in
+`vite.config.ts` precaches the build (`**/*.{js,css,html,png,svg,woff2}`) at scope `BASE_URL`
+and, network first, `config.json` and `locales/*.json`, so a deployment can still correct a
+string or the OAuth client without a rebuild. Never add a runtime route for `/api` or any
+other data: offline data belongs in Dexie. Its caches are named `openlmis-ui-*`, since the
+legacy UI's worker at `/` shares the origin. `clientsClaim` lets it control the first visit.
+
+**`src/lib/service-worker.ts` owns the worker; nothing else registers it.**
+`registerServiceWorker()` runs once from `src/index.tsx`, only in a production build. It:
+
+- fetches `config.json` and every `SUPPORTED_LANGUAGES` catalog once our worker controls the
+  page, so all of them work offline after one visit;
+- checks for a new version every hour;
+- tells every tab through `useUpdateReady()`.
+
+`applyUpdate()` loads a new version in this tab only: it activates a waiting worker and reloads
+once it takes control, or just reloads when another tab already activated it. Never use the
+plugin's `virtual:pwa-register` hooks, which register on every mount and reload every tab.
+
+`pnpm dev` never registers the worker. Check it with
+`VITE_BASE_PATH=/v2 pnpm build && VITE_BASE_PATH=/v2 pnpm preview`, which proxies `/api` like
+`pnpm dev`. Copy a `config.json` into `dist/` first, as the container writes one, or preview
+answers it with `index.html`.
+
+**Offline, a request fails at once.** The query client runs with `networkMode: 'always'`, and
+`seedOnline()` tells it at boot whether the browser is online, since TanStack Query only hears
+the `online`/`offline` events. `src/lib/online.ts` is the one source of that state:
+
+- `useOnline()` and `isOnline()`;
+- `useOnReconnect()`;
+- `useBackOnline()`.
+
+Never read `navigator.onLine` directly.
+
+**A failure a connection would fix shows "Connect To Download This Data".** That means
+`isOfflineError(error)`: the request got no answer at all. Views ask
+`useOfflineFailure(error, retry)`, which also runs `retry` once the connection is back:
+
+- `OfflineNotice` for a page, which `ErrorFallback` shows, so a blocking loader such as
+  `requireRight` is covered too;
+- `ListError` for a server-paged list's boundary, which also handles No Access;
+- `DialogLoadError` and the Home `WidgetError`, given the `error`.
+
+A new error view with a Try Again uses `useOfflineFailure` the same way. `ErrorFallback`'s
+retry calls `router.invalidate()` before `reset()`, since a failed loader is what put the page
+there and a reset alone would not run it again. `reportCaughtError` (`src/lib/report-error.ts`),
+passed to `createRoot`, leaves those offline failures out of the console and logs every other
+caught error with its component stack.
+
+**Status goes above the sidebar's footer buttons.** `SidebarNotices` shows:
+
+- "You're Offline": warning, no close;
+- "You're Back Online": success, 4 s;
+- "Update Available": info, with Reload.
+
+On the collapsed rail each is its icon with a tooltip, and only Reload is a button.
+`OfflineDot` marks the header's menu button while the sidebar is closed. The visual notices are
+notes, not live regions: `StatusAnnouncer` in the header is the one always-mounted
+`role="status"`, so a screen reader hears each change even with the sidebar out of view.
+
+Reload goes through `whenLeaveAllowed`. `allowUnload()` then keeps the discard guard from
+raising the browser's own prompt on top.
+
+**Local data goes in Dexie, one database per deployment and user.** `getLocalDb()` in
+`src/integrations/local-db.ts` opens `openlmis-ui:<deployment>:<userId>` for the signed-in user
+and closes it when the user changes or signs out; it never deletes. A screen declares its own
+tables with a new `version()`. Offline reads must finish with data, an unavailable result or a
+handled error; local absence is not a server 404. Tests get IndexedDB from `fake-indexeddb`,
+and `src/tests/setup.ts` puts the app back online after every test.
