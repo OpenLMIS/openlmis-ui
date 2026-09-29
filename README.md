@@ -95,8 +95,16 @@ build input, and the snippet to add to `openlmis-deployment`.
 
 ## Offline support
 
-Planned, not implemented. See the [two-page illustrated plan](docs/offline-plan/offline-plan.pdf)
-(also as images: [page 1](docs/offline-plan/page-1.png), [page 2](docs/offline-plan/page-2.png)).
+After one online visit the app opens and reloads offline, in every language: a service worker
+keeps its files. Offline data and drafts come next. The [offline plan](docs/offline-plan/offline-plan.md)
+says what is done and what follows.
+
+The service worker only runs in a production build. To try it, build with the base path and
+preview it, since `pnpm dev` never registers one:
+
+```bash
+VITE_BASE_PATH=/v2 pnpm build && pnpm preview   # then http://localhost:4173/v2/
+```
 The sequence is a working online draft workflow first, then durable local saving and
 synchronization.
 

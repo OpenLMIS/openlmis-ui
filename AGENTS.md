@@ -252,7 +252,7 @@ Two ways out when a page needs a different treatment:
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`,
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `DialogDescription size`, `Field spacing`, `FieldDescription size`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
@@ -617,9 +617,46 @@ Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lo
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance review and refactors |
 | `skill-creator` | `anthropics/skills` | Authoring or improving a skill |
 
-## Planned offline work
+## Offline
 
-The [two-page offline plan](docs/offline-plan/offline-plan.pdf) describes planned behavior.
-Build a tested online draft workflow first, then add durable local saving and synchronization.
-Update the Query/loader and auth guidance alongside the implementation. Offline reads must
-finish with data, an unavailable result or a handled error; local absence is not a server 404.
+The [offline plan](docs/offline-plan/offline-plan.md) is the design and the order of work. The
+foundation is in place; offline data and drafts come with the first stock screen.
+
+**The service worker keeps the app's files, nothing else.** `vite-plugin-pwa` in
+`vite.config.ts` precaches the build (`**/*.{js,css,html,png,svg,woff2}`) at scope `BASE_URL`
+and, network first, `config.json` and `locales/*.json`, so a deployment can still correct a
+string or the OAuth client without a rebuild. Never add a runtime route for `/api` or any
+other data: offline data belongs in Dexie. Its caches are named `openlmis-ui-*`, since the
+legacy UI's worker at `/` shares the origin. `clientsClaim` lets it control the first visit,
+and `warmOfflineCache()` (`src/lib/warm-offline.ts`) then fetches the config and every language
+once, so all of them work offline after one visit. A language added to `SUPPORTED_LANGUAGES`
+is warmed with the rest. `pnpm dev` never registers the worker; check it with
+`VITE_BASE_PATH=/v2 pnpm build && pnpm preview`.
+
+**Offline, a request fails at once.** The query client runs with `networkMode: 'always'`, and
+`seedOnline()` tells it at boot whether the browser is online, since TanStack Query only hears
+the `online`/`offline` events. `useOnline()` and `isOnline()` in `src/lib/online.ts` are the one
+source of that state; never read `navigator.onLine` directly. A failure that a connection would
+fix, `isOfflineError(error)` (no answer at all) or anything while offline, shows
+"Connect To Download This Data" rather than a generic error:
+
+- `OfflineNotice` for a page, which `ErrorFallback` shows, so a blocking loader such as
+  `requireRight` is covered too;
+- `ListError` for a server-paged list's boundary, which also handles No Access;
+- `DialogLoadError` and the Home `WidgetError`, given the `error`.
+
+Each retries by itself when the connection returns, through `useRetryWhenOnline`. A new error
+view with a Try Again should use `useIsOfflineFailure` and `useRetryWhenOnline` the same way.
+
+**Status goes above the sidebar's footer buttons**, in `SidebarNotices`: "You're Offline"
+(warning, no close), "You're Back Online" (success, 4 s) and "Update Available" (info, with
+Reload). On the collapsed rail each is its icon with a tooltip, and `OfflineDot` marks the
+header's menu button while the sidebar is closed. A new version never loads by itself: Reload
+goes through `whenLeaveAllowed`, then `allowUnload()` keeps the discard guard from raising the
+browser's own prompt on top.
+
+**Local data goes in Dexie, one database per deployment and user.** `getLocalDb()` in
+`src/integrations/local-db.ts` opens `openlmis-ui:<deployment>:<userId>` for the signed-in user
+and closes it when the user changes or signs out; it never deletes. A screen declares its own
+tables with a new `version()`. Offline reads must finish with data, an unavailable result or a
+handled error; local absence is not a server 404. Tests get IndexedDB from `fake-indexeddb`.
