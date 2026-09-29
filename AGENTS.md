@@ -631,7 +631,9 @@ legacy UI's worker at `/` shares the origin. `clientsClaim` lets it control the 
 and `warmOfflineCache()` (`src/lib/warm-offline.ts`) then fetches the config and every language
 once, so all of them work offline after one visit. A language added to `SUPPORTED_LANGUAGES`
 is warmed with the rest. `pnpm dev` never registers the worker; check it with
-`VITE_BASE_PATH=/v2 pnpm build && pnpm preview`.
+`VITE_BASE_PATH=/v2 pnpm build && VITE_BASE_PATH=/v2 pnpm preview`, which proxies `/api` like
+`pnpm dev`. Copy a `config.json` into `dist/` first, as the container writes one, or preview
+answers it with `index.html`.
 
 **Offline, a request fails at once.** The query client runs with `networkMode: 'always'`, and
 `seedOnline()` tells it at boot whether the browser is online, since TanStack Query only hears
@@ -647,13 +649,18 @@ fix, `isOfflineError(error)` (no answer at all) or anything while offline, shows
 
 Each retries by itself when the connection returns, through `useRetryWhenOnline`. A new error
 view with a Try Again should use `useIsOfflineFailure` and `useRetryWhenOnline` the same way.
+`ErrorFallback`'s retry calls `router.invalidate()` before `reset()`, since a failed loader is
+what put the page there and a reset alone would not run it again. `reportCaughtError`
+(`src/lib/report-error.ts`), passed to `createRoot`, keeps offline failures a boundary already
+explains out of the console; every other caught error is still logged.
 
 **Status goes above the sidebar's footer buttons**, in `SidebarNotices`: "You're Offline"
 (warning, no close), "You're Back Online" (success, 4 s) and "Update Available" (info, with
 Reload). On the collapsed rail each is its icon with a tooltip, and `OfflineDot` marks the
 header's menu button while the sidebar is closed. A new version never loads by itself: Reload
 goes through `whenLeaveAllowed`, then `allowUnload()` keeps the discard guard from raising the
-browser's own prompt on top.
+browser's own prompt on top, and `reloadWhenUpdated()` (`src/lib/app-update.ts`) reloads once
+the new worker takes control, which the plugin alone misses on a first update.
 
 **Local data goes in Dexie, one database per deployment and user.** `getLocalDb()` in
 `src/integrations/local-db.ts` opens `openlmis-ui:<deployment>:<userId>` for the signed-in user

@@ -11,6 +11,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { reloadWhenUpdated } from '@/lib/app-update';
 import { useOnline } from '@/lib/online';
 
 const BACK_ONLINE_MS = 4000;
@@ -98,6 +99,7 @@ export function SidebarNotices() {
         onClick: () =>
           whenLeaveAllowed(() => {
             allowUnload();
+            reloadWhenUpdated();
             void updateServiceWorker(true);
           }),
       },

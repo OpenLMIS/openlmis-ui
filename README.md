@@ -103,7 +103,7 @@ The service worker only runs in a production build. To try it, build with the ba
 preview it, since `pnpm dev` never registers one:
 
 ```bash
-VITE_BASE_PATH=/v2 pnpm build && pnpm preview   # then http://localhost:4173/v2/
+VITE_BASE_PATH=/v2 pnpm build && VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
 ```
 The sequence is a working online draft workflow first, then durable local saving and
 synchronization.

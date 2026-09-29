@@ -11,6 +11,7 @@ import { initI18n } from '@/integrations/i18n';
 import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
 import { seedOnline } from '@/lib/online';
+import { reportCaughtError } from '@/lib/report-error';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { warmOfflineCache } from '@/lib/warm-offline';
 
@@ -30,7 +31,7 @@ window.addEventListener('storage', async (event) => {
 
 warmOfflineCache();
 
-createRoot(root).render(
+createRoot(root, { onCaughtError: reportCaughtError }).render(
   <StrictMode>
     <TextDirectionProvider>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
