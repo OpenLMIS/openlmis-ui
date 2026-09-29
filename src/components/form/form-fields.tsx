@@ -352,7 +352,7 @@ export function ChoiceCard({ htmlFor, label, description, disabled, children }: 
         <FieldContent>
           <FieldTitle>{label}</FieldTitle>
           {typeof description === 'string' ? (
-            <FieldDescription size="sm">{description}</FieldDescription>
+            <FieldDescription>{description}</FieldDescription>
           ) : (
             description
           )}
