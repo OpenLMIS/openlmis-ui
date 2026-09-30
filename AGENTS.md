@@ -376,7 +376,7 @@ the saved values back and Save stays. Pages that share a header across tabs, lik
 render it once in the layout route through `WorkspaceTabs` inside `WorkspaceSlots`, and put
 the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch
 never remounts the header. A tab's own header button, such as Reset To Defaults on System
-Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts rise above the footer while it is on screen.
+Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts appear at the top end corner, just below the header, tinted by their kind.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.

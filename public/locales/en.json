@@ -452,7 +452,7 @@
   "system-settings.branding.logo-preview": "Logo",
   "system-settings.branding.logo-remove": "Remove Logo",
   "system-settings.branding.logo-upload": "Upload Logo",
-  "system-settings.branding.name-description": "Up to 20 characters, for the sidebar, sign-in page and browser tab.",
+  "system-settings.branding.name-description": "Up to 20 characters.",
   "system-settings.branding.name-label": "App Name",
   "system-settings.branding.preview-sidebar": "Sidebar",
   "system-settings.branding.preview-sign-in": "Sign-In Page",

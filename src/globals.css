@@ -155,8 +155,3 @@
     overflow-y: scroll;
   }
 }
-
-/* A sticky page footer's height, so toasts rise above it rather than cover its Save. */
-:root:has([data-slot="workspace-footer"]) {
-  --workspace-footer-height: 4rem;
-}
