@@ -109,14 +109,32 @@ describe('loadAppConfiguration', () => {
     expect(getAppConfiguration().appName).toBe('Fresh');
   });
 
-  it('uses the defaults and forgets the last answer when the server has no configuration', async () => {
+  it('keeps the last answer when the gateway has no route to the service for a while', async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
     vi.stubGlobal('fetch', respond(404));
 
     await loadAppConfiguration();
 
+    expect(getAppConfiguration().appName).toBe('SIGECA');
+    expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
+  });
+
+  it('uses the defaults when the gateway has no route and nothing was seen before', async () => {
+    vi.stubGlobal('fetch', respond(404));
+
+    await loadAppConfiguration();
+
     expect(getAppConfiguration()).toEqual(DEFAULT_APP_CONFIGURATION);
-    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
+  });
+
+  it('keeps the last answer when a success brings no JSON', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>', { status: 200 })));
+
+    await loadAppConfiguration();
+
+    expect(getAppConfiguration().appName).toBe('SIGECA');
+    expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
   });
 
   it('uses the last answer when the server cannot be reached', async () => {

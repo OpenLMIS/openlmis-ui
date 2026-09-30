@@ -5,6 +5,7 @@ import {
   setAppearanceChoice,
   syncAppearanceFromStorage,
   useAppearanceStore,
+  watchSystemAppearance,
 } from '@/lib/appearance';
 
 beforeEach(() => {
@@ -61,6 +62,16 @@ describe('syncAppearanceFromStorage', () => {
     expect(localStorage.getItem('theme')).toBeNull();
   });
 
+  it('keeps the choice and saves it again when another page wipes the whole storage', () => {
+    setAppearanceChoice('dark');
+    localStorage.clear();
+
+    syncAppearanceFromStorage(null);
+
+    expect(useAppearanceStore.getState().choice).toBe('dark');
+    expect(localStorage.getItem('theme')).toBe('dark');
+  });
+
   it('ignores other keys', () => {
     localStorage.setItem('theme', 'dark');
     syncAppearanceFromStorage('i18nextLng');
@@ -78,5 +89,27 @@ describe('applyAppearance', () => {
     applyAppearance('light');
     expect(document.documentElement).not.toHaveClass('dark');
     expect(document.documentElement.style.colorScheme).toBe('light');
+  });
+});
+
+describe('watchSystemAppearance', () => {
+  it('follows the device switching to dark, until stopped', () => {
+    let onChange: () => void = () => {};
+    const query = {
+      matches: false,
+      addEventListener: (_: string, listener: () => void) => {
+        onChange = listener;
+      },
+      removeEventListener: vi.fn(),
+    };
+    vi.spyOn(window, 'matchMedia').mockReturnValue(query as unknown as MediaQueryList);
+
+    const stop = watchSystemAppearance();
+    query.matches = true;
+    onChange();
+
+    expect(useAppearanceStore.getState().systemDark).toBe(true);
+    stop();
+    expect(query.removeEventListener).toHaveBeenCalledWith('change', onChange);
   });
 });

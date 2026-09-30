@@ -68,12 +68,6 @@ function writeCache(value: unknown): void {
   } catch {}
 }
 
-function clearCache(): void {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-  } catch {}
-}
-
 function fallBackToCache(): void {
   setAppConfiguration(parseAppConfiguration(readCache()));
 }
@@ -93,11 +87,6 @@ export async function loadAppConfiguration(): Promise<void> {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
-    if (response.status === 404) {
-      clearCache();
-      setAppConfiguration(DEFAULT_APP_CONFIGURATION);
-      return;
-    }
     if (!response.ok) {
       fallBackToCache();
       return;

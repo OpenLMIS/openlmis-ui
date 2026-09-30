@@ -34,7 +34,8 @@ export function setAppearanceChoice(choice: AppearanceChoice): void {
 }
 
 export function syncAppearanceFromStorage(key: string | null): void {
-  if (key === STORAGE_KEY || key === null) useAppearanceStore.setState({ choice: readChoice() });
+  if (key === STORAGE_KEY) useAppearanceStore.setState({ choice: readChoice() });
+  else if (key === null) setAppearanceChoice(useAppearanceStore.getState().choice);
 }
 
 export function watchSystemAppearance(): () => void {

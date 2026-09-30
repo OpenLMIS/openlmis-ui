@@ -43,6 +43,16 @@ describe('fetchAppConfiguration', () => {
     expect(get).toHaveBeenCalledWith('/appConfiguration');
   });
 
+  it('fills in a missing theme and flags, so the settings never read from null', async () => {
+    get.mockResolvedValueOnce({ data: { ...saved, theme: null, featureFlags: null } });
+
+    await expect(fetchAppConfiguration()).resolves.toEqual({
+      ...saved,
+      theme: { preset: null, defaultAppearance: null },
+      featureFlags: {},
+    });
+  });
+
   it('shows the name beside the logo when the server does not say', async () => {
     const { showAppName: _, ...older } = saved;
     get.mockResolvedValueOnce({ data: older });

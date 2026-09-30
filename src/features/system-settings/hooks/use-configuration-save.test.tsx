@@ -236,6 +236,39 @@ describe('useConfigurationSave', () => {
     expect(result.current.values).toEqual({ appName: 'Someone Else' });
   });
 
+  it('ignores a reload that started before a save and answered after it', async () => {
+    const stored = { ...savedConfiguration, version: 4, appName: 'Mine' };
+    save.mockResolvedValue(stored);
+    let answer: (configuration: AppConfigurationDto) => void = () => {};
+    vi.mocked(fetchAppConfiguration).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const { result, queryClient, cached } = renderSettings();
+    const reloading = queryClient.refetchQueries({ queryKey: appConfigurationOptions().queryKey });
+
+    await saveDraft(result, 'Mine');
+    await act(async () => {
+      answer(savedConfiguration);
+      await reloading;
+    });
+
+    expect(cached()).toEqual(stored);
+    expect(result.current.base).toEqual(stored);
+    expect(result.current.values).toEqual({ appName: 'Mine' });
+  });
+
+  it('hands a newer version to the running app, even under a draft', async () => {
+    const { result, queryClient } = renderSettings();
+
+    act(() => result.current.edit('Mine'));
+    act(() => queryClient.setQueryData(appConfigurationOptions().queryKey, newer));
+
+    await waitFor(() => expect(getAppConfiguration().appName).toBe('Someone Else'));
+    expect(result.current.values).toEqual({ appName: 'Mine' });
+  });
+
   it('submits only a changed draft', () => {
     const { result } = renderSettings();
     const unchanged = submitEvent();
