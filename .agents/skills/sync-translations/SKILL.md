@@ -1,6 +1,6 @@
 ---
 name: sync-translations
-description: Sync i18next translation files in public/locales/ with en.json as the single source of truth. Removes stale keys, adds missing keys translated into each target language, preserves existing translations, then runs pnpm sort-messages and pnpm tsc --noEmit. Use this skill whenever the user asks to sync, update, translate, or refresh translation files; whenever they add new keys to en.json; whenever they add a new language file and want it populated; or when they say "sync translations", "update language files", "translate new keys", "let's sync the translations", or similar — even if they don't explicitly name the skill or mention i18n.
+description: Sync i18next translation files in public/locales/ with en.json as the single source of truth. Removes stale keys, adds missing keys translated into each target language, preserves existing translations, then runs pnpm sort-messages and pnpm tsc --noEmit. Use this skill whenever the user asks to sync, update, translate, or refresh translation files; whenever they add new keys to en.json; whenever they add a new language file and want it populated; or when they say "sync translations", "update language files", "translate new keys", "let's sync the translations", or similar, even if they don't explicitly name the skill or mention i18n.
 ---
 
 # Sync Translations
@@ -17,7 +17,7 @@ Trigger this skill when:
 
 ## Core principle
 
-`en.json` is the king. Every other language file in `public/locales/` must match its key set exactly — no stale keys, no missing keys. Existing translations are preserved (never overwritten), so the user can manually tweak a translation and trust that future syncs won't clobber it.
+`en.json` is the king. Every other language file in `public/locales/` must match its key set exactly: no stale keys, no missing keys. Existing translations are preserved (never overwritten), so the user can manually tweak a translation and trust that future syncs won't clobber it.
 
 ## Procedure
 
@@ -43,7 +43,7 @@ Glob `public/locales/*.json` and exclude `en.json`. The filename (without extens
 | `ja` | Japanese |
 | `zh` | Chinese (Simplified) |
 
-Translate using your own knowledge — no external API needed.
+Translate using your own knowledge; no external API is needed.
 
 ### Step 3: Sync each target file
 
@@ -60,9 +60,9 @@ For each target file:
 
 Translation values may contain structural elements that must stay intact. Translate the natural-language portions, not the structure:
 
-- **ICU MessageFormat** — e.g. `{count, plural, one {# item} other {# items}}`. Preserve the `{variable, plural, ...}` scaffolding; translate only the text inside `{...}` branches. Note that non-English plural rules differ — Polish has `one`/`few`/`many`/`other`, Russian has `one`/`few`/`many`, Arabic has `zero`/`one`/`two`/`few`/`many`/`other`. Use the correct categories for the target language.
-- **Interpolation placeholders** — e.g. `Hello {{name}}` or `{name}`. Preserve the placeholder exactly; translate surrounding text only.
-- **HTML/JSX tags** (from `<Trans>` components) — e.g. `Read the <1>docs</1>`. Preserve tags exactly.
+- **ICU MessageFormat**, e.g. `{count, plural, one {# item} other {# items}}`. Preserve the `{variable, plural, ...}` scaffolding; translate only the text inside `{...}` branches. Note that non-English plural rules differ: Polish has `one`/`few`/`many`/`other`, Russian has `one`/`few`/`many`, Arabic has `zero`/`one`/`two`/`few`/`many`/`other`. Use the correct categories for the target language.
+- **Interpolation placeholders**, e.g. `Hello {{name}}` or `{name}`. Preserve the placeholder exactly; translate surrounding text only.
+- **HTML/JSX tags** (from `<Trans>` components), e.g. `Read the <1>docs</1>`. Preserve tags exactly.
 
 ### Step 5: Sort and verify
 
@@ -80,7 +80,7 @@ Then verify type safety:
 pnpm tsc --noEmit
 ```
 
-The `src/types/i18next.d.ts` file imports `en.json` to type-augment i18next's `t()` function. If typecheck fails, it usually means a `t()` call in the code references a key that was just removed from `en.json`. Surface the error to the user; don't try to fix it by re-adding the key — the stale reference in the code is the real bug.
+The `src/types/i18next.d.ts` file imports `en.json` to type-augment i18next's `t()` function. If typecheck fails, it usually means a `t()` call in the code references a key that was just removed from `en.json`. Surface the error to the user; don't try to fix it by re-adding the key; the stale reference in the code is the real bug.
 
 ## Example
 
@@ -132,6 +132,6 @@ For an RTL language, check that a font covering the script is in the `--font-san
 ## Notes
 
 - **Don't touch `en.json`.** It's the source; this skill only modifies other language files.
-- **Don't bulk-retranslate.** The preservation rule is a feature, not a limitation — it respects manual tweaks.
+- **Don't bulk-retranslate.** The preservation rule is a feature, not a limitation: it respects manual tweaks.
 - **The pre-commit hook runs `sort-messages` too**, but running it here keeps the diff clean and catches issues before committing.
-- **Empty or brand-new language files** (e.g. user just created `de.json` with `{}`) are handled correctly — every key will be added via translation.
+- **Empty or brand-new language files** (e.g. user just created `de.json` with `{}`) are handled correctly: every key will be added via translation.

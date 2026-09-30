@@ -1,4 +1,3 @@
-/** Standard TanStack Query keys for a feature scope. */
 export const createQueryKeys = <T extends string>(scope: T) => ({
   all: [scope] as const,
   list: (params?: Record<string, unknown>) => [scope, 'list', params] as const,

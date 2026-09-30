@@ -65,7 +65,7 @@ src/
   lib/                # config, shared types, utils, query key factory
   hooks/              # Shared hooks
 public/locales/       # Translation catalogs, fetched at runtime
-docs/                 # Deployment notes and the offline plan
+docs/                 # Deployment notes, the dual-boot guide and the offline plan
 docker/               # Container entrypoint, nginx template, Consul registration
 ```
 

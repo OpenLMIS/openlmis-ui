@@ -20,7 +20,6 @@ type DiscardChangesDialogProps = {
   onDiscard: () => void;
 };
 
-/** Asked before a page with unsaved changes is left. */
 export function DiscardChangesDialog({
   open,
   description,

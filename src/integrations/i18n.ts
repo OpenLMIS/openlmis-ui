@@ -7,8 +7,7 @@ import { SUPPORTED_LANGUAGES } from '@/lib/config';
 
 export const defaultNS = 'translation' as const;
 
-// Catalogs are served from `public/locales/` instead of being bundled, so a
-// deployment can add or correct a language without a rebuild.
+// Catalogs are fetched, not bundled, so a deployment can correct a language without a rebuild.
 export function initI18n() {
   return i18n
     .use(ICU)

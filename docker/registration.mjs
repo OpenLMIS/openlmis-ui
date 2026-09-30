@@ -1,10 +1,4 @@
-/**
- * Registers this container with Consul so the OpenLMIS nginx image routes to it.
- *
- * nginx builds an upstream per service carrying SERVICE_TAG, and one `location`
- * per key under the `resources/` KV tree whose value names that upstream. Two
- * keys cover an SPA: the bare prefix and a `<all>` wildcard for everything below.
- */
+// Registers with Consul under the bare prefix and a `<all>` wildcard, so the gateway routes both.
 import { networkInterfaces } from 'node:os';
 
 const CONSUL = `http://${process.env.CONSUL_HOST ?? 'consul'}:${process.env.CONSUL_PORT ?? 8500}/v1`;
@@ -31,8 +25,7 @@ function localAddress() {
   throw new Error('No non-internal IPv4 address to register with Consul');
 }
 
-// KV values are stored verbatim and interpolated straight into `proxy_pass`, so
-// a string body must not be JSON-encoded. Objects are the service payload.
+// KV strings go verbatim into `proxy_pass`, so only objects are JSON-encoded.
 async function request(method, path, body) {
   const response = await fetch(`${CONSUL}${path}`, {
     method,

@@ -1,8 +1,4 @@
-# Rehearses how openlmis-ui sits in a full OpenLMIS stack: Consul for discovery
-# and the shared nginx gateway in front, exactly as uat_env wires them. There is
-# no legacy UI or backend here, so /v2/* resolves and everything else 404s.
-#
-#   docker compose up --build   then open http://localhost:8080/v2/
+# Consul and the OpenLMIS gateway as uat_env wires them: `docker compose up --build`, then /v2/.
 services:
   consul:
     image: hashicorp/consul:1.15
@@ -17,8 +13,7 @@ services:
       timeout: 5s
       retries: 20
 
-  # The same image and routing mechanism the deployed environments use, so a
-  # prefix that works here works there.
+  # The gateway image the deployed environments use, so a prefix that works here works there.
   nginx:
     image: openlmis/nginx:v7.1
     ports:
@@ -52,8 +47,7 @@ services:
       SERVICE_NAME: openlmis-ui
       SERVICE_TAG: openlmis-service
       SERVICE_PORT: 80
-      # Read straight out of .env, the same keys `pnpm dev` uses. Falls back to the
-      # public demo client, which is what the test and demo instances accept.
+      # The `.env` keys `pnpm dev` uses, falling back to the public demo client.
       AUTH_SERVER_CLIENT_ID: ${VITE_AUTH_SERVER_CLIENT_ID:-user-client}
       AUTH_SERVER_CLIENT_SECRET: ${VITE_AUTH_SERVER_CLIENT_SECRET:-changeme}
       BATCH_APPROVE_SCREEN: ${BATCH_APPROVE_SCREEN:-}

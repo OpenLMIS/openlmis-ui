@@ -83,16 +83,7 @@ function savedSession(): Partial<LoginDataStore> | undefined {
   return saved && !(saved instanceof Promise) ? saved.state : undefined;
 }
 
-/**
- * Keeps us in step with the legacy AngularJS UI, which shares our origin.
- *
- * Adopts its session when we have none, so crossing over is not a second login.
- * When a session we borrowed from it disappears, ours expires, so the page asks
- * to sign in again rather than losing unsaved work; when it changes user, we
- * follow. A session we established ourselves is never touched.
- *
- * @returns whether our session changed
- */
+/** Adopts the legacy session, or follows one we borrowed; our own is never touched. */
 export function syncLegacySession(): boolean {
   const { isAuthenticated, accessToken, sessionSource, expired } = useLoginData.getState();
   const legacy = readLegacySession();

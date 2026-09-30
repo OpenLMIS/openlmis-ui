@@ -26,7 +26,6 @@ const PROFILE_TABS = [
 type ProfileWorkspaceProps = {
   /** Left out while the profile loads, which holds the places of the name and Change Password. */
   username?: string;
-  /** The open tab's page. */
   children: ReactNode;
 };
 

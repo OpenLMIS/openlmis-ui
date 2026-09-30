@@ -1,7 +1,6 @@
 import type { LoginData } from '@/features/auth/store/login-data';
 
-// The AngularJS UI keeps its session in localStorage through angular-local-storage,
-// configured with the `openlmis.` prefix. Same origin, so we can read it directly.
+// The AngularJS UI's angular-local-storage prefix; the origin is shared, so we read it directly.
 const LEGACY_PREFIX = 'openlmis.';
 
 const LEGACY_KEYS = {
@@ -18,8 +17,7 @@ export const LEGACY_SESSION_STORAGE_KEYS: readonly string[] = [
   LEGACY_KEYS.username,
 ].map((key) => `${LEGACY_PREFIX}${key}`);
 
-// Plain strings are stored raw, but angular-local-storage JSON-encodes other
-// values, so tolerate a quoted token rather than passing quotes to the API.
+// angular-local-storage JSON-encodes some values, so a quoted token is unwrapped.
 function readLegacyValue(key: string): string | null {
   let raw: string | null;
 
@@ -45,10 +43,7 @@ export function readLegacySession(): LoginData | null {
   return { accessToken, referenceDataUserId, username };
 }
 
-/**
- * Signs the legacy UI out too. The token is shared, so our logout already kills
- * it server-side; leaving the keys behind would only render a dead session.
- */
+// The token is shared and our logout kills it, so the legacy keys would only hold a dead session.
 export function clearLegacySession(): void {
   try {
     for (const key of Object.values(LEGACY_KEYS)) {

@@ -1,8 +1,4 @@
-/**
- * Sorts translation keys alphabetically in all JSON files under public/locales/.
- * Run manually: pnpm sort-messages
- * Also runs automatically on pre-commit via lefthook.
- */
+// Sorts the keys of every catalog in public/locales/; `pnpm sort-messages`, and on pre-commit.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
