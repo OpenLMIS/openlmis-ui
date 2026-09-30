@@ -1,0 +1,286 @@
+import { revalidateLogic } from '@tanstack/react-form';
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import {
+  DialogLoadError,
+  ErrorAlert,
+  FieldSkeleton,
+  SkeletonLine,
+  serverMessage,
+} from '@/components/dialog-parts';
+import { useAppForm } from '@/components/form/form';
+import {
+  FormDialog,
+  FormDialogBody,
+  FormDialogCancel,
+  FormDialogDescription,
+  FormDialogFooter,
+  FormDialogForm,
+  FormDialogHeader,
+  FormDialogSubmit,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { QueryBoundary } from '@/components/query-boundary';
+import { FieldGroup } from '@/components/ui/field';
+import { createFacilityType, updateFacilityType } from '@/features/facility-types/api/api';
+import { facilityTypeDetailOptions } from '@/features/facility-types/api/queries';
+import {
+  duplicateField,
+  EMPTY_FACILITY_TYPE_FORM,
+  type FacilityTypeFormValues,
+  facilityTypeFormSchema,
+  type TakenFacilityType,
+  toFacilityTypeBody,
+  toFacilityTypeFormValues,
+} from '@/features/facility-types/lib/facility-type-form';
+import { facilityTypesOptions } from '@/features/reference-data/api/queries';
+import type { FacilityType } from '@/features/reference-data/lib/types';
+import { isNotFound } from '@/lib/http';
+import { queryKeys } from '@/lib/key-factory';
+
+const saveKey = (target: string) => [...queryKeys.facilityTypes.all, 'save', target] as const;
+
+type FacilityTypeFormDialogProps = {
+  target: 'new' | string | undefined;
+  onClose: () => void;
+};
+
+export function FacilityTypeFormDialog({ target, onClose }: FacilityTypeFormDialogProps) {
+  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
+
+  return (
+    <FormDialog {...dialogProps(isSaving)}>
+      {shown && <FacilityTypeDialogContent onDone={onClose} target={shown} />}
+    </FormDialog>
+  );
+}
+
+function FacilityTypeDialogContent({ target, onDone }: { target: string; onDone: () => void }) {
+  const { t } = useTranslation();
+  const isNew = target === 'new';
+  const title = t(isNew ? 'facility-types.form.create-title' : 'facility-types.form.load-title');
+
+  return (
+    <QueryBoundary
+      errorComponent={({ error, reset }) =>
+        isNotFound(error) ? (
+          <NotFoundContent title={title} />
+        ) : (
+          <DialogLoadError
+            error={error}
+            errorTitle={t('facility-types.form.load-error-title')}
+            onRetry={reset}
+            title={title}
+          />
+        )
+      }
+      pendingFallback={
+        <FacilityTypeFormSkeleton
+          submitLabel={t(isNew ? 'facility-types.form.create' : 'facility-types.form.save')}
+          title={title}
+        />
+      }
+      resetKey={target}
+    >
+      {isNew ? (
+        <FacilityTypeForm onDone={onDone} />
+      ) : (
+        <ExistingFacilityType key={target} onDone={onDone} typeId={target} />
+      )}
+    </QueryBoundary>
+  );
+}
+
+function ExistingFacilityType({ typeId, onDone }: { typeId: string; onDone: () => void }) {
+  const { data: type } = useSuspenseQuery(facilityTypeDetailOptions(typeId));
+  return <FacilityTypeForm onDone={onDone} type={type} />;
+}
+
+type FacilityTypeFormProps = {
+  type?: FacilityType;
+  onDone: () => void;
+};
+
+function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data: types } = useSuspenseQuery(facilityTypesOptions());
+  const [refused, setRefused] = useState<TakenFacilityType[]>([]);
+  const schema = useMemo(
+    () => facilityTypeFormSchema([...types, ...refused], type?.id),
+    [types, refused, type?.id],
+  );
+
+  const save = useMutation({
+    mutationKey: saveKey(type?.id ?? 'new'),
+    mutationFn: (values: FacilityTypeFormValues) => {
+      const body = toFacilityTypeBody(values, type);
+      return type ? updateFacilityType(type.id, body) : createFacilityType(body);
+    },
+    onSuccess: (saved) => {
+      const name = saved.name || saved.code;
+      if (type) {
+        toast.success(t('facility-types.form.updated-title'), {
+          description: t('facility-types.form.updated', { type: name }),
+        });
+      } else {
+        toast.success(t('facility-types.form.created-title'), {
+          description: t('facility-types.form.created', { type: name }),
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.facilityTypes.all });
+    },
+    onError: (error, values) => {
+      const field = duplicateField(error);
+      if (!field) return;
+      setRefused((taken) => [
+        ...taken,
+        {
+          id: `refused-${taken.length}`,
+          code: field === 'code' ? values.code : '',
+          name: field === 'name' ? values.name : null,
+        },
+      ]);
+    },
+  });
+  const refusedField = duplicateField(save.error);
+
+  const form = useAppForm({
+    defaultValues: type ? toFacilityTypeFormValues(type) : EMPTY_FACILITY_TYPE_FORM,
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: schema },
+    onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
+  });
+
+  useEffect(() => {
+    if (refused.length > 0) void form.validate('change');
+  }, [refused, form]);
+
+  return (
+    <FormDialogForm onSubmit={form.handleSubmit}>
+      <FormDialogHeader>
+        <FormDialogTitle>
+          {type
+            ? t('facility-types.form.edit-title', { code: type.code })
+            : t('facility-types.form.create-title')}
+        </FormDialogTitle>
+        <FormDialogDescription>
+          {t(
+            type
+              ? 'facility-types.form.edit-description'
+              : 'facility-types.form.create-description',
+          )}
+        </FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <FieldGroup>
+          {save.isError && !refusedField && (
+            <ErrorAlert
+              description={serverMessage(save.error) ?? t('facility-types.form.save-error')}
+              title={t('facility-types.form.save-error-title')}
+            />
+          )}
+          <form.AppField name="code">
+            {(field) => (
+              <field.TextField
+                autoComplete="off"
+                description={type ? t('facility-types.form.code-locked') : undefined}
+                dir="ltr"
+                disabled={Boolean(type)}
+                label={t('facility-types.form.code')}
+                required
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="name">
+            {(field) => (
+              <field.TextField autoComplete="off" label={t('facility-types.form.name')} required />
+            )}
+          </form.AppField>
+          <form.AppField name="displayOrder">
+            {(field) => (
+              <field.NumberField
+                description={t('facility-types.form.display-order-description')}
+                label={t('facility-types.form.display-order')}
+                required
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="active">
+            {(field) => (
+              <field.SwitchField
+                description={t('facility-types.form.active-description')}
+                label={t('facility-types.form.active')}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="primaryHealthCare">
+            {(field) => (
+              <field.SwitchField
+                description={t('facility-types.form.primary-health-care-description')}
+                label={t('facility-types.form.primary-health-care')}
+              />
+            )}
+          </form.AppField>
+        </FieldGroup>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel disabled={save.isPending}>
+          {t('facility-types.form.cancel')}
+        </FormDialogCancel>
+        <FormDialogSubmit pending={save.isPending}>
+          {t(type ? 'facility-types.form.save' : 'facility-types.form.create')}
+        </FormDialogSubmit>
+      </FormDialogFooter>
+    </FormDialogForm>
+  );
+}
+
+function NotFoundContent({ title }: { title: string }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{title}</FormDialogTitle>
+        <FormDialogDescription>{t('facility-types.form.not-found')}</FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('facility-types.form.close')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
+  );
+}
+
+function FacilityTypeFormSkeleton({ title, submitLabel }: { title: string; submitLabel: string }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{title}</FormDialogTitle>
+        <SkeletonLine width="medium" />
+      </FormDialogHeader>
+      <FormDialogBody>
+        <FieldGroup>
+          <FieldSkeleton label={t('facility-types.form.code')} required />
+          <FieldSkeleton label={t('facility-types.form.name')} required />
+          <FieldSkeleton label={t('facility-types.form.display-order')} required />
+          <FieldSkeleton label={t('facility-types.form.active')} />
+          <FieldSkeleton label={t('facility-types.form.primary-health-care')} />
+        </FieldGroup>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('facility-types.form.cancel')}</FormDialogCancel>
+        <FormDialogSubmit disabled>{submitLabel}</FormDialogSubmit>
+      </FormDialogFooter>
+    </>
+  );
+}

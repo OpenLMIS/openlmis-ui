@@ -54,6 +54,11 @@ describe('canOpen', () => {
     expect(canOpen('/administration/service-accounts', new Set(['USERS_MANAGE']))).toBe(false);
   });
 
+  it('opens Facility Types only to someone who may manage facilities', () => {
+    expect(canOpen('/administration/facility-types', new Set(['FACILITIES_MANAGE']))).toBe(true);
+    expect(canOpen('/administration/facility-types', new Set(['USERS_MANAGE']))).toBe(false);
+  });
+
   it('opens Roles to someone who may manage users', () => {
     expect(canOpen('/administration/roles', new Set(['USERS_MANAGE']))).toBe(true);
     expect(canOpen('/administration/roles', new Set(['USER_ROLES_MANAGE']))).toBe(false);

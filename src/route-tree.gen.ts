@@ -15,6 +15,7 @@ import { Route as protectedProtectedRouteImport } from './routes/(protected)/_pr
 import { Route as protectedProtectedHomeRouteImport } from './routes/(protected)/_protected.home'
 import { Route as protectedProtectedProfileRouteImport } from './routes/(protected)/_protected.profile'
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
+import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
@@ -55,6 +56,12 @@ const protectedProtectedSettingsRoute =
   protectedProtectedSettingsRouteImport.update({
     id: '/settings',
     path: '/settings',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationFacilityTypesRoute =
+  protectedProtectedAdministrationFacilityTypesRouteImport.update({
+    id: '/administration/facility-types',
+    path: '/administration/facility-types',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationRolesRoute =
@@ -124,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof protectedProtectedHomeRoute
   '/profile': typeof protectedProtectedProfileRouteWithChildren
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
+  '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -139,6 +147,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/home': typeof protectedProtectedHomeRoute
+  '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -158,6 +167,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/home': typeof protectedProtectedHomeRoute
   '/(protected)/_protected/profile': typeof protectedProtectedProfileRouteWithChildren
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
+  '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/profile'
     | '/settings'
+    | '/administration/facility-types'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/home'
+    | '/administration/facility-types'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/home'
     | '/(protected)/_protected/profile'
     | '/(protected)/_protected/settings'
+    | '/(protected)/_protected/administration/facility-types'
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
     | '/(protected)/_protected/administration/users'
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof protectedProtectedSettingsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/facility-types': {
+      id: '/(protected)/_protected/administration/facility-types'
+      path: '/administration/facility-types'
+      fullPath: '/administration/facility-types'
+      preLoaderRoute: typeof protectedProtectedAdministrationFacilityTypesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/roles': {
@@ -387,6 +407,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedHomeRoute: typeof protectedProtectedHomeRoute
   protectedProtectedProfileRoute: typeof protectedProtectedProfileRouteWithChildren
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
+  protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
@@ -397,6 +418,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
   protectedProtectedHomeRoute: protectedProtectedHomeRoute,
   protectedProtectedProfileRoute: protectedProtectedProfileRouteWithChildren,
   protectedProtectedSettingsRoute: protectedProtectedSettingsRouteWithChildren,
+  protectedProtectedAdministrationFacilityTypesRoute:
+    protectedProtectedAdministrationFacilityTypesRoute,
   protectedProtectedAdministrationRolesRoute:
     protectedProtectedAdministrationRolesRoute,
   protectedProtectedAdministrationServiceAccountsRoute:

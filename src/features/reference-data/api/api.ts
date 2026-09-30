@@ -1,4 +1,5 @@
 import type {
+  FacilityType,
   MinimalFacility,
   Program,
   Role,
@@ -32,5 +33,12 @@ export async function fetchPrograms(): Promise<Program[]> {
 /** Every node; without paging params the endpoint returns them all. */
 export async function fetchSupervisoryNodes(): Promise<SupervisoryNode[]> {
   const { data } = await client.get<Page<SupervisoryNode>>('/supervisoryNodes');
+  return data.content;
+}
+
+export async function fetchFacilityTypes(
+  filter: { active?: boolean } = {},
+): Promise<FacilityType[]> {
+  const { data } = await client.get<Page<FacilityType>>('/facilityTypes', { params: filter });
   return data.content;
 }

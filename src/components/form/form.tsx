@@ -4,6 +4,7 @@ import {
   ComboboxField,
   ImageField,
   MultiComboboxField,
+  NumberField,
   PasswordField,
   RadioGroupField,
   SelectField,
@@ -18,6 +19,7 @@ export const { useAppForm } = createFormHook({
   formContext,
   fieldComponents: {
     TextField,
+    NumberField,
     TextareaField,
     PasswordField,
     SwitchField,

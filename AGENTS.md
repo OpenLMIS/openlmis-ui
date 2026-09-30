@@ -475,6 +475,10 @@ fields with one save open in a dialog over the list. Anything with its own struc
 such as tabs, tables of child records or several steps, gets a page. Users is the
 example: Add/Edit User is a dialog, Edit User Roles is a page.
 
+**Save sends the form at once**, with no "Do you want to save?" step, even where legacy
+asks one: the dialog's Create or Save is already the deliberate act. A confirm stays only
+where a save reaches other records, as Roles asks before changing a role users hold.
+
 **The URL owns the open dialog**, like the rest of the list state: `?user=new` or
 `?user=<id>`. Opening adds a history entry so Back closes it; closing steps back over it,
 or replaces it when the page was opened with the dialog from a link. A page gets this, and

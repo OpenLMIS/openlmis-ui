@@ -9,6 +9,7 @@ export const queryKeys = {
   appConfiguration: createQueryKeys('appConfiguration'),
   auth: createQueryKeys('auth'),
   facilities: createQueryKeys('facilities'),
+  facilityTypes: createQueryKeys('facilityTypes'),
   home: createQueryKeys('home'),
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
