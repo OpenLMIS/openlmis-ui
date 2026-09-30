@@ -60,7 +60,7 @@ describe('DataTableSearch', () => {
     expect(input).toHaveValue('adm');
   });
 
-  it('keeps a trailing space when its own value comes back', () => {
+  it('keeps a trailing space when its own value comes back trimmed', () => {
     const onValueChange = vi.fn();
     const { rerender } = render(
       <DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />,
@@ -69,10 +69,9 @@ describe('DataTableSearch', () => {
 
     fireEvent.change(input, { target: { value: 'da ' } });
     act(() => vi.advanceTimersByTime(300));
-    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="da " />);
-    fireEvent.change(input, { target: { value: 'da s' } });
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="da" />);
 
-    expect(input).toHaveValue('da s');
+    expect(input).toHaveValue('da ');
   });
 
   it('sends pending typing when the field loses focus', () => {

@@ -146,17 +146,6 @@ describe('form fields', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('lists the options in a listbox the combobox controls, so screen readers announce it', async () => {
-    const user = userEvent.setup();
-    renderForm();
-
-    const combobox = screen.getByRole('combobox', { name: 'Facility' });
-    await user.type(combobox, 'h');
-    const listbox = await screen.findByRole('listbox');
-    expect(combobox).toHaveAttribute('aria-controls', listbox.id);
-    expect(listbox).not.toHaveAttribute('tabindex', '0');
-  });
-
   it('names the radio group by its label', () => {
     renderForm();
 

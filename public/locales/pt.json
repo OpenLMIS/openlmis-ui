@@ -592,7 +592,7 @@
   "users.form.status-mismatch-title": "O Estado Não Coincide",
   "users.form.updated": "As alterações a {username} foram guardadas.",
   "users.form.updated-title": "Utilizador Atualizado",
-  "users.form.username-invalid": "Use apenas letras e números.",
+  "users.form.username-invalid": "Use apenas letras latinas, números e sublinhados.",
   "users.form.username-required": "Introduza um nome de utilizador.",
   "users.inactive": "Inativo",
   "users.name": "Nome",

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  getAuthClientCredentials,
-  getDeploymentFlags,
-  loadRuntimeConfig,
-} from '@/lib/runtime-config';
 
 afterEach(() => vi.unstubAllGlobals());
 
 const config = { authServerClientId: 'runtime-client', authServerClientSecret: 'runtime-secret' };
+
+async function load() {
+  vi.resetModules();
+  return import('@/lib/runtime-config');
+}
 
 describe('loadRuntimeConfig', () => {
   it('loads again once the connection is back, when the first try found no network', async () => {
@@ -16,8 +16,10 @@ describe('loadRuntimeConfig', () => {
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValue(new Response(JSON.stringify(config)));
     vi.stubGlobal('fetch', fetch);
+    const { getAuthClientCredentials, loadRuntimeConfig } = await load();
 
     await loadRuntimeConfig();
+    expect(getAuthClientCredentials().clientId).not.toBe('runtime-client');
     window.dispatchEvent(new Event('online'));
     await vi.waitFor(() => expect(getAuthClientCredentials().clientId).toBe('runtime-client'));
 
@@ -35,6 +37,7 @@ describe('getDeploymentFlags', () => {
           new Response(JSON.stringify({ ...config, featureFlags: { GS1_SCANNING: 'true' } })),
         ),
     );
+    const { getDeploymentFlags, loadRuntimeConfig } = await load();
 
     await loadRuntimeConfig();
 
@@ -46,6 +49,7 @@ describe('getDeploymentFlags', () => {
       'fetch',
       vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...config, featureFlags: 'on' }))),
     );
+    const { getDeploymentFlags, loadRuntimeConfig } = await load();
 
     await loadRuntimeConfig();
 

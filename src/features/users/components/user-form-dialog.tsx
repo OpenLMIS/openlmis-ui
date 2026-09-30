@@ -191,7 +191,9 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
           )}
 
           <form.AppField name="username">
-            {(field) => <field.TextField autoComplete="off" label={t('users.username')} required />}
+            {(field) => (
+              <field.TextField autoComplete="off" dir="ltr" label={t('users.username')} required />
+            )}
           </form.AppField>
 
           <FieldRow>
@@ -218,6 +220,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
                     <EmailStatus verified={emailVerified} />
                   )
                 }
+                dir="ltr"
                 label={t('users.email')}
                 type="email"
               />
@@ -232,6 +235,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
               {(field) => (
                 <field.TextField
                   autoComplete="off"
+                  dir="ltr"
                   label={t('users.form.phone-number')}
                   type="tel"
                 />

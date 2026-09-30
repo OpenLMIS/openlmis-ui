@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useEffect, useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   FormDialog,
   FormDialogBody,
@@ -226,6 +226,8 @@ describe('FormDialog focus with fields that load late', () => {
 });
 
 describe('FormDialog focus on touch', () => {
+  afterEach(() => fireEvent.keyDown(document.body, { key: 'Tab' }));
+
   it('keeps focus on the dialog when a tap opened it, so no on-screen keyboard pops up', async () => {
     render(
       <OpenedWith>

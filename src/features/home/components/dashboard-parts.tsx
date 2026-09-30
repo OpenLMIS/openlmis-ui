@@ -14,6 +14,14 @@ export function useFormatNumber() {
   return useMemo(() => new Intl.NumberFormat(i18n.language).format, [i18n.language]);
 }
 
+export function useFormatPercent() {
+  const { i18n } = useTranslation();
+  return useMemo(
+    () => new Intl.NumberFormat(i18n.language, { style: 'percent' }).format,
+    [i18n.language],
+  );
+}
+
 /** Bumped by Refresh, so every card that failed mounts again and retries. */
 const RevisionContext = createContext(0);
 

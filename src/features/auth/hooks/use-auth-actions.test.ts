@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { toast } from 'sonner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -16,6 +16,8 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 beforeEach(() => {
   useLoginData.getState().clearLoginData();
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('useAuthActions', () => {
   it('keeps when the new token was due to expire', async () => {
@@ -36,7 +38,6 @@ describe('useAuthActions', () => {
       accessToken: 'token',
       expiresAt: 1_000_000 + 1_800_000,
     });
-    vi.useRealTimers();
   });
 
   it('signs out quietly when the server says the session had already ended', async () => {

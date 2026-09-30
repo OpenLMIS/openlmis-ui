@@ -93,6 +93,22 @@ describe('loadAppConfiguration', () => {
     expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
   });
 
+  it('shows the last answer while it waits, so the first paint already has its theme', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))),
+    );
+
+    const loading = loadAppConfiguration();
+
+    expect(getAppConfiguration().theme.defaultAppearance).toBe('dark');
+    answer(new Response(JSON.stringify({ ...stored, appName: 'Fresh' })));
+    await loading;
+    expect(getAppConfiguration().appName).toBe('Fresh');
+  });
+
   it('uses the defaults and forgets the last answer when the server has no configuration', async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
     vi.stubGlobal('fetch', respond(404));

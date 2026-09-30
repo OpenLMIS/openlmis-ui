@@ -55,6 +55,7 @@ describe('ChangePasswordDialog', () => {
       proceed = next;
     });
 
+    expect(proceed).toBeInstanceOf(Function);
     expect(changePassword).not.toHaveBeenCalled();
     proceed?.();
     await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());

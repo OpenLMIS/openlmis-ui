@@ -20,7 +20,7 @@ export function WorkspaceTabs({ label, tabs, children }: WorkspaceTabsProps) {
   return (
     <Tabs spacing="page" value={tab}>
       <div className="@container">
-        <TabsList aria-label={label} wrap>
+        <TabsList aria-label={label} wrap="column">
           {tabs.map((item) => (
             <TabsTrigger
               key={item.to}

@@ -255,7 +255,7 @@ Two ways out when a page needs a different treatment:
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
-   `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
+   `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -266,11 +266,13 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Three edits carry no prop, so `tsc` cannot catch
+new files rather than reverting the preset. Four edits carry no prop, so `tsc` cannot catch
 them: `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
-looks disabled; and `sonner.tsx`'s `Toaster` reads
-`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed.
+looks disabled; `sonner.tsx`'s `Toaster` reads
+`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed;
+and `chart.tsx` lays the chart's SVG out left to right, so axis labels grow into their gutter in
+Arabic, and formats tooltip numbers in the page's language.
 
 ### Integrations
 

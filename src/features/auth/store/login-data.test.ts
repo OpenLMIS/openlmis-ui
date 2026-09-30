@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LoginDataStore, syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 
 const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'ada-token' };
@@ -7,6 +7,8 @@ beforeEach(() => {
   localStorage.clear();
   useLoginData.getState().clearLoginData();
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('useLoginData', () => {
   it('keeps the user and marks the session expired', () => {
@@ -40,7 +42,6 @@ describe('useLoginData', () => {
       expired: false,
       expiresAt: 1_000_000 + 1_800_000,
     });
-    vi.useRealTimers();
   });
 
   it('restores a session saved before the expiry fields existed', async () => {

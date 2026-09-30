@@ -51,7 +51,10 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')));
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe('registerServiceWorker', () => {
   it('does nothing outside a production build, where there is no worker to register', async () => {
@@ -173,6 +176,5 @@ describe('warming the offline files', () => {
     registerServiceWorker({ enabled: true });
 
     expect(fetch).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
   });
 });

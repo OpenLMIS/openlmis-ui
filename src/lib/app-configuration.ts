@@ -84,6 +84,7 @@ export function rememberAppConfiguration(value: unknown): void {
 }
 
 export async function loadAppConfiguration(): Promise<void> {
+  fallBackToCache();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
   try {

@@ -31,6 +31,21 @@ describe('useLeaveGuard', () => {
     unmount();
   });
 
+  it('lets the most recently guarded page ask when two have changes', () => {
+    const older = vi.fn();
+    const newer = vi.fn();
+    const a = renderHook(() => useLeaveGuard(true, older));
+    const b = renderHook(() => useLeaveGuard(true, newer));
+    const proceed = vi.fn();
+
+    whenLeaveAllowed(proceed);
+    expect(newer).toHaveBeenCalledWith(proceed);
+    expect(older).not.toHaveBeenCalled();
+
+    a.unmount();
+    b.unmount();
+  });
+
   it('keeps asking while another guarded page still has changes', () => {
     const first = vi.fn();
     const second = vi.fn();

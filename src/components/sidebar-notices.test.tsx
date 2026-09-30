@@ -1,17 +1,29 @@
 import { onlineManager } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sidebar-notices';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
-import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
+import { dismissBackOnline } from '@/lib/online';
+import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
 
-vi.mock('@/lib/service-worker', () => ({
-  useUpdateReady: vi.fn(() => false),
+const worker = vi.hoisted(() => ({ waiting: () => {} }));
+
+vi.mock('workbox-window', () => ({
+  Workbox: function Workbox() {
+    return {
+      addEventListener: (type: string, handler: () => void) => {
+        if (type === 'waiting') worker.waiting = handler;
+      },
+      register: () => Promise.resolve(undefined),
+    };
+  },
+}));
+vi.mock('@/lib/service-worker', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/service-worker')>()),
   applyUpdate: vi.fn(),
-  dismissUpdate: vi.fn(),
 }));
 
 function UnsavedDraft({ ask }: { ask: (proceed: () => void) => void }) {
@@ -30,9 +42,25 @@ const renderNotices = ({ extra = null as React.ReactNode, defaultOpen = true } =
     </TooltipProvider>,
   );
 
-beforeEach(() => vi.mocked(useUpdateReady).mockReturnValue(false));
+const showUpdate = () => act(() => worker.waiting());
 
-afterEach(() => vi.useRealTimers());
+beforeAll(() => {
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    serviceWorker: { controller: null, addEventListener: vi.fn() },
+  });
+  registerServiceWorker({ enabled: true });
+  vi.unstubAllGlobals();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  act(() => {
+    onlineManager.setOnline(true);
+    dismissBackOnline();
+    dismissUpdate();
+  });
+});
 
 describe('SidebarNotices', () => {
   it('shows nothing while online and up to date', () => {
@@ -77,7 +105,7 @@ describe('SidebarNotices', () => {
   });
 
   it('offers a new version, and asks about unsaved changes before reloading into it', async () => {
-    vi.mocked(useUpdateReady).mockReturnValue(true);
+    showUpdate();
     let proceed: (() => void) | undefined;
     renderNotices({
       extra: (
@@ -97,17 +125,19 @@ describe('SidebarNotices', () => {
   });
 
   it('hides the update notice when dismissed', async () => {
-    vi.mocked(useUpdateReady).mockReturnValue(true);
+    showUpdate();
     renderNotices();
+    expect(screen.getAllByText('update.title')).not.toHaveLength(0);
 
     await userEvent.click(screen.getByRole('button', { name: 'notice.close' }));
 
-    expect(dismissUpdate).toHaveBeenCalledOnce();
+    expect(screen.queryByText('update.title')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('shrinks to icons on the collapsed rail, with only the update one to press', () => {
     onlineManager.setOnline(false);
-    vi.mocked(useUpdateReady).mockReturnValue(true);
+    showUpdate();
     renderNotices({ defaultOpen: false });
 
     expect(screen.queryByText('offline.description')).not.toBeInTheDocument();
