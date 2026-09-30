@@ -68,9 +68,9 @@ The app name, logo, colour theme and default appearance come from the reference 
 (`GET /api/appConfiguration`), which administrators change in the new UI. The app reads them
 before it shows anything:
 
-- A server without the endpoint, or with nothing configured, gets the built-in OpenLMIS look.
-- A server that is down or answers slowly (more than 3 seconds) gets the settings this browser
-  saw last, or the built-in look the first time.
+- A server with nothing configured gets the built-in OpenLMIS look.
+- A server that is down, answers slowly (more than 3 seconds) or has no route to the endpoint
+  gets the settings this browser saw last, or the built-in look the first time.
 
 Nothing about branding needs a rebuild or a redeploy.
 

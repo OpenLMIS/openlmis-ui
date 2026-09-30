@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LoginDataStore, syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 
 const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'ada-token' };
@@ -7,6 +7,8 @@ beforeEach(() => {
   localStorage.clear();
   useLoginData.getState().clearLoginData();
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('useLoginData', () => {
   it('keeps the user and marks the session expired', () => {
@@ -40,7 +42,6 @@ describe('useLoginData', () => {
       expired: false,
       expiresAt: 1_000_000 + 1_800_000,
     });
-    vi.useRealTimers();
   });
 
   it('restores a session saved before the expiry fields existed', async () => {
@@ -101,6 +102,52 @@ describe('syncOtherTab', () => {
     await expect(syncOtherTab('login-data-storage')).resolves.toBe(false);
 
     expect(useLoginData.getState()).toMatchObject({ accessToken: 'new-token', expired: false });
+  });
+
+  it('keeps a sign in another tab just saved when a request refused under the old token returns', () => {
+    useLoginData.getState().setLoginData(ada);
+    useLoginData.getState().expireSession();
+    otherTabSaves({ accessToken: 'new-token', expired: false });
+
+    useLoginData.getState().expireSession();
+
+    expect(useLoginData.getState()).toMatchObject({ accessToken: 'new-token', expired: false });
+    expect(localStorage.getItem('login-data-storage')).toContain('new-token');
+  });
+
+  it('follows another tab that signed in again before this one heard, instead of expiring', () => {
+    useLoginData.getState().setLoginData(ada);
+    otherTabSaves({ accessToken: 'new-token', expired: false });
+
+    useLoginData.getState().expireSession();
+
+    expect(useLoginData.getState()).toMatchObject({ accessToken: 'new-token', expired: false });
+  });
+
+  it('adopts the legacy session once all of it is written, whatever order the keys come in', async () => {
+    localStorage.setItem('openlmis.ACCESS_TOKEN', 'legacy-token');
+    await syncOtherTab('openlmis.ACCESS_TOKEN');
+    expect(useLoginData.getState().isAuthenticated).toBe(false);
+
+    localStorage.setItem('openlmis.USERNAME', 'administrator');
+    localStorage.setItem('openlmis.USER_ID', 'legacy-user-id');
+    await syncOtherTab('openlmis.USER_ID');
+
+    expect(useLoginData.getState()).toMatchObject({
+      accessToken: 'legacy-token',
+      referenceDataUserId: 'legacy-user-id',
+      username: 'administrator',
+    });
+  });
+
+  it('keeps a borrowed session behind the sign in prompt when the legacy UI signs out', async () => {
+    useLoginData.getState().setLoginData(ada, 'legacy');
+    localStorage.setItem('openlmis.ACCESS_TOKEN', 'ada-token');
+
+    localStorage.removeItem('openlmis.ACCESS_TOKEN');
+    await expect(syncOtherTab('openlmis.ACCESS_TOKEN')).resolves.toBe(false);
+
+    expect(useLoginData.getState()).toMatchObject({ isAuthenticated: true, expired: true });
   });
 
   it('saves our session again when the legacy UI wipes the storage', async () => {

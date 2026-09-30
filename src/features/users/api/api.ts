@@ -105,7 +105,8 @@ export async function createUser(values: UserFormValues): Promise<UserRecord> {
 /** One after another, so a rejected step stops the rest instead of leaving them half applied. */
 export async function updateUser(details: UserDetails, values: UserFormValues): Promise<void> {
   const { id } = details.user;
-  await client.put('/users', toUserRecord(values, details.user));
+  const { data: user } = await client.get<UserRecord>(`/users/${id}`);
+  await client.put('/users', toUserRecord(values, user));
   await client.put(`/userContactDetails/${id}`, toContactDetails(id, values, details.contact));
   await client.post('/users/auth', toAuthUser(id, values));
 }

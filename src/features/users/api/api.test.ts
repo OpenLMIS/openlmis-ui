@@ -129,11 +129,22 @@ describe('createUser', () => {
   it('removes the half-created user when the account cannot be created', async () => {
     const failure = new Error('username taken');
     put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
-    put.mockResolvedValueOnce({ data: {} });
+    put.mockResolvedValue({ data: {} });
     post.mockRejectedValueOnce(failure);
     remove.mockResolvedValueOnce({ data: {} });
 
     await expect(createUser(newUser)).rejects.toBe(failure);
+    expect(remove).toHaveBeenCalledWith('/users/u1');
+  });
+
+  it('only removes the user when its contact details were never saved', async () => {
+    put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
+    put.mockRejectedValueOnce(new Error('email taken'));
+    remove.mockResolvedValueOnce({ data: {} });
+
+    await expect(createUser(newUser)).rejects.toThrow('email taken');
+
+    expect(put).toHaveBeenCalledTimes(2);
     expect(remove).toHaveBeenCalledWith('/users/u1');
   });
 });
@@ -159,7 +170,51 @@ describe('fetchUserDetails', () => {
 describe('updateUser', () => {
   const details = { user: { ...ada, roleAssignments: [] }, contact: null, auth: null };
 
+  const supervision = { roleId: 'r1', programId: 'p1' };
+  const fulfillment = { roleId: 'r2', warehouseId: 'w1' };
+
+  it('saves the form onto a fresh copy of the user, so changes made meanwhile survive', async () => {
+    const fresh = { ...ada, lastName: 'Byron', roleAssignments: [fulfillment] };
+    get.mockResolvedValueOnce({ data: fresh });
+    put.mockResolvedValue({ data: {} });
+    post.mockResolvedValue({ data: {} });
+
+    await updateUser(details, { ...newUser, username: 'ada', lastName: 'King' });
+
+    expect(get).toHaveBeenCalledWith('/users/u1');
+    expect(put).toHaveBeenCalledWith(
+      '/users',
+      expect.objectContaining({ id: 'u1', lastName: 'King', roleAssignments: [fulfillment] }),
+    );
+  });
+
+  it('removes home facility roles from the fresh roles', async () => {
+    get.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [supervision, fulfillment] } });
+    put.mockResolvedValue({ data: {} });
+    post.mockResolvedValue({ data: {} });
+
+    await updateUser(details, {
+      ...newUser,
+      homeFacilityId: 'f2',
+      removeHomeFacilityRoles: true,
+    });
+
+    expect(put).toHaveBeenCalledWith(
+      '/users',
+      expect.objectContaining({ roleAssignments: [fulfillment] }),
+    );
+  });
+
+  it('saves nothing when the user cannot be read', async () => {
+    get.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(updateUser(details, newUser)).rejects.toThrow('offline');
+    expect(put).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('stops at the first rejected write', async () => {
+    get.mockResolvedValueOnce({ data: details.user });
     put.mockResolvedValueOnce({ data: {} });
     put.mockRejectedValueOnce(new Error('email taken'));
 

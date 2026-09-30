@@ -1,7 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import * as z from 'zod';
 
-/** Token response returned by the OpenLMIS auth service. */
 export type LoginResponse = {
   access_token: string;
   token_type: string;

@@ -40,6 +40,14 @@ describe('ProfileWorkspace', () => {
     expect(screen.queryByText('profile.description')).not.toBeInTheDocument();
   });
 
+  it('holds the place of the name without putting a block inside the paragraph', async () => {
+    renderAt('/profile', <ProfileWorkspace>content</ProfileWorkspace>);
+
+    await screen.findByRole('tab', { name: 'profile.tabs.basic' });
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+    expect(document.querySelector('p [data-slot="skeleton"]')).not.toBeInTheDocument();
+  });
+
   it('names the user and offers Change Password once the profile is there', async () => {
     renderAt('/profile', <ProfileWorkspace username="ada">content</ProfileWorkspace>);
 

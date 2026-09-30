@@ -7,10 +7,7 @@ type TextDirectionProviderProps = {
   children: ReactNode;
 };
 
-/**
- * Keeps `<html lang>`/`<html dir>` and every Base UI portal on the active
- * language's direction. Layout effect, so the first frame is never painted LTR.
- */
+// A layout effect, so `<html dir>` is set before the first frame is painted.
 export function TextDirectionProvider({ children }: TextDirectionProviderProps) {
   const { i18n } = useTranslation();
   const language = i18n.resolvedLanguage ?? i18n.language;

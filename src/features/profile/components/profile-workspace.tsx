@@ -26,7 +26,6 @@ const PROFILE_TABS = [
 type ProfileWorkspaceProps = {
   /** Left out while the profile loads, which holds the places of the name and Change Password. */
   username?: string;
-  /** The open tab's page. */
   children: ReactNode;
 };
 
@@ -43,13 +42,11 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
               <UserRoundIcon />
             </WorkspaceIcon>
             <WorkspaceTitle>{t('profile.title')}</WorkspaceTitle>
-            <WorkspaceDescription>
-              {username === undefined ? (
-                <Block className="h-5 w-48 py-0.5" />
-              ) : (
-                t('profile.description', { username })
-              )}
-            </WorkspaceDescription>
+            {username === undefined ? (
+              <Block className="h-5 w-48 py-0.5" />
+            ) : (
+              <WorkspaceDescription>{t('profile.description', { username })}</WorkspaceDescription>
+            )}
           </WorkspaceHeading>
           <WorkspaceActions>
             {username === undefined ? (

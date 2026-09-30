@@ -5,16 +5,12 @@ import {
   Outlet,
   useLocation,
   useNavigate,
-  useRouter,
 } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { DataTableError } from '@/components/data-table/data-table';
-import { NoAccessPage } from '@/components/no-access-page';
-import { Workspace, WorkspaceContent } from '@/components/workspace';
+import { ErrorFallback } from '@/components/error-fallback';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
-import { isForbidden } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
 import { BasicInformationSkeleton } from '@/features/profile/components/basic-information';
@@ -106,23 +102,14 @@ function ProfilePending() {
   );
 }
 
-function ProfileError({ error, reset }: ErrorComponentProps) {
+function ProfileError(props: ErrorComponentProps) {
   const { t } = useTranslation();
-  const router = useRouter();
-  if (isForbidden(error)) return <NoAccessPage />;
 
   return (
-    <Workspace width="narrow">
-      <WorkspaceContent>
-        <DataTableError
-          description={t('profile.error-description')}
-          onRetry={() => {
-            reset();
-            void router.invalidate();
-          }}
-          title={t('profile.error-title')}
-        />
-      </WorkspaceContent>
-    </Workspace>
+    <ErrorFallback
+      {...props}
+      description={t('profile.error-description')}
+      title={t('profile.error-title')}
+    />
   );
 }

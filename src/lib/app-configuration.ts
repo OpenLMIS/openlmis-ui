@@ -68,14 +68,9 @@ function writeCache(value: unknown): void {
   } catch {}
 }
 
-function clearCache(): void {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-  } catch {}
-}
-
-function fallBackToCache(): void {
-  setAppConfiguration(parseAppConfiguration(readCache()));
+export function saveAppConfigurationAgain(): void {
+  const configuration = getAppConfiguration();
+  if (configuration !== DEFAULT_APP_CONFIGURATION) writeCache(configuration);
 }
 
 export function rememberAppConfiguration(value: unknown): void {
@@ -84,6 +79,7 @@ export function rememberAppConfiguration(value: unknown): void {
 }
 
 export async function loadAppConfiguration(): Promise<void> {
+  setAppConfiguration(parseAppConfiguration(readCache()));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
   try {
@@ -92,18 +88,8 @@ export async function loadAppConfiguration(): Promise<void> {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
-    if (response.status === 404) {
-      clearCache();
-      setAppConfiguration(DEFAULT_APP_CONFIGURATION);
-      return;
-    }
-    if (!response.ok) {
-      fallBackToCache();
-      return;
-    }
-    rememberAppConfiguration(await response.json());
+    if (response.ok) rememberAppConfiguration(await response.json());
   } catch {
-    fallBackToCache();
   } finally {
     clearTimeout(timeout);
   }

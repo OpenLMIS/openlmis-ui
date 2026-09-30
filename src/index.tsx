@@ -20,9 +20,9 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
 
 seedOnline();
-await Promise.all([initI18n(), loadRuntimeConfig(), loadAppConfiguration()]);
-
+const configuration = loadAppConfiguration();
 startApplyingAppConfiguration();
+await Promise.all([initI18n(), loadRuntimeConfig(), configuration]);
 
 // Before the router guards read the store, so a legacy session lands on /home.
 syncLegacySession();

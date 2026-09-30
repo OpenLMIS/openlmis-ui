@@ -51,7 +51,11 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')));
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe('registerServiceWorker', () => {
   it('does nothing outside a production build, where there is no worker to register', async () => {
@@ -85,6 +89,67 @@ describe('registerServiceWorker', () => {
     expect(result.current).toBe(true);
   });
 
+  function stubRegistration() {
+    const registration = Object.assign(new EventTarget(), {
+      installing: null as (EventTarget & { state: string }) | null,
+    });
+    register.mockResolvedValue(registration);
+    return () => {
+      const worker = Object.assign(new EventTarget(), { state: 'installing' });
+      registration.installing = worker;
+      registration.dispatchEvent(new Event('updatefound'));
+      worker.state = 'installed';
+      worker.dispatchEvent(new Event('statechange'));
+    };
+  }
+
+  it('tells the tab about every later version, not only the first one after it opened', async () => {
+    stubServiceWorker({ controller: ours });
+    const install = stubRegistration();
+    const { dismissUpdate, registerServiceWorker, useUpdateReady } = await load();
+    registerServiceWorker({ enabled: true });
+    await vi.waitFor(() => expect(register).toHaveBeenCalled());
+    await Promise.resolve();
+    const { result } = renderHook(() => useUpdateReady());
+
+    act(() => install());
+    expect(result.current).toBe(true);
+    act(() => dismissUpdate());
+    act(() => install());
+
+    expect(result.current).toBe(true);
+  });
+
+  it('checks for a new version every hour', async () => {
+    vi.useFakeTimers();
+    stubServiceWorker({ controller: ours });
+    const update = vi.fn().mockResolvedValue(undefined);
+    register.mockResolvedValue(Object.assign(new EventTarget(), { update }));
+    const { registerServiceWorker } = await load();
+    registerServiceWorker({ enabled: true });
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000 - 1);
+    expect(update).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('offers nothing when our first version installs under the legacy UI worker', async () => {
+    stubServiceWorker({ controller: { scriptURL: `${location.origin}/service-worker.js` } });
+    const install = stubRegistration();
+    const { registerServiceWorker, useUpdateReady } = await load();
+    registerServiceWorker({ enabled: true });
+    await vi.waitFor(() => expect(register).toHaveBeenCalled());
+    await Promise.resolve();
+    const { result } = renderHook(() => useUpdateReady());
+
+    act(() => install());
+
+    expect(result.current).toBe(false);
+  });
+
   it('never reloads a tab that did not ask, when another tab takes the update', async () => {
     stubServiceWorker({});
     const { registerServiceWorker } = await load();
@@ -110,6 +175,19 @@ describe('applyUpdate', () => {
 
     fire('controlling');
     expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('runs the step before reloading only when the reload happens', async () => {
+    stubServiceWorker({ waiting: true });
+    const { applyUpdate, registerServiceWorker } = await load();
+    const steps: string[] = [];
+    registerServiceWorker({ enabled: true, reload: () => steps.push('reload') });
+
+    await applyUpdate(() => steps.push('before'));
+    expect(steps).toEqual([]);
+    fire('controlling');
+
+    expect(steps).toEqual(['before', 'reload']);
   });
 
   it('just reloads when another tab already activated the new version', async () => {
@@ -173,6 +251,5 @@ describe('warming the offline files', () => {
     registerServiceWorker({ enabled: true });
 
     expect(fetch).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
   });
 });

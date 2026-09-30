@@ -76,11 +76,13 @@ function FacilitiesPage() {
     <Workspace>
       <WorkspaceHeader>{/* renders immediately */}</WorkspaceHeader>
       <WorkspaceContent>
-        <CatchBoundary getResetKey={() => 'facilities'} errorComponent={ErrorFallback}>
-          <Suspense fallback={<PendingFallback />}>
-            <FacilitiesTable />
-          </Suspense>
-        </CatchBoundary>
+        <QueryBoundary
+          errorComponent={FacilitiesError}
+          pendingFallback={<FacilitiesTableSkeleton />}
+          resetKey="facilities"
+        >
+          <FacilitiesTable />
+        </QueryBoundary>
       </WorkspaceContent>
     </Workspace>
   );
@@ -107,8 +109,9 @@ Three rules that follow from this:
   internally, so an unawaited rejection cannot become an unhandled promise rejection.
 - Never `await` a `prefetchQuery` - that blocks navigation and gives up the whole benefit.
 - `useSuspenseQuery` throws on error instead of returning an error state, so a suspended
-  subtree needs a `CatchBoundary` above it. Without one the error escapes to the route's
-  `errorComponent` and replaces the entire page.
+  subtree needs a `QueryBoundary` (`src/components/query-boundary.tsx`) above it, which is
+  `Suspense` plus a `CatchBoundary` that also resets the query. Without one the error escapes
+  to the route's `errorComponent` and replaces the entire page.
 
 ### Feature-based modules
 
@@ -250,12 +253,12 @@ Two ways out when a page needs a different treatment:
    `CardTitle size`, `CardFooter align`, `Separator spacing`, `Skeleton shape/fill`,
    `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
-   `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
+   `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
-   `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
+   `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
    for `Skeleton`, whose size always belongs to the surrounding layout.
@@ -266,11 +269,14 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Three edits carry no prop, so `tsc` cannot catch
+new files rather than reverting the preset. Five edits carry no prop, so `tsc` cannot catch
 them: `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
-looks disabled; and `sonner.tsx`'s `Toaster` reads
-`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed.
+looks disabled; `sonner.tsx`'s `Toaster` reads
+`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed;
+`chart.tsx` lays the chart's SVG out left to right, so axis labels grow into their gutter in
+Arabic, and formats tooltip numbers in the page's language; and `avatar.tsx`'s `AvatarGroup`
+overlaps with a logical `-ms-2` instead of `-space-x-2`.
 
 ### Integrations
 
@@ -516,16 +522,20 @@ shared `Toaster` adds a translated close button, so a call never passes one.
 as a set of right names, and `RIGHTS` names the ones this app checks. A route that
 depends on them awaits `ensureQueryData(rightsOptions(...))` in its loader, since that is
 a permission check, then prefetches only the parts the user may see and passes plain
-flags down. Features stay free of auth imports; the Home route is the example.
+flags down. Features stay free of auth imports; the Home route is the example. A save that
+may change a user, such as Edit User or Edit User Roles, calls `invalidateUserQueries(queryClient,
+userId)` from `src/lib/user-queries.ts`. The cache holds per-user data only for the signed-in
+user, so it reloads your rights, Profile and Home only when the user is you.
 
 **A page that needs one right checks it before it loads.** Its loader awaits
 `requireRight(queryClient, RIGHTS.x)` from `src/features/auth/lib/access.ts`, alongside the
 data it must have, and a missing right throws a `ForbiddenError`. The default error component
 shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
-`errorComponent` checks `isForbidden(error)` first, and so does a `QueryBoundary` whose data
-the server may refuse, showing `NoAccess`. Inside a feature, which has no auth imports, such a
-boundary checks `isRefused(error)` from `src/lib/http.ts` and shows a short message in place,
-not the full-page panel. Add the page to `NAV_RIGHTS` in
+`errorComponent` renders `ErrorFallback` with its own `title` and `description`, which checks
+`isForbidden(error)` first, and so does a `QueryBoundary` whose data the server may refuse,
+showing `NoAccess`. Inside a feature, which has no auth imports, such a boundary checks
+`isRefused(error)` from `src/lib/http.ts` and shows a short message in place, not the
+full-page panel. Add the page to `NAV_RIGHTS` in
 `src/components/nav-access.ts` too, so the sidebar, the palette and the breadcrumbs never offer
 it. The Users routes are the example.
 
@@ -713,8 +723,10 @@ Never read `navigator.onLine` directly.
 `useOfflineFailure(error, retry)`, which also runs `retry` once the connection is back:
 
 - `OfflineNotice` for a page, which `ErrorFallback` shows, so a blocking loader such as
-  `requireRight` is covered too;
+  `requireRight` is covered too, and so is a route's own `errorComponent` that renders
+  `ErrorFallback` with its `title` and `description`;
 - `ListError` for a server-paged list's boundary, which also handles No Access;
+- `LoadError` for a boundary inside a feature, which has no auth imports;
 - `DialogLoadError` and the Home `WidgetError`, given the `error`.
 
 A new error view with a Try Again uses `useOfflineFailure` the same way. `ErrorFallback`'s
@@ -734,8 +746,9 @@ On the collapsed rail each is its icon with a tooltip, and only Reload is a butt
 notes, not live regions: `StatusAnnouncer` in the header is the one always-mounted
 `role="status"`, so a screen reader hears each change even with the sidebar out of view.
 
-Reload goes through `whenLeaveAllowed`. `allowUnload()` then keeps the discard guard from
-raising the browser's own prompt on top.
+Reload goes through `whenLeaveAllowed`, then `applyUpdate(allowUnload)`: `allowUnload()` runs
+just before the reload, so the discard guard does not raise the browser's own prompt on top,
+and stays off if the reload never comes.
 
 **Local data goes in Dexie, one database per deployment and user.** `getLocalDb()` in
 `src/integrations/local-db.ts` opens `openlmis-ui:<deployment>:<userId>` for the signed-in user

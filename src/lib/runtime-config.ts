@@ -1,18 +1,12 @@
-/**
- * Settings that vary per environment and cannot be compiled in.
- *
- * Vite resolves `import.meta.env` at build time, so baking the OAuth client into
- * the bundle would tie one image to one environment. The container writes
- * `<base>/config.json` from its own env at start instead, the same trick the
- * legacy UI uses on `openlmis.js`. Falls back to `import.meta.env` for `pnpm dev`.
- */
+import { create } from 'zustand';
+
 type RuntimeConfig = {
   authServerClientId?: string;
   authServerClientSecret?: string;
   featureFlags: Record<string, unknown>;
 };
 
-let runtimeConfig: RuntimeConfig = { featureFlags: {} };
+const useRuntimeConfigStore = create<RuntimeConfig>(() => ({ featureFlags: {} }));
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
@@ -36,17 +30,18 @@ export async function loadRuntimeConfig(): Promise<void> {
       string,
       unknown
     >;
-    runtimeConfig = {
+    useRuntimeConfigStore.setState({
       authServerClientId: asString(authServerClientId),
       authServerClientSecret: asString(authServerClientSecret),
       featureFlags: asRecord(featureFlags),
-    };
+    });
   } catch {
     window.addEventListener('online', () => void loadRuntimeConfig(), { once: true });
   }
 }
 
 export function getAuthClientCredentials(): { clientId?: string; clientSecret?: string } {
+  const runtimeConfig = useRuntimeConfigStore.getState();
   return {
     clientId: runtimeConfig.authServerClientId || import.meta.env.VITE_AUTH_SERVER_CLIENT_ID,
     clientSecret:
@@ -55,5 +50,9 @@ export function getAuthClientCredentials(): { clientId?: string; clientSecret?: 
 }
 
 export function getDeploymentFlags(): Record<string, unknown> {
-  return runtimeConfig.featureFlags;
+  return useRuntimeConfigStore.getState().featureFlags;
+}
+
+export function useDeploymentFlags(): Record<string, unknown> {
+  return useRuntimeConfigStore((state) => state.featureFlags);
 }

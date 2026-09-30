@@ -1,6 +1,6 @@
 import { useStore } from '@tanstack/react-form';
 import { InfoIcon, RotateCcwIcon, SearchXIcon } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -75,7 +75,7 @@ type FeatureFlagsSettingsProps = {
 
 export function FeatureFlagsSettings({ saved, search, onSearchChange }: FeatureFlagsSettingsProps) {
   const { t } = useTranslation();
-  const deployment = getDeploymentFlags();
+  const [deployment] = useState(getDeploymentFlags);
   const searchBox = useRef<HTMLDivElement>(null);
 
   const form = useAppForm({

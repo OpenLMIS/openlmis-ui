@@ -157,4 +157,29 @@ describe('client', () => {
     useLoginData.getState().clearLoginData();
     await expect(request).rejects.toBeInstanceOf(SessionEndedError);
   });
+
+  it.each([403, 500])('passes a %i through without asking to sign in again', async (status) => {
+    client.defaults.adapter = async (config) => {
+      throw new AxiosError('Refused', 'ERR_BAD_RESPONSE', config, undefined, {
+        data: {},
+        status,
+        statusText: '',
+        headers: {},
+        config,
+      });
+    };
+
+    await expect(client.get('/users')).rejects.toMatchObject({ response: { status } });
+    expect(useLoginData.getState().expired).toBe(false);
+  });
+
+  it('passes a 401 through when nobody is signed in, since there is no session to renew', async () => {
+    useLoginData.getState().clearLoginData();
+    serve('new-token');
+
+    await expect(
+      client.get('/users', { headers: { Authorization: 'Bearer stale' } }),
+    ).rejects.toMatchObject({ response: { status: 401 } });
+    expect(useLoginData.getState()).toMatchObject({ isAuthenticated: false, expired: false });
+  });
 });

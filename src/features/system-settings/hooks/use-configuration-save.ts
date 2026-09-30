@@ -57,7 +57,9 @@ export function useConfigurationSave<Values, Variables>({
   const changed = isChanged(values, base);
 
   const settle = (next: AppConfigurationDto) => {
-    queryClient.setQueryData(appConfigurationOptions().queryKey, next);
+    const { queryKey } = appConfigurationOptions();
+    void queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, next);
     rememberAppConfiguration(next);
     setBase(next);
   };
@@ -96,7 +98,6 @@ export function useConfigurationSave<Values, Variables>({
       setConflict(false);
       mutation.reset();
       if (fresh) {
-        rememberAppConfiguration(fresh);
         setBase(fresh);
         form.reset(toValues(fresh));
       }

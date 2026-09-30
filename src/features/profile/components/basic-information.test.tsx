@@ -102,10 +102,16 @@ describe('BasicInformation', () => {
     await userEvent.type(firstName, 'Augusta');
     await userEvent.click(screen.getByRole('button', { name: 'profile.save' }));
 
-    await waitFor(() => expect(fetchProfile).toHaveBeenCalled());
-    await waitFor(() => expect(saveProfile).toHaveBeenCalledOnce());
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await waitFor(() =>
+      expect(queryClient.getQueryData(profileOptions('u1').queryKey)?.user.firstName).toBe(
+        'Augusta',
+      ),
+    );
+    expect(fetchProfile).toHaveBeenCalled();
     expect(firstName).toHaveValue('Augusta');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'profile.save' })).toBeDisabled(),
+    );
   });
 
   it('shows the saved email as verified beside its label, read with the field, and a hint once it is changed', async () => {

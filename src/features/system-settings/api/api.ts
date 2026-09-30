@@ -11,6 +11,8 @@ const basedOn = (saved: AppConfigurationDto) => ({
 const withDefaults = (dto: AppConfigurationDto): AppConfigurationDto => ({
   ...dto,
   showAppName: dto.showAppName ?? true,
+  theme: dto.theme ?? { preset: null, defaultAppearance: null },
+  featureFlags: dto.featureFlags ?? {},
 });
 
 export async function fetchAppConfiguration(): Promise<AppConfigurationDto | null> {

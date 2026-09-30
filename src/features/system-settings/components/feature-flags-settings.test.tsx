@@ -1,5 +1,5 @@
 import { QueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import { useState } from 'react';
@@ -107,8 +107,9 @@ describe('FeatureFlagsSettings', () => {
 
     const about = await screen.findByRole('dialog');
     expect(about).toHaveTextContent('feature-flags.batch-approve-screen.description');
+    expect(about).toHaveTextContent('feature-flags.batch-approve-screen.label');
     expect(about).toHaveTextContent('system-settings.flags.used-by');
-    expect(about).not.toHaveTextContent('system-settings.flags.not-in-new-ui');
+    expect(about).not.toHaveTextContent('feature-flags.gs1-scanning.description');
   });
 
   it('shows each flag key under its name', async () => {
@@ -134,7 +135,12 @@ describe('FeatureFlagsSettings', () => {
   it('opens unchanged even when a stored value is not one this version accepts', async () => {
     renderFlags({ ...savedConfiguration, featureFlags: { DEFAULT_QUANTITY_UNIT: 'BOTH' } });
 
-    await batch();
+    expect(
+      await screen.findByRole('combobox', { name: /feature-flags.default-quantity-unit.label/ }),
+    ).toHaveTextContent('feature-flags.quantity-unit.doses');
+    expect(
+      screen.queryByRole('button', { name: 'system-settings.flags.reset-label' }),
+    ).not.toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
   });
 
@@ -145,12 +151,7 @@ describe('FeatureFlagsSettings', () => {
     await userEvent.click(await batch());
     await userEvent.click(saveButton());
 
-    const alert = await screen.findByText('system-settings.conflict-title');
-    expect(
-      within(alert.closest('[role="alert"]') ?? document.body).getByText(
-        'system-settings.conflict-title',
-      ),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('system-settings.conflict-title');
     expect(await batch()).toBeChecked();
     expect(saveButton()).toBeDisabled();
   });

@@ -14,7 +14,9 @@ import {
 } from '@/components/ui/empty';
 import { isForbidden } from '@/features/auth/lib/access';
 
-export function ErrorFallback({ error, reset }: ErrorComponentProps) {
+type ErrorFallbackProps = ErrorComponentProps & { title?: string; description?: string };
+
+export function ErrorFallback({ error, reset, title, description }: ErrorFallbackProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const retry = () => {
@@ -34,9 +36,9 @@ export function ErrorFallback({ error, reset }: ErrorComponentProps) {
           <AlertTriangleIcon />
         </EmptyMedia>
         <EmptyTitle>
-          <h1>{t('error.title')}</h1>
+          <h1>{title ?? t('error.title')}</h1>
         </EmptyTitle>
-        <EmptyDescription>{t('error.description')}</EmptyDescription>
+        <EmptyDescription>{description ?? t('error.description')}</EmptyDescription>
       </EmptyHeader>
       {import.meta.env.DEV && (
         <div className="w-full max-w-xl overflow-hidden border bg-muted text-start">

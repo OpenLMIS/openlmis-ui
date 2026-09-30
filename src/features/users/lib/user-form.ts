@@ -10,9 +10,8 @@ const errorKey = (key: ParseKeys) => key;
 const requiredText = (key: ParseKeys) => z.string().trim().min(1, errorKey(key));
 
 export const userFormSchema = z.object({
-  // The reference data service only takes letters and digits in a username.
   username: requiredText('users.form.username-required').regex(
-    /^[\p{L}\p{N}]*$/u,
+    /^\w*$/,
     errorKey('users.form.username-invalid'),
   ),
   email: z

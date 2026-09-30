@@ -93,14 +93,48 @@ describe('loadAppConfiguration', () => {
     expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
   });
 
-  it('uses the defaults and forgets the last answer when the server has no configuration', async () => {
+  it('shows the last answer while it waits, so the first paint already has its theme', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))),
+    );
+
+    const loading = loadAppConfiguration();
+
+    expect(getAppConfiguration().theme.defaultAppearance).toBe('dark');
+    answer(new Response(JSON.stringify({ ...stored, appName: 'Fresh' })));
+    await loading;
+    expect(getAppConfiguration().appName).toBe('Fresh');
+  });
+
+  it('keeps the last answer when the gateway has no route to the service for a while', async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
     vi.stubGlobal('fetch', respond(404));
 
     await loadAppConfiguration();
 
+    expect(getAppConfiguration().appName).toBe('SIGECA');
+    expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
+  });
+
+  it('uses the defaults when the gateway has no route and nothing was seen before', async () => {
+    vi.stubGlobal('fetch', respond(404));
+
+    await loadAppConfiguration();
+
     expect(getAppConfiguration()).toEqual(DEFAULT_APP_CONFIGURATION);
-    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
+  });
+
+  it('keeps the last answer when a success brings no JSON', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>', { status: 200 })));
+
+    await loadAppConfiguration();
+
+    expect(getAppConfiguration().appName).toBe('SIGECA');
+    expect(localStorage.getItem(CACHE_KEY)).toBe(JSON.stringify(stored));
   });
 
   it('uses the last answer when the server cannot be reached', async () => {
@@ -196,6 +230,27 @@ describe('applyBranding', () => {
     images[0]?.onerror?.();
 
     expect(document.querySelector('link[rel="icon"]')?.getAttribute('href')).toBe(DEFAULT_LOGO_URL);
+  });
+
+  it('keeps a newer logo when an older one fails to load late', () => {
+    const images: { src: string; onerror: (() => void) | null }[] = [];
+    vi.stubGlobal(
+      'Image',
+      class {
+        src = '';
+        onerror: (() => void) | null = null;
+        constructor() {
+          images.push(this);
+        }
+      },
+    );
+    const newer = { ...stored, logo: { ...stored.logo, url: '/api/appConfiguration/logo?v=new' } };
+
+    applyBranding(parseAppConfiguration(stored));
+    applyBranding(parseAppConfiguration(newer));
+    images[0]?.onerror?.();
+
+    expect(document.querySelector('link[rel="icon"]')?.getAttribute('href')).toBe(newer.logo.url);
   });
 
   it('falls back to the built-in name and logo under the base path', () => {

@@ -9,7 +9,6 @@ export type RequisitionStatus =
   | 'RELEASED_WITHOUT_ORDER'
   | 'SKIPPED';
 
-/** The parts of a requisition the dashboard shows. */
 export type RequisitionSummary = {
   id: string;
   emergency: boolean;

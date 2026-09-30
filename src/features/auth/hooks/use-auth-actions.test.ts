@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { toast } from 'sonner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -16,6 +16,8 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 beforeEach(() => {
   useLoginData.getState().clearLoginData();
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('useAuthActions', () => {
   it('keeps when the new token was due to expire', async () => {
@@ -36,7 +38,24 @@ describe('useAuthActions', () => {
       accessToken: 'token',
       expiresAt: 1_000_000 + 1_800_000,
     });
-    vi.useRealTimers();
+  });
+
+  it('signs the legacy UI out too, since the token they share is now dead', async () => {
+    localStorage.setItem('openlmis.ACCESS_TOKEN', 'shared');
+    localStorage.setItem('openlmis.USER_ID', 'ada-id');
+    localStorage.setItem('openlmis.USERNAME', 'ada');
+    localStorage.setItem('openlmis.current_locale', '"pt"');
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'shared' });
+    vi.mocked(authApi.logout).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAuthActions());
+
+    await act(() => result.current.logout());
+
+    expect(localStorage.getItem('openlmis.ACCESS_TOKEN')).toBeNull();
+    expect(localStorage.getItem('openlmis.USER_ID')).toBeNull();
+    expect(localStorage.getItem('openlmis.current_locale')).toBe('"pt"');
   });
 
   it('signs out quietly when the server says the session had already ended', async () => {

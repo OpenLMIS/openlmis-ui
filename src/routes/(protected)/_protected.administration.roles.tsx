@@ -64,13 +64,11 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
       const roleId = deps.role;
       queryClient.prefetchQuery(roleDetailOptions(roleId));
       // A saved role's type is in the list, so its rights load beside the role, not after it.
-      queryClient
-        .ensureQueryData(rolesOptions())
-        .then((roles) => {
-          const type = roleTypeOf(roles.find((role) => role.id === roleId));
-          if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
-        })
-        .catch(() => undefined);
+      void queryClient.prefetchQuery(rolesOptions()).then(() => {
+        const roles = queryClient.getQueryData(rolesOptions().queryKey);
+        const type = roleTypeOf(roles?.find((role) => role.id === roleId));
+        if (type) queryClient.prefetchQuery(rightsByTypeOptions(type));
+      });
     }
   },
   pendingComponent: RolesPagePending,

@@ -7,8 +7,7 @@ WORKDIR /app
 
 RUN corepack enable
 
-# lefthook's postinstall installs git hooks, which needs a git binary and a repo,
-# and the image has neither. It skips itself when CI is set.
+# lefthook's postinstall needs git and a repo, which the image lacks; CI makes it skip.
 ENV CI=true
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -18,8 +17,7 @@ COPY . .
 ENV VITE_BASE_PATH=$BASE_PATH
 RUN pnpm build
 
-# Built only when targeted (`docker build --target verify`), so it never runs
-# during a normal image build.
+# Built only when targeted (`docker build --target verify`), never in a normal build.
 FROM build AS verify
 RUN pnpm check && pnpm lint:ds && pnpm test:run
 
@@ -30,8 +28,7 @@ ENV BASE_PATH=$BASE_PATH
 # node for the Consul registration script, envsubst for the nginx template.
 RUN apk add --no-cache nodejs gettext
 
-# Served from a directory matching the prefix, so `root` + `try_files` resolve
-# the same paths nginx receives from the gateway without an alias rewrite.
+# A directory matching the prefix lets `root` and `try_files` resolve gateway paths as they are.
 COPY --from=build /app/dist /tmp/dist
 RUN PREFIX=$(printf '%s' "$BASE_PATH" | sed 's#^/*##; s#/*$##') \
   && mkdir -p "/usr/share/nginx/html/$(dirname "$PREFIX")" \

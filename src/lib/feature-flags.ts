@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { getAppConfiguration, useAppConfigurationStore } from '@/lib/app-configuration';
-import { getDeploymentFlags } from '@/lib/runtime-config';
+import { getDeploymentFlags, useDeploymentFlags } from '@/lib/runtime-config';
 
 type FlagText = {
   labelKey: ParseKeys;
@@ -118,5 +118,5 @@ export function getFlag<K extends FeatureFlagKey>(key: K): FeatureFlagValue<K> {
 
 export function useFlag<K extends FeatureFlagKey>(key: K): FeatureFlagValue<K> {
   const admin = useAppConfigurationStore((state) => state.configuration.featureFlags);
-  return resolveFlag(key, admin, getDeploymentFlags()).value;
+  return resolveFlag(key, admin, useDeploymentFlags()).value;
 }

@@ -49,14 +49,16 @@ describe('userFormSchema', () => {
     ]);
   });
 
-  it('takes only letters and digits in a username, as the server does', () => {
+  it('takes only latin letters, digits and underscores in a username, as the server does', () => {
     const username = (value: string) =>
       userFormSchema.shape.username.safeParse(value).error?.issues[0]?.message;
 
     expect(username('ada-l')).toBe('users.form.username-invalid');
     expect(username('ada l')).toBe('users.form.username-invalid');
+    expect(username('أحمد')).toBe('users.form.username-invalid');
+    expect(username('józef')).toBe('users.form.username-invalid');
     expect(username('ada2')).toBeUndefined();
-    expect(username('أحمد')).toBeUndefined();
+    expect(username('john_doe')).toBeUndefined();
   });
 
   it('accepts an empty email', () => {

@@ -54,6 +54,7 @@ import {
 } from '@/features/users/lib/user-form';
 import { useAppName } from '@/lib/app-configuration';
 import { queryKeys } from '@/lib/key-factory';
+import { invalidateUserQueries } from '@/lib/user-queries';
 
 type DialogTarget = NonNullable<UsersSearch['user']>;
 
@@ -152,7 +153,10 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       });
     },
     // Refreshed either way: a failed edit may already have changed part of the user.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
+    onSettled: () =>
+      details
+        ? invalidateUserQueries(queryClient, details.user.id)
+        : queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 
   const form = useAppForm({
@@ -191,7 +195,9 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
           )}
 
           <form.AppField name="username">
-            {(field) => <field.TextField autoComplete="off" label={t('users.username')} required />}
+            {(field) => (
+              <field.TextField autoComplete="off" dir="ltr" label={t('users.username')} required />
+            )}
           </form.AppField>
 
           <FieldRow>
@@ -218,6 +224,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
                     <EmailStatus verified={emailVerified} />
                   )
                 }
+                dir="ltr"
                 label={t('users.email')}
                 type="email"
               />
@@ -232,6 +239,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
               {(field) => (
                 <field.TextField
                   autoComplete="off"
+                  dir="ltr"
                   label={t('users.form.phone-number')}
                   type="tel"
                 />

@@ -10,7 +10,13 @@ import {
   useOnReconnect,
 } from '@/lib/online';
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  act(() => {
+    onlineManager.setOnline(true);
+    dismissBackOnline();
+  });
+});
 
 describe('online', () => {
   it('starts from what the browser knows, since an app opened offline is never told', () => {
@@ -21,9 +27,19 @@ describe('online', () => {
     expect(isOnline()).toBe(false);
   });
 
+  it('starts online when the browser is, whatever the app last heard', () => {
+    onlineManager.setOnline(false);
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+
+    seedOnline();
+
+    expect(isOnline()).toBe(true);
+  });
+
   it('hears the connection come back while the app is still starting', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     seedOnline();
+    expect(isOnline()).toBe(false);
 
     window.dispatchEvent(new Event('online'));
 

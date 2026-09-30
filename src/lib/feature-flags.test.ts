@@ -1,5 +1,5 @@
-import { renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_APP_CONFIGURATION,
   parseAppConfiguration,
@@ -12,7 +12,10 @@ import {
   resolveFlag,
   useFlag,
 } from '@/lib/feature-flags';
+import { loadRuntimeConfig } from '@/lib/runtime-config';
 import en from '../../public/locales/en.json';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('resolveFlag', () => {
   it('uses the default when nobody set the flag', () => {
@@ -94,5 +97,22 @@ describe('getFlag and useFlag', () => {
     expect(getFlag('BATCH_APPROVE_SCREEN')).toBe(true);
     expect(result.current).toBe(true);
     setAppConfiguration(DEFAULT_APP_CONFIGURATION);
+  });
+
+  it('follow deployment flags that arrive after the app started', async () => {
+    const { result } = renderHook(() => useFlag('GS1_SCANNING'));
+    expect(result.current).toBe(false);
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ featureFlags: { GS1_SCANNING: 'true' } })),
+        ),
+    );
+
+    await loadRuntimeConfig();
+
+    await waitFor(() => expect(result.current).toBe(true));
   });
 });

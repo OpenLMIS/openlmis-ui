@@ -15,6 +15,7 @@ import {
   CountBadge,
   DashboardCard,
   useFormatNumber,
+  useFormatPercent,
 } from '@/features/home/components/dashboard-parts';
 import { PENDING } from '@/features/home/components/dashboard-skeleton';
 import { sum } from '@/features/home/lib/sum';
@@ -57,6 +58,7 @@ export function RequisitionStatusMeter() {
 function StatusMeter() {
   const { t } = useTranslation();
   const format = useFormatNumber();
+  const formatPercent = useFormatPercent();
   const isRtl = useDirection() === 'rtl';
   const { data } = useSuspenseQuery(requisitionStatusCountsOptions());
   const total = sum(Object.values(data));
@@ -70,7 +72,7 @@ function StatusMeter() {
       ) satisfies ChartConfig,
     [t],
   );
-  const share = (count: number) => (total === 0 ? 0 : Math.round((count / total) * 100));
+  const share = (count: number) => formatPercent(total === 0 ? 0 : count / total);
 
   return (
     <div className="flex flex-col gap-4">
@@ -109,7 +111,7 @@ function StatusMeter() {
             </span>
             <span className="font-medium tabular-nums">{format(data[status])}</span>
             <span className="w-10 text-end text-muted-foreground tabular-nums">
-              {share(data[status])}%
+              {share(data[status])}
             </span>
           </li>
         ))}

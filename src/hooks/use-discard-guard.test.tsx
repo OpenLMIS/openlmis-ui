@@ -1,4 +1,5 @@
 import {
+  createBrowserHistory,
   createMemoryHistory,
   createRootRoute,
   createRoute,
@@ -107,4 +108,23 @@ describe('useDiscardGuard', () => {
     expect(await screen.findByText('editing')).toBeInTheDocument();
     expect(guard.leaveIfAsked()).toBe(false);
   });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])(
+    'asks the browser before a reload or a closed tab only with changes (%s)',
+    async (dirty, asks) => {
+      const root = createRootRoute({ component: () => <Draft dirty={dirty} /> });
+      const router = createRouter({ routeTree: root, history: createBrowserHistory() });
+      render(<RouterProvider router={router} />);
+      await screen.findByText('editing');
+
+      const unload = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(unload);
+
+      expect(unload.defaultPrevented).toBe(asks);
+      router.history.destroy();
+    },
+  );
 });

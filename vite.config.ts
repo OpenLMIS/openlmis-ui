@@ -14,8 +14,7 @@ const vendorChunks: Record<string, string[]> = {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
-  // Serving prefix. `/` in dev, `/v2/` when deployed beside the legacy UI.
-  // Baked into asset URLs at build time, so it is a build input, not runtime config.
+  // Baked into asset URLs, so the prefix is a build input, not runtime config.
   const prefix = (env.VITE_BASE_PATH ?? '').replace(/^\/+|\/+$/g, '');
   const base = prefix ? `/${prefix}/` : '/';
 
@@ -50,6 +49,7 @@ export default defineConfig(({ mode }) => {
         injectRegister: false,
         manifest: false,
         workbox: {
+          cacheId: 'openlmis-ui',
           globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,

@@ -33,7 +33,6 @@ export async function login({ username, password }: LoginInput): Promise<LoginRe
   return data;
 }
 
-/** The session the store keeps from a token response. */
 export const toLoginData = (response: LoginResponse): LoginData => ({
   referenceDataUserId: response.referenceDataUserId,
   username: response.username,

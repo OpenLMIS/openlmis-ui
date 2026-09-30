@@ -592,7 +592,7 @@
   "users.form.status-mismatch-title": "Status Does Not Match",
   "users.form.updated": "Changes to {username} are saved.",
   "users.form.updated-title": "User Updated",
-  "users.form.username-invalid": "Use letters and numbers only.",
+  "users.form.username-invalid": "Use Latin letters, numbers and underscores only.",
   "users.form.username-required": "Enter a username.",
   "users.inactive": "Inactive",
   "users.name": "Name",

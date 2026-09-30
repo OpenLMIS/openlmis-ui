@@ -102,6 +102,21 @@ describe('rebaseDraft', () => {
   it('is the saved roles when nothing changed meanwhile', () => {
     expect(rebaseDraft([atNode], [atNode], [atNode])).toEqual([atNode]);
   });
+
+  it('keeps a role the server holds that was not sent', () => {
+    expect(rebaseDraft([atNode], [atNode, atWarehouse], [atNode, atHome])).toEqual([
+      atNode,
+      atWarehouse,
+      atHome,
+    ]);
+  });
+
+  it('drops a sent role the server did not keep', () => {
+    expect(rebaseDraft([atNode, direct], [atNode], [atNode, direct, atHome])).toEqual([
+      atNode,
+      atHome,
+    ]);
+  });
 });
 
 describe('countChanges', () => {

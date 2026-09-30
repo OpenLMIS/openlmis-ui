@@ -51,16 +51,19 @@ function shiftHue(value: string, hue: number, chromaScale: number): string {
   return toOklch({ l, c: Math.max(0, chroma), h: hue });
 }
 
-function fromBlue(hue: number, chromaScale = 1): ThemePreset {
+function fromBlue(hue?: number, chromaScale = 1): ThemePreset {
   const derive = (tokens: ThemeTokens) =>
     Object.fromEntries(
-      THEME_TOKENS.map((token) => [token, shiftHue(tokens[token], hue, chromaScale)]),
+      THEME_TOKENS.map((token) => [
+        token,
+        shiftHue(tokens[token], hue ?? parseOklch(tokens[token]).h, chromaScale),
+      ]),
     ) as ThemeTokens;
   return { light: derive(BLUE.light), dark: derive(BLUE.dark) };
 }
 
 export const THEME_PRESETS = {
-  blue: BLUE,
+  blue: fromBlue(),
   sapphire: fromBlue(258),
   indigo: fromBlue(275),
   purple: fromBlue(295),

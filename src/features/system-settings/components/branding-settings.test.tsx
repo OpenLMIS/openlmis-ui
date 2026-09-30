@@ -200,6 +200,10 @@ describe('BrandingSettings', () => {
       screen.getByLabelText('system-settings.branding.logo-label'),
       new File(['x'], 'new.png', { type: 'image/png' }),
     );
+    const preview = () =>
+      screen.getByRole('img', { name: 'system-settings.branding.logo-preview' });
+    await waitFor(() => expect(preview().getAttribute('src')).toMatch(/^blob:/));
+    const picked = preview().getAttribute('src');
 
     await userEvent.click(screen.getByRole('button', { name: 'system-settings.branding.reset' }));
     await userEvent.click(
@@ -207,6 +211,7 @@ describe('BrandingSettings', () => {
     );
 
     expect(await screen.findByText('system-settings.save-error-title')).toBeInTheDocument();
+    expect(preview()).toHaveAttribute('src', picked);
     expect(saveButton()).toBeEnabled();
   });
 
