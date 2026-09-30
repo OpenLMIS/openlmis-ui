@@ -3,7 +3,7 @@ import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SearchIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavGroups } from '@/components/nav-access';
+import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import {
   Command,
   CommandDialog,
@@ -40,6 +40,8 @@ export function CommandPalette() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const navGroups = useNavGroups();
+  const accountLinks = useAccountLinks();
+  const accountHeading = t('nav-user.account-menu');
   const sections = useMemo(
     () => toSections(navGroups.flatMap((group) => group.items)),
     [navGroups],
@@ -105,6 +107,24 @@ export function CommandPalette() {
                 </CommandGroup>
               );
             })}
+            <CommandGroup heading={accountHeading}>
+              {accountLinks.map((link) => {
+                const title = t(link.titleKey);
+                return (
+                  <CommandItem
+                    key={link.to}
+                    onSelect={() => {
+                      setOpen(false);
+                      navigate({ to: link.to });
+                    }}
+                    value={`${accountHeading} ${title}`}
+                  >
+                    <link.icon />
+                    <span>{title}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
           </CommandList>
         </Command>
       </CommandDialog>

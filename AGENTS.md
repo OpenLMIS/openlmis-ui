@@ -383,8 +383,9 @@ so a page gets Home / Section / Page for free once its nav entry points at its r
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
 A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb. The account
-menu, not the sidebar, opens Profile and Settings (`/settings`); an entry there that needs
-a right checks it with `useHasRight()` from `src/components/nav-access.ts`.
+menu, not the sidebar, opens Profile and Settings (`/settings`). `useAccountLinks()` in
+`src/components/nav-access.ts` lists them, each behind its right, for the account menu and the
+command palette alike.
 They are hidden on Home and on pages outside the nav without one. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding

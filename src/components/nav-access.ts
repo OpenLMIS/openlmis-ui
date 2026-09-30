@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import type { ParseKeys } from 'i18next';
+import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
@@ -57,4 +59,16 @@ export function useHasRight(right: string) {
 export function useCanOpen() {
   const rights = useSignedInRights();
   return (to: LiveNavLink['to']) => canOpen(to, rights);
+}
+
+export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; icon: LucideIcon };
+
+export function useAccountLinks(): AccountLink[] {
+  const canManageSettings = useHasRight(RIGHTS.systemSettingsManage);
+  return [
+    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
+    ...(canManageSettings
+      ? [{ titleKey: 'nav-user.settings', to: '/settings', icon: SettingsIcon } as const]
+      : []),
+  ];
 }
