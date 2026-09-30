@@ -232,6 +232,27 @@ describe('applyBranding', () => {
     expect(document.querySelector('link[rel="icon"]')?.getAttribute('href')).toBe(DEFAULT_LOGO_URL);
   });
 
+  it('keeps a newer logo when an older one fails to load late', () => {
+    const images: { src: string; onerror: (() => void) | null }[] = [];
+    vi.stubGlobal(
+      'Image',
+      class {
+        src = '';
+        onerror: (() => void) | null = null;
+        constructor() {
+          images.push(this);
+        }
+      },
+    );
+    const newer = { ...stored, logo: { ...stored.logo, url: '/api/appConfiguration/logo?v=new' } };
+
+    applyBranding(parseAppConfiguration(stored));
+    applyBranding(parseAppConfiguration(newer));
+    images[0]?.onerror?.();
+
+    expect(document.querySelector('link[rel="icon"]')?.getAttribute('href')).toBe(newer.logo.url);
+  });
+
   it('falls back to the built-in name and logo under the base path', () => {
     applyBranding(DEFAULT_APP_CONFIGURATION);
 

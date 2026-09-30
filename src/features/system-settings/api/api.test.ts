@@ -148,6 +148,22 @@ describe('saveBranding', () => {
     expect(result).toEqual({ ...saved, appName: 'New', version: 5 });
   });
 
+  it('removes the logo on the version it started from, then saves the name on the next', async () => {
+    remove.mockResolvedValueOnce(atVersion(4, { logo: null }));
+    put.mockResolvedValueOnce(atVersion(5, { logo: null, appName: 'New' }));
+
+    const result = await saveBranding(
+      { ...saved, logo: { url: '/x', contentType: 'image/png', size: 1 } },
+      [{ kind: 'remove-logo' }, { kind: 'update', appName: 'New', showAppName: true }],
+    );
+
+    expect(remove).toHaveBeenCalledWith('/appConfiguration/logo', {
+      headers: { 'If-Match': 'W/"3"' },
+    });
+    expect(put.mock.calls[0]?.[2]).toEqual({ headers: { 'If-Match': 'W/"4"' } });
+    expect(result).toMatchObject({ version: 5, logo: null, appName: 'New' });
+  });
+
   it('returns the saved configuration when there is nothing to do', async () => {
     await expect(saveBranding(saved, [])).resolves.toBe(saved);
     expect(put).not.toHaveBeenCalled();

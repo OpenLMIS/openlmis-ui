@@ -1,7 +1,11 @@
+import type { ColumnVisibilityState } from '@tanstack/react-table';
+import { act, renderHook } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import {
   changedColumns,
   resolveColumnVisibility,
+  useColumnVisibility,
 } from '@/components/data-table/responsive-columns';
 
 const columns = [
@@ -49,5 +53,39 @@ describe('changedColumns', () => {
     const showing = { username: true, name: false, email: false };
 
     expect(changedColumns(showing, { ...showing, name: true })).toEqual({ name: true });
+  });
+});
+
+describe('useColumnVisibility', () => {
+  const render = (width: number) =>
+    renderHook(() => {
+      const stored = useState<ColumnVisibilityState>({});
+      return { view: useColumnVisibility(columns, stored, width), choices: stored[0] };
+    });
+
+  it('stores only what the user toggled, on top of the earlier choices', () => {
+    const { result } = render(phone);
+
+    act(() =>
+      result.current.view.onVisibilityChange({ ...result.current.view.visibility, email: true }),
+    );
+    act(() =>
+      result.current.view.onVisibilityChange({ ...result.current.view.visibility, name: true }),
+    );
+
+    expect(result.current.choices).toEqual({ email: true, name: true });
+    expect(result.current.view.visibility).toEqual({ username: true, name: true, email: true });
+  });
+
+  it('goes back to what fits the room on Reset Columns', () => {
+    const { result } = render(phone);
+    act(() =>
+      result.current.view.onVisibilityChange({ ...result.current.view.visibility, email: true }),
+    );
+
+    act(() => result.current.view.onReset());
+
+    expect(result.current.choices).toEqual({});
+    expect(result.current.view.visibility).toEqual({ username: true, name: false, email: false });
   });
 });

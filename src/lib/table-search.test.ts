@@ -5,6 +5,7 @@ import {
   type TableSearch,
   tableSearchSchema,
   tableSearchState,
+  textFilterSchema,
   toPaginationState,
   toSortingState,
   toSortParam,
@@ -62,6 +63,24 @@ describe('sorting mapping', () => {
       sort: 'lastName',
       dir: 'desc',
     });
+  });
+});
+
+describe('sorting edge cases', () => {
+  it("sorts a field without a direction the default sort's way", () => {
+    expect(toSortParam({ sort: 'lastName' }, { id: 'username', desc: true })).toBe('lastName,desc');
+  });
+
+  it('writes a cleared sort as absent params', () => {
+    expect(fromSortingState([], defaultSort)).toEqual({ sort: undefined, dir: undefined });
+  });
+});
+
+describe('textFilterSchema', () => {
+  it('keeps the text as typed, spaces included, and drops a blank one', () => {
+    expect(textFilterSchema.parse(' ada ')).toBe(' ada ');
+    expect(textFilterSchema.parse('   ')).toBeUndefined();
+    expect(textFilterSchema.parse(42)).toBeUndefined();
   });
 });
 

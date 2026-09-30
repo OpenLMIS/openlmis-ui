@@ -40,6 +40,24 @@ describe('useAuthActions', () => {
     });
   });
 
+  it('signs the legacy UI out too, since the token they share is now dead', async () => {
+    localStorage.setItem('openlmis.ACCESS_TOKEN', 'shared');
+    localStorage.setItem('openlmis.USER_ID', 'ada-id');
+    localStorage.setItem('openlmis.USERNAME', 'ada');
+    localStorage.setItem('openlmis.current_locale', '"pt"');
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'shared' });
+    vi.mocked(authApi.logout).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAuthActions());
+
+    await act(() => result.current.logout());
+
+    expect(localStorage.getItem('openlmis.ACCESS_TOKEN')).toBeNull();
+    expect(localStorage.getItem('openlmis.USER_ID')).toBeNull();
+    expect(localStorage.getItem('openlmis.current_locale')).toBe('"pt"');
+  });
+
   it('signs out quietly when the server says the session had already ended', async () => {
     useLoginData
       .getState()

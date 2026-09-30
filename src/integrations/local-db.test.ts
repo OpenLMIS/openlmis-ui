@@ -47,6 +47,20 @@ describe('getLocalDb', () => {
     expect(adas.isOpen()).toBe(false);
   });
 
+  it('keeps the database open when the same user signs in again with a new token', async () => {
+    signIn('ada');
+    const adas = getLocalDb();
+    await adas.open();
+
+    useLoginData.getState().expireSession();
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'new-token' });
+
+    expect(getLocalDb()).toBe(adas);
+    expect(adas.isOpen()).toBe(true);
+  });
+
   it('never shows one user what another user stored', async () => {
     signIn('ada');
     const asAda = withProbeTable(getLocalDb().name);

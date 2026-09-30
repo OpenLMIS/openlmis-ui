@@ -140,6 +140,16 @@ describe('syncOtherTab', () => {
     });
   });
 
+  it('keeps a borrowed session behind the sign in prompt when the legacy UI signs out', async () => {
+    useLoginData.getState().setLoginData(ada, 'legacy');
+    localStorage.setItem('openlmis.ACCESS_TOKEN', 'ada-token');
+
+    localStorage.removeItem('openlmis.ACCESS_TOKEN');
+    await expect(syncOtherTab('openlmis.ACCESS_TOKEN')).resolves.toBe(false);
+
+    expect(useLoginData.getState()).toMatchObject({ isAuthenticated: true, expired: true });
+  });
+
   it('saves our session again when the legacy UI wipes the storage', async () => {
     useLoginData.getState().setLoginData(ada);
     localStorage.clear();

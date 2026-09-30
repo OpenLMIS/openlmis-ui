@@ -3,6 +3,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { TextDirectionProvider } from '@/components/text-direction';
+import { useDirection } from '@/components/ui/direction';
 
 beforeAll(async () => {
   await i18n.use(initReactI18next).init({
@@ -39,5 +40,20 @@ describe('TextDirectionProvider', () => {
     await i18n.changeLanguage('pt');
     expect(document.documentElement.dir).toBe('ltr');
     expect(document.documentElement.lang).toBe('pt');
+  });
+
+  it('gives portalled popups the same direction, so menus and tooltips flip too', async () => {
+    await i18n.changeLanguage('ar');
+    function Direction() {
+      return <p>{useDirection()}</p>;
+    }
+
+    render(
+      <TextDirectionProvider>
+        <Direction />
+      </TextDirectionProvider>,
+    );
+
+    expect(screen.getByText('rtl')).toBeInTheDocument();
   });
 });
