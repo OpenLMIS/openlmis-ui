@@ -34,14 +34,18 @@ export const logoSchema = z
     }
   });
 
-export const brandingSchema = z.object({
-  appName: z
-    .string()
-    .trim()
-    .max(MAX_APP_NAME_LENGTH, 'system-settings.branding.errors.name-too-long'),
-  showAppName: z.boolean(),
-  logo: logoSchema,
-});
+export const brandingSchema = (saved: AppConfigurationDto) =>
+  z.object({
+    appName: z
+      .string()
+      .trim()
+      .refine(
+        (name) => name.length <= MAX_APP_NAME_LENGTH || name === saved.appName,
+        'system-settings.branding.errors.name-too-long',
+      ),
+    showAppName: z.boolean(),
+    logo: logoSchema,
+  });
 
 export function toBrandingValues(saved: AppConfigurationDto): BrandingValues {
   return { appName: saved.appName ?? '', showAppName: saved.showAppName, logo: undefined };

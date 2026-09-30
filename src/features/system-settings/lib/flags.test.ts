@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildFlagOverrides,
-  flagSource,
-  inheritedFlagValue,
+  inheritedFlag,
   isFlagsChanged,
   toFlagDraft,
 } from '@/features/system-settings/lib/flags';
@@ -35,22 +34,16 @@ describe('toFlagDraft', () => {
   });
 });
 
-describe('flagSource', () => {
-  it('is Changed Here for an override, otherwise where the inherited value comes from', () => {
-    expect(flagSource('GS1_SCANNING', { value: true, overridden: false }, deployment)).toBe(
-      'deployment',
-    );
-    expect(flagSource('GS1_SCANNING', { value: true, overridden: true }, deployment)).toBe('admin');
-    expect(flagSource('BATCH_APPROVE_SCREEN', { value: false, overridden: false }, {})).toBe(
-      'default',
-    );
-  });
-});
-
-describe('inheritedFlagValue', () => {
-  it("is the deployment's value, or the default", () => {
-    expect(inheritedFlagValue('GS1_SCANNING', deployment)).toBe(true);
-    expect(inheritedFlagValue('QUANTITY_UNIT_OPTION', deployment)).toBe('BOTH');
+describe('inheritedFlag', () => {
+  it("is the deployment's value, or the default, and says which", () => {
+    expect(inheritedFlag('GS1_SCANNING', deployment)).toEqual({
+      value: true,
+      source: 'deployment',
+    });
+    expect(inheritedFlag('QUANTITY_UNIT_OPTION', deployment)).toEqual({
+      value: 'BOTH',
+      source: 'default',
+    });
   });
 });
 

@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { useLocation } from '@tanstack/react-router';
 import { ServerOffIcon, SlidersHorizontalIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
+  WorkspaceActions,
   WorkspaceContent,
   WorkspaceDescription,
   WorkspaceHeader,
@@ -28,7 +30,7 @@ const SYSTEM_SETTINGS_TABS = [
   { to: '/settings/feature-flags', labelKey: 'system-settings.tabs.feature-flags' },
 ] as const;
 
-function SystemSettingsPage({ children }: { children: ReactNode }) {
+function SystemSettingsPage({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { t } = useTranslation();
   return (
     <Workspace width="narrow">
@@ -40,7 +42,7 @@ function SystemSettingsPage({ children }: { children: ReactNode }) {
           <WorkspaceTitle>{t('system-settings.title')}</WorkspaceTitle>
           <WorkspaceDescription>{t('system-settings.description')}</WorkspaceDescription>
         </WorkspaceHeading>
-        <WorkspaceActionsSlot />
+        {actions ?? <WorkspaceActionsSlot />}
       </WorkspaceHeader>
       <WorkspaceContent>{children}</WorkspaceContent>
     </Workspace>
@@ -83,8 +85,19 @@ export function SystemSettingsLayout({ children }: { children: ReactNode }) {
 }
 
 export function SystemSettingsPending() {
+  const { pathname } = useLocation();
   return (
-    <SystemSettingsPage>
+    <SystemSettingsPage
+      actions={
+        !pathname.endsWith('/feature-flags') && (
+          <WorkspaceActions>
+            <div className="h-9 w-44">
+              <Skeleton fill />
+            </div>
+          </WorkspaceActions>
+        )
+      }
+    >
       <div aria-busy className="flex flex-col gap-4">
         <div className="h-8 w-40">
           <Skeleton fill />

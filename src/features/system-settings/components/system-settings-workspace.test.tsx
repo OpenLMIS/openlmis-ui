@@ -3,7 +3,10 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { appConfigurationOptions } from '@/features/system-settings/api/queries';
 import { savedConfiguration } from '@/features/system-settings/components/settings-fixtures';
-import { SystemSettingsLayout } from '@/features/system-settings/components/system-settings-workspace';
+import {
+  SystemSettingsLayout,
+  SystemSettingsPending,
+} from '@/features/system-settings/components/system-settings-workspace';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/system-settings/api/api', () => ({ fetchAppConfiguration: vi.fn() }));
@@ -15,7 +18,7 @@ function renderLayout(saved: typeof savedConfiguration | null) {
     <SystemSettingsLayout>
       <p>Tab content</p>
     </SystemSettingsLayout>,
-    { path: '/administration/system-settings', queryClient },
+    { path: '/settings', queryClient },
   );
 }
 
@@ -32,5 +35,19 @@ describe('SystemSettingsLayout', () => {
 
     expect(await screen.findByText('system-settings.unavailable-title')).toBeInTheDocument();
     expect(screen.queryByText('Tab content')).not.toBeInTheDocument();
+  });
+
+  it("holds the header button's place while loading, except on Feature Flags", async () => {
+    renderPage(<SystemSettingsPending />, { path: '/settings/theme' });
+    const header = (await screen.findByRole('heading', { level: 1 })).parentElement
+      ?.parentElement as HTMLElement;
+    expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(1);
+  });
+
+  it('holds no header button place on Feature Flags', async () => {
+    renderPage(<SystemSettingsPending />, { path: '/settings/feature-flags' });
+    const header = (await screen.findByRole('heading', { level: 1 })).parentElement
+      ?.parentElement as HTMLElement;
+    expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(0);
   });
 });

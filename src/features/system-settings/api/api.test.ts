@@ -43,6 +43,13 @@ describe('fetchAppConfiguration', () => {
     expect(get).toHaveBeenCalledWith('/appConfiguration');
   });
 
+  it('shows the name beside the logo when the server does not say', async () => {
+    const { showAppName: _, ...older } = saved;
+    get.mockResolvedValueOnce({ data: older });
+
+    await expect(fetchAppConfiguration()).resolves.toEqual({ ...saved, showAppName: true });
+  });
+
   it('has nothing when the server has no configuration endpoint', async () => {
     get.mockRejectedValueOnce(
       new AxiosError('failed', '404', undefined, undefined, {
@@ -74,6 +81,17 @@ describe('updateAppConfiguration', () => {
       },
       { headers: { 'If-Match': 'W/"3"' } },
     );
+  });
+});
+
+describe('responses from an older server', () => {
+  it('fill in showAppName after a save', async () => {
+    const { showAppName: _, ...older } = atVersion(4).data;
+    put.mockResolvedValueOnce({ data: older });
+
+    await expect(updateAppConfiguration(saved, { appName: 'X' })).resolves.toMatchObject({
+      showAppName: true,
+    });
   });
 });
 

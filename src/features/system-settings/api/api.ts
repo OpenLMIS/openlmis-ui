@@ -8,8 +8,14 @@ const basedOn = (saved: AppConfigurationDto) => ({
   headers: { 'If-Match': `W/"${saved.version}"` },
 });
 
-export function fetchAppConfiguration(): Promise<AppConfigurationDto | null> {
-  return getIfExists<AppConfigurationDto>('/appConfiguration');
+const withDefaults = (dto: AppConfigurationDto): AppConfigurationDto => ({
+  ...dto,
+  showAppName: dto.showAppName ?? true,
+});
+
+export async function fetchAppConfiguration(): Promise<AppConfigurationDto | null> {
+  const dto = await getIfExists<AppConfigurationDto>('/appConfiguration');
+  return dto && withDefaults(dto);
 }
 
 export async function updateAppConfiguration(
@@ -24,7 +30,7 @@ export async function updateAppConfiguration(
     ...changes,
   };
   const { data } = await client.put<AppConfigurationDto>('/appConfiguration', body, basedOn(saved));
-  return data;
+  return withDefaults(data);
 }
 
 export async function uploadLogo(
@@ -36,7 +42,7 @@ export async function uploadLogo(
   const { data } = await client.put<AppConfigurationDto>('/appConfiguration/logo', body, {
     headers: { ...basedOn(saved).headers, 'Content-Type': 'multipart/form-data' },
   });
-  return data;
+  return withDefaults(data);
 }
 
 export async function removeLogo(saved: AppConfigurationDto): Promise<AppConfigurationDto> {
@@ -44,7 +50,7 @@ export async function removeLogo(saved: AppConfigurationDto): Promise<AppConfigu
     '/appConfiguration/logo',
     basedOn(saved),
   );
-  return data;
+  return withDefaults(data);
 }
 
 export async function saveBranding(

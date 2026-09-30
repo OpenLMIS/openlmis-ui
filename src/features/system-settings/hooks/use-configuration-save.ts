@@ -21,7 +21,7 @@ type ConfigurationSaveOptions<Values, Variables> = {
   isChanged: (values: Values, base: AppConfigurationDto) => boolean;
   save: (base: AppConfigurationDto, variables: Variables) => Promise<AppConfigurationDto>;
   toast: (variables: Variables) => { title: string; description: string };
-  onPartiallySaved?: () => void;
+  onPartiallySaved?: (variables: Variables) => void;
 };
 
 function focusFirstControl(formId: string) {
@@ -70,10 +70,10 @@ export function useConfigurationSave<Values, Variables>({
       const { title, description } = toastFor(variables);
       toast.success(title, { description });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       if (error instanceof PartialSaveError) {
         settle(error.saved);
-        onPartiallySaved?.();
+        onPartiallySaved?.(variables);
       }
       if (isConflict(error instanceof PartialSaveError ? error.cause : error)) setConflict(true);
     },

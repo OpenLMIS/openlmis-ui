@@ -43,22 +43,33 @@ describe('toBrandingValues', () => {
 });
 
 describe('brandingSchema', () => {
+  const values = { appName: '', showAppName: true, logo: undefined };
+
   it('allows an empty name', () => {
-    expect(
-      brandingSchema.safeParse({ appName: '   ', showAppName: true, logo: undefined }).success,
-    ).toBe(true);
+    expect(brandingSchema(saved).safeParse({ ...values, appName: '   ' }).success).toBe(true);
   });
 
   it('allows at most 20 characters, which fit the sidebar', () => {
     expect(
-      errorsOf(
-        brandingSchema.safeParse({ appName: 'a'.repeat(21), showAppName: true, logo: undefined }),
-      ),
+      errorsOf(brandingSchema(saved).safeParse({ ...values, appName: 'a'.repeat(21) })),
     ).toEqual(['system-settings.branding.errors.name-too-long']);
+    expect(brandingSchema(saved).safeParse({ ...values, appName: 'a'.repeat(20) }).success).toBe(
+      true,
+    );
+  });
+
+  it('keeps a longer saved name valid while it is left unchanged', () => {
+    const long = { ...saved, appName: 'Ministry Of Health Supply Portal' };
+
     expect(
-      brandingSchema.safeParse({ appName: 'a'.repeat(20), showAppName: true, logo: undefined })
+      brandingSchema(long).safeParse({ ...values, appName: 'Ministry Of Health Supply Portal' })
         .success,
     ).toBe(true);
+    expect(
+      errorsOf(
+        brandingSchema(long).safeParse({ ...values, appName: 'Ministry Of Health Supply Portals' }),
+      ),
+    ).toEqual(['system-settings.branding.errors.name-too-long']);
   });
 });
 

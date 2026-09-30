@@ -13,7 +13,7 @@ function RadioGroup({
       className={cn(
         "grid w-full gap-2",
         columns === "tiles" && "grid-cols-3 @md/main:grid-cols-4 @2xl/main:grid-cols-6",
-        columns === "row" && "auto-cols-fr grid-flow-col",
+        columns === "row" && "@md/main:auto-cols-fr @md/main:grid-flow-col",
         className
       )}
       {...props}

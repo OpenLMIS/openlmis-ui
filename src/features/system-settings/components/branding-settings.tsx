@@ -6,16 +6,17 @@ import { useAppForm } from '@/components/form/form';
 import { SettingsList } from '@/components/form/settings-list';
 import { saveBranding } from '@/features/system-settings/api/api';
 import { BrandingPreview } from '@/features/system-settings/components/branding-preview';
-import { ResetAction, ResetDialog } from '@/features/system-settings/components/reset-dialog';
 import {
   SaveFeedback,
   SettingsSaveFooter,
 } from '@/features/system-settings/components/save-feedback';
+import { SettingsReset } from '@/features/system-settings/components/settings-reset';
 import { useConfigurationSave } from '@/features/system-settings/hooks/use-configuration-save';
 import {
   type BrandingStep,
   brandingSchema,
   brandingSteps,
+  isBrandingDefault,
   LOGO_TYPES,
   logoSchema,
   MAX_APP_NAME_LENGTH,
@@ -31,28 +32,30 @@ const FORM_ID = 'branding-form';
 
 function useLogoPreviewUrl(logo: File | null | undefined, saved: AppConfigurationDto) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const file = logo instanceof File && logoSchema.safeParse(logo).success ? logo : null;
   useEffect(() => {
-    if (!(logo instanceof File)) {
+    if (!file) {
       setObjectUrl(null);
       return;
     }
-    const url = URL.createObjectURL(logo);
+    const url = URL.createObjectURL(file);
     setObjectUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [logo]);
-  if (logo instanceof File) return objectUrl ?? DEFAULT_LOGO_URL;
+  }, [file]);
+  if (file) return objectUrl ?? DEFAULT_LOGO_URL;
   return logo === null ? DEFAULT_LOGO_URL : getLogoUrl(saved);
 }
 
 export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
   const { t } = useTranslation();
-  const [resetOpen, setResetOpen] = useState(false);
 
   const form = useAppForm({
     defaultValues: toBrandingValues(saved),
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: brandingSchema },
+    validators: { onDynamic: brandingSchema(saved) },
     onSubmit: ({ value }) => settings.run({ steps: brandingSteps(value, settings.base) }),
+    onSubmitInvalid: () =>
+      document.querySelector<HTMLElement>(`#${FORM_ID} [aria-invalid="true"]`)?.focus(),
   });
   const values = useStore(form.store, (state) => state.values);
 
@@ -65,7 +68,9 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
     isChanged: (draft, base) => brandingSteps(draft, base).length > 0,
     save: (base, { steps }: { steps: BrandingStep[]; reset?: boolean }) =>
       saveBranding(base, steps),
-    onPartiallySaved: () => form.setFieldValue('logo', undefined),
+    onPartiallySaved: ({ steps }) => {
+      if (steps[0]?.kind === 'upload') form.setFieldValue('logo', undefined);
+    },
     toast: ({ reset }) =>
       reset
         ? {
@@ -80,17 +85,16 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
   const logoUrl = useLogoPreviewUrl(values.logo, settings.base);
   const guard = useDiscardGuard(settings.changed);
 
-  const reset = () =>
-    settings
-      .run({ steps: resetBrandingSteps(settings.base), reset: true })
-      .finally(() => setResetOpen(false));
-
   return (
     <>
-      <ResetAction
-        disabled={settings.blocked || resetBrandingSteps(settings.base).length === 0}
+      <SettingsReset
+        confirmLabel={t('system-settings.branding.reset-confirm')}
+        description={t('system-settings.branding.reset-description')}
+        disabled={settings.blocked || isBrandingDefault(settings.base)}
         label={t('system-settings.branding.reset')}
-        onClick={() => setResetOpen(true)}
+        onConfirm={() => settings.run({ steps: resetBrandingSteps(settings.base), reset: true })}
+        pending={settings.pending}
+        title={t('system-settings.branding.reset-title')}
       />
       <SettingsSaveFooter
         canSave={settings.canSave}
@@ -150,15 +154,6 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
           showAppName={values.showAppName}
         />
       </div>
-      <ResetDialog
-        confirmLabel={t('system-settings.branding.reset-confirm')}
-        description={t('system-settings.branding.reset-description')}
-        onConfirm={reset}
-        onOpenChange={setResetOpen}
-        open={resetOpen}
-        pending={settings.pending}
-        title={t('system-settings.branding.reset-title')}
-      />
       <DiscardChangesDialog
         description={t('system-settings.discard-description')}
         {...guard.dialog}

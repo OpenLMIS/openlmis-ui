@@ -43,7 +43,7 @@ export function BrandingPreview({ appName, logoUrl, showAppName }: BrandingPrevi
         </PreviewItem>
         <PreviewItem caption={t('system-settings.branding.preview-sidebar')}>
           <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border bg-sidebar px-3 py-2 text-sidebar-foreground shadow-xs">
-            <Logo alt="" className={showAppName ? undefined : 'h-7 max-w-full'} src={logoUrl} />
+            <Logo alt="" className={showAppName ? undefined : 'h-6 max-w-44'} src={logoUrl} />
             {showAppName && (
               <span className="truncate font-semibold text-sm" dir="auto">
                 {name}

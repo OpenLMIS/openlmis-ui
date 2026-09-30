@@ -35,7 +35,7 @@ function renderBranding(saved = savedConfiguration) {
     <SystemSettingsWorkspace>
       <FromCache />
     </SystemSettingsWorkspace>,
-    { path: '/administration/system-settings', queryClient },
+    { path: '/settings', queryClient },
   );
 }
 
@@ -176,5 +176,94 @@ describe('BrandingSettings', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     await waitFor(async () => expect(await nameField()).toHaveValue(''));
     expect(await nameField()).toHaveAttribute('placeholder', 'OpenLMIS');
+  });
+
+  it('offers no Reset while the built-in branding is in use, even when it was typed in', async () => {
+    renderBranding({ ...savedConfiguration, appName: 'OpenLMIS', logo: null });
+
+    expect(
+      await screen.findByRole('button', { name: 'system-settings.branding.reset' }),
+    ).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('keeps a picked logo when a Reset fails part way', async () => {
+    const withLogo = {
+      ...savedConfiguration,
+      logo: { url: '/api/appConfiguration/logo?v=old', contentType: 'image/png', size: 1 },
+    };
+    vi.mocked(saveBranding).mockRejectedValueOnce(
+      new PartialSaveError({ ...withLogo, version: 4, logo: null }, httpError(500)),
+    );
+    renderBranding(withLogo);
+    await nameField();
+    await userEvent.upload(
+      screen.getByLabelText('system-settings.branding.logo-label'),
+      new File(['x'], 'new.png', { type: 'image/png' }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'system-settings.branding.reset' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'system-settings.branding.reset-confirm' }),
+    );
+
+    expect(await screen.findByText('system-settings.save-error-title')).toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
+  });
+
+  it('keeps showing the saved logo when a picked file is refused', async () => {
+    renderBranding();
+    await nameField();
+    const preview = screen.getByRole('img', { name: 'system-settings.branding.logo-preview' });
+    const before = preview.getAttribute('src');
+
+    await userEvent.upload(
+      screen.getByLabelText('system-settings.branding.logo-label'),
+      new File(['x'], 'logo.gif', { type: 'image/gif' }),
+      { applyAccept: false },
+    );
+
+    expect(
+      await screen.findByText('system-settings.branding.errors.logo-type'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'system-settings.branding.logo-preview' }),
+    ).toHaveAttribute('src', before);
+  });
+
+  it('moves focus to the field that needs fixing when Save is refused', async () => {
+    renderBranding();
+    await nameField();
+    await userEvent.upload(
+      screen.getByLabelText('system-settings.branding.logo-label'),
+      new File(['x'], 'logo.gif', { type: 'image/gif' }),
+      { applyAccept: false },
+    );
+
+    await userEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'system-settings.branding.logo-upload' }),
+      ).toHaveFocus(),
+    );
+    expect(saveBranding).not.toHaveBeenCalled();
+  });
+
+  it('saves other changes while a longer saved name is left alone', async () => {
+    const long = { ...savedConfiguration, appName: 'Ministry Of Health Supply Portal' };
+    vi.mocked(saveBranding).mockResolvedValue({ ...long, showAppName: false });
+    renderBranding(long);
+    await nameField();
+
+    await userEvent.click(
+      screen.getByRole('switch', { name: 'system-settings.branding.show-name-label' }),
+    );
+    await userEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(saveBranding).toHaveBeenCalledWith(long, [
+        { kind: 'update', appName: 'Ministry Of Health Supply Portal', showAppName: false },
+      ]),
+    );
   });
 });

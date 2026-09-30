@@ -2,6 +2,7 @@ import { QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
+import { useState } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { updateAppConfiguration } from '@/features/system-settings/api/api';
@@ -19,19 +20,22 @@ vi.mock('@/features/system-settings/api/api', () => ({
 }));
 vi.mock('@/lib/runtime-config', () => ({ getDeploymentFlags: () => ({ GS1_SCANNING: 'true' }) }));
 
-function FromCache() {
+function FromCache({ initialSearch }: { initialSearch: string }) {
   const { data } = useSuspenseQuery(appConfigurationOptions());
-  return data ? <FeatureFlagsSettings saved={data} /> : null;
+  const [search, setSearch] = useState(initialSearch);
+  return data ? (
+    <FeatureFlagsSettings onSearchChange={setSearch} saved={data} search={search} />
+  ) : null;
 }
 
-function renderFlags(saved: AppConfigurationDto = savedConfiguration) {
+function renderFlags(saved: AppConfigurationDto = savedConfiguration, initialSearch = '') {
   const queryClient = new QueryClient();
   queryClient.setQueryData(appConfigurationOptions().queryKey, saved);
   renderPage(
     <SystemSettingsWorkspace>
-      <FromCache />
+      <FromCache initialSearch={initialSearch} />
     </SystemSettingsWorkspace>,
-    { path: '/administration/system-settings/feature-flags', queryClient },
+    { path: '/settings/feature-flags', queryClient },
   );
 }
 
@@ -165,7 +169,7 @@ describe('FeatureFlagsSettings', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('says when nothing matches, and Clear Search brings every flag back', async () => {
+  it('says when nothing matches, and Clear Filters brings every flag back and the focus to search', async () => {
     renderFlags();
     await batch();
 
@@ -176,10 +180,40 @@ describe('FeatureFlagsSettings', () => {
 
     expect(await screen.findByText('system-settings.flags.no-match-title')).toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole('button', { name: 'system-settings.flags.clear-search' }),
+      screen.getByRole('button', { name: 'system-settings.flags.clear-filters' }),
     );
 
     await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(3));
+    expect(
+      screen.getByRole('textbox', { name: 'system-settings.flags.search-label' }),
+    ).toHaveFocus();
+  });
+
+  it('also finds a flag by the screen that uses it or what it does', async () => {
+    renderFlags();
+    await batch();
+    const search = screen.getByRole('textbox', { name: 'system-settings.flags.search-label' });
+
+    await userEvent.type(search, 'gs1-scanning.used-by');
+    await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(1));
+    expect(screen.getByRole('switch')).toHaveAccessibleName(/feature-flags.gs1-scanning.label/);
+
+    await userEvent.clear(search);
+    await userEvent.type(search, 'batch-approve-screen.description');
+    await waitFor(() =>
+      expect(screen.getByRole('switch')).toHaveAccessibleName(
+        /feature-flags.batch-approve-screen.label/,
+      ),
+    );
+  });
+
+  it('starts from the search it was opened with', async () => {
+    renderFlags(savedConfiguration, 'gs1');
+
+    expect(
+      await screen.findByRole('switch', { name: /feature-flags.gs1-scanning.label/ }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('switch')).toHaveLength(1);
   });
 
   it('keeps a change to a flag the search hides, and saves it', async () => {

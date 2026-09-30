@@ -28,7 +28,7 @@ function renderTheme() {
     <SystemSettingsWorkspace>
       <FromCache />
     </SystemSettingsWorkspace>,
-    { path: '/administration/system-settings/theme', queryClient },
+    { path: '/settings/theme', queryClient },
   );
   return queryClient;
 }

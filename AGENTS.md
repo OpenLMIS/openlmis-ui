@@ -246,13 +246,13 @@ the outside. Not colour, not typography, not spacing, and not layout or margin e
 Two ways out when a page needs a different treatment:
 
 1. Add a variant prop to the component in `src/components/ui/` and pass it. Existing
-   examples: `Button padding/width` + the `xl` size, `CardHeader spacing/align`,
+   examples: `Button padding/width` (incl. `width="shrink"`) + the `xl` size, `CardHeader spacing/align`,
    `CardTitle size`, `CardFooter align`, `Separator spacing`, `Skeleton shape/fill`,
    `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
@@ -266,7 +266,10 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. `sonner.tsx` is edited too: its `Toaster` reads
+new files rather than reverting the preset. Three edits carry no prop, so `tsc` cannot catch
+them: `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
+`button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
+looks disabled; and `sonner.tsx`'s `Toaster` reads
 `useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed.
 
 ### Integrations
@@ -380,7 +383,7 @@ so a page gets Home / Section / Page for free once its nav entry points at its r
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
 A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb. The account
-menu, not the sidebar, opens Profile and System Settings (`/settings`); an entry there that needs
+menu, not the sidebar, opens Profile and Settings (`/settings`); an entry there that needs
 a right checks it with `useHasRight()` from `src/components/nav-access.ts`.
 They are hidden on Home and on pages outside the nav without one. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
@@ -493,11 +496,11 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
-`SelectTrigger width`. In a row, `SwitchField` and `SelectField` take a `badge`, then a `hint` and
-an `action` after it in the label's row, such as a flag's info button and Reset. A select's list
+`SelectTrigger width`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
+row, such as a flag's info button and Reset; `TextField` takes a `badge` there. A select's list
 opens below its input, never over it: `alignItemWithTrigger` is `false`.
-`RadioGroupField` takes `variant="tile"` with `columns="tiles"` for a grid of small options such
-as colours, and `columns="row"` to keep a few options on one line.
+`RadioGroupField` takes `variant="tile"` for a grid of small options such as colours, and
+`columns="row"` to put a few cards side by side once the page has room.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 
