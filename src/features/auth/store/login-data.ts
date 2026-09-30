@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { LEGACY_TOKEN_STORAGE_KEY, readLegacySession } from '@/features/auth/lib/legacy-session';
+import { LEGACY_SESSION_STORAGE_KEYS, readLegacySession } from '@/features/auth/lib/legacy-session';
 
 export type LoginData = {
   referenceDataUserId: string;
@@ -33,7 +33,7 @@ const LOGIN_DATA_STORAGE_KEY = 'login-data-storage';
 // Read outside React via `getState()` by the axios interceptors and route guards.
 export const useLoginData = create<LoginDataStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       referenceDataUserId: null,
       username: null,
       accessToken: null,
@@ -52,8 +52,16 @@ export const useLoginData = create<LoginDataStore>()(
           expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
         }),
       // The refused token is kept, so the legacy UI still holding it is not mistaken for a new one.
-      expireSession: () =>
-        set((state) => (state.isAuthenticated ? { expired: true, expiresAt: null } : state)),
+      expireSession: () => {
+        const { isAuthenticated, accessToken, expired } = get();
+        if (!isAuthenticated) return;
+        const saved = savedSession();
+        if (saved?.accessToken && saved.accessToken !== accessToken && !saved.expired) {
+          void useLoginData.persist.rehydrate();
+        } else if (!expired) {
+          set({ expired: true, expiresAt: null });
+        }
+      },
       clearLoginData: () =>
         set({
           referenceDataUserId: null,
@@ -68,6 +76,12 @@ export const useLoginData = create<LoginDataStore>()(
     { name: LOGIN_DATA_STORAGE_KEY },
   ),
 );
+
+// What another tab saved, which this one may not have heard about yet.
+function savedSession(): Partial<LoginDataStore> | undefined {
+  const saved = useLoginData.persist.getOptions().storage?.getItem(LOGIN_DATA_STORAGE_KEY);
+  return saved && !(saved instanceof Promise) ? saved.state : undefined;
+}
 
 /**
  * Keeps us in step with the legacy AngularJS UI, which shares our origin.
@@ -116,7 +130,7 @@ export async function syncOtherTab(key: string | null): Promise<boolean> {
 
   if (key === LOGIN_DATA_STORAGE_KEY) {
     await useLoginData.persist.rehydrate();
-  } else if (key === null || key === LEGACY_TOKEN_STORAGE_KEY) {
+  } else if (key === null || LEGACY_SESSION_STORAGE_KEYS.includes(key)) {
     syncLegacySession();
     // The legacy UI wipes the whole origin on a refused token; our session in memory stays ours.
     if (key === null && useLoginData.getState().isAuthenticated) useLoginData.setState({});

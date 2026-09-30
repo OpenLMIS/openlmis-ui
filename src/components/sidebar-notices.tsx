@@ -57,11 +57,7 @@ function useNotices(): Notice[] {
       title: t('update.title'),
       action: {
         label: t('update.reload'),
-        onClick: () =>
-          whenLeaveAllowed(() => {
-            allowUnload();
-            void applyUpdate();
-          }),
+        onClick: () => whenLeaveAllowed(() => void applyUpdate(allowUnload)),
       },
       onClose: dismissUpdate,
     });

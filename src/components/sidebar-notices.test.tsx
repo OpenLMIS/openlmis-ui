@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sidebar-notices';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
 
@@ -121,7 +121,7 @@ describe('SidebarNotices', () => {
     expect(applyUpdate).not.toHaveBeenCalled();
 
     act(() => proceed?.());
-    expect(applyUpdate).toHaveBeenCalledOnce();
+    expect(applyUpdate).toHaveBeenCalledExactlyOnceWith(allowUnload);
   });
 
   it('hides the update notice when dismissed', async () => {

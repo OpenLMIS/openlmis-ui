@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { UsersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
@@ -15,6 +16,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { refreshIfSignedIn } from '@/features/auth/api/queries';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
@@ -116,6 +118,11 @@ function UsersPage() {
       }),
     [navigate],
   );
+  const queryClient = useQueryClient();
+  const refreshUser = useCallback(
+    (userId: string) => refreshIfSignedIn(queryClient, userId),
+    [queryClient],
+  );
   const editUser = useCallback((user: string) => openDialog({ user }), [openDialog]);
   const resetPassword = useCallback((password: string) => openDialog({ password }), [openDialog]);
   // Mounted from the first open on, so a dialog can still animate closed.
@@ -173,6 +180,7 @@ function UsersPage() {
             <UserDialogs
               onClose={closeDialog}
               onCreated={setNewUserPassword}
+              onEdited={refreshUser}
               password={dialogs.password}
               user={dialogs.user}
             />

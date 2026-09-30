@@ -29,6 +29,17 @@ function warmOfflineFiles() {
   for (const url of [`${base}config.json`, ...locales]) void fetch(url).catch(() => {});
 }
 
+function watchForUpdates(registration: ServiceWorkerRegistration) {
+  registration.addEventListener('updatefound', () => {
+    const installing = registration.installing;
+    installing?.addEventListener('statechange', () => {
+      if (installing.state === 'installed' && isOurs(navigator.serviceWorker.controller)) {
+        setUpdateReady(true);
+      }
+    });
+  });
+}
+
 export function registerServiceWorker({ enabled = import.meta.env.PROD, reload }: Options = {}) {
   if (!enabled || workbox || !('serviceWorker' in navigator)) return;
   if (reload) reloadPage = reload;
@@ -36,19 +47,25 @@ export function registerServiceWorker({ enabled = import.meta.env.PROD, reload }
   workbox = new Workbox(`${base}sw.js`, { scope: base });
   workbox.addEventListener('waiting', () => setUpdateReady(true));
   void workbox.register().then((registration) => {
-    if (registration) setInterval(() => void registration.update(), UPDATE_CHECK_MS);
+    if (!registration) return;
+    watchForUpdates(registration);
+    setInterval(() => void registration.update(), UPDATE_CHECK_MS);
   });
   warmOfflineFiles();
   navigator.serviceWorker.addEventListener('controllerchange', warmOfflineFiles);
 }
 
-export async function applyUpdate() {
+export async function applyUpdate(beforeReload: () => void = () => {}) {
+  const reload = () => {
+    beforeReload();
+    reloadPage();
+  };
   const registration = await navigator.serviceWorker?.getRegistration(import.meta.env.BASE_URL);
   if (!workbox || !registration?.waiting) {
-    reloadPage();
+    reload();
     return;
   }
-  workbox.addEventListener('controlling', () => reloadPage());
+  workbox.addEventListener('controlling', reload);
   workbox.messageSkipWaiting();
 }
 

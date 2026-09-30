@@ -10,11 +10,10 @@ import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableError } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { NoAccessPage } from '@/components/no-access-page';
+import { RouteLoadError } from '@/components/route-load-error';
 import { Block } from '@/components/skeleton-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,10 +36,9 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { rightsOptions } from '@/features/auth/api/queries';
-import { isForbidden, requireRight } from '@/features/auth/lib/access';
+import { refreshIfSignedIn } from '@/features/auth/api/queries';
+import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { useLoginData } from '@/features/auth/store/login-data';
 import {
   minimalFacilitiesOptions,
   programsOptions,
@@ -111,7 +109,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
   const { user } = details;
-  const signedInUserId = useLoginData((state) => state.referenceDataUserId);
   const draft = useRoleDraft(user.roleAssignments);
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
@@ -144,10 +141,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
       toast.success(t('users.roles.saved-title'), {
         description: t('users.roles.saved', { username: user.username }),
       });
-      // Your own roles decide what this app shows you.
-      if (user.id === signedInUserId) {
-        void queryClient.invalidateQueries({ queryKey: rightsOptions(user.id).queryKey });
-      }
+      refreshIfSignedIn(queryClient, user.id);
       // A sign out asked for during the save goes ahead, now that nothing is left to lose.
       if (!editedMeanwhile && guard.leaveIfAsked()) return;
       // Back to the list, as legacy does, unless that would drop edits made during the save.
@@ -156,7 +150,11 @@ function RolesEditor({ details }: { details: UserDetails }) {
         void backToUsers();
       }
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.roles.all }),
+      ]),
   });
 
   // Tabs, dialogs and paging stay on this page; only leaving it, or signing out, can lose the draft.
@@ -319,44 +317,39 @@ function RolesPagePending() {
   );
 }
 
-function RolesPageError({ error, reset }: ErrorComponentProps) {
+function RolesPageError(props: ErrorComponentProps) {
   const { t } = useTranslation();
-  const router = useRouter();
-  const notFound = isNotFound(error);
-  if (isForbidden(error)) return <NoAccessPage />;
+  if (!isNotFound(props.error)) {
+    return (
+      <RouteLoadError
+        {...props}
+        description={t('users.roles.error-description')}
+        title={t('users.roles.load-error-title')}
+      />
+    );
+  }
 
   return (
     <Workspace>
       <WorkspaceContent>
-        {notFound ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UserXIcon />
-              </EmptyMedia>
-              <EmptyTitle>{t('users.roles.not-found-title')}</EmptyTitle>
-              <EmptyDescription>{t('users.roles.not-found-description')}</EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button
-                nativeButton={false}
-                render={<Link to="/administration/users" />}
-                variant="outline"
-              >
-                {t('users.roles.back')}
-              </Button>
-            </EmptyContent>
-          </Empty>
-        ) : (
-          <DataTableError
-            description={t('users.roles.error-description')}
-            onRetry={() => {
-              reset();
-              void router.invalidate();
-            }}
-            title={t('users.roles.load-error-title')}
-          />
-        )}
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UserXIcon />
+            </EmptyMedia>
+            <EmptyTitle>{t('users.roles.not-found-title')}</EmptyTitle>
+            <EmptyDescription>{t('users.roles.not-found-description')}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              nativeButton={false}
+              render={<Link to="/administration/users" />}
+              variant="outline"
+            >
+              {t('users.roles.back')}
+            </Button>
+          </EmptyContent>
+        </Empty>
       </WorkspaceContent>
     </Workspace>
   );

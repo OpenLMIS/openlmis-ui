@@ -129,11 +129,22 @@ describe('createUser', () => {
   it('removes the half-created user when the account cannot be created', async () => {
     const failure = new Error('username taken');
     put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
-    put.mockResolvedValueOnce({ data: {} });
+    put.mockResolvedValue({ data: {} });
     post.mockRejectedValueOnce(failure);
     remove.mockResolvedValueOnce({ data: {} });
 
     await expect(createUser(newUser)).rejects.toBe(failure);
+    expect(remove).toHaveBeenCalledWith('/users/u1');
+  });
+
+  it('only removes the user when its contact details were never saved', async () => {
+    put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
+    put.mockRejectedValueOnce(new Error('email taken'));
+    remove.mockResolvedValueOnce({ data: {} });
+
+    await expect(createUser(newUser)).rejects.toThrow('email taken');
+
+    expect(put).toHaveBeenCalledTimes(2);
     expect(remove).toHaveBeenCalledWith('/users/u1');
   });
 });

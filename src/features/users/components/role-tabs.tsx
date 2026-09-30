@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableError, DataTableToolbar } from '@/components/data-table/data-table';
+import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
+import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Block } from '@/components/skeleton-block';
 import { Badge } from '@/components/ui/badge';
@@ -92,10 +93,11 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
                 )}
               </DataTableToolbar>
               <QueryBoundary
-                errorComponent={({ reset }) => (
-                  <DataTableError
+                errorComponent={({ error, reset }) => (
+                  <LoadError
                     description={t('users.roles.error-description')}
-                    onRetry={reset}
+                    error={error}
+                    reset={reset}
                     title={t('users.roles.error-title')}
                   />
                 )}

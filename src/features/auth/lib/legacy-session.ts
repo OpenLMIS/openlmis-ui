@@ -11,8 +11,12 @@ const LEGACY_KEYS = {
   roleAssignments: 'ROLE_ASSIGNMENTS',
 } as const;
 
-/** The key a `storage` event names when the legacy UI signs in or out. */
-export const LEGACY_TOKEN_STORAGE_KEY = `${LEGACY_PREFIX}${LEGACY_KEYS.accessToken}`;
+/** The keys a `storage` event names when the legacy UI signs in or out. */
+export const LEGACY_SESSION_STORAGE_KEYS: readonly string[] = [
+  LEGACY_KEYS.accessToken,
+  LEGACY_KEYS.referenceDataUserId,
+  LEGACY_KEYS.username,
+].map((key) => `${LEGACY_PREFIX}${key}`);
 
 // Plain strings are stored raw, but angular-local-storage JSON-encodes other
 // values, so tolerate a quoted token rather than passing quotes to the API.
@@ -34,13 +38,11 @@ function readLegacyValue(key: string): string | null {
 /** Returns the legacy UI's session, or `null` when it is not signed in. */
 export function readLegacySession(): LoginData | null {
   const accessToken = readLegacyValue(LEGACY_KEYS.accessToken);
-  if (!accessToken) return null;
+  const referenceDataUserId = readLegacyValue(LEGACY_KEYS.referenceDataUserId);
+  const username = readLegacyValue(LEGACY_KEYS.username);
+  if (!accessToken || !referenceDataUserId || !username) return null;
 
-  return {
-    accessToken,
-    referenceDataUserId: readLegacyValue(LEGACY_KEYS.referenceDataUserId) ?? '',
-    username: readLegacyValue(LEGACY_KEYS.username) ?? '',
-  };
+  return { accessToken, referenceDataUserId, username };
 }
 
 /**

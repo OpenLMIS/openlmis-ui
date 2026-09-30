@@ -65,9 +65,10 @@ type UserFormDialogProps = {
   onClose: () => void;
   /** Takes over from `onClose` after an add, e.g. to go on to setting a password. */
   onCreated: (userId: string) => void;
+  onEdited: (userId: string) => void;
 };
 
-export function UserFormDialog({ target, onClose, onCreated }: UserFormDialogProps) {
+export function UserFormDialog({ target, onClose, onCreated, onEdited }: UserFormDialogProps) {
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
@@ -75,7 +76,7 @@ export function UserFormDialog({ target, onClose, onCreated }: UserFormDialogPro
     <FormDialog {...dialogProps(isSaving)}>
       {shown === 'new' && <UserForm onCreated={onCreated} onDone={onClose} />}
       {shown !== undefined && shown !== 'new' && (
-        <EditUserForm key={shown} onDone={onClose} userId={shown} />
+        <EditUserForm key={shown} onDone={onClose} onEdited={onEdited} userId={shown} />
       )}
     </FormDialog>
   );
@@ -84,9 +85,10 @@ export function UserFormDialog({ target, onClose, onCreated }: UserFormDialogPro
 type EditUserFormProps = {
   userId: string;
   onDone: () => void;
+  onEdited: (userId: string) => void;
 };
 
-function EditUserForm({ userId, onDone }: EditUserFormProps) {
+function EditUserForm({ userId, onDone, onEdited }: EditUserFormProps) {
   const { t } = useTranslation();
 
   return (
@@ -102,23 +104,24 @@ function EditUserForm({ userId, onDone }: EditUserFormProps) {
       pendingFallback={<UserFormSkeleton />}
       resetKey={userId}
     >
-      <LoadedEditUserForm onDone={onDone} userId={userId} />
+      <LoadedEditUserForm onDone={onDone} onEdited={onEdited} userId={userId} />
     </QueryBoundary>
   );
 }
 
-function LoadedEditUserForm({ userId, onDone }: EditUserFormProps) {
+function LoadedEditUserForm({ userId, onDone, onEdited }: EditUserFormProps) {
   const { data } = useSuspenseQuery(userDetailsOptions(userId));
-  return <UserForm details={data} onDone={onDone} />;
+  return <UserForm details={data} onDone={onDone} onEdited={onEdited} />;
 }
 
 type UserFormProps = {
   details?: UserDetails;
   onDone: () => void;
   onCreated?: (userId: string) => void;
+  onEdited?: (userId: string) => void;
 };
 
-function UserForm({ details, onDone, onCreated }: UserFormProps) {
+function UserForm({ details, onDone, onCreated, onEdited }: UserFormProps) {
   const { t } = useTranslation();
   const appName = useAppName();
   const queryClient = useQueryClient();
@@ -152,7 +155,10 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       });
     },
     // Refreshed either way: a failed edit may already have changed part of the user.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
+    onSettled: () => {
+      if (details) onEdited?.(details.user.id);
+      return queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
   });
 
   const form = useAppForm({

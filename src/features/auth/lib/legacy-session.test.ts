@@ -32,9 +32,17 @@ describe('readLegacySession', () => {
   });
 
   it('unwraps a JSON-encoded token', () => {
-    localStorage.setItem('openlmis.ACCESS_TOKEN', '"quoted-token"');
+    signInLegacy('"quoted-token"');
 
     expect(readLegacySession()?.accessToken).toBe('quoted-token');
+  });
+
+  it('waits until the legacy UI has written the whole session, not just the token', () => {
+    localStorage.setItem('openlmis.ACCESS_TOKEN', 'legacy-token');
+    expect(readLegacySession()).toBeNull();
+
+    localStorage.setItem('openlmis.USER_ID', 'legacy-user-id');
+    expect(readLegacySession()).toBeNull();
   });
 
   it('returns null when the legacy UI is signed out', () => {

@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
         injectRegister: false,
         manifest: false,
         workbox: {
+          cacheId: 'openlmis-ui',
           globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
