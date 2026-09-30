@@ -1,6 +1,7 @@
 import {
   applyBranding,
   getAppConfiguration,
+  saveAppConfigurationAgain,
   useAppConfigurationStore,
 } from '@/lib/app-configuration';
 import {
@@ -23,7 +24,10 @@ const applyResolvedAppearance = () => applyAppearance(getResolvedAppearance());
 
 export function startApplyingAppConfiguration(): () => void {
   applyConfiguration();
-  const onStorage = (event: StorageEvent) => syncAppearanceFromStorage(event.key);
+  const onStorage = (event: StorageEvent) => {
+    syncAppearanceFromStorage(event.key);
+    if (event.key === null) saveAppConfigurationAgain();
+  };
   window.addEventListener('storage', onStorage);
   const stops = [
     useAppConfigurationStore.subscribe(applyConfiguration),

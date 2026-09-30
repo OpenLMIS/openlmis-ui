@@ -77,7 +77,6 @@ export const useLoginData = create<LoginDataStore>()(
   ),
 );
 
-// What another tab saved, which this one may not have heard about yet.
 function savedSession(): Partial<LoginDataStore> | undefined {
   const saved = useLoginData.persist.getOptions().storage?.getItem(LOGIN_DATA_STORAGE_KEY);
   return saved && !(saved instanceof Promise) ? saved.state : undefined;

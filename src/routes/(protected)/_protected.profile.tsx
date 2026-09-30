@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { RouteLoadError } from '@/components/route-load-error';
+import { ErrorFallback } from '@/components/error-fallback';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
@@ -106,11 +106,10 @@ function ProfileError(props: ErrorComponentProps) {
   const { t } = useTranslation();
 
   return (
-    <RouteLoadError
+    <ErrorFallback
       {...props}
       description={t('profile.error-description')}
       title={t('profile.error-title')}
-      width="narrow"
     />
   );
 }

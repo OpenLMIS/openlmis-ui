@@ -154,6 +154,7 @@ function ApprovalsList({ rows }: { rows: readonly ApprovalRow[] }) {
             <span className="flex min-w-0 items-baseline gap-1.5">
               <span className="truncate">{requisition.program.name}</span>
               <span aria-hidden="true">·</span>
+              <span className="sr-only">, </span>
               <span className="shrink-0">{requisition.processingPeriod.name}</span>
             </span>
             <EmergencyBadge requisition={requisition} />

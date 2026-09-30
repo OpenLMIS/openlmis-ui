@@ -39,7 +39,7 @@ const tabsListVariants = cva(
         default: "bg-muted",
         line: "gap-1 bg-transparent",
       },
-      // Two by two, or one per row with `column`, in a narrow container (the nearest `@container`), one row once they fit.
+      // Narrow (the nearest `@container`): two by two, or one per row with `column`; then one row.
       wrap: {
         false: "",
         true: "grid w-full grid-cols-2 group-data-horizontal/tabs:h-auto @lg:inline-flex @lg:w-fit @lg:group-data-horizontal/tabs:h-8",

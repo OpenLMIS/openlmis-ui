@@ -18,3 +18,5 @@ export const queryKeys = {
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
 } as const;
+
+export const userRightsKey = (userId: string) => [...queryKeys.auth.all, 'rights', userId] as const;

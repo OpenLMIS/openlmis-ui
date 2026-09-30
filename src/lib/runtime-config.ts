@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 
-// Written to `config.json` by the container, since one image serves every environment.
 type RuntimeConfig = {
   authServerClientId?: string;
   authServerClientSecret?: string;

@@ -75,4 +75,14 @@ describe('startApplyingAppConfiguration', () => {
 
     expect(document.documentElement).not.toHaveClass('dark');
   });
+
+  it('saves the configuration again when the legacy UI wipes the whole storage', () => {
+    stop = startApplyingAppConfiguration();
+    localStorage.clear();
+
+    window.dispatchEvent(new StorageEvent('storage', { key: null }));
+
+    const cached = JSON.parse(localStorage.getItem('openlmis-ui.app-configuration') ?? 'null');
+    expect(parseAppConfiguration(cached).appName).toBe('SIGECA');
+  });
 });

@@ -81,8 +81,6 @@ export function useConfigurationSave<Values, Variables>({
     },
   });
 
-  useEffect(() => rememberAppConfiguration(saved), [saved]);
-
   useEffect(() => {
     if (saved === base || changed || mutation.isPending) return;
     setBase(saved);
@@ -100,7 +98,6 @@ export function useConfigurationSave<Values, Variables>({
       setConflict(false);
       mutation.reset();
       if (fresh) {
-        rememberAppConfiguration(fresh);
         setBase(fresh);
         form.reset(toValues(fresh));
       }

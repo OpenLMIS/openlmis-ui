@@ -54,4 +54,26 @@ describe('ErrorFallback', () => {
 
     expect(screen.getByText('no-access')).toBeInTheDocument();
   });
+
+  it("names the page's own failure as its heading, and runs the loaders before it resets", async () => {
+    const steps: string[] = [];
+    invalidate.mockImplementation(() => steps.push('invalidate'));
+    render(
+      <RouterContextProvider router={createRouter({ routeTree: createRootRoute() })}>
+        <ErrorFallback
+          description="Could not load this page."
+          error={new Error('boom')}
+          info={undefined}
+          reset={() => steps.push('reset')}
+          title="Page Not Loaded"
+        />
+      </RouterContextProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Page Not Loaded' })).toBeInTheDocument();
+    expect(screen.getByText('Could not load this page.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+
+    expect(steps).toEqual(['invalidate', 'reset']);
+  });
 });

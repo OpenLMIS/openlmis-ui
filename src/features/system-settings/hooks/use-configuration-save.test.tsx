@@ -255,18 +255,28 @@ describe('useConfigurationSave', () => {
     });
 
     expect(cached()).toEqual(stored);
+    expect(getAppConfiguration().appName).toBe('Mine');
     expect(result.current.base).toEqual(stored);
     expect(result.current.values).toEqual({ appName: 'Mine' });
   });
 
-  it('hands a newer version to the running app, even under a draft', async () => {
+  it('hands a newer version it reads to the running app, even under a draft', async () => {
+    vi.mocked(fetchAppConfiguration).mockResolvedValue(newer);
     const { result, queryClient } = renderSettings();
 
     act(() => result.current.edit('Mine'));
-    act(() => queryClient.setQueryData(appConfigurationOptions().queryKey, newer));
+    await act(() => queryClient.refetchQueries({ queryKey: appConfigurationOptions().queryKey }));
 
-    await waitFor(() => expect(getAppConfiguration().appName).toBe('Someone Else'));
+    expect(getAppConfiguration().appName).toBe('Someone Else');
     expect(result.current.values).toEqual({ appName: 'Mine' });
+  });
+
+  it('leaves the running app alone when a tab opens on what it already has', () => {
+    const running = getAppConfiguration();
+
+    renderSettings();
+
+    expect(getAppConfiguration()).toBe(running);
   });
 
   it('submits only a changed draft', () => {

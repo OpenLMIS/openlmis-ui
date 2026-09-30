@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { RouteLoadError } from '@/components/route-load-error';
+import { ErrorFallback } from '@/components/error-fallback';
 import { Block } from '@/components/skeleton-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,6 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { refreshIfSignedIn } from '@/features/auth/api/queries';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
@@ -61,6 +60,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { fullName } from '@/lib/text';
+import { invalidateUserQueries } from '@/lib/user-queries';
 import type { RoleAssignment } from '@/lib/user-types';
 
 // Their own chunk, fetched once the page has painted.
@@ -141,7 +141,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
       toast.success(t('users.roles.saved-title'), {
         description: t('users.roles.saved', { username: user.username }),
       });
-      refreshIfSignedIn(queryClient, user.id);
       // A sign out asked for during the save goes ahead, now that nothing is left to lose.
       if (!editedMeanwhile && guard.leaveIfAsked()) return;
       // Back to the list, as legacy does, unless that would drop edits made during the save.
@@ -152,7 +151,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
     },
     onSettled: () =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
+        invalidateUserQueries(queryClient, user.id),
         queryClient.invalidateQueries({ queryKey: queryKeys.roles.all }),
       ]),
   });
@@ -302,9 +301,7 @@ function RolesPagePending() {
             <ShieldIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>{t('users.roles')}</WorkspaceTitle>
-          <WorkspaceDescription>
-            <Block className="h-5 w-56 py-0.5" />
-          </WorkspaceDescription>
+          <Block className="h-5 w-56 py-0.5" />
         </WorkspaceHeading>
         <WorkspaceActions>
           <Block className="h-9 w-36" />
@@ -321,7 +318,7 @@ function RolesPageError(props: ErrorComponentProps) {
   const { t } = useTranslation();
   if (!isNotFound(props.error)) {
     return (
-      <RouteLoadError
+      <ErrorFallback
         {...props}
         description={t('users.roles.error-description')}
         title={t('users.roles.load-error-title')}

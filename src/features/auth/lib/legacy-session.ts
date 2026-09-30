@@ -33,7 +33,6 @@ function readLegacyValue(key: string): string | null {
   return value.trim() || null;
 }
 
-/** Returns the legacy UI's session, or `null` when it is not signed in. */
 export function readLegacySession(): LoginData | null {
   const accessToken = readLegacyValue(LEGACY_KEYS.accessToken);
   const referenceDataUserId = readLegacyValue(LEGACY_KEYS.referenceDataUserId);
