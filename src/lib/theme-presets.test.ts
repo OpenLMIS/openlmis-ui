@@ -117,7 +117,7 @@ describe('every preset', () => {
         }
       });
 
-      it.skipIf(name === 'blue')(`${name} (${mode}): every colour is one a screen can show`, () => {
+      it(`${name} (${mode}): every colour is one a screen can show`, () => {
         for (const value of Object.values(tokens)) {
           expect(inSrgbGamut(parseOklch(value))).toBe(true);
         }
