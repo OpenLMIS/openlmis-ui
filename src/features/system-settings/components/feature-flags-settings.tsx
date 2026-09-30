@@ -1,10 +1,19 @@
 import { useStore } from '@tanstack/react-form';
-import { InfoIcon, RotateCcwIcon } from 'lucide-react';
+import { InfoIcon, RotateCcwIcon, SearchXIcon } from 'lucide-react';
+import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { SettingsList } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import {
   Popover,
   PopoverContent,
@@ -95,6 +104,17 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
     }),
   });
   const guard = useDiscardGuard(settings.changed);
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const visibleFlags = FEATURE_FLAG_KEYS.filter((flag) => {
+    const { labelKey, descriptionKey, usedByKey } = FEATURE_FLAGS[flag];
+    return (
+      !needle ||
+      [flag, t(labelKey), t(descriptionKey), t(usedByKey)].some((text) =>
+        text.toLowerCase().includes(needle),
+      )
+    );
+  });
 
   const resetFlag = (flag: FeatureFlagKey, row: Element | null) => {
     form.setFieldValue(`${flag}.value`, inheritedFlagValue(flag, deployment));
@@ -111,109 +131,131 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
         pending={settings.pending}
       />
       <div className="flex flex-col gap-4">
-        <p className="text-muted-foreground text-sm">{t('system-settings.flags.description')}</p>
+        <DataTableSearch
+          label={t('system-settings.flags.search-label')}
+          onValueChange={setQuery}
+          placeholder={t('system-settings.flags.search-placeholder')}
+          value={query}
+        />
         <SaveFeedback {...settings.feedback} />
         <form id={FORM_ID} noValidate onSubmit={settings.submit}>
-          <SettingsList>
-            {FEATURE_FLAG_KEYS.map((flag) => {
-              const definition: FeatureFlagDefinition = FEATURE_FLAGS[flag];
-              const label = t(definition.labelKey);
-              return (
-                <form.AppField
-                  key={flag}
-                  listeners={{
-                    onChange: ({ value }) =>
-                      form.setFieldValue(
-                        `${flag}.overridden`,
-                        value !== inheritedFlagValue(flag, deployment),
-                      ),
-                  }}
-                  name={`${flag}.value`}
-                >
-                  {(field) => {
-                    const source = flagSource(flag, values[flag], deployment);
-                    const inherited = inheritedFlagValue(flag, deployment);
-                    const inheritedLabel =
-                      typeof inherited === 'boolean'
-                        ? t(inherited ? 'system-settings.flags.on' : 'system-settings.flags.off')
-                        : definition.type === 'enum'
-                          ? t(definition.optionKeys[inherited])
-                          : inherited;
-                    const inheritedFrom = flagSource(
-                      flag,
-                      { ...values[flag], overridden: false },
-                      deployment,
-                    );
-                    const shared = {
-                      hint: <FlagAbout definition={definition} label={label} />,
-                      description: (
-                        <>
-                          <code className="font-mono text-xs" dir="ltr">
-                            {flag}
-                          </code>
-                          {source === 'deployment' &&
-                            ` · ${t('system-settings.flags.from-deployment')}`}
+          {visibleFlags.length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t('system-settings.flags.no-match-title')}</EmptyTitle>
+                <EmptyDescription>
+                  {t('system-settings.flags.no-match-description')}
+                </EmptyDescription>
+              </EmptyHeader>
+              <Button onClick={() => setQuery('')} size="sm" type="button" variant="outline">
+                {t('system-settings.flags.clear-search')}
+              </Button>
+            </Empty>
+          ) : (
+            <SettingsList>
+              {visibleFlags.map((flag) => {
+                const definition: FeatureFlagDefinition = FEATURE_FLAGS[flag];
+                const label = t(definition.labelKey);
+                return (
+                  <form.AppField
+                    key={flag}
+                    listeners={{
+                      onChange: ({ value }) =>
+                        form.setFieldValue(
+                          `${flag}.overridden`,
+                          value !== inheritedFlagValue(flag, deployment),
+                        ),
+                    }}
+                    name={`${flag}.value`}
+                  >
+                    {(field) => {
+                      const source = flagSource(flag, values[flag], deployment);
+                      const inherited = inheritedFlagValue(flag, deployment);
+                      const inheritedLabel =
+                        typeof inherited === 'boolean'
+                          ? t(inherited ? 'system-settings.flags.on' : 'system-settings.flags.off')
+                          : definition.type === 'enum'
+                            ? t(definition.optionKeys[inherited])
+                            : inherited;
+                      const inheritedFrom = flagSource(
+                        flag,
+                        { ...values[flag], overridden: false },
+                        deployment,
+                      );
+                      const shared = {
+                        hint: <FlagAbout definition={definition} label={label} />,
+                        description: (
+                          <>
+                            <code className="font-mono text-xs" dir="ltr">
+                              {flag}
+                            </code>
+                            {source === 'deployment' &&
+                              ` · ${t('system-settings.flags.from-deployment')}`}
+                            {source === 'admin' && (
+                              <span className="block text-primary">
+                                <Trans
+                                  components={{ value: <span className="font-semibold" /> }}
+                                  i18nKey={
+                                    inheritedFrom === 'deployment'
+                                      ? 'system-settings.flags.changed-deployment'
+                                      : 'system-settings.flags.changed-default'
+                                  }
+                                  t={t}
+                                  values={{ value: inheritedLabel }}
+                                />
+                              </span>
+                            )}
+                          </>
+                        ),
+                        action: source === 'admin' && (
+                          <Button
+                            aria-label={t('system-settings.flags.reset-label', { name: label })}
+                            disabled={settings.pending}
+                            onClick={(event) =>
+                              resetFlag(flag, event.currentTarget.closest('[data-slot="field"]'))
+                            }
+                            size="xs"
+                            type="button"
+                            variant="destructive"
+                          >
+                            <RotateCcwIcon data-icon="inline-start" />
+                            {t('system-settings.flags.reset')}
+                          </Button>
+                        ),
+                        disabled: settings.pending,
+                        label,
+                        layout: 'row' as const,
+                      };
+                      return (
+                        <div className="relative">
                           {source === 'admin' && (
-                            <span className="block text-primary">
-                              <Trans
-                                components={{ value: <span className="font-semibold" /> }}
-                                i18nKey={
-                                  inheritedFrom === 'deployment'
-                                    ? 'system-settings.flags.changed-deployment'
-                                    : 'system-settings.flags.changed-default'
-                                }
-                                t={t}
-                                values={{ value: inheritedLabel }}
-                              />
-                            </span>
+                            <span
+                              aria-hidden
+                              className="absolute inset-y-3 start-0 w-0.5 rounded-full bg-primary"
+                            />
                           )}
-                        </>
-                      ),
-                      action: source === 'admin' && (
-                        <Button
-                          aria-label={t('system-settings.flags.reset-label', { name: label })}
-                          disabled={settings.pending}
-                          onClick={(event) =>
-                            resetFlag(flag, event.currentTarget.closest('[data-slot="field"]'))
-                          }
-                          size="xs"
-                          type="button"
-                          variant="destructive"
-                        >
-                          <RotateCcwIcon data-icon="inline-start" />
-                          {t('system-settings.flags.reset')}
-                        </Button>
-                      ),
-                      disabled: settings.pending,
-                      label,
-                      layout: 'row' as const,
-                    };
-                    return (
-                      <div className="relative">
-                        {source === 'admin' && (
-                          <span
-                            aria-hidden
-                            className="absolute inset-y-3 start-0 w-0.5 rounded-full bg-primary"
-                          />
-                        )}
-                        {definition.type === 'boolean' ? (
-                          <field.SwitchField {...shared} />
-                        ) : (
-                          <field.SelectField
-                            {...shared}
-                            items={definition.options.map((option) => ({
-                              value: option,
-                              label: t(definition.optionKeys[option]),
-                            }))}
-                          />
-                        )}
-                      </div>
-                    );
-                  }}
-                </form.AppField>
-              );
-            })}
-          </SettingsList>
+                          {definition.type === 'boolean' ? (
+                            <field.SwitchField {...shared} />
+                          ) : (
+                            <field.SelectField
+                              {...shared}
+                              items={definition.options.map((option) => ({
+                                value: option,
+                                label: t(definition.optionKeys[option]),
+                              }))}
+                            />
+                          )}
+                        </div>
+                      );
+                    }}
+                  </form.AppField>
+                );
+              })}
+            </SettingsList>
+          )}
         </form>
       </div>
       <DiscardChangesDialog

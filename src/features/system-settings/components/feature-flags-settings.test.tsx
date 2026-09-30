@@ -150,4 +150,54 @@ describe('FeatureFlagsSettings', () => {
     expect(await batch()).toBeChecked();
     expect(saveButton()).toBeDisabled();
   });
+
+  it('filters the flags by name or key as you search', async () => {
+    renderFlags();
+    await batch();
+    const search = screen.getByRole('textbox', { name: 'system-settings.flags.search-label' });
+
+    await userEvent.type(search, 'gs1_scan');
+
+    await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(1));
+    expect(
+      screen.getByRole('switch', { name: /feature-flags.gs1-scanning.label/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  it('says when nothing matches, and Clear Search brings every flag back', async () => {
+    renderFlags();
+    await batch();
+
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'system-settings.flags.search-label' }),
+      'nothing like this',
+    );
+
+    expect(await screen.findByText('system-settings.flags.no-match-title')).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'system-settings.flags.clear-search' }),
+    );
+
+    await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(3));
+  });
+
+  it('keeps a change to a flag the search hides, and saves it', async () => {
+    vi.mocked(updateAppConfiguration).mockResolvedValue({ ...savedConfiguration, version: 4 });
+    renderFlags();
+    await userEvent.click(await batch());
+
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'system-settings.flags.search-label' }),
+      'gs1',
+    );
+    await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(1));
+    await userEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(updateAppConfiguration).toHaveBeenCalledWith(savedConfiguration, {
+        featureFlags: { BATCH_APPROVE_SCREEN: true },
+      }),
+    );
+  });
 });
