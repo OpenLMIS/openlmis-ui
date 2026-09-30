@@ -56,6 +56,11 @@ services:
       # public demo client, which is what the test and demo instances accept.
       AUTH_SERVER_CLIENT_ID: ${VITE_AUTH_SERVER_CLIENT_ID:-user-client}
       AUTH_SERVER_CLIENT_SECRET: ${VITE_AUTH_SERVER_CLIENT_SECRET:-changeme}
+      BATCH_APPROVE_SCREEN: ${BATCH_APPROVE_SCREEN:-}
+      DEFAULT_QUANTITY_UNIT: ${DEFAULT_QUANTITY_UNIT:-}
+      GS1_SCANNING: ${GS1_SCANNING:-}
+      QUANTITY_UNIT_OPTION: ${QUANTITY_UNIT_OPTION:-}
+      SHOW_REQUISITION_LESS_ORDER: ${SHOW_REQUISITION_LESS_ORDER:-}
     depends_on:
       consul:
         condition: service_healthy

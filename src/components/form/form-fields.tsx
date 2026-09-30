@@ -1,8 +1,9 @@
-import { EyeIcon, EyeOffIcon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { EyeIcon, EyeOffIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
 import { useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
+import { Button } from '@/components/ui/button';
 import {
   Combobox,
   ComboboxChip,
@@ -43,6 +44,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /** `row` for a `SettingsList` row; `inline` keeps the label for screen readers only, e.g. in a table. */
 type FieldLayout = 'stacked' | 'row' | 'inline';
@@ -58,7 +60,11 @@ type FieldProps = {
 type FieldFrameProps = FieldProps & {
   /** Beside the label in a row, such as a status badge. */
   badge?: ReactNode;
+  /** After the badge in a row, such as an info button or a Reset. */
+  action?: ReactNode;
   state: ReturnType<typeof useFieldErrors>;
+  /** `end` lines a row's error up with a value set at the end, such as an image preview. */
+  errorAlign?: 'end';
   /** The control, which takes the field's name as its id. */
   children: ReactNode;
 };
@@ -115,15 +121,30 @@ function HiddenFromView({ children }: { children: ReactNode }) {
   );
 }
 
+function RowExtras({
+  badge,
+  badgeId,
+  action,
+}: Pick<FieldFrameProps, 'badge' | 'action'> & { badgeId: string }) {
+  return (
+    <>
+      {badge && <span id={badgeId}>{badge}</span>}
+      {action}
+    </>
+  );
+}
+
 /** Label, control, description and error, laid out as the field's `layout` asks. */
 function FieldFrame({
   layout = 'stacked',
   label,
   badge,
+  action,
   description,
   required,
   disabled,
   state: { errors, isInvalid, descriptionId, errorId, badgeId },
+  errorAlign,
   children,
 }: FieldFrameProps) {
   const field = useFieldContext<unknown>();
@@ -142,7 +163,8 @@ function FieldFrame({
     return (
       <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
         <SettingsRowFrame
-          badge={badge && <span id={badgeId}>{badge}</span>}
+          badge={<RowExtras action={action} badge={badge} badgeId={badgeId} />}
+          description={descriptionNode}
           label={
             <FieldLabel htmlFor={field.name} weight="normal">
               {labelText}
@@ -151,7 +173,11 @@ function FieldFrame({
           value="control"
         >
           {children}
-          {details}
+          {isInvalid && (
+            <div className={errorAlign === 'end' ? 'text-end' : undefined}>
+              <FieldError errors={errors} id={errorId} />
+            </div>
+          )}
         </SettingsRowFrame>
       </Field>
     );
@@ -176,6 +202,7 @@ type TextFieldProps = FieldProps &
     type?: 'text' | 'email' | 'tel' | 'time';
     autoComplete?: string;
     placeholder?: string;
+    maxLength?: number;
     /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
     dir?: 'ltr';
   };
@@ -190,6 +217,7 @@ export function TextField({
   type = 'text',
   autoComplete,
   placeholder,
+  maxLength,
   dir,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
@@ -214,6 +242,7 @@ export function TextField({
         dir={dir}
         disabled={disabled}
         id={field.name}
+        maxLength={maxLength}
         name={field.name}
         onBlur={field.handleBlur}
         onChange={(event) => field.handleChange(event.target.value)}
@@ -342,13 +371,22 @@ type ChoiceCardProps = {
   disabled?: boolean;
   /** The switch or radio, or a placeholder while loading. */
   children: ReactNode;
+  media?: ReactNode;
 };
 
 /** The card around one choice: label and description at the start, the control at the end. */
-export function ChoiceCard({ htmlFor, label, description, disabled, children }: ChoiceCardProps) {
+export function ChoiceCard({
+  htmlFor,
+  label,
+  description,
+  disabled,
+  children,
+  media,
+}: ChoiceCardProps) {
   return (
     <FieldLabel htmlFor={htmlFor}>
       <Field data-disabled={disabled} orientation="horizontal">
+        {media}
         <FieldContent>
           <FieldTitle>{label}</FieldTitle>
           {typeof description === 'string' ? (
@@ -363,18 +401,36 @@ export function ChoiceCard({ htmlFor, label, description, disabled, children }: 
   );
 }
 
-/** A yes/no setting as a `ChoiceCard`, all one click target, or the switch alone in a row or a cell. */
-export function SwitchField({
+/** A small option: its media across the top, the label and the control below. */
+function ChoiceTile({
+  htmlFor,
   label,
-  description,
   disabled,
-  layout,
-}: Omit<FieldProps, 'required'>) {
+  children,
+  media,
+}: Omit<ChoiceCardProps, 'description'>) {
+  return (
+    <FieldLabel htmlFor={htmlFor}>
+      <Field data-disabled={disabled}>
+        {media}
+        <div className="flex items-center justify-between gap-2">
+          <FieldTitle>{label}</FieldTitle>
+          {children}
+        </div>
+      </Field>
+    </FieldLabel>
+  );
+}
+
+type SwitchFieldProps = Omit<FieldProps, 'required'> & Pick<FieldFrameProps, 'action'>;
+
+/** A yes/no setting as a `ChoiceCard`, all one click target, or the switch alone in a row or a cell. */
+export function SwitchField({ label, description, disabled, layout, action }: SwitchFieldProps) {
   const field = useFieldContext<boolean>();
-  const descriptionId = `${field.name}-description`;
+  const { descriptionId, badgeId, describedBy } = useFieldErrors(description);
   const control = (
     <Switch
-      aria-describedby={layout === 'row' && description ? descriptionId : undefined}
+      aria-describedby={layout === 'row' ? describedBy : undefined}
       checked={field.state.value}
       disabled={disabled}
       id={field.name}
@@ -388,6 +444,7 @@ export function SwitchField({
     return (
       <Field data-disabled={disabled}>
         <SettingsRowFrame
+          badge={<RowExtras action={action} badgeId={badgeId} />}
           description={
             description && <FieldDescription id={descriptionId}>{description}</FieldDescription>
           }
@@ -419,10 +476,116 @@ export function SwitchField({
   );
 }
 
+type IconActionProps = Omit<ComponentProps<typeof Button>, 'children' | 'size' | 'type'> & {
+  label: string;
+  icon: ReactNode;
+};
+
+/** An icon button named by `label`, which its tooltip shows too. */
+function IconAction({ label, icon, ...props }: IconActionProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<Button aria-label={label} size="icon-xs" type="button" {...props} />}
+      >
+        {icon}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+type ImageFieldProps = Omit<FieldProps, 'layout' | 'required'> & {
+  accept: string;
+  previewUrl: string;
+  previewAlt: string;
+  chooseLabel: string;
+  removeLabel: string;
+  canRemove: boolean;
+};
+
+export function ImageField({
+  label,
+  description,
+  disabled,
+  accept,
+  previewUrl,
+  previewAlt,
+  chooseLabel,
+  removeLabel,
+  canRemove,
+}: ImageFieldProps) {
+  const field = useFieldContext<File | null | undefined>();
+  const input = useRef<HTMLInputElement>(null);
+  const choose = useRef<HTMLButtonElement>(null);
+  const state = useFieldErrors(description);
+
+  const actions = (
+    <span className="flex items-center gap-1">
+      <IconAction
+        aria-describedby={state.describedBy}
+        aria-invalid={state.isInvalid}
+        disabled={disabled}
+        icon={<UploadIcon />}
+        label={chooseLabel}
+        onClick={() => input.current?.click()}
+        ref={choose}
+        variant="outline"
+      />
+      {canRemove && (
+        <IconAction
+          disabled={disabled}
+          icon={<Trash2Icon />}
+          label={removeLabel}
+          onClick={() => {
+            field.handleChange(null);
+            choose.current?.focus();
+          }}
+          variant="destructive"
+        />
+      )}
+    </span>
+  );
+
+  return (
+    <FieldFrame
+      action={actions}
+      description={description}
+      disabled={disabled}
+      errorAlign="end"
+      label={label}
+      layout="row"
+      state={state}
+    >
+      <div className="flex justify-end">
+        <img alt={previewAlt} className="h-10 max-w-32 object-contain" src={previewUrl} />
+        <input
+          accept={accept}
+          aria-describedby={state.describedBy}
+          aria-invalid={state.isInvalid}
+          className="sr-only"
+          disabled={disabled}
+          id={field.name}
+          name={field.name}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) field.handleChange(file);
+            event.target.value = '';
+          }}
+          ref={input}
+          tabIndex={-1}
+          type="file"
+        />
+      </div>
+    </FieldFrame>
+  );
+}
+
 export type RadioGroupFieldOption = {
   value: string;
   label: ReactNode;
   description?: ReactNode;
+  media?: ReactNode;
 };
 
 type RadioGroupFieldProps = {
@@ -430,16 +593,30 @@ type RadioGroupFieldProps = {
   label: ReactNode;
   options: readonly RadioGroupFieldOption[];
   disabled?: boolean;
+  /** `row` puts the cards side by side once there is room. */
+  columns?: 'row';
+  /** `tile` puts the media above the label, in a grid of small options such as colours. */
+  variant?: 'card' | 'tile';
 };
 
-/** One choice from a few, each drawn as a card like `SwitchField`. */
-export function RadioGroupField({ label, options, disabled }: RadioGroupFieldProps) {
+/** One choice from a few, each drawn as a card like `SwitchField`, or as a small tile. */
+export function RadioGroupField({
+  label,
+  options,
+  disabled,
+  columns,
+  variant = 'card',
+}: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
 
   return (
     <FieldSet>
-      <FieldLegend variant="label">{label}</FieldLegend>
+      <FieldLegend id={`${field.name}-legend`} variant="label">
+        {label}
+      </FieldLegend>
       <RadioGroup
+        aria-labelledby={`${field.name}-legend`}
+        columns={variant === 'tile' ? 'tiles' : columns}
         disabled={disabled}
         name={field.name}
         onBlur={field.handleBlur}
@@ -448,6 +625,19 @@ export function RadioGroupField({ label, options, disabled }: RadioGroupFieldPro
       >
         {options.map((option) => {
           const id = `${field.name}-${option.value}`;
+          if (variant === 'tile') {
+            return (
+              <ChoiceTile
+                disabled={disabled}
+                htmlFor={id}
+                key={option.value}
+                label={option.label}
+                media={option.media}
+              >
+                <RadioGroupItem id={id} value={option.value} />
+              </ChoiceTile>
+            );
+          }
           return (
             <ChoiceCard
               description={option.description}
@@ -455,6 +645,7 @@ export function RadioGroupField({ label, options, disabled }: RadioGroupFieldPro
               htmlFor={id}
               key={option.value}
               label={option.label}
+              media={option.media}
             >
               <RadioGroupItem id={id} value={option.value} />
             </ChoiceCard>
@@ -471,9 +662,10 @@ export type SelectFieldItem = {
   disabled?: boolean;
 };
 
-type SelectFieldProps = FieldProps & {
-  items: readonly SelectFieldItem[];
-};
+type SelectFieldProps = FieldProps &
+  Pick<FieldFrameProps, 'action'> & {
+    items: readonly SelectFieldItem[];
+  };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */
 export function SelectField({
@@ -483,6 +675,7 @@ export function SelectField({
   disabled,
   layout,
   items,
+  action,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -490,6 +683,7 @@ export function SelectField({
 
   return (
     <FieldFrame
+      action={action}
       description={description}
       disabled={disabled}
       label={label}
@@ -513,7 +707,7 @@ export function SelectField({
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent alignItemWithTrigger={false}>
           {items.map((item) => (
             <SelectItem disabled={item.disabled} key={item.value} value={item.value}>
               {item.label}

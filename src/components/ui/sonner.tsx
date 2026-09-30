@@ -1,26 +1,37 @@
 "use client"
 
-import { useTheme } from "next-themes"
+import { useResolvedAppearance } from "@/lib/appearance"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { useDirection } from "@/components/ui/direction"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-// Above a sticky page footer when there is one; `--workspace-footer-height` is set in globals.css.
-const clearOfFooter = (gap: string) => ({ bottom: `calc(${gap} + var(--workspace-footer-height, 0px))` })
+// Just below the app header, whose height is `--app-header-height` in globals.css.
+const belowHeader = (gap: string) => ({ top: `calc(${gap} + var(--app-header-height, 0px))` })
+
+// Sonner's rich colours, drawn from the theme's status tokens so they follow light and dark.
+const tinted = (token: string, text: string) => ({
+  bg: `color-mix(in oklab, var(${token}) 10%, var(--popover))`,
+  border: `color-mix(in oklab, var(${token}) 35%, var(--popover))`,
+  text: `var(${text})`,
+})
+const success = tinted("--success", "--success-strong")
+const error = tinted("--destructive", "--destructive")
+const warning = tinted("--warning", "--warning-strong")
+const info = tinted("--info", "--info")
 
 const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const theme = useResolvedAppearance()
   const dir = useDirection()
 
   return (
     <Sonner
       closeButton
       dir={dir}
-      // The end corner, so a toast never covers the Save at the end of a page footer.
-      position={dir === "rtl" ? "bottom-left" : "bottom-right"}
-      offset={clearOfFooter("24px")}
-      mobileOffset={clearOfFooter("16px")}
-      theme={theme as ToasterProps["theme"]}
+      position={dir === "rtl" ? "top-left" : "top-right"}
+      offset={belowHeader("16px")}
+      mobileOffset={belowHeader("12px")}
+      richColors
+      theme={theme}
       className="toaster group"
       icons={{
         success: (
@@ -45,13 +56,26 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          "--success-bg": success.bg,
+          "--success-border": success.border,
+          "--success-text": success.text,
+          "--error-bg": error.bg,
+          "--error-border": error.border,
+          "--error-text": error.text,
+          "--warning-bg": warning.bg,
+          "--warning-border": warning.border,
+          "--warning-text": warning.text,
+          "--info-bg": info.bg,
+          "--info-border": info.border,
+          "--info-text": info.text,
         } as React.CSSProperties
       }
       toastOptions={{
         ...toastOptions,
         // A short title over a description of at most two lines, and a plain X at the end edge.
         classNames: {
-          toast: "cn-toast pe-10! items-start!",
+          toast:
+            "cn-toast pe-10! items-start! shadow-none! focus-visible:ring-3 focus-visible:ring-ring/50",
           icon: "mt-0.5!",
           title: "font-medium",
           description: "line-clamp-2 text-muted-foreground!",

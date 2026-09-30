@@ -10,6 +10,7 @@ export const RIGHTS = {
   userRolesManage: 'USER_ROLES_MANAGE',
   rightsView: 'RIGHTS_VIEW',
   serviceAccountsManage: 'SERVICE_ACCOUNTS_MANAGE',
+  systemSettingsManage: 'SYSTEM_SETTINGS_MANAGE',
 } as const;
 
 /** The right names a user holds anywhere; a permission string is `RIGHT`, `RIGHT|facility|program` or `RIGHT|facility`. */

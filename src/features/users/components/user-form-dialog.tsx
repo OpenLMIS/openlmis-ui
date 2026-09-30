@@ -52,6 +52,7 @@ import {
   type UserFormValues,
   userFormSchema,
 } from '@/features/users/lib/user-form';
+import { useAppName } from '@/lib/app-configuration';
 import { queryKeys } from '@/lib/key-factory';
 
 type DialogTarget = NonNullable<UsersSearch['user']>;
@@ -119,6 +120,7 @@ type UserFormProps = {
 
 function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const { t } = useTranslation();
+  const appName = useAppName();
   const queryClient = useQueryClient();
   const isEdit = details !== undefined;
   const savedFacilityId = details?.user.homeFacilityId ?? null;
@@ -176,7 +178,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
         <FormDialogDescription>
           {isEdit
             ? t('users.form.edit-description', { username: details.user.username })
-            : t('users.form.create-description')}
+            : t('users.form.create-description', { appName })}
         </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>

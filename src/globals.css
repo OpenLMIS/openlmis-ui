@@ -5,20 +5,17 @@
 /* Geist has no Arabic coverage, so Arabic glyphs fall through to Noto. */
 @import "@fontsource-variable/noto-sans-arabic";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *):not(.light, .light *));
 
-:root {
+:root,
+.light {
   --app-header-height: 3rem;
-  /* OpenLMIS brand blue (#49BAEB) is the source hue for every themed token. */
-  --brand: oklch(0.745 0.123 230.4);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.5 0.134 242.749);
-  --primary-foreground: oklch(0.977 0.013 236.62);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.97 0 0);
@@ -39,16 +36,9 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.76 0.12 240);
-  --chart-2: oklch(0.67 0.15 240);
-  --chart-3: oklch(0.58 0.158 240);
-  --chart-4: oklch(0.49 0.14 240);
-  --chart-5: oklch(0.4 0.115 240);
   --radius: 0.625rem;
   --sidebar: oklch(0.97 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.588 0.158 241.966);
-  --sidebar-primary-foreground: oklch(0.977 0.013 236.62);
   --sidebar-accent: oklch(0.93 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
@@ -56,15 +46,12 @@
 }
 
 .dark {
-  --brand: oklch(0.745 0.123 230.4);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.443 0.11 240.79);
-  --primary-foreground: oklch(0.977 0.013 236.62);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -84,15 +71,8 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.76 0.12 240);
-  --chart-2: oklch(0.67 0.15 240);
-  --chart-3: oklch(0.58 0.158 240);
-  --chart-4: oklch(0.49 0.14 240);
-  --chart-5: oklch(0.4 0.115 240);
   --sidebar: oklch(0.2 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.685 0.169 237.323);
-  --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
   --sidebar-accent: oklch(0.26 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
@@ -174,9 +154,4 @@
     scrollbar-gutter: stable;
     overflow-y: scroll;
   }
-}
-
-/* A sticky page footer's height, so toasts rise above it rather than cover its Save. */
-:root:has([data-slot="workspace-footer"]) {
-  --workspace-footer-height: 4rem;
 }

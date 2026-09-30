@@ -5,6 +5,8 @@ export const isNotFound = (error: unknown) => isAxiosError(error) && error.respo
 
 export const isRefused = (error: unknown) => isAxiosError(error) && error.response?.status === 403;
 
+export const isConflict = (error: unknown) => isAxiosError(error) && error.response?.status === 409;
+
 export const isOfflineError = (error: unknown) =>
   isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED;
 

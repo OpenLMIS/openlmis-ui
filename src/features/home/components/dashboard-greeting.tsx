@@ -5,6 +5,7 @@ import {
   convertCountOptions,
   firstNameOptions,
 } from '@/features/home/api/queries';
+import { useAppName } from '@/lib/app-configuration';
 
 /** The user's name once it loads; the page's plain title until then or if it cannot. */
 export function WelcomeTitle({ userId }: { userId: string }) {
@@ -21,6 +22,7 @@ type WaitingSummaryProps = {
 /** One sentence on what is waiting, from the counts this user's rights let them see. */
 export function WaitingSummary({ canApprove, canConvert }: WaitingSummaryProps) {
   const { t } = useTranslation();
+  const appName = useAppName();
   const approvals = useQuery({ ...approvalsOptions(), enabled: canApprove });
   const convert = useQuery({ ...convertCountOptions(), enabled: canConvert });
   const toApprove = approvals.data?.total;
@@ -35,5 +37,5 @@ export function WaitingSummary({ canApprove, canConvert }: WaitingSummaryProps) 
   if (canConvert && !canApprove && toConvert !== undefined) {
     return t('home.summary.convert', { count: toConvert });
   }
-  return canApprove || canConvert ? t('home.description') : t('home.summary.default');
+  return canApprove || canConvert ? t('home.description') : t('home.summary.default', { appName });
 }

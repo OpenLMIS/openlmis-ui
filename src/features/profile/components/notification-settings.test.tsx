@@ -126,7 +126,16 @@ describe('NotificationSettings', () => {
     expect(
       screen.getByRole('textbox', { name: /profile.notifications.cron/ }),
     ).toHaveAccessibleDescription('profile.notifications.cron-description');
+    expect(screen.getByText('profile.notifications.digest-hint')).toBeInTheDocument();
+    expect(screen.queryByText('profile.notifications.digest-email-only')).not.toBeInTheDocument();
+  });
+
+  it('says only that digests are email only while no schedule is custom', async () => {
+    const user = await renderSettings();
+    await user.click(digestSwitch());
+
     expect(screen.getByText('profile.notifications.digest-email-only')).toBeInTheDocument();
+    expect(screen.queryByText('profile.notifications.digest-hint')).not.toBeInTheDocument();
   });
 
   it('moves to the first field to correct when a save is refused', async () => {

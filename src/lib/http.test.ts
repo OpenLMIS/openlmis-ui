@@ -1,7 +1,7 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/integrations/axios';
-import { getIfExists, isNotFound, isOfflineError, isRefused } from '@/lib/http';
+import { getIfExists, isConflict, isNotFound, isOfflineError, isRefused } from '@/lib/http';
 import { networkError } from '@/tests/http-error';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
@@ -24,6 +24,14 @@ describe('isNotFound', () => {
     expect(isNotFound(failed(404))).toBe(true);
     expect(isNotFound(failed(500))).toBe(false);
     expect(isNotFound(new Error('offline'))).toBe(false);
+  });
+});
+
+describe('isConflict', () => {
+  it('is a save refused because someone else saved first', () => {
+    expect(isConflict(failed(409))).toBe(true);
+    expect(isConflict(failed(400))).toBe(false);
+    expect(isConflict(new Error('409'))).toBe(false);
   });
 });
 

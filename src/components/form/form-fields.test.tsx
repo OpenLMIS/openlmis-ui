@@ -157,6 +157,12 @@ describe('form fields', () => {
     expect(listbox).not.toHaveAttribute('tabindex', '0');
   });
 
+  it('names the radio group by its label', () => {
+    renderForm();
+
+    expect(screen.getByRole('radiogroup', { name: 'Method' })).toBeInTheDocument();
+  });
+
   it('stores the picked item by value, the switched-off setting and the chosen option', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm();

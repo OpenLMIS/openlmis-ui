@@ -29,6 +29,7 @@ import {
 } from '@/features/users/lib/search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { useAppName } from '@/lib/app-configuration';
 
 // Their own chunk: the list paints without the forms, and the chunk is fetched right after.
 const loadUserDialogs = () => import('@/features/users/components/user-dialogs');
@@ -75,6 +76,7 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 function UsersPage() {
   const { t } = useTranslation();
+  const appName = useAppName();
   // Without the dialogs' params, and shared structurally, so opening a dialog leaves the table alone.
   const search = Route.useSearch({
     select: ({ user: _user, password: _password, created: _created, ...list }): UsersSearch => list,
@@ -131,7 +133,7 @@ function UsersPage() {
             <UsersIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>{t('users.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('users.description')}</WorkspaceDescription>
+          <WorkspaceDescription>{t('users.description', { appName })}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
@@ -184,6 +186,7 @@ function UsersPage() {
 /** While the rights check runs on a first visit: the page's header over a table skeleton. */
 function UsersPagePending() {
   const { t } = useTranslation();
+  const appName = useAppName();
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -192,7 +195,7 @@ function UsersPagePending() {
             <UsersIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>{t('users.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('users.description')}</WorkspaceDescription>
+          <WorkspaceDescription>{t('users.description', { appName })}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>

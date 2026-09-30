@@ -246,13 +246,13 @@ the outside. Not colour, not typography, not spacing, and not layout or margin e
 Two ways out when a page needs a different treatment:
 
 1. Add a variant prop to the component in `src/components/ui/` and pass it. Existing
-   examples: `Button padding/width` + the `xl` size, `CardHeader spacing/align`,
+   examples: `Button padding/width` (incl. `width="shrink"`) + the `xl` size, `CardHeader spacing/align`,
    `CardTitle size`, `CardFooter align`, `Separator spacing`, `Skeleton shape/fill`,
    `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
    `Sidebar surface`, `SidebarInset surface`, `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`,
+   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, or `md` for short labels).
@@ -266,7 +266,11 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset.
+new files rather than reverting the preset. Three edits carry no prop, so `tsc` cannot catch
+them: `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
+`button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
+looks disabled; and `sonner.tsx`'s `Toaster` reads
+`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed.
 
 ### Integrations
 
@@ -369,14 +373,19 @@ that sticks to the bottom of the window, with Cancel at the start and Save at th
 opened from, with its page, sort and filters, which the opening link passes in history
 state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
 the saved values back and Save stays. Pages that share a header across tabs, like Profile,
-render it once in the layout route and put the footer in through `ProfileFooter`, so a tab
-switch never remounts the header. Toasts rise above the footer while it is on screen.
+render it once in the layout route through `WorkspaceTabs` inside `WorkspaceSlots`, and put
+the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch
+never remounts the header. A tab's own header button, such as Reset To Defaults on System
+Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts appear at the top end corner, just below the header, tinted by their kind.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
-A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
+A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb. The account
+menu, not the sidebar, opens Profile and Settings (`/settings`). `useAccountLinks()` in
+`src/components/nav-access.ts` lists them, each behind its right, for the account menu and the
+command palette alike.
 They are hidden on Home and on pages outside the nav without one. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
@@ -470,10 +479,12 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`). A yes/no setting is a `SwitchField`,
+`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
-`SelectField`. Every field takes a `layout`: `stacked` by default; `row` for a settings
+`SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
+saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
+file is flagged as soon as it is picked. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
 `inline` in a table cell, where the column header names it and the label and description
@@ -485,7 +496,12 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
-`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel` and `SelectTrigger width`.
+`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
+`SelectTrigger width`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
+row, such as a flag's info button and Reset; `TextField` takes a `badge` there. A select's list
+opens below its input, never over it: `alignItemWithTrigger` is `false`.
+`RadioGroupField` takes `variant="tile"` for a grid of small options such as colours, and
+`columns="row"` to put a few cards side by side once the page has room.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 
@@ -522,9 +538,40 @@ password change, before it acts. Both open the shared "Discard Unsaved Changes?"
 browser's own prompt, which is the only one a page is allowed there.
 
 **Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
-ramp: one blue hue, light to dark, checked for even steps and contrast in both modes, used
+ramp: one hue from the active theme preset, light to dark, checked for even steps and contrast in both modes, used
 in order for anything with an order (pipeline stages). Status meaning (good to critical)
 uses `success`, `warning` and `destructive` with an icon and a label, never colour alone.
+
+## App configuration
+
+**Branding, theme and feature flags come from the server**, `GET /api/appConfiguration`,
+loaded in `src/lib/app-configuration.ts` before the first render and cached in localStorage for
+the next boot. A slow or missing server falls back to the cache, then to the built-in defaults.
+`startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
+favicon, preset tokens and light or dark class in step with the store.
+
+**Never hardcode "OpenLMIS" in copy that names the deployment.** Messages take `{appName}`
+and pass `useAppName()`, so a renamed deployment reads its own name everywhere. Text about the
+platform itself, such as "Powered by OpenLMIS" or what a service account can call, keeps it.
+
+**Light or dark goes through `src/lib/appearance.ts`**, which replaces next-themes. It keeps
+the user's choice under the `theme` key; no choice follows the administrator's default
+appearance. Read it with `useResolvedAppearance()`.
+
+**A settings tab saves through `useConfigurationSave`**
+(`src/features/system-settings/hooks/use-configuration-save.ts`). It keeps the version the draft
+started from, so a refetch under unsaved changes turns the save into a conflict rather than a
+silent overwrite, and it keeps whatever part of a several-step save the server already stored.
+
+**A feature flag reads through `useFlag(key)`, or `getFlag(key)` outside React.** The
+administrator's value wins, then the deployment's `config.json`, then the code default.
+`getDeploymentFlags()` has no `import.meta.env` fallback, so `pnpm dev` sees only the defaults
+and the admin values. Adding a flag takes:
+
+1. An entry in `FEATURE_FLAGS` (`src/lib/feature-flags.ts`) with its type, default and
+   message keys, and those keys in every locale.
+2. A line in `docker/config.json.template`, its `export` and `envsubst` name in
+   `docker/entrypoint.sh`, and the variable in `docker-compose.yml`.
 
 ## Authentication
 

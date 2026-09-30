@@ -20,7 +20,12 @@ envsubst '${BASE_PREFIX}' < /etc/nginx/templates/default.conf.template > /etc/ng
 # import.meta.env at build time. Same idea as the legacy UI's openlmis.js.
 export AUTH_SERVER_CLIENT_ID="${AUTH_SERVER_CLIENT_ID:-}"
 export AUTH_SERVER_CLIENT_SECRET="${AUTH_SERVER_CLIENT_SECRET:-}"
-envsubst '${AUTH_SERVER_CLIENT_ID} ${AUTH_SERVER_CLIENT_SECRET}' \
+export BATCH_APPROVE_SCREEN="${BATCH_APPROVE_SCREEN:-}"
+export DEFAULT_QUANTITY_UNIT="${DEFAULT_QUANTITY_UNIT:-}"
+export GS1_SCANNING="${GS1_SCANNING:-}"
+export QUANTITY_UNIT_OPTION="${QUANTITY_UNIT_OPTION:-}"
+export SHOW_REQUISITION_LESS_ORDER="${SHOW_REQUISITION_LESS_ORDER:-}"
+envsubst '${AUTH_SERVER_CLIENT_ID} ${AUTH_SERVER_CLIENT_SECRET} ${BATCH_APPROVE_SCREEN} ${DEFAULT_QUANTITY_UNIT} ${GS1_SCANNING} ${QUANTITY_UNIT_OPTION} ${SHOW_REQUISITION_LESS_ORDER}' \
   < /opt/openlmis/config.json.template \
   > "/usr/share/nginx/html/${BASE_PREFIX}/config.json"
 

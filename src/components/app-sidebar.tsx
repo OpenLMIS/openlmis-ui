@@ -35,7 +35,8 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { getNavTrail, isNavParent } from '@/lib/config';
+import { useAppName, useShowAppName } from '@/lib/app-configuration';
+import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
@@ -44,6 +45,8 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
   const navGroups = useNavGroups();
+  const appName = useAppName();
+  const showAppName = useShowAppName();
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
   const isCollapsed = !isMobile && state === 'collapsed';
@@ -65,11 +68,20 @@ export function AppSidebar() {
         <Button
           nativeButton={false}
           render={<Link onClick={closeMobileSidebar} to="/home" />}
-          size={isCollapsed ? 'icon' : 'icon-lg'}
+          size={isCollapsed ? 'icon' : 'lg'}
           tone="sidebar"
           variant="ghost"
+          width="shrink"
         >
-          <Logo />
+          <Logo
+            alt={isCollapsed || !showAppName ? undefined : ''}
+            className={isCollapsed || showAppName ? undefined : 'h-6 max-w-44'}
+          />
+          {!isCollapsed && showAppName && (
+            <span className="truncate font-semibold" dir="auto">
+              {appName}
+            </span>
+          )}
         </Button>
         <CustomTrigger place="sidebar" />
       </SidebarHeader>
@@ -158,7 +170,7 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        isActive={pathname === item.to}
+        isActive={isNavActive(pathname, item.to)}
         render={<Link onClick={onNavigate} to={item.to} />}
         tooltip={title}
       >
@@ -195,7 +207,7 @@ function NavCollapsible({
           {item.items.map((child) => (
             <SidebarMenuSubItem key={child.titleKey}>
               <SidebarMenuSubButton
-                isActive={pathname === child.to}
+                isActive={isNavActive(pathname, child.to)}
                 render={<Link onClick={onNavigate} to={child.to} />}
               >
                 {child.icon && <child.icon />}

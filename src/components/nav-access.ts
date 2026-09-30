@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import type { ParseKeys } from 'i18next';
+import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
@@ -49,8 +51,24 @@ export function useNavGroups() {
   return useMemo(() => navWithinRights(LIVE_NAV_GROUPS, rights), [rights]);
 }
 
+export function useHasRight(right: string) {
+  return useSignedInRights()?.has(right) ?? false;
+}
+
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
   const rights = useSignedInRights();
   return (to: LiveNavLink['to']) => canOpen(to, rights);
+}
+
+export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; icon: LucideIcon };
+
+export function useAccountLinks(): AccountLink[] {
+  const canManageSettings = useHasRight(RIGHTS.systemSettingsManage);
+  return [
+    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
+    ...(canManageSettings
+      ? [{ titleKey: 'nav-user.settings', to: '/settings', icon: SettingsIcon } as const]
+      : []),
+  ];
 }

@@ -1,7 +1,6 @@
 import '@/globals.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
-import { ThemeProvider } from 'next-themes';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TextDirectionProvider } from '@/components/text-direction';
@@ -10,6 +9,8 @@ import { syncLegacySession, syncOtherTab } from '@/features/auth/store/login-dat
 import { initI18n } from '@/integrations/i18n';
 import { queryClient } from '@/integrations/tanstack-query';
 import { router } from '@/integrations/tanstack-router';
+import { loadAppConfiguration } from '@/lib/app-configuration';
+import { startApplyingAppConfiguration } from '@/lib/apply-app-configuration';
 import { seedOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
@@ -19,7 +20,9 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
 
 seedOnline();
-await Promise.all([initI18n(), loadRuntimeConfig()]);
+await Promise.all([initI18n(), loadRuntimeConfig(), loadAppConfiguration()]);
+
+startApplyingAppConfiguration();
 
 // Before the router guards read the store, so a legacy session lands on /home.
 syncLegacySession();
@@ -34,13 +37,11 @@ registerServiceWorker();
 createRoot(root, { onCaughtError: reportCaughtError }).render(
   <StrictMode>
     <TextDirectionProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <RouterProvider router={router} />
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
+      </QueryClientProvider>
     </TextDirectionProvider>
   </StrictMode>,
 );

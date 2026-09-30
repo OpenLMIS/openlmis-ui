@@ -9,12 +9,19 @@
 type RuntimeConfig = {
   authServerClientId?: string;
   authServerClientSecret?: string;
+  featureFlags: Record<string, unknown>;
 };
 
-let runtimeConfig: RuntimeConfig = {};
+let runtimeConfig: RuntimeConfig = { featureFlags: {} };
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 export async function loadRuntimeConfig(): Promise<void> {
@@ -25,10 +32,14 @@ export async function loadRuntimeConfig(): Promise<void> {
     const parsed: unknown = await response.json();
     if (typeof parsed !== 'object' || parsed === null) return;
 
-    const { authServerClientId, authServerClientSecret } = parsed as Record<string, unknown>;
+    const { authServerClientId, authServerClientSecret, featureFlags } = parsed as Record<
+      string,
+      unknown
+    >;
     runtimeConfig = {
       authServerClientId: asString(authServerClientId),
       authServerClientSecret: asString(authServerClientSecret),
+      featureFlags: asRecord(featureFlags),
     };
   } catch {
     window.addEventListener('online', () => void loadRuntimeConfig(), { once: true });
@@ -41,4 +52,8 @@ export function getAuthClientCredentials(): { clientId?: string; clientSecret?: 
     clientSecret:
       runtimeConfig.authServerClientSecret || import.meta.env.VITE_AUTH_SERVER_CLIENT_SECRET,
   };
+}
+
+export function getDeploymentFlags(): Record<string, unknown> {
+  return runtimeConfig.featureFlags;
 }

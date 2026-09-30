@@ -18,9 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import { saveSubscriptions } from '@/features/profile/api/api';
 import { digestConfigurationsOptions, subscriptionsOptions } from '@/features/profile/api/queries';
-import { ProfileFooter } from '@/features/profile/components/profile-workspace';
 import {
   countDigestChanges,
   type DigestRow,
@@ -157,7 +157,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
   return (
     <>
       {savedRows.length > 0 && (
-        <ProfileFooter>
+        <WorkspaceFooterPortal>
           <Button
             disabled={changes === 0 || save.isPending}
             onClick={() => {
@@ -173,7 +173,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
             {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
             {t('profile.notifications.save')}
           </Button>
-        </ProfileFooter>
+        </WorkspaceFooterPortal>
       )}
       {rows.length === 0 ? (
         <DataTableCard>
@@ -332,12 +332,11 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
             </Table>
           </DataTableCard>
           {rows.some((row) => row.useDigest) && (
-            <div className="flex flex-col gap-1 text-muted-foreground text-sm">
-              <p>{t('profile.notifications.digest-email-only')}</p>
-              {rows.some((row) => row.useDigest && row.schedule.frequency === 'custom') && (
-                <p>{t('profile.notifications.cron-description', { example: CRON_EXAMPLE })}</p>
-              )}
-            </div>
+            <p className="text-muted-foreground text-sm">
+              {rows.some((row) => row.useDigest && row.schedule.frequency === 'custom')
+                ? t('profile.notifications.digest-hint', { example: CRON_EXAMPLE })
+                : t('profile.notifications.digest-email-only')}
+            </p>
           )}
         </form>
       )}
