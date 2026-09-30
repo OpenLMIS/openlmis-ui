@@ -18,6 +18,7 @@ export async function updateAppConfiguration(
 ): Promise<AppConfigurationDto> {
   const body: EditableSettings = {
     appName: saved.appName,
+    showAppName: saved.showAppName,
     theme: saved.theme,
     featureFlags: saved.featureFlags,
     ...changes,
@@ -55,7 +56,12 @@ export async function saveBranding(
     try {
       if (step.kind === 'upload') current = await uploadLogo(current, step.file);
       else if (step.kind === 'remove-logo') current = await removeLogo(current);
-      else current = await updateAppConfiguration(current, { appName: step.appName });
+      else {
+        current = await updateAppConfiguration(current, {
+          appName: step.appName,
+          showAppName: step.showAppName,
+        });
+      }
     } catch (error) {
       throw current === saved ? error : new PartialSaveError(current, error);
     }

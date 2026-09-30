@@ -15,6 +15,7 @@ const appearanceSchema = z.enum(APPEARANCES);
 const configurationSchema = z.object({
   version: z.number().int().nonnegative().catch(0),
   appName: z.string().trim().min(1).max(64).nullable().catch(null),
+  showAppName: z.boolean().catch(true),
   logo: z
     .object({
       url: z.string().regex(/^\/(?!\/)/),
@@ -118,6 +119,10 @@ export function getLogoUrl(configuration: AppConfiguration): string {
 
 export function useAppName(): string {
   return useAppConfigurationStore((state) => getAppName(state.configuration));
+}
+
+export function useShowAppName(): boolean {
+  return useAppConfigurationStore((state) => state.configuration.showAppName);
 }
 
 export function useLogoUrl(): string {

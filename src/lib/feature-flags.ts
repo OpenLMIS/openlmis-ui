@@ -6,7 +6,6 @@ type FlagText = {
   labelKey: ParseKeys;
   descriptionKey: ParseKeys;
   usedByKey: ParseKeys;
-  inNewUi: boolean;
 };
 type BooleanFlag = FlagText & { type: 'boolean'; default: boolean };
 type EnumFlag<Option extends string = string> = FlagText & {
@@ -35,7 +34,6 @@ export const FEATURE_FLAGS = {
     labelKey: 'feature-flags.batch-approve-screen.label',
     descriptionKey: 'feature-flags.batch-approve-screen.description',
     usedByKey: 'feature-flags.batch-approve-screen.used-by',
-    inNewUi: false,
   },
   DEFAULT_QUANTITY_UNIT: enumFlag({
     options: ['PACKS', 'DOSES'],
@@ -44,7 +42,6 @@ export const FEATURE_FLAGS = {
     labelKey: 'feature-flags.default-quantity-unit.label',
     descriptionKey: 'feature-flags.default-quantity-unit.description',
     usedByKey: 'feature-flags.default-quantity-unit.used-by',
-    inNewUi: false,
   }),
   GS1_SCANNING: {
     type: 'boolean',
@@ -52,7 +49,6 @@ export const FEATURE_FLAGS = {
     labelKey: 'feature-flags.gs1-scanning.label',
     descriptionKey: 'feature-flags.gs1-scanning.description',
     usedByKey: 'feature-flags.gs1-scanning.used-by',
-    inNewUi: false,
   },
   QUANTITY_UNIT_OPTION: enumFlag({
     options: ['PACKS', 'DOSES', 'BOTH'],
@@ -61,7 +57,6 @@ export const FEATURE_FLAGS = {
     labelKey: 'feature-flags.quantity-unit-option.label',
     descriptionKey: 'feature-flags.quantity-unit-option.description',
     usedByKey: 'feature-flags.quantity-unit-option.used-by',
-    inNewUi: false,
   }),
   SHOW_REQUISITION_LESS_ORDER: {
     type: 'boolean',
@@ -69,7 +64,6 @@ export const FEATURE_FLAGS = {
     labelKey: 'feature-flags.show-requisition-less-order.label',
     descriptionKey: 'feature-flags.show-requisition-less-order.description',
     usedByKey: 'feature-flags.show-requisition-less-order.used-by',
-    inNewUi: false,
   },
 } as const satisfies Record<string, BooleanFlag | EnumFlag>;
 

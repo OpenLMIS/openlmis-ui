@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { WorkspaceActionsPortal } from '@/components/workspace-tabs';
 
 type ResetDialogProps = {
   open: boolean;
@@ -56,5 +57,29 @@ export function ResetDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+type ResetActionProps = {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+};
+
+export function ResetAction({ label, disabled, onClick }: ResetActionProps) {
+  return (
+    <WorkspaceActionsPortal>
+      <Button
+        disabled={disabled}
+        focusableWhenDisabled
+        onClick={onClick}
+        size="lg"
+        type="button"
+        variant="outline"
+      >
+        <RotateCcwIcon data-icon="inline-start" />
+        {label}
+      </Button>
+    </WorkspaceActionsPortal>
   );
 }

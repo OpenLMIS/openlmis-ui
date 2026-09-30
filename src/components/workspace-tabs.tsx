@@ -2,7 +2,7 @@ import { Link, type LinkProps, useLocation } from '@tanstack/react-router';
 import { createContext, type ReactNode, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { WorkspaceFooter } from '@/components/workspace';
+import { WorkspaceActions, WorkspaceFooter } from '@/components/workspace';
 
 type WorkspaceTab = { to: NonNullable<LinkProps['to']>; label: string };
 
@@ -38,21 +38,38 @@ export function WorkspaceTabs({ label, tabs, children }: WorkspaceTabsProps) {
   );
 }
 
-const FooterSlot = createContext<HTMLElement | null>(null);
+type Slots = {
+  footer: HTMLElement | null;
+  actions: HTMLElement | null;
+  setActions: (element: HTMLElement | null) => void;
+};
 
-export function WorkspaceFooterScope({ children }: { children: ReactNode }) {
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
+const SlotsContext = createContext<Slots>({ footer: null, actions: null, setActions: () => {} });
+
+export function WorkspaceSlots({ children }: { children: ReactNode }) {
+  const [footer, setFooter] = useState<HTMLElement | null>(null);
+  const [actions, setActions] = useState<HTMLElement | null>(null);
   return (
-    <FooterSlot value={slot}>
+    <SlotsContext value={{ footer, actions, setActions }}>
       {children}
-      <div className="contents" ref={setSlot} />
-    </FooterSlot>
+      <div className="contents" ref={setFooter} />
+    </SlotsContext>
   );
 }
 
+export function WorkspaceActionsSlot() {
+  const { setActions } = useContext(SlotsContext);
+  return <div className="contents" ref={setActions} />;
+}
+
+export function WorkspaceActionsPortal({ children }: { children: ReactNode }) {
+  const { actions } = useContext(SlotsContext);
+  return actions ? createPortal(<WorkspaceActions>{children}</WorkspaceActions>, actions) : null;
+}
+
 export function WorkspaceFooterPortal({ children }: { children: ReactNode }) {
-  const slot = useContext(FooterSlot);
-  return slot
-    ? createPortal(<WorkspaceFooter width="narrow">{children}</WorkspaceFooter>, slot)
+  const { footer } = useContext(SlotsContext);
+  return footer
+    ? createPortal(<WorkspaceFooter width="narrow">{children}</WorkspaceFooter>, footer)
     : null;
 }

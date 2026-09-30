@@ -1,14 +1,12 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { RotateCcwIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { SettingsList } from '@/components/form/settings-list';
-import { Button } from '@/components/ui/button';
 import { saveBranding } from '@/features/system-settings/api/api';
 import { BrandingPreview } from '@/features/system-settings/components/branding-preview';
-import { ResetDialog } from '@/features/system-settings/components/reset-dialog';
+import { ResetAction, ResetDialog } from '@/features/system-settings/components/reset-dialog';
 import {
   SaveFeedback,
   SettingsSaveFooter,
@@ -20,12 +18,14 @@ import {
   brandingSteps,
   LOGO_TYPES,
   logoSchema,
+  MAX_APP_NAME_LENGTH,
   resetBrandingSteps,
   toBrandingValues,
 } from '@/features/system-settings/lib/branding';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { DEFAULT_LOGO_URL, getLogoUrl } from '@/lib/app-configuration';
+import { appConfig } from '@/lib/config';
 
 const FORM_ID = 'branding-form';
 
@@ -87,6 +87,11 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
 
   return (
     <>
+      <ResetAction
+        disabled={settings.blocked || resetBrandingSteps(settings.base).length === 0}
+        label={t('system-settings.branding.reset')}
+        onClick={() => setResetOpen(true)}
+      />
       <SettingsSaveFooter
         canSave={settings.canSave}
         form={FORM_ID}
@@ -104,7 +109,8 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
                   disabled={settings.pending}
                   label={t('system-settings.branding.name-label')}
                   layout="row"
-                  required
+                  maxLength={MAX_APP_NAME_LENGTH}
+                  placeholder={appConfig.BRAND}
                 />
               )}
             </form.AppField>
@@ -126,21 +132,23 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
                 />
               )}
             </form.AppField>
+            <form.AppField name="showAppName">
+              {(field) => (
+                <field.SwitchField
+                  description={t('system-settings.branding.show-name-description')}
+                  disabled={settings.pending}
+                  label={t('system-settings.branding.show-name-label')}
+                  layout="row"
+                />
+              )}
+            </form.AppField>
           </SettingsList>
         </form>
-        <BrandingPreview appName={values.appName} logoUrl={logoUrl} />
-        <div>
-          <Button
-            disabled={settings.blocked || resetBrandingSteps(settings.base).length === 0}
-            focusableWhenDisabled
-            onClick={() => setResetOpen(true)}
-            type="button"
-            variant="outline"
-          >
-            <RotateCcwIcon data-icon="inline-start" />
-            {t('system-settings.branding.reset')}
-          </Button>
-        </div>
+        <BrandingPreview
+          appName={values.appName}
+          logoUrl={logoUrl}
+          showAppName={values.showAppName}
+        />
       </div>
       <ResetDialog
         confirmLabel={t('system-settings.branding.reset-confirm')}

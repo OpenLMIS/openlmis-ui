@@ -1,10 +1,18 @@
 import { useStore } from '@tanstack/react-form';
-import { useTranslation } from 'react-i18next';
+import { InfoIcon, RotateCcwIcon } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { SettingsList } from '@/components/form/settings-list';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { updateAppConfiguration } from '@/features/system-settings/api/api';
 import {
   SaveFeedback,
@@ -26,17 +34,41 @@ import {
   FEATURE_FLAGS,
   type FeatureFlagDefinition,
   type FeatureFlagKey,
-  type FeatureFlagSource,
 } from '@/lib/feature-flags';
 import { getDeploymentFlags } from '@/lib/runtime-config';
 
 const FORM_ID = 'feature-flags-form';
 
-const SOURCE_LABELS = {
-  admin: 'system-settings.flags.source.admin',
-  deployment: 'system-settings.flags.source.deployment',
-  default: 'system-settings.flags.source.default',
-} as const satisfies Record<FeatureFlagSource, string>;
+type FlagAboutProps = { label: string; definition: FeatureFlagDefinition };
+
+function FlagAbout({ label, definition }: FlagAboutProps) {
+  const { t } = useTranslation();
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            aria-label={t('system-settings.flags.about-label', { name: label })}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          />
+        }
+      >
+        <InfoIcon />
+      </PopoverTrigger>
+      <PopoverContent align="start">
+        <PopoverHeader>
+          <PopoverTitle>{label}</PopoverTitle>
+          <PopoverDescription>{t(definition.descriptionKey)}</PopoverDescription>
+        </PopoverHeader>
+        <p className="text-sm">
+          {t('system-settings.flags.used-by', { screen: t(definition.usedByKey) })}
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) {
   const { t } = useTranslation();
@@ -100,11 +132,42 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
                 >
                   {(field) => {
                     const source = flagSource(flag, values[flag], deployment);
+                    const inherited = inheritedFlagValue(flag, deployment);
+                    const inheritedLabel =
+                      typeof inherited === 'boolean'
+                        ? t(inherited ? 'system-settings.flags.on' : 'system-settings.flags.off')
+                        : definition.type === 'enum'
+                          ? t(definition.optionKeys[inherited])
+                          : inherited;
+                    const inheritedFrom = flagSource(
+                      flag,
+                      { ...values[flag], overridden: false },
+                      deployment,
+                    );
                     const shared = {
-                      badge: (
-                        <Badge variant={source === 'admin' ? 'info' : 'secondary'}>
-                          {t(SOURCE_LABELS[source])}
-                        </Badge>
+                      hint: <FlagAbout definition={definition} label={label} />,
+                      description: (
+                        <>
+                          <code className="font-mono text-xs" dir="ltr">
+                            {flag}
+                          </code>
+                          {source === 'deployment' &&
+                            ` · ${t('system-settings.flags.from-deployment')}`}
+                          {source === 'admin' && (
+                            <span className="block text-primary">
+                              <Trans
+                                components={{ value: <span className="font-semibold" /> }}
+                                i18nKey={
+                                  inheritedFrom === 'deployment'
+                                    ? 'system-settings.flags.changed-deployment'
+                                    : 'system-settings.flags.changed-default'
+                                }
+                                t={t}
+                                values={{ value: inheritedLabel }}
+                              />
+                            </span>
+                          )}
+                        </>
                       ),
                       action: source === 'admin' && (
                         <Button
@@ -113,39 +176,38 @@ export function FeatureFlagsSettings({ saved }: { saved: AppConfigurationDto }) 
                           onClick={(event) =>
                             resetFlag(flag, event.currentTarget.closest('[data-slot="field"]'))
                           }
-                          size="sm"
+                          size="xs"
                           type="button"
-                          variant="ghost"
+                          variant="destructive"
                         >
+                          <RotateCcwIcon data-icon="inline-start" />
                           {t('system-settings.flags.reset')}
                         </Button>
-                      ),
-                      description: (
-                        <>
-                          {t(definition.descriptionKey)}{' '}
-                          {t('system-settings.flags.used-by', { screen: t(definition.usedByKey) })}
-                          {!definition.inNewUi && ` ${t('system-settings.flags.not-in-new-ui')}`}
-                          <span className="block">
-                            <code className="font-mono text-xs" dir="ltr">
-                              {flag}
-                            </code>
-                          </span>
-                        </>
                       ),
                       disabled: settings.pending,
                       label,
                       layout: 'row' as const,
                     };
-                    return definition.type === 'boolean' ? (
-                      <field.SwitchField {...shared} />
-                    ) : (
-                      <field.SelectField
-                        {...shared}
-                        items={definition.options.map((option) => ({
-                          value: option,
-                          label: t(definition.optionKeys[option]),
-                        }))}
-                      />
+                    return (
+                      <div className="relative">
+                        {source === 'admin' && (
+                          <span
+                            aria-hidden
+                            className="absolute inset-y-3 start-0 w-0.5 rounded-full bg-primary"
+                          />
+                        )}
+                        {definition.type === 'boolean' ? (
+                          <field.SwitchField {...shared} />
+                        ) : (
+                          <field.SelectField
+                            {...shared}
+                            items={definition.options.map((option) => ({
+                              value: option,
+                              label: t(definition.optionKeys[option]),
+                            }))}
+                          />
+                        )}
+                      </div>
                     );
                   }}
                 </form.AppField>

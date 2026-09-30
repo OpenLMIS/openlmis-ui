@@ -40,9 +40,10 @@ afterEach(() => {
 
 describe('parseAppConfiguration', () => {
   it('keeps every valid field', () => {
-    expect(parseAppConfiguration(stored)).toEqual({
+    expect(parseAppConfiguration({ ...stored, showAppName: false })).toEqual({
       version: 4,
       appName: 'SIGECA',
+      showAppName: false,
       logo: { url: '/api/appConfiguration/logo?v=abc', contentType: 'image/webp' },
       theme: { preset: 'teal', defaultAppearance: 'dark' },
       featureFlags: { BATCH_APPROVE_SCREEN: true },
@@ -55,11 +56,13 @@ describe('parseAppConfiguration', () => {
       logo: { url: 'https://elsewhere.example/logo.png', contentType: 'image/png' },
       theme: { preset: 'teal', defaultAppearance: 'sepia' },
       featureFlags: 'on',
+      showAppName: 'no',
     });
 
     expect(parsed).toEqual({
       version: 0,
       appName: 'SIGECA',
+      showAppName: true,
       logo: null,
       theme: { preset: 'teal', defaultAppearance: null },
       featureFlags: {},

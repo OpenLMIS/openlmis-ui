@@ -370,15 +370,18 @@ that sticks to the bottom of the window, with Cancel at the start and Save at th
 opened from, with its page, sort and filters, which the opening link passes in history
 state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
 the saved values back and Save stays. Pages that share a header across tabs, like Profile,
-render it once in the layout route through `WorkspaceTabs` and put the footer in with
-`WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch never remounts
-the header. Toasts rise above the footer while it is on screen.
+render it once in the layout route through `WorkspaceTabs` inside `WorkspaceSlots`, and put
+the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch
+never remounts the header. A tab's own header button, such as Reset To Defaults on System
+Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts rise above the footer while it is on screen.
 
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
-A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
+A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb. The account
+menu, not the sidebar, opens Profile and System Settings (`/settings`); an entry there that needs
+a right checks it with `useHasRight()` from `src/components/nav-access.ts`.
 They are hidden on Home and on pages outside the nav without one. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
@@ -490,8 +493,11 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
-`SelectTrigger width`. `SwitchField` and `SelectField` take an optional `badge` beside the label
-and an `action` beside the value, such as a flag's source and its Reset.
+`SelectTrigger width`. In a row, `SwitchField` and `SelectField` take a `badge`, then a `hint` and
+an `action` after it in the label's row, such as a flag's info button and Reset. A select's list
+opens below its input, never over it: `alignItemWithTrigger` is `false`.
+`RadioGroupField` takes `variant="tile"` with `columns="tiles"` for a grid of small options such
+as colours, and `columns="row"` to keep a few options on one line.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 

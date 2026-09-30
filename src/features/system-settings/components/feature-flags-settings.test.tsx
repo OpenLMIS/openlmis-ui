@@ -1,7 +1,9 @@
 import { QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { updateAppConfiguration } from '@/features/system-settings/api/api';
 import { appConfigurationOptions } from '@/features/system-settings/api/queries';
 import { FeatureFlagsSettings } from '@/features/system-settings/components/feature-flags-settings';
@@ -37,6 +39,10 @@ const batch = () =>
   screen.findByRole('switch', { name: /feature-flags.batch-approve-screen.label/ });
 const saveButton = () => screen.getByRole('button', { name: 'system-settings.save' });
 
+beforeAll(async () => {
+  await i18n.use(initReactI18next).init({ lng: 'en', resources: {} });
+});
+
 beforeEach(() => vi.resetAllMocks());
 
 describe('FeatureFlagsSettings', () => {
@@ -45,12 +51,12 @@ describe('FeatureFlagsSettings', () => {
 
     expect(
       await screen.findByRole('switch', { name: /feature-flags.gs1-scanning.label/ }),
-    ).toHaveAccessibleDescription(/system-settings.flags.source.deployment/);
-    expect(await batch()).toHaveAccessibleDescription(/system-settings.flags.source.default/);
+    ).toHaveAccessibleDescription(/system-settings.flags.from-deployment/);
+    expect(await batch()).toHaveAccessibleDescription('BATCH_APPROVE_SCREEN');
 
     await userEvent.click(await batch());
 
-    expect(await batch()).toHaveAccessibleDescription(/system-settings.flags.source.admin/);
+    expect(await batch()).toHaveAccessibleDescription(/system-settings.flags.changed-default/);
     const reset = screen.getByRole('button', { name: 'system-settings.flags.reset-label' });
 
     await userEvent.click(reset);
@@ -65,20 +71,46 @@ describe('FeatureFlagsSettings', () => {
     renderFlags(saved);
     const gs1 = () => screen.findByRole('switch', { name: /feature-flags.gs1-scanning.label/ });
 
-    expect(await gs1()).toHaveAccessibleDescription(/system-settings.flags.source.admin/);
+    expect(await gs1()).toHaveAccessibleDescription(/system-settings.flags.changed-deployment/);
     expect(saveButton()).toBeDisabled();
 
     await userEvent.click(
       screen.getByRole('button', { name: 'system-settings.flags.reset-label' }),
     );
 
-    expect(await gs1()).toHaveAccessibleDescription(/system-settings.flags.source.deployment/);
+    expect(await gs1()).toHaveAccessibleDescription(/system-settings.flags.from-deployment/);
     expect(await gs1()).toHaveFocus();
     await userEvent.click(saveButton());
 
     await waitFor(() =>
       expect(updateAppConfiguration).toHaveBeenCalledWith(saved, { featureFlags: {} }),
     );
+  });
+
+  it('keeps what each flag does behind its info button', async () => {
+    renderFlags();
+    await batch();
+
+    expect(
+      screen.queryByText('feature-flags.batch-approve-screen.description'),
+    ).not.toBeInTheDocument();
+
+    const info = screen.getAllByRole('button', {
+      name: 'system-settings.flags.about-label',
+    })[0] as HTMLElement;
+
+    await userEvent.click(info);
+
+    const about = await screen.findByRole('dialog');
+    expect(about).toHaveTextContent('feature-flags.batch-approve-screen.description');
+    expect(about).toHaveTextContent('system-settings.flags.used-by');
+    expect(about).not.toHaveTextContent('system-settings.flags.not-in-new-ui');
+  });
+
+  it('shows each flag key under its name', async () => {
+    renderFlags();
+
+    expect(await batch()).toHaveAccessibleDescription(/BATCH_APPROVE_SCREEN/);
   });
 
   it('saves only what differs from what each flag inherits', async () => {

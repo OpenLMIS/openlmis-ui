@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { LogOutIcon, UserIcon } from 'lucide-react';
+import { LogOutIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useHasRight } from '@/components/nav-access';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
@@ -31,6 +33,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
   const username = useLoginData((state) => state.username);
   const referenceDataUserId = useLoginData((state) => state.referenceDataUserId);
 
+  const canManageSettings = useHasRight(RIGHTS.systemSettingsManage);
   const offlineSignOut = useOfflineSignOut();
 
   const handleLogout = async () => {
@@ -50,6 +53,12 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
               <UserIcon />
               {t('nav-user.account')}
             </DropdownMenuItem>
+            {canManageSettings && (
+              <DropdownMenuItem render={<Link to="/settings" />}>
+                <SettingsIcon />
+                {t('nav-user.settings')}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem

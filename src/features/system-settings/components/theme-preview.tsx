@@ -1,18 +1,32 @@
+import { BellIcon } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { THEME_PRESETS, type ThemePresetName } from '@/lib/theme-presets';
 
 const CHART_COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'];
-const CHART_HEIGHTS = ['h-4', 'h-6', 'h-9', 'h-7', 'h-10'];
+const CHART_BARS = [
+  'h-6 bg-chart-1',
+  'h-9 bg-chart-2',
+  'h-7 bg-chart-3',
+  'h-12 bg-chart-4',
+  'h-10 bg-chart-5',
+  'h-14 bg-chart-1',
+  'h-8 bg-chart-2',
+  'h-11 bg-chart-3',
+  'h-9 bg-chart-4',
+  'h-13 bg-chart-5',
+];
 
 export function ThemeSwatch({ preset }: { preset: ThemePresetName }) {
   const tokens = THEME_PRESETS[preset].light;
   return (
     <span
       aria-hidden
-      className="flex shrink-0 overflow-hidden rounded-md border"
+      className="flex h-12 w-full flex-col overflow-hidden rounded-md border"
       style={
         {
           '--primary': tokens.primary,
@@ -24,10 +38,12 @@ export function ThemeSwatch({ preset }: { preset: ThemePresetName }) {
         } as CSSProperties
       }
     >
-      <span className="size-6 bg-primary" />
-      {CHART_COLORS.map((color) => (
-        <span className={`h-6 w-2 ${color}`} key={color} />
-      ))}
+      <span className="flex-1 bg-primary" />
+      <span className="flex h-2.5">
+        {CHART_COLORS.map((color) => (
+          <span className={`flex-1 ${color}`} key={color} />
+        ))}
+      </span>
     </span>
   );
 }
@@ -46,7 +62,7 @@ function PreviewPanel({ preset, mode }: { preset: ThemePresetName; mode: 'light'
       </figcaption>
       <div aria-hidden className={mode} inert>
         <div
-          className="flex flex-col gap-3 rounded-xl border bg-background p-4 text-foreground"
+          className="flex flex-col gap-4 rounded-xl border bg-background p-4 text-foreground"
           style={
             {
               '--primary': tokens.primary,
@@ -59,18 +75,35 @@ function PreviewPanel({ preset, mode }: { preset: ThemePresetName; mode: 'light'
             } as CSSProperties
           }
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" type="button">
-              {t('system-settings.save')}
-            </Button>
-            <Button size="sm" type="button" variant="outline">
-              {t('system-settings.cancel')}
-            </Button>
-            <Badge>{t('system-settings.theme.preview-badge')}</Badge>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Button size="sm" type="button">
+                {t('system-settings.save')}
+              </Button>
+              <Button size="sm" type="button" variant="outline">
+                {t('system-settings.cancel')}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge>{t('system-settings.theme.preview-badge')}</Badge>
+              <span className="relative">
+                <Button size="icon-sm" type="button" variant="secondary">
+                  <BellIcon />
+                </Button>
+                <span className="absolute -top-0.5 -end-0.5 size-2 rounded-full bg-primary ring-2 ring-background" />
+              </span>
+            </div>
           </div>
-          <div className="flex h-10 items-end gap-1.5">
-            {CHART_COLORS.map((color, step) => (
-              <span className={`w-5 rounded-t-sm ${CHART_HEIGHTS[step]} ${color}`} key={color} />
+          <div className="flex items-center gap-3">
+            <Switch checked />
+            <Switch checked={false} />
+            <div className="flex-1">
+              <Progress value={64} />
+            </div>
+          </div>
+          <div className="flex h-14 items-end gap-1.5 border-b pb-px">
+            {CHART_BARS.map((bar) => (
+              <span className={`flex-1 rounded-t-sm ${bar}`} key={bar} />
             ))}
           </div>
         </div>
@@ -86,7 +119,7 @@ export function ThemePreview({ preset }: { preset: ThemePresetName }) {
       <h2 className="font-medium text-sm" id="theme-preview-title">
         {t('system-settings.theme.preview-title')}
       </h2>
-      <div className="grid gap-3 @xl/main:grid-cols-2">
+      <div className="grid gap-4 @xl/main:grid-cols-2">
         <PreviewPanel mode="light" preset={preset} />
         <PreviewPanel mode="dark" preset={preset} />
       </div>

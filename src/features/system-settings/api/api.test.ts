@@ -22,6 +22,7 @@ const remove = vi.mocked(client.delete);
 const saved: AppConfigurationDto = {
   version: 3,
   appName: 'SIGECA',
+  showAppName: true,
   logo: null,
   theme: { preset: 'teal', defaultAppearance: 'dark' },
   featureFlags: { GS1_SCANNING: true },
@@ -67,6 +68,7 @@ describe('updateAppConfiguration', () => {
       '/appConfiguration',
       {
         appName: 'Malawi LMIS',
+        showAppName: saved.showAppName,
         theme: saved.theme,
         featureFlags: saved.featureFlags,
       },
@@ -110,7 +112,7 @@ describe('saveBranding', () => {
 
     const result = await saveBranding(saved, [
       { kind: 'upload', file },
-      { kind: 'update', appName: 'New' },
+      { kind: 'update', appName: 'New', showAppName: true },
     ]);
 
     expect(put.mock.calls[0]?.[2]).toMatchObject({ headers: { 'If-Match': 'W/"3"' } });
@@ -130,7 +132,7 @@ describe('saveBranding', () => {
 
     const error = await saveBranding(saved, [
       { kind: 'upload', file },
-      { kind: 'update', appName: 'New' },
+      { kind: 'update', appName: 'New', showAppName: true },
     ]).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(PartialSaveError);
@@ -141,6 +143,8 @@ describe('saveBranding', () => {
     const failure = new Error('offline');
     put.mockRejectedValueOnce(failure);
 
-    await expect(saveBranding(saved, [{ kind: 'update', appName: 'New' }])).rejects.toBe(failure);
+    await expect(
+      saveBranding(saved, [{ kind: 'update', appName: 'New', showAppName: true }]),
+    ).rejects.toBe(failure);
   });
 });

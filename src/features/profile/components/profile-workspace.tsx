@@ -14,7 +14,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { WorkspaceFooterScope, WorkspaceTabs } from '@/components/workspace-tabs';
+import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
 
 const PROFILE_TABS = [
@@ -35,7 +35,7 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
   const { t } = useTranslation();
 
   return (
-    <WorkspaceFooterScope>
+    <WorkspaceSlots>
       <Workspace width="narrow">
         <WorkspaceHeader>
           <WorkspaceHeading>
@@ -82,6 +82,6 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
           </WorkspaceTabs>
         </WorkspaceContent>
       </Workspace>
-    </WorkspaceFooterScope>
+    </WorkspaceSlots>
   );
 }

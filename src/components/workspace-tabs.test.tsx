@@ -8,8 +8,10 @@ import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 import {
+  WorkspaceActionsPortal,
+  WorkspaceActionsSlot,
   WorkspaceFooterPortal,
-  WorkspaceFooterScope,
+  WorkspaceSlots,
   WorkspaceTabs,
 } from '@/components/workspace-tabs';
 
@@ -62,16 +64,37 @@ describe('WorkspaceFooterPortal', () => {
   it('puts a tab footer after the page, outside it', async () => {
     renderAt(
       '/',
-      <WorkspaceFooterScope>
+      <WorkspaceSlots>
         <main>
           <WorkspaceFooterPortal>
             <button type="button">Save</button>
           </WorkspaceFooterPortal>
         </main>
-      </WorkspaceFooterScope>,
+      </WorkspaceSlots>,
     );
 
     const save = await screen.findByRole('button', { name: 'Save' });
     expect(screen.getByRole('main')).not.toContainElement(save);
+  });
+});
+
+describe('WorkspaceActionsPortal', () => {
+  it("puts a tab's actions in the shared page header", async () => {
+    renderAt(
+      '/',
+      <WorkspaceSlots>
+        <header>
+          <WorkspaceActionsSlot />
+        </header>
+        <main>
+          <WorkspaceActionsPortal>
+            <button type="button">Reset</button>
+          </WorkspaceActionsPortal>
+        </main>
+      </WorkspaceSlots>,
+    );
+
+    const reset = await screen.findByRole('button', { name: 'Reset' });
+    expect(screen.getByRole('banner')).toContainElement(reset);
   });
 });

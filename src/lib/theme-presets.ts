@@ -61,11 +61,23 @@ function fromBlue(hue: number, chromaScale = 1): ThemePreset {
 
 export const THEME_PRESETS = {
   blue: BLUE,
-  teal: fromBlue(195),
-  green: fromBlue(150),
+  sapphire: fromBlue(258),
   indigo: fromBlue(275),
   purple: fromBlue(295),
+  fuchsia: fromBlue(322, 0.75),
+  pink: fromBlue(350, 0.7),
+  rose: fromBlue(12, 0.7),
+  red: fromBlue(27, 0.8),
+  orange: fromBlue(48),
+  amber: fromBlue(75),
+  olive: fromBlue(125, 0.7),
+  green: fromBlue(150),
+  emerald: fromBlue(172),
+  teal: fromBlue(195),
+  cyan: fromBlue(215),
+  brown: fromBlue(55, 0.45),
   slate: fromBlue(255, 0.3),
+  graphite: fromBlue(255, 0),
 } satisfies Record<string, ThemePreset>;
 
 export type ThemePresetName = keyof typeof THEME_PRESETS;

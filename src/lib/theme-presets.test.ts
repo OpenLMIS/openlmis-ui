@@ -25,6 +25,29 @@ describe('presetName', () => {
 });
 
 describe('THEME_PRESETS', () => {
+  it('offers eighteen presets, blue first', () => {
+    expect(Object.keys(THEME_PRESETS)).toEqual([
+      'blue',
+      'sapphire',
+      'indigo',
+      'purple',
+      'fuchsia',
+      'pink',
+      'rose',
+      'red',
+      'orange',
+      'amber',
+      'olive',
+      'green',
+      'emerald',
+      'teal',
+      'cyan',
+      'brown',
+      'slate',
+      'graphite',
+    ]);
+  });
+
   it('gives every preset every token in both modes', () => {
     for (const preset of Object.values(THEME_PRESETS)) {
       expect(Object.keys(preset.light).sort()).toEqual([...THEME_TOKENS].sort());
@@ -61,17 +84,6 @@ const CHARTS = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'] as const;
 const MODES = ['light', 'dark'] as const;
 
 describe('every preset', () => {
-  it('offers six presets, blue first', () => {
-    expect(Object.keys(THEME_PRESETS)).toEqual([
-      'blue',
-      'teal',
-      'green',
-      'indigo',
-      'purple',
-      'slate',
-    ]);
-  });
-
   for (const [name, preset] of Object.entries(THEME_PRESETS)) {
     for (const mode of MODES) {
       const tokens = preset[mode];

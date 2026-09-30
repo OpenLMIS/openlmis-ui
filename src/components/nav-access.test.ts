@@ -54,13 +54,6 @@ describe('canOpen', () => {
     expect(canOpen('/administration/service-accounts', new Set(['USERS_MANAGE']))).toBe(false);
   });
 
-  it('opens System Settings only to someone who may manage system settings', () => {
-    expect(canOpen('/administration/system-settings', new Set(['SYSTEM_SETTINGS_MANAGE']))).toBe(
-      true,
-    );
-    expect(canOpen('/administration/system-settings', new Set(['USERS_MANAGE']))).toBe(false);
-  });
-
   it('opens Roles to someone who may manage users', () => {
     expect(canOpen('/administration/roles', new Set(['USERS_MANAGE']))).toBe(true);
     expect(canOpen('/administration/roles', new Set(['USER_ROLES_MANAGE']))).toBe(false);

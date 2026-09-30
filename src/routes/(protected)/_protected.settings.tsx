@@ -7,7 +7,7 @@ import {
   SystemSettingsPending,
 } from '@/features/system-settings/components/system-settings-workspace';
 
-export const Route = createFileRoute('/(protected)/_protected/administration/system-settings')({
+export const Route = createFileRoute('/(protected)/_protected/settings')({
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       requireRight(queryClient, RIGHTS.systemSettingsManage),

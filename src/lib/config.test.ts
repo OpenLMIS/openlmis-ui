@@ -77,6 +77,13 @@ describe('getNavTrail', () => {
   it('is empty for a path outside the nav', () => {
     expect(getNavTrail('/login')).toEqual([]);
   });
+
+  it('leaves Settings out of the nav, since it lives in the account menu', () => {
+    expect(getNavTrail('/settings/theme')).toEqual([]);
+    expect(getBreadcrumbTrail('/settings/theme', 'system-settings.title')).toEqual([
+      { titleKey: 'system-settings.title' },
+    ]);
+  });
 });
 
 describe('getBreadcrumbTrail', () => {
@@ -130,12 +137,7 @@ describe('LIVE_NAV_GROUPS', () => {
 
 describe('isNavActive', () => {
   it('marks the entry a page is, or sits below', () => {
-    expect(isNavActive('/administration/system-settings', '/administration/system-settings')).toBe(
-      true,
-    );
-    expect(
-      isNavActive('/administration/system-settings/theme', '/administration/system-settings'),
-    ).toBe(true);
+    expect(isNavActive('/administration/users', '/administration/users')).toBe(true);
     expect(isNavActive('/administration/users/u1/roles', '/administration/users')).toBe(true);
     expect(isNavActive('/administration/users', '/administration/roles')).toBe(false);
     expect(isNavActive('/profile', '/home')).toBe(false);

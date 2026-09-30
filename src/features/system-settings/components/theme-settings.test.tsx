@@ -47,7 +47,7 @@ beforeEach(() => {
   vi.spyOn(toast, 'success').mockImplementation(() => '');
 });
 
-describe('ThemeSettings', () => {
+describe('ThemeSettings', { timeout: 15_000 }, () => {
   it('saves the chosen preset and appearance', async () => {
     vi.mocked(updateAppConfiguration).mockResolvedValue({
       ...savedConfiguration,

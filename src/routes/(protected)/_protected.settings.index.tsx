@@ -3,7 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { appConfigurationOptions } from '@/features/system-settings/api/queries';
 import { BrandingSettings } from '@/features/system-settings/components/branding-settings';
 
-export const Route = createFileRoute('/(protected)/_protected/administration/system-settings/')({
+export const Route = createFileRoute('/(protected)/_protected/settings/')({
+  staticData: { crumbKey: 'system-settings.title' },
   component: BrandingPage,
 });
 

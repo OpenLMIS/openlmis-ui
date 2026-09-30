@@ -9,6 +9,7 @@ import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 const saved: AppConfigurationDto = {
   version: 3,
   appName: 'SIGECA',
+  showAppName: true,
   logo: null,
   theme: { preset: 'teal', defaultAppearance: 'dark' },
   featureFlags: {},
@@ -46,8 +47,14 @@ describe('isThemeChanged', () => {
 });
 
 describe('isThemeDefault', () => {
-  it('is true only when nothing is saved', () => {
+  it('is true when the theme in use is the default, saved or not', () => {
     expect(isThemeDefault(unset)).toBe(true);
+    expect(
+      isThemeDefault({ ...saved, theme: { preset: 'blue', defaultAppearance: 'system' } }),
+    ).toBe(true);
     expect(isThemeDefault(saved)).toBe(false);
+    expect(isThemeDefault({ ...saved, theme: { preset: 'blue', defaultAppearance: 'dark' } })).toBe(
+      false,
+    );
   });
 });

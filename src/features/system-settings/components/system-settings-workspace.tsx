@@ -19,16 +19,13 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { WorkspaceFooterScope, WorkspaceTabs } from '@/components/workspace-tabs';
+import { WorkspaceActionsSlot, WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
 import { appConfigurationOptions } from '@/features/system-settings/api/queries';
 
 const SYSTEM_SETTINGS_TABS = [
-  { to: '/administration/system-settings', labelKey: 'system-settings.tabs.branding' },
-  { to: '/administration/system-settings/theme', labelKey: 'system-settings.tabs.theme' },
-  {
-    to: '/administration/system-settings/feature-flags',
-    labelKey: 'system-settings.tabs.feature-flags',
-  },
+  { to: '/settings', labelKey: 'system-settings.tabs.branding' },
+  { to: '/settings/theme', labelKey: 'system-settings.tabs.theme' },
+  { to: '/settings/feature-flags', labelKey: 'system-settings.tabs.feature-flags' },
 ] as const;
 
 function SystemSettingsPage({ children }: { children: ReactNode }) {
@@ -43,6 +40,7 @@ function SystemSettingsPage({ children }: { children: ReactNode }) {
           <WorkspaceTitle>{t('system-settings.title')}</WorkspaceTitle>
           <WorkspaceDescription>{t('system-settings.description')}</WorkspaceDescription>
         </WorkspaceHeading>
+        <WorkspaceActionsSlot />
       </WorkspaceHeader>
       <WorkspaceContent>{children}</WorkspaceContent>
     </Workspace>
@@ -52,7 +50,7 @@ function SystemSettingsPage({ children }: { children: ReactNode }) {
 export function SystemSettingsWorkspace({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   return (
-    <WorkspaceFooterScope>
+    <WorkspaceSlots>
       <SystemSettingsPage>
         <WorkspaceTabs
           label={t('system-settings.tabs-label')}
@@ -61,7 +59,7 @@ export function SystemSettingsWorkspace({ children }: { children: ReactNode }) {
           {children}
         </WorkspaceTabs>
       </SystemSettingsPage>
-    </WorkspaceFooterScope>
+    </WorkspaceSlots>
   );
 }
 

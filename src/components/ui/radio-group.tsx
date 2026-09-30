@@ -6,13 +6,14 @@ function RadioGroup({
   className,
   columns,
   ...props
-}: RadioGroupPrimitive.Props & { columns?: "fill" }) {
+}: RadioGroupPrimitive.Props & { columns?: "tiles" | "row" }) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
       className={cn(
         "grid w-full gap-2",
-        columns === "fill" && "@md/main:grid-cols-2 @2xl/main:grid-cols-3",
+        columns === "tiles" && "grid-cols-3 @md/main:grid-cols-4 @2xl/main:grid-cols-6",
+        columns === "row" && "auto-cols-fr grid-flow-col",
         className
       )}
       {...props}

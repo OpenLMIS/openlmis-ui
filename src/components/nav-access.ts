@@ -11,7 +11,6 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string>> = {
   '/administration/users': RIGHTS.usersManage,
   '/administration/roles': RIGHTS.usersManage,
   '/administration/service-accounts': RIGHTS.serviceAccountsManage,
-  '/administration/system-settings': RIGHTS.systemSettingsManage,
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
@@ -48,6 +47,10 @@ function useSignedInRights() {
 export function useNavGroups() {
   const rights = useSignedInRights();
   return useMemo(() => navWithinRights(LIVE_NAV_GROUPS, rights), [rights]);
+}
+
+export function useHasRight(right: string) {
+  return useSignedInRights()?.has(right) ?? false;
 }
 
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */

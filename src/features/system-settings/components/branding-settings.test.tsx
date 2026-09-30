@@ -100,7 +100,47 @@ describe('BrandingSettings', () => {
 
     await waitFor(() =>
       expect(saveBranding).toHaveBeenLastCalledWith(stored, [
-        { kind: 'update', appName: 'SIGECAx' },
+        { kind: 'update', appName: 'SIGECAx', showAppName: true },
+      ]),
+    );
+  });
+
+  it('stops the app name at the length the sidebar fits', async () => {
+    renderBranding();
+
+    expect(await nameField()).toHaveAttribute('maxlength', '20');
+  });
+
+  it('hides the name beside the logo in the sidebar when switched off, and saves it', async () => {
+    vi.mocked(saveBranding).mockResolvedValue({ ...savedConfiguration, showAppName: false });
+    renderBranding();
+    const sidebar = await screen.findByText('system-settings.branding.preview-sidebar');
+    const preview = sidebar.closest('figure') as HTMLElement;
+    expect(preview).toHaveTextContent('SIGECA');
+
+    await userEvent.click(
+      screen.getByRole('switch', { name: 'system-settings.branding.show-name-label' }),
+    );
+
+    expect(preview).not.toHaveTextContent('SIGECA');
+    await userEvent.click(saveButton());
+    await waitFor(() =>
+      expect(saveBranding).toHaveBeenCalledWith(savedConfiguration, [
+        { kind: 'update', appName: 'SIGECA', showAppName: false },
+      ]),
+    );
+  });
+
+  it('saves an empty name as none, so the built-in name applies', async () => {
+    vi.mocked(saveBranding).mockResolvedValue({ ...savedConfiguration, appName: null });
+    renderBranding();
+
+    await userEvent.clear(await nameField());
+    await userEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(saveBranding).toHaveBeenCalledWith(savedConfiguration, [
+        { kind: 'update', appName: null, showAppName: true },
       ]),
     );
   });
@@ -126,7 +166,7 @@ describe('BrandingSettings', () => {
 
     await waitFor(() =>
       expect(saveBranding).toHaveBeenCalledWith(savedConfiguration, [
-        { kind: 'update', appName: null },
+        { kind: 'update', appName: null, showAppName: true },
       ]),
     );
     expect(toast.success).toHaveBeenCalledTimes(1);
@@ -134,6 +174,7 @@ describe('BrandingSettings', () => {
       description: 'system-settings.branding.reset-done-description',
     });
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-    await waitFor(async () => expect(await nameField()).toHaveValue('OpenLMIS'));
+    await waitFor(async () => expect(await nameField()).toHaveValue(''));
+    expect(await nameField()).toHaveAttribute('placeholder', 'OpenLMIS');
   });
 });

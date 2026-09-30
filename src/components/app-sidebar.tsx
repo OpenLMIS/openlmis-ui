@@ -35,7 +35,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { useAppName } from '@/lib/app-configuration';
+import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
@@ -46,6 +46,7 @@ export function AppSidebar() {
   const direction = useDirection();
   const navGroups = useNavGroups();
   const appName = useAppName();
+  const showAppName = useShowAppName();
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
   const isCollapsed = !isMobile && state === 'collapsed';
@@ -72,8 +73,11 @@ export function AppSidebar() {
           variant="ghost"
           width="shrink"
         >
-          <Logo alt={isCollapsed ? undefined : ''} />
-          {!isCollapsed && (
+          <Logo
+            alt={isCollapsed || !showAppName ? undefined : ''}
+            className={isCollapsed || showAppName ? undefined : 'h-6 max-w-44'}
+          />
+          {!isCollapsed && showAppName && (
             <span className="truncate font-semibold" dir="auto">
               {appName}
             </span>

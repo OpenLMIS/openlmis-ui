@@ -1,6 +1,11 @@
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import type { Appearance } from '@/lib/app-configuration';
-import { presetName, THEME_PRESETS, type ThemePresetName } from '@/lib/theme-presets';
+import {
+  DEFAULT_THEME_PRESET,
+  presetName,
+  THEME_PRESETS,
+  type ThemePresetName,
+} from '@/lib/theme-presets';
 
 export const PRESET_NAMES = Object.keys(THEME_PRESETS) as ThemePresetName[];
 
@@ -19,5 +24,6 @@ export function isThemeChanged(values: ThemeValues, saved: AppConfigurationDto):
 }
 
 export function isThemeDefault(saved: AppConfigurationDto): boolean {
-  return saved.theme.preset === null && saved.theme.defaultAppearance === null;
+  const { preset, defaultAppearance } = toThemeValues(saved);
+  return preset === DEFAULT_THEME_PRESET && defaultAppearance === 'system';
 }
