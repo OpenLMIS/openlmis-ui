@@ -680,6 +680,7 @@ Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lo
 | `sync-translations` | local | Syncing `public/locales/*` with `en.json` after changing keys |
 | `plan-implementation` | local | Researching a Jira ticket against legacy and writing `plans/<KEY>.md` before any code |
 | `review-pr` | local | Reviewing a PR diff in parallel (correctness, simplify, conventions, React/shadcn, legacy UI parity), then getting it ready to merge |
+| `ticket-review` | local | Checking a shipped Story, Task, Subtask or Bug against its acceptance criteria, then commenting and moving it to Done (never Epics) |
 | `shadcn` | `shadcn/ui` | Adding, debugging, styling and composing shadcn components |
 | `frontend-design` | `anthropics/skills` | Building new UI with real design quality |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | Compound components, render props, provider design |
