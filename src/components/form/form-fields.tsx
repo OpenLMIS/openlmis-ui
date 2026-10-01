@@ -1,7 +1,7 @@
-import { EyeIcon, EyeOffIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, InfoIcon, Trash2Icon, UploadIcon } from 'lucide-react';
 import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from 'react';
 import { useFieldContext } from '@/components/form/form-context';
-import { useFormatError } from '@/components/form/form-messages';
+import { useAboutLabel, useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +34,14 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group';
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
@@ -429,15 +437,38 @@ function ChoiceTile({
   );
 }
 
-type SwitchFieldProps = Omit<FieldProps, 'required'> & Pick<FieldFrameProps, 'action'>;
+type SwitchFieldProps = Omit<FieldProps, 'required' | 'label'> &
+  Pick<FieldFrameProps, 'action'> & { label: string };
 
-/** A yes/no setting as a `ChoiceCard`, all one click target, or the switch alone in a row or a cell. */
+/** An info button that shows a field's description in a popover. */
+function FieldAbout({ label, description }: { label: string; description: ReactNode }) {
+  const aboutLabel = useAboutLabel();
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button aria-label={aboutLabel(label)} size="icon-xs" type="button" variant="ghost" />
+        }
+      >
+        <InfoIcon />
+      </PopoverTrigger>
+      <PopoverContent align="start">
+        <PopoverHeader>
+          <PopoverTitle>{label}</PopoverTitle>
+          <PopoverDescription>{description}</PopoverDescription>
+        </PopoverHeader>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** A yes/no setting: label and info button at the start, the switch at the end, or the switch alone in a cell. */
 export function SwitchField({ label, description, disabled, layout, action }: SwitchFieldProps) {
   const field = useFieldContext<boolean>();
   const { descriptionId, badgeId, describedBy } = useFieldErrors(description);
   const control = (
     <Switch
-      aria-describedby={layout === 'row' ? describedBy : undefined}
+      aria-describedby={layout === 'inline' ? undefined : describedBy}
       checked={field.state.value}
       disabled={disabled}
       id={field.name}
@@ -477,9 +508,20 @@ export function SwitchField({ label, description, disabled, layout, action }: Sw
     );
   }
   return (
-    <ChoiceCard description={description} disabled={disabled} htmlFor={field.name} label={label}>
+    <Field data-disabled={disabled} orientation="horizontal">
+      <div className="flex min-h-8 min-w-0 flex-1 items-center gap-1">
+        <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
+        {description && (
+          <>
+            <FieldAbout description={description} label={label} />
+            <span className="sr-only" id={descriptionId}>
+              {description}
+            </span>
+          </>
+        )}
+      </div>
       {control}
-    </ChoiceCard>
+    </Field>
   );
 }
 
@@ -606,7 +648,7 @@ type RadioGroupFieldProps = {
   variant?: 'card' | 'tile';
 };
 
-/** One choice from a few, each drawn as a card like `SwitchField`, or as a small tile. */
+/** One choice from a few, each drawn as a card, or as a small tile. */
 export function RadioGroupField({
   label,
   options,

@@ -97,6 +97,7 @@
   "feature-flags.show-requisition-less-order.description": "Mostrar Criar Encomenda no menu Encomendas.",
   "feature-flags.show-requisition-less-order.label": "Criar Encomendas sem Requisição",
   "feature-flags.show-requisition-less-order.used-by": "Encomendas > Criar Encomenda",
+  "form.about-label": "Sobre {name}",
   "home.add-user": "Adicionar Utilizador",
   "home.approvals.description": "Emergências primeiro, depois as que esperam há mais tempo.",
   "home.approvals.emergency": "Emergência",

@@ -97,6 +97,7 @@
   "feature-flags.show-requisition-less-order.description": "Show Create Order in the Orders menu.",
   "feature-flags.show-requisition-less-order.label": "Create Orders Without A Requisition",
   "feature-flags.show-requisition-less-order.used-by": "Orders > Create Order",
+  "form.about-label": "About {name}",
   "home.add-user": "Add User",
   "home.approvals.description": "Emergencies first, then the longest waiting.",
   "home.approvals.emergency": "Emergency",
