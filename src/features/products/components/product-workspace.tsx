@@ -1,0 +1,71 @@
+import { PackageIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Block } from '@/components/skeleton-block';
+import {
+  Workspace,
+  WorkspaceContent,
+  WorkspaceDescription,
+  WorkspaceHeader,
+  WorkspaceHeading,
+  WorkspaceIcon,
+  WorkspaceTitle,
+} from '@/components/workspace';
+import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
+import type { ProductDetail } from '@/features/products/lib/types';
+
+const PRODUCT_TABS = [
+  { to: '/administration/products/$id/general', labelKey: 'products.edit.tabs.general' },
+] as const;
+
+type ProductWorkspaceProps = {
+  productId: string;
+  /** Left out while the product loads, which holds the places of its name and code. */
+  product?: ProductDetail;
+  children: ReactNode;
+};
+
+/** The page around every product tab, kept mounted across tabs so focus stays on the tab list. */
+export function ProductWorkspace({ productId, product, children }: ProductWorkspaceProps) {
+  const { t } = useTranslation();
+
+  return (
+    <WorkspaceSlots>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <PackageIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>
+              {product
+                ? t('products.edit.title', {
+                    product: product.fullProductName || product.productCode,
+                  })
+                : t('products.edit.crumb')}
+            </WorkspaceTitle>
+            {product ? (
+              <WorkspaceDescription>
+                {t('products.edit.description', { code: product.productCode })}
+              </WorkspaceDescription>
+            ) : (
+              <Block className="h-5 w-56 py-0.5" />
+            )}
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <WorkspaceTabs
+            label={t('products.edit.tabs-label')}
+            tabs={PRODUCT_TABS.map(({ to, labelKey }) => ({
+              to,
+              params: { id: productId },
+              label: t(labelKey),
+            }))}
+          >
+            {children}
+          </WorkspaceTabs>
+        </WorkspaceContent>
+      </Workspace>
+    </WorkspaceSlots>
+  );
+}

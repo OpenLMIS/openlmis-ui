@@ -5,6 +5,14 @@ export type Product = {
   description: string | null;
 };
 
+export type ProductDetail = Product & {
+  netContent: number;
+  packRoundingThreshold: number;
+  roundToZero: boolean;
+  dispensable: { dispensingUnit?: string | null; [key: string]: unknown };
+  [key: string]: unknown;
+};
+
 export type ProductsQuery = {
   page: number;
   size: number;

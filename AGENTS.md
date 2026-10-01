@@ -496,6 +496,9 @@ A dialog whose save sends the whole record back reads that record fresh each tim
 a cached copy could undo another admin's change: its detail query key carries a number the
 dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
 Programs and Facility Types are the examples; Roles and Users still use one cached detail.
+A page that saves its record whole does the same from its loader: on `cause: 'enter'` it reads
+the record with `fetchQuery` and `staleTime: 0`, takes the cached copy on `stay`, as a tab
+switch is, and skips it on a hover preload. Product edit is the example.
 A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
 from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
 

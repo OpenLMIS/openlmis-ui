@@ -45,6 +45,23 @@ describe('WorkspaceTabs', () => {
     expect(screen.getByRole('tablist', { name: 'Sections' })).toBeInTheDocument();
   });
 
+  it('fills route params in, for the tabs of one record', async () => {
+    const recordTabs = [
+      { to: '/administration/users', label: 'Users' },
+      { to: '/administration/users/$id/roles', params: { id: 'u1' }, label: 'Roles' },
+    ] as const;
+    renderAt(
+      '/administration/users/u1/roles',
+      <WorkspaceTabs label="Sections" tabs={recordTabs}>
+        page
+      </WorkspaceTabs>,
+    );
+
+    const roles = await screen.findByRole('tab', { name: 'Roles' });
+    expect(roles).toHaveAttribute('aria-selected', 'true');
+    expect(roles).toHaveAttribute('href', '/administration/users/u1/roles');
+  });
+
   it('falls back to the first tab for an address it does not list', async () => {
     renderAt(
       '/elsewhere',

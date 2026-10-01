@@ -17,8 +17,9 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
+import { FieldGroup } from '@/components/ui/field';
 import { createProduct } from '@/features/products/api/api';
+import { ProductFormFields } from '@/features/products/components/product-form-fields';
 import {
   EMPTY_PRODUCT_FORM,
   isDuplicateCode,
@@ -33,20 +34,22 @@ const SAVE_KEY = [...queryKeys.orderables.all, 'create'] as const;
 type AddProductDialogProps = {
   open: boolean;
   onClose: () => void;
+  /** After the save, which opens the new product to carry on with it, as legacy does. */
+  onCreated: (productId: string) => void;
 };
 
-export function AddProductDialog({ open, onClose }: AddProductDialogProps) {
+export function AddProductDialog({ open, onClose, onCreated }: AddProductDialogProps) {
   const { shown, dialogProps } = useDialogTarget(open || undefined, onClose);
   const isSaving = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && <AddProductForm onDone={onClose} />}
+      {shown && <AddProductForm onCreated={onCreated} />}
     </FormDialog>
   );
 }
 
-function AddProductForm({ onDone }: { onDone: () => void }) {
+function AddProductForm({ onCreated }: Pick<AddProductDialogProps, 'onCreated'>) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [refusedCodes, setRefusedCodes] = useState<string[]>([]);
@@ -73,7 +76,10 @@ function AddProductForm({ onDone }: { onDone: () => void }) {
     defaultValues: EMPTY_PRODUCT_FORM,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
-    onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
+    onSubmit: ({ value }) =>
+      save
+        .mutateAsync(value, { onSuccess: (product) => onCreated(product.id) })
+        .catch(() => undefined),
   });
 
   useEffect(() => {
@@ -94,65 +100,7 @@ function AddProductForm({ onDone }: { onDone: () => void }) {
               title={t('products.form.save-error-title')}
             />
           )}
-          <form.AppField name="productCode">
-            {(field) => (
-              <field.TextField
-                autoComplete="off"
-                dir="ltr"
-                label={t('products.form.code')}
-                required
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="fullProductName">
-            {(field) => <field.TextField autoComplete="off" label={t('products.form.name')} />}
-          </form.AppField>
-          <form.AppField name="description">
-            {(field) => <field.TextareaField label={t('products.form.description')} />}
-          </form.AppField>
-          <FieldSet>
-            <FieldLegend>{t('products.form.pack-size')}</FieldLegend>
-            <FieldGroup>
-              <form.AppField name="dispensingUnit">
-                {(field) => (
-                  <field.TextField
-                    autoComplete="off"
-                    description={t('products.form.dispensing-unit-description')}
-                    label={t('products.form.dispensing-unit')}
-                    required
-                  />
-                )}
-              </form.AppField>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <form.AppField name="netContent">
-                  {(field) => (
-                    <field.NumberField
-                      description={t('products.form.net-content-description')}
-                      label={t('products.form.net-content')}
-                      required
-                    />
-                  )}
-                </form.AppField>
-                <form.AppField name="packRoundingThreshold">
-                  {(field) => (
-                    <field.NumberField
-                      description={t('products.form.pack-rounding-threshold-description')}
-                      label={t('products.form.pack-rounding-threshold')}
-                      required
-                    />
-                  )}
-                </form.AppField>
-              </div>
-              <form.AppField name="roundToZero">
-                {(field) => (
-                  <field.SwitchField
-                    description={t('products.form.round-to-zero-description')}
-                    label={t('products.form.round-to-zero')}
-                  />
-                )}
-              </form.AppField>
-            </FieldGroup>
-          </FieldSet>
+          <ProductFormFields form={form} />
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>

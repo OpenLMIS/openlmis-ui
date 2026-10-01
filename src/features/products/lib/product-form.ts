@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
-import type { CreateProductBody } from '@/features/products/lib/types';
+import type { CreateProductBody, ProductDetail } from '@/features/products/lib/types';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const errorKey = (key: ParseKeys) => key;
@@ -66,6 +66,50 @@ export function toCreateProductBody(values: ProductFormValues): CreateProductBod
     packRoundingThreshold: toWholeNumber(values.packRoundingThreshold),
     roundToZero: values.roundToZero,
   };
+}
+
+export function toProductFormValues(product: ProductDetail): ProductFormValues {
+  return {
+    productCode: product.productCode,
+    fullProductName: product.fullProductName ?? '',
+    description: product.description ?? '',
+    dispensingUnit: product.dispensable.dispensingUnit ?? '',
+    netContent: String(product.netContent),
+    packRoundingThreshold: String(product.packRoundingThreshold),
+    roundToZero: product.roundToZero,
+  };
+}
+
+export function toProductUpdateBody(
+  values: ProductFormValues,
+  saved: ProductDetail,
+): ProductDetail {
+  return {
+    ...saved,
+    productCode: toCode(values.productCode),
+    fullProductName: optionalText(values.fullProductName) ?? null,
+    description: optionalText(values.description) ?? null,
+    dispensable: { ...saved.dispensable, dispensingUnit: values.dispensingUnit.trim() },
+    netContent: toWholeNumber(values.netContent),
+    packRoundingThreshold: toWholeNumber(values.packRoundingThreshold),
+    roundToZero: values.roundToZero,
+  };
+}
+
+const sameNumber = (text: string, saved: number) =>
+  text.trim() !== '' && toWholeNumber(text) === saved;
+
+export function hasProductChanges(values: ProductFormValues, saved: ProductDetail) {
+  const body = toProductUpdateBody(values, saved);
+  return (
+    body.productCode !== saved.productCode ||
+    body.fullProductName !== (saved.fullProductName ?? null) ||
+    body.description !== (saved.description ?? null) ||
+    body.dispensable.dispensingUnit !== (saved.dispensable.dispensingUnit ?? '') ||
+    !sameNumber(values.netContent, saved.netContent) ||
+    !sameNumber(values.packRoundingThreshold, saved.packRoundingThreshold) ||
+    body.roundToZero !== saved.roundToZero
+  );
 }
 
 export function isDuplicateCode(error: unknown) {

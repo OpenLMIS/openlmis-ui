@@ -1,7 +1,8 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { PackageIcon, SearchXIcon } from 'lucide-react';
+import { EllipsisIcon, PackageIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,6 +15,12 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { productsListOptions } from '@/features/products/api/queries';
 import {
   CLEARED_PRODUCT_FILTERS,
@@ -29,7 +36,7 @@ const columnHelper = createColumnHelper<DataTableFeatures, Product>();
 
 const muted = <span className="text-muted-foreground">-</span>;
 
-function createColumns(t: TFunction) {
+function createColumns(t: TFunction, listSearch: ProductsSearch) {
   return columnHelper.columns([
     columnHelper.accessor('productCode', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('products.code')} />,
@@ -65,7 +72,57 @@ function createColumns(t: TFunction) {
           muted
         ),
     }),
+    columnHelper.display({
+      id: 'actions',
+      header: () => <span className="sr-only">{t('products.actions')}</span>,
+      meta: { className: 'w-16' },
+      cell: ({ row }) => <ProductActions listSearch={listSearch} product={row.original} />,
+    }),
   ]);
+}
+
+type ProductActionsProps = {
+  product: Product;
+  /** Handed to the edit page, so leaving it returns to this page of the list. */
+  listSearch: ProductsSearch;
+};
+
+function ProductActions({ product, listSearch }: ProductActionsProps) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={t('products.actions-for', {
+                product: product.fullProductName || product.productCode,
+              })}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width="auto">
+          <DropdownMenuItem
+            render={
+              <Link
+                params={{ id: product.id }}
+                state={{ productsListSearch: listSearch }}
+                to="/administration/products/$id/general"
+              />
+            }
+          >
+            <PencilIcon />
+            {t('products.edit')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
 
 type ProductsTableProps = {
@@ -88,7 +145,7 @@ function useProductsTable({
   columnVisibility,
 }: ProductsTableProps & { data: Product[]; rowCount: number }) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t), [t]);
+  const columns = useMemo(() => createColumns(t, search), [t, search]);
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_PRODUCTS_SORT,

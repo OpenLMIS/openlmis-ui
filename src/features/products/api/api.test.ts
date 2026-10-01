@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createProduct, fetchProducts } from '@/features/products/api/api';
+import {
+  createProduct,
+  fetchProduct,
+  fetchProducts,
+  updateProduct,
+} from '@/features/products/api/api';
 import { client } from '@/integrations/axios';
 
 vi.mock('@/integrations/axios', () => ({
@@ -51,5 +56,31 @@ describe('createProduct', () => {
 
     await expect(createProduct(body)).resolves.toEqual(product);
     expect(put).toHaveBeenCalledWith('/orderables', body);
+  });
+});
+
+describe('fetchProduct', () => {
+  it('reads the latest version of one product', async () => {
+    get.mockResolvedValueOnce({ data: product });
+
+    await expect(fetchProduct('o1')).resolves.toEqual(product);
+    expect(get).toHaveBeenCalledWith('/orderables/o1');
+  });
+});
+
+describe('updateProduct', () => {
+  it('sends the whole product to its own address, which saves a new version', async () => {
+    const body = {
+      ...product,
+      netContent: 10,
+      packRoundingThreshold: 0,
+      roundToZero: false,
+      dispensable: { dispensingUnit: 'each' },
+      programs: [{ programId: 'p1' }],
+    };
+    put.mockResolvedValueOnce({ data: body });
+
+    await expect(updateProduct('o1', body)).resolves.toEqual(body);
+    expect(put).toHaveBeenCalledWith('/orderables/o1', body);
   });
 });

@@ -40,6 +40,14 @@ const AddProductDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { product: undefined } satisfies Partial<ProductsSearch>;
 
+declare module '@tanstack/react-router' {
+  // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
+  interface HistoryState {
+    /** The list's search when a product was opened from it, so leaving it returns there. */
+    productsListSearch?: ProductsSearch;
+  }
+}
+
 export const Route = createFileRoute('/(protected)/_protected/administration/products')({
   validateSearch: productsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toProductsQuery(search) }),
@@ -77,6 +85,14 @@ function ProductsPage() {
     useSearchNavigation<ProductsSearch>(CLOSED_DIALOGS);
   const adding = Route.useSearch({ select: (search) => canAdd && search.product === 'new' });
   const addProduct = useCallback(() => openDialog({ product: 'new' }), [openDialog]);
+  const navigate = Route.useNavigate();
+  const openProduct = (id: string) =>
+    void navigate({
+      to: '/administration/products/$id/general',
+      params: { id },
+      state: { productsListSearch: search },
+      replace: true,
+    });
   const [dialogMounted, setDialogMounted] = useState(adding);
   if (adding && !dialogMounted) setDialogMounted(true);
   useEffect(() => {
@@ -117,7 +133,7 @@ function ProductsPage() {
         </div>
         {dialogMounted && (
           <Suspense fallback={null}>
-            <AddProductDialog onClose={closeDialog} open={adding} />
+            <AddProductDialog onClose={closeDialog} onCreated={openProduct} open={adding} />
           </Suspense>
         )}
       </WorkspaceContent>
