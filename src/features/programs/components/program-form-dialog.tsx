@@ -16,6 +16,7 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
+  SwitchSkeleton,
   serverMessage,
 } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
@@ -40,20 +41,24 @@ import {
   isDuplicateCode,
   type ProgramFormValues,
   programFormSchema,
-  type TakenProgram,
   toProgramBody,
   toProgramFormValues,
 } from '@/features/programs/lib/program-form';
 import { withSavedProgram } from '@/features/programs/lib/programs-list';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
 const NO_PROGRAMS: Program[] = [];
 
+type SwitchName = {
+  [K in keyof ProgramFormValues]: ProgramFormValues[K] extends boolean ? K : never;
+}[keyof ProgramFormValues];
+
 const SWITCHES: readonly {
-  name: keyof Omit<ProgramFormValues, 'code' | 'name' | 'description'>;
+  name: SwitchName;
   labelKey: ParseKeys;
   descriptionKey?: ParseKeys;
 }[] = [
@@ -80,6 +85,9 @@ const SWITCHES: readonly {
   },
 ];
 
+let openings = 0;
+const nextOpening = () => ++openings;
+
 const saveKey = (target: string) => [...queryKeys.programs.all, 'save', target] as const;
 
 type ProgramFormDialogProps = {
@@ -102,6 +110,7 @@ function ProgramDialogContent({ target, onDone }: { target: string; onDone: () =
   const { t } = useTranslation();
   const isNew = target === 'new';
   const title = t(isNew ? 'programs.form.create-title' : 'programs.form.edit-title');
+  const [opening] = useState(nextOpening);
 
   return (
     <QueryBoundary
@@ -128,14 +137,16 @@ function ProgramDialogContent({ target, onDone }: { target: string; onDone: () =
       {isNew ? (
         <ProgramForm onDone={onDone} />
       ) : (
-        <ExistingProgram key={target} onDone={onDone} programId={target} />
+        <ExistingProgram key={target} onDone={onDone} opening={opening} programId={target} />
       )}
     </QueryBoundary>
   );
 }
 
-function ExistingProgram({ programId, onDone }: { programId: string; onDone: () => void }) {
-  const { data: program } = useSuspenseQuery(programDetailOptions(programId));
+type ExistingProgramProps = { programId: string; opening: number; onDone: () => void };
+
+function ExistingProgram({ programId, opening, onDone }: ExistingProgramProps) {
+  const { data: program } = useSuspenseQuery(programDetailOptions(programId, opening));
   return <ProgramForm onDone={onDone} program={program} />;
 }
 
@@ -147,11 +158,15 @@ type ProgramFormProps = {
 function ProgramForm({ program, onDone }: ProgramFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: programs = NO_PROGRAMS } = useQuery({ ...programsOptions(), staleTime: 0 });
-  const [refused, setRefused] = useState<TakenProgram[]>([]);
+  const { data: programs = NO_PROGRAMS } = useQuery({
+    ...programsOptions(),
+    staleTime: 0,
+    enabled: !program,
+  });
+  const [refused, setRefused] = useState<string[]>([]);
   const schema = useMemo(
-    () => programFormSchema([...programs, ...refused], program?.id),
-    [programs, refused, program?.id],
+    () => programFormSchema(program ? [] : [...programs.map(({ code }) => code), ...refused]),
+    [programs, refused, program],
   );
 
   const save = useMutation({
@@ -166,14 +181,14 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
       );
       toast.success(t(program ? 'programs.form.updated-title' : 'programs.form.created-title'), {
         description: t(program ? 'programs.form.updated' : 'programs.form.created', {
-          program: saved.name || saved.code,
+          program: programName(saved),
         }),
       });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.programs.all });
+      void queryClient.invalidateQueries({ queryKey: programsOptions().queryKey });
     },
     onError: (error, values) => {
       if (!isDuplicateCode(error)) return;
-      setRefused((taken) => [...taken, { id: `refused-${taken.length}`, code: values.code }]);
+      setRefused((taken) => [...taken, values.code]);
     },
   });
 
@@ -260,7 +275,7 @@ function ProgramFormSkeleton({ title, submitLabel }: { title: string; submitLabe
           <FieldSkeleton label={t('programs.form.name')} required />
           <FieldSkeleton label={t('programs.form.description')} />
           {SWITCHES.map((setting) => (
-            <FieldSkeleton key={setting.name} label={t(setting.labelKey)} />
+            <SwitchSkeleton key={setting.name} />
           ))}
         </FieldGroup>
       </FormDialogBody>

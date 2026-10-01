@@ -28,6 +28,7 @@ import {
   type ProgramsSearch,
 } from '@/features/programs/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import {
@@ -43,17 +44,24 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.name')} />,
-      cell: ({ getValue }) => (
-        <span className="block truncate font-medium">
-          <bdi>{getValue()}</bdi>
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="flex">
+            <span className="min-w-0 truncate font-medium" dir="auto">
+              {getValue()}
+            </span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.code')} />,
       cell: ({ getValue }) => (
-        <span className="block truncate">
-          <bdi dir="ltr">{getValue()}</bdi>
+        <span className="flex">
+          <span className="min-w-0 truncate" dir="ltr">
+            {getValue()}
+          </span>
         </span>
       ),
       meta: { className: '@xl/main:w-1/4' },
@@ -95,7 +103,7 @@ function ProgramActions({ program, onEdit }: { program: Program; onEdit: (id: st
         <DropdownMenuTrigger
           render={
             <Button
-              aria-label={t('programs.actions-for', { program: program.name || program.code })}
+              aria-label={t('programs.actions-for', { program: programName(program) })}
               size="icon-sm"
               variant="ghost"
             />

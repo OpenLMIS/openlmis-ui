@@ -40,8 +40,10 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
         <DataTableColumnHeader column={column} title={t('facility-types.code')} />
       ),
       cell: ({ getValue }) => (
-        <span className="block truncate font-medium">
-          <bdi dir="ltr">{getValue()}</bdi>
+        <span className="flex">
+          <span className="min-w-0 truncate font-medium" dir="ltr">
+            {getValue()}
+          </span>
         </span>
       ),
       meta: { className: '@xl/main:w-1/3' },
@@ -52,8 +54,10 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
       ),
       cell: ({ getValue }) =>
         getValue() ? (
-          <span className="block truncate">
-            <bdi>{getValue()}</bdi>
+          <span className="flex">
+            <span className="min-w-0 truncate" dir="auto">
+              {getValue()}
+            </span>
           </span>
         ) : (
           <span className="text-muted-foreground">-</span>

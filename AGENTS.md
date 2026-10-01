@@ -416,6 +416,11 @@ sorting to the URL. Every change is computed from the latest search, not the ren
 one, so quick repeated clicks never build on a stale page. A new sort, filter or page
 size returns to page 1.
 
+**When the endpoint cannot page or sort**, as `GET /programs` and `GET /roles`, the list loads
+every record once and filters, sorts and pages it in the browser behind the same URL state,
+clamping a page past the end; with no request per page, nothing suspends after the first load.
+Programs and Roles are the examples. It moves to server paging once the API can page.
+
 **Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
 (`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The
 table reads the query through `useDeferredValue(search)`: the first load shows
@@ -445,11 +450,6 @@ page to page.
 
 **The create action ends the toolbar**, after the View menu, rather than sitting in the
 page header, so everything that acts on the list is in one row.
-
-**When the endpoint cannot page or sort**, as `GET /programs` and `GET /roles`, the list
-loads every record once and sorts and pages them in the browser behind the same URL state,
-clamping a page past the end; Programs and Roles are the examples. It moves to server paging
-once the API can page.
 
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a
@@ -492,10 +492,12 @@ or replaces it when the page was opened with the dialog from a link. A page gets
 its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 `src/hooks/use-search-navigation.ts` rather than writing its own.
 
-A dialog that edits a record reads it fresh each time it opens: its detail query has
-`staleTime: 0` and `gcTime: 0`, since the save sends the whole record back and a cached copy
-would undo another admin's change. A record that is gone shows `DialogNotFound`, any other
-load failure `DialogLoadError`, both from `src/components/dialog-parts.tsx`.
+A dialog whose save sends the whole record back reads that record fresh each time it opens, or
+a cached copy could undo another admin's change: its detail query key carries a number the
+dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
+Programs and Facility Types are the examples; Roles and Users still use one cached detail.
+A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
+from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,

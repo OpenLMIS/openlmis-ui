@@ -27,6 +27,7 @@ import {
   rolesOptions,
   supervisoryNodesOptions,
 } from '@/features/reference-data/api/queries';
+import { programName } from '@/features/reference-data/lib/programs';
 import { roleTypeOf } from '@/features/reference-data/lib/roles';
 import type { RightType, Role } from '@/features/reference-data/lib/types';
 import { useRightLabel } from '@/features/reference-data/lib/use-right-label';
@@ -238,7 +239,7 @@ function ProgramCombobox() {
   const items = useMemo(
     () =>
       programs
-        .map((program) => ({ value: program.id, label: program.name ?? program.code }))
+        .map((program) => ({ value: program.id, label: programName(program) }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [programs],
   );

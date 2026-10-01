@@ -102,13 +102,23 @@ export function FieldSkeleton({ label, required = false }: { label: string; requ
   );
 }
 
+export function SwitchSkeleton() {
+  return (
+    <div className="h-16 w-full">
+      <Skeleton fill />
+    </div>
+  );
+}
+
 export function DialogNotFound({ title, description }: { title: string; description: string }) {
   const { t } = useTranslation();
   return (
     <>
       <FormDialogHeader>
         <FormDialogTitle>{title}</FormDialogTitle>
-        <FormDialogDescription>{description}</FormDialogDescription>
+        <div role="status">
+          <FormDialogDescription>{description}</FormDialogDescription>
+        </div>
       </FormDialogHeader>
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>

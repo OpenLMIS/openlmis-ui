@@ -3,7 +3,6 @@ import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProgram, fetchProgram } from '@/features/programs/api/api';
-import { programDetailOptions } from '@/features/programs/api/queries';
 import { ProgramFormDialog } from '@/features/programs/components/program-form-dialog';
 import { fetchPrograms } from '@/features/reference-data/api/api';
 import { programsOptions } from '@/features/reference-data/api/queries';
@@ -51,21 +50,28 @@ beforeEach(() => {
 });
 
 describe('ProgramFormDialog', () => {
-  it('fills Edit from the program as it is now, not a copy kept from an earlier open', async () => {
+  it('fills Edit from the program as it is now, even when reopened at once', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     fetchOne.mockResolvedValueOnce(malaria);
     renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
-    expect(await screen.findByDisplayValue('Malaria')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Malaria', {}, { timeout: 3000 })).toBeInTheDocument();
 
     cleanup();
-    await vi.waitFor(
-      () => expect(queryClient.getQueryData(programDetailOptions('p9').queryKey)).toBeUndefined(),
-      { timeout: 3000 },
-    );
     fetchOne.mockResolvedValueOnce({ ...malaria, name: 'Malaria Control' });
     renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
 
-    expect(await screen.findByDisplayValue('Malaria Control')).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue('Malaria Control', {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+  });
+
+  it('loads only the program, not every program, to edit one', async () => {
+    fetchOne.mockResolvedValueOnce(malaria);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
+
+    expect(await screen.findByDisplayValue('Malaria')).toBeInTheDocument();
+    expect(fetchList).not.toHaveBeenCalled();
   });
 
   it('checks codes against the programs as they are now, not as they were cached', async () => {

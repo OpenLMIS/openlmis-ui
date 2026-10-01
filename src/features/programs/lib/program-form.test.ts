@@ -22,12 +22,12 @@ const arv: Program = {
   enableDatePhysicalStockCountCompleted: false,
 };
 
-const programs = [arv, { id: 'p1', code: 'PRG001', name: 'Family Planning', active: true }];
+const takenCodes = ['PRG005', 'PRG001'];
 
 const valid: ProgramFormValues = { ...EMPTY_PROGRAM_FORM, code: 'PRG009', name: 'Malaria' };
 
-const messages = (values: ProgramFormValues, editingId?: string) =>
-  programFormSchema(programs, editingId)
+const messages = (values: ProgramFormValues, codes: readonly string[] = takenCodes) =>
+  programFormSchema(codes)
     .safeParse(values)
     .error?.issues.map((issue) => [issue.path[0], issue.message]);
 
@@ -62,23 +62,10 @@ describe('programFormSchema', () => {
     expect(messages({ ...valid, code: 'prg001' })).toBeUndefined();
   });
 
-  it('never refuses the locked code of a program being edited', () => {
-    const clashing = [
-      { id: 'a', code: 'PRG 001' },
-      { id: 'b', code: 'PRG001' },
-    ];
-    const values = { ...valid, code: 'PRG 001' };
-    expect(programFormSchema(clashing, 'a').safeParse(values).success).toBe(true);
-  });
-
   it('asks for a name when a program was saved without one', () => {
     const nameless = toProgramFormValues({ ...arv, name: null });
     expect(nameless.name).toBe('');
-    expect(messages(nameless, 'p5')).toEqual([['name', 'programs.form.name-required']]);
-  });
-
-  it('lets a program keep its own code', () => {
-    expect(messages(toProgramFormValues(arv), 'p5')).toBeUndefined();
+    expect(messages(nameless, [])).toEqual([['name', 'programs.form.name-required']]);
   });
 });
 

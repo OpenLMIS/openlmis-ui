@@ -8,10 +8,8 @@ const errorKey = (key: ParseKeys) => key;
 
 const withoutSpaces = (code: string) => code.replace(/\s/g, '');
 
-export type TakenProgram = Pick<Program, 'id' | 'code'>;
-
-export function programFormSchema(programs: readonly TakenProgram[], editingId?: string) {
-  const taken = new Set(editingId ? [] : programs.map((program) => withoutSpaces(program.code)));
+export function programFormSchema(takenCodes: readonly string[]) {
+  const taken = new Set(takenCodes.map(withoutSpaces));
   return z.object({
     code: z
       .string()

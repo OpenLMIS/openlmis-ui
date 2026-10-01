@@ -15,6 +15,7 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
+  SwitchSkeleton,
   serverMessage,
 } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
@@ -50,6 +51,9 @@ import { queryKeys } from '@/lib/key-factory';
 
 const NO_TYPES: FacilityType[] = [];
 
+let openings = 0;
+const nextOpening = () => ++openings;
+
 const saveKey = (target: string) => [...queryKeys.facilityTypes.all, 'save', target] as const;
 
 type FacilityTypeFormDialogProps = {
@@ -72,6 +76,7 @@ function FacilityTypeDialogContent({ target, onDone }: { target: string; onDone:
   const { t } = useTranslation();
   const isNew = target === 'new';
   const title = t(isNew ? 'facility-types.form.create-title' : 'facility-types.form.edit-title');
+  const [opening] = useState(nextOpening);
 
   return (
     <QueryBoundary
@@ -98,14 +103,16 @@ function FacilityTypeDialogContent({ target, onDone }: { target: string; onDone:
       {isNew ? (
         <FacilityTypeForm onDone={onDone} />
       ) : (
-        <ExistingFacilityType key={target} onDone={onDone} typeId={target} />
+        <ExistingFacilityType key={target} onDone={onDone} opening={opening} typeId={target} />
       )}
     </QueryBoundary>
   );
 }
 
-function ExistingFacilityType({ typeId, onDone }: { typeId: string; onDone: () => void }) {
-  const { data: type } = useSuspenseQuery(facilityTypeDetailOptions(typeId));
+type ExistingFacilityTypeProps = { typeId: string; opening: number; onDone: () => void };
+
+function ExistingFacilityType({ typeId, opening, onDone }: ExistingFacilityTypeProps) {
+  const { data: type } = useSuspenseQuery(facilityTypeDetailOptions(typeId, opening));
   return <FacilityTypeForm onDone={onDone} type={type} />;
 }
 
@@ -139,7 +146,10 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
           }),
         },
       );
-      void queryClient.invalidateQueries({ queryKey: queryKeys.facilityTypes.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.facilityTypes.all,
+        predicate: (query) => query.queryKey[1] !== 'detail',
+      });
     },
     onError: (error, values) => {
       const field = duplicateField(error);
@@ -256,8 +266,8 @@ function FacilityTypeFormSkeleton({ title, submitLabel }: { title: string; submi
           <FieldSkeleton label={t('facility-types.form.code')} required />
           <FieldSkeleton label={t('facility-types.form.name')} required />
           <FieldSkeleton label={t('facility-types.form.display-order')} required />
-          <FieldSkeleton label={t('facility-types.form.active')} />
-          <FieldSkeleton label={t('facility-types.form.primary-health-care')} />
+          <SwitchSkeleton />
+          <SwitchSkeleton />
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>
