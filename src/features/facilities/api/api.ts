@@ -16,3 +16,8 @@ export async function createFacility(body: FacilityBody) {
   const { data } = await client.post<Facility>('/facilities', body);
   return data;
 }
+
+export async function updateFacility(id: string, body: FacilityBody) {
+  const { data } = await client.put<Facility>(`/facilities/${id}`, body);
+  return data;
+}

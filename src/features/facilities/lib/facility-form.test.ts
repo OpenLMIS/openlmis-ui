@@ -7,11 +7,13 @@ import {
   type FacilityFormValues,
   facilityFormSchema,
   isDuplicateCode,
+  isManagedExternally,
   tabWithFirstError,
   toFacilityBody,
+  toFacilityFormValues,
   toProgramRow,
 } from '@/features/facilities/lib/facility-form';
-import type { Program } from '@/features/reference-data/lib/types';
+import type { Facility, Program } from '@/features/reference-data/lib/types';
 
 const program = (id: string, code: string, name: string | null): Program => ({
   id,
@@ -168,5 +170,123 @@ describe('addProgramSchema', () => {
     expect(addProgramSchema.safeParse({ programId: 'p1', startDate: '2026-10-01' }).success).toBe(
       true,
     );
+  });
+});
+
+const saved: Facility = {
+  id: 'f1',
+  code: 'HC01',
+  name: null,
+  description: 'Old',
+  active: true,
+  enabled: false,
+  goLiveDate: '2017-01-01',
+  goDownDate: '2030-01-01',
+  comment: 'Kept',
+  openLmisAccessible: true,
+  location: { type: 'Point', coordinates: [1, 2] },
+  extraData: { isManagedExternally: 'false' },
+  type: { id: 't0', code: 'old_type', name: 'Old Type' },
+  geographicZone: { id: 'z1', code: 'gaza', name: 'Gaza', level: { name: 'Province' } },
+  operator: null,
+  supportedPrograms: [
+    {
+      id: 'p1',
+      code: 'PRG001',
+      name: 'Family Planning',
+      supportActive: true,
+      supportLocallyFulfilled: true,
+    },
+  ],
+};
+
+describe('toFacilityFormValues', () => {
+  it('fills the form from a saved facility, with its programs kept as saved rows', () => {
+    expect(toFacilityFormValues(saved)).toEqual({
+      name: '',
+      code: 'HC01',
+      typeId: 't0',
+      zoneId: 'z1',
+      goLiveDate: '2017-01-01',
+      active: true,
+      enabled: false,
+      description: 'Old',
+      operatorId: null,
+      programs: [
+        {
+          id: 'p1',
+          code: 'PRG001',
+          name: 'Family Planning',
+          supportActive: true,
+          supportLocallyFulfilled: true,
+          supportStartDate: '',
+          saved: true,
+        },
+      ],
+    });
+  });
+});
+
+describe('editing', () => {
+  it('asks for an operational date on edit, as legacy does, and not on add', () => {
+    const values = { ...toFacilityFormValues(saved), name: 'Comfort', goLiveDate: '' };
+    expect(facilityFormSchema([], { goLiveDateRequired: true }).safeParse(values).success).toBe(
+      false,
+    );
+    expect(facilityFormSchema([]).safeParse(values).success).toBe(true);
+  });
+
+  it('lets a saved program keep no start date, but not a new one', () => {
+    const values = toFacilityFormValues({ ...saved, name: 'Comfort' });
+    expect(facilityFormSchema([]).safeParse(values).success).toBe(true);
+    const added = { ...toProgramRow(familyPlanning, ''), id: 'p9' };
+    expect(
+      facilityFormSchema([]).safeParse({ ...values, programs: [...values.programs, added] })
+        .success,
+    ).toBe(false);
+  });
+
+  it('sends the whole saved record back, with the edited fields and every program', () => {
+    const values = {
+      ...toFacilityFormValues(saved),
+      name: ' Comfort ',
+      typeId: 't1',
+      programs: [
+        ...toFacilityFormValues(saved).programs,
+        toProgramRow(essentialMeds, '2026-10-01'),
+      ],
+    };
+    expect(toFacilityBody(values, saved)).toEqual({
+      ...saved,
+      name: 'Comfort',
+      description: 'Old',
+      type: { id: 't1' },
+      geographicZone: { id: 'z1' },
+      operator: null,
+      supportedPrograms: [
+        {
+          id: 'p1',
+          code: 'PRG001',
+          supportActive: true,
+          supportLocallyFulfilled: true,
+          supportStartDate: null,
+        },
+        {
+          id: 'p2',
+          code: 'PRG002',
+          supportActive: true,
+          supportLocallyFulfilled: false,
+          supportStartDate: '2026-10-01',
+        },
+      ],
+    });
+  });
+
+  it('knows a facility another system manages, as legacy reads it', () => {
+    expect(isManagedExternally(saved)).toBe(false);
+    expect(isManagedExternally({ ...saved, extraData: { isManagedExternally: 'true' } })).toBe(
+      true,
+    );
+    expect(isManagedExternally({ ...saved, extraData: null })).toBe(false);
   });
 });
