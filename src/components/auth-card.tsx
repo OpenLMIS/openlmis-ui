@@ -109,7 +109,7 @@ type AuthLinkProps = {
 export function AuthLink({ to, newTab = false, children }: AuthLinkProps) {
   return (
     <Link
-      className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+      className="text-sm text-muted-foreground hover:text-primary"
       rel={newTab ? 'noopener' : undefined}
       target={newTab ? '_blank' : undefined}
       to={to}
