@@ -44,6 +44,7 @@ export function FacilitiesToolbar({
       <div className="flex-1 @2xl/main:w-72 @2xl/main:flex-none">
         <DataTableComboboxFilter
           label={t('facilities.zone')}
+          limit={-1}
           onValueChange={(zoneId) =>
             onFilterChange({ zoneId: zoneId || undefined, page: undefined })
           }

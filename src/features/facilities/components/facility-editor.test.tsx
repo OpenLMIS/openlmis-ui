@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { useState } from 'react';
@@ -16,9 +16,29 @@ import {
 import type { Facility } from '@/features/reference-data/lib/types';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('@/features/reference-data/api/api', () => {
+  const pending = () => new Promise<never>(() => {});
+  return {
+    fetchFacilityTypes: vi.fn(pending),
+    fetchGeographicZones: vi.fn(pending),
+    fetchFacilityOperators: vi.fn(pending),
+    fetchPrograms: vi.fn(pending),
+  };
+});
+
+const row = (id: string, name: string) => ({
+  id,
+  code: id.toUpperCase(),
+  name,
+  supportActive: true,
+  supportLocallyFulfilled: false,
+  supportStartDate: '2026-10-01',
+  saved: false,
+});
+
 function seededClient() {
   const queryClient = new QueryClient();
-  const [types, zones, operators, programs] = FACILITY_EDITOR_LOOKUPS;
+  const { types, zones, operators, programs } = FACILITY_EDITOR_LOOKUPS;
   queryClient.setQueryData(types.queryKey, [
     {
       id: 't1',
@@ -88,7 +108,7 @@ describe('FacilityEditor', () => {
     renderPage(<Editor save={vi.fn()} />, { queryClient: seededClient() });
 
     await user.type(
-      await screen.findByRole('textbox', { name: 'facilities.form.name' }),
+      await screen.findByRole('textbox', { name: 'facilities.form.name' }, { timeout: 3000 }),
       'Comfort',
     );
     await user.click(screen.getByRole('tab', { name: /programs/i }));
@@ -148,5 +168,50 @@ describe('FacilityEditor', () => {
       'true',
     );
     expect(screen.queryByText('facilities.form.save-error-title')).toBeNull();
+  });
+
+  it('lets the user type while the lists are still loading', async () => {
+    const user = userEvent.setup();
+    renderPage(<Editor save={vi.fn()} />);
+
+    await user.type(
+      await screen.findByRole('textbox', { name: 'facilities.form.name' }),
+      'Comfort',
+    );
+
+    expect(screen.getByRole('textbox', { name: 'facilities.form.name' })).toHaveValue('Comfort');
+    expect(screen.queryByRole('combobox', { name: 'facilities.form.zone' })).toBeNull();
+  });
+
+  it('creates when its fields are submitted, as Enter in one does', async () => {
+    const save = vi.fn().mockReturnValue(new Promise(() => {}));
+    renderPage(<Editor initialValues={filled} save={save} />, { queryClient: seededClient() });
+
+    const name = await screen.findByRole('textbox', { name: 'facilities.form.name' });
+    fireEvent.submit(name.closest('form') as HTMLFormElement);
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the focus in the table when a program row is removed', async () => {
+    const user = userEvent.setup();
+    renderPage(
+      <Editor
+        initialValues={{ ...filled, programs: [row('p1', 'Family Planning'), row('p2', 'ARV')] }}
+        save={vi.fn()}
+      />,
+      { queryClient: seededClient() },
+    );
+    await user.click(await screen.findByRole('tab', { name: /programs/i }));
+
+    const [first] = screen.getAllByRole('button', { name: 'facilities.form.remove-program' });
+    await user.click(first as HTMLElement);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'facilities.form.remove-program' })).toHaveFocus(),
+    );
+    await user.click(screen.getByRole('button', { name: 'facilities.form.remove-program' }));
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'facilities.form.program' })).toHaveFocus(),
+    );
   });
 });

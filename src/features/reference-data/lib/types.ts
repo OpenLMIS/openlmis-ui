@@ -6,7 +6,6 @@ export type MinimalFacility = {
   active: boolean;
 };
 
-/** A facility as the API returns it alone; a save sends it all back, since the server replaces every field. */
 export type Facility = {
   id: string;
   code: string;

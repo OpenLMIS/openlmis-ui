@@ -4,10 +4,11 @@ import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
 
 export async function fetchFacilitiesPage({ name, zoneId, ...paging }: FacilitiesQuery) {
-  const filters = { ...(name && { name }), ...(zoneId && { zoneId }) };
-  const { data } = await client.post<Page<Facility>>('/facilities/search', filters, {
-    params: paging,
-  });
+  const { data } = await client.post<Page<Facility>>(
+    '/facilities/search',
+    { name, zoneId },
+    { params: paging },
+  );
   return data;
 }
 

@@ -30,11 +30,11 @@ const columnHelper = createColumnHelper<DataTableFeatures, Facility>();
 
 const muted = <span className="text-muted-foreground">-</span>;
 
-function text(value: string | null | undefined, dir: 'auto' | 'ltr' = 'auto') {
+function text(value: string | null | undefined, dir: 'auto' | 'ltr' = 'auto', strong = false) {
   if (!value) return muted;
   return (
     <span className="flex">
-      <span className="min-w-0 truncate" dir={dir}>
+      <span className={strong ? 'min-w-0 truncate font-medium' : 'min-w-0 truncate'} dir={dir}>
         {value}
       </span>
     </span>
@@ -61,16 +61,7 @@ function createColumns(t: TFunction) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facilities.name')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="flex">
-            <span className="min-w-0 truncate font-medium" dir="auto">
-              {getValue()}
-            </span>
-          </span>
-        ) : (
-          muted
-        ),
+      cell: ({ getValue }) => text(getValue(), 'auto', true),
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => (

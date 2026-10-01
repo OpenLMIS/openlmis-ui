@@ -3,11 +3,12 @@ import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableCard } from '@/components/data-table/data-table';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, FieldSkeleton, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
+import { LoadError } from '@/components/load-error';
+import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +39,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import {
+  addProgramSchema,
   availablePrograms,
   type FacilityFormValues,
   type FacilityTab,
@@ -46,6 +48,7 @@ import {
   tabWithFirstError,
   toProgramRow,
 } from '@/features/facilities/lib/facility-form';
+import { toZoneOption } from '@/features/facilities/lib/zone-filter';
 import {
   facilityOperatorsOptions,
   facilityTypesOptions,
@@ -56,13 +59,14 @@ import { programName } from '@/features/reference-data/lib/programs';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
-/** The lookups the form picks from; the page waits for them, since every field needs one. */
-export const FACILITY_EDITOR_LOOKUPS = [
-  facilityTypesOptions({ active: true }),
-  geographicZonesOptions(),
-  facilityOperatorsOptions(),
-  programsOptions(),
-] as const;
+export const FACILITY_EDITOR_LOOKUPS = {
+  types: facilityTypesOptions({ active: true }),
+  zones: geographicZonesOptions(),
+  operators: facilityOperatorsOptions(),
+  programs: programsOptions(),
+};
+
+const FORM_ID = 'facility-form';
 
 type FacilityEditorProps = {
   initialValues: FacilityFormValues;
@@ -73,7 +77,6 @@ type FacilityEditorProps = {
   submitLabel: string;
   discardDescription: string;
   save: (values: FacilityFormValues) => Promise<Facility>;
-  /** Runs once the page may be left, e.g. to show a toast and go back to the list. */
   onSaved: (saved: Facility) => void;
   onCancel: () => void;
 };
@@ -100,7 +103,6 @@ function useFacilityForm(
 
 type FacilityForm = ReturnType<typeof useFacilityForm>;
 
-/** Once the tab with the error is open, its first wrong field takes focus. */
 function focusFirstError(container: HTMLElement | null) {
   requestAnimationFrame(() =>
     container
@@ -109,7 +111,6 @@ function focusFirstError(container: HTMLElement | null) {
   );
 }
 
-/** A facility's information and programs as tabs over one draft, with one save for both. */
 export function FacilityEditor({
   initialValues,
   tab,
@@ -126,7 +127,6 @@ export function FacilityEditor({
   const [refused, setRefused] = useState<string[]>([]);
   const schema = useMemo(() => facilityFormSchema(refused), [refused]);
   const tabs = useRef<HTMLDivElement>(null);
-  // Set once the page may be left without asking, right after a save.
   const leaving = useRef(false);
 
   const mutation = useMutation({
@@ -196,7 +196,16 @@ export function FacilityEditor({
                 </TabsTrigger>
               </TabsList>
               <TabsContent keepMounted value="information">
-                <InformationFields form={form} />
+                <form
+                  id={FORM_ID}
+                  noValidate
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void form.handleSubmit();
+                  }}
+                >
+                  <InformationFields form={form} />
+                </form>
               </TabsContent>
               <TabsContent keepMounted value="programs">
                 <ProgramsFields form={form} />
@@ -210,7 +219,7 @@ export function FacilityEditor({
         <Button disabled={mutation.isPending} onClick={onCancel} size="lg" variant="outline">
           {t('facilities.form.cancel')}
         </Button>
-        <Button disabled={mutation.isPending} onClick={() => form.handleSubmit()} size="lg">
+        <Button disabled={mutation.isPending} form={FORM_ID} size="lg" type="submit">
           {mutation.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {submitLabel}
         </Button>
@@ -219,34 +228,36 @@ export function FacilityEditor({
   );
 }
 
-function FieldSpan({ children }: { children: ReactNode }) {
-  return <div className="@3xl/main:col-span-2">{children}</div>;
+function LookupField({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
+    <QueryBoundary
+      errorComponent={({ error, reset }) => (
+        <LoadError
+          description={t('facilities.form.load-error-description')}
+          error={error}
+          reset={reset}
+          title={t('facilities.form.load-error-title')}
+        />
+      )}
+      pendingFallback={<FieldSkeleton label={label} required={required} />}
+      resetKey={label}
+    >
+      {children}
+    </QueryBoundary>
+  );
 }
 
 function InformationFields({ form }: { form: FacilityForm }) {
   const { t } = useTranslation();
-  const { data: types } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS[0]);
-  const { data: zones } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS[1]);
-  const { data: operators } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS[2]);
-  const typeItems = useMemo(
-    () => types.map((type) => ({ value: type.id, label: type.name || type.code })),
-    [types],
-  );
-  const zoneItems = useMemo(
-    () =>
-      zones.map((zone) => ({
-        value: zone.id,
-        label: zone.name,
-        ...(zone.level.name && { description: zone.level.name }),
-      })),
-    [zones],
-  );
-  const operatorItems = useMemo(
-    () =>
-      operators.map((operator) => ({ value: operator.id, label: operator.name || operator.code })),
-    [operators],
-  );
-  const noMatches = t('facilities.form.no-matches');
 
   return (
     <FieldGroup>
@@ -266,30 +277,12 @@ function InformationFields({ form }: { form: FacilityForm }) {
             />
           )}
         </form.AppField>
-        <form.AppField name="typeId">
-          {(field) => (
-            <field.ComboboxField
-              clearLabel={t('facilities.form.clear-type')}
-              emptyMessage={noMatches}
-              items={typeItems}
-              label={t('facilities.form.type')}
-              placeholder={t('facilities.form.pick-type')}
-              required
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="zoneId">
-          {(field) => (
-            <field.ComboboxField
-              clearLabel={t('facilities.form.clear-zone')}
-              emptyMessage={noMatches}
-              items={zoneItems}
-              label={t('facilities.form.zone')}
-              placeholder={t('facilities.form.pick-zone')}
-              required
-            />
-          )}
-        </form.AppField>
+        <LookupField label={t('facilities.form.type')} required>
+          <TypeField form={form} />
+        </LookupField>
+        <LookupField label={t('facilities.form.zone')} required>
+          <ZoneField form={form} />
+        </LookupField>
         <form.AppField name="goLiveDate">
           {(field) => (
             <field.DateField
@@ -300,22 +293,14 @@ function InformationFields({ form }: { form: FacilityForm }) {
             />
           )}
         </form.AppField>
-        <form.AppField name="operatorId">
-          {(field) => (
-            <field.ComboboxField
-              clearLabel={t('facilities.form.clear-operator')}
-              emptyMessage={noMatches}
-              items={operatorItems}
-              label={t('facilities.form.operator')}
-              placeholder={t('facilities.form.pick-operator')}
-            />
-          )}
-        </form.AppField>
-        <FieldSpan>
+        <LookupField label={t('facilities.form.operator')}>
+          <OperatorField form={form} />
+        </LookupField>
+        <div className="@3xl/main:col-span-2">
           <form.AppField name="description">
             {(field) => <field.TextareaField label={t('facilities.form.description')} />}
           </form.AppField>
-        </FieldSpan>
+        </div>
         <form.AppField name="active">
           {(field) => (
             <field.SwitchField
@@ -337,90 +322,99 @@ function InformationFields({ form }: { form: FacilityForm }) {
   );
 }
 
-const addProgramSchema = z.object({
-  programId: z
-    .string()
-    .nullable()
-    .refine((value) => Boolean(value), 'facilities.form.program-required'),
-  startDate: z.string().min(1, 'facilities.form.start-date-required'),
-});
-
-function ProgramsFields({ form }: { form: FacilityForm }) {
+function TypeField({ form }: { form: FacilityForm }) {
   const { t } = useTranslation();
-  const { data: programs } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS[3]);
-  const rows = useStore(form.store, (state) => state.values.programs);
-  const programItems = useMemo(
+  const { data: types } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.types);
+  const items = useMemo(
     () =>
-      availablePrograms(programs, rows).map((program) => ({
-        value: program.id,
-        label: programName(program),
-      })),
-    [programs, rows],
+      types
+        .map((type) => ({ value: type.id, label: type.name || type.code }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [types],
   );
-
-  const addForm = useAppForm({
-    defaultValues: { programId: null as string | null, startDate: '' },
-    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: addProgramSchema },
-    onSubmit: ({ value, formApi }) => {
-      const program = programs.find((item) => item.id === value.programId);
-      if (!program) return;
-      form.pushFieldValue('programs', toProgramRow(program, value.startDate));
-      formApi.reset();
-    },
-  });
-
   return (
-    <div className="flex flex-col gap-4">
-      <FieldGroup>
-        <div className="flex flex-col gap-x-4 gap-y-5 @2xl/main:flex-row @2xl/main:items-start">
-          <div className="min-w-0 flex-1">
-            <addForm.AppField name="programId">
-              {(field) => (
-                <field.ComboboxField
-                  clearLabel={t('facilities.form.clear-program')}
-                  emptyMessage={t('facilities.form.no-matches')}
-                  items={programItems}
-                  label={t('facilities.form.program')}
-                  placeholder={t('facilities.form.pick-program')}
-                  required
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="@2xl/main:w-64">
-            <addForm.AppField name="startDate">
-              {(field) => (
-                <field.DateField
-                  description={t('facilities.form.start-date-description')}
-                  label={t('facilities.form.start-date')}
-                  placeholder={t('facilities.form.pick-date')}
-                  required
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="@2xl/main:pt-6">
-            <Button onClick={() => addForm.handleSubmit()} variant="outline" width="full">
-              <PlusIcon data-icon="inline-start" />
-              {t('facilities.form.add-program')}
-            </Button>
-          </div>
-        </div>
-      </FieldGroup>
-      <ProgramRows form={form} />
-    </div>
+    <form.AppField name="typeId">
+      {(field) => (
+        <field.ComboboxField
+          clearLabel={t('facilities.form.clear-type')}
+          emptyMessage={t('facilities.form.no-matches')}
+          items={items}
+          label={t('facilities.form.type')}
+          placeholder={t('facilities.form.pick-type')}
+          required
+        />
+      )}
+    </form.AppField>
   );
 }
 
-function ProgramRows({ form }: { form: FacilityForm }) {
+function ZoneField({ form }: { form: FacilityForm }) {
   const { t } = useTranslation();
+  const { data: zones } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.zones);
+  const items = useMemo(() => zones.map(toZoneOption), [zones]);
+  return (
+    <form.AppField name="zoneId">
+      {(field) => (
+        <field.ComboboxField
+          clearLabel={t('facilities.form.clear-zone')}
+          emptyMessage={t('facilities.form.no-matches')}
+          items={items}
+          label={t('facilities.form.zone')}
+          limit={-1}
+          placeholder={t('facilities.form.pick-zone')}
+          required
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+function OperatorField({ form }: { form: FacilityForm }) {
+  const { t } = useTranslation();
+  const { data: operators } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.operators);
+  const items = useMemo(
+    () =>
+      operators.map((operator) => ({ value: operator.id, label: operator.name || operator.code })),
+    [operators],
+  );
+  return (
+    <form.AppField name="operatorId">
+      {(field) => (
+        <field.ComboboxField
+          clearLabel={t('facilities.form.clear-operator')}
+          emptyMessage={t('facilities.form.no-matches')}
+          items={items}
+          label={t('facilities.form.operator')}
+          placeholder={t('facilities.form.pick-operator')}
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+function ProgramsFields({ form }: { form: FacilityForm }) {
+  const { t } = useTranslation();
+  const rows = useStore(form.store, (state) => state.values.programs);
+  const table = useRef<HTMLDivElement>(null);
+
+  const removeRow = (index: number) => {
+    form.removeFieldValue('programs', index);
+    // The pressed button is gone, so the next row's takes the focus, or the program picker.
+    requestAnimationFrame(() => {
+      const buttons = table.current?.querySelectorAll<HTMLElement>('[data-remove-program]');
+      const next = buttons?.[Math.min(index, buttons.length - 1)];
+      (next ?? document.getElementById('programId'))?.focus();
+    });
+  };
 
   return (
-    <form.Field mode="array" name="programs">
-      {(programsField) =>
-        programsField.state.value.length === 0 ? (
-          <DataTableCard>
+    <div className="flex flex-col gap-4">
+      <LookupField label={t('facilities.form.program')} required>
+        <AddProgramRow form={form} rows={rows} />
+      </LookupField>
+      <div ref={table}>
+        <DataTableCard>
+          {rows.length === 0 ? (
             <Empty>
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -430,9 +424,7 @@ function ProgramRows({ form }: { form: FacilityForm }) {
                 <EmptyDescription>{t('facilities.form.no-programs-description')}</EmptyDescription>
               </EmptyHeader>
             </Empty>
-          </DataTableCard>
-        ) : (
-          <DataTableCard>
+          ) : (
             <Table density="comfortable">
               <TableHeader surface="muted">
                 <TableRow>
@@ -446,7 +438,7 @@ function ProgramRows({ form }: { form: FacilityForm }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {programsField.state.value.map((row, index) => {
+                {rows.map((row, index) => {
                   const name = programName(row);
                   const named = (field: string) =>
                     t('facilities.form.row-label', { program: name, field });
@@ -496,7 +488,8 @@ function ProgramRows({ form }: { form: FacilityForm }) {
                           <div className="flex justify-end">
                             <Button
                               aria-label={t('facilities.form.remove-program', { program: name })}
-                              onClick={() => programsField.removeValue(index)}
+                              data-remove-program
+                              onClick={() => removeRow(index)}
                               size="icon-sm"
                               variant="ghost"
                             >
@@ -510,9 +503,87 @@ function ProgramRows({ form }: { form: FacilityForm }) {
                 })}
               </TableBody>
             </Table>
-          </DataTableCard>
-        )
-      }
-    </form.Field>
+          )}
+        </DataTableCard>
+      </div>
+    </div>
+  );
+}
+
+function AddProgramRow({
+  form,
+  rows,
+}: {
+  form: FacilityForm;
+  rows: FacilityFormValues['programs'];
+}) {
+  const { t } = useTranslation();
+  const { data: programs } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.programs);
+  const items = useMemo(
+    () =>
+      availablePrograms(programs, rows).map((program) => ({
+        value: program.id,
+        label: programName(program),
+      })),
+    [programs, rows],
+  );
+
+  const addForm = useAppForm({
+    defaultValues: { programId: null as string | null, startDate: '' },
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: addProgramSchema },
+    onSubmit: ({ value, formApi }) => {
+      const program = programs.find((item) => item.id === value.programId);
+      if (!program) return;
+      form.pushFieldValue('programs', toProgramRow(program, value.startDate));
+      formApi.reset();
+    },
+  });
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void addForm.handleSubmit();
+      }}
+    >
+      <FieldGroup>
+        <div className="flex flex-col gap-x-4 gap-y-5 @2xl/main:flex-row @2xl/main:items-start">
+          <div className="min-w-0 flex-1">
+            <addForm.AppField name="programId">
+              {(field) => (
+                <field.ComboboxField
+                  clearLabel={t('facilities.form.clear-program')}
+                  emptyMessage={t('facilities.form.no-matches')}
+                  items={items}
+                  label={t('facilities.form.program')}
+                  placeholder={t('facilities.form.pick-program')}
+                  required
+                />
+              )}
+            </addForm.AppField>
+          </div>
+          <div className="@2xl/main:w-64">
+            <addForm.AppField name="startDate">
+              {(field) => (
+                <field.DateField
+                  description={t('facilities.form.start-date-description')}
+                  label={t('facilities.form.start-date')}
+                  placeholder={t('facilities.form.pick-date')}
+                  required
+                />
+              )}
+            </addForm.AppField>
+          </div>
+          <div className="@2xl/main:pt-6">
+            <Button type="submit" variant="outline" width="full">
+              <PlusIcon data-icon="inline-start" />
+              {t('facilities.form.add-program')}
+            </Button>
+          </div>
+        </div>
+      </FieldGroup>
+    </form>
   );
 }

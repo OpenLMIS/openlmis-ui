@@ -9,10 +9,10 @@ const zone = (id: string, name: string, level: string | null): GeographicZone =>
   level: { name: level },
 });
 
-const zones = [zone('z2', 'Gaza', 'Province'), zone('z1', 'Bilene', 'District')];
+const zones = [zone('z1', 'Bilene', 'District'), zone('z2', 'Gaza', 'Province')];
 
 describe('toZoneFilter', () => {
-  it('offers every zone by name, with its level, sorted by name', () => {
+  it('offers every zone by name, with its level, in the order the server sorts them', () => {
     expect(toZoneFilter(zones, undefined, 'Unknown Zone')).toEqual({
       value: '',
       options: [

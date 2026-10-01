@@ -25,7 +25,6 @@ const programRowSchema = z.object({
   supportActive: z.boolean(),
   supportLocallyFulfilled: z.boolean(),
   supportStartDate: requiredText('facilities.form.start-date-required'),
-  /** Already stored on the facility, so it stays; a row added on this page can be removed. */
   saved: z.boolean(),
 });
 
@@ -48,9 +47,14 @@ export function facilityFormSchema(refusedCodes: readonly string[]) {
   });
 }
 
+export const addProgramSchema = z.object({
+  programId: requiredChoice('facilities.form.program-required'),
+  startDate: requiredText('facilities.form.start-date-required'),
+});
+
 export type FacilityFormValues = z.input<ReturnType<typeof facilityFormSchema>>;
 
-export type ProgramRow = z.input<typeof programRowSchema>;
+type ProgramRow = z.input<typeof programRowSchema>;
 
 export const EMPTY_FACILITY_FORM: FacilityFormValues = {
   name: '',
@@ -107,7 +111,6 @@ export function availablePrograms(programs: readonly Program[], rows: readonly P
 
 export type FacilityTab = 'information' | 'programs';
 
-/** The tab to open after a failed Create, given the names of the fields that are wrong. */
 export function tabWithFirstError(fieldNames: readonly string[]): FacilityTab | undefined {
   if (fieldNames.length === 0) return undefined;
   return fieldNames.some((name) => !name.startsWith('programs')) ? 'information' : 'programs';

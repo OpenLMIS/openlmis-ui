@@ -11,6 +11,7 @@ import { Block } from '@/components/skeleton-block';
 import {
   Workspace,
   WorkspaceContent,
+  WorkspaceDescription,
   WorkspaceHeader,
   WorkspaceHeading,
   WorkspaceIcon,
@@ -31,7 +32,6 @@ import {
 import { queryKeys } from '@/lib/key-factory';
 
 const addFacilitySearchSchema = z.object({
-  /** Left out for the first tab, Facility Information. */
   tab: z.literal('programs').optional().catch(undefined),
 });
 
@@ -39,14 +39,12 @@ export const Route = createFileRoute('/(protected)/_protected/administration/fac
   validateSearch: addFacilitySearchSchema,
   staticData: { crumbKey: 'facilities.form.create-title' },
   loader: async ({ context: { queryClient } }) => {
-    const [types, zones, operators, programs] = FACILITY_EDITOR_LOOKUPS;
-    await Promise.all([
-      requireRight(queryClient, RIGHTS.facilitiesManage),
-      queryClient.ensureQueryData(types),
-      queryClient.ensureQueryData(zones),
-      queryClient.ensureQueryData(operators),
-      queryClient.ensureQueryData(programs),
-    ]);
+    await requireRight(queryClient, RIGHTS.facilitiesManage);
+    const { types, zones, operators, programs } = FACILITY_EDITOR_LOOKUPS;
+    queryClient.prefetchQuery(types);
+    queryClient.prefetchQuery(zones);
+    queryClient.prefetchQuery(operators);
+    queryClient.prefetchQuery(programs);
   },
   pendingComponent: AddFacilityPending,
   errorComponent: AddFacilityError,
@@ -59,7 +57,6 @@ function AddFacilityPage() {
   const router = useRouter();
   const navigate = Route.useNavigate();
   const tab: FacilityTab = Route.useSearch({ select: (search) => search.tab ?? 'information' });
-  // The list as it was when this page was opened from it, with its page, sort and filters.
   const [listSearch] = useState(() => router.state.location.state.facilitiesListSearch ?? {});
   const backToList = useCallback(
     () => navigate({ to: '/administration/facilities', search: listSearch }),
@@ -104,6 +101,7 @@ function AddFacilityPending() {
             <BuildingIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>{t('facilities.form.create-title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('facilities.form.create-description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>

@@ -36,7 +36,6 @@ import { useStoredState } from '@/hooks/use-stored-state';
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
   interface HistoryState {
-    /** The list's search when a facility page was opened from it, so leaving it returns there. */
     facilitiesListSearch?: FacilitiesSearch;
   }
 }
@@ -55,8 +54,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/fac
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-const NO_DIALOGS = {} satisfies Partial<FacilitiesSearch>;
-
 function FacilitiesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
@@ -68,7 +65,7 @@ function FacilitiesPage() {
     contentWidth,
   );
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
-  const { updateSearch } = useSearchNavigation<FacilitiesSearch>(NO_DIALOGS);
+  const { updateSearch } = useSearchNavigation<FacilitiesSearch>({});
   const addFacility = useCallback(
     () =>
       navigate({ to: '/administration/facilities/new', state: { facilitiesListSearch: search } }),

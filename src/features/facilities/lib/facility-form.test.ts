@@ -1,6 +1,7 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { describe, expect, it } from 'vitest';
 import {
+  addProgramSchema,
   availablePrograms,
   EMPTY_FACILITY_FORM,
   type FacilityFormValues,
@@ -152,5 +153,20 @@ describe('isDuplicateCode', () => {
     expect(isDuplicateCode(refusal('referenceData.error.facility.code.mustBeUnique'))).toBe(true);
     expect(isDuplicateCode(refusal('referenceData.error.facility.code.required'))).toBe(false);
     expect(isDuplicateCode(new Error('offline'))).toBe(false);
+  });
+});
+
+describe('addProgramSchema', () => {
+  it('asks for a program and a start date before a row is added', () => {
+    const result = addProgramSchema.safeParse({ programId: null, startDate: '' });
+    expect(
+      result.success ? [] : result.error.issues.map(({ path, message }) => [path[0], message]),
+    ).toEqual([
+      ['programId', 'facilities.form.program-required'],
+      ['startDate', 'facilities.form.start-date-required'],
+    ]);
+    expect(addProgramSchema.safeParse({ programId: 'p1', startDate: '2026-10-01' }).success).toBe(
+      true,
+    );
   });
 });
