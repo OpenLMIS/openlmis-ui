@@ -124,9 +124,10 @@ ticket's own AC text only if the user asks.
 For each ticket, children before their parent:
 
 1. **Assignee**: if it has none, assign it to the user.
-2. **Comment**: one closing comment per ticket. If the ticket already has a `PR:`
-   comment of ours, update that one in place (`commentId`), so the ticket keeps a single
-   comment from us. Otherwise post a new one. Shape:
+2. **Comment**: one comment from us per ticket, as few as possible. If we already
+   commented on it (a `PR:` line or anything else by the signed-in user), rewrite our latest
+   comment in place with `commentId`, carrying over whatever in it still matters, rather
+   than adding another. Post a new one only when there is none. Shape:
 
    ```markdown
    Done. Administrators can now list, add and edit facility types in the new UI.
