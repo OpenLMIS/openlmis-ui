@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createFacilityType } from '@/features/facility-types/api/api';
+import { createFacilityType, fetchFacilityType } from '@/features/facility-types/api/api';
 import { FacilityTypeFormDialog } from '@/features/facility-types/components/facility-type-form-dialog';
 import { fetchFacilityTypes } from '@/features/reference-data/api/api';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';
@@ -22,6 +22,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
 
 const create = vi.mocked(createFacilityType);
 const fetchTypes = vi.mocked(fetchFacilityTypes);
+const fetchOne = vi.mocked(fetchFacilityType);
 
 const foo = {
   id: 'ft9',
@@ -58,6 +59,21 @@ async function fillAndCreate(name: string) {
 }
 
 describe('FacilityTypeFormDialog', () => {
+  it('fills Edit from the type as it is now, even when reopened at once', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    fetchOne.mockResolvedValueOnce(foo);
+    renderPage(<FacilityTypeFormDialog onClose={vi.fn()} target="ft9" />, { queryClient });
+    expect(await screen.findByDisplayValue('Foo', {}, { timeout: 3000 })).toBeInTheDocument();
+
+    cleanup();
+    fetchOne.mockResolvedValueOnce({ ...foo, name: 'Foo Renamed' });
+    renderPage(<FacilityTypeFormDialog onClose={vi.fn()} target="ft9" />, { queryClient });
+
+    expect(
+      await screen.findByDisplayValue('Foo Renamed', {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+  });
+
   it('checks names against the types as they are now, not as they were cached', async () => {
     create.mockResolvedValueOnce({ ...foo, id: 'ft10', code: 'store' });
     renderAdd([foo]);

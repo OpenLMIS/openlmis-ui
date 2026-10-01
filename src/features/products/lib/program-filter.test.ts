@@ -19,6 +19,12 @@ describe('toProgramFilter', () => {
     });
   });
 
+  it('shows a program without a name by its code', () => {
+    expect(
+      toProgramFilter([{ id: 'p9', code: 'PRG009', name: null, active: true }], undefined).options,
+    ).toEqual([{ value: 'PRG009', label: 'PRG009' }]);
+  });
+
   it('picks the program a code in the URL names, ignoring case as the server does', () => {
     expect(toProgramFilter(programs, 'prg001').value).toBe('PRG001');
     expect(toProgramFilter(programs, 'prg001').options).toHaveLength(3);

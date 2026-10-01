@@ -17,6 +17,7 @@ import { Route as protectedProtectedProfileRouteImport } from './routes/(protect
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
+import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
@@ -69,6 +70,12 @@ const protectedProtectedAdministrationProductsRoute =
   protectedProtectedAdministrationProductsRouteImport.update({
     id: '/administration/products',
     path: '/administration/products',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationProgramsRoute =
+  protectedProtectedAdministrationProgramsRouteImport.update({
+    id: '/administration/programs',
+    path: '/administration/programs',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationRolesRoute =
@@ -140,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
+  '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -157,6 +165,7 @@ export interface FileRoutesByTo {
   '/home': typeof protectedProtectedHomeRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
+  '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -178,6 +187,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
+  '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/administration/facility-types'
     | '/administration/products'
+    | '/administration/programs'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/administration/facility-types'
     | '/administration/products'
+    | '/administration/programs'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
@@ -236,6 +248,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings'
     | '/(protected)/_protected/administration/facility-types'
     | '/(protected)/_protected/administration/products'
+    | '/(protected)/_protected/administration/programs'
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
     | '/(protected)/_protected/administration/users'
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/products'
       fullPath: '/administration/products'
       preLoaderRoute: typeof protectedProtectedAdministrationProductsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/programs': {
+      id: '/(protected)/_protected/administration/programs'
+      path: '/administration/programs'
+      fullPath: '/administration/programs'
+      preLoaderRoute: typeof protectedProtectedAdministrationProgramsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/roles': {
@@ -429,6 +449,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
+  protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
@@ -443,6 +464,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilityTypesRoute,
   protectedProtectedAdministrationProductsRoute:
     protectedProtectedAdministrationProductsRoute,
+  protectedProtectedAdministrationProgramsRoute:
+    protectedProtectedAdministrationProgramsRoute,
   protectedProtectedAdministrationRolesRoute:
     protectedProtectedAdministrationRolesRoute,
   protectedProtectedAdministrationServiceAccountsRoute:

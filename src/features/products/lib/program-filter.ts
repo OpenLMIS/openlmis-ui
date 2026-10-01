@@ -5,7 +5,7 @@ export function toProgramFilter(
   selected: string | undefined,
 ) {
   const options = (programs ?? [])
-    .map((program) => ({ value: program.code, label: program.name }))
+    .map((program) => ({ value: program.code, label: program.name ?? program.code }))
     .sort((a, b) => a.label.localeCompare(b.label));
   if (!selected) return { value: '', options };
   const match = options.find((option) => option.value.toLowerCase() === selected.toLowerCase());

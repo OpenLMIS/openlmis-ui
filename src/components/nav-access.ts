@@ -15,6 +15,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/administration/users': RIGHTS.usersManage,
   '/administration/roles': RIGHTS.usersManage,
   '/administration/service-accounts': RIGHTS.serviceAccountsManage,
+  '/administration/programs': RIGHTS.programsManage,
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */

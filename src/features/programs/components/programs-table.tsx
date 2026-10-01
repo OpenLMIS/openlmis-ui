@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { CheckIcon, EllipsisIcon, PencilIcon, PlusIcon, ShapesIcon, XIcon } from 'lucide-react';
+import { CheckIcon, EllipsisIcon, LayersIcon, PencilIcon, PlusIcon, XIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,41 +21,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { facilityTypesListOptions } from '@/features/facility-types/api/queries';
+import { programsListOptions } from '@/features/programs/api/queries';
 import {
-  DEFAULT_FACILITY_TYPES_SORT,
-  type FacilityTypesSearch,
-  toFacilityTypesQuery,
-} from '@/features/facility-types/lib/search';
-import type { FacilityType } from '@/features/reference-data/lib/types';
+  DEFAULT_PROGRAMS_SORT,
+  type ProgramsSearch,
+  toProgramsQuery,
+} from '@/features/programs/lib/search';
+import { programName } from '@/features/reference-data/lib/programs';
+import type { Program } from '@/features/reference-data/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
-const columnHelper = createColumnHelper<DataTableFeatures, FacilityType>();
+const columnHelper = createColumnHelper<DataTableFeatures, Program>();
 
 function createColumns(t: TFunction, onEdit: (id: string) => void) {
   return columnHelper.columns([
-    columnHelper.accessor('code', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('facility-types.code')} />
-      ),
-      cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate font-medium" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
-      ),
-      meta: { className: '@xl/main:w-1/3' },
-    }),
     columnHelper.accessor('name', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('facility-types.name')} />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.name')} />,
       cell: ({ getValue }) =>
         getValue() ? (
           <span className="flex">
-            <span className="min-w-0 truncate" dir="auto">
+            <span className="min-w-0 truncate font-medium" dir="auto">
               {getValue()}
             </span>
           </span>
@@ -63,47 +49,45 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
           <span className="text-muted-foreground">-</span>
         ),
     }),
-    columnHelper.accessor('displayOrder', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('facility-types.display-order')} />
+    columnHelper.accessor('code', {
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.code')} />,
+      cell: ({ getValue }) => (
+        <span className="flex">
+          <span className="min-w-0 truncate" dir="ltr">
+            {getValue()}
+          </span>
+        </span>
       ),
-      cell: ({ getValue }) => <span className="tabular-nums">{getValue() ?? '-'}</span>,
-      meta: { className: 'w-40' },
+      meta: { className: '@xl/main:w-1/4' },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('facility-types.status')} />
+        <DataTableColumnHeader column={column} title={t('programs.status')} />
       ),
       cell: ({ getValue }) =>
         getValue() ? (
           <Badge variant="success">
             <CheckIcon data-icon="inline-start" />
-            {t('facility-types.active')}
+            {t('programs.active')}
           </Badge>
         ) : (
           <Badge variant="destructive">
             <XIcon data-icon="inline-start" />
-            {t('facility-types.inactive')}
+            {t('programs.inactive')}
           </Badge>
         ),
       meta: { className: 'w-32' },
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('facility-types.actions')}</span>,
+      header: () => <span className="sr-only">{t('programs.actions')}</span>,
       meta: { className: 'w-16' },
-      cell: ({ row }) => <FacilityTypeActions onEdit={onEdit} type={row.original} />,
+      cell: ({ row }) => <ProgramActions onEdit={onEdit} program={row.original} />,
     }),
   ]);
 }
 
-function FacilityTypeActions({
-  type,
-  onEdit,
-}: {
-  type: FacilityType;
-  onEdit: (id: string) => void;
-}) {
+function ProgramActions({ program, onEdit }: { program: Program; onEdit: (id: string) => void }) {
   const { t } = useTranslation();
   const menu = useMenuOpensDialog();
 
@@ -113,7 +97,7 @@ function FacilityTypeActions({
         <DropdownMenuTrigger
           render={
             <Button
-              aria-label={t('facility-types.actions-for', { type: type.name || type.code })}
+              aria-label={t('programs.actions-for', { program: programName(program) })}
               size="icon-sm"
               variant="ghost"
             />
@@ -122,9 +106,9 @@ function FacilityTypeActions({
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(type.id))}>
+          <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(program.id))}>
             <PencilIcon />
-            {t('facility-types.edit')}
+            {t('programs.edit')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -132,33 +116,33 @@ function FacilityTypeActions({
   );
 }
 
-type FacilityTypesTableProps = {
-  search: FacilityTypesSearch;
-  onSearchChange: SearchChange<FacilityTypesSearch>;
+type ProgramsTableProps = {
+  search: ProgramsSearch;
+  onSearchChange: SearchChange<ProgramsSearch>;
   columnVisibility: ColumnVisibilityState;
   onAdd: () => void;
   onEdit: (id: string) => void;
 };
 
-const NO_TYPES: FacilityType[] = [];
+const NO_PROGRAMS: Program[] = [];
 
-const getRowId = (type: FacilityType) => type.id;
+const getRowId = (program: Program) => program.id;
 
 const noop = () => {};
 
-function useFacilityTypesTable({
+function useProgramsTable({
   data,
   rowCount,
   search,
   onSearchChange,
   columnVisibility,
   onEdit,
-}: Omit<FacilityTypesTableProps, 'onAdd'> & { data: FacilityType[]; rowCount: number }) {
+}: Omit<ProgramsTableProps, 'onAdd'> & { data: Program[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
   const searchState = useTableSearchState({
     search,
-    defaultSort: DEFAULT_FACILITY_TYPES_SORT,
+    defaultSort: DEFAULT_PROGRAMS_SORT,
     onSearchChange,
   });
 
@@ -176,12 +160,12 @@ function useFacilityTypesTable({
   });
 }
 
-export function FacilityTypesTableSkeleton({
+export function ProgramsTableSkeleton({
   search,
   columnVisibility,
-}: Pick<FacilityTypesTableProps, 'search' | 'columnVisibility'>) {
-  const table = useFacilityTypesTable({
-    data: NO_TYPES,
+}: Pick<ProgramsTableProps, 'search' | 'columnVisibility'>) {
+  const table = useProgramsTable({
+    data: NO_PROGRAMS,
     rowCount: 0,
     search,
     onSearchChange: noop,
@@ -191,17 +175,17 @@ export function FacilityTypesTableSkeleton({
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
 }
 
-export function FacilityTypesTable({
+export function ProgramsTable({
   search,
   onSearchChange,
   columnVisibility,
   onAdd,
   onEdit,
-}: FacilityTypesTableProps) {
+}: ProgramsTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
-  const { data } = useSuspenseQuery(facilityTypesListOptions(toFacilityTypesQuery(deferredSearch)));
-  const table = useFacilityTypesTable({
+  const { data } = useSuspenseQuery(programsListOptions(toProgramsQuery(deferredSearch)));
+  const table = useProgramsTable({
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -225,12 +209,12 @@ export function FacilityTypesTable({
             action={
               <Button onClick={onAdd}>
                 <PlusIcon data-icon="inline-start" />
-                {t('facility-types.add')}
+                {t('programs.add')}
               </Button>
             }
-            description={t('facility-types.empty-description')}
-            icon={<ShapesIcon />}
-            title={t('facility-types.empty-title')}
+            description={t('programs.empty-description')}
+            icon={<LayersIcon />}
+            title={t('programs.empty-title')}
           />
         )
       }

@@ -9,8 +9,8 @@ export const facilityTypesListOptions = (query: FacilityTypesQuery) =>
     queryFn: () => fetchFacilityTypesPage(query),
   });
 
-export const facilityTypeDetailOptions = (id: string) =>
+export const facilityTypeDetailOptions = (id: string, opening: number) =>
   queryOptions({
-    queryKey: queryKeys.facilityTypes.detail(id),
+    queryKey: [...queryKeys.facilityTypes.detail(id), opening] as const,
     queryFn: () => fetchFacilityType(id),
   });
