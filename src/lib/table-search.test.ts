@@ -80,7 +80,12 @@ describe('textFilterSchema', () => {
   it('keeps the text as typed, spaces included, and drops a blank one', () => {
     expect(textFilterSchema.parse(' ada ')).toBe(' ada ');
     expect(textFilterSchema.parse('   ')).toBeUndefined();
-    expect(textFilterSchema.parse(42)).toBeUndefined();
+    expect(textFilterSchema.parse({ q: 'ada' })).toBeUndefined();
+  });
+
+  it('reads a number or a boolean the router parsed from the URL back as the text typed', () => {
+    expect(textFilterSchema.parse(1133)).toBe('1133');
+    expect(textFilterSchema.parse(true)).toBe('true');
   });
 });
 

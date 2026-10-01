@@ -28,6 +28,20 @@ describe('requireRight', () => {
     );
   });
 
+  it('resolves when the user holds any one of several rights asked for', async () => {
+    permissionStrings.mockResolvedValueOnce(['FACILITY_APPROVED_ORDERABLES_MANAGE']);
+    await expect(
+      requireRight(new QueryClient(), ['ORDERABLES_MANAGE', 'FACILITY_APPROVED_ORDERABLES_MANAGE']),
+    ).resolves.toEqual(new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE']));
+  });
+
+  it('throws a forbidden error naming every right when the user holds none of them', async () => {
+    permissionStrings.mockResolvedValueOnce(['USERS_MANAGE']);
+    await expect(
+      requireRight(new QueryClient(), ['ORDERABLES_MANAGE', 'FACILITY_APPROVED_ORDERABLES_MANAGE']),
+    ).rejects.toThrow('Missing right ORDERABLES_MANAGE or FACILITY_APPROVED_ORDERABLES_MANAGE');
+  });
+
   it('throws without asking the server when nobody is signed in', async () => {
     useLoginData.setState({ referenceDataUserId: null });
     await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).rejects.toBeInstanceOf(

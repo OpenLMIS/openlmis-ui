@@ -8,9 +8,10 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
-/** The right a page asks for, so the nav only offers pages the user can open. */
-const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string>> = {
+/** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
+const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readonly string[]>> = {
   '/administration/facility-types': RIGHTS.facilitiesManage,
+  '/administration/products': [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage],
   '/administration/users': RIGHTS.usersManage,
   '/administration/roles': RIGHTS.usersManage,
   '/administration/service-accounts': RIGHTS.serviceAccountsManage,
@@ -20,7 +21,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string>> = {
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
 export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | undefined) {
   const right = to && NAV_RIGHTS[to];
-  return !right || (rights?.has(right) ?? false);
+  return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
 
 /** The nav without the pages `rights` do not reach; gated pages stay out while rights are unknown. */

@@ -38,7 +38,7 @@ export function tableSearchSchema<const TSortField extends string>(
 
 /** Optional text filter kept as typed, so the input never sees its own text change; blanks drop out. */
 export const textFilterSchema = z
-  .string()
+  .union([z.string(), z.number().transform(String), z.boolean().transform(String)])
   .transform((value) => (value.trim() ? value : undefined))
   .optional()
   .catch(undefined);

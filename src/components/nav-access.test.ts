@@ -70,4 +70,12 @@ describe('canOpen', () => {
     expect(canOpen('/administration/roles', new Set(['USERS_MANAGE']))).toBe(true);
     expect(canOpen('/administration/roles', new Set(['USER_ROLES_MANAGE']))).toBe(false);
   });
+
+  it('opens Products to someone who may manage products or their facility types', () => {
+    expect(canOpen('/administration/products', new Set(['ORDERABLES_MANAGE']))).toBe(true);
+    expect(
+      canOpen('/administration/products', new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE'])),
+    ).toBe(true);
+    expect(canOpen('/administration/products', new Set(['USERS_MANAGE']))).toBe(false);
+  });
 });
