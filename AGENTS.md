@@ -148,7 +148,7 @@ They are **flat key-value pairs** - always flat, never nested (e.g. `"users.titl
 
 Adding a language takes three steps: the catalog in `public/locales/`, an entry in
 `SUPPORTED_LANGUAGES` with its `dir`, **and** its calendar language in `DATE_LOCALES`
-(`src/lib/date-locale.ts`), which a test checks. A file on its own is never picked up.
+(`src/lib/date-locale.ts`), which `tsc` checks. A file on its own is never picked up.
 
 When `en.json` changes, use the `sync-translations` skill to propagate changes to other language files (removes stale keys, translates missing ones, preserves existing translations).
 
@@ -273,8 +273,9 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Five edits carry no prop, so `tsc` cannot catch
-them: `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
+new files rather than reverting the preset. Six edits carry no prop, so `tsc` cannot catch
+them: `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
+follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
 looks disabled; `sonner.tsx`'s `Toaster` reads
 `useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed;
@@ -490,6 +491,9 @@ example: Add/Edit User is a dialog, Edit User Roles is a page. A record whose ad
 child records, as a facility's programs, adds on a page too, with one save for the record and
 its children: Add Facility (`src/features/facilities/components/facility-editor.tsx`) keeps
 one draft above its tabs, the tab in `?tab=`, and opens the tab with the first error on save.
+Each field that picks from a lookup loads behind its own `QueryBoundary`, so the page never
+waits for one, and the footer's save button submits the fields' `<form>` through its `form`
+attribute, so Enter saves.
 
 **Save sends the form at once**, with no "Do you want to save?" step, even where legacy
 asks one: the dialog's Create or Save is already the deliberate act. A confirm stays only
@@ -524,7 +528,8 @@ switch at the end, not a checkbox; picking several of a list is a
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's
 language, from `FormMessagesProvider`'s `dateLocale`, holding `yyyy-MM-dd` or an empty string,
-with a `clearLabel` when it is optional. A `ComboboxField` item takes a `description`, shown
+with a `clearLabel` when it is optional; the calendar is its own chunk, fetched once a date field
+mounts. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
@@ -538,7 +543,7 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
-`SelectTrigger width`, `Button align` and `PopoverContent width/padding`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
+`SelectTrigger width`, `Button align/width` and `PopoverContent width/padding`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
 row, such as a flag's info button and Reset; `TextField` takes a `badge` there. A select's list
 opens below its input, never over it: `alignItemWithTrigger` is `false`.
 `RadioGroupField` takes `variant="tile"` for a grid of small options such as colours, and
