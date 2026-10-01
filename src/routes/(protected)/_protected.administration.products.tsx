@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { PackageIcon } from 'lucide-react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
@@ -32,19 +33,24 @@ import { programsOptions } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 
+const loadDialog = () => import('@/features/products/components/add-product-dialog');
+const AddProductDialog = lazy(() =>
+  loadDialog().then((module) => ({ default: module.AddProductDialog })),
+);
+
 const CLOSED_DIALOGS = { product: undefined } satisfies Partial<ProductsSearch>;
 
 export const Route = createFileRoute('/(protected)/_protected/administration/products')({
   validateSearch: productsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toProductsQuery(search) }),
-  // Either right opens the list, as in legacy.
   loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, [
+    const rights = await requireRight(queryClient, [
       RIGHTS.orderablesManage,
       RIGHTS.facilityApprovedOrderablesManage,
     ]);
     queryClient.prefetchQuery(productsListOptions(deps.query));
     queryClient.prefetchQuery(programsOptions());
+    return { canAdd: rights.has(RIGHTS.orderablesManage) };
   },
   pendingComponent: ProductsPagePending,
   component: ProductsPage,
@@ -54,7 +60,7 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 function ProductsPage() {
   const { t } = useTranslation();
-  // Without the dialog's param, and shared structurally, so opening the dialog leaves the table alone.
+  const { canAdd } = Route.useLoaderData();
   const search = Route.useSearch({
     select: ({ product: _product, ...list }): ProductsSearch => list,
     structuralSharing: true,
@@ -67,17 +73,24 @@ function ProductsPage() {
   );
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
 
-  // Typing in a filter replaces the history entry; paging adds one, so Back steps through pages.
-  const { updateSearch } = useSearchNavigation<ProductsSearch>(CLOSED_DIALOGS);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<ProductsSearch>(CLOSED_DIALOGS);
+  const adding = Route.useSearch({ select: (search) => canAdd && search.product === 'new' });
+  const addProduct = useCallback(() => openDialog({ product: 'new' }), [openDialog]);
+  const [dialogMounted, setDialogMounted] = useState(adding);
+  if (adding && !dialogMounted) setDialogMounted(true);
+  useEffect(() => {
+    if (canAdd) void loadDialog();
+  }, [canAdd]);
 
   return (
     <Workspace>
       <ProductsHeader />
       <WorkspaceContent>
-        {/* Measured, because the room for columns depends on the sidebar as well as the window. */}
         <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
           <ProductsToolbar
             columnView={columnView}
+            onAdd={canAdd ? addProduct : undefined}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
@@ -102,6 +115,11 @@ function ProductsPage() {
             />
           </QueryBoundary>
         </div>
+        {dialogMounted && (
+          <Suspense fallback={null}>
+            <AddProductDialog onClose={closeDialog} open={adding} />
+          </Suspense>
+        )}
       </WorkspaceContent>
     </Workspace>
   );
@@ -122,7 +140,6 @@ function ProductsHeader() {
   );
 }
 
-/** While the rights check runs on a first visit: the page's header over a table skeleton. */
 function ProductsPagePending() {
   return (
     <Workspace>

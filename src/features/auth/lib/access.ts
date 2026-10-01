@@ -16,7 +16,7 @@ export function isForbidden(error: unknown) {
   return error instanceof ForbiddenError || isRefused(error);
 }
 
-/** For a loader: resolves with the signed-in user's rights once they include `right`, or any one of a list, throws otherwise. */
+/** For a loader: resolves with the signed-in user's rights once they include `right`, throws otherwise. */
 export async function requireRight(queryClient: QueryClient, right: string | readonly string[]) {
   const userId = useLoginData.getState().referenceDataUserId;
   // Refetched once stale or invalidated, e.g. after saving your own roles, so a lost right counts.

@@ -38,6 +38,31 @@ describe('wholeNumberText', () => {
   });
 });
 
+describe('wholeNumberText with a range', () => {
+  const ranged = wholeNumberText(
+    {
+      required: 'error.try-again',
+      invalid: 'error.title',
+      tooLarge: 'error.check-connection',
+      tooSmall: 'error.description',
+    },
+    { min: 1, max: Number.MAX_SAFE_INTEGER },
+  );
+  const rangedMessage = (value: string) =>
+    ranged.safeParse(value).error?.issues.map((i) => i.message);
+
+  it('refuses a number below the minimum', () => {
+    expect(rangedMessage('0')).toEqual(['error.description']);
+    expect(rangedMessage('1')).toBeUndefined();
+  });
+
+  it('takes a maximum above what a Java int holds', () => {
+    expect(rangedMessage('2147483648')).toBeUndefined();
+    expect(rangedMessage('9007199254740991')).toBeUndefined();
+    expect(rangedMessage('9007199254740992')).toEqual(['error.check-connection']);
+  });
+});
+
 describe('toWholeNumber', () => {
   it('reads the number, in any of those digits', () => {
     expect(toWholeNumber(' 7 ')).toBe(7);

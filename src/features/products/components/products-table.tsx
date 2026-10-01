@@ -72,7 +72,6 @@ const getRowId = (product: Product) => product.id;
 
 const noop = () => {};
 
-/** The one table setup, shared by the real table and its skeleton so both lay out the same. */
 function useProductsTable({
   data,
   rowCount,
@@ -96,7 +95,6 @@ function useProductsTable({
     rowCount,
     manualPagination: true,
     manualSorting: true,
-    // The server orders a filtered list by name whatever it is asked, so no column sorts.
     enableSorting: false,
     ...searchState,
     state: { ...searchState.state, columnVisibility },
@@ -120,7 +118,6 @@ export function ProductsTableSkeleton({
 
 export function ProductsTable({ search, onSearchChange, columnVisibility }: ProductsTableProps) {
   const { t } = useTranslation();
-  // Keeps the current page on screen, dimmed, while the next one loads instead of suspending.
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(productsListOptions(toProductsQuery(deferredSearch)));
   const table = useProductsTable({
@@ -132,7 +129,6 @@ export function ProductsTable({ search, onSearchChange, columnVisibility }: Prod
   });
   const isPastLastPage = data.content.length === 0 && data.totalElements > 0;
 
-  // A stale link or a smaller page size can point past the end; move to the last page that exists.
   useEffect(() => {
     if (isPastLastPage) {
       onSearchChange({ page: data.totalPages > 1 ? data.totalPages : undefined }, true);

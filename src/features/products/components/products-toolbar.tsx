@@ -15,7 +15,6 @@ type ProductsToolbarProps = {
   search: ProductsSearch;
   onFilterChange: (patch: Partial<ProductsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
-  /** Left out for a user who may not add products. */
   onAdd?: (() => void) | undefined;
 };
 
@@ -76,7 +75,6 @@ export function ProductsToolbar({
   );
 }
 
-/** Every program by name, sent by code; the code in the URL stands in until the programs load. */
 function useProgramOptions(selected: string | undefined) {
   const { data: programs } = useQuery(programsOptions());
   return useMemo(() => {

@@ -7,7 +7,6 @@ export async function fetchProducts(query: ProductsQuery) {
   return data;
 }
 
-/** Without an id, `PUT` creates; the orderables API has no `POST`. */
 export async function createProduct(body: CreateProductBody) {
   const { data } = await client.put<Product>('/orderables', body);
   return data;
