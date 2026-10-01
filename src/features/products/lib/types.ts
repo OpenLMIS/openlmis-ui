@@ -9,8 +9,7 @@ export type ProductsQuery = {
   page: number;
   size: number;
   sort: string;
-  code?: string | undefined;
-  name?: string | undefined;
+  q?: string | undefined;
   program?: string | undefined;
 };
 

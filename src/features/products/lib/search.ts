@@ -17,8 +17,7 @@ export const DEFAULT_PRODUCTS_SORT: DefaultSort = { id: 'fullProductName', desc:
 export const productsSearchSchema = tableSearchSchema(['fullProductName'])
   .omit({ sort: true, dir: true })
   .extend({
-    code: textFilterSchema,
-    name: textFilterSchema,
+    q: textFilterSchema,
     program: textFilterSchema,
     product: z.literal('new').optional().catch(undefined),
   });
@@ -26,14 +25,13 @@ export const productsSearchSchema = tableSearchSchema(['fullProductName'])
 export type ProductsSearch = z.infer<typeof productsSearchSchema>;
 
 export const CLEARED_PRODUCT_FILTERS = {
-  code: undefined,
-  name: undefined,
+  q: undefined,
   program: undefined,
   page: undefined,
 } satisfies Partial<ProductsSearch>;
 
 export function hasProductFilters(search: ProductsSearch) {
-  return Boolean(search.code || search.name || search.program);
+  return Boolean(search.q || search.program);
 }
 
 export function toProductsQuery(search: ProductsSearch): ProductsQuery {
@@ -42,8 +40,7 @@ export function toProductsQuery(search: ProductsSearch): ProductsQuery {
     page: pageIndex,
     size: pageSize,
     sort: toSortParam({}, DEFAULT_PRODUCTS_SORT),
-    code: search.code?.trim(),
-    name: search.name?.trim(),
+    q: search.q?.trim(),
     program: search.program?.trim(),
   };
 }

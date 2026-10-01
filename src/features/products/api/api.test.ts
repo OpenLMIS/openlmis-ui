@@ -29,8 +29,7 @@ describe('fetchProducts', () => {
       page: 2,
       size: 20,
       sort: 'fullProductName,asc',
-      code: '0363',
-      name: 'allergy',
+      q: '0363',
       program: 'PRG002',
     };
     await expect(fetchProducts(query)).resolves.toEqual(page);
