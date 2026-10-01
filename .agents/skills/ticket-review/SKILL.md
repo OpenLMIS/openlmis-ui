@@ -63,6 +63,7 @@ for later.
 Gather every PR behind the ticket, in any OpenLMIS repo:
 
 1. `PR:` lines in the ticket's own comments, and in its parent story's for a subtask.
+   For a Story, a PR naming any of its subtasks is the story's work too.
 2. `gh search prs "<KEY>" --owner OpenLMIS --json repository,number,title,state,url`.
    The search matches PR bodies too, so a PR that only mentions the key, such as a plan
    for another epic, is not this ticket's work. Keep the ones whose title or branch
@@ -139,8 +140,7 @@ For each ticket, children before their parent:
    PR: [https://github.com/OpenLMIS/openlmis-ui/pull/32](https://github.com/OpenLMIS/openlmis-ui/pull/32)
    ```
 
-   One sentence on what users can do now, then at most a handful of bullets for what is
-   in it, then one `PR:` line per PR. A small task gets the sentence and the PR line only.
+   One sentence on what users can do now, then three bullets at most for what is in it, then one `PR:` line per PR. A small task gets the sentence and the PR line only.
    Name anything moved to another ticket, in one bullet.
 3. **Status**: `getTransitionsForJiraIssue`, then `transitionJiraIssue` to the one named
    `Done` (`41` in FM today). Never move an Epic, or any ticket this run did not review.
