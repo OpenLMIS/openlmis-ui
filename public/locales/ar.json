@@ -97,6 +97,7 @@
   "feature-flags.show-requisition-less-order.description": "إظهار إنشاء أمر في قائمة الأوامر.",
   "feature-flags.show-requisition-less-order.label": "إنشاء أوامر بدون طلب",
   "feature-flags.show-requisition-less-order.used-by": "الأوامر > إنشاء أمر",
+  "form.about-label": "حول {name}",
   "home.add-user": "إضافة مستخدم",
   "home.approvals.description": "الطارئة أولًا، ثم الأطول انتظارًا.",
   "home.approvals.emergency": "طارئ",

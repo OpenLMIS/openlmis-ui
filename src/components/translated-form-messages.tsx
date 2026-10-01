@@ -7,6 +7,11 @@ import { FormMessagesProvider } from '@/components/form/form-messages';
 export function TranslatedFormMessages({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const formatError = useCallback((message: string) => t(message as ParseKeys), [t]);
+  const aboutLabel = useCallback((label: string) => t('form.about-label', { name: label }), [t]);
 
-  return <FormMessagesProvider formatError={formatError}>{children}</FormMessagesProvider>;
+  return (
+    <FormMessagesProvider aboutLabel={aboutLabel} formatError={formatError}>
+      {children}
+    </FormMessagesProvider>
+  );
 }

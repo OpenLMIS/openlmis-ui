@@ -104,7 +104,7 @@ export function FieldSkeleton({ label, required = false }: { label: string; requ
 
 export function SwitchSkeleton() {
   return (
-    <div className="h-16 w-full">
+    <div className="h-8 w-full">
       <Skeleton fill />
     </div>
   );

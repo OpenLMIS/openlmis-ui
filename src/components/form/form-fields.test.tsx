@@ -284,7 +284,9 @@ describe('form fields', () => {
 });
 
 function LayoutForm() {
-  const form = useAppForm({ defaultValues: { email: '', digest: false, notify: true } });
+  const form = useAppForm({
+    defaultValues: { email: '', digest: false, notify: true, active: true, locked: false },
+  });
   return (
     <form>
       <form.AppField name="email">
@@ -298,6 +300,10 @@ function LayoutForm() {
           <field.SwitchField description="Get every notification" label="Notify" layout="row" />
         )}
       </form.AppField>
+      <form.AppField name="active">
+        {(field) => <field.SwitchField description="Can sign in" label="Active" />}
+      </form.AppField>
+      <form.AppField name="locked">{(field) => <field.SwitchField label="Locked" />}</form.AppField>
     </form>
   );
 }
@@ -318,5 +324,26 @@ describe('field layouts', () => {
     expect(screen.getByRole('switch', { name: 'Notify' })).toHaveAccessibleDescription(
       'Get every notification',
     );
+  });
+
+  it('keeps a switch description behind its info button and still reads it out', async () => {
+    const user = userEvent.setup();
+    render(
+      <FormMessagesProvider
+        aboutLabel={(label) => `translated about ${label}`}
+        formatError={(message) => message}
+      >
+        <LayoutForm />
+      </FormMessagesProvider>,
+    );
+
+    expect(screen.getByRole('switch', { name: 'Active' })).toHaveAccessibleDescription(
+      'Can sign in',
+    );
+    expect(screen.queryByRole('button', { name: 'translated about Locked' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'translated about Active' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Can sign in');
+    expect(screen.getByRole('switch', { name: 'Active' })).toBeChecked();
   });
 });

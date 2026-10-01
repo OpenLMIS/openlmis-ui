@@ -508,7 +508,8 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
 `max: Number.MAX_SAFE_INTEGER`, and a lower bound passes `min` with its own message. A yes/no setting is a `SwitchField`,
-a switch in a bordered card, not a checkbox; picking several of a list is a
+one compact row with the label and an info button for its description at the start and the
+switch at the end, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
