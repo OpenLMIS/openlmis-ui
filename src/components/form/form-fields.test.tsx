@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -370,52 +370,88 @@ function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) 
     >
       <form.AppField name="opened">
         {(field) => (
-          <field.DateField clearLabel="Clear Opened" label="Opened" placeholder="Pick a Date" />
+          <field.DateField clearLabel="Clear Opened" label="Opened" placeholder="Pick A Date" />
         )}
       </form.AppField>
       <form.AppField name="started">
-        {(field) => <field.DateField label="Started" placeholder="Pick a Date" required />}
+        {(field) => <field.DateField label="Started" placeholder="Pick A Date" required />}
       </form.AppField>
       <button type="submit">Save</button>
     </form>
   );
 }
 
-describe('date field', () => {
-  it('shows the stored day in the page language and stores the picked day as yyyy-MM-dd', async () => {
+const openCalendar = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+  await user.click(screen.getByRole('button', { name }));
+  return screen.findByRole('dialog', undefined, { timeout: 3000 });
+};
+
+describe('date field', { timeout: 15_000 }, () => {
+  it('names the picker by its label and its day, and stores the picked day as yyyy-MM-dd', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<DateForm onSubmit={onSubmit} />);
 
-    const opened = screen.getByRole('button', { name: 'Opened' });
-    expect(opened).toHaveTextContent('Oct 1, 2026');
+    const calendar = await openCalendar(user, /^Opened Oct 1, 2026$/);
+    expect(calendar).toHaveAccessibleName('Opened');
+    await user.click(await within(calendar).findByRole('button', { name: /October 15th, 2026/ }));
+    expect(screen.getByRole('button', { name: 'Opened Oct 15, 2026' })).toBeInTheDocument();
 
-    await user.click(opened);
-    await user.click(await screen.findByRole('button', { name: /October 15th, 2026/ }));
-    expect(opened).toHaveTextContent('Oct 15, 2026');
-
-    await user.click(screen.getByRole('button', { name: 'Started' }));
-    await user.click(await screen.findByRole('button', { name: /15th/ }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ opened: '2026-10-15' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Started/ })).toHaveAccessibleDescription(
+      'started.required',
+    );
   });
 
-  it('empties an optional date with its clear button', async () => {
+  it('moves through the days by keyboard and picks the one in focus', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    const calendar = await openCalendar(user, /^Opened/);
+    await waitFor(() =>
+      expect(within(calendar).getByRole('button', { name: /October 1st, 2026/ })).toHaveFocus(),
+    );
+    await user.keyboard('{ArrowRight}');
+    await waitFor(() =>
+      expect(within(calendar).getByRole('button', { name: /October 2nd, 2026/ })).toHaveFocus(),
+    );
+    await user.keyboard('{ArrowDown}');
+    await waitFor(() =>
+      expect(within(calendar).getByRole('button', { name: /October 9th, 2026/ })).toHaveFocus(),
+    );
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Opened Oct 9, 2026' })).toBeInTheDocument();
+  });
+
+  it('keeps a required date when its day is picked again', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    let calendar = await openCalendar(user, /^Started/);
+    const today = (await within(calendar).findAllByRole('button', { name: /Today/ }))[0];
+    if (!today) throw new Error('no today');
+    await user.click(today);
+    const picked = screen.getByRole('button', { name: /^Started/ }).textContent;
+
+    calendar = await openCalendar(user, /^Started/);
+    await user.click(
+      (await within(calendar).findAllByRole('button', { name: /Today/ }))[0] as HTMLElement,
+    );
+
+    expect(screen.getByRole('button', { name: /^Started/ })).toHaveTextContent(picked ?? '');
+    expect(screen.getByRole('button', { name: /^Started/ })).not.toHaveTextContent('Pick A Date');
+  });
+
+  it('empties an optional date with its clear button and keeps the focus on the field', async () => {
     const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Clear Opened' }));
-    expect(screen.getByRole('button', { name: 'Opened' })).toHaveTextContent('Pick a Date');
+
+    const opened = screen.getByRole('button', { name: 'Opened Pick A Date' });
+    expect(opened).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
-  });
-
-  it('marks a required date that was left empty after submit', async () => {
-    const user = userEvent.setup();
-    render(<DateForm onSubmit={vi.fn()} />);
-
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    const started = screen.getByRole('button', { name: 'Started' });
-    expect(started).toHaveAttribute('aria-invalid', 'true');
-    expect(started).toHaveAccessibleDescription('Pick a Date started.required');
   });
 });

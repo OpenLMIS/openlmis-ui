@@ -1,5 +1,7 @@
-import { createContext, type ReactNode, use, useMemo } from 'react';
-import type { Locale } from 'react-day-picker';
+import { type ComponentProps, createContext, type ReactNode, use, useMemo } from 'react';
+import type { Calendar } from '@/components/ui/calendar';
+
+type Locale = ComponentProps<typeof Calendar>['locale'];
 
 type FormMessages = {
   formatError: (message: string) => string;
@@ -20,7 +22,6 @@ type FormMessagesProviderProps = {
   formatError: (message: string) => string;
   /** Names the info button that shows a field's description. */
   aboutLabel?: (label: string) => string;
-  /** The language dates are shown and picked in; English when left out. */
   dateLocale?: Locale;
   children: ReactNode;
 };

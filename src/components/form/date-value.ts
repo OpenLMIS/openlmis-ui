@@ -1,6 +1,5 @@
 const DATE_VALUE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/** A `yyyy-MM-dd` value as that day at local midnight, or undefined when it is not a real day. */
 export function parseDateValue(value: string): Date | undefined {
   const match = DATE_VALUE.exec(value);
   if (!match) return undefined;

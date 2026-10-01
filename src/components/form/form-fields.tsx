@@ -7,13 +7,12 @@ import {
   UploadIcon,
   XIcon,
 } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
 import { useAboutLabel, useDateLocale, useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Combobox,
   ComboboxChip,
@@ -185,7 +184,7 @@ function FieldFrame({
           badge={<RowExtras action={action} badge={badge} badgeId={badgeId} />}
           description={descriptionNode}
           label={
-            <FieldLabel htmlFor={field.name} weight="normal">
+            <FieldLabel htmlFor={field.name} id={`${field.name}-label`} weight="normal">
               {labelText}
             </FieldLabel>
           }
@@ -205,10 +204,14 @@ function FieldFrame({
     <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
       {layout === 'inline' ? (
         <HiddenFromView>
-          <label htmlFor={field.name}>{labelText}</label>
+          <label htmlFor={field.name} id={`${field.name}-label`}>
+            {labelText}
+          </label>
         </HiddenFromView>
       ) : (
-        <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>
+        <FieldLabel htmlFor={field.name} id={`${field.name}-label`}>
+          {labelText}
+        </FieldLabel>
       )}
       {children}
       {details}
@@ -782,7 +785,6 @@ export function SelectField({
 export type ComboboxFieldItem = {
   value: string;
   label: string;
-  /** Shown muted after the label, e.g. a zone's level. */
   description?: string;
 };
 
@@ -958,20 +960,19 @@ export function MultiComboboxField({
 }
 
 type DateFieldProps = FieldProps & {
-  /** Shown while no date is picked. */
   placeholder: string;
-  /** Names the button that empties an optional date; without it the date can only be changed. */
   clearLabel?: string;
 };
 
-const FIRST_MONTH = new Date(1900, 0);
+type CalendarComponent = typeof import('@/components/ui/calendar').Calendar;
 
-/** One letter or so, since a day column is too narrow for the full name in many languages. */
-const weekdayName = (date: Date, locale: string) =>
-  date.toLocaleDateString(locale, { weekday: 'narrow' });
+const FIRST_MONTH = new Date(1900, 0);
 const lastMonth = () => new Date(new Date().getFullYear() + 20, 11);
 
-/** A day picked from a calendar; the field's value is `yyyy-MM-dd`, or an empty string for none. */
+/** Narrow, since a day column is too small for the full name in many languages. */
+const weekdayName = (date: Date, locale: string) =>
+  date.toLocaleDateString(locale, { weekday: 'narrow' });
+
 export function DateField({
   label,
   layout,
@@ -982,16 +983,29 @@ export function DateField({
   clearLabel,
 }: DateFieldProps) {
   const field = useFieldContext<string>();
+  const labelId = `${field.name}-label`;
   const valueId = `${field.name}-value`;
-  const state = useFieldErrors(description, valueId);
+  const state = useFieldErrors(description);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
   const locale = useDateLocale();
   const direction = useDirection();
+  const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [Calendar, setCalendar] = useState<CalendarComponent | null>(null);
   const selected = parseDateValue(field.state.value);
   const localeCode = locale?.code ?? 'en-US';
   const shown = formatDateValue(field.state.value, localeCode);
   const canClear = Boolean(clearLabel && shown && !required && !disabled);
+
+  useEffect(() => {
+    let current = true;
+    void import('@/components/ui/calendar').then((module) => {
+      if (current) setCalendar(() => module.Calendar);
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
 
   return (
     <FieldFrame
@@ -1003,17 +1017,19 @@ export function DateField({
       state={state}
     >
       <div className="relative">
-        <Popover onOpenChange={setOpen} open={open}>
+        <Popover onOpenChange={setOpen} open={open && Calendar !== null}>
           <PopoverTrigger
             render={
               <Button
                 align="start"
                 aria-describedby={ariaDescribedBy}
                 aria-invalid={isInvalid}
+                aria-labelledby={`${labelId} ${valueId}`}
                 aria-required={required}
                 disabled={disabled}
                 id={field.name}
                 onBlur={field.handleBlur}
+                ref={trigger}
                 type="button"
                 variant="outline"
                 width="full"
@@ -1025,31 +1041,37 @@ export function DateField({
               {shown || placeholder}
             </span>
           </PopoverTrigger>
-          <PopoverContent align="start" padding="none" width="auto">
-            <Calendar
-              autoFocus
-              captionLayout="dropdown"
-              defaultMonth={selected}
-              dir={direction}
-              endMonth={lastMonth()}
-              formatters={{ formatWeekdayName: (date) => weekdayName(date, localeCode) }}
-              locale={locale}
-              mode="single"
-              onSelect={(date) => {
-                field.handleChange(date ? toDateValue(date) : '');
-                setOpen(false);
-              }}
-              selected={selected}
-              startMonth={FIRST_MONTH}
-            />
+          <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">
+            {Calendar && (
+              <Calendar
+                autoFocus
+                captionLayout="dropdown"
+                defaultMonth={selected}
+                dir={direction}
+                endMonth={lastMonth()}
+                formatters={{ formatWeekdayName: (date) => weekdayName(date, localeCode) }}
+                locale={locale}
+                mode="single"
+                onSelect={(date: Date | undefined) => {
+                  field.handleChange(date ? toDateValue(date) : '');
+                  setOpen(false);
+                }}
+                required={required}
+                selected={selected}
+                startMonth={FIRST_MONTH}
+              />
+            )}
           </PopoverContent>
         </Popover>
-        {/* A sibling of the trigger, not inside it, since a button cannot hold another button. */}
+        {/* A sibling of the trigger, since a button cannot hold another button. */}
         {canClear && (
           <div className="absolute inset-y-0 end-1 flex items-center">
             <Button
               aria-label={clearLabel}
-              onClick={() => field.handleChange('')}
+              onClick={() => {
+                field.handleChange('');
+                trigger.current?.focus();
+              }}
               size="icon-xs"
               type="button"
               variant="ghost"
