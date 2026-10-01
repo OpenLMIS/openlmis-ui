@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FieldLabelText } from '@/components/form/form-fields';
 import {
   FormDialogCancel,
+  FormDialogDescription,
   FormDialogFooter,
   FormDialogHeader,
   FormDialogTitle,
@@ -98,5 +99,30 @@ export function FieldSkeleton({ label, required = false }: { label: string; requ
         <Skeleton fill />
       </div>
     </Field>
+  );
+}
+
+export function SwitchSkeleton() {
+  return (
+    <div className="h-16 w-full">
+      <Skeleton fill />
+    </div>
+  );
+}
+
+export function DialogNotFound({ title, description }: { title: string; description: string }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{title}</FormDialogTitle>
+        <div role="status">
+          <FormDialogDescription>{description}</FormDialogDescription>
+        </div>
+      </FormDialogHeader>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
   );
 }

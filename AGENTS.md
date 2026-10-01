@@ -133,7 +133,9 @@ the OpenLMIS reference data many screens look up (facilities, facility types, pr
 supervisory nodes and roles), named after the backend's `referencedata` service. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
-facilities list, is a feature of its own.
+facilities list, is a feature of its own. When that screen's list is the lookup's own
+endpoint, as for Roles, it reads the lookup query and widens its type rather than fetching
+the same list twice.
 
 ### Internationalization (i18next)
 
@@ -414,6 +416,11 @@ sorting to the URL. Every change is computed from the latest search, not the ren
 one, so quick repeated clicks never build on a stale page. A new sort, filter or page
 size returns to page 1.
 
+**When the endpoint cannot page or sort**, as `GET /roles`, the list loads every record once
+and filters, sorts and pages it in the browser behind the same URL state, clamping a page past
+the end; with no request per page, nothing suspends after the first load. Roles is the example.
+It moves to server paging once the API can page, as Programs did with `POST /programs/search`.
+
 **Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
 (`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The
 table reads the query through `useDeferredValue(search)`: the first load shows
@@ -484,6 +491,13 @@ where a save reaches other records, as Roles asks before changing a role users h
 or replaces it when the page was opened with the dialog from a link. A page gets this, and
 its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 `src/hooks/use-search-navigation.ts` rather than writing its own.
+
+A dialog whose save sends the whole record back reads that record fresh each time it opens, or
+a cached copy could undo another admin's change: its detail query key carries a number the
+dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
+Programs and Facility Types are the examples; Roles and Users still use one cached detail.
+A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
+from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
