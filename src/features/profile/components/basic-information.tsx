@@ -259,7 +259,7 @@ function FacilityName({ id }: { id: string }) {
     );
   }
   if (isError) return t('users.roles.unknown');
-  return `${data.code} - ${data.name}`;
+  return data.name ? `${data.code} - ${data.name}` : data.code;
 }
 
 /** A changed email waits for its link to be opened; until then the old one stays in use. */
