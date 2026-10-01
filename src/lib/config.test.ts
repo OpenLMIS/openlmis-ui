@@ -77,6 +77,13 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Products under Administration', () => {
+    expect(getNavTrail('/administration/products')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.products', to: '/administration/products' },
+    ]);
+  });
+
   it('does not match a path that only starts with the same letters', () => {
     expect(getNavTrail('/administration/users-archive')).toEqual([]);
   });

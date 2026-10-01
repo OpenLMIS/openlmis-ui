@@ -5,8 +5,8 @@ import { isRefused } from '@/lib/http';
 
 /** Thrown by a route whose user lacks the right the page needs. */
 export class ForbiddenError extends Error {
-  constructor(right: string) {
-    super(`Missing right ${right}`);
+  constructor(rights: string | readonly string[]) {
+    super(`Missing right ${[rights].flat().join(' or ')}`);
     this.name = 'ForbiddenError';
   }
 }
@@ -16,11 +16,11 @@ export function isForbidden(error: unknown) {
   return error instanceof ForbiddenError || isRefused(error);
 }
 
-/** For a loader: resolves with the signed-in user's rights once they include `right`, throws otherwise. */
-export async function requireRight(queryClient: QueryClient, right: string) {
+/** For a loader: resolves with the signed-in user's rights once they include `right`, or any one of a list, throws otherwise. */
+export async function requireRight(queryClient: QueryClient, right: string | readonly string[]) {
   const userId = useLoginData.getState().referenceDataUserId;
   // Refetched once stale or invalidated, e.g. after saving your own roles, so a lost right counts.
   const rights = userId ? await queryClient.fetchQuery(rightsOptions(userId)) : new Set<string>();
-  if (!rights.has(right)) throw new ForbiddenError(right);
+  if (![right].flat().some((name) => rights.has(name))) throw new ForbiddenError(right);
   return rights;
 }

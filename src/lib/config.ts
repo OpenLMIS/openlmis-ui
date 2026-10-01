@@ -117,7 +117,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.ideal-stock-amounts', to: '#' },
           { titleKey: 'nav.administration.lots', to: '#' },
           { titleKey: 'nav.administration.one-network-integration', to: '#' },
-          { titleKey: 'nav.administration.products', to: '#' },
+          { titleKey: 'nav.administration.products', to: '/administration/products' },
           { titleKey: 'nav.administration.processing-schedules', to: '#' },
           { titleKey: 'nav.administration.programs', to: '#' },
           { titleKey: 'nav.administration.reasons', to: '#' },
