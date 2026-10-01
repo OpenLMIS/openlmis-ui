@@ -1,6 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
-import { BuildingIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard } from '@/components/data-table/data-table';
@@ -9,6 +9,7 @@ import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +46,7 @@ import {
   type FacilityTab,
   facilityFormSchema,
   isDuplicateCode,
+  isManagedExternally,
   tabWithFirstError,
   toProgramRow,
 } from '@/features/facilities/lib/facility-form';
@@ -70,6 +72,8 @@ const FORM_ID = 'facility-form';
 
 type FacilityEditorProps = {
   initialValues: FacilityFormValues;
+  /** The facility as stored, when editing one. */
+  saved?: Facility | undefined;
   tab: FacilityTab;
   onTabChange: (tab: FacilityTab) => void;
   title: string;
@@ -113,6 +117,7 @@ function focusFirstError(container: HTMLElement | null) {
 
 export function FacilityEditor({
   initialValues,
+  saved,
   tab,
   onTabChange,
   title,
@@ -125,7 +130,11 @@ export function FacilityEditor({
 }: FacilityEditorProps) {
   const { t } = useTranslation();
   const [refused, setRefused] = useState<string[]>([]);
-  const schema = useMemo(() => facilityFormSchema(refused), [refused]);
+  const schema = useMemo(
+    () => facilityFormSchema(refused, { goLiveDateRequired: Boolean(saved) }),
+    [refused, saved],
+  );
+  const locked = saved ? isManagedExternally(saved) : false;
   const tabs = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
 
@@ -181,6 +190,13 @@ export function FacilityEditor({
             inert={mutation.isPending}
             ref={tabs}
           >
+            {locked && (
+              <Alert variant="info">
+                <InfoIcon />
+                <AlertTitle>{t('facilities.form.managed-externally-title')}</AlertTitle>
+                <AlertDescription>{t('facilities.form.managed-externally')}</AlertDescription>
+              </Alert>
+            )}
             {mutation.isError && !isDuplicateCode(mutation.error) && (
               <ErrorAlert
                 description={serverMessage(mutation.error) ?? t('facilities.form.save-error')}
@@ -208,7 +224,7 @@ export function FacilityEditor({
                     void form.handleSubmit();
                   }}
                 >
-                  <InformationFields form={form} />
+                  <InformationFields form={form} locked={locked} saved={saved} />
                 </form>
               </TabsContent>
               <TabsContent keepMounted value="programs">
@@ -260,7 +276,13 @@ function LookupField({
   );
 }
 
-function InformationFields({ form }: { form: FacilityForm }) {
+type InformationFieldsProps = {
+  form: FacilityForm;
+  locked: boolean;
+  saved: Facility | undefined;
+};
+
+function InformationFields({ form, locked, saved }: InformationFieldsProps) {
   const { t } = useTranslation();
 
   return (
@@ -268,7 +290,12 @@ function InformationFields({ form }: { form: FacilityForm }) {
       <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
         <form.AppField name="name">
           {(field) => (
-            <field.TextField autoComplete="off" label={t('facilities.form.name')} required />
+            <field.TextField
+              autoComplete="off"
+              disabled={locked}
+              label={t('facilities.form.name')}
+              required
+            />
           )}
         </form.AppField>
         <form.AppField name="code">
@@ -276,16 +303,17 @@ function InformationFields({ form }: { form: FacilityForm }) {
             <field.TextField
               autoComplete="off"
               dir="ltr"
+              disabled={locked}
               label={t('facilities.form.code')}
               required
             />
           )}
         </form.AppField>
         <LookupField label={t('facilities.form.type')} required>
-          <TypeField form={form} />
+          <TypeField current={saved?.type} form={form} />
         </LookupField>
         <LookupField label={t('facilities.form.zone')} required>
-          <ZoneField form={form} />
+          <ZoneField disabled={locked} form={form} />
         </LookupField>
         <form.AppField name="goLiveDate">
           {(field) => (
@@ -302,13 +330,16 @@ function InformationFields({ form }: { form: FacilityForm }) {
         </LookupField>
         <div className="@3xl/main:col-span-2">
           <form.AppField name="description">
-            {(field) => <field.TextareaField label={t('facilities.form.description')} />}
+            {(field) => (
+              <field.TextareaField disabled={locked} label={t('facilities.form.description')} />
+            )}
           </form.AppField>
         </div>
         <form.AppField name="active">
           {(field) => (
             <field.SwitchField
               description={t('facilities.form.active-description')}
+              disabled={locked}
               label={t('facilities.form.active')}
             />
           )}
@@ -326,16 +357,21 @@ function InformationFields({ form }: { form: FacilityForm }) {
   );
 }
 
-function TypeField({ form }: { form: FacilityForm }) {
+type TypeFieldProps = {
+  form: FacilityForm;
+  /** The stored type, kept on offer when it is no longer active. */
+  current: Facility['type'] | undefined;
+};
+
+function TypeField({ form, current }: TypeFieldProps) {
   const { t } = useTranslation();
   const { data: types } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.types);
-  const items = useMemo(
-    () =>
-      types
-        .map((type) => ({ value: type.id, label: type.name || type.code }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    [types],
-  );
+  const items = useMemo(() => {
+    const offered = current && !types.some((type) => type.id === current.id);
+    return [...types, ...(offered ? [current] : [])]
+      .map((type) => ({ value: type.id, label: type.name || type.code }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [types, current]);
   return (
     <form.AppField name="typeId">
       {(field) => (
@@ -352,7 +388,7 @@ function TypeField({ form }: { form: FacilityForm }) {
   );
 }
 
-function ZoneField({ form }: { form: FacilityForm }) {
+function ZoneField({ form, disabled }: { form: FacilityForm; disabled: boolean }) {
   const { t } = useTranslation();
   const { data: zones } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.zones);
   const items = useMemo(() => zones.map(toZoneOption), [zones]);
@@ -361,6 +397,7 @@ function ZoneField({ form }: { form: FacilityForm }) {
       {(field) => (
         <field.ComboboxField
           clearLabel={t('facilities.form.clear-zone')}
+          disabled={disabled}
           emptyMessage={t('facilities.form.no-matches')}
           items={items}
           label={t('facilities.form.zone')}
@@ -471,7 +508,7 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
                                 label={named(t('facilities.form.start-date'))}
                                 layout="inline"
                                 placeholder={t('facilities.form.pick-date')}
-                                required
+                                required={!row.saved}
                               />
                             )}
                           </form.AppField>

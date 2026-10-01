@@ -1,7 +1,16 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { BuildingIcon, CheckIcon, PlusIcon, SearchXIcon, XIcon } from 'lucide-react';
+import {
+  BuildingIcon,
+  CheckIcon,
+  EllipsisIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchXIcon,
+  XIcon,
+} from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -15,6 +24,12 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { facilitiesListOptions } from '@/features/facilities/api/queries';
 import {
   CLEARED_FACILITY_FILTERS,
@@ -55,7 +70,7 @@ function flag(on: boolean, onLabel: string, offLabel: string) {
   );
 }
 
-function createColumns(t: TFunction) {
+function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
       header: ({ column }) => (
@@ -104,7 +119,55 @@ function createColumns(t: TFunction) {
         flag(getValue(), t('facilities.status-enabled'), t('facilities.status-disabled')),
       meta: { className: 'w-32' },
     }),
+    columnHelper.display({
+      id: 'actions',
+      header: () => <span className="sr-only">{t('facilities.actions')}</span>,
+      meta: { className: 'w-16' },
+      cell: ({ row }) => <FacilityActions facility={row.original} listSearch={listSearch} />,
+    }),
   ]);
+}
+
+function FacilityActions({
+  facility,
+  listSearch,
+}: {
+  facility: Facility;
+  listSearch: FacilitiesSearch;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={t('facilities.actions-for', { facility: facility.name || facility.code })}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width="auto">
+          <DropdownMenuItem
+            render={
+              <Link
+                params={{ id: facility.id }}
+                state={{ facilitiesListSearch: listSearch }}
+                to="/administration/facilities/$id"
+              />
+            }
+          >
+            <PencilIcon />
+            {t('facilities.edit')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
 
 type FacilitiesTableProps = {
@@ -128,7 +191,7 @@ function useFacilitiesTable({
   columnVisibility,
 }: Omit<FacilitiesTableProps, 'onAdd'> & { data: Facility[]; rowCount: number }) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t), [t]);
+  const columns = useMemo(() => createColumns(t, search), [t, search]);
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_FACILITIES_SORT,
