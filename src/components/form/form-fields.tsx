@@ -965,6 +965,10 @@ type DateFieldProps = FieldProps & {
 };
 
 const FIRST_MONTH = new Date(1900, 0);
+
+/** One letter or so, since a day column is too narrow for the full name in many languages. */
+const weekdayName = (date: Date, locale: string) =>
+  date.toLocaleDateString(locale, { weekday: 'narrow' });
 const lastMonth = () => new Date(new Date().getFullYear() + 20, 11);
 
 /** A day picked from a calendar; the field's value is `yyyy-MM-dd`, or an empty string for none. */
@@ -985,7 +989,8 @@ export function DateField({
   const direction = useDirection();
   const [open, setOpen] = useState(false);
   const selected = parseDateValue(field.state.value);
-  const shown = formatDateValue(field.state.value, locale?.code ?? 'en-US');
+  const localeCode = locale?.code ?? 'en-US';
+  const shown = formatDateValue(field.state.value, localeCode);
   const canClear = Boolean(clearLabel && shown && !required && !disabled);
 
   return (
@@ -1027,6 +1032,7 @@ export function DateField({
               defaultMonth={selected}
               dir={direction}
               endMonth={lastMonth()}
+              formatters={{ formatWeekdayName: (date) => weekdayName(date, localeCode) }}
               locale={locale}
               mode="single"
               onSelect={(date) => {
@@ -1048,7 +1054,7 @@ export function DateField({
               type="button"
               variant="ghost"
             >
-              <XIcon />
+              <XIcon className="size-4" />
             </Button>
           </div>
         )}
