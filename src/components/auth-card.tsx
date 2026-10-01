@@ -64,15 +64,15 @@ type AuthTitleProps = {
 
 export function AuthTitle({ focus = false, children }: AuthTitleProps) {
   return (
-    <CardTitle
-      aria-level={1}
+    <div
+      className="outline-none"
       ref={focus ? focusOnMount : undefined}
-      role="heading"
-      size="lg"
       tabIndex={focus ? -1 : undefined}
     >
-      {children}
-    </CardTitle>
+      <CardTitle aria-level={1} role="heading" size="lg">
+        {children}
+      </CardTitle>
+    </div>
   );
 }
 
@@ -101,7 +101,6 @@ export function AuthSubmit({ pending, children }: { pending: boolean; children: 
 
 type AuthLinkProps = {
   to: '/login' | '/forgot-password';
-  /** Opens in a new tab, leaving the page behind as it is. */
   newTab?: boolean;
   children: ReactNode;
 };
@@ -109,8 +108,7 @@ type AuthLinkProps = {
 export function AuthLink({ to, newTab = false, children }: AuthLinkProps) {
   return (
     <Link
-      className="text-sm text-muted-foreground hover:text-primary"
-      rel={newTab ? 'noopener' : undefined}
+      className="rounded-sm text-sm text-muted-foreground outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
       target={newTab ? '_blank' : undefined}
       to={to}
     >

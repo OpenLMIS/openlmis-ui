@@ -80,9 +80,8 @@ describe('ResetPasswordForm', () => {
 
     await submit('kznqG0C2vx');
 
-    expect(
-      await screen.findByRole('heading', { name: 'reset-password.expired-title' }),
-    ).toHaveFocus();
+    const title = await screen.findByRole('heading', { name: 'reset-password.expired-title' });
+    expect(title.parentElement).toHaveFocus();
     expect(screen.getByRole('button', { name: 'reset-password.request-new-link' })).toHaveAttribute(
       'href',
       '/forgot-password',

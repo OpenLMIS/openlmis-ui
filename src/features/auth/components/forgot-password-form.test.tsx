@@ -39,7 +39,7 @@ describe('ForgotPasswordForm', () => {
     await submit(' ada@example.org ');
 
     const title = await screen.findByRole('heading', { name: 'forgot-password.sent-title' });
-    expect(title).toHaveFocus();
+    expect(title.parentElement).toHaveFocus();
     expect(requestPasswordReset).toHaveBeenCalledWith('ada@example.org');
     expect(screen.getByRole('button', { name: 'forgot-password.back-to-sign-in' })).toHaveAttribute(
       'href',

@@ -9,7 +9,7 @@ export type PasswordOwner = {
 };
 
 /** The fixed rules the auth service checks, in the order it reports them; strength is left to the server. */
-export const PASSWORD_RULES = ['length', 'characters', 'number', 'names'] as const;
+const PASSWORD_RULES = ['length', 'characters', 'number', 'names'] as const;
 
 export type PasswordRule = (typeof PASSWORD_RULES)[number];
 

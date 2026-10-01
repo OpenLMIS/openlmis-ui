@@ -227,13 +227,14 @@ describe('form fields', () => {
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();
   });
 
-  it('puts the action of a stacked field beside its label, outside it', () => {
+  it('reaches the action of a stacked field after its input, so Tab goes from label to input', () => {
     renderForm();
     const label = screen.getByText('Secret').closest('label') as HTMLElement;
+    const input = screen.getByLabelText('Secret');
     const action = screen.getByRole('link', { name: 'Forgot?' });
 
-    expect(label.parentElement).toContainElement(action);
     expect(label).not.toContainElement(action);
+    expect(input.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('shows the chosen item by its label and stores it by value', async () => {

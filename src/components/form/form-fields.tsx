@@ -190,21 +190,33 @@ function FieldFrame({
       </Field>
     );
   }
-  return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      {layout === 'inline' ? (
+  if (layout === 'inline') {
+    return (
+      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
         <HiddenFromView>
           <label htmlFor={field.name}>{labelText}</label>
         </HiddenFromView>
-      ) : action ? (
-        <div className="flex items-center justify-between gap-2">
-          <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>
-          {action}
+        {children}
+        {details}
+      </Field>
+    );
+  }
+  const stackedLabel = <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>;
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      {action ? (
+        // Beside the label on screen, after the input in tab order, and wrapping when cramped.
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="shrink-0">{stackedLabel}</div>
+          <div className="order-last basis-full">{children}</div>
+          <div className="ms-auto">{action}</div>
         </div>
       ) : (
-        <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>
+        <>
+          {stackedLabel}
+          {children}
+        </>
       )}
-      {children}
       {details}
     </Field>
   );

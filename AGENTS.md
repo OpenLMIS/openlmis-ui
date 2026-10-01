@@ -386,12 +386,6 @@ the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`)
 never remounts the header. A tab's own header button, such as Reset To Defaults on System
 Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts appear at the top end corner, just below the header, tinted by their kind.
 
-Signed-out pages (Sign In, Forgot Password, Reset Password) sit outside the app shell and
-compose `src/components/auth-card.tsx` instead: `AuthPage` with the page's title, `AuthHeader`
-holding an `AuthTitle` (the page's heading), then `AuthForm`, `AuthSubmit` and `AuthLink`. A card
-that replaces the form the user was in, such as a confirmation, passes `focus` to its
-`AuthTitle`, so keyboard and screen-reader users land on it.
-
 `Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
@@ -404,6 +398,13 @@ They are hidden on Home and on pages outside the nav without one. None of them a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
 at the call site.
+
+Signed-out pages (Sign In, Forgot Password, Reset Password) sit outside the app shell and
+compose `src/components/auth-card.tsx` instead: `AuthPage` with the page's title, then
+`AuthHeader` holding an `AuthTitle` (the page's heading) and a `CardDescription`, then
+`CardContent` holding an `AuthForm` with its fields, an `AuthSubmit` and any `AuthLink`. A card
+that replaces the form the user was in, such as a confirmation, passes `focus` to its
+`AuthTitle`, so keyboard and screen-reader users land on it.
 
 ## List pages
 
@@ -534,7 +535,8 @@ exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTit
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
 `SelectTrigger width`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
 row, such as a flag's info button and Reset; `TextField` takes a `badge` there. Stacked, a
-`PasswordField` takes an `action` at the end of its label's line, such as Forgot Password?, and
+`PasswordField` takes an `action` at the end of its label's line, such as Forgot Password?,
+reached after the input with Tab, and
 two of them that show and hide as one, a password and its confirmation, share `visible` and
 `onVisibleChange`. A select's list
 opens below its input, never over it: `alignItemWithTrigger` is `false`.
