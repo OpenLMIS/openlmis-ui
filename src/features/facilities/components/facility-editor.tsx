@@ -318,10 +318,11 @@ function InformationFields({ form, locked, saved }: InformationFieldsProps) {
         <form.AppField name="goLiveDate">
           {(field) => (
             <field.DateField
-              clearLabel={t('facilities.form.clear-go-live-date')}
+              clearLabel={saved ? undefined : t('facilities.form.clear-go-live-date')}
               description={t('facilities.form.go-live-date-description')}
               label={t('facilities.form.go-live-date')}
               placeholder={t('facilities.form.pick-date')}
+              required={Boolean(saved)}
             />
           )}
         </form.AppField>

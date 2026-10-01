@@ -288,6 +288,20 @@ describe('FacilityEditor', () => {
       expect(screen.getByText('facilities.form.managed-externally-title')).toBeInTheDocument();
     });
 
+    it('marks the operational date required, with no clear button, as legacy asks for it', async () => {
+      renderEdit(facility);
+
+      const date = await screen.findByRole(
+        'button',
+        { name: /^facilities\.form\.go-live-date/ },
+        { timeout: 3000 },
+      );
+      expect(date).toHaveAttribute('aria-required', 'true');
+      expect(
+        screen.queryByRole('button', { name: 'facilities.form.clear-go-live-date' }),
+      ).toBeNull();
+    });
+
     it('never offers to remove a program the facility already supports', async () => {
       const user = userEvent.setup();
       renderEdit(facility);

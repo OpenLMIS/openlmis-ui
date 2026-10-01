@@ -493,7 +493,8 @@ its children: Add Facility (`src/features/facilities/components/facility-editor.
 one draft above its tabs, the tab in `?tab=`, and opens the tab with the first error on save.
 Each field that picks from a lookup loads behind its own `QueryBoundary`, so the page never
 waits for one, and the footer's save button submits the fields' `<form>` through its `form`
-attribute, so Enter saves.
+attribute, so Enter saves. Edit Facility is the same editor given the stored record as
+`saved`, read fresh in its loader, since its save sends the whole record back.
 
 **Save sends the form at once**, with no "Do you want to save?" step, even where legacy
 asks one: the dialog's Create or Save is already the deliberate act. A confirm stays only
