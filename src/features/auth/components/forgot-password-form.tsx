@@ -1,24 +1,19 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useMutation } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Loader2Icon } from 'lucide-react';
 import { useId } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { AuthHeader } from '@/components/auth-card';
+import { AuthForm, AuthHeader, AuthSubmit, AuthTitle } from '@/components/auth-card';
 import { ErrorAlert } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
-import { CardContent, CardDescription, CardTitle } from '@/components/ui/card';
-import { FieldGroup } from '@/components/ui/field';
+import { CardContent, CardDescription } from '@/components/ui/card';
 import { requestPasswordReset } from '@/features/auth/api/api';
-import { forgotErrorKey, forgotPasswordSchema } from '@/features/auth/lib/password-reset';
+import { forgotPasswordSchema, passwordResetErrorKey } from '@/features/auth/lib/password-reset';
 
 export function ForgotPasswordForm() {
   const { t } = useTranslation();
-  const request = useMutation({
-    mutationFn: (email: string) => requestPasswordReset(email),
-    networkMode: 'always',
-  });
+  const request = useMutation({ mutationFn: (email: string) => requestPasswordReset(email) });
   const form = useAppForm({
     defaultValues: { email: '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
@@ -31,54 +26,44 @@ export function ForgotPasswordForm() {
   return (
     <>
       <AuthHeader>
-        <CardTitle size="lg">{t('forgot-password.title')}</CardTitle>
+        <AuthTitle>{t('forgot-password.title')}</AuthTitle>
         <CardDescription>{t('forgot-password.description')}</CardDescription>
       </AuthHeader>
 
       <CardContent>
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            form.handleSubmit();
-          }}
-        >
-          <FieldGroup>
-            {request.isError && (
-              <ErrorAlert
-                description={t(forgotErrorKey(request.error))}
-                title={t('forgot-password.error-title')}
+        <AuthForm onSubmit={form.handleSubmit}>
+          {request.isError && (
+            <ErrorAlert
+              description={t(passwordResetErrorKey(request.error))}
+              title={t('forgot-password.error-title')}
+            />
+          )}
+          <form.AppField name="email">
+            {(field) => (
+              <field.TextField
+                autoComplete="email"
+                dir="ltr"
+                label={t('forgot-password.email')}
+                placeholder={t('forgot-password.email-placeholder')}
+                required
+                type="email"
               />
             )}
-            <form.AppField name="email">
-              {(field) => (
-                <field.TextField
-                  autoComplete="email"
-                  label={t('forgot-password.email')}
-                  placeholder={t('forgot-password.email-placeholder')}
-                  required
-                  type="email"
-                />
-              )}
-            </form.AppField>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                nativeButton={false}
-                render={<Link to="/login" />}
-                variant="outline"
-                width="full"
-              >
-                {t('forgot-password.cancel')}
-              </Button>
-              <Button disabled={request.isPending} type="submit" width="full">
-                {request.isPending && (
-                  <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                )}
-                {request.isPending ? t('forgot-password.submitting') : t('forgot-password.submit')}
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
+          </form.AppField>
+          <div className="grid gap-2">
+            <AuthSubmit pending={request.isPending}>
+              {request.isPending ? t('forgot-password.submitting') : t('forgot-password.submit')}
+            </AuthSubmit>
+            <Button
+              nativeButton={false}
+              render={<Link to="/login" />}
+              variant="outline"
+              width="full"
+            >
+              {t('forgot-password.cancel')}
+            </Button>
+          </div>
+        </AuthForm>
       </CardContent>
     </>
   );
@@ -92,7 +77,7 @@ function ResetRequested({ email }: { email: string }) {
   return (
     <>
       <AuthHeader>
-        <CardTitle size="lg">{t('forgot-password.sent-title')}</CardTitle>
+        <AuthTitle focus>{t('forgot-password.sent-title')}</AuthTitle>
         <CardDescription id={descriptionId}>
           <Trans
             components={{ email: <bdi className="font-medium text-foreground" /> }}
@@ -105,7 +90,6 @@ function ResetRequested({ email }: { email: string }) {
       <CardContent>
         <Button
           aria-describedby={descriptionId}
-          autoFocus
           nativeButton={false}
           render={<Link to="/login" />}
           width="full"

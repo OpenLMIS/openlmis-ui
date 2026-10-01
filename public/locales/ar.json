@@ -399,7 +399,6 @@
   "programs.status": "الحالة",
   "programs.title": "البرامج",
   "reset-password.description": "اختر كلمة مرور جديدة لحسابك.",
-  "reset-password.error": "حدث خطأ في الخادم. حاول مرة أخرى، أو اتصل بالمسؤول.",
   "reset-password.expired-description": "انتهت صلاحية رابط إعادة التعيين هذا. تعمل الروابط لمدة 12 ساعة. اطلب رابطًا جديدًا للمتابعة.",
   "reset-password.expired-title": "انتهت صلاحية الرابط",
   "reset-password.invalid-description": "رابط إعادة التعيين هذا لا يعمل. ربما استُخدم من قبل، أو أُرسل رابط أحدث. اطلب رابطًا جديدًا للمتابعة.",

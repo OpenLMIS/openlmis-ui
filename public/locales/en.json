@@ -399,7 +399,6 @@
   "programs.status": "Status",
   "programs.title": "Programs",
   "reset-password.description": "Choose a new password for your account.",
-  "reset-password.error": "Something went wrong on the server. Try again, or contact your administrator.",
   "reset-password.expired-description": "This reset link has expired. Links work for 12 hours. Request a new link to carry on.",
   "reset-password.expired-title": "Link Expired",
   "reset-password.invalid-description": "This reset link does not work. It may have been used already, or a newer one was sent. Request a new link to carry on.",

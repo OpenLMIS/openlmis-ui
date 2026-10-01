@@ -399,7 +399,6 @@
   "programs.status": "Estado",
   "programs.title": "Programas",
   "reset-password.description": "Escolha uma nova palavra-passe para a sua conta.",
-  "reset-password.error": "Ocorreu um erro no servidor. Tente novamente ou contacte o seu administrador.",
   "reset-password.expired-description": "Esta ligação de redefinição expirou. As ligações são válidas durante 12 horas. Peça uma nova ligação para continuar.",
   "reset-password.expired-title": "Ligação Expirada",
   "reset-password.invalid-description": "Esta ligação de redefinição não funciona. Pode já ter sido usada, ou foi enviada uma mais recente. Peça uma nova ligação para continuar.",

@@ -1,11 +1,11 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 
-/** An error as Axios throws it for a response with `status`. */
-export const httpError = (status: number) =>
+/** An error as Axios throws it for a response with `status` and, optionally, a body. */
+export const httpError = (status: number, data: unknown = {}) =>
   new AxiosError('failed', String(status), undefined, undefined, {
     status,
     statusText: '',
-    data: {},
+    data,
     headers: {},
     config: { headers: new AxiosHeaders() },
   });

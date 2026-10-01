@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestPasswordReset } from '@/features/auth/api/api';
 import { ForgotPasswordForm } from '@/features/auth/components/forgot-password-form';
 import { httpError } from '@/tests/http-error';
-import { renderWithLogin } from '@/tests/render-with-login';
+import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/auth/api/api', () => ({ requestPasswordReset: vi.fn() }));
 
@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 async function submit(email: string) {
-  renderWithLogin(<ForgotPasswordForm />);
+  renderPage(<ForgotPasswordForm />);
   const events = userEvent.setup();
   await events.type(await screen.findByRole('textbox', { name: /forgot-password.email/ }), email);
   await events.click(screen.getByRole('button', { name: 'forgot-password.submit' }));
@@ -27,7 +27,7 @@ async function submit(email: string) {
 
 describe('ForgotPasswordForm', () => {
   it('asks for the address before sending anything', async () => {
-    renderWithLogin(<ForgotPasswordForm />);
+    renderPage(<ForgotPasswordForm />);
     await userEvent.click(await screen.findByRole('button', { name: 'forgot-password.submit' }));
 
     expect(await screen.findByText('forgot-password.email-required')).toBeInTheDocument();
@@ -38,7 +38,8 @@ describe('ForgotPasswordForm', () => {
     vi.mocked(requestPasswordReset).mockResolvedValue();
     await submit(' ada@example.org ');
 
-    expect(await screen.findByText('forgot-password.sent-title')).toBeInTheDocument();
+    const title = await screen.findByRole('heading', { name: 'forgot-password.sent-title' });
+    expect(title).toHaveFocus();
     expect(requestPasswordReset).toHaveBeenCalledWith('ada@example.org');
     expect(screen.getByRole('button', { name: 'forgot-password.back-to-sign-in' })).toHaveAttribute(
       'href',

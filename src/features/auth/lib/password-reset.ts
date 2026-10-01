@@ -14,7 +14,7 @@ export const forgotPasswordSchema = z.object({
     .pipe(z.email(errorKey('forgot-password.email-invalid'))),
 });
 
-export function forgotErrorKey(error: unknown): ParseKeys {
+export function passwordResetErrorKey(error: unknown): ParseKeys {
   if (isOfflineError(error)) return 'session.cannot-connect';
   if (isAxiosError(error) && error.response?.status === 429) {
     return 'forgot-password.too-many-attempts';
@@ -22,7 +22,6 @@ export function forgotErrorKey(error: unknown): ParseKeys {
   return 'forgot-password.error';
 }
 
-/** The reset link carries a UUID; anything else could never work. */
 export const isResetToken = (token: string) => z.guid().safeParse(token).success;
 
 export type LinkProblem = 'invalid' | 'expired';
@@ -34,11 +33,6 @@ const LINK_PROBLEMS: Record<string, LinkProblem> = {
 
 /** Why the server refused the link itself, as opposed to a failure the form can retry. */
 export function linkProblem(error: unknown): LinkProblem | undefined {
-  if (!isAxiosError(error)) return undefined;
-  const key = (error.response?.data as { messageKey?: unknown } | undefined)?.messageKey;
-  return typeof key === 'string' ? LINK_PROBLEMS[key] : undefined;
-}
-
-export function resetErrorKey(error: unknown): ParseKeys {
-  return isOfflineError(error) ? 'session.cannot-connect' : 'reset-password.error';
+  const key = isAxiosError<{ messageKey?: string }>(error) && error.response?.data?.messageKey;
+  return key ? LINK_PROBLEMS[key] : undefined;
 }

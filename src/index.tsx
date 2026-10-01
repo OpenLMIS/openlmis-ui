@@ -12,6 +12,7 @@ import { router } from '@/integrations/tanstack-router';
 import { loadAppConfiguration } from '@/lib/app-configuration';
 import { startApplyingAppConfiguration } from '@/lib/apply-app-configuration';
 import { seedOnline } from '@/lib/online';
+import { isSignInPage } from '@/lib/redirect';
 import { reportCaughtError } from '@/lib/report-error';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { registerServiceWorker } from '@/lib/service-worker';
@@ -29,7 +30,8 @@ syncLegacySession();
 
 // `storage` fires in the other tabs, so a sign out anywhere, even in the legacy UI, reaches this one.
 window.addEventListener('storage', async (event) => {
-  if (await syncOtherTab(event.key)) router.navigate({ to: '/login' });
+  const signedOut = await syncOtherTab(event.key);
+  if (signedOut && !isSignInPage(router.state.location.pathname)) router.navigate({ to: '/login' });
 });
 
 registerServiceWorker();

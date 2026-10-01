@@ -16,7 +16,6 @@ export function loginSearch({ pathname, href }: { pathname: string; href: string
   return pathname === HOME ? {} : { redirect: href };
 }
 
-/** The signed-out pages, where nothing asks the user to sign in again. */
 export const isSignInPage = (pathname: string) =>
   pathname === '/login' ||
   pathname === '/forgot-password' ||

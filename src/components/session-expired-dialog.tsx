@@ -1,10 +1,11 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
+import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { Trans, useTranslation } from 'react-i18next';
 import * as z from 'zod';
+import { AuthLink } from '@/components/auth-card';
 import { ErrorAlert } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -115,6 +116,12 @@ function SignInAgainForm({ username }: { username: string }) {
           <form.AppField name="sessionPassword">
             {(field) => (
               <field.PasswordField
+                action={
+                  // A new tab, so the page and its unsaved work stay behind the dialog.
+                  <AuthLink newTab to="/forgot-password">
+                    {t('login.forgot-password')}
+                  </AuthLink>
+                }
                 autoComplete="current-password"
                 description={
                   <Trans
@@ -131,17 +138,6 @@ function SignInAgainForm({ username }: { username: string }) {
               />
             )}
           </form.AppField>
-          <p className="text-sm">
-            {/* A new tab, so the page and its unsaved work stay behind the dialog. */}
-            <Link
-              className="text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
-              rel="noopener"
-              target="_blank"
-              to="/forgot-password"
-            >
-              {t('login.forgot-password')}
-            </Link>
-          </p>
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>

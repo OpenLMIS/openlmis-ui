@@ -84,6 +84,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       <form.AppField name="secret">
         {(field) => (
           <field.PasswordField
+            action={<a href="/forgot">Forgot?</a>}
             describedBy="secret-rules"
             hideLabel="Hide"
             label="Secret"
@@ -224,6 +225,15 @@ describe('form fields', () => {
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(secret).toHaveAttribute('type', 'text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument();
+  });
+
+  it('puts the action of a stacked field beside its label, outside it', () => {
+    renderForm();
+    const label = screen.getByText('Secret').closest('label') as HTMLElement;
+    const action = screen.getByRole('link', { name: 'Forgot?' });
+
+    expect(label.parentElement).toContainElement(action);
+    expect(label).not.toContainElement(action);
   });
 
   it('shows the chosen item by its label and stores it by value', async () => {

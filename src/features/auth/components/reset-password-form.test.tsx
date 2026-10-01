@@ -1,13 +1,13 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError, AxiosHeaders } from 'axios';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetPassword } from '@/features/auth/api/api';
 import { ResetPasswordForm } from '@/features/auth/components/reset-password-form';
-import { renderWithLogin } from '@/tests/render-with-login';
+import { httpError } from '@/tests/http-error';
+import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/auth/api/api', () => ({ resetPassword: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
@@ -34,7 +34,7 @@ async function submit(password: string) {
 
 describe('ResetPasswordForm', () => {
   it('shows and hides both passwords with either eye', async () => {
-    renderWithLogin(<ResetPasswordForm token={token} />);
+    renderPage(<ResetPasswordForm token={token} />);
     const [first] = await screen.findAllByRole('button', { name: 'users.password.show' });
 
     await userEvent.click(first);
@@ -49,12 +49,12 @@ describe('ResetPasswordForm', () => {
 
   it('changes the password, then goes to sign in', async () => {
     vi.mocked(resetPassword).mockResolvedValue();
-    renderWithLogin(<ResetPasswordForm token={token} />);
+    const router = renderPage(<ResetPasswordForm token={token} />);
     await screen.findByRole('button', { name: 'reset-password.submit' });
 
     await submit('kznqG0C2vx');
 
-    expect(await screen.findByText('/login')).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(resetPassword).toHaveBeenCalledWith(token, 'kznqG0C2vx');
     expect(toast.success).toHaveBeenCalledWith('profile.password.changed-title', {
       description: 'profile.password.changed',
@@ -62,7 +62,7 @@ describe('ResetPasswordForm', () => {
   });
 
   it('holds a password that breaks the rules', async () => {
-    renderWithLogin(<ResetPasswordForm token={token} />);
+    renderPage(<ResetPasswordForm token={token} />);
     await screen.findByRole('button', { name: 'reset-password.submit' });
 
     await submit('abcdefgh');
@@ -73,20 +73,16 @@ describe('ResetPasswordForm', () => {
 
   it('replaces the form with a way to a new link once the link has expired', async () => {
     vi.mocked(resetPassword).mockRejectedValue(
-      new AxiosError('failed', '400', undefined, undefined, {
-        status: 400,
-        statusText: '',
-        data: { messageKey: 'auth.error.token.expired' },
-        headers: {},
-        config: { headers: new AxiosHeaders() },
-      }),
+      httpError(400, { messageKey: 'auth.error.token.expired' }),
     );
-    renderWithLogin(<ResetPasswordForm token={token} />);
+    renderPage(<ResetPasswordForm token={token} />);
     await screen.findByRole('button', { name: 'reset-password.submit' });
 
     await submit('kznqG0C2vx');
 
-    expect(await screen.findByText('reset-password.expired-title')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'reset-password.expired-title' }),
+    ).toHaveFocus();
     expect(screen.getByRole('button', { name: 'reset-password.request-new-link' })).toHaveAttribute(
       'href',
       '/forgot-password',
@@ -95,7 +91,7 @@ describe('ResetPasswordForm', () => {
   });
 
   it('says a malformed link does not work before anything is typed', async () => {
-    renderWithLogin(<ResetPasswordForm token="not-a-token" />);
+    renderPage(<ResetPasswordForm token="not-a-token" />);
 
     expect(await screen.findByText('reset-password.invalid-title')).toBeInTheDocument();
     expect(passwordInput()).toBeNull();

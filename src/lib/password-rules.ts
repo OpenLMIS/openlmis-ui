@@ -13,7 +13,6 @@ export const PASSWORD_RULES = ['length', 'characters', 'number', 'names'] as con
 
 export type PasswordRule = (typeof PASSWORD_RULES)[number];
 
-/** The rules that apply; the names only when it is known whose password it is. */
 export function passwordRules(owner?: PasswordOwner): readonly PasswordRule[] {
   return owner ? PASSWORD_RULES : PASSWORD_RULES.filter((rule) => rule !== 'names');
 }
