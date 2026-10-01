@@ -17,6 +17,7 @@ import {
 } from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
+import { programsListOptions } from '@/features/programs/api/queries';
 import {
   ProgramsTable,
   ProgramsTableSkeleton,
@@ -26,6 +27,7 @@ import {
   PROGRAM_HIDEABLE_COLUMNS,
   type ProgramsSearch,
   programsSearchSchema,
+  toProgramsQuery,
 } from '@/features/programs/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -38,15 +40,15 @@ const ProgramFormDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { program: undefined } satisfies Partial<ProgramsSearch>;
 
-const LIST_FRESH_FOR = 30 * 1000;
-
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 export const Route = createFileRoute('/(protected)/_protected/administration/programs')({
   validateSearch: programsSearchSchema,
-  loader: async ({ context: { queryClient } }) => {
+  loaderDeps: ({ search }) => ({ query: toProgramsQuery(search), program: search.program }),
+  loader: async ({ context: { queryClient }, deps }) => {
     await requireRight(queryClient, RIGHTS.programsManage);
-    queryClient.prefetchQuery({ ...programsOptions(), staleTime: LIST_FRESH_FOR });
+    queryClient.prefetchQuery(programsListOptions(deps.query));
+    if (deps.program === 'new') queryClient.prefetchQuery(programsOptions());
   },
   pendingComponent: ProgramsPagePending,
   component: ProgramsPage,
@@ -93,7 +95,7 @@ function ProgramsPage() {
             pendingFallback={
               <ProgramsTableSkeleton columnVisibility={columnView.visibility} search={search} />
             }
-            resetKey="programs"
+            resetKey={JSON.stringify(search)}
           >
             <ProgramsTable
               columnVisibility={columnView.visibility}

@@ -1,6 +1,12 @@
-import type { ProgramBody } from '@/features/programs/lib/types';
+import type { ProgramBody, ProgramsQuery } from '@/features/programs/lib/types';
 import type { Program } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
+import type { Page } from '@/lib/types';
+
+export async function fetchProgramsPage(query: ProgramsQuery) {
+  const { data } = await client.post<Page<Program>>('/programs/search', {}, { params: query });
+  return data;
+}
 
 export async function fetchProgram(id: string): Promise<Program> {
   const { data } = await client.get<Program>(`/programs/${id}`);

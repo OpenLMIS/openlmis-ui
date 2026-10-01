@@ -134,8 +134,8 @@ supervisory nodes and roles), named after the backend's `referencedata` service.
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own. When that screen's list is the lookup's own
-endpoint, as for Programs and Roles, it reads the lookup query and widens its type rather
-than fetching the same list twice.
+endpoint, as for Roles, it reads the lookup query and widens its type rather than fetching
+the same list twice.
 
 ### Internationalization (i18next)
 
@@ -416,10 +416,10 @@ sorting to the URL. Every change is computed from the latest search, not the ren
 one, so quick repeated clicks never build on a stale page. A new sort, filter or page
 size returns to page 1.
 
-**When the endpoint cannot page or sort**, as `GET /programs` and `GET /roles`, the list loads
-every record once and filters, sorts and pages it in the browser behind the same URL state,
-clamping a page past the end; with no request per page, nothing suspends after the first load.
-Programs and Roles are the examples. It moves to server paging once the API can page.
+**When the endpoint cannot page or sort**, as `GET /roles`, the list loads every record once
+and filters, sorts and pages it in the browser behind the same URL state, clamping a page past
+the end; with no request per page, nothing suspends after the first load. Roles is the example.
+It moves to server paging once the API can page, as Programs did with `POST /programs/search`.
 
 **Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
 (`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The

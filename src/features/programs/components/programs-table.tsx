@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { CheckIcon, EllipsisIcon, LayersIcon, PencilIcon, PlusIcon, XIcon } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -21,22 +21,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sortPrograms } from '@/features/programs/lib/programs-list';
+import { programsListOptions } from '@/features/programs/api/queries';
 import {
   DEFAULT_PROGRAMS_SORT,
-  type ProgramSortField,
   type ProgramsSearch,
+  toProgramsQuery,
 } from '@/features/programs/lib/search';
-import { programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import {
-  type SearchChange,
-  toPaginationState,
-  toSortingState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Program>();
 
@@ -137,12 +131,13 @@ const getRowId = (program: Program) => program.id;
 const noop = () => {};
 
 function useProgramsTable({
-  programs,
+  data,
+  rowCount,
   search,
   onSearchChange,
   columnVisibility,
   onEdit,
-}: Omit<ProgramsTableProps, 'onAdd'> & { programs: Program[] }) {
+}: Omit<ProgramsTableProps, 'onAdd'> & { data: Program[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
   const searchState = useTableSearchState({
@@ -150,38 +145,28 @@ function useProgramsTable({
     defaultSort: DEFAULT_PROGRAMS_SORT,
     onSearchChange,
   });
-  const [{ id, desc }] = toSortingState(search, DEFAULT_PROGRAMS_SORT) as [
-    { id: ProgramSortField; desc: boolean },
-  ];
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const sorted = useMemo(() => sortPrograms(programs, id, desc), [programs, id, desc]);
-  const data = useMemo(
-    () => sorted.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
-    [sorted, pageIndex, pageSize],
-  );
 
-  const table = useTable({
+  return useTable({
     features: dataTableFeatures,
     columns,
     data,
     getRowId,
-    rowCount: sorted.length,
+    rowCount,
     manualPagination: true,
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
     state: { ...searchState.state, columnVisibility },
   });
-
-  return { table, total: sorted.length };
 }
 
 export function ProgramsTableSkeleton({
   search,
   columnVisibility,
 }: Pick<ProgramsTableProps, 'search' | 'columnVisibility'>) {
-  const { table } = useProgramsTable({
-    programs: NO_PROGRAMS,
+  const table = useProgramsTable({
+    data: NO_PROGRAMS,
+    rowCount: 0,
     search,
     onSearchChange: noop,
     columnVisibility,
@@ -190,16 +175,31 @@ export function ProgramsTableSkeleton({
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
 }
 
-export function ProgramsTable({ search, onSearchChange, onAdd, ...props }: ProgramsTableProps) {
+export function ProgramsTable({
+  search,
+  onSearchChange,
+  columnVisibility,
+  onAdd,
+  onEdit,
+}: ProgramsTableProps) {
   const { t } = useTranslation();
-  const { data: programs } = useSuspenseQuery(programsOptions());
-  const { table, total } = useProgramsTable({ programs, search, onSearchChange, ...props });
-  const pageCount = table.getPageCount();
-  const isPastLastPage = total > 0 && toPaginationState(search).pageIndex >= pageCount;
+  const deferredSearch = useDeferredValue(search);
+  const { data } = useSuspenseQuery(programsListOptions(toProgramsQuery(deferredSearch)));
+  const table = useProgramsTable({
+    data: data.content,
+    rowCount: data.totalElements,
+    search: deferredSearch,
+    onSearchChange,
+    columnVisibility,
+    onEdit,
+  });
+  const isPastLastPage = data.content.length === 0 && data.totalElements > 0;
 
   useEffect(() => {
-    if (isPastLastPage) onSearchChange({ page: pageCount > 1 ? pageCount : undefined }, true);
-  }, [isPastLastPage, pageCount, onSearchChange]);
+    if (isPastLastPage) {
+      onSearchChange({ page: data.totalPages > 1 ? data.totalPages : undefined }, true);
+    }
+  }, [isPastLastPage, data.totalPages, onSearchChange]);
 
   return (
     <DataTable
@@ -218,7 +218,8 @@ export function ProgramsTable({ search, onSearchChange, onAdd, ...props }: Progr
           />
         )
       }
-      footer={!isPastLastPage && total > 0 && <DataTablePagination table={table} />}
+      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
+      isStale={search !== deferredSearch}
       table={table}
     />
   );

@@ -44,7 +44,6 @@ import {
   toProgramBody,
   toProgramFormValues,
 } from '@/features/programs/lib/program-form';
-import { withSavedProgram } from '@/features/programs/lib/programs-list';
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
@@ -176,15 +175,15 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
       return program ? updateProgram(program.id, body) : createProgram(body);
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData(programsOptions().queryKey, (list) =>
-        list ? withSavedProgram(list, saved) : list,
-      );
       toast.success(t(program ? 'programs.form.updated-title' : 'programs.form.created-title'), {
         description: t(program ? 'programs.form.updated' : 'programs.form.created', {
           program: programName(saved),
         }),
       });
-      void queryClient.invalidateQueries({ queryKey: programsOptions().queryKey });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.programs.all,
+        predicate: (query) => query.queryKey[1] !== 'detail',
+      });
     },
     onError: (error, values) => {
       if (!isDuplicateCode(error)) return;
