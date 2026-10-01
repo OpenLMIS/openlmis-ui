@@ -10,13 +10,12 @@ const toCode = (text: string) => text.replace(/\s/g, '');
 
 const sameCode = (a: string, b: string) => toCode(a).toLowerCase() === toCode(b).toLowerCase();
 
-const packSize = (required: ParseKeys, min = 0) =>
+const packSize = (required: ParseKeys, min?: { value: number; tooSmall: ParseKeys }) =>
   wholeNumberText(
     {
       required,
       invalid: errorKey('products.form.whole-number'),
       tooLarge: errorKey('products.form.too-large'),
-      tooSmall: errorKey('products.form.net-content-too-small'),
     },
     { min, max: Number.MAX_SAFE_INTEGER },
   );
@@ -34,7 +33,10 @@ export function productFormSchema(refusedCodes: readonly string[]) {
     fullProductName: z.string(),
     description: z.string(),
     dispensingUnit: z.string().trim().min(1, errorKey('products.form.dispensing-unit-required')),
-    netContent: packSize(errorKey('products.form.net-content-required'), 1),
+    netContent: packSize(errorKey('products.form.net-content-required'), {
+      value: 1,
+      tooSmall: errorKey('products.form.net-content-too-small'),
+    }),
     packRoundingThreshold: packSize(errorKey('products.form.pack-rounding-threshold-required')),
     roundToZero: z.boolean(),
   });

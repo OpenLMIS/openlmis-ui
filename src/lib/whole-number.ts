@@ -17,14 +17,16 @@ type WholeNumberMessages = {
   required: ParseKeys;
   invalid: ParseKeys;
   tooLarge: ParseKeys;
-  tooSmall?: ParseKeys;
 };
 
-type WholeNumberRange = { min?: number; max?: number };
+type WholeNumberRange = {
+  min?: { value: number; tooSmall: ParseKeys } | undefined;
+  max?: number;
+};
 
 export function wholeNumberText(
   messages: WholeNumberMessages,
-  { min = 0, max = MAX_WHOLE_NUMBER }: WholeNumberRange = {},
+  { min, max = MAX_WHOLE_NUMBER }: WholeNumberRange = {},
 ) {
   return z.string().superRefine((value, context) => {
     const text = toLatinDigits(value.trim());
@@ -32,8 +34,8 @@ export function wholeNumberText(
     else if (!/^[0-9]+$/.test(text))
       context.addIssue({ code: 'custom', message: messages.invalid });
     else if (Number(text) > max) context.addIssue({ code: 'custom', message: messages.tooLarge });
-    else if (Number(text) < min) {
-      context.addIssue({ code: 'custom', message: messages.tooSmall ?? messages.invalid });
+    else if (min && Number(text) < min.value) {
+      context.addIssue({ code: 'custom', message: min.tooSmall });
     }
   });
 }

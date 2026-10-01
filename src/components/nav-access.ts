@@ -8,7 +8,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
-/** The right a page asks for, so the nav only offers pages the user can open. */
+/** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
 const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readonly string[]>> = {
   '/administration/facility-types': RIGHTS.facilitiesManage,
   '/administration/products': [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage],

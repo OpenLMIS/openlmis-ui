@@ -1,12 +1,18 @@
 import { z } from 'zod';
 import type { ProductsQuery } from '@/features/products/lib/types';
-import { tableSearchSchema, textFilterSchema, toPaginationState } from '@/lib/table-search';
+import {
+  type DefaultSort,
+  tableSearchSchema,
+  textFilterSchema,
+  toPaginationState,
+  toSortParam,
+} from '@/lib/table-search';
 
 export const PRODUCT_HIDEABLE_COLUMNS = [
   { id: 'description', labelKey: 'products.description', hideBelow: '2xl' },
 ] as const;
 
-const PRODUCTS_SORT = 'fullProductName,asc';
+export const DEFAULT_PRODUCTS_SORT: DefaultSort = { id: 'fullProductName', desc: false };
 
 export const productsSearchSchema = tableSearchSchema(['fullProductName'])
   .omit({ sort: true, dir: true })
@@ -35,7 +41,7 @@ export function toProductsQuery(search: ProductsSearch): ProductsQuery {
   return {
     page: pageIndex,
     size: pageSize,
-    sort: PRODUCTS_SORT,
+    sort: toSortParam({}, DEFAULT_PRODUCTS_SORT),
     code: search.code?.trim(),
     name: search.name?.trim(),
     program: search.program?.trim(),

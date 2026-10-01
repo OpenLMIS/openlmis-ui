@@ -87,7 +87,7 @@ function ProductsPage() {
     <Workspace>
       <ProductsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
           <ProductsToolbar
             columnView={columnView}
             onAdd={canAdd ? addProduct : undefined}

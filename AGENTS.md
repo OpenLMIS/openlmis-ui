@@ -492,7 +492,8 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
-`toWholeNumber`. A yes/no setting is a `SwitchField`,
+`toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
+`max: Number.MAX_SAFE_INTEGER`, and a lower bound passes `min` with its own message. A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
@@ -544,7 +545,10 @@ showing `NoAccess`. Inside a feature, which has no auth imports, such a boundary
 `isRefused(error)` from `src/lib/http.ts` and shows a short message in place, not the
 full-page panel. Add the page to `NAV_RIGHTS` in
 `src/components/nav-access.ts` too, so the sidebar, the palette and the breadcrumbs never offer
-it. The Users routes are the example.
+it. The Users routes are the example. A page legacy opens with either of two rights passes
+both, as a list, to `requireRight` and to `NAV_RIGHTS`; any one opens it. An action inside the
+page that needs one of them reads the set `requireRight` resolves with and hides itself, also
+when its dialog is opened by its URL, as Add Product does on Products.
 
 **Unsaved work asks before it is lost.** A page with a draft calls `useDiscardGuard` from
 `src/hooks/use-discard-guard.ts`, which blocks router navigation to another page and, for

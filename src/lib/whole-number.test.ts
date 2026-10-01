@@ -40,13 +40,8 @@ describe('wholeNumberText', () => {
 
 describe('wholeNumberText with a range', () => {
   const ranged = wholeNumberText(
-    {
-      required: 'error.try-again',
-      invalid: 'error.title',
-      tooLarge: 'error.check-connection',
-      tooSmall: 'error.description',
-    },
-    { min: 1, max: Number.MAX_SAFE_INTEGER },
+    { required: 'error.try-again', invalid: 'error.title', tooLarge: 'error.check-connection' },
+    { min: { value: 1, tooSmall: 'error.description' }, max: Number.MAX_SAFE_INTEGER },
   );
   const rangedMessage = (value: string) =>
     ranged.safeParse(value).error?.issues.map((i) => i.message);

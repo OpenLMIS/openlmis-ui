@@ -17,21 +17,15 @@ import { Button } from '@/components/ui/button';
 import { productsListOptions } from '@/features/products/api/queries';
 import {
   CLEARED_PRODUCT_FILTERS,
+  DEFAULT_PRODUCTS_SORT,
   hasProductFilters,
   type ProductsSearch,
   toProductsQuery,
 } from '@/features/products/lib/search';
 import type { Product } from '@/features/products/lib/types';
-import {
-  type DefaultSort,
-  type SearchChange,
-  toPaginationState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();
-
-const PRODUCTS_SORT: DefaultSort = { id: 'fullProductName', desc: false };
 
 const muted = <span className="text-muted-foreground">-</span>;
 
@@ -48,14 +42,28 @@ function createColumns(t: TFunction) {
     }),
     columnHelper.accessor('fullProductName', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('products.name')} />,
-      cell: ({ getValue }) => getValue() || muted,
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="block whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ) : (
+          muted
+        ),
       meta: { className: '@2xl/main:w-2/5' },
     }),
     columnHelper.accessor('description', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('products.description')} />
       ),
-      cell: ({ getValue }) => getValue() || muted,
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="line-clamp-2 whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ) : (
+          muted
+        ),
     }),
   ]);
 }
@@ -83,7 +91,7 @@ function useProductsTable({
   const columns = useMemo(() => createColumns(t), [t]);
   const searchState = useTableSearchState({
     search,
-    defaultSort: PRODUCTS_SORT,
+    defaultSort: DEFAULT_PRODUCTS_SORT,
     onSearchChange,
   });
 

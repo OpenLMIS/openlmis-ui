@@ -8,7 +8,6 @@ import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
   createProduct: vi.fn(),
-  fetchProducts: vi.fn(),
 }));
 
 const create = vi.mocked(createProduct);
