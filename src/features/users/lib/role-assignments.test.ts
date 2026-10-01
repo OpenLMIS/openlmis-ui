@@ -151,6 +151,15 @@ describe('toRoleRows', () => {
     });
   });
 
+  it('names a program saved without a name by its code', () => {
+    const nameless = new Map([['fp', { id: 'fp', code: 'PRG1', name: null, active: true }]]);
+    const [row] = toRoleRows([atNode], 'SUPERVISION', {
+      ...context,
+      lookups: { ...lookups, programs: nameless },
+    });
+    expect(row?.program).toBe('PRG1');
+  });
+
   it('shows the home facility for a role without a node', () => {
     const [row] = toRoleRows([atHome], 'SUPERVISION', context);
     expect(row).toMatchObject({

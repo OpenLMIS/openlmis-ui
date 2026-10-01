@@ -6,11 +6,13 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
+import type { ParseKeys } from 'i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   DialogLoadError,
+  DialogNotFound,
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
@@ -50,7 +52,12 @@ import { queryKeys } from '@/lib/key-factory';
 
 const NO_PROGRAMS: Program[] = [];
 
-const SETTINGS = [
+const SWITCHES: readonly {
+  name: keyof Omit<ProgramFormValues, 'code' | 'name' | 'description'>;
+  labelKey: ParseKeys;
+  descriptionKey?: ParseKeys;
+}[] = [
+  { name: 'active', labelKey: 'programs.form.active' },
   {
     name: 'showNonFullSupplyTab',
     labelKey: 'programs.form.non-full-supply',
@@ -71,7 +78,7 @@ const SETTINGS = [
     labelKey: 'programs.form.stock-count-date',
     descriptionKey: 'programs.form.stock-count-date-description',
   },
-] as const;
+];
 
 const saveKey = (target: string) => [...queryKeys.programs.all, 'save', target] as const;
 
@@ -100,7 +107,7 @@ function ProgramDialogContent({ target, onDone }: { target: string; onDone: () =
     <QueryBoundary
       errorComponent={({ error, reset }) =>
         isNotFound(error) ? (
-          <NotFoundContent title={title} />
+          <DialogNotFound description={t('programs.form.not-found')} title={title} />
         ) : (
           <DialogLoadError
             error={error}
@@ -217,19 +224,11 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
           <form.AppField name="description">
             {(field) => <field.TextareaField label={t('programs.form.description')} />}
           </form.AppField>
-          <form.AppField name="active">
-            {(field) => (
-              <field.SwitchField
-                description={t('programs.form.active-description')}
-                label={t('programs.form.active')}
-              />
-            )}
-          </form.AppField>
-          {SETTINGS.map((setting) => (
+          {SWITCHES.map((setting) => (
             <form.AppField key={setting.name} name={setting.name}>
               {(field) => (
                 <field.SwitchField
-                  description={t(setting.descriptionKey)}
+                  description={setting.descriptionKey && t(setting.descriptionKey)}
                   label={t(setting.labelKey)}
                 />
               )}
@@ -247,21 +246,6 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
   );
 }
 
-function NotFoundContent({ title }: { title: string }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <FormDialogHeader>
-        <FormDialogTitle>{title}</FormDialogTitle>
-        <FormDialogDescription>{t('programs.form.not-found')}</FormDialogDescription>
-      </FormDialogHeader>
-      <FormDialogFooter>
-        <FormDialogCancel>{t('programs.form.close')}</FormDialogCancel>
-      </FormDialogFooter>
-    </>
-  );
-}
-
 function ProgramFormSkeleton({ title, submitLabel }: { title: string; submitLabel: string }) {
   const { t } = useTranslation();
   return (
@@ -275,8 +259,7 @@ function ProgramFormSkeleton({ title, submitLabel }: { title: string; submitLabe
           <FieldSkeleton label={t('programs.form.code')} required />
           <FieldSkeleton label={t('programs.form.name')} required />
           <FieldSkeleton label={t('programs.form.description')} />
-          <FieldSkeleton label={t('programs.form.active')} />
-          {SETTINGS.map((setting) => (
+          {SWITCHES.map((setting) => (
             <FieldSkeleton key={setting.name} label={t(setting.labelKey)} />
           ))}
         </FieldGroup>

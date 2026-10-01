@@ -236,7 +236,10 @@ function ProgramCombobox() {
   const { t } = useTranslation();
   const { data: programs } = useSuspenseQuery(programsOptions());
   const items = useMemo(
-    () => [...programs].sort(byName).map((program) => ({ value: program.id, label: program.name })),
+    () =>
+      programs
+        .map((program) => ({ value: program.id, label: program.name ?? program.code }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     [programs],
   );
   return (

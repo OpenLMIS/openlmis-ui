@@ -133,7 +133,9 @@ the OpenLMIS reference data many screens look up (facilities, facility types, pr
 supervisory nodes and roles), named after the backend's `referencedata` service. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
-facilities list, is a feature of its own.
+facilities list, is a feature of its own. When that screen's list is the lookup's own
+endpoint, as for Programs and Roles, it reads the lookup query and widens its type rather
+than fetching the same list twice.
 
 ### Internationalization (i18next)
 
@@ -444,6 +446,11 @@ page to page.
 **The create action ends the toolbar**, after the View menu, rather than sitting in the
 page header, so everything that acts on the list is in one row.
 
+**When the endpoint cannot page or sort**, as `GET /programs` and `GET /roles`, the list
+loads every record once and sorts and pages them in the browser behind the same URL state,
+clamping a page past the end; Programs and Roles are the examples. It moves to server paging
+once the API can page.
+
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a
 Clear Filters action.
@@ -484,6 +491,11 @@ where a save reaches other records, as Roles asks before changing a role users h
 or replaces it when the page was opened with the dialog from a link. A page gets this, and
 its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 `src/hooks/use-search-navigation.ts` rather than writing its own.
+
+A dialog that edits a record reads it fresh each time it opens: its detail query has
+`staleTime: 0` and `gcTime: 0`, since the save sends the whole record back and a cached copy
+would undo another admin's change. A record that is gone shows `DialogNotFound`, any other
+load failure `DialogLoadError`, both from `src/components/dialog-parts.tsx`.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,

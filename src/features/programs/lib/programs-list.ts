@@ -3,7 +3,7 @@ import type { Program } from '@/features/reference-data/lib/types';
 
 const byText = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
 
-const byName = (a: Program, b: Program) => byText(a.name, b.name);
+const byName = (a: Program, b: Program) => byText(a.name ?? '', b.name ?? '');
 
 const COMPARE: Record<ProgramSortField, (a: Program, b: Program) => number> = {
   name: byName,

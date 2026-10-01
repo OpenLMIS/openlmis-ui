@@ -13,4 +13,6 @@ export const facilityTypeDetailOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.facilityTypes.detail(id),
     queryFn: () => fetchFacilityType(id),
+    staleTime: 0,
+    gcTime: 0,
   });

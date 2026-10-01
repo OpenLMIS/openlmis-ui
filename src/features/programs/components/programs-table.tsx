@@ -44,16 +44,16 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
     columnHelper.accessor('name', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.name')} />,
       cell: ({ getValue }) => (
-        <span className="block truncate font-medium" dir="auto">
-          {getValue()}
+        <span className="block truncate font-medium">
+          <bdi>{getValue()}</bdi>
         </span>
       ),
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.code')} />,
       cell: ({ getValue }) => (
-        <span className="block truncate" dir="ltr">
-          {getValue()}
+        <span className="block truncate">
+          <bdi dir="ltr">{getValue()}</bdi>
         </span>
       ),
       meta: { className: '@xl/main:w-1/4' },

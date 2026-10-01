@@ -46,6 +46,11 @@ describe('sortPrograms', () => {
     ]);
   });
 
+  it('sorts a program saved without a name first, instead of failing', () => {
+    const nameless = { ...program('5', 'PRG008', 'x', true), name: null };
+    expect(sortPrograms([...programs, nameless], 'name', false)[0]?.id).toBe('5');
+  });
+
   it('leaves the given list alone', () => {
     const copy = [...programs];
     sortPrograms(programs, 'name', true);

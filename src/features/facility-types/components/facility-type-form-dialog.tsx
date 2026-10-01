@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   DialogLoadError,
+  DialogNotFound,
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
@@ -76,7 +77,7 @@ function FacilityTypeDialogContent({ target, onDone }: { target: string; onDone:
     <QueryBoundary
       errorComponent={({ error, reset }) =>
         isNotFound(error) ? (
-          <NotFoundContent title={title} />
+          <DialogNotFound description={t('facility-types.form.not-found')} title={title} />
         ) : (
           <DialogLoadError
             error={error}
@@ -239,21 +240,6 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
         </FormDialogSubmit>
       </FormDialogFooter>
     </FormDialogForm>
-  );
-}
-
-function NotFoundContent({ title }: { title: string }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <FormDialogHeader>
-        <FormDialogTitle>{title}</FormDialogTitle>
-        <FormDialogDescription>{t('facility-types.form.not-found')}</FormDialogDescription>
-      </FormDialogHeader>
-      <FormDialogFooter>
-        <FormDialogCancel>{t('facility-types.form.close')}</FormDialogCancel>
-      </FormDialogFooter>
-    </>
   );
 }
 

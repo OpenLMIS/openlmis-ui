@@ -1,8 +1,9 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createProgram } from '@/features/programs/api/api';
+import { createProgram, fetchProgram } from '@/features/programs/api/api';
+import { programDetailOptions } from '@/features/programs/api/queries';
 import { ProgramFormDialog } from '@/features/programs/components/program-form-dialog';
 import { fetchPrograms } from '@/features/reference-data/api/api';
 import { programsOptions } from '@/features/reference-data/api/queries';
@@ -21,6 +22,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
 
 const create = vi.mocked(createProgram);
 const fetchList = vi.mocked(fetchPrograms);
+const fetchOne = vi.mocked(fetchProgram);
 
 const malaria = { id: 'p9', code: 'PRG009', name: 'Malaria', active: true };
 
@@ -49,6 +51,23 @@ beforeEach(() => {
 });
 
 describe('ProgramFormDialog', () => {
+  it('fills Edit from the program as it is now, not a copy kept from an earlier open', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    fetchOne.mockResolvedValueOnce(malaria);
+    renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
+    expect(await screen.findByDisplayValue('Malaria')).toBeInTheDocument();
+
+    cleanup();
+    await vi.waitFor(
+      () => expect(queryClient.getQueryData(programDetailOptions('p9').queryKey)).toBeUndefined(),
+      { timeout: 3000 },
+    );
+    fetchOne.mockResolvedValueOnce({ ...malaria, name: 'Malaria Control' });
+    renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
+
+    expect(await screen.findByDisplayValue('Malaria Control')).toBeInTheDocument();
+  });
+
   it('checks codes against the programs as they are now, not as they were cached', async () => {
     create.mockResolvedValueOnce(malaria);
     renderAdd([malaria]);

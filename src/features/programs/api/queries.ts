@@ -6,4 +6,6 @@ export const programDetailOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.programs.detail(id),
     queryFn: () => fetchProgram(id),
+    staleTime: 0,
+    gcTime: 0,
   });

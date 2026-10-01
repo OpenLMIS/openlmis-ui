@@ -11,9 +11,7 @@ const withoutSpaces = (code: string) => code.replace(/\s/g, '');
 export type TakenProgram = Pick<Program, 'id' | 'code'>;
 
 export function programFormSchema(programs: readonly TakenProgram[], editingId?: string) {
-  const taken = new Set(
-    programs.filter((program) => program.id !== editingId).map((p) => withoutSpaces(p.code)),
-  );
+  const taken = new Set(editingId ? [] : programs.map((program) => withoutSpaces(program.code)));
   return z.object({
     code: z
       .string()
@@ -46,7 +44,7 @@ export const EMPTY_PROGRAM_FORM: ProgramFormValues = {
 export function toProgramFormValues(program: Program): ProgramFormValues {
   return {
     code: program.code,
-    name: program.name,
+    name: program.name ?? '',
     description: program.description ?? '',
     active: program.active ?? false,
     showNonFullSupplyTab: program.showNonFullSupplyTab ?? false,

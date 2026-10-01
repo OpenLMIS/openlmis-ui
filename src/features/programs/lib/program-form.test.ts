@@ -62,6 +62,21 @@ describe('programFormSchema', () => {
     expect(messages({ ...valid, code: 'prg001' })).toBeUndefined();
   });
 
+  it('never refuses the locked code of a program being edited', () => {
+    const clashing = [
+      { id: 'a', code: 'PRG 001' },
+      { id: 'b', code: 'PRG001' },
+    ];
+    const values = { ...valid, code: 'PRG 001' };
+    expect(programFormSchema(clashing, 'a').safeParse(values).success).toBe(true);
+  });
+
+  it('asks for a name when a program was saved without one', () => {
+    const nameless = toProgramFormValues({ ...arv, name: null });
+    expect(nameless.name).toBe('');
+    expect(messages(nameless, 'p5')).toEqual([['name', 'programs.form.name-required']]);
+  });
+
   it('lets a program keep its own code', () => {
     expect(messages(toProgramFormValues(arv), 'p5')).toBeUndefined();
   });

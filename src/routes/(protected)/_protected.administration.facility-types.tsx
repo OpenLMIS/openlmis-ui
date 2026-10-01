@@ -17,10 +17,7 @@ import {
 } from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import {
-  facilityTypeDetailOptions,
-  facilityTypesListOptions,
-} from '@/features/facility-types/api/queries';
+import { facilityTypesListOptions } from '@/features/facility-types/api/queries';
 import {
   FacilityTypesTable,
   FacilityTypesTableSkeleton,
@@ -56,9 +53,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/fac
     queryClient.prefetchQuery(facilityTypesListOptions(deps.query));
     if (!deps.facilityType) return;
     queryClient.prefetchQuery(facilityTypesOptions());
-    if (deps.facilityType !== 'new') {
-      queryClient.prefetchQuery(facilityTypeDetailOptions(deps.facilityType));
-    }
   },
   pendingComponent: FacilityTypesPagePending,
   component: FacilityTypesPage,

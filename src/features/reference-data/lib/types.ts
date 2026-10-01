@@ -27,7 +27,7 @@ export type Role = {
 export type Program = {
   id: string;
   code: string;
-  name: string;
+  name: string | null;
   description?: string | null;
   active: boolean | null;
   periodsSkippable?: boolean;

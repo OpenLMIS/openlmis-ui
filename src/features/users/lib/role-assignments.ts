@@ -128,6 +128,8 @@ type RowContext = {
   homeFacilityId: string | null | undefined;
 };
 
+const programLabel = (program: Program | undefined) => program && (program.name ?? program.code);
+
 function toRoleRow(assignment: RoleAssignment, { lookups, savedKeys, homeFacilityId }: RowContext) {
   const key = assignmentKey(assignment);
   const role = lookups.roles.get(assignment.roleId);
@@ -142,7 +144,9 @@ function toRoleRow(assignment: RoleAssignment, { lookups, savedKeys, homeFacilit
     id: key,
     assignment,
     role: role?.name,
-    program: assignment.programId ? lookups.programs.get(assignment.programId)?.name : undefined,
+    program: programLabel(
+      assignment.programId ? lookups.programs.get(assignment.programId) : undefined,
+    ),
     node: node?.name,
     nodeFacility: isHomeFacility ? facilityName(homeFacilityId) : facilityName(node?.facility?.id),
     facility: facilityName(assignment.warehouseId),

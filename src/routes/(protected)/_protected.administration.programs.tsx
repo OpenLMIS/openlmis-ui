@@ -17,7 +17,6 @@ import {
 } from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { programDetailOptions } from '@/features/programs/api/queries';
 import {
   ProgramsTable,
   ProgramsTableSkeleton,
@@ -45,13 +44,9 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 export const Route = createFileRoute('/(protected)/_protected/administration/programs')({
   validateSearch: programsSearchSchema,
-  loaderDeps: ({ search }) => ({ program: search.program }),
-  loader: async ({ context: { queryClient }, deps }) => {
+  loader: async ({ context: { queryClient } }) => {
     await requireRight(queryClient, RIGHTS.programsManage);
     queryClient.prefetchQuery({ ...programsOptions(), staleTime: LIST_FRESH_FOR });
-    if (deps.program && deps.program !== 'new') {
-      queryClient.prefetchQuery(programDetailOptions(deps.program));
-    }
   },
   pendingComponent: ProgramsPagePending,
   component: ProgramsPage,
