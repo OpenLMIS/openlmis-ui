@@ -91,6 +91,20 @@ curl https://<server>/v2/config.json                                  # keys not
 
 Then sign in at `/`, open `/v2/`, and you should already be signed in.
 
+## Optional: reset emails to the new UI
+
+By default the email from Forgot Password links to the old UI's reset page, whichever UI
+the user asked from. Both pages work. To send users to the new one instead, add to the
+same `openlmis-config` file:
+
+```
+PASSWORD_RESET_URL=https://<server>/v2/reset-password/
+```
+
+This needs an auth service that knows the setting
+([openlmis-auth#31](https://github.com/OpenLMIS/openlmis-auth/pull/31)); an older one
+ignores it. Leave it out to keep the old page.
+
 ## If something looks wrong
 
 | What you see | What it means |

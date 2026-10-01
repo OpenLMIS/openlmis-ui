@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { Trans, useTranslation } from 'react-i18next';
@@ -27,6 +27,7 @@ import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { isSignInPage } from '@/lib/redirect';
 
 // Its own field name, so its id never clashes with a password field on the page behind it.
 const passwordSchema = z.object({ sessionPassword: loginSchema.shape.password });
@@ -41,7 +42,7 @@ function signInErrorKey(error: unknown): ParseKeys {
 export function SessionExpiredDialog() {
   const expired = useLoginData((state) => state.isAuthenticated && state.expired);
   const username = useLoginData((state) => state.username);
-  const onLogin = useRouterState({ select: (state) => state.location.pathname === '/login' });
+  const onLogin = useRouterState({ select: (state) => isSignInPage(state.location.pathname) });
   // Keeps the last username through the close animation, so the dialog never empties as it fades.
   const { shown, dialogProps } = useDialogTarget(
     expired && !onLogin && username ? username : undefined,
@@ -130,6 +131,17 @@ function SignInAgainForm({ username }: { username: string }) {
               />
             )}
           </form.AppField>
+          <p className="text-sm">
+            {/* A new tab, so the page and its unsaved work stay behind the dialog. */}
+            <Link
+              className="text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+              rel="noopener"
+              target="_blank"
+              to="/forgot-password"
+            >
+              {t('login.forgot-password')}
+            </Link>
+          </p>
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>

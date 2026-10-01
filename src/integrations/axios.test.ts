@@ -114,6 +114,40 @@ describe('client', () => {
     expect(useLoginData.getState().expired).toBe(false);
   });
 
+  it('sends an anonymous request with no token, even while signed in', async () => {
+    const { sent } = serve('old-token');
+
+    await client.post('/users/auth/forgotPassword', undefined, { anonymous: true });
+
+    expect(sent).toEqual(['/users/auth/forgotPassword ']);
+  });
+
+  it('sends an anonymous request at once while the session is expired', async () => {
+    const { sent } = serve('new-token');
+    useLoginData.getState().expireSession();
+
+    await client.post('/users/auth/changePassword', {}, { anonymous: true });
+
+    expect(sent).toEqual(['/users/auth/changePassword ']);
+  });
+
+  it('never expires the session over a refused anonymous request', async () => {
+    client.defaults.adapter = async (config) => {
+      throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+        data: {},
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: {},
+        config,
+      });
+    };
+
+    await expect(
+      client.post('/users/auth/changePassword', {}, { anonymous: true }),
+    ).rejects.toMatchObject({ response: { status: 401 } });
+    expect(useLoginData.getState().expired).toBe(false);
+  });
+
   it('fails the waiting requests when the user signs out instead', async () => {
     serve('new-token');
     const request = client.get('/a');

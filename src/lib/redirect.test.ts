@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loginSearch, safeRedirect } from '@/lib/redirect';
+import { isSignInPage, loginSearch, safeRedirect } from '@/lib/redirect';
 
 describe('safeRedirect', () => {
   it('keeps a page inside the app, with its search', () => {
@@ -33,5 +33,15 @@ describe('loginSearch', () => {
 
   it('leaves Home out, since signing in lands there anyway', () => {
     expect(loginSearch({ pathname: '/home', href: '/home' })).toEqual({});
+  });
+});
+
+describe('isSignInPage', () => {
+  it.each(['/login', '/forgot-password', '/reset-password/7a3c9f0e'])('counts %s', (pathname) => {
+    expect(isSignInPage(pathname)).toBe(true);
+  });
+
+  it.each(['/home', '/reset-password', '/profile/login'])('leaves out %s', (pathname) => {
+    expect(isSignInPage(pathname)).toBe(false);
   });
 });

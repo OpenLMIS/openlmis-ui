@@ -632,7 +632,9 @@ with a `SessionEndedError`, and so does a refusal of a request sent for a user w
 longer the one signed in (`sentFor`), so nothing is ever resent as someone else. A `401` for a token that has since been replaced is resent, not
 treated as a new expiry. Signing in and out pass `session: false`, so their own refusals
 never open the dialog, and a request that brings its own `Authorization` (the login's Basic
-header) keeps it. Queries never retry a `401` or `403`.
+header) keeps it. Forgot Password and Reset Password pass `anonymous: true`: no token at all,
+since the auth service refuses any bearer on those endpoints, and no waiting for a session.
+The session dialog stays off the signed-out pages `isSignInPage()` lists. Queries never retry a `401` or `403`.
 
 Anything that signs the user out on purpose goes through `useOfflineSignOut()`
 (`src/components/offline-sign-out.tsx`) before `whenLeaveAllowed`: offline, it asks first,

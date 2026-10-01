@@ -317,6 +317,9 @@ type PasswordFieldProps = FieldProps & {
   showLabel: string;
   hideLabel: string;
   describedBy?: string;
+  /** Shared by fields that show and hide together, such as a new password and its confirmation. */
+  visible?: boolean;
+  onVisibleChange?: (visible: boolean) => void;
 };
 
 export function PasswordField({
@@ -330,11 +333,14 @@ export function PasswordField({
   showLabel,
   hideLabel,
   describedBy,
+  visible: sharedVisible,
+  onVisibleChange,
 }: PasswordFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description, describedBy);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
-  const [visible, setVisible] = useState(false);
+  const [ownVisible, setOwnVisible] = useState(false);
+  const visible = sharedVisible ?? ownVisible;
 
   return (
     <FieldFrame
@@ -364,7 +370,7 @@ export function PasswordField({
           <InputGroupButton
             aria-label={visible ? hideLabel : showLabel}
             disabled={disabled}
-            onClick={() => setVisible((shown) => !shown)}
+            onClick={() => (onVisibleChange ?? setOwnVisible)(!visible)}
             size="icon-xs"
             type="button"
             variant="ghost"
