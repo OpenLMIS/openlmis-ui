@@ -3,7 +3,7 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { FacilityTypeBody } from '@/features/facility-types/lib/types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
-import { wholeNumberText } from '@/lib/whole-number';
+import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const errorKey = (key: ParseKeys) => key;
 
@@ -40,7 +40,7 @@ export function facilityTypeFormSchema(types: readonly TakenFacilityType[], edit
   });
 }
 
-export type FacilityTypeFormValues = z.input<ReturnType<typeof facilityTypeFormSchema>>;
+export type FacilityTypeFormValues = z.infer<ReturnType<typeof facilityTypeFormSchema>>;
 
 export const EMPTY_FACILITY_TYPE_FORM: FacilityTypeFormValues = {
   code: '',
@@ -55,8 +55,8 @@ export function toFacilityTypeFormValues(type: FacilityType): FacilityTypeFormVa
     code: type.code,
     name: type.name ?? '',
     displayOrder: type.displayOrder === null ? '' : String(type.displayOrder),
-    active: type.active,
-    primaryHealthCare: type.primaryHealthCare,
+    active: type.active ?? false,
+    primaryHealthCare: type.primaryHealthCare ?? false,
   };
 }
 
@@ -66,9 +66,9 @@ export function toFacilityTypeBody(
 ): FacilityTypeBody {
   return {
     ...saved,
-    code: values.code.trim(),
+    code: saved?.code ?? values.code.trim(),
     name: values.name.trim(),
-    displayOrder: Number(values.displayOrder.trim()),
+    displayOrder: toWholeNumber(values.displayOrder),
     active: values.active,
     primaryHealthCare: values.primaryHealthCare,
   };

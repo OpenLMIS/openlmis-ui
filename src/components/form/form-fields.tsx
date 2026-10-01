@@ -257,9 +257,7 @@ export function TextField({
   );
 }
 
-type NumberFieldProps = FieldProps & Pick<TextFieldProps, 'badge' | 'placeholder'>;
-
-export function NumberField(props: NumberFieldProps) {
+export function NumberField(props: FieldProps) {
   return <TextField {...props} autoComplete="off" dir="ltr" inputMode="numeric" />;
 }
 

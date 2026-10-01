@@ -36,9 +36,9 @@ import { facilityTypesOptions } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 
-const loadDialogs = () => import('@/features/facility-types/components/facility-type-dialogs');
-const FacilityTypeDialogs = lazy(() =>
-  loadDialogs().then((module) => ({ default: module.FacilityTypeDialogs })),
+const loadDialog = () => import('@/features/facility-types/components/facility-type-form-dialog');
+const FacilityTypeFormDialog = lazy(() =>
+  loadDialog().then((module) => ({ default: module.FacilityTypeFormDialog })),
 );
 
 const CLOSED_DIALOGS = { facilityType: undefined } satisfies Partial<FacilityTypesSearch>;
@@ -84,7 +84,7 @@ function FacilityTypesPage() {
   const [dialogsMounted, setDialogsMounted] = useState(facilityType !== undefined);
   if (facilityType !== undefined && !dialogsMounted) setDialogsMounted(true);
   useEffect(() => {
-    void loadDialogs();
+    void loadDialog();
   }, []);
 
   return (
@@ -121,7 +121,7 @@ function FacilityTypesPage() {
         </div>
         {dialogsMounted && (
           <Suspense fallback={null}>
-            <FacilityTypeDialogs facilityType={facilityType} onClose={closeDialog} />
+            <FacilityTypeFormDialog onClose={closeDialog} target={facilityType} />
           </Suspense>
         )}
       </WorkspaceContent>

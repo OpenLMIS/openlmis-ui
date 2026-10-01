@@ -2,6 +2,7 @@ import { revalidateLogic } from '@tanstack/react-form';
 import {
   useIsMutating,
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
@@ -46,6 +47,8 @@ import type { FacilityType } from '@/features/reference-data/lib/types';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
+const NO_TYPES: FacilityType[] = [];
+
 const saveKey = (target: string) => [...queryKeys.facilityTypes.all, 'save', target] as const;
 
 type FacilityTypeFormDialogProps = {
@@ -67,7 +70,7 @@ export function FacilityTypeFormDialog({ target, onClose }: FacilityTypeFormDial
 function FacilityTypeDialogContent({ target, onDone }: { target: string; onDone: () => void }) {
   const { t } = useTranslation();
   const isNew = target === 'new';
-  const title = t(isNew ? 'facility-types.form.create-title' : 'facility-types.form.load-title');
+  const title = t(isNew ? 'facility-types.form.create-title' : 'facility-types.form.edit-title');
 
   return (
     <QueryBoundary
@@ -113,7 +116,7 @@ type FacilityTypeFormProps = {
 function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: types } = useSuspenseQuery(facilityTypesOptions());
+  const { data: types = NO_TYPES } = useQuery({ ...facilityTypesOptions(), staleTime: 0 });
   const [refused, setRefused] = useState<TakenFacilityType[]>([]);
   const schema = useMemo(
     () => facilityTypeFormSchema([...types, ...refused], type?.id),
@@ -127,16 +130,14 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
       return type ? updateFacilityType(type.id, body) : createFacilityType(body);
     },
     onSuccess: (saved) => {
-      const name = saved.name || saved.code;
-      if (type) {
-        toast.success(t('facility-types.form.updated-title'), {
-          description: t('facility-types.form.updated', { type: name }),
-        });
-      } else {
-        toast.success(t('facility-types.form.created-title'), {
-          description: t('facility-types.form.created', { type: name }),
-        });
-      }
+      toast.success(
+        t(type ? 'facility-types.form.updated-title' : 'facility-types.form.created-title'),
+        {
+          description: t(type ? 'facility-types.form.updated' : 'facility-types.form.created', {
+            type: saved.name || saved.code,
+          }),
+        },
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.facilityTypes.all });
     },
     onError: (error, values) => {
@@ -169,9 +170,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
     <FormDialogForm onSubmit={form.handleSubmit}>
       <FormDialogHeader>
         <FormDialogTitle>
-          {type
-            ? t('facility-types.form.edit-title', { code: type.code })
-            : t('facility-types.form.create-title')}
+          {t(type ? 'facility-types.form.edit-title' : 'facility-types.form.create-title')}
         </FormDialogTitle>
         <FormDialogDescription>
           {t(
@@ -234,9 +233,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>
-        <FormDialogCancel disabled={save.isPending}>
-          {t('facility-types.form.cancel')}
-        </FormDialogCancel>
+        <FormDialogCancel disabled={save.isPending}>{t('dialog.cancel')}</FormDialogCancel>
         <FormDialogSubmit pending={save.isPending}>
           {t(type ? 'facility-types.form.save' : 'facility-types.form.create')}
         </FormDialogSubmit>
@@ -278,7 +275,7 @@ function FacilityTypeFormSkeleton({ title, submitLabel }: { title: string; submi
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>
-        <FormDialogCancel>{t('facility-types.form.cancel')}</FormDialogCancel>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
         <FormDialogSubmit disabled>{submitLabel}</FormDialogSubmit>
       </FormDialogFooter>
     </>

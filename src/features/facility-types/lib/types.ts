@@ -6,6 +6,4 @@ export type FacilityTypesQuery = {
   sort: string;
 };
 
-export type NewFacilityTypeBody = Omit<FacilityType, 'id' | 'description'>;
-
-export type FacilityTypeBody = NewFacilityTypeBody | FacilityType;
+export type FacilityTypeBody = Omit<FacilityType, 'id' | 'description'>;

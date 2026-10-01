@@ -1,8 +1,4 @@
-import type {
-  FacilityTypeBody,
-  FacilityTypesQuery,
-  NewFacilityTypeBody,
-} from '@/features/facility-types/lib/types';
+import type { FacilityTypeBody, FacilityTypesQuery } from '@/features/facility-types/lib/types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
@@ -17,7 +13,7 @@ export async function fetchFacilityType(id: string): Promise<FacilityType> {
   return data;
 }
 
-export async function createFacilityType(body: NewFacilityTypeBody): Promise<FacilityType> {
+export async function createFacilityType(body: FacilityTypeBody): Promise<FacilityType> {
   const { data } = await client.post<FacilityType>('/facilityTypes', body);
   return data;
 }

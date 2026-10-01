@@ -45,6 +45,6 @@ export type FacilityType = {
   name: string | null;
   description?: string | null;
   displayOrder: number | null;
-  active: boolean;
-  primaryHealthCare: boolean;
+  active: boolean | null;
+  primaryHealthCare: boolean | null;
 };

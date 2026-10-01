@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wholeNumberText } from '@/lib/whole-number';
+import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const schema = wholeNumberText({
   required: 'error.try-again',
@@ -10,11 +10,15 @@ const schema = wholeNumberText({
 const message = (value: string) => schema.safeParse(value).error?.issues.map((i) => i.message);
 
 describe('wholeNumberText', () => {
-  it('reads a whole number, ignoring spaces around it', () => {
-    expect(schema.parse(' 12 ')).toBe(12);
-    expect(schema.parse('0')).toBe(0);
-    expect(schema.parse('007')).toBe(7);
-    expect(schema.parse('2147483647')).toBe(2147483647);
+  it('accepts a whole number, ignoring spaces around it', () => {
+    for (const value of [' 12 ', '0', '007', '2147483647']) {
+      expect(message(value)).toBeUndefined();
+    }
+  });
+
+  it('accepts the digits an Arabic or Persian keyboard types', () => {
+    expect(message('١٢')).toBeUndefined();
+    expect(message('۱۲')).toBeUndefined();
   });
 
   it('asks for a value when there is none', () => {
@@ -30,6 +34,14 @@ describe('wholeNumberText', () => {
 
   it('refuses a number the server cannot store', () => {
     expect(message('2147483648')).toEqual(['error.check-connection']);
-    expect(message('99999999999999999999')).toEqual(['error.check-connection']);
+    expect(message('٢١٤٧٤٨٣٦٤٨')).toEqual(['error.check-connection']);
+  });
+});
+
+describe('toWholeNumber', () => {
+  it('reads the number, in any of those digits', () => {
+    expect(toWholeNumber(' 7 ')).toBe(7);
+    expect(toWholeNumber('١٢')).toBe(12);
+    expect(toWholeNumber('۱۲')).toBe(12);
   });
 });

@@ -40,7 +40,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
         <DataTableColumnHeader column={column} title={t('facility-types.code')} />
       ),
       cell: ({ getValue }) => (
-        <span className="font-medium" dir="ltr">
+        <span className="block truncate font-medium" dir="ltr">
           {getValue()}
         </span>
       ),
@@ -50,7 +50,14 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facility-types.name')} />
       ),
-      cell: ({ getValue }) => getValue() || <span className="text-muted-foreground">-</span>,
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="block truncate" dir="auto">
+            {getValue()}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
     }),
     columnHelper.accessor('displayOrder', {
       header: ({ column }) => (

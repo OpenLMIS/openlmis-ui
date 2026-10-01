@@ -97,6 +97,17 @@ describe('toFacilityTypeFormValues', () => {
     });
   });
 
+  it('shows a type saved without an active flag as inactive, so it can be saved as it is', () => {
+    const values = toFacilityTypeFormValues({
+      ...warehouse,
+      active: null,
+      primaryHealthCare: null,
+    });
+
+    expect(values).toMatchObject({ active: false, primaryHealthCare: false });
+    expect(facilityTypeFormSchema(types, 'ft1').safeParse(values).success).toBe(true);
+  });
+
   it('shows a missing name or display order as empty', () => {
     expect(
       toFacilityTypeFormValues({ ...warehouse, name: null, displayOrder: null }),
@@ -129,6 +140,17 @@ describe('toFacilityTypeBody', () => {
         healthCenter,
       ),
     ).toEqual({ ...healthCenter, name: 'Clinic', active: false });
+  });
+});
+
+describe('toFacilityTypeBody with a saved type', () => {
+  it('sends the locked code exactly as it is stored', () => {
+    const spaced = { ...healthCenter, code: ' spaced ' };
+    expect(toFacilityTypeBody(toFacilityTypeFormValues(spaced), spaced).code).toBe(' spaced ');
+  });
+
+  it('reads a display order typed in Arabic digits', () => {
+    expect(toFacilityTypeBody({ ...valid, displayOrder: '١٢' }).displayOrder).toBe(12);
   });
 });
 

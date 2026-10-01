@@ -129,8 +129,8 @@ passes data down as props. `src/routes/` may import any feature, since composing
 its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
-the OpenLMIS reference data many screens look up (facilities, programs, supervisory nodes
-and roles), named after the backend's `referencedata` service. It has the
+the OpenLMIS reference data many screens look up (facilities, facility types, programs,
+supervisory nodes and roles), named after the backend's `referencedata` service. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own.
@@ -488,8 +488,11 @@ its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A yes/no setting is a `SwitchField`,
+(`TextField`, `NumberField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
+`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A whole number is a
+`NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
+`src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
+`toWholeNumber`. A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
