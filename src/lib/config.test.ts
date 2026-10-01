@@ -63,6 +63,13 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Facility Types under Administration', () => {
+    expect(getNavTrail('/administration/facility-types')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.facility-types', to: '/administration/facility-types' },
+    ]);
+  });
+
   it('places Roles under Administration', () => {
     expect(getNavTrail('/administration/roles')).toEqual([
       { titleKey: 'nav.administration' },

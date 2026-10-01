@@ -10,6 +10,7 @@ import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
 /** The right a page asks for, so the nav only offers pages the user can open. */
 const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string>> = {
+  '/administration/facility-types': RIGHTS.facilitiesManage,
   '/administration/users': RIGHTS.usersManage,
   '/administration/roles': RIGHTS.usersManage,
   '/administration/service-accounts': RIGHTS.serviceAccountsManage,

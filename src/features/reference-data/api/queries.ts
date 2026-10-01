@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
   fetchFacility,
+  fetchFacilityTypes,
   fetchMinimalFacilities,
   fetchPrograms,
   fetchRoles,
@@ -43,5 +44,12 @@ export const supervisoryNodesOptions = () =>
   queryOptions({
     queryKey: queryKeys.supervisoryNodes.list(),
     queryFn: fetchSupervisoryNodes,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const facilityTypesOptions = (filter: { active?: boolean } = {}) =>
+  queryOptions({
+    queryKey: [...queryKeys.facilityTypes.all, 'lookup', filter] as const,
+    queryFn: () => fetchFacilityTypes(filter),
     staleTime: LOOKUP_STALE_TIME,
   });

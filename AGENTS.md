@@ -129,8 +129,8 @@ passes data down as props. `src/routes/` may import any feature, since composing
 its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
-the OpenLMIS reference data many screens look up (facilities, programs, supervisory nodes
-and roles), named after the backend's `referencedata` service. It has the
+the OpenLMIS reference data many screens look up (facilities, facility types, programs,
+supervisory nodes and roles), named after the backend's `referencedata` service. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own.
@@ -475,6 +475,10 @@ fields with one save open in a dialog over the list. Anything with its own struc
 such as tabs, tables of child records or several steps, gets a page. Users is the
 example: Add/Edit User is a dialog, Edit User Roles is a page.
 
+**Save sends the form at once**, with no "Do you want to save?" step, even where legacy
+asks one: the dialog's Create or Save is already the deliberate act. A confirm stays only
+where a save reaches other records, as Roles asks before changing a role users hold.
+
 **The URL owns the open dialog**, like the rest of the list state: `?user=new` or
 `?user=<id>`. Opening adds a history entry so Back closes it; closing steps back over it,
 or replaces it when the page was opened with the dialog from a link. A page gets this, and
@@ -484,8 +488,11 @@ its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A yes/no setting is a `SwitchField`,
+(`TextField`, `NumberField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
+`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A whole number is a
+`NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
+`src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
+`toWholeNumber`. A yes/no setting is a `SwitchField`,
 a switch in a bordered card, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the

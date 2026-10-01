@@ -38,3 +38,13 @@ export type SupervisoryNode = {
   name: string;
   facility?: { id: string } | null;
 };
+
+export type FacilityType = {
+  id: string;
+  code: string;
+  name: string | null;
+  description?: string | null;
+  displayOrder: number | null;
+  active: boolean | null;
+  primaryHealthCare: boolean | null;
+};

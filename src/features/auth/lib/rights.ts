@@ -6,6 +6,7 @@ export const RIGHTS = {
   ordersView: 'ORDERS_VIEW',
   podsManage: 'PODS_MANAGE',
   cceInventoryView: 'CCE_INVENTORY_VIEW',
+  facilitiesManage: 'FACILITIES_MANAGE',
   usersManage: 'USERS_MANAGE',
   userRolesManage: 'USER_ROLES_MANAGE',
   rightsView: 'RIGHTS_VIEW',

@@ -16,6 +16,7 @@ const schema = z.object({
   rights: z.array(z.string()),
   channel: z.string(),
   code: z.string(),
+  order: z.string(),
 });
 
 const facilities = [
@@ -41,6 +42,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       rights: ['r1'] as string[],
       channel: 'EMAIL',
       code: '',
+      order: '',
     },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
@@ -116,6 +118,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       <form.AppField name="code">
         {(field) => <field.TextField dir="ltr" label="Code" />}
       </form.AppField>
+      <form.AppField name="order">{(field) => <field.NumberField label="Order" />}</form.AppField>
       <button type="submit">Save</button>
     </form>
   );
@@ -173,6 +176,7 @@ describe('form fields', () => {
       rights: ['r1'],
       channel: 'EMAIL',
       code: '',
+      order: '',
     });
   });
 
@@ -243,6 +247,20 @@ describe('form fields', () => {
   it('keeps a code-like value left to right in any language', () => {
     renderForm();
     expect(screen.getByRole('textbox', { name: 'Code' })).toHaveAttribute('dir', 'ltr');
+  });
+
+  it('offers a number keypad for a number, read left to right, and keeps it as typed', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm();
+    const order = screen.getByRole('textbox', { name: 'Order' });
+
+    expect(order).toHaveAttribute('inputmode', 'numeric');
+    expect(order).toHaveAttribute('dir', 'ltr');
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
+    await user.type(order, '1.5');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ order: '1.5' }));
   });
 
   it('tells screen readers what a field is for and, after a failed submit, what is wrong', async () => {

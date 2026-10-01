@@ -205,6 +205,7 @@ type TextFieldProps = FieldProps &
     maxLength?: number;
     /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
     dir?: 'ltr';
+    inputMode?: 'numeric';
   };
 
 export function TextField({
@@ -219,6 +220,7 @@ export function TextField({
   placeholder,
   maxLength,
   dir,
+  inputMode,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description, undefined, badge);
@@ -242,6 +244,7 @@ export function TextField({
         dir={dir}
         disabled={disabled}
         id={field.name}
+        inputMode={inputMode}
         maxLength={maxLength}
         name={field.name}
         onBlur={field.handleBlur}
@@ -252,6 +255,10 @@ export function TextField({
       />
     </FieldFrame>
   );
+}
+
+export function NumberField(props: FieldProps) {
+  return <TextField {...props} autoComplete="off" dir="ltr" inputMode="numeric" />;
 }
 
 type TextareaFieldProps = FieldProps & {
