@@ -146,8 +146,9 @@ render so nothing ever paints raw keys.
 
 They are **flat key-value pairs** - always flat, never nested (e.g. `"users.title": "Users"`, not `{ users: { title: "Users" } }`). `keySeparator` and `nsSeparator` are both `false` in the i18next config to enforce this. ICU MessageFormat is enabled for plurals/selects. Supported languages are defined in `src/lib/config.ts`. Type safety via module augmentation in `src/types/i18next.d.ts`, which type-imports `public/locales/en.json` - `t()` autocompletes keys and `tsc` catches typos. Keys must be sorted alphabetically (`pnpm sort-messages`), enforced by pre-commit hook.
 
-Adding a language takes two steps: the catalog in `public/locales/`, **and** an entry in
-`SUPPORTED_LANGUAGES` with its `dir`. A file on its own is never picked up.
+Adding a language takes three steps: the catalog in `public/locales/`, an entry in
+`SUPPORTED_LANGUAGES` with its `dir`, **and** its calendar language in `DATE_LOCALES`
+(`src/lib/date-locale.ts`), which a test checks. A file on its own is never picked up.
 
 When `en.json` changes, use the `sync-translations` skill to propagate changes to other language files (removes stale keys, translates missing ones, preserves existing translations).
 
@@ -251,10 +252,11 @@ the outside. Not colour, not typography, not spacing, and not layout or margin e
 Two ways out when a page needs a different treatment:
 
 1. Add a variant prop to the component in `src/components/ui/` and pass it. Existing
-   examples: `Button padding/width` (incl. `width="shrink"`) + the `xl` size, `CardHeader spacing/align`,
+   examples: `Button padding/width/align` (incl. `width="shrink"`) + the `xl` size, `CardHeader spacing/align`,
    `CardTitle size`, `CardFooter align`, `Separator spacing`, `Skeleton shape/fill`,
    `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
    `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
+   `PopoverContent width/padding`,
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
@@ -455,6 +457,10 @@ page header, so everything that acts on the list is in one row.
 two different empty states: no records at all, and no matches for the filters with a
 Clear Filters action.
 
+A filter on a short fixed list, such as status, is a `DataTableSelectFilter`; on a long one,
+such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
+with an option's `description` muted after its label.
+
 ### The data-table components
 
 `src/components/data-table/` is written to move into the SolDevelo shadcn registry
@@ -464,8 +470,8 @@ unchanged, so it follows the registry's rules rather than this app's:
   `@tanstack/react-table`, `lucide-react`, and its sibling files, and nothing from
   `src/hooks`, other `src/lib` modules, `src/features` or i18next. It avoids app variants
   such as `Button tone`; the exceptions are `SelectTrigger width`, `Table density` and
-  `layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`
-  and `Skeleton fill`, which become plain `className`s in the registry, where layout
+  `layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `ComboboxInput width`/`clearLabel` and `Skeleton fill`, which become plain `className`s in the registry, where layout
   classes are allowed.
 - Text comes from `DataTableLabelsProvider`, which defaults to English.
   `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
@@ -480,7 +486,10 @@ not the v8 `useReactTable`. The installed package ships version-matched guides u
 **A dialog for a short form, a page for a task.** Add and edit screens of a handful of
 fields with one save open in a dialog over the list. Anything with its own structure,
 such as tabs, tables of child records or several steps, gets a page. Users is the
-example: Add/Edit User is a dialog, Edit User Roles is a page.
+example: Add/Edit User is a dialog, Edit User Roles is a page. A record whose add already has
+child records, as a facility's programs, adds on a page too, with one save for the record and
+its children: Add Facility (`src/features/facilities/components/facility-editor.tsx`) keeps
+one draft above its tabs, the tab in `?tab=`, and opens the tab with the first error on save.
 
 **Save sends the form at once**, with no "Do you want to save?" step, even where legacy
 asks one: the dialog's Create or Save is already the deliberate act. A confirm stays only
@@ -503,7 +512,7 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `NumberField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A whole number is a
+`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`, `DateField`). A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
@@ -513,7 +522,10 @@ switch at the end, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
-file is flagged as soon as it is picked. Every field takes a `layout`: `stacked` by default; `row` for a settings
+file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's
+language, from `FormMessagesProvider`'s `dateLocale`, holding `yyyy-MM-dd` or an empty string,
+with a `clearLabel` when it is optional. A `ComboboxField` item takes a `description`, shown
+muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
 `inline` in a table cell, where the column header names it and the label and description
@@ -525,8 +537,8 @@ Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
-`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
-`SelectTrigger width`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
+`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
+`SelectTrigger width`, `Button align` and `PopoverContent width/padding`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
 row, such as a flag's info button and Reset; `TextField` takes a `badge` there. A select's list
 opens below its input, never over it: `alignItemWithTrigger` is `false`.
 `RadioGroupField` takes `variant="tile"` for a grid of small options such as colours, and
