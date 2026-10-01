@@ -1,9 +1,19 @@
-import { EyeIcon, EyeOffIcon, InfoIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import {
+  CalendarIcon,
+  EyeIcon,
+  EyeOffIcon,
+  InfoIcon,
+  Trash2Icon,
+  UploadIcon,
+  XIcon,
+} from 'lucide-react';
 import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from 'react';
+import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
-import { useAboutLabel, useFormatError } from '@/components/form/form-messages';
+import { useAboutLabel, useDateLocale, useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import {
   Combobox,
   ComboboxChip,
@@ -17,6 +27,7 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from '@/components/ui/combobox';
+import { useDirection } from '@/components/ui/direction';
 import {
   Field,
   FieldContent,
@@ -935,6 +946,106 @@ export function MultiComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
+    </FieldFrame>
+  );
+}
+
+type DateFieldProps = FieldProps & {
+  /** Shown while no date is picked. */
+  placeholder: string;
+  /** Names the button that empties an optional date; without it the date can only be changed. */
+  clearLabel?: string;
+};
+
+const FIRST_MONTH = new Date(1900, 0);
+const lastMonth = () => new Date(new Date().getFullYear() + 20, 11);
+
+/** A day picked from a calendar; the field's value is `yyyy-MM-dd`, or an empty string for none. */
+export function DateField({
+  label,
+  layout,
+  description,
+  required,
+  disabled,
+  placeholder,
+  clearLabel,
+}: DateFieldProps) {
+  const field = useFieldContext<string>();
+  const valueId = `${field.name}-value`;
+  const state = useFieldErrors(description, valueId);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
+  const locale = useDateLocale();
+  const direction = useDirection();
+  const [open, setOpen] = useState(false);
+  const selected = parseDateValue(field.state.value);
+  const shown = formatDateValue(field.state.value, locale?.code ?? 'en-US');
+  const canClear = Boolean(clearLabel && shown && !required && !disabled);
+
+  return (
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
+      <div className="relative">
+        <Popover onOpenChange={setOpen} open={open}>
+          <PopoverTrigger
+            render={
+              <Button
+                align="start"
+                aria-describedby={ariaDescribedBy}
+                aria-invalid={isInvalid}
+                aria-required={required}
+                disabled={disabled}
+                id={field.name}
+                onBlur={field.handleBlur}
+                type="button"
+                variant="outline"
+                width="full"
+              />
+            }
+          >
+            <CalendarIcon data-icon="inline-start" />
+            <span className={shown ? 'truncate' : 'truncate text-muted-foreground'} id={valueId}>
+              {shown || placeholder}
+            </span>
+          </PopoverTrigger>
+          <PopoverContent align="start" padding="none" width="auto">
+            <Calendar
+              autoFocus
+              captionLayout="dropdown"
+              defaultMonth={selected}
+              dir={direction}
+              endMonth={lastMonth()}
+              locale={locale}
+              mode="single"
+              onSelect={(date) => {
+                field.handleChange(date ? toDateValue(date) : '');
+                setOpen(false);
+              }}
+              selected={selected}
+              startMonth={FIRST_MONTH}
+            />
+          </PopoverContent>
+        </Popover>
+        {/* A sibling of the trigger, not inside it, since a button cannot hold another button. */}
+        {canClear && (
+          <div className="absolute inset-y-0 end-1 flex items-center">
+            <Button
+              aria-label={clearLabel}
+              onClick={() => field.handleChange('')}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <XIcon />
+            </Button>
+          </div>
+        )}
+      </div>
     </FieldFrame>
   );
 }

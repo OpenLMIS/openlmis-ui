@@ -37,6 +37,11 @@ const buttonVariants = cva(
         none: "p-0",
         wide: "px-3",
       },
+      // `start` for a button that shows a value, such as a date picker's trigger.
+      align: {
+        default: "",
+        start: "justify-start font-normal",
+      },
       width: {
         default: "",
         full: "w-full",
@@ -52,6 +57,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
       padding: "default",
+      align: "default",
       width: "default",
       tone: "default",
     },
@@ -63,6 +69,7 @@ function Button({
   variant = "default",
   size = "default",
   padding = "default",
+  align = "default",
   width = "default",
   tone = "default",
   ...props
@@ -70,7 +77,7 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, padding, width, tone, className }))}
+      className={cn(buttonVariants({ variant, size, padding, align, width, tone, className }))}
       {...props}
     />
   )

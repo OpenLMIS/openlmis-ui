@@ -347,3 +347,75 @@ describe('field layouts', () => {
     expect(screen.getByRole('switch', { name: 'Active' })).toBeChecked();
   });
 });
+
+const dateSchema = z.object({
+  opened: z.string(),
+  started: z.string().min(1, 'started.required'),
+});
+
+function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) => void }) {
+  const form = useAppForm({
+    defaultValues: { opened: '2026-10-01', started: '' },
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: dateSchema },
+    onSubmit: ({ value }) => onSubmit(value),
+  });
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        form.handleSubmit();
+      }}
+    >
+      <form.AppField name="opened">
+        {(field) => (
+          <field.DateField clearLabel="Clear Opened" label="Opened" placeholder="Pick a Date" />
+        )}
+      </form.AppField>
+      <form.AppField name="started">
+        {(field) => <field.DateField label="Started" placeholder="Pick a Date" required />}
+      </form.AppField>
+      <button type="submit">Save</button>
+    </form>
+  );
+}
+
+describe('date field', () => {
+  it('shows the stored day in the page language and stores the picked day as yyyy-MM-dd', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<DateForm onSubmit={onSubmit} />);
+
+    const opened = screen.getByRole('button', { name: 'Opened' });
+    expect(opened).toHaveTextContent('Oct 1, 2026');
+
+    await user.click(opened);
+    await user.click(await screen.findByRole('button', { name: /October 15th, 2026/ }));
+    expect(opened).toHaveTextContent('Oct 15, 2026');
+
+    await user.click(screen.getByRole('button', { name: 'Started' }));
+    await user.click(await screen.findByRole('button', { name: /15th/ }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ opened: '2026-10-15' }));
+  });
+
+  it('empties an optional date with its clear button', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Clear Opened' }));
+    expect(screen.getByRole('button', { name: 'Opened' })).toHaveTextContent('Pick a Date');
+    expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
+  });
+
+  it('marks a required date that was left empty after submit', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const started = screen.getByRole('button', { name: 'Started' });
+    expect(started).toHaveAttribute('aria-invalid', 'true');
+    expect(started).toHaveAccessibleDescription('Pick a Date started.required');
+  });
+});

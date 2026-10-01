@@ -1,8 +1,10 @@
 import { createContext, type ReactNode, use, useMemo } from 'react';
+import type { Locale } from 'react-day-picker';
 
 type FormMessages = {
   formatError: (message: string) => string;
   aboutLabel: (label: string) => string;
+  dateLocale: Locale | undefined;
 };
 
 const defaultAboutLabel = (label: string) => `About ${label}`;
@@ -10,6 +12,7 @@ const defaultAboutLabel = (label: string) => `About ${label}`;
 const FormMessagesContext = createContext<FormMessages>({
   formatError: (message) => message,
   aboutLabel: defaultAboutLabel,
+  dateLocale: undefined,
 });
 
 type FormMessagesProviderProps = {
@@ -17,15 +20,21 @@ type FormMessagesProviderProps = {
   formatError: (message: string) => string;
   /** Names the info button that shows a field's description. */
   aboutLabel?: (label: string) => string;
+  /** The language dates are shown and picked in; English when left out. */
+  dateLocale?: Locale;
   children: ReactNode;
 };
 
 export function FormMessagesProvider({
   formatError,
   aboutLabel = defaultAboutLabel,
+  dateLocale,
   children,
 }: FormMessagesProviderProps) {
-  const messages = useMemo(() => ({ formatError, aboutLabel }), [formatError, aboutLabel]);
+  const messages = useMemo(
+    () => ({ formatError, aboutLabel, dateLocale }),
+    [formatError, aboutLabel, dateLocale],
+  );
   return <FormMessagesContext value={messages}>{children}</FormMessagesContext>;
 }
 
@@ -35,4 +44,8 @@ export function useFormatError() {
 
 export function useAboutLabel() {
   return use(FormMessagesContext).aboutLabel;
+}
+
+export function useDateLocale() {
+  return use(FormMessagesContext).dateLocale;
 }
