@@ -28,7 +28,12 @@ export type Program = {
   id: string;
   code: string;
   name: string;
-  active: boolean;
+  description?: string | null;
+  active: boolean | null;
+  periodsSkippable?: boolean;
+  skipAuthorization?: boolean;
+  showNonFullSupplyTab?: boolean | null;
+  enableDatePhysicalStockCountCompleted?: boolean;
 };
 
 /** The node's facility comes as a reference only; its name is in the facilities lookup. */

@@ -70,6 +70,13 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Programs under Administration', () => {
+    expect(getNavTrail('/administration/programs')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.programs', to: '/administration/programs' },
+    ]);
+  });
+
   it('places Roles under Administration', () => {
     expect(getNavTrail('/administration/roles')).toEqual([
       { titleKey: 'nav.administration' },
