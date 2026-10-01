@@ -12,6 +12,7 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
       search: t('data-table.search'),
       clearSearch: t('data-table.clear-search'),
       clearFilter: (label) => t('data-table.clear-filter', { label }),
+      noMatches: t('data-table.no-matches'),
       view: t('data-table.view'),
       toggleColumns: t('data-table.toggle-columns'),
       resetColumns: t('data-table.reset-columns'),

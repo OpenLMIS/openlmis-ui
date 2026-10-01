@@ -2,6 +2,14 @@ import { XIcon } from 'lucide-react';
 import { useDataTableLabels } from '@/components/data-table/data-table-labels';
 import { Button } from '@/components/ui/button';
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -75,5 +83,67 @@ export function DataTableSelectFilter({
         </div>
       )}
     </div>
+  );
+}
+
+type DataTableComboboxFilterOption = DataTableSelectFilterOption & {
+  /** Shown muted after the label, e.g. a zone's level. */
+  description?: string;
+};
+
+type DataTableComboboxFilterProps = {
+  /** Names the input, and shows while nothing is picked. */
+  label: string;
+  /** An empty string means no filter. */
+  value: string;
+  onValueChange: (value: string) => void;
+  options: DataTableComboboxFilterOption[];
+  /** Most matches rendered at once, so a long list stays quick to type into. */
+  limit?: number;
+};
+
+/** A toolbar filter for a long list: type to narrow the options, pick one, or clear it. */
+export function DataTableComboboxFilter({
+  label,
+  value,
+  onValueChange,
+  options,
+  limit = 50,
+}: DataTableComboboxFilterProps) {
+  const labels = useDataTableLabels();
+  const selected = options.find((option) => option.value === value) ?? null;
+
+  return (
+    <Combobox
+      isItemEqualToValue={(item, picked) => item.value === picked.value}
+      itemToStringLabel={(item) => item.label}
+      items={options}
+      limit={limit}
+      onValueChange={(item) => onValueChange(item?.value ?? '')}
+      value={selected}
+    >
+      <ComboboxInput
+        aria-label={label}
+        clearLabel={labels.clearFilter(label)}
+        placeholder={label}
+        showClear={selected !== null}
+        width="full"
+      />
+      <ComboboxContent>
+        <ComboboxEmpty>{labels.noMatches}</ComboboxEmpty>
+        <ComboboxList>
+          {(option: DataTableComboboxFilterOption) => (
+            <ComboboxItem key={option.value} value={option}>
+              <span className="min-w-0 truncate">{option.label}</span>
+              {option.description && (
+                <span className="ms-auto shrink-0 text-muted-foreground text-xs">
+                  {option.description}
+                </span>
+              )}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

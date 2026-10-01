@@ -782,6 +782,8 @@ export function SelectField({
 export type ComboboxFieldItem = {
   value: string;
   label: string;
+  /** Shown muted after the label, e.g. a zone's level. */
+  description?: string;
 };
 
 type ComboboxFieldProps = FieldProps & {
@@ -854,7 +856,12 @@ export function ComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                {item.label}
+                <span className="min-w-0 truncate">{item.label}</span>
+                {item.description && (
+                  <span className="ms-auto shrink-0 text-muted-foreground text-xs">
+                    {item.description}
+                  </span>
+                )}
               </ComboboxItem>
             )}
           </ComboboxList>
