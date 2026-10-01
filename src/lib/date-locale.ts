@@ -4,7 +4,7 @@ import type { SUPPORTED_LANGUAGES } from '@/lib/config';
 
 type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
 
-export const DATE_LOCALES: Record<LanguageCode, Locale> = { en: enUS, pt, ar };
+const DATE_LOCALES: Record<LanguageCode, Locale> = { en: enUS, pt, ar };
 
 export function dateLocaleFor(language: string | undefined): Locale {
   const code = language?.split('-')[0] as LanguageCode;

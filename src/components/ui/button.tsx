@@ -37,7 +37,6 @@ const buttonVariants = cva(
         none: "p-0",
         wide: "px-3",
       },
-      // `start` for a button that shows a value, such as a date picker's trigger.
       align: {
         default: "",
         start: "justify-start font-normal",

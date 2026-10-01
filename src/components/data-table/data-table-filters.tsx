@@ -87,22 +87,18 @@ export function DataTableSelectFilter({
 }
 
 type DataTableComboboxFilterOption = DataTableSelectFilterOption & {
-  /** Shown muted after the label, e.g. a zone's level. */
   description?: string;
 };
 
 type DataTableComboboxFilterProps = {
-  /** Names the input, and shows while nothing is picked. */
   label: string;
   /** An empty string means no filter. */
   value: string;
   onValueChange: (value: string) => void;
   options: DataTableComboboxFilterOption[];
-  /** Most matches rendered at once, so a long list stays quick to type into. */
   limit?: number;
 };
 
-/** A toolbar filter for a long list: type to narrow the options, pick one, or clear it. */
 export function DataTableComboboxFilter({
   label,
   value,

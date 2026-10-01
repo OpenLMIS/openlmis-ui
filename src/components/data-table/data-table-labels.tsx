@@ -5,7 +5,6 @@ export type DataTableLabels = {
   clearSearch: string;
   /** Names the button that clears a dropdown filter, e.g. 'Clear Status'. */
   clearFilter: (label: string) => string;
-  /** Shown in a searchable filter when no option matches what was typed. */
   noMatches: string;
   view: string;
   toggleColumns: string;

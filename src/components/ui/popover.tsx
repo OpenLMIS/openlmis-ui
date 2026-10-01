@@ -24,9 +24,7 @@ function PopoverContent({
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   > & {
-    /** `auto` sizes the popover to its content, such as a calendar. */
     width?: "default" | "auto"
-    /** `none` for content with its own padding, such as a calendar. */
     padding?: "default" | "none"
   }) {
   return (
