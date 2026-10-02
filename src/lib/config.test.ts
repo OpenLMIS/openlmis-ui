@@ -100,6 +100,20 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Valid Destinations and Valid Sources under Administration', () => {
+    expect(getNavTrail('/administration/valid-destinations')).toEqual([
+      { titleKey: 'nav.administration' },
+      {
+        titleKey: 'nav.administration.valid-destinations',
+        to: '/administration/valid-destinations',
+      },
+    ]);
+    expect(getNavTrail('/administration/valid-sources')).toEqual([
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.valid-sources', to: '/administration/valid-sources' },
+    ]);
+  });
+
   it('does not match a path that only starts with the same letters', () => {
     expect(getNavTrail('/administration/users-archive')).toEqual([]);
   });
