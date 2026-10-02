@@ -95,10 +95,11 @@ acceptance criterion, find the evidence and give a verdict:
 
 When code and tests cannot settle a criterion that is about what the user sees, check it
 in the browser, under the browser rules in the `review-pr` skill
-(`.agents/skills/review-pr/SKILL.md`): nothing may write to the shared server. For a
-ticket with many criteria, split them across background `Agent`s, each given its
-criteria, the PR list and the browser rules, returning verdicts with evidence and
-changing no files.
+(`.agents/skills/review-pr/SKILL.md`): nothing may write to the shared server, and every
+browser runs headless. For a ticket with many criteria, split them across background
+`Agent`s, each given its criteria, the PR list and the browser rules, returning verdicts
+with evidence and changing no files. One of them drives the browser tool; the others run
+headless scripts.
 
 **A Bug** is judged on its steps to reproduce: they must no longer give the wrong result,
 and a test must reproduce the bug, failing before the fix and passing after it. A fix with no
