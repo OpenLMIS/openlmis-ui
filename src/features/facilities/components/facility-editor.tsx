@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Block } from '@/components/skeleton-block';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,11 +69,18 @@ export const FACILITY_EDITOR_LOOKUPS = {
   programs: programsOptions(),
 };
 
+export function prefetchFacilityEditorLookups(queryClient: QueryClient) {
+  const { types, zones, operators, programs } = FACILITY_EDITOR_LOOKUPS;
+  queryClient.prefetchQuery(types);
+  queryClient.prefetchQuery(zones);
+  queryClient.prefetchQuery(operators);
+  queryClient.prefetchQuery(programs);
+}
+
 const FORM_ID = 'facility-form';
 
 type FacilityEditorProps = {
   initialValues: FacilityFormValues;
-  /** The facility as stored, when editing one. */
   saved?: Facility | undefined;
   tab: FacilityTab;
   onTabChange: (tab: FacilityTab) => void;
@@ -130,19 +138,20 @@ export function FacilityEditor({
 }: FacilityEditorProps) {
   const { t } = useTranslation();
   const [refused, setRefused] = useState<string[]>([]);
-  const schema = useMemo(
-    () => facilityFormSchema(refused, { goLiveDateRequired: Boolean(saved) }),
-    [refused, saved],
-  );
   const locked = saved ? isManagedExternally(saved) : false;
+  const editing = Boolean(saved);
+  const schema = useMemo(
+    () => facilityFormSchema(refused, { goLiveDateRequired: editing, locked }),
+    [refused, editing, locked],
+  );
   const tabs = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
 
   const mutation = useMutation({
     mutationFn: save,
-    onSuccess: (saved) => {
+    onSuccess: (facility) => {
       leaving.current = true;
-      onSaved(saved);
+      onSaved(facility);
     },
     onError: (error, values) => {
       if (!isDuplicateCode(error)) return;
@@ -318,7 +327,7 @@ function InformationFields({ form, locked, saved }: InformationFieldsProps) {
         <form.AppField name="goLiveDate">
           {(field) => (
             <field.DateField
-              clearLabel={saved ? undefined : t('facilities.form.clear-go-live-date')}
+              clearLabel={t('facilities.form.clear-go-live-date')}
               description={t('facilities.form.go-live-date-description')}
               label={t('facilities.form.go-live-date')}
               placeholder={t('facilities.form.pick-date')}
@@ -360,7 +369,6 @@ function InformationFields({ form, locked, saved }: InformationFieldsProps) {
 
 type TypeFieldProps = {
   form: FacilityForm;
-  /** The stored type, kept on offer when it is no longer active. */
   current: Facility['type'] | undefined;
 };
 
@@ -368,8 +376,9 @@ function TypeField({ form, current }: TypeFieldProps) {
   const { t } = useTranslation();
   const { data: types } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.types);
   const items = useMemo(() => {
-    const offered = current && !types.some((type) => type.id === current.id);
-    return [...types, ...(offered ? [current] : [])]
+    const all =
+      current && !types.some((type) => type.id === current.id) ? [...types, current] : types;
+    return all
       .map((type) => ({ value: type.id, label: type.name || type.code }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [types, current]);
@@ -627,5 +636,48 @@ function AddProgramRow({
         </div>
       </FieldGroup>
     </form>
+  );
+}
+
+type FacilityEditorSkeletonProps = {
+  title: string;
+  description: string;
+  goLiveDateRequired?: boolean;
+};
+
+export function FacilityEditorSkeleton({
+  title,
+  description,
+  goLiveDateRequired = false,
+}: FacilityEditorSkeletonProps) {
+  const { t } = useTranslation();
+  return (
+    <Workspace>
+      <WorkspaceHeader>
+        <WorkspaceHeading>
+          <WorkspaceIcon>
+            <BuildingIcon />
+          </WorkspaceIcon>
+          <WorkspaceTitle>{title}</WorkspaceTitle>
+          <WorkspaceDescription>{description}</WorkspaceDescription>
+        </WorkspaceHeading>
+      </WorkspaceHeader>
+      <WorkspaceContent>
+        <div className="flex flex-col gap-6">
+          <Block className="h-9 w-80" />
+          <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+            <FieldSkeleton label={t('facilities.form.name')} required />
+            <FieldSkeleton label={t('facilities.form.code')} required />
+            <FieldSkeleton label={t('facilities.form.type')} required />
+            <FieldSkeleton label={t('facilities.form.zone')} required />
+            <FieldSkeleton
+              label={t('facilities.form.go-live-date')}
+              required={goLiveDateRequired}
+            />
+            <FieldSkeleton label={t('facilities.form.operator')} />
+          </div>
+        </div>
+      </WorkspaceContent>
+    </Workspace>
   );
 }
