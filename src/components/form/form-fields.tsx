@@ -86,7 +86,7 @@ type FieldProps = {
 type FieldFrameProps = FieldProps & {
   /** Beside the label in a row, such as a status badge. */
   badge?: ReactNode;
-  /** After the badge in a row, such as an info button or a Reset. */
+  /** After the badge in a row, or at the end of a stacked label's line, such as a Reset or a link. */
   action?: ReactNode;
   state: ReturnType<typeof useFieldErrors>;
   /** `end` lines a row's error up with a value set at the end, such as an image preview. */
@@ -208,20 +208,39 @@ function FieldFrame({
       </Field>
     );
   }
-  return (
-    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
-      {layout === 'inline' ? (
+  if (layout === 'inline') {
+    return (
+      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
         <HiddenFromView>
           <label htmlFor={field.name} id={`${field.name}-label`}>
             {labelText}
           </label>
         </HiddenFromView>
+        {children}
+        {details}
+      </Field>
+    );
+  }
+  const stackedLabel = (
+    <FieldLabel htmlFor={field.name} id={`${field.name}-label`}>
+      {labelText}
+    </FieldLabel>
+  );
+  return (
+    <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      {action ? (
+        // Beside the label on screen, after the input in tab order, and wrapping when cramped.
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="shrink-0">{stackedLabel}</div>
+          <div className="order-last basis-full">{children}</div>
+          <div className="ms-auto">{action}</div>
+        </div>
       ) : (
-        <FieldLabel htmlFor={field.name} id={`${field.name}-label`}>
-          {labelText}
-        </FieldLabel>
+        <>
+          {stackedLabel}
+          {children}
+        </>
       )}
-      {children}
       {details}
     </Field>
   );
@@ -332,14 +351,20 @@ export function TextareaField({
   );
 }
 
-type PasswordFieldProps = FieldProps & {
-  autoComplete?: 'new-password' | 'current-password';
-  placeholder?: string;
-  /** Names the button that reveals the password, for screen readers. */
-  showLabel: string;
-  hideLabel: string;
-  describedBy?: string;
-};
+type PasswordFieldProps = FieldProps &
+  Pick<FieldFrameProps, 'action'> & {
+    autoComplete?: 'new-password' | 'current-password';
+    placeholder?: string;
+    /** Names the button that reveals the password, for screen readers. */
+    showLabel: string;
+    hideLabel: string;
+    describedBy?: string;
+  } & SharedVisibility;
+
+/** Both or neither, for fields that show and hide together, such as a password and its confirmation. */
+type SharedVisibility =
+  | { visible?: never; onVisibleChange?: never }
+  | { visible: boolean; onVisibleChange: (visible: boolean) => void };
 
 export function PasswordField({
   label,
@@ -352,14 +377,19 @@ export function PasswordField({
   showLabel,
   hideLabel,
   describedBy,
+  visible: sharedVisible,
+  onVisibleChange,
+  action,
 }: PasswordFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description, describedBy);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
-  const [visible, setVisible] = useState(false);
+  const [ownVisible, setOwnVisible] = useState(false);
+  const visible = sharedVisible ?? ownVisible;
 
   return (
     <FieldFrame
+      action={action}
       description={description}
       disabled={disabled}
       label={label}
@@ -386,7 +416,7 @@ export function PasswordField({
           <InputGroupButton
             aria-label={visible ? hideLabel : showLabel}
             disabled={disabled}
-            onClick={() => setVisible((shown) => !shown)}
+            onClick={() => (onVisibleChange ?? setOwnVisible)(!visible)}
             size="icon-xs"
             type="button"
             variant="ghost"

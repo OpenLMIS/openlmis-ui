@@ -15,3 +15,8 @@ export function safeRedirect(target: string | undefined): string {
 export function loginSearch({ pathname, href }: { pathname: string; href: string }) {
   return pathname === HOME ? {} : { redirect: href };
 }
+
+export const isSignInPage = (pathname: string) =>
+  pathname === '/login' ||
+  pathname === '/forgot-password' ||
+  pathname.startsWith('/reset-password/');

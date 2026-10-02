@@ -32,7 +32,7 @@ Today the new UI has these screens:
 
 | Screen | What you can do |
 | --- | --- |
-| Login | Sign in |
+| Login | Sign in, and ask for an email to reset a forgotten password |
 | Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment |
 | Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles. Needs the Manage Users right; without it the menu leaves Users out and the page says so |
 | Administration / Roles | Find roles, see their rights, and create or edit them. Opening the page needs Manage Users, seeing a role's rights needs View Rights, and creating or editing needs Manage User Roles and View Rights |
@@ -56,6 +56,7 @@ Sessions are shared, with one exception.
 | Leave the new UI idle for 30 minutes | It asks for your password over the page you were on. Sign in and carry on; nothing unsaved is lost |
 | Open a link to a new UI page while signed out | You sign in, then land on that page |
 | Sign out of the new UI while offline | It asks first, since you can't sign in again until you are back online |
+| Forget your password | Forgot Password on the sign-in page emails you a link. It opens the old UI's reset page unless the server is set up to send it to the new one; both work |
 | Sign into the new UI, then open the old one | **Asks you to sign in once** |
 
 That last row is the exception. Signing into the new UI does not sign you into the

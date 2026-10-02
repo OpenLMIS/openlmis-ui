@@ -41,18 +41,19 @@ async function renderAt(path: string, ask?: (proceed: () => void) => void, page?
       </>
     ),
   });
-  const routes = ['/users', '/login'].map((routePath) =>
-    createRoute({
-      getParentRoute: () => root,
-      path: routePath,
-      component: () => (
-        <>
-          <p>{routePath}</p>
-          {page}
-          {ask && routePath === '/users' && <UnsavedDraft ask={ask} />}
-        </>
-      ),
-    }),
+  const routes = ['/users', '/login', '/forgot-password', '/reset-password/$token'].map(
+    (routePath) =>
+      createRoute({
+        getParentRoute: () => root,
+        path: routePath,
+        component: () => (
+          <>
+            <p>{routePath.replace('$token', 'abc')}</p>
+            {page}
+            {ask && routePath === '/users' && <UnsavedDraft ask={ask} />}
+          </>
+        ),
+      }),
   );
   const router = createRouter({
     routeTree: root.addChildren(routes),
@@ -231,10 +232,23 @@ describe('SessionExpiredDialog', () => {
     expect(screen.getByRole('button', { name: 'session.sign-in' })).toBeDisabled();
   });
 
-  it('is not shown on the sign-in page itself', async () => {
-    useLoginData.getState().expireSession();
-    await renderAt('/login');
+  it.each(['/login', '/forgot-password', '/reset-password/abc'])(
+    'is not shown on %s, where the user is signing in or resetting the password',
+    async (path) => {
+      useLoginData.getState().expireSession();
+      await renderAt(path);
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    },
+  );
+
+  it('opens Forgot Password in a new tab, so the page and its unsaved work stay', async () => {
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    const link = await screen.findByRole('link', { name: 'login.forgot-password' });
+
+    expect(link).toHaveAttribute('href', '/forgot-password');
+    expect(link).toHaveAttribute('target', '_blank');
   });
 });

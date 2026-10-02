@@ -18,5 +18,5 @@ export function renderPage(page: ReactNode, { path = '/', queryClient = new Quer
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return queryClient;
+  return router;
 }

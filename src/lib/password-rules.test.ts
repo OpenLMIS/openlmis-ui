@@ -1,6 +1,11 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { describe, expect, it } from 'vitest';
-import { passwordChecks, passwordErrorKey, passwordIssue } from '@/lib/password-rules';
+import {
+  passwordChecks,
+  passwordErrorKey,
+  passwordIssue,
+  passwordRules,
+} from '@/lib/password-rules';
 
 const ada = { username: 'ada', firstName: 'Ada', lastName: 'Lovelace' };
 
@@ -43,6 +48,13 @@ describe('passwordChecks', () => {
   });
 });
 
+describe('passwordRules', () => {
+  it('checks the names only when it knows whose password it is', () => {
+    expect(passwordRules(ada)).toEqual(['length', 'characters', 'number', 'names']);
+    expect(passwordRules()).toEqual(['length', 'characters', 'number']);
+  });
+});
+
 describe('passwordIssue', () => {
   it('asks for a password, then reports the first rule it misses', () => {
     expect(passwordIssue('', ada)).toBe('users.password.required');
@@ -51,6 +63,12 @@ describe('passwordIssue', () => {
     expect(passwordIssue('abcdefgh', ada)).toBe('users.password.error.number');
     expect(passwordIssue('Ada2024xyz', ada)).toBe('users.password.error.names');
     expect(passwordIssue('kznqG0C2vx', ada)).toBeUndefined();
+  });
+
+  it('leaves the names out for a password whose owner is unknown', () => {
+    expect(passwordIssue('', undefined)).toBe('users.password.required');
+    expect(passwordIssue('abcdefgh', undefined)).toBe('users.password.error.number');
+    expect(passwordIssue('Ada2024xyz', undefined)).toBeUndefined();
   });
 });
 

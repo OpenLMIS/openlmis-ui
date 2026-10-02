@@ -9,16 +9,20 @@ export type PasswordOwner = {
 };
 
 /** The fixed rules the auth service checks, in the order it reports them; strength is left to the server. */
-export const PASSWORD_RULES = ['length', 'characters', 'number', 'names'] as const;
+const PASSWORD_RULES = ['length', 'characters', 'number', 'names'] as const;
 
 export type PasswordRule = (typeof PASSWORD_RULES)[number];
 
+export function passwordRules(owner?: PasswordOwner): readonly PasswordRule[] {
+  return owner ? PASSWORD_RULES : PASSWORD_RULES.filter((rule) => rule !== 'names');
+}
+
 export function passwordChecks(
   password: string,
-  owner: PasswordOwner,
+  owner?: PasswordOwner,
 ): Record<PasswordRule, boolean> {
   const lower = password.toLowerCase();
-  const names = [owner.username, owner.firstName, owner.lastName]
+  const names = [owner?.username, owner?.firstName, owner?.lastName]
     .map((name) => name?.trim().toLowerCase())
     .filter(Boolean);
   return {
@@ -37,10 +41,10 @@ const RULE_ERRORS: Record<PasswordRule, ParseKeys> = {
 };
 
 /** What is wrong with the password, as a translation key: missing, or the first rule it misses. */
-export function passwordIssue(password: string, owner: PasswordOwner): ParseKeys | undefined {
+export function passwordIssue(password: string, owner?: PasswordOwner): ParseKeys | undefined {
   if (password === '') return 'users.password.required';
   const checks = passwordChecks(password, owner);
-  const unmet = PASSWORD_RULES.find((rule) => !checks[rule]);
+  const unmet = passwordRules(owner).find((rule) => !checks[rule]);
   return unmet && RULE_ERRORS[unmet];
 }
 
