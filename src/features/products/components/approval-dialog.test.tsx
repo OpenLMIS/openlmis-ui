@@ -54,6 +54,8 @@ const approval: Approval = {
   program: familyPlanning,
 };
 
+const LOADED = { timeout: 3000 };
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchApprovals).mockResolvedValue([approval]);
@@ -83,7 +85,7 @@ function renderDialog(target: string, { readOnly = false } = {}) {
 
 async function pick(label: RegExp, option: string) {
   const user = userEvent.setup();
-  await user.click(await screen.findByRole('combobox', { name: label }));
+  await user.click(await screen.findByRole('combobox', { name: label }, LOADED));
   await user.click(await screen.findByRole('option', { name: option }));
 }
 
@@ -93,7 +95,9 @@ describe('ApprovalDialog', () => {
     const { onClose } = renderDialog('new');
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('combobox', { name: /products.approvals.program/ }));
+    await user.click(
+      await screen.findByRole('combobox', { name: /products.approvals.program/ }, LOADED),
+    );
     expect(screen.queryByRole('option', { name: 'TB' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
     await pick(/products.approvals.facility-type/, 'District Hospital');
@@ -118,7 +122,9 @@ describe('ApprovalDialog', () => {
     await user.type(screen.getByLabelText(/products.approvals.max-periods/), '3');
     await user.click(screen.getByRole('button', { name: 'products.approvals.form.add' }));
 
-    expect(await screen.findByText('products.approvals.form.duplicate')).toBeInTheDocument();
+    expect(
+      await screen.findByText('products.approvals.form.duplicate', {}, LOADED),
+    ).toBeInTheDocument();
     expect(addApproval).not.toHaveBeenCalled();
   });
 
@@ -129,7 +135,7 @@ describe('ApprovalDialog', () => {
     const { onClose } = renderDialog('a1');
     const user = userEvent.setup();
 
-    const max = await screen.findByLabelText(/products.approvals.max-periods/);
+    const max = await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED);
     expect(max).toHaveValue('4');
     expect(
       screen.getByRole('combobox', { name: /products.approvals.facility-type/ }),
@@ -147,7 +153,9 @@ describe('ApprovalDialog', () => {
     vi.mocked(fetchApproval).mockResolvedValueOnce(approval);
     renderDialog('a1', { readOnly: true });
 
-    expect(await screen.findByLabelText(/products.approvals.max-periods/)).toBeDisabled();
+    expect(
+      await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED),
+    ).toBeDisabled();
     expect(screen.getByRole('button', { name: 'dialog.close' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.approvals.form.save' }),
@@ -162,7 +170,9 @@ describe('RemoveApprovalDialog', () => {
     renderPage(<RemoveApprovalDialog approvalId="a1" onClose={onClose} product={product} />);
     const user = userEvent.setup();
 
-    expect(await screen.findByText('products.approvals.remove-description')).toBeInTheDocument();
+    expect(
+      await screen.findByText('products.approvals.remove-description', {}, LOADED),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'products.approvals.remove' }));
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());

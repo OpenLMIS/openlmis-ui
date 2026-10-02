@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,10 +36,12 @@ function refusal(messageKey: string) {
 }
 
 function renderForm({ readOnly = false, onDone = vi.fn(), shown = product } = {}) {
-  const queryClient = renderPage(
+  const queryClient = new QueryClient();
+  renderPage(
     <WorkspaceSlots>
       <ProductGeneralForm onDone={onDone} product={shown} readOnly={readOnly} />
     </WorkspaceSlots>,
+    { queryClient },
   );
   return { queryClient, onDone };
 }

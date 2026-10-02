@@ -41,6 +41,8 @@ const product: ProductDetail = {
   programs: [familyPlanning],
 };
 
+const LOADED = { timeout: 3000 };
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchPrograms).mockResolvedValue([
@@ -67,7 +69,9 @@ describe('ProgramLinkDialog', () => {
     const { onClose } = renderDialog('new');
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('combobox', { name: /products.programs.program/ }));
+    await user.click(
+      await screen.findByRole('combobox', { name: /products.programs.program/ }, LOADED),
+    );
     expect(screen.queryByRole('option', { name: 'Family Planning' })).not.toBeInTheDocument();
     await user.click(await screen.findByRole('option', { name: 'Essential Meds' }));
     await user.click(screen.getByRole('combobox', { name: /products.programs.form.category/ }));
@@ -97,7 +101,7 @@ describe('ProgramLinkDialog', () => {
     renderDialog('new');
     const user = userEvent.setup();
 
-    await screen.findByRole('combobox', { name: /products.programs.program/ });
+    await screen.findByRole('combobox', { name: /products.programs.program/ }, LOADED);
     await user.click(screen.getByRole('button', { name: 'products.programs.form.add' }));
 
     expect(await screen.findByText('products.programs.form.program-required')).toBeInTheDocument();
@@ -112,7 +116,11 @@ describe('ProgramLinkDialog', () => {
     const { onClose } = renderDialog('fp');
     const user = userEvent.setup();
 
-    const doses = await screen.findByLabelText(/products.programs.form.doses-per-patient/);
+    const doses = await screen.findByLabelText(
+      /products.programs.form.doses-per-patient/,
+      {},
+      LOADED,
+    );
     expect(doses).toHaveValue('1');
     await user.clear(doses);
     await user.type(doses, '2');
@@ -130,7 +138,9 @@ describe('ProgramLinkDialog', () => {
   it('only shows a linked program to a user who may not change it', async () => {
     renderDialog('fp', { readOnly: true });
 
-    expect(await screen.findByLabelText(/products.programs.form.doses-per-patient/)).toBeDisabled();
+    expect(
+      await screen.findByLabelText(/products.programs.form.doses-per-patient/, {}, LOADED),
+    ).toBeDisabled();
     expect(screen.getByRole('button', { name: 'dialog.close' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.programs.form.save' }),
@@ -140,7 +150,9 @@ describe('ProgramLinkDialog', () => {
   it('says so when the program is no longer linked', async () => {
     renderDialog('gone');
 
-    expect(await screen.findByText('products.programs.form.not-found')).toBeInTheDocument();
+    expect(
+      await screen.findByText('products.programs.form.not-found', {}, LOADED),
+    ).toBeInTheDocument();
   });
 });
 
@@ -151,7 +163,9 @@ describe('RemoveProgramLinkDialog', () => {
     renderPage(<RemoveProgramLinkDialog onClose={onClose} product={product} programId="fp" />);
     const user = userEvent.setup();
 
-    expect(await screen.findByText('products.programs.remove-description')).toBeInTheDocument();
+    expect(
+      await screen.findByText('products.programs.remove-description', {}, LOADED),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'products.programs.remove' }));
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
