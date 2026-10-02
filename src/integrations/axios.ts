@@ -9,6 +9,8 @@ declare module 'axios' {
     session?: boolean;
     /** The user the request was sent for, so a refusal is never resent as someone else. */
     sentFor?: string | null;
+    /** Sent with no token, for the public password pages; the server refuses any bearer there. */
+    anonymous?: boolean;
   }
 }
 
@@ -28,7 +30,7 @@ const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined)
 client.interceptors.request.use(async (config) => {
   const { accessToken, expired, referenceDataUserId } = useLoginData.getState();
   config.sentFor ??= referenceDataUserId;
-  if (config.headers.Authorization) return config;
+  if (config.headers.Authorization || config.anonymous) return config;
 
   const token =
     expired && referenceDataUserId && config.session !== false
@@ -50,6 +52,7 @@ client.interceptors.response.use(
       error.response?.status !== 401 ||
       !config ||
       config.session === false ||
+      config.anonymous ||
       !isAuthenticated ||
       !referenceDataUserId
     ) {

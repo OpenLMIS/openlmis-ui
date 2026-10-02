@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { changePasswordSchema } from '@/features/profile/lib/password-form';
+import { newPasswordSchema } from '@/lib/password-form';
 
-const schema = changePasswordSchema({ username: 'ada', firstName: 'Ada', lastName: 'Lovelace' });
+const schema = newPasswordSchema({ username: 'ada', firstName: 'Ada', lastName: 'Lovelace' });
 
 const messages = (password: string, confirm: string) =>
   schema.safeParse({ password, confirm }).error?.issues.map((issue) => [issue.path, issue.message]);
 
-describe('changePasswordSchema', () => {
+describe('newPasswordSchema', () => {
   it('accepts a valid password typed twice', () => {
     expect(messages('secret12', 'secret12')).toBeUndefined();
   });
@@ -31,5 +31,11 @@ describe('changePasswordSchema', () => {
       [['password'], 'users.password.required'],
       [['confirm'], 'profile.password.mismatch'],
     ]);
+  });
+
+  it('leaves the names out when the owner is unknown', () => {
+    const anyone = newPasswordSchema();
+    expect(anyone.safeParse({ password: 'lovelace12', confirm: 'lovelace12' }).success).toBe(true);
+    expect(anyone.safeParse({ password: 'lovelace', confirm: 'lovelace' }).success).toBe(false);
   });
 });

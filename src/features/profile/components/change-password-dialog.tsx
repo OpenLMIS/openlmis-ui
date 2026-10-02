@@ -19,9 +19,9 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { PasswordRequirements } from '@/components/password-requirements';
 import { FieldGroup } from '@/components/ui/field';
 import { changePassword } from '@/features/profile/api/api';
-import { changePasswordSchema } from '@/features/profile/lib/password-form';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
+import { newPasswordSchema } from '@/lib/password-form';
 import { passwordErrorKey } from '@/lib/password-rules';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -62,7 +62,7 @@ function ChangePasswordForm({
     mutationFn: (password: string) => changePassword(user.username, password),
     onSuccess: onChanged,
   });
-  const schema = useMemo(() => changePasswordSchema(user), [user]);
+  const schema = useMemo(() => newPasswordSchema(user), [user]);
   // The server's strength check has a message of ours; its other refusals are shown as sent.
   const errorKey = passwordErrorKey(save.error);
   const form = useAppForm({
