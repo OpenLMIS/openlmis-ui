@@ -1,31 +1,54 @@
-import { Link, type LinkProps, useLocation } from '@tanstack/react-router';
-import { createContext, type ReactNode, useContext, useState } from 'react';
+import {
+  type HistoryState,
+  Link,
+  type LinkProps,
+  useLocation,
+  useRouter,
+} from '@tanstack/react-router';
+import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkspaceActions, WorkspaceFooter } from '@/components/workspace';
 
-type WorkspaceTab = { to: NonNullable<LinkProps['to']>; label: string };
+type WorkspaceTab = {
+  to: NonNullable<LinkProps['to']>;
+  params?: Record<string, string>;
+  label: string;
+};
 
 type WorkspaceTabsProps = {
   label: string;
   tabs: readonly WorkspaceTab[];
+  linkState?: HistoryState;
+  wrap?: 'column' | 'grid';
   children: ReactNode;
 };
 
-export function WorkspaceTabs({ label, tabs, children }: WorkspaceTabsProps) {
+export function WorkspaceTabs({
+  label,
+  tabs,
+  linkState,
+  wrap = 'column',
+  children,
+}: WorkspaceTabsProps) {
+  const router = useRouter();
   const { pathname } = useLocation();
   const current = pathname.replace(/\/$/, '');
-  const tab = tabs.find(({ to }) => to === current)?.to ?? tabs[0]?.to;
+  const tab =
+    tabs.find(
+      (item) =>
+        router.buildLocation({ to: item.to, params: item.params } as never).pathname === current,
+    )?.to ?? tabs[0]?.to;
 
   return (
     <Tabs spacing="page" value={tab}>
       <div className="@container">
-        <TabsList aria-label={label} wrap="column">
+        <TabsList aria-label={label} wrap={wrap === 'grid' ? true : 'column'}>
           {tabs.map((item) => (
             <TabsTrigger
               key={item.to}
               nativeButton={false}
-              render={<Link to={item.to} />}
+              render={<Link params={item.params as never} state={linkState} to={item.to} />}
               value={item.to}
             >
               {item.label}
@@ -67,9 +90,14 @@ export function WorkspaceActionsPortal({ children }: { children: ReactNode }) {
   return actions ? createPortal(<WorkspaceActions>{children}</WorkspaceActions>, actions) : null;
 }
 
-export function WorkspaceFooterPortal({ children }: { children: ReactNode }) {
+type WorkspaceFooterPortalProps = {
+  children: ReactNode;
+  width?: ComponentProps<typeof WorkspaceFooter>['width'];
+};
+
+export function WorkspaceFooterPortal({ children, width = 'narrow' }: WorkspaceFooterPortalProps) {
   const { footer } = useContext(SlotsContext);
   return footer
-    ? createPortal(<WorkspaceFooter width="narrow">{children}</WorkspaceFooter>, footer)
+    ? createPortal(<WorkspaceFooter width={width}>{children}</WorkspaceFooter>, footer)
     : null;
 }

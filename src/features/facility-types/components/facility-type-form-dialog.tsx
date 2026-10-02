@@ -45,14 +45,13 @@ import {
   toFacilityTypeFormValues,
 } from '@/features/facility-types/lib/facility-type-form';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
+import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
 const NO_TYPES: FacilityType[] = [];
-
-let openings = 0;
-const nextOpening = () => ++openings;
 
 const saveKey = (target: string) => [...queryKeys.facilityTypes.all, 'save', target] as const;
 
@@ -76,7 +75,7 @@ function FacilityTypeDialogContent({ target, onDone }: { target: string; onDone:
   const { t } = useTranslation();
   const isNew = target === 'new';
   const title = t(isNew ? 'facility-types.form.create-title' : 'facility-types.form.edit-title');
-  const [opening] = useState(nextOpening);
+  const opening = useOpening();
 
   return (
     <QueryBoundary
@@ -142,7 +141,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
         t(type ? 'facility-types.form.updated-title' : 'facility-types.form.created-title'),
         {
           description: t(type ? 'facility-types.form.updated' : 'facility-types.form.created', {
-            type: saved.name || saved.code,
+            type: facilityTypeName(saved),
           }),
         },
       );

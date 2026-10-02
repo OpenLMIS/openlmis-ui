@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
+import { toOptionalWholeNumber, toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const schema = wholeNumberText({
   required: 'error.try-again',
@@ -63,5 +63,26 @@ describe('toWholeNumber', () => {
     expect(toWholeNumber(' 7 ')).toBe(7);
     expect(toWholeNumber('١٢')).toBe(12);
     expect(toWholeNumber('۱۲')).toBe(12);
+  });
+});
+
+describe('wholeNumberText when optional', () => {
+  const optional = wholeNumberText(
+    { invalid: 'error.title', tooLarge: 'error.check-connection' },
+    { optional: true },
+  );
+  const optionalMessage = (value: string) =>
+    optional.safeParse(value).error?.issues.map((i) => i.message);
+
+  it('accepts no value, and checks one that is there', () => {
+    expect(optionalMessage('')).toBeUndefined();
+    expect(optionalMessage('  ')).toBeUndefined();
+    expect(optionalMessage('1.5')).toEqual(['error.title']);
+    expect(optionalMessage('2147483648')).toEqual(['error.check-connection']);
+  });
+
+  it('reads no value as none', () => {
+    expect(toOptionalWholeNumber(' ')).toBeNull();
+    expect(toOptionalWholeNumber(' ١٢ ')).toBe(12);
   });
 });
