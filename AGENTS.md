@@ -527,9 +527,10 @@ switch at the end, not a checkbox; picking several of a list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's
-language, from `FormMessagesProvider`'s `dateLocale`, holding `yyyy-MM-dd` or an empty string,
-with a `clearLabel` when it is optional; the calendar is its own chunk, fetched once a date field
-mounts. A `ComboboxField` item takes a `description`, shown
+language, holding `yyyy-MM-dd` or an empty string, with a `clearLabel` when it is optional. The
+calendar and its language (`loadDateLocale` from `FormMessagesProvider`) are fetched once a date
+field mounts and again when it is opened after a failed load, so no other page carries the date
+libraries; a required date reads out the provider's `requiredLabel` with its name. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
