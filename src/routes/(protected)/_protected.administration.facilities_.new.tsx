@@ -126,7 +126,7 @@ function AddFacilityError(props: ErrorComponentProps) {
   return (
     <ErrorFallback
       {...props}
-      description={t('facilities.form.load-error-description')}
+      description={t('facilities.error-description')}
       title={t('facilities.form.load-error-title')}
     />
   );

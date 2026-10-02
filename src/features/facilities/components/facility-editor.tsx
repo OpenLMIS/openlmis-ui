@@ -176,7 +176,11 @@ export function FacilityEditor({
           </WorkspaceHeading>
         </WorkspaceHeader>
         <WorkspaceContent>
-          <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={tabs}>
+          <div
+            className="flex flex-col gap-4 @4xl/main:gap-6"
+            inert={mutation.isPending}
+            ref={tabs}
+          >
             {mutation.isError && !isDuplicateCode(mutation.error) && (
               <ErrorAlert
                 description={serverMessage(mutation.error) ?? t('facilities.form.save-error')}

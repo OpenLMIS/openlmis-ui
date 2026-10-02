@@ -214,4 +214,15 @@ describe('FacilityEditor', () => {
       expect(screen.getByRole('combobox', { name: 'facilities.form.program' })).toHaveFocus(),
     );
   });
+
+  it('takes no input while a save is on its way, so nothing typed then is lost', async () => {
+    const user = userEvent.setup();
+    const save = vi.fn().mockReturnValue(new Promise(() => {}));
+    renderPage(<Editor initialValues={filled} save={save} />, { queryClient: seededClient() });
+
+    await user.click(await screen.findByRole('button', { name: 'Create' }, { timeout: 3000 }));
+
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(screen.getByRole('tablist').closest('[inert]')).not.toBeNull();
+  });
 });
