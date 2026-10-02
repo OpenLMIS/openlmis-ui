@@ -66,3 +66,12 @@ export async function removeApproval(id: string) {
   const latest = await fetchApproval(id);
   return updateApproval({ ...latest, active: false });
 }
+
+export async function fetchProductsByIds(ids: readonly string[]) {
+  if (ids.length === 0) return [];
+  const { data } = await client.get<Page<Product>>('/orderables', {
+    params: { id: ids },
+    paramsSerializer: { indexes: null },
+  });
+  return data.content;
+}

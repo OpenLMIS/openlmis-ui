@@ -21,6 +21,10 @@ const PRODUCT_TABS = [
     to: '/administration/products/$id/facility-types',
     labelKey: 'products.edit.tabs.facility-types',
   },
+  {
+    to: '/administration/products/$id/kit-unpack-list',
+    labelKey: 'products.edit.tabs.kit-unpack-list',
+  },
 ] as const;
 
 type ProductWorkspaceProps = {

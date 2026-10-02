@@ -3,6 +3,7 @@ export type Product = {
   productCode: string;
   fullProductName: string | null;
   description: string | null;
+  dispensable?: { displayUnit?: string | null; [key: string]: unknown };
 };
 
 export type ProductDetail = Product & {
@@ -11,7 +12,13 @@ export type ProductDetail = Product & {
   roundToZero: boolean;
   dispensable: { dispensingUnit?: string | null; sizeCode?: string | null; [key: string]: unknown };
   programs: ProgramLink[];
+  children?: KitChild[];
   [key: string]: unknown;
+};
+
+export type KitChild = {
+  orderable: { id: string; [key: string]: unknown };
+  quantity: number | null;
 };
 
 export type ProgramLink = {

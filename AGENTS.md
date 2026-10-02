@@ -515,16 +515,20 @@ from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkelet
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `NumberField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). Two forms that share their fields, such as Add Product and the product's General
+(`TextField`, `NumberField`, `DecimalField`, `TextareaField`, `PasswordField`, `SwitchField`,
+`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). Two forms that share their fields, such as Add Product and the product's General
 tab, define them once with `withForm`, from the same `form.tsx`. A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
-`max: Number.MAX_SAFE_INTEGER`, and a lower bound passes `min` with its own message. A yes/no setting is a `SwitchField`,
+`max: Number.MAX_SAFE_INTEGER`, a lower bound passes `min` with its own message, and an optional one
+passes `optional` and reads with `toOptionalWholeNumber`. A number with decimals, such as a price, is a
+`DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal`; `maxDecimals` caps
+the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
+`MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
+products, passes `onSearch` and the server's matches as `items`; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. Every field takes a `layout`: `stacked` by default; `row` for a settings

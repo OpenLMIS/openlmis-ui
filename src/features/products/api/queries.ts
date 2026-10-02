@@ -4,6 +4,7 @@ import {
   fetchApprovals,
   fetchProduct,
   fetchProducts,
+  fetchProductsByIds,
 } from '@/features/products/api/api';
 import type { ProductsQuery } from '@/features/products/lib/types';
 import { queryKeys } from '@/lib/key-factory';
@@ -30,4 +31,10 @@ export const approvalDetailOptions = (id: string, opening: number) =>
   queryOptions({
     queryKey: [...queryKeys.facilityTypeApprovedProducts.detail(id), opening] as const,
     queryFn: () => fetchApproval(id),
+  });
+
+export const productsByIdsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: queryKeys.orderables.list({ ids: ids.toSorted() }),
+    queryFn: () => fetchProductsByIds(ids),
   });

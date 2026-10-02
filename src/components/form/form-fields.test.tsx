@@ -1,6 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
@@ -396,5 +397,48 @@ describe('a locked combobox', () => {
       'HC01 - Comfort Health Clinic',
     );
     expect(screen.queryByRole('button', { name: 'Clear Facility' })).not.toBeInTheDocument();
+  });
+});
+
+const catalogue = [
+  { value: 'g1', label: 'G1 - Gloves' },
+  { value: 's1', label: 'S1 - Syringe' },
+];
+
+function ServerSearchForm({ onSearch }: { onSearch: (text: string) => void }) {
+  const [items, setItems] = useState(catalogue);
+  const form = useAppForm({ defaultValues: { picked: [] as string[] } });
+  return (
+    <form.AppField name="picked">
+      {(field) => (
+        <field.MultiComboboxField
+          emptyMessage="No products"
+          items={items}
+          label="Products"
+          onSearch={(text) => {
+            onSearch(text);
+            setItems(catalogue.filter((item) => item.label.includes(text.toUpperCase())));
+          }}
+          removeLabel={(label) => `Remove ${label}`}
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+describe('a multi combobox that searches the server', () => {
+  it('reports what is typed and keeps a picked item after the results move on', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<ServerSearchForm onSearch={onSearch} />);
+
+    await user.type(screen.getByRole('combobox', { name: 'Products' }), 'g');
+    expect(onSearch).toHaveBeenLastCalledWith('g');
+    await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
+    await user.type(screen.getByRole('combobox', { name: 'Products' }), 's');
+
+    expect(await screen.findByRole('option', { name: 'S1 - Syringe' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('button', { name: 'Remove G1 - Gloves' })).toBeInTheDocument();
   });
 });
