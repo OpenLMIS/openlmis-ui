@@ -1,16 +1,15 @@
-import { ar, enUS, pt } from 'react-day-picker/locale';
 import { describe, expect, it } from 'vitest';
-import { dateLocaleFor } from '@/lib/date-locale';
+import { loadDateLocale } from '@/lib/date-locale';
 
-describe('dateLocaleFor', () => {
-  it('picks the calendar language by the base language, ignoring the region', () => {
-    expect(dateLocaleFor('ar-EG')).toBe(ar);
-    expect(dateLocaleFor('pt-BR')).toBe(pt);
-    expect(dateLocaleFor('en')).toBe(enUS);
+describe('loadDateLocale', () => {
+  it('loads the calendar language by the base language, ignoring the region', async () => {
+    expect((await loadDateLocale('ar-EG')).code).toBe('ar');
+    expect((await loadDateLocale('pt-BR')).code).toBe('pt');
+    expect((await loadDateLocale('en')).code).toBe('en-US');
   });
 
-  it('falls back to English for a language it does not know', () => {
-    expect(dateLocaleFor('xx')).toBe(enUS);
-    expect(dateLocaleFor(undefined)).toBe(enUS);
+  it('falls back to English for a language it does not know', async () => {
+    expect((await loadDateLocale('xx')).code).toBe('en-US');
+    expect((await loadDateLocale(undefined)).code).toBe('en-US');
   });
 });

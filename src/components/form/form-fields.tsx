@@ -7,10 +7,18 @@ import {
   UploadIcon,
   XIcon,
 } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
-import { useAboutLabel, useDateLocale, useFormatError } from '@/components/form/form-messages';
+import { useAboutLabel, useDateMessages, useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import {
@@ -966,6 +974,11 @@ type DateFieldProps = FieldProps & {
 
 type CalendarComponent = typeof import('@/components/ui/calendar').Calendar;
 
+type LoadedCalendar = {
+  Calendar: CalendarComponent;
+  locale: ComponentProps<CalendarComponent>['locale'];
+};
+
 const FIRST_MONTH = new Date(1900, 0);
 const lastMonth = () => new Date(new Date().getFullYear() + 20, 11);
 
@@ -984,28 +997,38 @@ export function DateField({
 }: DateFieldProps) {
   const field = useFieldContext<string>();
   const labelId = `${field.name}-label`;
+  const requiredId = `${field.name}-required`;
   const valueId = `${field.name}-value`;
   const state = useFieldErrors(description);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
-  const locale = useDateLocale();
+  const { requiredLabel, dateLanguage, loadDateLocale } = useDateMessages();
   const direction = useDirection();
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const [Calendar, setCalendar] = useState<CalendarComponent | null>(null);
+  const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
   const selected = parseDateValue(field.state.value);
-  const localeCode = locale?.code ?? 'en-US';
-  const shown = formatDateValue(field.state.value, localeCode);
-  const canClear = Boolean(clearLabel && shown && !required && !disabled);
+  const shown = formatDateValue(field.state.value, dateLanguage);
+  const clearable = Boolean(clearLabel && !required);
+  const canClear = clearable && Boolean(shown) && !disabled;
+  const mounted = useRef(true);
+
+  const loadCalendar = useCallback(
+    () =>
+      Promise.all([import('@/components/ui/calendar'), loadDateLocale?.()])
+        .then(([module, locale]) => {
+          if (mounted.current) setLoaded({ Calendar: module.Calendar, locale });
+        })
+        .catch(() => undefined),
+    [loadDateLocale],
+  );
 
   useEffect(() => {
-    let current = true;
-    void import('@/components/ui/calendar').then((module) => {
-      if (current) setCalendar(() => module.Calendar);
-    });
+    mounted.current = true;
+    void loadCalendar();
     return () => {
-      current = false;
+      mounted.current = false;
     };
-  }, []);
+  }, [loadCalendar]);
 
   return (
     <FieldFrame
@@ -1017,15 +1040,23 @@ export function DateField({
       state={state}
     >
       <div className="relative">
-        <Popover onOpenChange={setOpen} open={open && Calendar !== null}>
+        <Popover
+          onOpenChange={(next) => {
+            setOpen(next);
+            // A calendar that failed to load is tried again when the user asks for it.
+            if (next && !loaded) void loadCalendar();
+          }}
+          open={open && loaded !== null}
+        >
           <PopoverTrigger
             render={
               <Button
                 align="start"
                 aria-describedby={ariaDescribedBy}
                 aria-invalid={isInvalid}
-                aria-labelledby={`${labelId} ${valueId}`}
-                aria-required={required}
+                aria-labelledby={[labelId, required ? requiredId : '', valueId]
+                  .filter(Boolean)
+                  .join(' ')}
                 disabled={disabled}
                 id={field.name}
                 onBlur={field.handleBlur}
@@ -1037,26 +1068,31 @@ export function DateField({
             }
           >
             <CalendarIcon data-icon="inline-start" />
+            {required && (
+              <span className="sr-only" id={requiredId}>
+                {requiredLabel}
+              </span>
+            )}
             <span className={shown ? 'truncate' : 'truncate text-muted-foreground'} id={valueId}>
               {shown || placeholder}
             </span>
           </PopoverTrigger>
           <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">
-            {Calendar && (
-              <Calendar
+            {loaded && (
+              <loaded.Calendar
                 autoFocus
                 captionLayout="dropdown"
                 defaultMonth={selected}
                 dir={direction}
                 endMonth={lastMonth()}
-                formatters={{ formatWeekdayName: (date) => weekdayName(date, localeCode) }}
-                locale={locale}
+                formatters={{ formatWeekdayName: (date) => weekdayName(date, dateLanguage) }}
+                locale={loaded.locale}
                 mode="single"
                 onSelect={(date: Date | undefined) => {
                   field.handleChange(date ? toDateValue(date) : '');
                   setOpen(false);
                 }}
-                required={required}
+                required={!clearable}
                 selected={selected}
                 startMonth={FIRST_MONTH}
               />

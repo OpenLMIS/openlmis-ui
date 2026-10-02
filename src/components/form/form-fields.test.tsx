@@ -350,12 +350,13 @@ describe('field layouts', () => {
 
 const dateSchema = z.object({
   opened: z.string(),
+  kept: z.string(),
   started: z.string().min(1, 'started.required'),
 });
 
 function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) => void }) {
   const form = useAppForm({
-    defaultValues: { opened: '2026-10-01', started: '' },
+    defaultValues: { opened: '2026-10-01', kept: '2026-10-01', started: '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: dateSchema },
     onSubmit: ({ value }) => onSubmit(value),
@@ -372,6 +373,9 @@ function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) 
         {(field) => (
           <field.DateField clearLabel="Clear Opened" label="Opened" placeholder="Pick A Date" />
         )}
+      </form.AppField>
+      <form.AppField name="kept">
+        {(field) => <field.DateField label="Kept" placeholder="Pick A Date" />}
       </form.AppField>
       <form.AppField name="started">
         {(field) => <field.DateField label="Started" placeholder="Pick A Date" required />}
@@ -453,5 +457,33 @@ describe('date field', { timeout: 15_000 }, () => {
     const opened = screen.getByRole('button', { name: 'Opened Pick A Date' });
     expect(opened).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
+  });
+
+  it('tells screen readers a date is required, with its label and value', () => {
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Started Required Pick A Date' }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps a date that has no clear button when its day is picked again', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    const calendar = await openCalendar(user, /^Kept/);
+    await user.click(await within(calendar).findByRole('button', { name: /October 1st, 2026/ }));
+
+    expect(screen.getByRole('button', { name: 'Kept Oct 1, 2026' })).toBeInTheDocument();
+  });
+
+  it('shows the date in the language it is given', () => {
+    render(
+      <FormMessagesProvider dateLanguage="pt" formatError={(message) => message}>
+        <DateForm onSubmit={vi.fn()} />
+      </FormMessagesProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /^Opened/ })).toHaveTextContent('1 de out. de 2026');
   });
 });

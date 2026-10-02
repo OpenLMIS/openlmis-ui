@@ -176,6 +176,7 @@
   "feature-flags.show-requisition-less-order.label": "Create Orders Without A Requisition",
   "feature-flags.show-requisition-less-order.used-by": "Orders > Create Order",
   "form.about-label": "About {name}",
+  "form.required": "Required",
   "home.add-user": "Add User",
   "home.approvals.description": "Emergencies first, then the longest waiting.",
   "home.approvals.emergency": "Emergency",
