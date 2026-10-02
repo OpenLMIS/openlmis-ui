@@ -17,6 +17,10 @@ import type { ProductDetail } from '@/features/products/lib/types';
 const PRODUCT_TABS = [
   { to: '/administration/products/$id/general', labelKey: 'products.edit.tabs.general' },
   { to: '/administration/products/$id/programs', labelKey: 'products.edit.tabs.programs' },
+  {
+    to: '/administration/products/$id/facility-types',
+    labelKey: 'products.edit.tabs.facility-types',
+  },
 ] as const;
 
 type ProductWorkspaceProps = {

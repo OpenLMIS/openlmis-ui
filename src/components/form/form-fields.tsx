@@ -839,7 +839,7 @@ export function ComboboxField({
           id={field.name}
           onBlur={field.handleBlur}
           placeholder={placeholder}
-          showClear={selected !== null}
+          showClear={selected !== null && !disabled}
           width="full"
         />
         <ComboboxContent>

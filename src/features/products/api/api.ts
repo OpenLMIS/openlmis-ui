@@ -1,5 +1,7 @@
 import type {
+  Approval,
   CreateProductBody,
+  NewApproval,
   Product,
   ProductDetail,
   ProductsQuery,
@@ -25,4 +27,42 @@ export async function fetchProduct(id: string) {
 export async function updateProduct(id: string, body: ProductDetail) {
   const { data } = await client.put<ProductDetail>(`/orderables/${id}`, body);
   return data;
+}
+
+const APPROVALS = '/facilityTypeApprovedProducts';
+
+export async function fetchApprovals(orderableId: string) {
+  const { data } = await client.get<Page<Approval>>(APPROVALS, { params: { orderableId } });
+  return data.content;
+}
+
+export async function fetchApproval(id: string) {
+  const { data } = await client.get<Approval>(`${APPROVALS}/${id}`);
+  return data;
+}
+
+export async function updateApproval(approval: Approval) {
+  const { data } = await client.put<Approval>(`${APPROVALS}/${approval.id}`, approval);
+  return data;
+}
+
+export async function addApproval({ orderableId, facilityType, program, stock }: NewApproval) {
+  const { data: removed } = await client.get<Page<Approval>>(APPROVALS, {
+    params: { orderableId, facilityType: facilityType.code, program: program.code, active: false },
+  });
+  const previous = removed.content[0];
+  if (previous) return updateApproval({ ...previous, ...stock, active: true });
+  const { data } = await client.post<Approval>(APPROVALS, {
+    orderable: { id: orderableId },
+    facilityType: { id: facilityType.id },
+    program: { id: program.id },
+    ...stock,
+    active: true,
+  });
+  return data;
+}
+
+export async function removeApproval(id: string) {
+  const latest = await fetchApproval(id);
+  return updateApproval({ ...latest, active: false });
 }

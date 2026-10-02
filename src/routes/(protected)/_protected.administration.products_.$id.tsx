@@ -24,6 +24,7 @@ import { Workspace, WorkspaceContent } from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { productDetailOptions } from '@/features/products/api/queries';
+import { ApprovalsTableSkeleton } from '@/features/products/components/approvals-table';
 import { ProductGeneralFormSkeleton } from '@/features/products/components/product-general-form';
 import { ProductWorkspace } from '@/features/products/components/product-workspace';
 import { ProgramLinksTableSkeleton } from '@/features/products/components/program-links-table';
@@ -42,6 +43,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/pro
     ]);
     return {
       canEditProduct: rights.has(RIGHTS.orderablesManage),
+      canEditApprovals: rights.has(RIGHTS.facilityApprovedOrderablesManage),
     };
   },
   pendingComponent: ProductEditPending,
@@ -76,6 +78,8 @@ function ProductEditPending() {
     <ProductWorkspace productId={id}>
       {tab === 'programs' ? (
         <ProgramLinksTableSkeleton columnVisibility={{}} />
+      ) : tab === 'facility-types' ? (
+        <ApprovalsTableSkeleton columnVisibility={{}} />
       ) : (
         <ProductGeneralFormSkeleton />
       )}

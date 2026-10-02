@@ -43,3 +43,25 @@ export type CreateProductBody = {
   packRoundingThreshold: number;
   roundToZero: boolean;
 };
+
+export type ApprovalStock = {
+  maxPeriodsOfStock: number;
+  minPeriodsOfStock?: number | null;
+  emergencyOrderPoint?: number | null;
+};
+
+export type Approval = ApprovalStock & {
+  id: string;
+  active: boolean;
+  orderable: { id: string; [key: string]: unknown };
+  program: { id: string; code: string; name: string | null; [key: string]: unknown };
+  facilityType: { id: string; code: string; name: string; [key: string]: unknown };
+  [key: string]: unknown;
+};
+
+export type NewApproval = {
+  orderableId: string;
+  facilityType: Pick<Approval['facilityType'], 'id' | 'code'>;
+  program: Pick<Approval['program'], 'id' | 'code'>;
+  stock: ApprovalStock;
+};

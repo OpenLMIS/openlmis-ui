@@ -29,6 +29,7 @@ import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './ro
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationProductsIdIndexRouteImport } from './routes/(protected)/_protected.administration.products_.$id.index'
+import { Route as protectedProtectedAdministrationProductsIdFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.products_.$id.facility-types'
 import { Route as protectedProtectedAdministrationProductsIdGeneralRouteImport } from './routes/(protected)/_protected.administration.products_.$id.general'
 import { Route as protectedProtectedAdministrationProductsIdProgramsRouteImport } from './routes/(protected)/_protected.administration.products_.$id.programs'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
@@ -148,6 +149,12 @@ const protectedProtectedAdministrationProductsIdIndexRoute =
     path: '/',
     getParentRoute: () => protectedProtectedAdministrationProductsIdRoute,
   } as any)
+const protectedProtectedAdministrationProductsIdFacilityTypesRoute =
+  protectedProtectedAdministrationProductsIdFacilityTypesRouteImport.update({
+    id: '/facility-types',
+    path: '/facility-types',
+    getParentRoute: () => protectedProtectedAdministrationProductsIdRoute,
+  } as any)
 const protectedProtectedAdministrationProductsIdGeneralRoute =
   protectedProtectedAdministrationProductsIdGeneralRouteImport.update({
     id: '/general',
@@ -186,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/profile/': typeof protectedProtectedProfileIndexRoute
   '/settings/': typeof protectedProtectedSettingsIndexRoute
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
+  '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
@@ -207,6 +215,7 @@ export interface FileRoutesByTo {
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/profile': typeof protectedProtectedProfileIndexRoute
   '/settings': typeof protectedProtectedSettingsIndexRoute
+  '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
@@ -233,6 +242,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
   '/(protected)/_protected/settings/': typeof protectedProtectedSettingsIndexRoute
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
+  '/(protected)/_protected/administration/products_/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/(protected)/_protected/administration/products_/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/(protected)/_protected/administration/products_/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/profile/'
     | '/settings/'
     | '/administration/products/$id'
+    | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/programs'
     | '/administration/users/$id/roles'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/settings/theme'
     | '/profile'
     | '/settings'
+    | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/programs'
     | '/administration/users/$id/roles'
@@ -305,6 +317,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/profile/'
     | '/(protected)/_protected/settings/'
     | '/(protected)/_protected/administration/products_/$id'
+    | '/(protected)/_protected/administration/products_/$id/facility-types'
     | '/(protected)/_protected/administration/products_/$id/general'
     | '/(protected)/_protected/administration/products_/$id/programs'
     | '/(protected)/_protected/administration/users_/$id/roles'
@@ -459,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationProductsIdIndexRouteImport
       parentRoute: typeof protectedProtectedAdministrationProductsIdRoute
     }
+    '/(protected)/_protected/administration/products_/$id/facility-types': {
+      id: '/(protected)/_protected/administration/products_/$id/facility-types'
+      path: '/facility-types'
+      fullPath: '/administration/products/$id/facility-types'
+      preLoaderRoute: typeof protectedProtectedAdministrationProductsIdFacilityTypesRouteImport
+      parentRoute: typeof protectedProtectedAdministrationProductsIdRoute
+    }
     '/(protected)/_protected/administration/products_/$id/general': {
       id: '/(protected)/_protected/administration/products_/$id/general'
       path: '/general'
@@ -522,6 +542,7 @@ const protectedProtectedSettingsRouteWithChildren =
   )
 
 interface protectedProtectedAdministrationProductsIdRouteChildren {
+  protectedProtectedAdministrationProductsIdFacilityTypesRoute: typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   protectedProtectedAdministrationProductsIdGeneralRoute: typeof protectedProtectedAdministrationProductsIdGeneralRoute
   protectedProtectedAdministrationProductsIdProgramsRoute: typeof protectedProtectedAdministrationProductsIdProgramsRoute
   protectedProtectedAdministrationProductsIdIndexRoute: typeof protectedProtectedAdministrationProductsIdIndexRoute
@@ -529,6 +550,8 @@ interface protectedProtectedAdministrationProductsIdRouteChildren {
 
 const protectedProtectedAdministrationProductsIdRouteChildren: protectedProtectedAdministrationProductsIdRouteChildren =
   {
+    protectedProtectedAdministrationProductsIdFacilityTypesRoute:
+      protectedProtectedAdministrationProductsIdFacilityTypesRoute,
     protectedProtectedAdministrationProductsIdGeneralRoute:
       protectedProtectedAdministrationProductsIdGeneralRoute,
     protectedProtectedAdministrationProductsIdProgramsRoute:

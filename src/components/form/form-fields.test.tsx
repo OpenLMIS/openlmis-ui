@@ -359,3 +359,31 @@ describe('field layouts', () => {
     expect(screen.getByRole('switch', { name: 'Active' })).toBeChecked();
   });
 });
+
+function LockedComboboxForm() {
+  const form = useAppForm({ defaultValues: { facility: 'f1' as string | null } });
+  return (
+    <form.AppField name="facility">
+      {(field) => (
+        <field.ComboboxField
+          clearLabel="Clear Facility"
+          disabled
+          emptyMessage="No facilities"
+          items={facilities}
+          label="Facility"
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+describe('a locked combobox', () => {
+  it('shows its item and offers no way to clear it', () => {
+    render(<LockedComboboxForm />);
+
+    expect(screen.getByRole('combobox', { name: 'Facility' })).toHaveValue(
+      'HC01 - Comfort Health Clinic',
+    );
+    expect(screen.queryByRole('button', { name: 'Clear Facility' })).not.toBeInTheDocument();
+  });
+});
