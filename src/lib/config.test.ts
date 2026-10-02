@@ -70,6 +70,15 @@ describe('getNavTrail', () => {
     ]);
   });
 
+  it('places Facilities and a page below it under Administration', () => {
+    const facilities = [
+      { titleKey: 'nav.administration' },
+      { titleKey: 'nav.administration.facilities', to: '/administration/facilities' },
+    ];
+    expect(getNavTrail('/administration/facilities')).toEqual(facilities);
+    expect(getNavTrail('/administration/facilities/new')).toEqual(facilities);
+  });
+
   it('places Programs under Administration', () => {
     expect(getNavTrail('/administration/programs')).toEqual([
       { titleKey: 'nav.administration' },

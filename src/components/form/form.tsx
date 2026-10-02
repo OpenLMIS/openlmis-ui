@@ -2,6 +2,7 @@ import { createFormHook } from '@tanstack/react-form';
 import { fieldContext, formContext } from '@/components/form/form-context';
 import {
   ComboboxField,
+  DateField,
   DecimalField,
   ImageField,
   MultiComboboxField,
@@ -30,6 +31,7 @@ export const { useAppForm, withForm } = createFormHook({
     MultiComboboxField,
     SelectField,
     ImageField,
+    DateField,
   },
   formComponents: {},
 });

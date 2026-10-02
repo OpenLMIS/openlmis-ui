@@ -1,7 +1,9 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
   fetchFacility,
+  fetchFacilityOperators,
   fetchFacilityTypes,
+  fetchGeographicZones,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
   fetchPrograms,
@@ -59,5 +61,19 @@ export const orderableDisplayCategoriesOptions = () =>
   queryOptions({
     queryKey: queryKeys.orderableDisplayCategories.list(),
     queryFn: fetchOrderableDisplayCategories,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const geographicZonesOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.geographicZones.list(),
+    queryFn: fetchGeographicZones,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const facilityOperatorsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.facilityOperators.list(),
+    queryFn: fetchFacilityOperators,
     staleTime: LOOKUP_STALE_TIME,
   });

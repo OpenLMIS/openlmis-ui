@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchFacilityOperators,
   fetchFacilityTypes,
+  fetchGeographicZones,
   fetchOrderableDisplayCategories,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
@@ -56,5 +58,25 @@ describe('fetchOrderableDisplayCategories', () => {
       category('C2', 2),
     ]);
     expect(get).toHaveBeenCalledWith('/orderableDisplayCategories');
+  });
+});
+
+describe('fetchGeographicZones', () => {
+  it('asks for every zone sorted by name, which the endpoint answers in one page', async () => {
+    const gaza = { id: 'z1', code: 'gaza', name: 'Gaza', level: { name: 'Province' } };
+    get.mockResolvedValueOnce({ data: { content: [gaza], totalElements: 1 } });
+
+    await expect(fetchGeographicZones()).resolves.toEqual([gaza]);
+    expect(get).toHaveBeenCalledWith('/geographicZones', { params: { sort: 'name,asc' } });
+  });
+});
+
+describe('fetchFacilityOperators', () => {
+  it('reads the operators, which the endpoint lists as a plain array', async () => {
+    const moh = { id: 'o1', code: 'moh', name: 'Ministry of Health' };
+    get.mockResolvedValueOnce({ data: [moh] });
+
+    await expect(fetchFacilityOperators()).resolves.toEqual([moh]);
+    expect(get).toHaveBeenCalledWith('/facilityOperators');
   });
 });

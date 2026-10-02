@@ -1,5 +1,8 @@
 import type {
+  Facility,
+  FacilityOperator,
   FacilityType,
+  GeographicZone,
   MinimalFacility,
   OrderableDisplayCategory,
   Program,
@@ -16,8 +19,8 @@ export async function fetchMinimalFacilities(): Promise<MinimalFacility[]> {
 }
 
 /** One facility, for showing its name without loading every facility. */
-export async function fetchFacility(id: string): Promise<MinimalFacility> {
-  const { data } = await client.get<MinimalFacility>(`/facilities/${id}`);
+export async function fetchFacility(id: string): Promise<Facility> {
+  const { data } = await client.get<Facility>(`/facilities/${id}`);
   return data;
 }
 
@@ -47,4 +50,17 @@ export async function fetchFacilityTypes(
 export async function fetchOrderableDisplayCategories(): Promise<OrderableDisplayCategory[]> {
   const { data } = await client.get<OrderableDisplayCategory[]>('/orderableDisplayCategories');
   return data.toSorted((a, b) => a.displayOrder - b.displayOrder);
+}
+
+/** Every zone, sorted by the server; without paging params the endpoint returns them all. */
+export async function fetchGeographicZones(): Promise<GeographicZone[]> {
+  const { data } = await client.get<Page<GeographicZone>>('/geographicZones', {
+    params: { sort: 'name,asc' },
+  });
+  return data.content;
+}
+
+export async function fetchFacilityOperators(): Promise<FacilityOperator[]> {
+  const { data } = await client.get<FacilityOperator[]>('/facilityOperators');
+  return data;
 }
