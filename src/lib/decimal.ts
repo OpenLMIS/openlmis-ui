@@ -2,10 +2,9 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import { toLatinDigits } from '@/lib/whole-number';
 
-const ARABIC_DECIMAL_SEPARATOR = /٫/g;
+const DECIMAL_MARKS = /^([0-9]+)[,٫]([0-9]+)$/;
 
-const toLatinNumber = (text: string) =>
-  toLatinDigits(text.trim()).replace(ARABIC_DECIMAL_SEPARATOR, '.');
+const toLatinNumber = (text: string) => toLatinDigits(text.trim()).replace(DECIMAL_MARKS, '$1.$2');
 
 type DecimalMessages = {
   required?: ParseKeys;

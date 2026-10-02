@@ -1,11 +1,12 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, EyeIcon, LayersIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { EllipsisIcon, EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
+  DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableSkeleton,
@@ -20,7 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { ProductDetail, ProgramLink } from '@/features/products/lib/types';
-import { programsOptions } from '@/features/reference-data/api/queries';
+import {
+  orderableDisplayCategoriesOptions,
+  programsOptions,
+} from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 
@@ -39,21 +43,28 @@ const muted = <span className="text-muted-foreground">-</span>;
 function createColumns(t: TFunction, formatPrice: (price: number) => string, actions: RowActions) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
-      header: t('products.programs.program'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('products.programs.program')} />
+      ),
       cell: ({ row }) => (
         <span className="flex flex-wrap items-center gap-2">
           <span className="whitespace-normal break-words font-medium" dir="auto">
             {row.original.name}
           </span>
           {row.original.active === false && (
-            <Badge variant="secondary">{t('products.programs.inactive')}</Badge>
+            <Badge variant="destructive">
+              <XIcon data-icon="inline-start" />
+              {t('products.programs.inactive')}
+            </Badge>
           )}
         </span>
       ),
     }),
     columnHelper.accessor('orderableCategoryDisplayName', {
       id: 'category',
-      header: t('products.programs.category'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('products.programs.category')} />
+      ),
       cell: ({ getValue }) =>
         getValue() ? (
           <span className="whitespace-normal break-words" dir="auto">
@@ -65,12 +76,16 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
       meta: { className: '@3xl/main:w-1/4' },
     }),
     columnHelper.accessor('fullSupply', {
-      header: t('products.programs.full-supply'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('products.programs.full-supply')} />
+      ),
       cell: ({ getValue }) => t(getValue() ? 'products.programs.yes' : 'products.programs.no'),
       meta: { className: 'w-28' },
     }),
     columnHelper.accessor('pricePerPack', {
-      header: t('products.programs.price'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('products.programs.price')} />
+      ),
       cell: ({ getValue }) => {
         const price = getValue();
         return price == null ? muted : <span dir="ltr">{formatPrice(price)}</span>;
@@ -190,12 +205,22 @@ export function ProgramLinksTable({
 }: ProgramLinksTableProps) {
   const { t } = useTranslation();
   const { data: programs } = useSuspenseQuery(programsOptions());
+  const { data: categories } = useQuery(orderableDisplayCategoriesOptions());
   const rows = useMemo(() => {
     const names = new Map(programs.map((program) => [program.id, programName(program)]));
+    const categoryNames = new Map(
+      (categories ?? []).map((category) => [category.id, category.displayName]),
+    );
     return product.programs
-      .map((link) => ({ ...link, name: names.get(link.programId) ?? link.programId }))
+      .map((link) => ({
+        ...link,
+        name: names.get(link.programId) ?? link.programId,
+        orderableCategoryDisplayName:
+          categoryNames.get(link.orderableDisplayCategoryId ?? '') ??
+          link.orderableCategoryDisplayName,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [programs, product.programs]);
+  }, [programs, categories, product.programs]);
   const table = useProgramLinksTable({ rows, columnVisibility, ...actions });
 
   return (

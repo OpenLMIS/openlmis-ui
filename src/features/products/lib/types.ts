@@ -62,7 +62,7 @@ export type Approval = ApprovalStock & {
   active: boolean;
   orderable: { id: string; [key: string]: unknown };
   program: { id: string; code: string; name: string | null; [key: string]: unknown };
-  facilityType: { id: string; code: string; name: string; [key: string]: unknown };
+  facilityType: { id: string; code: string; name: string | null; [key: string]: unknown };
   [key: string]: unknown;
 };
 

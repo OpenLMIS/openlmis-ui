@@ -123,7 +123,7 @@ describe('KitUnpackList', () => {
 
     await user.click(screen.getByRole('button', { name: 'products.kit.remove' }));
     expect(screen.getByText('products.kit.empty-title')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'products.kit.products' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus();
   });
 
   it('only shows the kit to a user who may not change it', async () => {

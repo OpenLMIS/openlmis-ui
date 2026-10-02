@@ -2,6 +2,8 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { ResponsiveColumn } from '@/components/data-table/responsive-columns';
 import type { Approval } from '@/features/products/lib/types';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
+import { programName } from '@/features/reference-data/lib/programs';
 
 export const APPROVAL_HIDEABLE_COLUMNS = [
   { id: 'maxPeriodsOfStock', labelKey: 'products.approvals.max-periods', hideBelow: '2xl' },
@@ -21,7 +23,7 @@ export const CLOSED_APPROVAL_DIALOGS = {
   remove: undefined,
 } satisfies ApprovalsSearch;
 
-const byName = (a: string | null, b: string | null) => (a ?? '').localeCompare(b ?? '');
+const byName = (a: string, b: string) => a.localeCompare(b);
 
 export function groupApprovals(approvals: readonly Approval[]) {
   const groups = new Map<
@@ -38,9 +40,11 @@ export function groupApprovals(approvals: readonly Approval[]) {
       });
   }
   return [...groups.values()]
-    .sort((a, b) => byName(a.facilityType.name, b.facilityType.name))
+    .sort((a, b) => byName(facilityTypeName(a.facilityType), facilityTypeName(b.facilityType)))
     .map((group) => ({
       ...group,
-      approvals: group.approvals.toSorted((a, b) => byName(a.program.name, b.program.name)),
+      approvals: group.approvals.toSorted((a, b) =>
+        byName(programName(a.program), programName(b.program)),
+      ),
     }));
 }

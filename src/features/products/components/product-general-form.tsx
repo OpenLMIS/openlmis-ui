@@ -4,12 +4,7 @@ import { Loader2Icon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  ErrorAlert,
-  FieldSkeleton,
-  SwitchSkeleton,
-  serverMessage,
-} from '@/components/dialog-parts';
+import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
@@ -18,6 +13,7 @@ import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import { saveProductChange } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProductFormFields } from '@/features/products/components/product-form-fields';
+import { productSaveKey } from '@/features/products/hooks/use-product-save';
 import {
   hasProductChanges,
   isDuplicateCode,
@@ -52,6 +48,7 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
   const leaving = useRef(false);
 
   const save = useMutation({
+    mutationKey: productSaveKey(product.id),
     mutationFn: (values: ProductFormValues) =>
       saveProductChange(product.id, (latest) => toProductUpdateBody(values, latest)),
     onSuccess: (saved) => {
@@ -118,11 +115,23 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
         </FieldGroup>
       </form>
       <WorkspaceFooterPortal width="default">
-        <Button disabled={save.isPending} onClick={onDone} size="lg" variant="outline">
+        <Button
+          disabled={save.isPending}
+          focusableWhenDisabled={save.isPending}
+          onClick={onDone}
+          size="lg"
+          variant="outline"
+        >
           {t(readOnly ? 'products.edit.back' : 'products.edit.cancel')}
         </Button>
         {!readOnly && (
-          <Button disabled={!changed || save.isPending} form={FORM_ID} size="lg" type="submit">
+          <Button
+            disabled={!changed || save.isPending}
+            focusableWhenDisabled={save.isPending}
+            form={FORM_ID}
+            size="lg"
+            type="submit"
+          >
             {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
             {t('products.edit.save')}
           </Button>
@@ -133,25 +142,5 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
         {...guard.dialog}
       />
     </>
-  );
-}
-
-export function ProductGeneralFormSkeleton() {
-  const { t } = useTranslation();
-
-  return (
-    <div aria-busy className="max-w-xl">
-      <FieldGroup>
-        <FieldSkeleton label={t('products.form.code')} required />
-        <FieldSkeleton label={t('products.form.name')} />
-        <FieldSkeleton label={t('products.form.description')} />
-        <FieldSkeleton label={t('products.form.dispensing-unit')} required />
-        <div className="grid gap-5 @md/field-group:grid-cols-2">
-          <FieldSkeleton label={t('products.form.net-content')} required />
-          <FieldSkeleton label={t('products.form.pack-rounding-threshold')} required />
-        </div>
-        <SwitchSkeleton />
-      </FieldGroup>
-    </div>
   );
 }

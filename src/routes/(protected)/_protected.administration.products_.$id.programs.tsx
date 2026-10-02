@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, getRouteApi } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableToolbar } from '@/components/data-table/data-table';
@@ -72,6 +72,7 @@ function ProgramsTab() {
   );
 
   const backToProducts = useBackToProducts();
+  const listRegion = useRef<HTMLElement>(null);
 
   return (
     <div className="flex flex-col gap-4" ref={measureContent}>
@@ -101,26 +102,33 @@ function ProgramsTab() {
           </div>
         )}
       </DataTableToolbar>
-      <QueryBoundary
-        errorComponent={({ error, reset }) => (
-          <LoadError
-            description={t('products.programs.error-description')}
-            error={error}
-            reset={reset}
-            title={t('products.programs.error-title')}
-          />
-        )}
-        pendingFallback={<ProgramLinksTableSkeleton columnVisibility={columnView.visibility} />}
-        resetKey="program-links"
+      <section
+        aria-label={t('products.edit.tabs.programs')}
+        className="outline-none"
+        ref={listRegion}
+        tabIndex={-1}
       >
-        <ProgramLinksTable
-          canEdit={canEditProduct}
-          columnVisibility={columnView.visibility}
-          onEdit={onEdit}
-          onRemove={onRemove}
-          product={product}
-        />
-      </QueryBoundary>
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <LoadError
+              description={t('products.programs.error-description')}
+              error={error}
+              reset={reset}
+              title={t('products.programs.error-title')}
+            />
+          )}
+          pendingFallback={<ProgramLinksTableSkeleton columnVisibility={columnView.visibility} />}
+          resetKey="program-links"
+        >
+          <ProgramLinksTable
+            canEdit={canEditProduct}
+            columnVisibility={columnView.visibility}
+            onEdit={onEdit}
+            onRemove={onRemove}
+            product={product}
+          />
+        </QueryBoundary>
+      </section>
       <ProgramLinkDialog
         onClose={closeDialog}
         product={product}
@@ -128,6 +136,7 @@ function ProgramsTab() {
         target={canEditProduct || search.program !== 'new' ? search.program : undefined}
       />
       <RemoveProgramLinkDialog
+        afterRemove={listRegion}
         onClose={closeDialog}
         product={product}
         programId={canEditProduct ? search.remove : undefined}

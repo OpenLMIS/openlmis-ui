@@ -118,6 +118,13 @@ describe('ProductGeneralForm', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 
+  it('lays out the name and description in their own reading direction', async () => {
+    renderForm();
+
+    expect(await screen.findByLabelText(/products.form.name/)).toHaveAttribute('dir', 'auto');
+    expect(screen.getByLabelText(/products.form.description/)).toHaveAttribute('dir', 'auto');
+  });
+
   it('offers no save until something changed', async () => {
     renderForm();
 

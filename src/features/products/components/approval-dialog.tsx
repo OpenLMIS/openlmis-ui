@@ -43,6 +43,7 @@ import {
 import { productName } from '@/features/products/lib/product-name';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
@@ -144,7 +145,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
   const facilityTypeItems = useMemo(
     () =>
       facilityTypes
-        .map((type) => ({ value: type.id, label: type.name || type.code }))
+        .map((type) => ({ value: type.id, label: facilityTypeName(type) }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [facilityTypes],
   );
@@ -211,7 +212,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
   });
 
   const shown = approval && {
-    facilityType: approval.facilityType.name,
+    facilityType: facilityTypeName(approval.facilityType),
     program: programName(approval.program),
   };
   const title = !approval

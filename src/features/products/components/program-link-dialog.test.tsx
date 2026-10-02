@@ -1,5 +1,7 @@
+import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useRef, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveProductChange } from '@/features/products/api/api';
 import { ProgramLinkDialog } from '@/features/products/components/program-link-dialog';
@@ -182,6 +184,53 @@ describe('RemoveProgramLinkDialog for a program the product is not in', () => {
     expect(
       await screen.findByRole('alertdialog', { name: 'products.programs.not-found-title' }, LOADED),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'products.programs.remove' }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+function RemoveFromList() {
+  const list = useRef<HTMLElement>(null);
+  const [target, setTarget] = useState<string | undefined>('fp');
+  return (
+    <>
+      <section aria-label="Programs" ref={list} tabIndex={-1} />
+      <RemoveProgramLinkDialog
+        afterRemove={list}
+        onClose={() => setTarget(undefined)}
+        product={product}
+        programId={target}
+      />
+    </>
+  );
+}
+
+describe('RemoveProgramLinkDialog after removing', () => {
+  it('leaves focus on the list, since the removed row is gone', async () => {
+    update.mockImplementationOnce(async (_, body) => body);
+    renderPage(<RemoveFromList />);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'products.programs.remove' }, LOADED),
+    );
+
+    await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Programs' })).toHaveFocus());
+  });
+});
+
+describe('RemoveProgramLinkDialog when the programs cannot load', () => {
+  it('says so and offers Try Again, never a program id as its name', async () => {
+    vi.mocked(fetchPrograms).mockRejectedValue(new Error('down'));
+    renderPage(<RemoveProgramLinkDialog onClose={vi.fn()} product={product} programId="fp" />, {
+      queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    });
+
+    expect(
+      await screen.findByRole('button', { name: 'error.try-again' }, LOADED),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/fp/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.programs.remove' }),
     ).not.toBeInTheDocument();

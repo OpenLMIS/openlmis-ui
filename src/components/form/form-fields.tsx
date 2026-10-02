@@ -229,7 +229,7 @@ type TextFieldProps = FieldProps &
     placeholder?: string;
     maxLength?: number;
     /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
-    dir?: 'ltr';
+    dir?: 'ltr' | 'auto';
     inputMode?: 'numeric' | 'decimal';
   };
 
@@ -292,6 +292,7 @@ export function DecimalField(props: FieldProps) {
 
 type TextareaFieldProps = FieldProps & {
   placeholder?: string;
+  dir?: 'auto';
 };
 
 export function TextareaField({
@@ -301,6 +302,7 @@ export function TextareaField({
   required,
   disabled,
   placeholder,
+  dir,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -316,6 +318,7 @@ export function TextareaField({
       state={state}
     >
       <Textarea
+        dir={dir}
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         aria-required={required}

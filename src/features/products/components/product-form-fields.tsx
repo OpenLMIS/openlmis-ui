@@ -25,6 +25,7 @@ export const ProductFormFields = withForm({
           {(field) => (
             <field.TextField
               autoComplete="off"
+              dir="auto"
               disabled={disabled}
               label={t('products.form.name')}
             />
@@ -32,7 +33,11 @@ export const ProductFormFields = withForm({
         </form.AppField>
         <form.AppField name="description">
           {(field) => (
-            <field.TextareaField disabled={disabled} label={t('products.form.description')} />
+            <field.TextareaField
+              dir="auto"
+              disabled={disabled}
+              label={t('products.form.description')}
+            />
           )}
         </form.AppField>
         <FieldSet>

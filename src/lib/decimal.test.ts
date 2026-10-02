@@ -29,8 +29,24 @@ describe('decimalText', () => {
     expect(message(schema, ' ')).toEqual(['error.try-again']);
   });
 
+  it('takes a decimal comma, as Portuguese writes it', () => {
+    expect(message(schema, '21,50')).toBeUndefined();
+    expect(toDecimal('21,50')).toBe(21.5);
+  });
+
   it('refuses anything but a plain number, without rewriting what was typed', () => {
-    for (const value of ['-1', '+3', '1e3', 'abc', '1,5', '1.', '.5', '1.2.3', '1 000']) {
+    for (const value of [
+      '-1',
+      '+3',
+      '1e3',
+      'abc',
+      '1,5,0',
+      '1.',
+      '.5',
+      '1.2.3',
+      '1 000',
+      '1.000,5',
+    ]) {
       expect(message(schema, value)).toEqual(['error.title']);
     }
   });

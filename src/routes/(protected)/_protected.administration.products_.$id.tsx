@@ -24,11 +24,13 @@ import { Workspace, WorkspaceContent } from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { productDetailOptions } from '@/features/products/api/queries';
-import { ApprovalsTableSkeleton } from '@/features/products/components/approvals-table';
-import { KitUnpackListSkeleton } from '@/features/products/components/kit-unpack-list';
-import { ProductGeneralFormSkeleton } from '@/features/products/components/product-general-form';
+import {
+  ApprovalsSkeleton,
+  KitUnpackListSkeleton,
+  ProductGeneralFormSkeleton,
+  ProgramLinksSkeleton,
+} from '@/features/products/components/product-tab-skeletons';
 import { ProductWorkspace } from '@/features/products/components/product-workspace';
-import { ProgramLinksTableSkeleton } from '@/features/products/components/program-links-table';
 import { BackToProducts } from '@/features/products/hooks/back-to-products';
 import { isNotFound } from '@/lib/http';
 
@@ -82,9 +84,9 @@ function ProductEditPending() {
   return (
     <ProductWorkspace productId={id}>
       {tab === 'programs' ? (
-        <ProgramLinksTableSkeleton columnVisibility={{}} />
+        <ProgramLinksSkeleton />
       ) : tab === 'facility-types' ? (
-        <ApprovalsTableSkeleton columnVisibility={{}} />
+        <ApprovalsSkeleton />
       ) : tab === 'kit-unpack-list' ? (
         <KitUnpackListSkeleton />
       ) : (

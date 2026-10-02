@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
-import { useRef } from 'react';
+import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, SkeletonLine, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, RetryButton, SkeletonLine, serverMessage } from '@/components/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -26,23 +26,32 @@ import { programName } from '@/features/reference-data/lib/programs';
 type RemoveProgramLinkDialogProps = {
   product: ProductDetail;
   programId: string | undefined;
+  afterRemove?: RefObject<HTMLElement | null>;
   onClose: () => void;
 };
 
 export function RemoveProgramLinkDialog({
   product,
   programId,
+  afterRemove,
   onClose,
 }: RemoveProgramLinkDialogProps) {
   const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(programId, onClose);
-  const { data: programs, isPending: loading } = useQuery(programsOptions());
+  const programs = useQuery(programsOptions());
   const save = useProductSave(product.id);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const program = programs?.find((item) => item.id === shown);
-  const name = program ? programName(program) : (shown ?? '');
+  const program = programs.data?.find((item) => item.id === shown);
+  const name = program ? programName(program) : '';
   const productLabel = productName(product);
   const linked = save.isSuccess || product.programs.some((link) => link.programId === shown);
+  const state = !linked
+    ? 'missing'
+    : programs.isPending
+      ? 'loading'
+      : programs.isError
+        ? 'failed'
+        : 'found';
   const props = dialogProps(save.isPending);
 
   return (
@@ -53,28 +62,33 @@ export function RemoveProgramLinkDialog({
         if (!next) save.reset();
       }}
     >
-      <AlertDialogContent initialFocus={cancelRef}>
+      <AlertDialogContent
+        finalFocus={save.isSuccess && afterRemove ? afterRemove : true}
+        initialFocus={cancelRef}
+      >
         <AlertDialogHeader>
           <AlertDialogMedia>
             <Trash2Icon />
           </AlertDialogMedia>
           <AlertDialogTitle>
-            {!linked
-              ? t('products.programs.not-found-title')
-              : loading
-                ? t('products.programs.remove-pending-title')
-                : t('products.programs.remove-title', { program: name })}
+            {state === 'found'
+              ? t('products.programs.remove-title', { program: name })
+              : state === 'missing'
+                ? t('products.programs.not-found-title')
+                : t('products.programs.remove-pending-title')}
           </AlertDialogTitle>
-          {linked && loading ? (
+          {state === 'loading' ? (
             <SkeletonLine width="medium" />
           ) : (
             <AlertDialogDescription>
-              {linked
+              {state === 'found'
                 ? t('products.programs.remove-description', {
                     product: productLabel,
                     program: name,
                   })
-                : t('products.programs.form.not-found')}
+                : state === 'missing'
+                  ? t('products.programs.form.not-found')
+                  : t('products.programs.error-description')}
             </AlertDialogDescription>
           )}
         </AlertDialogHeader>
@@ -86,11 +100,12 @@ export function RemoveProgramLinkDialog({
         )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={save.isPending} ref={cancelRef}>
-            {t(linked ? 'dialog.cancel' : 'dialog.close')}
+            {t(state === 'missing' || state === 'failed' ? 'dialog.close' : 'dialog.cancel')}
           </AlertDialogCancel>
-          {linked && (
+          {state === 'failed' && <RetryButton onClick={() => void programs.refetch()} />}
+          {(state === 'found' || state === 'loading') && (
             <Button
-              disabled={save.isPending || loading}
+              disabled={save.isPending || state === 'loading'}
               focusableWhenDisabled={save.isPending}
               onClick={() =>
                 shown &&

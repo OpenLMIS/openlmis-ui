@@ -24,3 +24,20 @@ describe('groupApprovals', () => {
     ]);
   });
 });
+
+describe('groupApprovals with records that have no name', () => {
+  it('sorts them by the code they are shown with', () => {
+    const unnamedType = {
+      ...approval('a4', ['zz', 'Z'], ['fp', 'Family Planning']),
+      facilityType: { id: 'aa', code: 'aa_type', name: null },
+    };
+    const unnamedProgram = {
+      ...approval('a5', ['hc', 'Health Center'], ['xx', 'X']),
+      program: { id: 'xx', code: 'ZZ9', name: null },
+    };
+    const groups = groupApprovals([healthCenterFp, unnamedType, unnamedProgram]);
+
+    expect(groups.map((group) => group.facilityType.id)).toEqual(['aa', 'hc']);
+    expect(groups[1].approvals.map((item) => item.id)).toEqual(['a1', 'a5']);
+  });
+});

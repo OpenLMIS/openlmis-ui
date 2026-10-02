@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorAlert, RetryButton, SkeletonLine, serverMessage } from '@/components/dialog-parts';
@@ -20,15 +20,22 @@ import { removeApproval } from '@/features/products/api/api';
 import { productApprovalsOptions } from '@/features/products/api/queries';
 import { productName } from '@/features/products/lib/product-name';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 
 type RemoveApprovalDialogProps = {
   product: ProductDetail;
   approvalId: string | undefined;
+  afterRemove?: RefObject<HTMLElement | null>;
   onClose: () => void;
 };
 
-export function RemoveApprovalDialog({ product, approvalId, onClose }: RemoveApprovalDialogProps) {
+export function RemoveApprovalDialog({
+  product,
+  approvalId,
+  afterRemove,
+  onClose,
+}: RemoveApprovalDialogProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { shown, dialogProps } = useDialogTarget(approvalId, onClose);
@@ -52,7 +59,7 @@ export function RemoveApprovalDialog({ product, approvalId, onClose }: RemoveApp
         : 'missing';
   const params = {
     product: productName(product),
-    facilityType: named?.facilityType.name ?? '',
+    facilityType: named ? facilityTypeName(named.facilityType) : '',
     program: named ? programName(named.program) : '',
   };
   const props = dialogProps(remove.isPending);
@@ -65,7 +72,10 @@ export function RemoveApprovalDialog({ product, approvalId, onClose }: RemoveApp
         if (!next) remove.reset();
       }}
     >
-      <AlertDialogContent initialFocus={cancelRef}>
+      <AlertDialogContent
+        finalFocus={remove.isSuccess && afterRemove ? afterRemove : true}
+        initialFocus={cancelRef}
+      >
         <AlertDialogHeader>
           <AlertDialogMedia>
             <Trash2Icon />

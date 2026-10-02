@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
+  DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableSkeleton,
@@ -21,6 +22,7 @@ import {
 import { productApprovalsOptions } from '@/features/products/api/queries';
 import { groupApprovals } from '@/features/products/lib/approvals';
 import type { Approval } from '@/features/products/lib/types';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 
@@ -41,10 +43,10 @@ const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
 const muted = <span className="text-muted-foreground">-</span>;
 
 function createColumns(t: TFunction, formatNumber: (value: number) => string, actions: RowActions) {
-  const stockColumn = (id: StockColumn, header: string) =>
+  const stockColumn = (id: StockColumn, title: string) =>
     columnHelper.display({
       id,
-      header,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
       meta: { className: 'w-48' },
       cell: ({ row }) => {
         if (row.original.kind === 'group') return null;
@@ -56,7 +58,9 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
   return columnHelper.columns([
     columnHelper.display({
       id: 'facilityType',
-      header: t('products.approvals.facility-type'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('products.approvals.facility-type')} />
+      ),
       cell: ({ row }) =>
         row.original.kind === 'group' ? (
           <span className="whitespace-normal break-words font-medium" dir="auto">
@@ -69,7 +73,9 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
     }),
     columnHelper.display({
       id: 'program',
-      header: t('products.approvals.program'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('products.approvals.program')} />
+      ),
       cell: ({ row }) =>
         row.original.kind === 'approval' && (
           <span className="whitespace-normal break-words" dir="auto">
@@ -202,11 +208,11 @@ export function ApprovalsTable({ productId, columnVisibility, ...actions }: Appr
   const rows = useMemo(
     () =>
       groupApprovals(approvals).flatMap(({ facilityType, approvals: grouped }): ApprovalRow[] => [
-        { kind: 'group', id: facilityType.id, facilityType: facilityType.name },
+        { kind: 'group', id: facilityType.id, facilityType: facilityTypeName(facilityType) },
         ...grouped.map((approval) => ({
           kind: 'approval' as const,
           id: approval.id,
-          facilityType: facilityType.name,
+          facilityType: facilityTypeName(facilityType),
           approval,
         })),
       ]),

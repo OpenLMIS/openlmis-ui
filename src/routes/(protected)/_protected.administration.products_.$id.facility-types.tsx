@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, getRouteApi } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableToolbar } from '@/components/data-table/data-table';
@@ -69,6 +69,7 @@ function FacilityTypesTab() {
   );
 
   const backToProducts = useBackToProducts();
+  const listRegion = useRef<HTMLElement>(null);
 
   return (
     <div className="flex flex-col gap-4" ref={measureContent}>
@@ -98,26 +99,33 @@ function FacilityTypesTab() {
           </div>
         )}
       </DataTableToolbar>
-      <QueryBoundary
-        errorComponent={({ error, reset }) => (
-          <LoadError
-            description={t('products.approvals.error-description')}
-            error={error}
-            reset={reset}
-            title={t('products.approvals.error-title')}
-          />
-        )}
-        pendingFallback={<ApprovalsTableSkeleton columnVisibility={columnView.visibility} />}
-        resetKey="approvals"
+      <section
+        aria-label={t('products.edit.tabs.facility-types')}
+        className="outline-none"
+        ref={listRegion}
+        tabIndex={-1}
       >
-        <ApprovalsTable
-          canEdit={canEditApprovals}
-          columnVisibility={columnView.visibility}
-          onEdit={onEdit}
-          onRemove={onRemove}
-          productId={id}
-        />
-      </QueryBoundary>
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <LoadError
+              description={t('products.approvals.error-description')}
+              error={error}
+              reset={reset}
+              title={t('products.approvals.error-title')}
+            />
+          )}
+          pendingFallback={<ApprovalsTableSkeleton columnVisibility={columnView.visibility} />}
+          resetKey="approvals"
+        >
+          <ApprovalsTable
+            canEdit={canEditApprovals}
+            columnVisibility={columnView.visibility}
+            onEdit={onEdit}
+            onRemove={onRemove}
+            productId={id}
+          />
+        </QueryBoundary>
+      </section>
       <ApprovalDialog
         onClose={closeDialog}
         product={product}
@@ -125,6 +133,7 @@ function FacilityTypesTab() {
         target={canEditApprovals || search.approval !== 'new' ? search.approval : undefined}
       />
       <RemoveApprovalDialog
+        afterRemove={listRegion}
         approvalId={canEditApprovals ? search.remove : undefined}
         onClose={closeDialog}
         product={product}
