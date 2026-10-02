@@ -130,7 +130,8 @@ its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
 the OpenLMIS reference data many screens look up (facilities, facility types, programs,
-supervisory nodes and roles), named after the backend's `referencedata` service. It has the
+supervisory nodes and roles), named after the backend's `referencedata` service, plus
+stock management's organizations, which Valid Destinations and Valid Sources both pick from. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own. When that screen's list is the lookup's own
@@ -273,8 +274,9 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Six edits carry no prop, so `tsc` cannot catch
-them: `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
+new files rather than reverting the preset. Seven edits carry no prop, so `tsc` cannot catch
+them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
+that selects part of a page; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
 follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
 looks disabled; `sonner.tsx`'s `Toaster` reads
@@ -464,6 +466,14 @@ page header, so everything that acts on the list is in one row.
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a
 Clear Filters action.
+
+**Rows the user acts on together are selected with a checkbox column**, `selectionColumn()`
+from `src/components/data-table/data-table-selection.tsx`: the header picks the page, and a
+selection is kept across pages by id, with each row's name, so a confirm can count and name
+rows not on screen. A filter change clears it, so an action never reaches rows the user cannot
+see. While anything is selected, `DataTableSelectionBar` after the table shows the count, Clear
+and the actions. It is not in the URL. Valid Destinations is the example, and its bulk delete
+awaits every request and reports the ones that failed.
 
 A filter on a short fixed list, such as status, is a `DataTableSelectFilter`; on a long one,
 such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
