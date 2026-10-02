@@ -16,6 +16,7 @@ import {
 } from '@/features/profile/components/basic-information';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import type { Profile } from '@/features/profile/lib/types';
+import { fetchFacility } from '@/features/reference-data/api/api';
 
 vi.mock('@/features/profile/api/api', () => ({
   saveProfile: vi.fn(),
@@ -150,6 +151,34 @@ describe('BasicInformation', () => {
 
     expect(screen.queryByText('users.form.email-verified')).toBeNull();
     expect(email).toHaveAccessibleDescription('profile.email.change-hint');
+  });
+
+  it('names a home facility without a name by its code alone', async () => {
+    vi.mocked(fetchFacility).mockResolvedValue({
+      id: 'f1',
+      code: 'HC01',
+      name: null,
+      active: true,
+      enabled: true,
+      type: { id: 't1', code: 'health_center', name: 'Health Center' },
+      geographicZone: { id: 'z1', code: 'gaza', name: 'Gaza', level: { name: 'Province' } },
+    });
+    const withHome: Profile = { ...profile, user: { ...profile.user, homeFacilityId: 'f1' } };
+    const queryClient = new QueryClient();
+    const router = createRouter({
+      routeTree: createRootRoute({
+        component: () => <BasicInformation onSaved={vi.fn()} profile={withHome} />,
+      }),
+      history: createMemoryHistory({ initialEntries: ['/profile'] }),
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('HC01')).toBeInTheDocument();
+    expect(screen.queryByText(/null/)).toBeNull();
   });
 
   it('holds every row of the form under its real label while the profile loads', () => {

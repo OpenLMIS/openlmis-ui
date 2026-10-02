@@ -1,7 +1,24 @@
-import { EyeIcon, EyeOffIcon, InfoIcon, Trash2Icon, UploadIcon } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from 'react';
+import {
+  CalendarIcon,
+  EyeIcon,
+  EyeOffIcon,
+  InfoIcon,
+  Trash2Icon,
+  UploadIcon,
+  XIcon,
+} from 'lucide-react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
-import { useAboutLabel, useFormatError } from '@/components/form/form-messages';
+import { useAboutLabel, useDateMessages, useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +34,7 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from '@/components/ui/combobox';
+import { useDirection } from '@/components/ui/direction';
 import {
   Field,
   FieldContent,
@@ -174,7 +192,7 @@ function FieldFrame({
           badge={<RowExtras action={action} badge={badge} badgeId={badgeId} />}
           description={descriptionNode}
           label={
-            <FieldLabel htmlFor={field.name} weight="normal">
+            <FieldLabel htmlFor={field.name} id={`${field.name}-label`} weight="normal">
               {labelText}
             </FieldLabel>
           }
@@ -194,14 +212,20 @@ function FieldFrame({
     return (
       <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
         <HiddenFromView>
-          <label htmlFor={field.name}>{labelText}</label>
+          <label htmlFor={field.name} id={`${field.name}-label`}>
+            {labelText}
+          </label>
         </HiddenFromView>
         {children}
         {details}
       </Field>
     );
   }
-  const stackedLabel = <FieldLabel htmlFor={field.name}>{labelText}</FieldLabel>;
+  const stackedLabel = (
+    <FieldLabel htmlFor={field.name} id={`${field.name}-label`}>
+      {labelText}
+    </FieldLabel>
+  );
   return (
     <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
       {action ? (
@@ -799,6 +823,7 @@ export function SelectField({
 export type ComboboxFieldItem = {
   value: string;
   label: string;
+  description?: string;
 };
 
 type ComboboxFieldProps = FieldProps & {
@@ -871,7 +896,12 @@ export function ComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                {item.label}
+                <span className="min-w-0 truncate">{item.label}</span>
+                {item.description && (
+                  <span className="ms-auto shrink-0 text-muted-foreground text-xs">
+                    {item.description}
+                  </span>
+                )}
               </ComboboxItem>
             )}
           </ComboboxList>
@@ -963,6 +993,160 @@ export function MultiComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
+    </FieldFrame>
+  );
+}
+
+type DateFieldProps = FieldProps & {
+  placeholder: string;
+  clearLabel?: string;
+};
+
+type CalendarComponent = typeof import('@/components/ui/calendar').Calendar;
+
+type LoadedCalendar = {
+  Calendar: CalendarComponent;
+  locale: ComponentProps<CalendarComponent>['locale'];
+};
+
+const FIRST_MONTH = new Date(1900, 0);
+const lastMonth = () => new Date(new Date().getFullYear() + 20, 11);
+
+/** Narrow, since a day column is too small for the full name in many languages. */
+const weekdayName = (date: Date, locale: string) =>
+  date.toLocaleDateString(locale, { weekday: 'narrow' });
+
+export function DateField({
+  label,
+  layout,
+  description,
+  required,
+  disabled,
+  placeholder,
+  clearLabel,
+}: DateFieldProps) {
+  const field = useFieldContext<string>();
+  const labelId = `${field.name}-label`;
+  const requiredId = `${field.name}-required`;
+  const valueId = `${field.name}-value`;
+  const state = useFieldErrors(description);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
+  const { requiredLabel, dateLanguage, loadDateLocale } = useDateMessages();
+  const direction = useDirection();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
+  const selected = parseDateValue(field.state.value);
+  const shown = formatDateValue(field.state.value, dateLanguage);
+  const clearable = Boolean(clearLabel && !required);
+  const canClear = clearable && Boolean(shown) && !disabled;
+  const mounted = useRef(true);
+
+  const loadCalendar = useCallback(
+    () =>
+      Promise.all([import('@/components/ui/calendar'), loadDateLocale?.()])
+        .then(([module, locale]) => {
+          if (mounted.current) setLoaded({ Calendar: module.Calendar, locale });
+        })
+        .catch(() => undefined),
+    [loadDateLocale],
+  );
+
+  useEffect(() => {
+    mounted.current = true;
+    void loadCalendar();
+    return () => {
+      mounted.current = false;
+    };
+  }, [loadCalendar]);
+
+  return (
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
+      <div className="relative">
+        <Popover
+          onOpenChange={(next) => {
+            setOpen(next);
+            // A calendar that failed to load is tried again when the user asks for it.
+            if (next && !loaded) void loadCalendar();
+          }}
+          open={open && loaded !== null}
+        >
+          <PopoverTrigger
+            render={
+              <Button
+                align="start"
+                aria-describedby={ariaDescribedBy}
+                aria-invalid={isInvalid}
+                aria-labelledby={[labelId, required ? requiredId : '', valueId]
+                  .filter(Boolean)
+                  .join(' ')}
+                disabled={disabled}
+                id={field.name}
+                onBlur={field.handleBlur}
+                ref={trigger}
+                type="button"
+                variant="outline"
+                width="full"
+              />
+            }
+          >
+            <CalendarIcon data-icon="inline-start" />
+            {required && (
+              <span className="sr-only" id={requiredId}>
+                {requiredLabel}
+              </span>
+            )}
+            <span className={shown ? 'truncate' : 'truncate text-muted-foreground'} id={valueId}>
+              {shown || placeholder}
+            </span>
+          </PopoverTrigger>
+          <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">
+            {loaded && (
+              <loaded.Calendar
+                autoFocus
+                captionLayout="dropdown"
+                defaultMonth={selected}
+                dir={direction}
+                endMonth={lastMonth()}
+                formatters={{ formatWeekdayName: (date) => weekdayName(date, dateLanguage) }}
+                locale={loaded.locale}
+                mode="single"
+                onSelect={(date: Date | undefined) => {
+                  field.handleChange(date ? toDateValue(date) : '');
+                  setOpen(false);
+                }}
+                required={!clearable}
+                selected={selected}
+                startMonth={FIRST_MONTH}
+              />
+            )}
+          </PopoverContent>
+        </Popover>
+        {/* A sibling of the trigger, since a button cannot hold another button. */}
+        {canClear && (
+          <div className="absolute inset-y-0 end-1 flex items-center">
+            <Button
+              aria-label={clearLabel}
+              onClick={() => {
+                field.handleChange('');
+                trigger.current?.focus();
+              }}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          </div>
+        )}
+      </div>
     </FieldFrame>
   );
 }

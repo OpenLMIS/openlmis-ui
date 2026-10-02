@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -356,5 +356,145 @@ describe('field layouts', () => {
     await user.click(screen.getByRole('button', { name: 'translated about Active' }));
     expect(await screen.findByRole('dialog')).toHaveTextContent('Can sign in');
     expect(screen.getByRole('switch', { name: 'Active' })).toBeChecked();
+  });
+});
+
+const dateSchema = z.object({
+  opened: z.string(),
+  kept: z.string(),
+  started: z.string().min(1, 'started.required'),
+});
+
+function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) => void }) {
+  const form = useAppForm({
+    defaultValues: { opened: '2026-10-01', kept: '2026-10-01', started: '' },
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
+    validators: { onDynamic: dateSchema },
+    onSubmit: ({ value }) => onSubmit(value),
+  });
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        form.handleSubmit();
+      }}
+    >
+      <form.AppField name="opened">
+        {(field) => (
+          <field.DateField clearLabel="Clear Opened" label="Opened" placeholder="Pick A Date" />
+        )}
+      </form.AppField>
+      <form.AppField name="kept">
+        {(field) => <field.DateField label="Kept" placeholder="Pick A Date" />}
+      </form.AppField>
+      <form.AppField name="started">
+        {(field) => <field.DateField label="Started" placeholder="Pick A Date" required />}
+      </form.AppField>
+      <button type="submit">Save</button>
+    </form>
+  );
+}
+
+const openCalendar = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+  await user.click(screen.getByRole('button', { name }));
+  return screen.findByRole('dialog', undefined, { timeout: 3000 });
+};
+
+describe('date field', { timeout: 15_000 }, () => {
+  it('names the picker by its label and its day, and stores the picked day as yyyy-MM-dd', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<DateForm onSubmit={onSubmit} />);
+
+    const calendar = await openCalendar(user, /^Opened Oct 1, 2026$/);
+    expect(calendar).toHaveAccessibleName('Opened');
+    await user.click(await within(calendar).findByRole('button', { name: /October 15th, 2026/ }));
+    expect(screen.getByRole('button', { name: 'Opened Oct 15, 2026' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Started/ })).toHaveAccessibleDescription(
+      'started.required',
+    );
+  });
+
+  it('moves through the days by keyboard and picks the one in focus', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    const calendar = await openCalendar(user, /^Opened/);
+    await waitFor(() =>
+      expect(within(calendar).getByRole('button', { name: /October 1st, 2026/ })).toHaveFocus(),
+    );
+    await user.keyboard('{ArrowRight}');
+    await waitFor(() =>
+      expect(within(calendar).getByRole('button', { name: /October 2nd, 2026/ })).toHaveFocus(),
+    );
+    await user.keyboard('{ArrowDown}');
+    await waitFor(() =>
+      expect(within(calendar).getByRole('button', { name: /October 9th, 2026/ })).toHaveFocus(),
+    );
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Opened Oct 9, 2026' })).toBeInTheDocument();
+  });
+
+  it('keeps a required date when its day is picked again', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    let calendar = await openCalendar(user, /^Started/);
+    const today = (await within(calendar).findAllByRole('button', { name: /Today/ }))[0];
+    if (!today) throw new Error('no today');
+    await user.click(today);
+    const picked = screen.getByRole('button', { name: /^Started/ }).textContent;
+
+    calendar = await openCalendar(user, /^Started/);
+    await user.click(
+      (await within(calendar).findAllByRole('button', { name: /Today/ }))[0] as HTMLElement,
+    );
+
+    expect(screen.getByRole('button', { name: /^Started/ })).toHaveTextContent(picked ?? '');
+    expect(screen.getByRole('button', { name: /^Started/ })).not.toHaveTextContent('Pick A Date');
+  });
+
+  it('empties an optional date with its clear button and keeps the focus on the field', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Clear Opened' }));
+
+    const opened = screen.getByRole('button', { name: 'Opened Pick A Date' });
+    expect(opened).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
+  });
+
+  it('tells screen readers a date is required, with its label and value', () => {
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Started Required Pick A Date' }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps a date that has no clear button when its day is picked again', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+
+    const calendar = await openCalendar(user, /^Kept/);
+    await user.click(await within(calendar).findByRole('button', { name: /October 1st, 2026/ }));
+
+    expect(screen.getByRole('button', { name: 'Kept Oct 1, 2026' })).toBeInTheDocument();
+  });
+
+  it('shows the date in the language it is given', () => {
+    render(
+      <FormMessagesProvider dateLanguage="pt" formatError={(message) => message}>
+        <DateForm onSubmit={vi.fn()} />
+      </FormMessagesProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /^Opened/ })).toHaveTextContent('1 de out. de 2026');
   });
 });

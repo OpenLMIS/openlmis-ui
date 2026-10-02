@@ -5,6 +5,7 @@ export type DataTableLabels = {
   clearSearch: string;
   /** Names the button that clears a dropdown filter, e.g. 'Clear Status'. */
   clearFilter: (label: string) => string;
+  noMatches: string;
   view: string;
   toggleColumns: string;
   resetColumns: string;
@@ -22,6 +23,7 @@ export const defaultDataTableLabels: DataTableLabels = {
   search: 'Search...',
   clearSearch: 'Clear Search',
   clearFilter: (label) => `Clear ${label}`,
+  noMatches: 'No Matches',
   view: 'View',
   toggleColumns: 'Toggle Columns',
   resetColumns: 'Reset Columns',
