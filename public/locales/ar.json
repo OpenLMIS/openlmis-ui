@@ -250,7 +250,7 @@
   "products.edit.not-found-description": "هذا المنتج غير موجود، أو تمت إزالته.",
   "products.edit.not-found-title": "المنتج غير موجود",
   "products.edit.save": "حفظ المنتج",
-  "products.edit.saved": "تم حفظ {product}.",
+  "products.edit.saved": "تم حفظ التغييرات على {product}.",
   "products.edit.saved-title": "تم حفظ المنتج",
   "products.edit.tabs-label": "أقسام المنتج",
   "products.edit.tabs.general": "عام",

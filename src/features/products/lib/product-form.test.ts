@@ -3,6 +3,7 @@ import {
   EMPTY_PRODUCT_FORM,
   hasProductChanges,
   isDuplicateCode,
+  needsDispensingUnit,
   type ProductFormValues,
   productFormSchema,
   toCreateProductBody,
@@ -237,5 +238,29 @@ describe('hasProductChanges', () => {
     ]) {
       expect(hasProductChanges({ ...values, ...change }, saved)).toBe(true);
     }
+  });
+});
+
+describe('a product sized by a size code', () => {
+  const vaccine: ProductDetail = {
+    ...saved,
+    dispensable: { sizeCode: '5 dose', routeOfAdministration: 'injection', displayUnit: '5 dose' },
+  };
+  const values = toProductFormValues(vaccine);
+
+  it('needs no dispensing unit, as legacy', () => {
+    expect(needsDispensingUnit(vaccine)).toBe(false);
+    expect(needsDispensingUnit(saved)).toBe(true);
+    expect(productFormSchema([], { needsDispensingUnit: false }).safeParse(values).success).toBe(
+      true,
+    );
+    expect(productFormSchema([]).safeParse(values).success).toBe(false);
+  });
+
+  it('keeps its pack size as it was when no unit is entered', () => {
+    const body = toProductUpdateBody({ ...values, fullProductName: 'BCG' }, vaccine);
+
+    expect(body.dispensable).toEqual(vaccine.dispensable);
+    expect(hasProductChanges(values, vaccine)).toBe(false);
   });
 });

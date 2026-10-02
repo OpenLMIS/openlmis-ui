@@ -5,8 +5,8 @@ import { EMPTY_PRODUCT_FORM } from '@/features/products/lib/product-form';
 
 export const ProductFormFields = withForm({
   defaultValues: EMPTY_PRODUCT_FORM,
-  props: {} as { disabled?: boolean },
-  render: function Render({ form, disabled }) {
+  props: {} as { disabled?: boolean; needsDispensingUnit?: boolean },
+  render: function Render({ form, disabled, needsDispensingUnit = true }) {
     const { t } = useTranslation();
     return (
       <>
@@ -45,7 +45,7 @@ export const ProductFormFields = withForm({
                   description={t('products.form.dispensing-unit-description')}
                   disabled={disabled}
                   label={t('products.form.dispensing-unit')}
-                  required
+                  required={needsDispensingUnit}
                 />
               )}
             </form.AppField>

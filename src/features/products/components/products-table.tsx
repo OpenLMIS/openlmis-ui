@@ -83,7 +83,6 @@ function createColumns(t: TFunction, listSearch: ProductsSearch) {
 
 type ProductActionsProps = {
   product: Product;
-  /** Handed to the edit page, so leaving it returns to this page of the list. */
   listSearch: ProductsSearch;
 };
 

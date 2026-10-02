@@ -20,12 +20,10 @@ const PRODUCT_TABS = [
 
 type ProductWorkspaceProps = {
   productId: string;
-  /** Left out while the product loads, which holds the places of its name and code. */
   product?: ProductDetail;
   children: ReactNode;
 };
 
-/** The page around every product tab, kept mounted across tabs so focus stays on the tab list. */
 export function ProductWorkspace({ productId, product, children }: ProductWorkspaceProps) {
   const { t } = useTranslation();
 

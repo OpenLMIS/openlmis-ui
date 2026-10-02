@@ -43,7 +43,6 @@ const CLOSED_DIALOGS = { product: undefined } satisfies Partial<ProductsSearch>;
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
   interface HistoryState {
-    /** The list's search when a product was opened from it, so leaving it returns there. */
     productsListSearch?: ProductsSearch;
   }
 }

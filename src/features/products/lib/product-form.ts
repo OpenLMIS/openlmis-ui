@@ -20,7 +20,12 @@ const packSize = (required: ParseKeys, min?: { value: number; tooSmall: ParseKey
     { min, max: Number.MAX_SAFE_INTEGER },
   );
 
-export function productFormSchema(refusedCodes: readonly string[]) {
+export const needsDispensingUnit = (product: ProductDetail) => !product.dispensable.sizeCode;
+
+export function productFormSchema(
+  refusedCodes: readonly string[],
+  { needsDispensingUnit = true } = {},
+) {
   return z.object({
     productCode: z
       .string()
@@ -32,7 +37,9 @@ export function productFormSchema(refusedCodes: readonly string[]) {
       ),
     fullProductName: z.string(),
     description: z.string(),
-    dispensingUnit: z.string().trim().min(1, errorKey('products.form.dispensing-unit-required')),
+    dispensingUnit: needsDispensingUnit
+      ? z.string().trim().min(1, errorKey('products.form.dispensing-unit-required'))
+      : z.string(),
     netContent: packSize(errorKey('products.form.net-content-required'), {
       value: 1,
       tooSmall: errorKey('products.form.net-content-too-small'),
@@ -84,15 +91,15 @@ export function toProductUpdateBody(
   values: ProductFormValues,
   saved: ProductDetail,
 ): ProductDetail {
+  const body = toCreateProductBody(values);
   return {
     ...saved,
-    productCode: toCode(values.productCode),
-    fullProductName: optionalText(values.fullProductName) ?? null,
-    description: optionalText(values.description) ?? null,
-    dispensable: { ...saved.dispensable, dispensingUnit: values.dispensingUnit.trim() },
-    netContent: toWholeNumber(values.netContent),
-    packRoundingThreshold: toWholeNumber(values.packRoundingThreshold),
-    roundToZero: values.roundToZero,
+    ...body,
+    fullProductName: body.fullProductName ?? null,
+    description: body.description ?? null,
+    dispensable: body.dispensable.dispensingUnit
+      ? { ...saved.dispensable, ...body.dispensable }
+      : saved.dispensable,
   };
 }
 
@@ -103,9 +110,9 @@ export function hasProductChanges(values: ProductFormValues, saved: ProductDetai
   const body = toProductUpdateBody(values, saved);
   return (
     body.productCode !== saved.productCode ||
-    body.fullProductName !== (saved.fullProductName ?? null) ||
-    body.description !== (saved.description ?? null) ||
-    body.dispensable.dispensingUnit !== (saved.dispensable.dispensingUnit ?? '') ||
+    body.fullProductName !== saved.fullProductName ||
+    body.description !== saved.description ||
+    values.dispensingUnit.trim() !== (saved.dispensable.dispensingUnit ?? '') ||
     !sameNumber(values.netContent, saved.netContent) ||
     !sameNumber(values.packRoundingThreshold, saved.packRoundingThreshold) ||
     body.roundToZero !== saved.roundToZero

@@ -250,7 +250,7 @@
   "products.edit.not-found-description": "This product does not exist, or was removed.",
   "products.edit.not-found-title": "Product Not Found",
   "products.edit.save": "Save Product",
-  "products.edit.saved": "{product} is saved.",
+  "products.edit.saved": "Changes to {product} are saved.",
   "products.edit.saved-title": "Product Saved",
   "products.edit.tabs-label": "Product Sections",
   "products.edit.tabs.general": "General",

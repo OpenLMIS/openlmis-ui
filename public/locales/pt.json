@@ -250,7 +250,7 @@
   "products.edit.not-found-description": "Este produto não existe ou foi removido.",
   "products.edit.not-found-title": "Produto Não Encontrado",
   "products.edit.save": "Guardar Produto",
-  "products.edit.saved": "{product} foi guardado.",
+  "products.edit.saved": "As alterações a {product} foram guardadas.",
   "products.edit.saved-title": "Produto Guardado",
   "products.edit.tabs-label": "Secções do Produto",
   "products.edit.tabs.general": "Geral",

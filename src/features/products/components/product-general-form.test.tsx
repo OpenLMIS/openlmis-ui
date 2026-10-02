@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
@@ -34,10 +34,10 @@ function refusal(messageKey: string) {
   return error;
 }
 
-function renderForm({ readOnly = false, onDone = vi.fn() } = {}) {
+function renderForm({ readOnly = false, onDone = vi.fn(), shown = product } = {}) {
   const queryClient = renderPage(
     <WorkspaceSlots>
-      <ProductGeneralForm onDone={onDone} product={product} readOnly={readOnly} />
+      <ProductGeneralForm onDone={onDone} product={shown} readOnly={readOnly} />
     </WorkspaceSlots>,
   );
   return { queryClient, onDone };
@@ -66,6 +66,48 @@ describe('ProductGeneralForm', () => {
     await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', saved);
     expect(queryClient.getQueryData(productDetailOptions('o1').queryKey)).toEqual(saved);
+  });
+
+  it('saves a product sized by a size code without asking for a dispensing unit', async () => {
+    const vaccine = { ...product, dispensable: { sizeCode: '5 dose', displayUnit: '5 dose' } };
+    update.mockResolvedValueOnce(vaccine);
+    const { onDone } = renderForm({ shown: vaccine });
+
+    expect(await screen.findByLabelText(/products.form.dispensing-unit/)).not.toBeRequired();
+    await rename('BCG');
+
+    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(update).toHaveBeenCalledWith('o1', { ...vaccine, fullProductName: 'BCG' });
+  });
+
+  it('stays on the page when the user typed more while it saved', async () => {
+    let finish: (saved: ProductDetail) => void = () => {};
+    update.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const { onDone } = renderForm();
+    await rename('Levora Plus');
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/products.form.name/), ' 2');
+
+    finish({ ...product, fullProductName: 'Levora Plus' });
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'products.edit.save' })).toBeEnabled(),
+    );
+    expect(screen.getByLabelText(/products.form.name/)).toHaveValue('Levora Plus 2');
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('leaves the user where they went when the save ends after they left', async () => {
+    let finish: (saved: ProductDetail) => void = () => {};
+    update.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const { onDone } = renderForm();
+    await rename('Levora Plus');
+
+    cleanup();
+    finish({ ...product, fullProductName: 'Levora Plus' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onDone).not.toHaveBeenCalled();
   });
 
   it('offers no save until something changed', async () => {
@@ -104,7 +146,7 @@ describe('ProductGeneralForm', () => {
 
     expect(await screen.findByLabelText(/products.form.code/)).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'products.edit.save' })).not.toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'products.edit.cancel' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'products.edit.back' }));
     expect(onDone).toHaveBeenCalled();
   });
 });

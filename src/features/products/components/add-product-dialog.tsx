@@ -34,7 +34,6 @@ const SAVE_KEY = [...queryKeys.orderables.all, 'create'] as const;
 type AddProductDialogProps = {
   open: boolean;
   onClose: () => void;
-  /** After the save, which opens the new product to carry on with it, as legacy does. */
   onCreated: (productId: string) => void;
 };
 

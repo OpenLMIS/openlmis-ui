@@ -13,7 +13,7 @@ import {
   TextField,
 } from '@/components/form/form-fields';
 
-/** `useForm` with the field components attached, used as `<form.AppField>{(field) => <field.TextField />}`; `withForm` shares a set of fields between forms. */
+/** `useForm` with the field components attached, used as `<form.AppField>{(field) => <field.TextField />}`. */
 export const { useAppForm, withForm } = createFormHook({
   fieldContext,
   formContext,

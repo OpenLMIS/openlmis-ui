@@ -21,6 +21,7 @@ import { ProductFormFields } from '@/features/products/components/product-form-f
 import {
   hasProductChanges,
   isDuplicateCode,
+  needsDispensingUnit,
   type ProductFormValues,
   productFormSchema,
   toProductFormValues,
@@ -34,9 +35,7 @@ const FORM_ID = 'product-general-form';
 
 type ProductGeneralFormProps = {
   product: ProductDetail;
-  /** Shown but not editable, for a user who may only manage where the product is approved. */
   readOnly: boolean;
-  /** Cancel, and a finished save, go back to where the page was opened from. */
   onDone: () => void;
 };
 
@@ -44,7 +43,11 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [refusedCodes, setRefusedCodes] = useState<string[]>([]);
-  const schema = useMemo(() => productFormSchema(refusedCodes), [refusedCodes]);
+  const unitNeeded = needsDispensingUnit(product);
+  const schema = useMemo(
+    () => productFormSchema(refusedCodes, { needsDispensingUnit: unitNeeded }),
+    [refusedCodes, unitNeeded],
+  );
   const leaving = useRef(false);
 
   const save = useMutation({
@@ -58,8 +61,6 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
           product: saved.fullProductName || saved.productCode,
         }),
       });
-      leaving.current = true;
-      if (!guard.leaveIfAsked()) onDone();
     },
     onError: (error, values) => {
       if (isDuplicateCode(error)) setRefusedCodes((codes) => [...codes, values.productCode]);
@@ -71,7 +72,16 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
     defaultValues: toProductFormValues(product),
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
-    onSubmit: ({ value }) => save.mutateAsync(value).catch(() => undefined),
+    onSubmit: ({ value }) =>
+      save
+        .mutateAsync(value, {
+          onSuccess: () => {
+            if (hasProductChanges(form.state.values, toProductUpdateBody(value, product))) return;
+            leaving.current = true;
+            if (!guard.leaveIfAsked()) onDone();
+          },
+        })
+        .catch(() => undefined),
   });
 
   useEffect(() => {
@@ -99,13 +109,12 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
               title={t('products.form.save-error-title')}
             />
           )}
-          <ProductFormFields disabled={readOnly || save.isPending} form={form} />
+          <ProductFormFields disabled={readOnly} form={form} needsDispensingUnit={unitNeeded} />
         </FieldGroup>
       </form>
       <WorkspaceFooterPortal width="default">
-        {/* Leaving with unsaved changes asks first, through the blocker. */}
         <Button disabled={save.isPending} onClick={onDone} size="lg" variant="outline">
-          {t('products.edit.cancel')}
+          {t(readOnly ? 'products.edit.back' : 'products.edit.cancel')}
         </Button>
         {!readOnly && (
           <Button disabled={!changed || save.isPending} form={FORM_ID} size="lg" type="submit">
@@ -122,7 +131,6 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
   );
 }
 
-/** The form while the product loads: every field under its real label. */
 export function ProductGeneralFormSkeleton() {
   const { t } = useTranslation();
 

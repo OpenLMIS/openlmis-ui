@@ -103,6 +103,11 @@ loader: ({ context: { queryClient }, params }) =>
   queryClient.ensureQueryData(facilityDetailOptions(params.facilityId)),
 ```
 
+A page that saves its record whole reads it fresh on every opening, so a save never sends back
+an old copy: its loader uses `fetchQuery` with `staleTime: 0` on `cause: 'enter'` and the cached
+copy on `stay`, as a tab switch is, and the route sets `preload: false`, since a preloaded match
+opens at once on the cache while the fresh read runs behind. Product edit is the example.
+
 Three rules that follow from this:
 
 - `prefetchQuery` is the fire-and-forget call, not `ensureQueryData`. It swallows errors
@@ -382,7 +387,8 @@ opened from, with its page, sort and filters, which the opening link passes in h
 state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
 the saved values back and Save stays. Pages that share a header across tabs, like Profile,
 render it once in the layout route through `WorkspaceTabs` inside `WorkspaceSlots`, and put
-the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch
+the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), `narrow` by
+default and `width="default"` under a full-width page such as product edit, so a tab switch
 never remounts the header. A tab's own header button, such as Reset To Defaults on System
 Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts appear at the top end corner, just below the header, tinted by their kind.
 
@@ -496,9 +502,6 @@ A dialog whose save sends the whole record back reads that record fresh each tim
 a cached copy could undo another admin's change: its detail query key carries a number the
 dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
 Programs and Facility Types are the examples; Roles and Users still use one cached detail.
-A page that saves its record whole does the same from its loader: on `cause: 'enter'` it reads
-the record with `fetchQuery` and `staleTime: 0`, takes the cached copy on `stay`, as a tab
-switch is, and skips it on a hover preload. Product edit is the example.
 A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
 from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
 
@@ -506,7 +509,8 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `NumberField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). A whole number is a
+`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`). Two forms that share their fields, such as Add Product and the product's General
+tab, define them once with `withForm`, from the same `form.tsx`. A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
