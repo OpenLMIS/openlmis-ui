@@ -121,9 +121,12 @@ describe('KitUnpackList', () => {
     );
     expect(quantity).toHaveAttribute('aria-invalid', 'false');
 
-    await user.click(screen.getByRole('button', { name: 'products.kit.remove' }));
-    expect(screen.getByText('products.kit.empty-title')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'products.kit.actions-for' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'products.kit.remove' }));
+    expect(await screen.findByText('products.kit.empty-title')).toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus(),
+    );
   });
 
   it('only shows the kit to a user who may not change it', async () => {

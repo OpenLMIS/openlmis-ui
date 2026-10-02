@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { BoxesIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { BoxesIcon, EllipsisIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,12 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -88,7 +94,7 @@ export function KitUnpackList({
   const rows = useStore(form.store, (state) => state.values.children);
   const removeRow = (index: number) => {
     flushSync(() => form.removeFieldValue('children', index));
-    const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-remove]');
+    const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-actions]');
     (buttons?.[Math.min(index, buttons.length - 1)] ?? addButton.current)?.focus();
   };
   const excluded = useMemo(() => new Set([kit.id, ...rows.map((row) => row.id)]), [kit.id, rows]);
@@ -126,12 +132,7 @@ export function KitUnpackList({
             title={t('products.kit.save-error-title')}
           />
         )}
-        <section
-          aria-label={t('products.kit.products')}
-          className="outline-none"
-          ref={listRegion}
-          tabIndex={-1}
-        >
+        <section aria-label={t('products.kit.products')} ref={listRegion}>
           <DataTableCard>
             {rows.length === 0 ? (
               <DataTableEmpty
@@ -166,7 +167,7 @@ export function KitUnpackList({
                         <TableCell>
                           <span className="flex flex-col whitespace-normal break-words">
                             <span className="font-medium" dir="auto">
-                              {row.name || row.code}
+                              {name}
                             </span>
                             {row.name && (
                               <span className="text-muted-foreground text-xs" dir="ltr">
@@ -192,16 +193,30 @@ export function KitUnpackList({
                         {!readOnly && (
                           <TableCell>
                             <div className="flex justify-end">
-                              <Button
-                                aria-label={t('products.kit.remove', { product: name })}
-                                data-kit-remove=""
-                                onClick={() => removeRow(index)}
-                                size="icon-sm"
-                                type="button"
-                                variant="ghost"
-                              >
-                                <Trash2Icon />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  render={
+                                    <Button
+                                      aria-label={t('products.kit.actions-for', { product: name })}
+                                      data-kit-actions=""
+                                      size="icon-sm"
+                                      type="button"
+                                      variant="ghost"
+                                    />
+                                  }
+                                >
+                                  <EllipsisIcon />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" width="auto">
+                                  <DropdownMenuItem
+                                    onClick={() => removeRow(index)}
+                                    variant="destructive"
+                                  >
+                                    <Trash2Icon />
+                                    {t('products.kit.remove')}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         )}

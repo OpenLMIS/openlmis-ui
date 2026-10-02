@@ -78,6 +78,12 @@ describe('approvalFormSchema', () => {
   });
 });
 
+describe('toApprovalFormValues with a decimal mark', () => {
+  it('writes the periods with the mark it is given', () => {
+    expect(toApprovalFormValues(healthCenterFp, ',')).toMatchObject({ minPeriodsOfStock: '1,5' });
+  });
+});
+
 describe('toApprovalFormValues', () => {
   it('fills the form with the approval, numbers as text', () => {
     expect(toApprovalFormValues(healthCenterFp)).toEqual({

@@ -10,7 +10,6 @@ import {
   removeApproval,
   saveProductChange,
   updateApproval,
-  updateProduct,
 } from '@/features/products/api/api';
 import type { Approval } from '@/features/products/lib/types';
 import { client } from '@/integrations/axios';
@@ -74,23 +73,6 @@ describe('fetchProduct', () => {
 
     await expect(fetchProduct('o1')).resolves.toEqual(product);
     expect(get).toHaveBeenCalledWith('/orderables/o1');
-  });
-});
-
-describe('updateProduct', () => {
-  it('sends the whole product to its own address, which saves a new version', async () => {
-    const body = {
-      ...product,
-      netContent: 10,
-      packRoundingThreshold: 0,
-      roundToZero: false,
-      dispensable: { dispensingUnit: 'each' },
-      programs: [{ programId: 'p1' }],
-    };
-    put.mockResolvedValueOnce({ data: body });
-
-    await expect(updateProduct('o1', body)).resolves.toEqual(body);
-    expect(put).toHaveBeenCalledWith('/orderables/o1', body);
   });
 });
 

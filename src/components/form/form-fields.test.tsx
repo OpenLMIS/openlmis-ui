@@ -489,3 +489,23 @@ describe('a multi combobox that searches the server, picking several', () => {
     expect(screen.getByRole('button', { name: 'Remove S1 - Syringe' })).toBeInTheDocument();
   });
 });
+
+describe('a multi combobox that searches the server, as the results change', () => {
+  it('keeps the chips in the order they were picked', async () => {
+    const user = userEvent.setup();
+    render(<ServerSearchForm onSearch={vi.fn()} />);
+    const input = screen.getByRole('combobox', { name: 'Products' });
+
+    await user.type(input, '1');
+    await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
+    await user.click(screen.getByRole('option', { name: 'S1 - Syringe' }));
+    await user.clear(input);
+    await user.type(input, 'S1');
+
+    expect(
+      screen
+        .getAllByRole('button', { name: /^Remove /, hidden: true })
+        .map((chip) => chip.getAttribute('aria-label')),
+    ).toEqual(['Remove G1 - Gloves', 'Remove S1 - Syringe']);
+  });
+});

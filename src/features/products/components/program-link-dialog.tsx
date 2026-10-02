@@ -42,6 +42,7 @@ import {
   programsOptions,
 } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
+import { decimalMark } from '@/lib/decimal';
 
 type ProgramLinkDialogProps = {
   product: ProductDetail;
@@ -111,7 +112,7 @@ type ProgramLinkFormProps = {
 };
 
 function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: programs } = useSuspenseQuery(programsOptions());
   const { data: categories } = useSuspenseQuery(orderableDisplayCategoriesOptions());
   const save = useProductSave(product.id);
@@ -133,7 +134,9 @@ function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormPro
   );
 
   const form = useAppForm({
-    defaultValues: link ? toProgramLinkFormValues(link) : EMPTY_PROGRAM_LINK_FORM,
+    defaultValues: link
+      ? toProgramLinkFormValues(link, decimalMark(i18n.language))
+      : EMPTY_PROGRAM_LINK_FORM,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: programLinkFormSchema() },
     onSubmit: ({ value }) =>

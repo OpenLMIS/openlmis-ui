@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
-import { type RefObject, useRef, useState } from 'react';
+import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorAlert, RetryButton, SkeletonLine, serverMessage } from '@/components/dialog-parts';
@@ -42,14 +42,12 @@ export function RemoveApprovalDialog({
   const approvals = useQuery(productApprovalsOptions(product.id));
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useMutation({
-    mutationFn: removeApproval,
+    mutationFn: (removed: Approval) => removeApproval(removed.id),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: productApprovalsOptions(product.id).queryKey }),
   });
   const approval = approvals.data?.find((item) => item.id === shown);
-  const [last, setLast] = useState<Approval>();
-  if (approval && approval !== last) setLast(approval);
-  const named = remove.isSuccess ? last : approval;
+  const named = remove.isSuccess ? remove.variables : approval;
   const state = named
     ? 'found'
     : approvals.isPending
@@ -115,8 +113,8 @@ export function RemoveApprovalDialog({
               disabled={remove.isPending || state === 'loading'}
               focusableWhenDisabled={remove.isPending}
               onClick={() =>
-                shown &&
-                remove.mutate(shown, {
+                approval &&
+                remove.mutate(approval, {
                   onSuccess: () => {
                     toast.success(t('products.approvals.removed-title'), {
                       description: t('products.approvals.removed', params),

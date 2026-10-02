@@ -503,15 +503,16 @@ its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 A dialog whose save sends the whole record back reads that record fresh each time it opens, or
 a cached copy could undo another admin's change: its detail query key carries a number the
 dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
-Programs and Facility Types are the examples; Roles and Users still use one cached detail.
+Programs and Facility Types are the examples, taking that number from `useOpening()`
+(`src/hooks/use-opening.ts`); Roles and Users still use one cached detail.
+A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
+from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
+
 A page whose tabs save the record whole, like product edit, reads it fresh on every opening: its
 loader uses `fetchQuery` with `staleTime: 0` on `cause: 'enter'` and the cached copy on `stay`, as a
 tab switch is, and the route sets `preload: false`, since a preloaded match opens at once on the
 cache while the fresh read runs behind. Each save then reads the record again and applies only its
-own change to it (`saveProductChange`), so a tab left open never sends back an old copy. The
-opening number of a dialog comes from `useOpening()` in `src/hooks/use-opening.ts`.
-A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
-from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
+own change to it (`saveProductChange`), so a tab left open never sends back an old copy.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
@@ -522,9 +523,11 @@ tab, define them once with `withForm`, from the same `form.tsx`. A whole number 
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
-`max: Number.MAX_SAFE_INTEGER`, a lower bound passes `min` with its own message, and an optional one
-passes `optional` and reads with `toOptionalWholeNumber`. A number with decimals, such as a price, is a
-`DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal`; `maxDecimals` caps
+`max: Number.MAX_SAFE_INTEGER`, a lower bound passes `min` with its own message, and an optional whole
+number passes `optional` and reads with `toOptionalWholeNumber`. A number with decimals, such as a price, is a
+`DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal` and shown with
+`toNumberText(value, decimalMark(language))`; it takes a dot or the language's comma, and refuses a comma
+before exactly three digits as a possible thousands separator; `maxDecimals` caps
 the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a

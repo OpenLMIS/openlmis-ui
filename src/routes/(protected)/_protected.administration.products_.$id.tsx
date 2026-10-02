@@ -6,6 +6,7 @@ import {
   Outlet,
   useLocation,
   useRouter,
+  useRouterState,
 } from '@tanstack/react-router';
 import { PackageXIcon } from 'lucide-react';
 import { useCallback, useState } from 'react';
@@ -98,6 +99,9 @@ function ProductEditPending() {
 
 function ProductEditError(props: ErrorComponentProps) {
   const { t } = useTranslation();
+  const listSearch = useRouterState({
+    select: (state) => state.location.state.productsListSearch ?? {},
+  });
   if (!isNotFound(props.error)) {
     return (
       <ErrorFallback
@@ -122,7 +126,7 @@ function ProductEditError(props: ErrorComponentProps) {
           <EmptyContent>
             <Button
               nativeButton={false}
-              render={<Link to="/administration/products" />}
+              render={<Link search={listSearch} to="/administration/products" />}
               variant="outline"
             >
               {t('products.edit.back')}

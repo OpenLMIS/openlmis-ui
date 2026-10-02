@@ -228,7 +228,7 @@ type TextFieldProps = FieldProps &
     autoComplete?: string;
     placeholder?: string;
     maxLength?: number;
-    /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
+    /** `ltr` for codes and phone numbers; `auto` for free text that may be in another script. */
     dir?: 'ltr' | 'auto';
     inputMode?: 'numeric' | 'decimal';
   };
@@ -914,14 +914,13 @@ export function MultiComboboxField({
   const anchor = useComboboxAnchor();
   const [picked, setPicked] = useState<readonly ComboboxFieldItem[]>([]);
   const selected = useMemo(() => {
+    if (onSearch) {
+      const known = new Map([...picked, ...items].map((item) => [item.value, item]));
+      return field.state.value.flatMap((value) => known.get(value) ?? []);
+    }
     const chosen = new Set(field.state.value);
-    const listed = items.filter((item) => chosen.has(item.value));
-    const listedValues = new Set(listed.map((item) => item.value));
-    return [
-      ...listed,
-      ...picked.filter((item) => chosen.has(item.value) && !listedValues.has(item.value)),
-    ];
-  }, [items, picked, field.state.value]);
+    return items.filter((item) => chosen.has(item.value));
+  }, [items, picked, field.state.value, onSearch]);
 
   return (
     <FieldFrame

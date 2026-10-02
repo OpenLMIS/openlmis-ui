@@ -46,6 +46,7 @@ import { facilityTypesOptions, programsOptions } from '@/features/reference-data
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useOpening } from '@/hooks/use-opening';
+import { decimalMark } from '@/lib/decimal';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -134,7 +135,7 @@ type ApprovalFormProps = {
 };
 
 function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { data: facilityTypes } = useSuspenseQuery(facilityTypesOptions());
   const { data: programs } = useSuspenseQuery(programsOptions());
@@ -184,7 +185,9 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
   });
 
   const form = useAppForm({
-    defaultValues: approval ? toApprovalFormValues(approval) : EMPTY_APPROVAL_FORM,
+    defaultValues: approval
+      ? toApprovalFormValues(approval, decimalMark(i18n.language))
+      : EMPTY_APPROVAL_FORM,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
     onSubmit: ({ value }) =>

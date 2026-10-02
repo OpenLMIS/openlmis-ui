@@ -176,7 +176,7 @@ describe('RemoveApprovalDialog', () => {
     await user.click(screen.getByRole('button', { name: 'products.approvals.remove' }));
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(removeApproval).toHaveBeenCalledWith('a1', expect.anything());
+    expect(removeApproval).toHaveBeenCalledWith('a1');
   });
 });
 

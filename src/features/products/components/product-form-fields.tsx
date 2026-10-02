@@ -47,6 +47,7 @@ export const ProductFormFields = withForm({
               {(field) => (
                 <field.TextField
                   autoComplete="off"
+                  dir="auto"
                   description={
                     sizeCode
                       ? t('products.form.size-code-description', { sizeCode })

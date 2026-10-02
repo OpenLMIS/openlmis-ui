@@ -45,6 +45,7 @@ import {
   toFacilityTypeFormValues,
 } from '@/features/facility-types/lib/facility-type-form';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
@@ -140,7 +141,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
         t(type ? 'facility-types.form.updated-title' : 'facility-types.form.created-title'),
         {
           description: t(type ? 'facility-types.form.updated' : 'facility-types.form.created', {
-            type: saved.name || saved.code,
+            type: facilityTypeName(saved),
           }),
         },
       );

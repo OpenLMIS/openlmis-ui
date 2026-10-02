@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppForm } from '@/components/form/form';
@@ -16,7 +16,9 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { FieldGroup } from '@/components/ui/field';
 import { productsListOptions } from '@/features/products/api/queries';
+import { PRODUCTS_SORT_PARAM } from '@/features/products/lib/search';
 import type { Product } from '@/features/products/lib/types';
+import { isOfflineError } from '@/lib/http';
 
 const SEARCH_DELAY = 300;
 const SEARCH_SIZE = 20;
@@ -61,14 +63,15 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
     return () => clearTimeout(timer);
   }, [typed]);
 
-  const results = useQuery(
-    productsListOptions({
+  const results = useQuery({
+    ...productsListOptions({
       page: 0,
       size: SEARCH_SIZE,
-      sort: 'fullProductName,asc',
+      sort: PRODUCTS_SORT_PARAM,
       q: query || undefined,
     }),
-  );
+    placeholderData: keepPreviousData,
+  });
   const found = results.data?.content;
   const searching = typed.trim() !== query || results.isFetching;
 
@@ -79,12 +82,10 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
 
   const items = useMemo(
     () =>
-      searching
-        ? []
-        : (found ?? [])
-            .filter((product) => !excluded.has(product.id))
-            .map((product) => ({ value: product.id, label: productLabel(product) })),
-    [searching, found, excluded],
+      (found ?? [])
+        .filter((product) => !excluded.has(product.id))
+        .map((product) => ({ value: product.id, label: productLabel(product) })),
+    [found, excluded],
   );
 
   const form = useAppForm({
@@ -118,7 +119,11 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
                   searching
                     ? t('products.kit.searching')
                     : results.isError
-                      ? t('products.kit.search-error')
+                      ? t(
+                          isOfflineError(results.error)
+                            ? 'offline.notice-title'
+                            : 'products.kit.search-error',
+                        )
                       : t('products.kit.search-empty')
                 }
                 items={items}

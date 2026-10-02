@@ -72,6 +72,7 @@ export function ProductWorkspace({
           <WorkspaceTabs
             label={t('products.edit.tabs-label')}
             linkState={tabState}
+            wrap="grid"
             tabs={PRODUCT_TABS.map(({ to, labelKey }) => ({
               to,
               params: { id: productId },

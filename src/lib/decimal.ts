@@ -2,9 +2,10 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import { toLatinDigits } from '@/lib/whole-number';
 
-const DECIMAL_MARKS = /^([0-9]+)[,٫]([0-9]+)$/;
+const DECIMAL_MARKS = /^([0-9]+)(?:٫([0-9]+)|,([0-9]{1,2}|[0-9]{4,}))$/;
 
-const toLatinNumber = (text: string) => toLatinDigits(text.trim()).replace(DECIMAL_MARKS, '$1.$2');
+const toLatinNumber = (text: string) =>
+  toLatinDigits(text.trim()).replace(DECIMAL_MARKS, '$1.$2$3');
 
 type DecimalMessages = {
   required?: ParseKeys;
@@ -41,5 +42,9 @@ export function toDecimal(text: string) {
   return latin ? Number(latin) : null;
 }
 
-export const toNumberText = (value: number | null | undefined) =>
-  value == null ? '' : String(value);
+export const decimalMark = (language: string) =>
+  new Intl.NumberFormat(language).formatToParts(1.5).find((part) => part.type === 'decimal')
+    ?.value ?? '.';
+
+export const toNumberText = (value: number | null | undefined, mark = '.') =>
+  value == null ? '' : String(value).replace('.', mark);

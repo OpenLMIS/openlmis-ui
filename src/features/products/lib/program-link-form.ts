@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
-import type { ProductDetail } from '@/features/products/lib/types';
+import type { ProductDetail, ProgramLink } from '@/features/products/lib/types';
 import type { Program } from '@/features/reference-data/lib/types';
 import { decimalText, toDecimal, toNumberText } from '@/lib/decimal';
 import { toOptionalWholeNumber, wholeNumberText } from '@/lib/whole-number';
@@ -51,14 +51,14 @@ export const EMPTY_PROGRAM_LINK_FORM: ProgramLinkFormValues = {
   pricePerPack: '',
 };
 
-export function toProgramLinkFormValues(link: ProductDetail['programs'][number]) {
+export function toProgramLinkFormValues(link: ProgramLink, mark = '.') {
   return {
     programId: link.programId,
     fullSupply: link.fullSupply ?? false,
     dosesPerPatient: toNumberText(link.dosesPerPatient),
     orderableDisplayCategoryId: link.orderableDisplayCategoryId ?? null,
     displayOrder: toNumberText(link.displayOrder),
-    pricePerPack: toNumberText(link.pricePerPack),
+    pricePerPack: toNumberText(link.pricePerPack, mark),
   } satisfies ProgramLinkFormValues;
 }
 

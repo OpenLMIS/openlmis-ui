@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decimalText, toDecimal, toNumberText } from '@/lib/decimal';
+import { decimalMark, decimalText, toDecimal, toNumberText } from '@/lib/decimal';
 
 const messages = {
   required: 'error.try-again',
@@ -27,6 +27,13 @@ describe('decimalText', () => {
 
   it('asks for a value when there is none', () => {
     expect(message(schema, ' ')).toEqual(['error.try-again']);
+  });
+
+  it('refuses a comma before exactly three digits, which could be a thousands separator', () => {
+    expect(message(schema, '1,000')).toEqual(['error.title']);
+    expect(message(schema, '2,500')).toEqual(['error.title']);
+    expect(message(schema, '2,5')).toBeUndefined();
+    expect(message(schema, '1,2345')).toBeUndefined();
   });
 
   it('takes a decimal comma, as Portuguese writes it', () => {
@@ -90,5 +97,20 @@ describe('toNumberText', () => {
     expect(toNumberText(0)).toBe('0');
     expect(toNumberText(null)).toBe('');
     expect(toNumberText(undefined)).toBe('');
+  });
+});
+
+describe('decimalMark', () => {
+  it('is the mark the language writes decimals with', () => {
+    expect(decimalMark('en')).toBe('.');
+    expect(decimalMark('pt')).toBe(',');
+  });
+});
+
+describe('toNumberText with a decimal mark', () => {
+  it('writes the decimals with the given mark, and a whole number as it is', () => {
+    expect(toNumberText(20.77, ',')).toBe('20,77');
+    expect(toNumberText(3, ',')).toBe('3');
+    expect(toNumberText(null, ',')).toBe('');
   });
 });

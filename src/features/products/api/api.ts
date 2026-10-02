@@ -24,7 +24,7 @@ export async function fetchProduct(id: string) {
   return data;
 }
 
-export async function updateProduct(id: string, body: ProductDetail) {
+async function updateProduct(id: string, body: ProductDetail) {
   const { data } = await client.put<ProductDetail>(`/orderables/${id}`, body);
   return data;
 }

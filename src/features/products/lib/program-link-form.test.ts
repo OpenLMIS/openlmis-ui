@@ -101,6 +101,10 @@ describe('toProgramLinkFormValues', () => {
     });
   });
 
+  it('writes the price with the decimal mark it is given', () => {
+    expect(toProgramLinkFormValues(familyPlanning, ',').pricePerPack).toBe('20,77');
+  });
+
   it('shows what the link lacks as empty fields', () => {
     expect(
       toProgramLinkFormValues({

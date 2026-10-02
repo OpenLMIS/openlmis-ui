@@ -20,10 +20,17 @@ type WorkspaceTabsProps = {
   label: string;
   tabs: readonly WorkspaceTab[];
   linkState?: HistoryState;
+  wrap?: 'column' | 'grid';
   children: ReactNode;
 };
 
-export function WorkspaceTabs({ label, tabs, linkState, children }: WorkspaceTabsProps) {
+export function WorkspaceTabs({
+  label,
+  tabs,
+  linkState,
+  wrap = 'column',
+  children,
+}: WorkspaceTabsProps) {
   const router = useRouter();
   const { pathname } = useLocation();
   const current = pathname.replace(/\/$/, '');
@@ -36,7 +43,7 @@ export function WorkspaceTabs({ label, tabs, linkState, children }: WorkspaceTab
   return (
     <Tabs spacing="page" value={tab}>
       <div className="@container">
-        <TabsList aria-label={label} wrap="column">
+        <TabsList aria-label={label} wrap={wrap === 'grid' ? true : 'column'}>
           {tabs.map((item) => (
             <TabsTrigger
               key={item.to}

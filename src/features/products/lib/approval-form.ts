@@ -57,13 +57,13 @@ export const EMPTY_APPROVAL_FORM: ApprovalFormValues = {
   minPeriodsOfStock: '',
 };
 
-export function toApprovalFormValues(approval: Approval): ApprovalFormValues {
+export function toApprovalFormValues(approval: Approval, mark = '.'): ApprovalFormValues {
   return {
     facilityTypeId: approval.facilityType.id,
     programId: approval.program.id,
-    maxPeriodsOfStock: toNumberText(approval.maxPeriodsOfStock),
-    emergencyOrderPoint: toNumberText(approval.emergencyOrderPoint),
-    minPeriodsOfStock: toNumberText(approval.minPeriodsOfStock),
+    maxPeriodsOfStock: toNumberText(approval.maxPeriodsOfStock, mark),
+    emergencyOrderPoint: toNumberText(approval.emergencyOrderPoint, mark),
+    minPeriodsOfStock: toNumberText(approval.minPeriodsOfStock, mark),
   };
 }
 

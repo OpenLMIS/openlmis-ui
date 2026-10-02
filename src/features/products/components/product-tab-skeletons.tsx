@@ -34,40 +34,6 @@ export function ProductGeneralFormSkeleton() {
   );
 }
 
-export function KitUnpackListSkeleton() {
-  const { t } = useTranslation();
-  return (
-    <div aria-busy className="flex flex-col gap-4">
-      <DataTableCard>
-        <Table density="comfortable">
-          <TableHeader surface="muted">
-            <TableRow>
-              <TableHead>
-                <DataTableHeaderLabel>{t('products.kit.product')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('products.kit.quantity')}</DataTableHeaderLabel>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ROWS.map((row) => (
-              <TableRow key={row}>
-                <TableCell>
-                  <Block className="h-4 w-40" />
-                </TableCell>
-                <TableCell>
-                  <Block className="h-8 w-28" />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataTableCard>
-    </div>
-  );
-}
-
 function TabTableSkeleton({ headers }: { headers: string[] }) {
   return (
     <div aria-busy className="flex flex-col gap-4">
@@ -113,4 +79,9 @@ export function ApprovalsSkeleton() {
       headers={[t('products.approvals.facility-type'), t('products.approvals.program')]}
     />
   );
+}
+
+export function KitUnpackListSkeleton() {
+  const { t } = useTranslation();
+  return <TabTableSkeleton headers={[t('products.kit.product'), t('products.kit.quantity')]} />;
 }
