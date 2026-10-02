@@ -1,6 +1,7 @@
 import type {
   FacilityType,
   MinimalFacility,
+  OrderableDisplayCategory,
   Program,
   Role,
   SupervisoryNode,
@@ -41,4 +42,9 @@ export async function fetchFacilityTypes(
 ): Promise<FacilityType[]> {
   const { data } = await client.get<Page<FacilityType>>('/facilityTypes', { params: filter });
   return data.content;
+}
+
+export async function fetchOrderableDisplayCategories(): Promise<OrderableDisplayCategory[]> {
+  const { data } = await client.get<OrderableDisplayCategory[]>('/orderableDisplayCategories');
+  return data.toSorted((a, b) => a.displayOrder - b.displayOrder);
 }

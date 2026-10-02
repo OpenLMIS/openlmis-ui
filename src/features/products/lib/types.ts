@@ -10,6 +10,19 @@ export type ProductDetail = Product & {
   packRoundingThreshold: number;
   roundToZero: boolean;
   dispensable: { dispensingUnit?: string | null; sizeCode?: string | null; [key: string]: unknown };
+  programs: ProgramLink[];
+  [key: string]: unknown;
+};
+
+export type ProgramLink = {
+  programId: string;
+  orderableDisplayCategoryId?: string | null;
+  orderableCategoryDisplayName?: string | null;
+  active?: boolean;
+  fullSupply?: boolean;
+  dosesPerPatient?: number | null;
+  displayOrder?: number | null;
+  pricePerPack?: number | null;
   [key: string]: unknown;
 };
 

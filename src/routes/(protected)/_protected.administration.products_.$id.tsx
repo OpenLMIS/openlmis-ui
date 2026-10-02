@@ -4,6 +4,7 @@ import {
   type ErrorComponentProps,
   Link,
   Outlet,
+  useLocation,
   useRouter,
 } from '@tanstack/react-router';
 import { PackageXIcon } from 'lucide-react';
@@ -25,6 +26,7 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProductGeneralFormSkeleton } from '@/features/products/components/product-general-form';
 import { ProductWorkspace } from '@/features/products/components/product-workspace';
+import { ProgramLinksTableSkeleton } from '@/features/products/components/program-links-table';
 import { BackToProducts } from '@/features/products/hooks/back-to-products';
 import { isNotFound } from '@/lib/http';
 
@@ -69,9 +71,14 @@ function ProductEditLayout() {
 
 function ProductEditPending() {
   const { id } = Route.useParams();
+  const tab = useLocation({ select: (location) => location.pathname.split('/').at(-1) });
   return (
     <ProductWorkspace productId={id}>
-      <ProductGeneralFormSkeleton />
+      {tab === 'programs' ? (
+        <ProgramLinksTableSkeleton columnVisibility={{}} />
+      ) : (
+        <ProductGeneralFormSkeleton />
+      )}
     </ProductWorkspace>
   );
 }
