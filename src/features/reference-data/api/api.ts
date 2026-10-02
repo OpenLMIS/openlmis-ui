@@ -2,8 +2,10 @@ import type {
   Facility,
   FacilityOperator,
   FacilityType,
+  GeographicLevel,
   GeographicZone,
   MinimalFacility,
+  Organization,
   Program,
   Role,
   SupervisoryNode,
@@ -21,6 +23,16 @@ export async function fetchMinimalFacilities(): Promise<MinimalFacility[]> {
 export async function fetchFacility(id: string): Promise<Facility> {
   const { data } = await client.get<Facility>(`/facilities/${id}`);
   return data;
+}
+
+/** The given facilities in one request; no ids would list every facility, so none is sent. */
+export async function fetchFacilitiesByIds(ids: readonly string[]): Promise<Facility[]> {
+  if (ids.length === 0) return [];
+  const { data } = await client.get<Page<Facility>>('/facilities', {
+    params: { id: ids },
+    paramsSerializer: { indexes: null },
+  });
+  return data.content;
 }
 
 export async function fetchRoles(): Promise<Role[]> {
@@ -57,4 +69,15 @@ export async function fetchGeographicZones(): Promise<GeographicZone[]> {
 export async function fetchFacilityOperators(): Promise<FacilityOperator[]> {
   const { data } = await client.get<FacilityOperator[]>('/facilityOperators');
   return data;
+}
+
+export async function fetchGeographicLevels(): Promise<GeographicLevel[]> {
+  const { data } = await client.get<GeographicLevel[]>('/geographicLevels');
+  return data.toSorted((a, b) => a.levelNumber - b.levelNumber);
+}
+
+/** Places that are not facilities, such as an NGO, kept by stock management. */
+export async function fetchOrganizations(): Promise<Organization[]> {
+  const { data } = await client.get<Organization[]>('/organizations');
+  return data.toSorted((a, b) => a.name.localeCompare(b.name));
 }

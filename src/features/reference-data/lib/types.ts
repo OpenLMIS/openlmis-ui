@@ -42,6 +42,18 @@ export type GeographicZone = {
   level: { name: string | null; levelNumber?: number };
 };
 
+export type GeographicLevel = {
+  id: string;
+  code: string;
+  name: string | null;
+  levelNumber: number;
+};
+
+export type Organization = {
+  id: string;
+  name: string;
+};
+
 export type FacilityOperator = {
   id: string;
   code: string;

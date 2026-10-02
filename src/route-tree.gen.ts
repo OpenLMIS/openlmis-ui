@@ -24,6 +24,8 @@ import { Route as protectedProtectedAdministrationProgramsRouteImport } from './
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
+import { Route as protectedProtectedAdministrationValidDestinationsRouteImport } from './routes/(protected)/_protected.administration.valid-destinations'
+import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
 import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(protected)/_protected.profile.index'
 import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
@@ -117,6 +119,18 @@ const protectedProtectedAdministrationUsersRoute =
     path: '/administration/users',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedAdministrationValidDestinationsRoute =
+  protectedProtectedAdministrationValidDestinationsRouteImport.update({
+    id: '/administration/valid-destinations',
+    path: '/administration/valid-destinations',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationValidSourcesRoute =
+  protectedProtectedAdministrationValidSourcesRouteImport.update({
+    id: '/administration/valid-sources',
+    path: '/administration/valid-sources',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedProfileIndexRoute =
   protectedProtectedProfileIndexRouteImport.update({
     id: '/',
@@ -187,6 +201,8 @@ export interface FileRoutesByFullPath {
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
+  '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -210,6 +226,8 @@ export interface FileRoutesByTo {
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
+  '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -237,6 +255,8 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
+  '/(protected)/_protected/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
+  '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -264,6 +284,8 @@ export interface FileRouteTypes {
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
+    | '/administration/valid-destinations'
+    | '/administration/valid-sources'
     | '/profile/notifications'
     | '/profile/roles'
     | '/settings/feature-flags'
@@ -287,6 +309,8 @@ export interface FileRouteTypes {
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
+    | '/administration/valid-destinations'
+    | '/administration/valid-sources'
     | '/profile/notifications'
     | '/profile/roles'
     | '/settings/feature-flags'
@@ -313,6 +337,8 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
     | '/(protected)/_protected/administration/users'
+    | '/(protected)/_protected/administration/valid-destinations'
+    | '/(protected)/_protected/administration/valid-sources'
     | '/(protected)/_protected/profile/notifications'
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/settings/feature-flags'
@@ -439,6 +465,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationUsersRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/administration/valid-destinations': {
+      id: '/(protected)/_protected/administration/valid-destinations'
+      path: '/administration/valid-destinations'
+      fullPath: '/administration/valid-destinations'
+      preLoaderRoute: typeof protectedProtectedAdministrationValidDestinationsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/valid-sources': {
+      id: '/(protected)/_protected/administration/valid-sources'
+      path: '/administration/valid-sources'
+      fullPath: '/administration/valid-sources'
+      preLoaderRoute: typeof protectedProtectedAdministrationValidSourcesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/profile/': {
       id: '/(protected)/_protected/profile/'
       path: '/'
@@ -554,6 +594,8 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
+  protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
+  protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
@@ -577,6 +619,10 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationServiceAccountsRoute,
   protectedProtectedAdministrationUsersRoute:
     protectedProtectedAdministrationUsersRoute,
+  protectedProtectedAdministrationValidDestinationsRoute:
+    protectedProtectedAdministrationValidDestinationsRoute,
+  protectedProtectedAdministrationValidSourcesRoute:
+    protectedProtectedAdministrationValidSourcesRoute,
   protectedProtectedAdministrationFacilitiesIdRoute:
     protectedProtectedAdministrationFacilitiesIdRoute,
   protectedProtectedAdministrationFacilitiesNewRoute:

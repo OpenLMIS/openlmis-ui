@@ -83,4 +83,13 @@ describe('canOpen', () => {
     ).toBe(true);
     expect(canOpen('/administration/products', new Set(['USERS_MANAGE']))).toBe(false);
   });
+
+  it('opens Valid Destinations and Valid Sources each to its own right', () => {
+    const destinations = new Set(['STOCK_DESTINATIONS_MANAGE']);
+    const sources = new Set(['STOCK_SOURCES_MANAGE']);
+    expect(canOpen('/administration/valid-destinations', destinations)).toBe(true);
+    expect(canOpen('/administration/valid-destinations', sources)).toBe(false);
+    expect(canOpen('/administration/valid-sources', sources)).toBe(true);
+    expect(canOpen('/administration/valid-sources', destinations)).toBe(false);
+  });
 });

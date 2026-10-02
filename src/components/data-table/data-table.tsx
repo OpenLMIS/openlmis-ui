@@ -5,6 +5,7 @@ import {
   type ReactTable,
   type RowData,
   rowPaginationFeature,
+  rowSelectionFeature,
   rowSortingFeature,
   tableFeatures,
 } from '@tanstack/react-table';
@@ -46,6 +47,7 @@ export const dataTableFeatures = tableFeatures({
   columnVisibilityFeature,
   rowSortingFeature,
   rowPaginationFeature,
+  rowSelectionFeature,
   columnMeta: {} as DataTableColumnMeta,
 });
 
@@ -81,7 +83,7 @@ export function DataTable<TData extends RowData>({
           <TableBody>
             {rows.length > 0 ? (
               rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow data-state={row.getIsSelected() ? 'selected' : undefined} key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       <FlexRender cell={cell} />

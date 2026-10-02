@@ -15,6 +15,9 @@ export const RIGHTS = {
   systemSettingsManage: 'SYSTEM_SETTINGS_MANAGE',
   orderablesManage: 'ORDERABLES_MANAGE',
   facilityApprovedOrderablesManage: 'FACILITY_APPROVED_ORDERABLES_MANAGE',
+  stockDestinationsManage: 'STOCK_DESTINATIONS_MANAGE',
+  stockSourcesManage: 'STOCK_SOURCES_MANAGE',
+  stockOrganizationsManage: 'STOCK_ORGANIZATIONS_MANAGE',
 } as const;
 
 /** The right names a user holds anywhere; a permission string is `RIGHT`, `RIGHT|facility|program` or `RIGHT|facility`. */
