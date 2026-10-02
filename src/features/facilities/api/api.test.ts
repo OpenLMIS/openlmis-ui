@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createFacility, fetchFacilitiesPage } from '@/features/facilities/api/api';
+import { createFacility, fetchFacilitiesPage, updateFacility } from '@/features/facilities/api/api';
 import type { FacilityBody } from '@/features/facilities/lib/types';
 import { client } from '@/integrations/axios';
 
@@ -8,6 +8,7 @@ vi.mock('@/integrations/axios', () => ({
 }));
 
 const post = vi.mocked(client.post);
+const put = vi.mocked(client.put);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -66,5 +67,15 @@ describe('createFacility', () => {
 
     await createFacility(body);
     expect(post).toHaveBeenCalledWith('/facilities', body);
+  });
+});
+
+describe('updateFacility', () => {
+  it('puts the whole facility back at its id', async () => {
+    const body = { id: 'f1', code: 'HC01', name: 'Comfort' } as unknown as FacilityBody;
+    put.mockResolvedValueOnce({ data: body });
+
+    await updateFacility('f1', body);
+    expect(put).toHaveBeenCalledWith('/facilities/f1', body);
   });
 });

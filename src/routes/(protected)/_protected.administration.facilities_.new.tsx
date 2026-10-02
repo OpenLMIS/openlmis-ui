@@ -1,50 +1,31 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
-import { BuildingIcon } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
-import { FieldSkeleton } from '@/components/dialog-parts';
 import { ErrorFallback } from '@/components/error-fallback';
-import { Block } from '@/components/skeleton-block';
-import {
-  Workspace,
-  WorkspaceContent,
-  WorkspaceDescription,
-  WorkspaceHeader,
-  WorkspaceHeading,
-  WorkspaceIcon,
-  WorkspaceTitle,
-} from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { createFacility } from '@/features/facilities/api/api';
 import {
-  FACILITY_EDITOR_LOOKUPS,
   FacilityEditor,
+  FacilityEditorSkeleton,
+  prefetchFacilityEditorLookups,
 } from '@/features/facilities/components/facility-editor';
 import {
   EMPTY_FACILITY_FORM,
   type FacilityTab,
+  facilityEditorSearchSchema,
   toFacilityBody,
 } from '@/features/facilities/lib/facility-form';
 import { queryKeys } from '@/lib/key-factory';
 
-const addFacilitySearchSchema = z.object({
-  tab: z.literal('programs').optional().catch(undefined),
-});
-
 export const Route = createFileRoute('/(protected)/_protected/administration/facilities_/new')({
-  validateSearch: addFacilitySearchSchema,
+  validateSearch: facilityEditorSearchSchema,
   staticData: { crumbKey: 'facilities.form.create-title' },
   loader: async ({ context: { queryClient } }) => {
     await requireRight(queryClient, RIGHTS.facilitiesManage);
-    const { types, zones, operators, programs } = FACILITY_EDITOR_LOOKUPS;
-    queryClient.prefetchQuery(types);
-    queryClient.prefetchQuery(zones);
-    queryClient.prefetchQuery(operators);
-    queryClient.prefetchQuery(programs);
+    prefetchFacilityEditorLookups(queryClient);
   },
   pendingComponent: AddFacilityPending,
   errorComponent: AddFacilityError,
@@ -94,30 +75,10 @@ function AddFacilityPage() {
 function AddFacilityPending() {
   const { t } = useTranslation();
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <BuildingIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>{t('facilities.form.create-title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('facilities.form.create-description')}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="flex flex-col gap-6">
-          <Block className="h-9 w-80" />
-          <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-            <FieldSkeleton label={t('facilities.form.name')} required />
-            <FieldSkeleton label={t('facilities.form.code')} required />
-            <FieldSkeleton label={t('facilities.form.type')} required />
-            <FieldSkeleton label={t('facilities.form.zone')} required />
-            <FieldSkeleton label={t('facilities.form.go-live-date')} />
-            <FieldSkeleton label={t('facilities.form.operator')} />
-          </div>
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+    <FacilityEditorSkeleton
+      description={t('facilities.form.create-description')}
+      title={t('facilities.form.create-title')}
+    />
   );
 }
 

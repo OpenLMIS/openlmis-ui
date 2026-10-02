@@ -3,7 +3,7 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { FacilityBody } from '@/features/facilities/lib/types';
 import { programName } from '@/features/reference-data/lib/programs';
-import type { Program } from '@/features/reference-data/lib/types';
+import type { Facility, Program } from '@/features/reference-data/lib/types';
 
 const errorKey = (key: ParseKeys) => key;
 
@@ -18,27 +18,48 @@ const requiredChoice = (key: ParseKeys) =>
 
 const comparableCode = (code: string) => code.trim().toLowerCase();
 
-const programRowSchema = z.object({
-  id: z.string(),
-  code: z.string(),
-  name: z.string().nullable(),
-  supportActive: z.boolean(),
-  supportLocallyFulfilled: z.boolean(),
-  supportStartDate: requiredText('facilities.form.start-date-required'),
-  saved: z.boolean(),
-});
+const programRowSchema = z
+  .object({
+    id: z.string(),
+    code: z.string(),
+    name: z.string().nullable(),
+    supportActive: z.boolean(),
+    supportLocallyFulfilled: z.boolean(),
+    supportStartDate: z.string(),
+    saved: z.boolean(),
+  })
+  .superRefine((row, context) => {
+    // Legacy stored some programs without a start date; only a new row must have one.
+    if (!row.saved && !row.supportStartDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['supportStartDate'],
+        message: errorKey('facilities.form.start-date-required'),
+      });
+    }
+  });
 
-export function facilityFormSchema(refusedCodes: readonly string[]) {
+export function facilityFormSchema(
+  refusedCodes: readonly string[],
+  {
+    goLiveDateRequired = false,
+    locked = false,
+  }: { goLiveDateRequired?: boolean; locked?: boolean } = {},
+) {
   const refused = new Set(refusedCodes.map(comparableCode));
   return z.object({
-    name: requiredText('facilities.form.name-required'),
-    code: requiredText('facilities.form.code-required').refine(
-      (code) => !refused.has(comparableCode(code)),
-      errorKey('facilities.form.code-taken'),
-    ),
+    name: locked ? z.string() : requiredText('facilities.form.name-required'),
+    code: locked
+      ? z.string()
+      : requiredText('facilities.form.code-required').refine(
+          (code) => !refused.has(comparableCode(code)),
+          errorKey('facilities.form.code-taken'),
+        ),
     typeId: requiredChoice('facilities.form.type-required'),
     zoneId: requiredChoice('facilities.form.zone-required'),
-    goLiveDate: z.string(),
+    goLiveDate: goLiveDateRequired
+      ? requiredText('facilities.form.go-live-date-required')
+      : z.string(),
     active: z.boolean(),
     enabled: z.boolean(),
     description: z.string(),
@@ -69,8 +90,32 @@ export const EMPTY_FACILITY_FORM: FacilityFormValues = {
   programs: [],
 };
 
-export function toFacilityBody(values: FacilityFormValues): FacilityBody {
+export function toFacilityFormValues(saved: Facility): FacilityFormValues {
   return {
+    name: saved.name ?? '',
+    code: saved.code,
+    typeId: saved.type.id,
+    zoneId: saved.geographicZone.id,
+    goLiveDate: saved.goLiveDate ?? '',
+    active: saved.active,
+    enabled: saved.enabled,
+    description: saved.description ?? '',
+    operatorId: saved.operator?.id ?? null,
+    programs: (saved.supportedPrograms ?? []).map((program) => ({
+      id: program.id,
+      code: program.code,
+      name: program.name,
+      supportActive: program.supportActive,
+      supportLocallyFulfilled: program.supportLocallyFulfilled,
+      supportStartDate: program.supportStartDate ?? '',
+      saved: true,
+    })),
+  };
+}
+
+export function toFacilityBody(values: FacilityFormValues, saved?: Facility): FacilityBody {
+  const body: FacilityBody = {
+    ...saved,
     code: values.code.trim(),
     name: values.name.trim(),
     description: values.description.trim() || null,
@@ -85,8 +130,18 @@ export function toFacilityBody(values: FacilityFormValues): FacilityBody {
       code: row.code,
       supportActive: row.supportActive,
       supportLocallyFulfilled: row.supportLocallyFulfilled,
-      supportStartDate: row.supportStartDate,
+      supportStartDate: row.supportStartDate || null,
     })),
+  };
+  if (!saved || !isManagedExternally(saved)) return body;
+  // The server refuses any change to these, even trimming, for a facility another system manages.
+  return {
+    ...body,
+    code: saved.code,
+    name: saved.name,
+    description: saved.description ?? null,
+    active: saved.active,
+    geographicZone: { id: saved.geographicZone.id },
   };
 }
 
@@ -111,6 +166,10 @@ export function availablePrograms(programs: readonly Program[], rows: readonly P
 
 export type FacilityTab = 'information' | 'programs';
 
+export const facilityEditorSearchSchema = z.object({
+  tab: z.literal('programs').optional().catch(undefined),
+});
+
 export function tabWithFirstError(fieldNames: readonly string[]): FacilityTab | undefined {
   if (fieldNames.length === 0) return undefined;
   return fieldNames.some((name) => !name.startsWith('programs')) ? 'information' : 'programs';
@@ -121,4 +180,8 @@ export function isDuplicateCode(error: unknown) {
     isAxiosError<{ messageKey?: string }>(error) &&
     error.response?.data?.messageKey === 'referenceData.error.facility.code.mustBeUnique'
   );
+}
+
+export function isManagedExternally(facility: Facility) {
+  return String(facility.extraData?.isManagedExternally) === 'true';
 }

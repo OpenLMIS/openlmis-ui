@@ -12,6 +12,7 @@ import {
   EMPTY_FACILITY_FORM,
   type FacilityFormValues,
   type FacilityTab,
+  toFacilityFormValues,
 } from '@/features/facilities/lib/facility-form';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { renderPage } from '@/tests/render-page';
@@ -64,13 +65,16 @@ function seededClient() {
 function Editor({
   initialValues = EMPTY_FACILITY_FORM,
   save,
+  saved,
 }: {
   initialValues?: FacilityFormValues;
   save: (values: FacilityFormValues) => Promise<Facility>;
+  saved?: Facility;
 }) {
   const [tab, setTab] = useState<FacilityTab>('information');
   return (
     <FacilityEditor
+      saved={saved}
       description="Set up a facility"
       discardDescription="Discard?"
       initialValues={initialValues}
@@ -224,5 +228,89 @@ describe('FacilityEditor', () => {
 
     await waitFor(() => expect(save).toHaveBeenCalled());
     expect(screen.getByRole('tablist').closest('[inert]')).not.toBeNull();
+  });
+
+  describe('editing', () => {
+    const facility: Facility = {
+      id: 'f1',
+      code: 'HC01',
+      name: 'Comfort Health Clinic',
+      active: true,
+      enabled: true,
+      goLiveDate: '2017-01-01',
+      type: { id: 't9', code: 'retired', name: 'Retired Type' },
+      geographicZone: { id: 'z1', code: 'gaza', name: 'Gaza', level: { name: 'Province' } },
+      operator: null,
+      extraData: {},
+      supportedPrograms: [
+        {
+          id: 'p1',
+          code: 'PRG001',
+          name: 'Family Planning',
+          supportActive: true,
+          supportLocallyFulfilled: false,
+          supportStartDate: '2026-10-01',
+        },
+      ],
+    };
+
+    const renderEdit = (saved: Facility) =>
+      renderPage(
+        <Editor initialValues={toFacilityFormValues(saved)} save={vi.fn()} saved={saved} />,
+        { queryClient: seededClient() },
+      );
+
+    it('keeps the current type on offer though it is no longer active', async () => {
+      renderEdit(facility);
+
+      expect(
+        await screen.findByRole('combobox', { name: 'facilities.form.type' }, { timeout: 3000 }),
+      ).toHaveValue('Retired Type');
+    });
+
+    it('locks what another system manages and says why', async () => {
+      renderEdit({ ...facility, extraData: { isManagedExternally: 'true' } });
+
+      expect(
+        await screen.findByRole('textbox', { name: 'facilities.form.name' }, { timeout: 3000 }),
+      ).toBeDisabled();
+      expect(screen.getByRole('textbox', { name: 'facilities.form.code' })).toBeDisabled();
+      expect(screen.getByRole('textbox', { name: 'facilities.form.description' })).toBeDisabled();
+      expect(screen.getByRole('switch', { name: 'facilities.form.active' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      expect(await screen.findByRole('combobox', { name: 'facilities.form.zone' })).toBeDisabled();
+      expect(screen.getByRole('switch', { name: 'facilities.form.enabled' })).not.toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      expect(screen.getByText('facilities.form.managed-externally-title')).toBeInTheDocument();
+    });
+
+    it('marks the operational date required, with no clear button, as legacy asks for it', async () => {
+      renderEdit(facility);
+
+      expect(
+        await screen.findByRole(
+          'button',
+          { name: /^facilities\.form\.go-live-date Required/ },
+          { timeout: 3000 },
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'facilities.form.clear-go-live-date' }),
+      ).toBeNull();
+    });
+
+    it('never offers to remove a program the facility already supports', async () => {
+      const user = userEvent.setup();
+      renderEdit(facility);
+
+      await user.click(await screen.findByRole('tab', { name: /programs/i }, { timeout: 3000 }));
+
+      expect(screen.getByText('Family Planning')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'facilities.form.remove-program' })).toBeNull();
+    });
   });
 });

@@ -28,6 +28,7 @@ import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(pr
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
+import { Route as protectedProtectedAdministrationFacilitiesIdRouteImport } from './routes/(protected)/_protected.administration.facilities_.$id'
 import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } from './routes/(protected)/_protected.administration.facilities_.new'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
 
@@ -140,6 +141,12 @@ const protectedProtectedSettingsThemeRoute =
     path: '/theme',
     getParentRoute: () => protectedProtectedSettingsRoute,
   } as any)
+const protectedProtectedAdministrationFacilitiesIdRoute =
+  protectedProtectedAdministrationFacilitiesIdRouteImport.update({
+    id: '/administration/facilities_/$id',
+    path: '/administration/facilities/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationFacilitiesNewRoute =
   protectedProtectedAdministrationFacilitiesNewRouteImport.update({
     id: '/administration/facilities_/new',
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/profile/': typeof protectedProtectedProfileIndexRoute
   '/settings/': typeof protectedProtectedSettingsIndexRoute
+  '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -192,6 +200,7 @@ export interface FileRoutesByTo {
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/profile': typeof protectedProtectedProfileIndexRoute
   '/settings': typeof protectedProtectedSettingsIndexRoute
+  '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -216,6 +225,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
   '/(protected)/_protected/settings/': typeof protectedProtectedSettingsIndexRoute
+  '/(protected)/_protected/administration/facilities_/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/(protected)/_protected/administration/facilities_/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/settings/theme'
     | '/profile/'
     | '/settings/'
+    | '/administration/facilities/$id'
     | '/administration/facilities/new'
     | '/administration/users/$id/roles'
   fileRoutesByTo: FileRoutesByTo
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/settings/theme'
     | '/profile'
     | '/settings'
+    | '/administration/facilities/$id'
     | '/administration/facilities/new'
     | '/administration/users/$id/roles'
   id:
@@ -283,6 +295,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings/theme'
     | '/(protected)/_protected/profile/'
     | '/(protected)/_protected/settings/'
+    | '/(protected)/_protected/administration/facilities_/$id'
     | '/(protected)/_protected/administration/facilities_/new'
     | '/(protected)/_protected/administration/users_/$id/roles'
   fileRoutesById: FileRoutesById
@@ -428,6 +441,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedSettingsThemeRouteImport
       parentRoute: typeof protectedProtectedSettingsRoute
     }
+    '/(protected)/_protected/administration/facilities_/$id': {
+      id: '/(protected)/_protected/administration/facilities_/$id'
+      path: '/administration/facilities/$id'
+      fullPath: '/administration/facilities/$id'
+      preLoaderRoute: typeof protectedProtectedAdministrationFacilitiesIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/administration/facilities_/new': {
       id: '/(protected)/_protected/administration/facilities_/new'
       path: '/administration/facilities/new'
@@ -494,6 +514,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
+  protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -516,6 +537,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationServiceAccountsRoute,
   protectedProtectedAdministrationUsersRoute:
     protectedProtectedAdministrationUsersRoute,
+  protectedProtectedAdministrationFacilitiesIdRoute:
+    protectedProtectedAdministrationFacilitiesIdRoute,
   protectedProtectedAdministrationFacilitiesNewRoute:
     protectedProtectedAdministrationFacilitiesNewRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
