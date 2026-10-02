@@ -5,8 +5,9 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   WorkspaceActionsPortal,
   WorkspaceActionsSlot,
@@ -26,9 +27,24 @@ function renderAt(path: string, page: ReactNode) {
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   render(<RouterProvider router={router} />);
+  return router;
 }
 
 describe('WorkspaceTabs', () => {
+  it('carries the given history state to every tab, so a reload there keeps it', async () => {
+    const router = renderAt(
+      '/profile',
+      <WorkspaceTabs label="Sections" linkState={{ usersListSearch: { page: 3 } }} tabs={TABS}>
+        page
+      </WorkspaceTabs>,
+    );
+
+    await userEvent.setup().click(await screen.findByRole('tab', { name: 'Roles' }));
+
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/profile/roles'));
+    expect(router.state.location.state.usersListSearch).toEqual({ page: 3 });
+  });
+
   it('selects the tab the address points at, each tab a link', async () => {
     renderAt(
       '/profile/roles/',

@@ -19,8 +19,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { productApprovalsOptions } from '@/features/products/api/queries';
-import { groupApprovals } from '@/features/products/lib/approval-form';
+import { groupApprovals } from '@/features/products/lib/approvals';
 import type { Approval } from '@/features/products/lib/types';
+import { programName } from '@/features/reference-data/lib/programs';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 
 type ApprovalRow =
@@ -38,8 +39,6 @@ type StockColumn = 'maxPeriodsOfStock' | 'minPeriodsOfStock' | 'emergencyOrderPo
 const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
 
 const muted = <span className="text-muted-foreground">-</span>;
-
-const programLabel = (approval: Approval) => approval.program.name || approval.program.code;
 
 function createColumns(t: TFunction, formatNumber: (value: number) => string, actions: RowActions) {
   const stockColumn = (id: StockColumn, header: string) =>
@@ -74,13 +73,13 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
       cell: ({ row }) =>
         row.original.kind === 'approval' && (
           <span className="whitespace-normal break-words" dir="auto">
-            {programLabel(row.original.approval)}
+            {programName(row.original.approval.program)}
           </span>
         ),
     }),
     stockColumn('maxPeriodsOfStock', t('products.approvals.max-periods')),
-    stockColumn('minPeriodsOfStock', t('products.approvals.min-periods')),
     stockColumn('emergencyOrderPoint', t('products.approvals.emergency-point')),
+    stockColumn('minPeriodsOfStock', t('products.approvals.min-periods')),
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('products.actions')}</span>,
@@ -112,7 +111,7 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
             <Button
               aria-label={t('products.approvals.actions-for', {
                 facilityType,
-                program: programLabel(approval),
+                program: programName(approval.program),
               })}
               size="icon-sm"
               variant="ghost"
@@ -219,7 +218,11 @@ export function ApprovalsTable({ productId, columnVisibility, ...actions }: Appr
     <DataTable
       empty={
         <DataTableEmpty
-          description={t('products.approvals.empty-description')}
+          description={t(
+            actions.canEdit
+              ? 'products.approvals.empty-description'
+              : 'products.approvals.empty-read-only',
+          )}
           icon={<BuildingIcon />}
           title={t('products.approvals.empty-title')}
         />

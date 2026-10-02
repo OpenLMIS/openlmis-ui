@@ -3,7 +3,7 @@ import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
-import { updateProduct } from '@/features/products/api/api';
+import { saveProductChange } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProductGeneralForm } from '@/features/products/components/product-general-form';
 import type { ProductDetail } from '@/features/products/lib/types';
@@ -11,10 +11,10 @@ import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
-  updateProduct: vi.fn(),
+  saveProductChange: vi.fn(),
 }));
 
-const update = vi.mocked(updateProduct);
+const update = vi.fn<(id: string, body: ProductDetail) => Promise<ProductDetail>>();
 
 const product: ProductDetail = {
   id: 'o1',
@@ -36,6 +36,7 @@ function refusal(messageKey: string) {
 }
 
 function renderForm({ readOnly = false, onDone = vi.fn(), shown = product } = {}) {
+  vi.mocked(saveProductChange).mockImplementation((id, change) => update(id, change(shown)));
   const queryClient = new QueryClient();
   renderPage(
     <WorkspaceSlots>
@@ -56,6 +57,7 @@ async function rename(name: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  update.mockReset();
 });
 
 describe('ProductGeneralForm', () => {
@@ -73,10 +75,13 @@ describe('ProductGeneralForm', () => {
 
   it('saves a product sized by a size code without asking for a dispensing unit', async () => {
     const vaccine = { ...product, dispensable: { sizeCode: '5 dose', displayUnit: '5 dose' } };
-    update.mockResolvedValueOnce(vaccine);
+    update.mockImplementationOnce(async (_, body) => body);
     const { onDone } = renderForm({ shown: vaccine });
 
-    expect(await screen.findByLabelText(/products.form.dispensing-unit/)).not.toBeRequired();
+    const unit = await screen.findByLabelText(/products.form.dispensing-unit/);
+    expect(unit).not.toBeRequired();
+    expect(unit).toBeDisabled();
+    expect(unit).toHaveAccessibleDescription(/products.form.size-code-description/);
     await rename('BCG');
 
     await vi.waitFor(() => expect(onDone).toHaveBeenCalled());

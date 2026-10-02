@@ -875,7 +875,7 @@ export function ComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                {item.label}
+                <span dir="auto">{item.label}</span>
               </ComboboxItem>
             )}
           </ComboboxList>
@@ -890,7 +890,6 @@ type MultiComboboxFieldProps = FieldProps & {
   placeholder?: string;
   emptyMessage: ReactNode;
   removeLabel: (label: string) => string;
-  /** For a list too long to load: gets what is typed, and `items` are the server's matches. */
   onSearch?: (text: string) => void;
 };
 
@@ -912,8 +911,13 @@ export function MultiComboboxField({
   const anchor = useComboboxAnchor();
   const [picked, setPicked] = useState<readonly ComboboxFieldItem[]>([]);
   const selected = useMemo(() => {
-    const known = new Map([...picked, ...items].map((item) => [item.value, item]));
-    return field.state.value.flatMap((value) => known.get(value) ?? []);
+    const chosen = new Set(field.state.value);
+    const listed = items.filter((item) => chosen.has(item.value));
+    const listedValues = new Set(listed.map((item) => item.value));
+    return [
+      ...listed,
+      ...picked.filter((item) => chosen.has(item.value) && !listedValues.has(item.value)),
+    ];
   }, [items, picked, field.state.value]);
 
   return (
@@ -947,7 +951,7 @@ export function MultiComboboxField({
               <>
                 {values.map((item) => (
                   <ComboboxChip key={item.value} removeLabel={removeLabel(item.label)}>
-                    {item.label}
+                    <span dir="auto">{item.label}</span>
                   </ComboboxChip>
                 ))}
                 <ComboboxChipsInput
@@ -968,7 +972,7 @@ export function MultiComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                {item.label}
+                <span dir="auto">{item.label}</span>
               </ComboboxItem>
             )}
           </ComboboxList>

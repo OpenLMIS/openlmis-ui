@@ -22,10 +22,7 @@ const packSize = (required: ParseKeys, min?: { value: number; tooSmall: ParseKey
 
 export const needsDispensingUnit = (product: ProductDetail) => !product.dispensable.sizeCode;
 
-export function productFormSchema(
-  refusedCodes: readonly string[],
-  { needsDispensingUnit = true } = {},
-) {
+export function productFormSchema(refusedCodes: readonly string[], { unitRequired = true } = {}) {
   return z.object({
     productCode: z
       .string()
@@ -37,7 +34,7 @@ export function productFormSchema(
       ),
     fullProductName: z.string(),
     description: z.string(),
-    dispensingUnit: needsDispensingUnit
+    dispensingUnit: unitRequired
       ? z.string().trim().min(1, errorKey('products.form.dispensing-unit-required'))
       : z.string(),
     netContent: packSize(errorKey('products.form.net-content-required'), {
@@ -106,13 +103,15 @@ export function toProductUpdateBody(
 const sameNumber = (text: string, saved: number) =>
   text.trim() !== '' && toWholeNumber(text) === saved;
 
+const savedText = (value: string | null | undefined) => value?.trim() || null;
+
 export function hasProductChanges(values: ProductFormValues, saved: ProductDetail) {
   const body = toProductUpdateBody(values, saved);
   return (
     body.productCode !== saved.productCode ||
-    body.fullProductName !== saved.fullProductName ||
-    body.description !== saved.description ||
-    values.dispensingUnit.trim() !== (saved.dispensable.dispensingUnit ?? '') ||
+    body.fullProductName !== savedText(saved.fullProductName) ||
+    body.description !== savedText(saved.description) ||
+    (values.dispensingUnit.trim() || null) !== savedText(saved.dispensable.dispensingUnit) ||
     !sameNumber(values.netContent, saved.netContent) ||
     !sameNumber(values.packRoundingThreshold, saved.packRoundingThreshold) ||
     body.roundToZero !== saved.roundToZero

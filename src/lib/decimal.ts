@@ -17,12 +17,11 @@ type DecimalMessages = {
 type DecimalRules = {
   optional?: boolean;
   maxDecimals?: number;
-  max?: number;
 };
 
 export function decimalText(
   messages: DecimalMessages,
-  { optional = false, maxDecimals, max = Number.MAX_SAFE_INTEGER }: DecimalRules = {},
+  { optional = false, maxDecimals }: DecimalRules = {},
 ) {
   return z.string().superRefine((value, context) => {
     const text = toLatinNumber(value);
@@ -31,7 +30,7 @@ export function decimalText(
     if (!text) {
       if (!optional) issue(messages.required);
     } else if (!/^[0-9]+(\.[0-9]+)?$/.test(text)) issue(messages.invalid);
-    else if (Number(text) > max) issue(messages.tooLarge);
+    else if (Number(text) > Number.MAX_SAFE_INTEGER) issue(messages.tooLarge);
     else if (maxDecimals !== undefined && (text.split('.')[1]?.length ?? 0) > maxDecimals) {
       issue(messages.tooPrecise);
     }
@@ -42,3 +41,6 @@ export function toDecimal(text: string) {
   const latin = toLatinNumber(text);
   return latin ? Number(latin) : null;
 }
+
+export const toNumberText = (value: number | null | undefined) =>
+  value == null ? '' : String(value);

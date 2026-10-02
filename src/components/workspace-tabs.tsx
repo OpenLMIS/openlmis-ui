@@ -1,4 +1,10 @@
-import { Link, type LinkProps, useLocation, useRouter } from '@tanstack/react-router';
+import {
+  type HistoryState,
+  Link,
+  type LinkProps,
+  useLocation,
+  useRouter,
+} from '@tanstack/react-router';
 import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,10 +19,11 @@ type WorkspaceTab = {
 type WorkspaceTabsProps = {
   label: string;
   tabs: readonly WorkspaceTab[];
+  linkState?: HistoryState;
   children: ReactNode;
 };
 
-export function WorkspaceTabs({ label, tabs, children }: WorkspaceTabsProps) {
+export function WorkspaceTabs({ label, tabs, linkState, children }: WorkspaceTabsProps) {
   const router = useRouter();
   const { pathname } = useLocation();
   const current = pathname.replace(/\/$/, '');
@@ -34,7 +41,7 @@ export function WorkspaceTabs({ label, tabs, children }: WorkspaceTabsProps) {
             <TabsTrigger
               key={item.to}
               nativeButton={false}
-              render={<Link params={item.params as never} to={item.to} />}
+              render={<Link params={item.params as never} state={linkState} to={item.to} />}
               value={item.to}
             >
               {item.label}

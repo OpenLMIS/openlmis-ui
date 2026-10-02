@@ -1,6 +1,7 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { KitChild, Product, ProductDetail } from '@/features/products/lib/types';
+import { toNumberText } from '@/lib/decimal';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const errorKey = (key: ParseKeys) => key;
@@ -26,7 +27,7 @@ export type KitFormValues = z.infer<ReturnType<typeof kitFormSchema>>;
 
 type KitRow = KitFormValues['children'][number];
 
-const toRow = (product: Product, quantity: string): KitRow => ({
+export const toKitRow = (product: Product, quantity = ''): KitRow => ({
   id: product.id,
   code: product.productCode,
   name: product.fullProductName ?? '',
@@ -37,17 +38,13 @@ export function toKitFormValues(kit: ProductDetail, products: readonly Product[]
   const known = new Map(products.map((product) => [product.id, product]));
   return {
     children: (kit.children ?? []).map((child) => {
-      const quantity = child.quantity == null ? '' : String(child.quantity);
+      const quantity = toNumberText(child.quantity);
       const product = known.get(child.orderable.id);
       return product
-        ? toRow(product, quantity)
+        ? toKitRow(product, quantity)
         : { id: child.orderable.id, code: child.orderable.id, name: '', quantity };
     }),
   };
-}
-
-export function withKitProducts(values: KitFormValues, picked: readonly Product[]): KitFormValues {
-  return { children: [...values.children, ...picked.map((product) => toRow(product, ''))] };
 }
 
 export function toKitBody(values: KitFormValues, kit: ProductDetail): ProductDetail {

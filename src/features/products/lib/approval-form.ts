@@ -1,7 +1,7 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { Approval, ApprovalStock } from '@/features/products/lib/types';
-import { decimalText, toDecimal } from '@/lib/decimal';
+import { decimalText, toDecimal, toNumberText } from '@/lib/decimal';
 
 const errorKey = (key: ParseKeys) => key;
 
@@ -57,15 +57,13 @@ export const EMPTY_APPROVAL_FORM: ApprovalFormValues = {
   minPeriodsOfStock: '',
 };
 
-const numberText = (value: number | null | undefined) => (value == null ? '' : String(value));
-
 export function toApprovalFormValues(approval: Approval): ApprovalFormValues {
   return {
     facilityTypeId: approval.facilityType.id,
     programId: approval.program.id,
-    maxPeriodsOfStock: numberText(approval.maxPeriodsOfStock),
-    emergencyOrderPoint: numberText(approval.emergencyOrderPoint),
-    minPeriodsOfStock: numberText(approval.minPeriodsOfStock),
+    maxPeriodsOfStock: toNumberText(approval.maxPeriodsOfStock),
+    emergencyOrderPoint: toNumberText(approval.emergencyOrderPoint),
+    minPeriodsOfStock: toNumberText(approval.minPeriodsOfStock),
   };
 }
 
@@ -75,28 +73,4 @@ export function toApprovalStock(values: ApprovalFormValues): ApprovalStock {
     emergencyOrderPoint: toDecimal(values.emergencyOrderPoint),
     minPeriodsOfStock: toDecimal(values.minPeriodsOfStock),
   };
-}
-
-const byName = (a: string | null, b: string | null) => (a ?? '').localeCompare(b ?? '');
-
-export function groupApprovals(approvals: readonly Approval[]) {
-  const groups = new Map<
-    string,
-    { facilityType: Approval['facilityType']; approvals: Approval[] }
-  >();
-  for (const approval of approvals) {
-    const group = groups.get(approval.facilityType.id);
-    if (group) group.approvals.push(approval);
-    else
-      groups.set(approval.facilityType.id, {
-        facilityType: approval.facilityType,
-        approvals: [approval],
-      });
-  }
-  return [...groups.values()]
-    .sort((a, b) => byName(a.facilityType.name, b.facilityType.name))
-    .map((group) => ({
-      ...group,
-      approvals: group.approvals.toSorted((a, b) => byName(a.program.name, b.program.name)),
-    }));
 }

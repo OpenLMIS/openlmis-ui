@@ -5,7 +5,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -40,21 +40,19 @@ import {
   toApprovalFormValues,
   toApprovalStock,
 } from '@/features/products/lib/approval-form';
+import { productName } from '@/features/products/lib/product-name';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
+import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-
-let openings = 0;
-const nextOpening = () => ++openings;
 
 const saveKey = (productId: string) =>
   [...queryKeys.facilityTypeApprovedProducts.all, 'save', productId] as const;
 
 type ApprovalDialogProps = {
   product: ProductDetail;
-  /** `new` to approve another facility type, or the id of an approval. */
   target: string | undefined;
   readOnly: boolean;
   onClose: () => void;
@@ -82,7 +80,7 @@ function ApprovalContent({ product, target, readOnly, onDone }: ApprovalContentP
   const { t } = useTranslation();
   const isNew = target === 'new';
   const title = t(isNew ? 'products.approvals.form.add-title' : 'products.approvals.facility-type');
-  const [opening] = useState(nextOpening);
+  const opening = useOpening();
 
   return (
     <QueryBoundary
@@ -140,7 +138,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
   const { data: facilityTypes } = useSuspenseQuery(facilityTypesOptions());
   const { data: programs } = useSuspenseQuery(programsOptions());
   const { data: approved } = useSuspenseQuery(productApprovalsOptions(product.id));
-  const productLabel = product.fullProductName || product.productCode;
+  const productLabel = productName(product);
   const schema = useMemo(() => approvalFormSchema(approved, approval?.id), [approved, approval]);
 
   const facilityTypeItems = useMemo(
@@ -153,12 +151,12 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
   const programItems = useMemo(() => {
     const linked = new Set(product.programs.map((link) => link.programId));
     const items = programs
-      .filter((program) => linked.has(program.id) || program.id === approval?.program.id)
+      .filter((program) => linked.has(program.id))
       .map((program) => ({ value: program.id, label: programName(program) }));
     if (approval && !items.some((item) => item.value === approval.program.id)) {
       items.push({
         value: approval.program.id,
-        label: approval.program.name || approval.program.code,
+        label: programName(approval.program),
       });
     }
     return items.sort((a, b) => a.label.localeCompare(b.label));
@@ -212,7 +210,10 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
         .catch(() => undefined),
   });
 
-  const shown = approval ? names(toApprovalFormValues(approval)) : undefined;
+  const shown = approval && {
+    facilityType: approval.facilityType.name,
+    program: programName(approval.program),
+  };
   const title = !approval
     ? t('products.approvals.form.add-title')
     : readOnly
@@ -283,7 +284,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
               />
             )}
           </form.AppField>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 @md/field-group:grid-cols-2">
             <form.AppField name="emergencyOrderPoint">
               {(field) => (
                 <field.DecimalField
@@ -334,7 +335,7 @@ function ApprovalSkeleton({ title, adding, readOnly }: ApprovalSkeletonProps) {
           <FieldSkeleton label={t('products.approvals.facility-type')} required />
           <FieldSkeleton label={t('products.approvals.program')} required />
           <FieldSkeleton label={t('products.approvals.max-periods')} required />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 @md/field-group:grid-cols-2">
             <FieldSkeleton label={t('products.approvals.emergency-point')} />
             <FieldSkeleton label={t('products.approvals.min-periods')} />
           </div>

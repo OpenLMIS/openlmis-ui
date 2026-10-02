@@ -47,6 +47,7 @@ import {
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
+import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -84,9 +85,6 @@ const SWITCHES: readonly {
   },
 ];
 
-let openings = 0;
-const nextOpening = () => ++openings;
-
 const saveKey = (target: string) => [...queryKeys.programs.all, 'save', target] as const;
 
 type ProgramFormDialogProps = {
@@ -109,7 +107,7 @@ function ProgramDialogContent({ target, onDone }: { target: string; onDone: () =
   const { t } = useTranslation();
   const isNew = target === 'new';
   const title = t(isNew ? 'programs.form.create-title' : 'programs.form.edit-title');
-  const [opening] = useState(nextOpening);
+  const opening = useOpening();
 
   return (
     <QueryBoundary

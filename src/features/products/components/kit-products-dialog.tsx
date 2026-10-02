@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppForm } from '@/components/form/form';
@@ -23,7 +23,6 @@ const SEARCH_SIZE = 20;
 
 type KitProductsDialogProps = {
   open: boolean;
-  /** The kit itself and the products already in it, which the search leaves out. */
   excluded: ReadonlySet<string>;
   onAdd: (products: Product[]) => void;
   onClose: () => void;
@@ -62,16 +61,16 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
     return () => clearTimeout(timer);
   }, [typed]);
 
-  const results = useQuery({
-    ...productsListOptions({
+  const results = useQuery(
+    productsListOptions({
       page: 0,
       size: SEARCH_SIZE,
       sort: 'fullProductName,asc',
       q: query || undefined,
     }),
-    placeholderData: keepPreviousData,
-  });
+  );
   const found = results.data?.content;
+  const searching = typed.trim() !== query || results.isFetching;
 
   useEffect(() => {
     if (!found) return;
@@ -80,10 +79,12 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
 
   const items = useMemo(
     () =>
-      (found ?? [])
-        .filter((product) => !excluded.has(product.id))
-        .map((product) => ({ value: product.id, label: productLabel(product) })),
-    [found, excluded],
+      searching
+        ? []
+        : (found ?? [])
+            .filter((product) => !excluded.has(product.id))
+            .map((product) => ({ value: product.id, label: productLabel(product) })),
+    [searching, found, excluded],
   );
 
   const form = useAppForm({
@@ -107,10 +108,10 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
               <field.MultiComboboxField
                 description={t('products.kit.search-description')}
                 emptyMessage={
-                  results.isError
-                    ? t('products.kit.search-error')
-                    : results.isFetching
-                      ? t('products.kit.searching')
+                  searching
+                    ? t('products.kit.searching')
+                    : results.isError
+                      ? t('products.kit.search-error')
                       : t('products.kit.search-empty')
                 }
                 items={items}

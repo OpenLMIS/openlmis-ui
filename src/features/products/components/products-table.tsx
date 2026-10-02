@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { productsListOptions } from '@/features/products/api/queries';
+import { productName } from '@/features/products/lib/product-name';
 import {
   CLEARED_PRODUCT_FILTERS,
   DEFAULT_PRODUCTS_SORT,
@@ -96,7 +97,7 @@ function ProductActions({ product, listSearch }: ProductActionsProps) {
           render={
             <Button
               aria-label={t('products.actions-for', {
-                product: product.fullProductName || product.productCode,
+                product: productName(product),
               })}
               size="icon-sm"
               variant="ghost"

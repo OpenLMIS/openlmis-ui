@@ -202,7 +202,11 @@ export function ProgramLinksTable({
     <DataTable
       empty={
         <DataTableEmpty
-          description={t('products.programs.empty-description')}
+          description={t(
+            actions.canEdit
+              ? 'products.programs.empty-description'
+              : 'products.programs.empty-read-only',
+          )}
           icon={<LayersIcon />}
           title={t('products.programs.empty-title')}
         />

@@ -216,6 +216,16 @@ describe('hasProductChanges', () => {
     expect(hasProductChanges(values, saved)).toBe(false);
   });
 
+  it('sees nothing to save in a product saved with stray spaces or an empty description', () => {
+    const padded = {
+      ...saved,
+      fullProductName: 'BACTEC MGIT 960 Supplement ',
+      description: '',
+      dispensable: { dispensingUnit: ' each ', displayUnit: 'each' },
+    };
+    expect(hasProductChanges(toProductFormValues(padded), padded)).toBe(false);
+  });
+
   it('ignores spaces the save would take out anyway', () => {
     expect(
       hasProductChanges(
@@ -251,9 +261,7 @@ describe('a product sized by a size code', () => {
   it('needs no dispensing unit, as legacy', () => {
     expect(needsDispensingUnit(vaccine)).toBe(false);
     expect(needsDispensingUnit(saved)).toBe(true);
-    expect(productFormSchema([], { needsDispensingUnit: false }).safeParse(values).success).toBe(
-      true,
-    );
+    expect(productFormSchema([], { unitRequired: false }).safeParse(values).success).toBe(true);
     expect(productFormSchema([]).safeParse(values).success).toBe(false);
   });
 

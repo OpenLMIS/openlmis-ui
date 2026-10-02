@@ -10,6 +10,7 @@ import { useColumnVisibility, useElementWidth } from '@/components/data-table/re
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
+import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProgramLinkDialog } from '@/features/products/components/program-link-dialog';
 import {
@@ -17,6 +18,7 @@ import {
   ProgramLinksTableSkeleton,
 } from '@/features/products/components/program-links-table';
 import { RemoveProgramLinkDialog } from '@/features/products/components/remove-program-link-dialog';
+import { useBackToProducts } from '@/features/products/hooks/back-to-products';
 import {
   CLOSED_PROGRAM_DIALOGS,
   PROGRAM_LINK_HIDEABLE_COLUMNS,
@@ -69,8 +71,15 @@ function ProgramsTab() {
     [openDialog],
   );
 
+  const backToProducts = useBackToProducts();
+
   return (
     <div className="flex flex-col gap-4" ref={measureContent}>
+      <WorkspaceFooterPortal width="default">
+        <Button onClick={backToProducts} size="lg" variant="outline">
+          {t('products.edit.back')}
+        </Button>
+      </WorkspaceFooterPortal>
       <DataTableToolbar>
         <div className="@2xl/main:ms-auto">
           <DataTableViewOptions

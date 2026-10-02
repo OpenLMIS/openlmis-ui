@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { updateProduct } from '@/features/products/api/api';
+import { saveProductChange } from '@/features/products/api/api';
 import { ProgramLinkDialog } from '@/features/products/components/program-link-dialog';
 import { RemoveProgramLinkDialog } from '@/features/products/components/remove-program-link-dialog';
 import type { ProductDetail } from '@/features/products/lib/types';
@@ -9,13 +9,13 @@ import { fetchOrderableDisplayCategories, fetchPrograms } from '@/features/refer
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
-vi.mock('@/features/products/api/api', () => ({ updateProduct: vi.fn() }));
+vi.mock('@/features/products/api/api', () => ({ saveProductChange: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(),
   fetchOrderableDisplayCategories: vi.fn(),
 }));
 
-const update = vi.mocked(updateProduct);
+const update = vi.fn<(id: string, body: ProductDetail) => Promise<ProductDetail>>();
 
 const familyPlanning = {
   programId: 'fp',
@@ -45,6 +45,8 @@ const LOADED = { timeout: 3000 };
 
 beforeEach(() => {
   vi.resetAllMocks();
+  update.mockReset();
+  vi.mocked(saveProductChange).mockImplementation((id, change) => update(id, change(product)));
   vi.mocked(fetchPrograms).mockResolvedValue([
     { id: 'fp', code: 'PRG001', name: 'Family Planning', active: true },
     { id: 'em', code: 'PRG002', name: 'Essential Meds', active: true },
@@ -170,5 +172,18 @@ describe('RemoveProgramLinkDialog', () => {
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', { ...product, programs: [] });
+  });
+});
+
+describe('RemoveProgramLinkDialog for a program the product is not in', () => {
+  it('names it as not found, with only Close', async () => {
+    renderPage(<RemoveProgramLinkDialog onClose={vi.fn()} product={product} programId="gone" />);
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'products.programs.not-found-title' }, LOADED),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'products.programs.remove' }),
+    ).not.toBeInTheDocument();
   });
 });

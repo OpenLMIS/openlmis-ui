@@ -3,14 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
-import { fetchProducts, updateProduct } from '@/features/products/api/api';
+import { fetchProducts, saveProductChange } from '@/features/products/api/api';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
   fetchProducts: vi.fn(),
-  updateProduct: vi.fn(),
+  saveProductChange: vi.fn(),
 }));
 
 const product = (id: string, code: string, name: string): Product => ({
@@ -39,8 +39,12 @@ const kit: ProductDetail = {
 
 const LOADED = { timeout: 3000 };
 
+const updateProduct = vi.fn<(id: string, body: ProductDetail) => Promise<ProductDetail>>();
+
 beforeEach(() => {
   vi.resetAllMocks();
+  updateProduct.mockReset();
+  vi.mocked(saveProductChange).mockImplementation((id, change) => updateProduct(id, change(kit)));
   vi.mocked(fetchProducts).mockResolvedValue({
     content: [product('k1', 'KIT1', 'Delivery Kit'), gloves, syringe],
     totalElements: 3,
@@ -69,7 +73,7 @@ function Kit({ readOnly = false, onDone }: { readOnly?: boolean; onDone: () => v
 
 describe('KitUnpackList', () => {
   it('adds a picked product, takes its quantity and saves the kit whole', async () => {
-    vi.mocked(updateProduct).mockImplementationOnce(async (_, body) => body);
+    updateProduct.mockImplementationOnce(async (_, body) => body);
     const onDone = vi.fn();
     renderPage(<Kit onDone={onDone} />);
     const user = userEvent.setup();
@@ -119,6 +123,7 @@ describe('KitUnpackList', () => {
 
     await user.click(screen.getByRole('button', { name: 'products.kit.remove' }));
     expect(screen.getByText('products.kit.empty-title')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'products.kit.products' })).toHaveFocus();
   });
 
   it('only shows the kit to a user who may not change it', async () => {

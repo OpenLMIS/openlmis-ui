@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decimalText, toDecimal } from '@/lib/decimal';
+import { decimalText, toDecimal, toNumberText } from '@/lib/decimal';
 
 const messages = {
   required: 'error.try-again',
@@ -35,10 +35,9 @@ describe('decimalText', () => {
     }
   });
 
-  it('refuses a number above the maximum', () => {
-    const capped = decimalText(messages, { max: 100 });
-    expect(message(capped, '100')).toBeUndefined();
-    expect(message(capped, '100.01')).toEqual(['error.check-connection']);
+  it('refuses a number too large to keep exactly', () => {
+    expect(message(schema, '9007199254740991')).toBeUndefined();
+    expect(message(schema, '9007199254740992')).toEqual(['error.check-connection']);
   });
 });
 
@@ -66,5 +65,14 @@ describe('decimalText when optional', () => {
   it('reads no value as none', () => {
     expect(toDecimal('  ')).toBeNull();
     expect(toDecimal(' 1.50 ')).toBe(1.5);
+  });
+});
+
+describe('toNumberText', () => {
+  it('shows a number as text, and none as an empty field', () => {
+    expect(toNumberText(1.5)).toBe('1.5');
+    expect(toNumberText(0)).toBe('0');
+    expect(toNumberText(null)).toBe('');
+    expect(toNumberText(undefined)).toBe('');
   });
 });

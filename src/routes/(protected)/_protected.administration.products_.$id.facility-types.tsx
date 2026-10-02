@@ -10,6 +10,7 @@ import { useColumnVisibility, useElementWidth } from '@/components/data-table/re
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
+import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import { productApprovalsOptions, productDetailOptions } from '@/features/products/api/queries';
 import { ApprovalDialog } from '@/features/products/components/approval-dialog';
 import {
@@ -17,6 +18,7 @@ import {
   ApprovalsTableSkeleton,
 } from '@/features/products/components/approvals-table';
 import { RemoveApprovalDialog } from '@/features/products/components/remove-approval-dialog';
+import { useBackToProducts } from '@/features/products/hooks/back-to-products';
 import {
   APPROVAL_HIDEABLE_COLUMNS,
   type ApprovalsSearch,
@@ -66,8 +68,15 @@ function FacilityTypesTab() {
     [openDialog],
   );
 
+  const backToProducts = useBackToProducts();
+
   return (
     <div className="flex flex-col gap-4" ref={measureContent}>
+      <WorkspaceFooterPortal width="default">
+        <Button onClick={backToProducts} size="lg" variant="outline">
+          {t('products.edit.back')}
+        </Button>
+      </WorkspaceFooterPortal>
       <DataTableToolbar>
         <div className="@2xl/main:ms-auto">
           <DataTableViewOptions

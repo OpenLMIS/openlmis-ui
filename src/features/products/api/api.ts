@@ -75,3 +75,10 @@ export async function fetchProductsByIds(ids: readonly string[]) {
   });
   return data.content;
 }
+
+export async function saveProductChange(
+  id: string,
+  change: (latest: ProductDetail) => ProductDetail,
+) {
+  return updateProduct(id, change(await fetchProduct(id)));
+}

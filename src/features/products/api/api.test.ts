@@ -8,6 +8,7 @@ import {
   fetchProducts,
   fetchProductsByIds,
   removeApproval,
+  saveProductChange,
   updateApproval,
   updateProduct,
 } from '@/features/products/api/api';
@@ -209,5 +210,17 @@ describe('fetchProductsByIds', () => {
   it('asks for nothing when there is nothing to name', async () => {
     await expect(fetchProductsByIds([])).resolves.toEqual([]);
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveProductChange', () => {
+  it('applies the change to the latest version, so a change saved meanwhile is kept', async () => {
+    const latest = { ...product, fullProductName: 'Renamed Meanwhile', programs: [] };
+    get.mockResolvedValueOnce({ data: latest });
+    put.mockResolvedValueOnce({ data: latest });
+
+    await saveProductChange('o1', (current) => ({ ...current, description: 'New' }));
+    expect(get).toHaveBeenCalledWith('/orderables/o1');
+    expect(put).toHaveBeenCalledWith('/orderables/o1', { ...latest, description: 'New' });
   });
 });

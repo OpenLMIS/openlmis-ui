@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, getRouteApi } from '@tanstack/react-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LoadError } from '@/components/load-error';
@@ -23,11 +24,18 @@ type KitSearch = z.infer<typeof kitSearchSchema>;
 
 const CLOSED_DIALOGS = { dialog: undefined } satisfies KitSearch;
 
+const kitProductIds = (kit: ProductDetail) =>
+  (kit.children ?? []).map((child) => child.orderable.id);
+
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/products_/$id/kit-unpack-list',
 )({
   validateSearch: kitSearchSchema,
   staticData: { crumbKey: 'products.edit.crumb' },
+  loader: ({ context: { queryClient }, params }) => {
+    const kit = queryClient.getQueryData(productDetailOptions(params.id).queryKey);
+    if (kit) queryClient.prefetchQuery(productsByIdsOptions(kitProductIds(kit)));
+  },
   component: KitTab,
 });
 
@@ -57,7 +65,7 @@ function KitTab() {
 function KitEditor({ kit }: { kit: ProductDetail }) {
   const { canEditProduct } = productRoute.useLoaderData();
   const adding = Route.useSearch({ select: (search) => search.dialog === 'add' });
-  const ids = (kit.children ?? []).map((child) => child.orderable.id);
+  const [ids] = useState(() => kitProductIds(kit));
   const { data: products } = useSuspenseQuery(productsByIdsOptions(ids));
   const { openDialog, closeDialog } = useSearchNavigation<KitSearch>(CLOSED_DIALOGS);
   const backToProducts = useBackToProducts();

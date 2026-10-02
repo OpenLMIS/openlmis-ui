@@ -179,3 +179,31 @@ describe('RemoveApprovalDialog', () => {
     expect(removeApproval).toHaveBeenCalledWith('a1', expect.anything());
   });
 });
+
+describe('RemoveApprovalDialog while the approvals load', () => {
+  it('waits for them rather than saying the approval is gone', async () => {
+    vi.mocked(fetchApprovals).mockReturnValue(new Promise(() => {}));
+    renderPage(<RemoveApprovalDialog approvalId="a1" onClose={vi.fn()} product={product} />);
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'products.approvals.remove-pending-title' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('products.approvals.form.not-found')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'products.approvals.remove' })).toBeDisabled();
+  });
+
+  it('names a missing approval as not found, with only Close', async () => {
+    renderPage(<RemoveApprovalDialog approvalId="gone" onClose={vi.fn()} product={product} />);
+
+    expect(
+      await screen.findByRole(
+        'alertdialog',
+        { name: 'products.approvals.not-found-title' },
+        LOADED,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'products.approvals.remove' }),
+    ).not.toBeInTheDocument();
+  });
+});

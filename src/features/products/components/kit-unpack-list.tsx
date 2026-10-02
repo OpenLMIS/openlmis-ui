@@ -29,8 +29,9 @@ import {
   kitFormSchema,
   toKitBody,
   toKitFormValues,
-  withKitProducts,
+  toKitRow,
 } from '@/features/products/lib/kit-form';
+import { productName } from '@/features/products/lib/product-name';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
@@ -38,7 +39,6 @@ const FORM_ID = 'kit-unpack-list-form';
 
 type KitUnpackListProps = {
   kit: ProductDetail;
-  /** The products in the kit, for their codes and names. */
   products: readonly Product[];
   readOnly: boolean;
   adding: boolean;
@@ -59,7 +59,8 @@ export function KitUnpackList({
   const { t } = useTranslation();
   const save = useProductSave(kit.id);
   const leaving = useRef(false);
-  const kitLabel = kit.fullProductName || kit.productCode;
+  const listRegion = useRef<HTMLElement>(null);
+  const kitLabel = productName(kit);
 
   const form = useAppForm({
     defaultValues: toKitFormValues(kit, products),
@@ -67,12 +68,12 @@ export function KitUnpackList({
     validators: { onDynamic: kitFormSchema() },
     onSubmit: ({ value }) =>
       save
-        .mutateAsync(toKitBody(value, kit), {
-          onSuccess: () => {
+        .mutateAsync((latest) => toKitBody(value, latest), {
+          onSuccess: (saved) => {
             toast.success(t('products.kit.saved-title'), {
               description: t('products.kit.saved', { product: kitLabel }),
             });
-            if (hasKitChanges(form.state.values, toKitBody(value, kit))) return;
+            if (hasKitChanges(form.state.values, saved)) return;
             leaving.current = true;
             if (!guard.leaveIfAsked()) onDone();
           },
@@ -86,10 +87,10 @@ export function KitUnpackList({
   const excluded = useMemo(() => new Set([kit.id, ...rows.map((row) => row.id)]), [kit.id, rows]);
 
   const addProducts = (picked: Product[]) =>
-    form.setFieldValue(
-      'children',
-      (current) => withKitProducts({ children: current }, picked).children,
-    );
+    form.setFieldValue('children', (current) => [
+      ...current,
+      ...picked.map((product) => toKitRow(product)),
+    ]);
 
   return (
     <>
@@ -118,81 +119,91 @@ export function KitUnpackList({
             title={t('products.kit.save-error-title')}
           />
         )}
-        <DataTableCard>
-          {rows.length === 0 ? (
-            <DataTableEmpty
-              description={t(
-                readOnly ? 'products.kit.empty-read-only' : 'products.kit.empty-description',
-              )}
-              icon={<BoxesIcon />}
-              title={t('products.kit.empty-title')}
-            />
-          ) : (
-            <Table density="comfortable">
-              <TableHeader surface="muted">
-                <TableRow>
-                  <TableHead>{t('products.kit.product')}</TableHead>
-                  <TableHead>{t('products.kit.quantity')}</TableHead>
-                  {!readOnly && (
-                    <TableHead>
-                      <span className="sr-only">{t('products.actions')}</span>
-                    </TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row, index) => {
-                  const name = row.name || row.code;
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <span className="flex flex-col whitespace-normal break-words">
-                          <span className="font-medium" dir="auto">
-                            {row.name || row.code}
-                          </span>
-                          {row.name && (
-                            <span className="text-muted-foreground text-xs" dir="ltr">
-                              {row.code}
-                            </span>
-                          )}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-20 @md/main:w-28">
-                          <form.AppField name={`children[${index}].quantity`}>
-                            {(field) => (
-                              <field.NumberField
-                                disabled={readOnly}
-                                label={t('products.kit.quantity-of', { product: name })}
-                                layout="inline"
-                                required
-                              />
-                            )}
-                          </form.AppField>
-                        </div>
-                      </TableCell>
-                      {!readOnly && (
+        <section
+          aria-label={t('products.kit.products')}
+          className="outline-none"
+          ref={listRegion}
+          tabIndex={-1}
+        >
+          <DataTableCard>
+            {rows.length === 0 ? (
+              <DataTableEmpty
+                description={t(
+                  readOnly ? 'products.kit.empty-read-only' : 'products.kit.empty-description',
+                )}
+                icon={<BoxesIcon />}
+                title={t('products.kit.empty-title')}
+              />
+            ) : (
+              <Table density="comfortable">
+                <TableHeader surface="muted">
+                  <TableRow>
+                    <TableHead>{t('products.kit.product')}</TableHead>
+                    <TableHead>{t('products.kit.quantity')}</TableHead>
+                    {!readOnly && (
+                      <TableHead>
+                        <span className="sr-only">{t('products.actions')}</span>
+                      </TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row, index) => {
+                    const name = row.name || row.code;
+                    return (
+                      <TableRow key={row.id}>
                         <TableCell>
-                          <div className="flex justify-end">
-                            <Button
-                              aria-label={t('products.kit.remove', { product: name })}
-                              onClick={() => form.removeFieldValue('children', index)}
-                              size="icon-sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              <Trash2Icon />
-                            </Button>
+                          <span className="flex flex-col whitespace-normal break-words">
+                            <span className="font-medium" dir="auto">
+                              {row.name || row.code}
+                            </span>
+                            {row.name && (
+                              <span className="text-muted-foreground text-xs" dir="ltr">
+                                {row.code}
+                              </span>
+                            )}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="w-20 @md/main:w-28">
+                            <form.AppField name={`children[${index}].quantity`}>
+                              {(field) => (
+                                <field.NumberField
+                                  disabled={readOnly}
+                                  label={t('products.kit.quantity-of', { product: name })}
+                                  layout="inline"
+                                  required
+                                />
+                              )}
+                            </form.AppField>
                           </div>
                         </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </DataTableCard>
+                        {!readOnly && (
+                          <TableCell>
+                            <div className="flex justify-end">
+                              <Button
+                                aria-label={t('products.kit.remove', { product: name })}
+                                onClick={() => {
+                                  form.removeFieldValue('children', index);
+                                  listRegion.current?.focus();
+                                }}
+                                size="icon-sm"
+                                type="button"
+                                variant="ghost"
+                              >
+                                <Trash2Icon />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </DataTableCard>
+        </section>
       </form>
       <WorkspaceFooterPortal width="default">
         <Button disabled={save.isPending} onClick={onDone} size="lg" variant="outline">

@@ -65,7 +65,11 @@ function ProductEditLayout() {
 
   return (
     <BackToProducts value={backToProducts}>
-      <ProductWorkspace product={product} productId={id}>
+      <ProductWorkspace
+        product={product}
+        productId={id}
+        tabState={{ productsListSearch: listSearch }}
+      >
         <Outlet />
       </ProductWorkspace>
     </BackToProducts>

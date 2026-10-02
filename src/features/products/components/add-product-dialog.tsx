@@ -27,6 +27,7 @@ import {
   productFormSchema,
   toCreateProductBody,
 } from '@/features/products/lib/product-form';
+import { productName } from '@/features/products/lib/product-name';
 import { queryKeys } from '@/lib/key-factory';
 
 const SAVE_KEY = [...queryKeys.orderables.all, 'create'] as const;
@@ -60,7 +61,7 @@ function AddProductForm({ onCreated }: Pick<AddProductDialogProps, 'onCreated'>)
     onSuccess: (product) => {
       toast.success(t('products.form.created-title'), {
         description: t('products.form.created', {
-          product: product.fullProductName || product.productCode,
+          product: productName(product),
         }),
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.orderables.all });

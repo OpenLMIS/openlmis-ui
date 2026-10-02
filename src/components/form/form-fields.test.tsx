@@ -442,3 +442,31 @@ describe('a multi combobox that searches the server', () => {
     expect(await screen.findByRole('button', { name: 'Remove G1 - Gloves' })).toBeInTheDocument();
   });
 });
+
+function OrderedChipsForm() {
+  const form = useAppForm({ defaultValues: { picked: ['s1', 'g1'] } });
+  return (
+    <form.AppField name="picked">
+      {(field) => (
+        <field.MultiComboboxField
+          emptyMessage="No products"
+          items={catalogue}
+          label="Products"
+          removeLabel={(label) => `Remove ${label}`}
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+describe('a multi combobox', () => {
+  it('lists the chips in the order of its items, whatever the order of the value', () => {
+    render(<OrderedChipsForm />);
+
+    expect(
+      screen
+        .getAllByRole('button', { name: /^Remove / })
+        .map((chip) => chip.getAttribute('aria-label')),
+    ).toEqual(['Remove G1 - Gloves', 'Remove S1 - Syringe']);
+  });
+});

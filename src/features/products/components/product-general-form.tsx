@@ -15,7 +15,7 @@ import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
-import { updateProduct } from '@/features/products/api/api';
+import { saveProductChange } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProductFormFields } from '@/features/products/components/product-form-fields';
 import {
@@ -27,6 +27,7 @@ import {
   toProductFormValues,
   toProductUpdateBody,
 } from '@/features/products/lib/product-form';
+import { productName } from '@/features/products/lib/product-name';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { queryKeys } from '@/lib/key-factory';
@@ -45,20 +46,20 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
   const [refusedCodes, setRefusedCodes] = useState<string[]>([]);
   const unitNeeded = needsDispensingUnit(product);
   const schema = useMemo(
-    () => productFormSchema(refusedCodes, { needsDispensingUnit: unitNeeded }),
+    () => productFormSchema(refusedCodes, { unitRequired: unitNeeded }),
     [refusedCodes, unitNeeded],
   );
   const leaving = useRef(false);
 
   const save = useMutation({
     mutationFn: (values: ProductFormValues) =>
-      updateProduct(product.id, toProductUpdateBody(values, product)),
+      saveProductChange(product.id, (latest) => toProductUpdateBody(values, latest)),
     onSuccess: (saved) => {
       queryClient.setQueryData(productDetailOptions(product.id).queryKey, saved);
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.orderables.all, 'list'] });
       toast.success(t('products.edit.saved-title'), {
         description: t('products.edit.saved', {
-          product: saved.fullProductName || saved.productCode,
+          product: productName(saved),
         }),
       });
     },
@@ -75,8 +76,8 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
     onSubmit: ({ value }) =>
       save
         .mutateAsync(value, {
-          onSuccess: () => {
-            if (hasProductChanges(form.state.values, toProductUpdateBody(value, product))) return;
+          onSuccess: (saved) => {
+            if (hasProductChanges(form.state.values, saved)) return;
             leaving.current = true;
             if (!guard.leaveIfAsked()) onDone();
           },
@@ -109,7 +110,11 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
               title={t('products.form.save-error-title')}
             />
           )}
-          <ProductFormFields disabled={readOnly} form={form} needsDispensingUnit={unitNeeded} />
+          <ProductFormFields
+            disabled={readOnly}
+            form={form}
+            sizeCode={product.dispensable.sizeCode}
+          />
         </FieldGroup>
       </form>
       <WorkspaceFooterPortal width="default">
@@ -141,7 +146,7 @@ export function ProductGeneralFormSkeleton() {
         <FieldSkeleton label={t('products.form.name')} />
         <FieldSkeleton label={t('products.form.description')} />
         <FieldSkeleton label={t('products.form.dispensing-unit')} required />
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 @md/field-group:grid-cols-2">
           <FieldSkeleton label={t('products.form.net-content')} required />
           <FieldSkeleton label={t('products.form.pack-rounding-threshold')} required />
         </div>

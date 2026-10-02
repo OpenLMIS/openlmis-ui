@@ -3,7 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, SkeletonLine, serverMessage } from '@/components/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useProductSave } from '@/features/products/hooks/use-product-save';
+import { productName } from '@/features/products/lib/product-name';
 import { withoutProgramLink } from '@/features/products/lib/program-link-form';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { programsOptions } from '@/features/reference-data/api/queries';
@@ -24,7 +25,6 @@ import { programName } from '@/features/reference-data/lib/programs';
 
 type RemoveProgramLinkDialogProps = {
   product: ProductDetail;
-  /** The id of the program to take the product out of. */
   programId: string | undefined;
   onClose: () => void;
 };
@@ -36,12 +36,12 @@ export function RemoveProgramLinkDialog({
 }: RemoveProgramLinkDialogProps) {
   const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(programId, onClose);
-  const { data: programs } = useQuery(programsOptions());
+  const { data: programs, isPending: loading } = useQuery(programsOptions());
   const save = useProductSave(product.id);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const program = programs?.find((item) => item.id === shown);
   const name = program ? programName(program) : (shown ?? '');
-  const productLabel = product.fullProductName || product.productCode;
+  const productLabel = productName(product);
   const linked = save.isSuccess || product.programs.some((link) => link.programId === shown);
   const props = dialogProps(save.isPending);
 
@@ -59,13 +59,24 @@ export function RemoveProgramLinkDialog({
             <Trash2Icon />
           </AlertDialogMedia>
           <AlertDialogTitle>
-            {t('products.programs.remove-title', { program: name })}
+            {!linked
+              ? t('products.programs.not-found-title')
+              : loading
+                ? t('products.programs.remove-pending-title')
+                : t('products.programs.remove-title', { program: name })}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            {linked
-              ? t('products.programs.remove-description', { product: productLabel, program: name })
-              : t('products.programs.form.not-found')}
-          </AlertDialogDescription>
+          {linked && loading ? (
+            <SkeletonLine width="medium" />
+          ) : (
+            <AlertDialogDescription>
+              {linked
+                ? t('products.programs.remove-description', {
+                    product: productLabel,
+                    program: name,
+                  })
+                : t('products.programs.form.not-found')}
+            </AlertDialogDescription>
+          )}
         </AlertDialogHeader>
         {save.isError && (
           <ErrorAlert
@@ -79,11 +90,11 @@ export function RemoveProgramLinkDialog({
           </AlertDialogCancel>
           {linked && (
             <Button
-              disabled={save.isPending}
-              focusableWhenDisabled
+              disabled={save.isPending || loading}
+              focusableWhenDisabled={save.isPending}
               onClick={() =>
                 shown &&
-                save.mutate(withoutProgramLink(product, shown), {
+                save.mutate((latest) => withoutProgramLink(latest, shown), {
                   onSuccess: () => {
                     toast.success(t('products.programs.removed-title'), {
                       description: t('products.programs.removed', {

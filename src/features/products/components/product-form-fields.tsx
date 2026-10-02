@@ -5,8 +5,8 @@ import { EMPTY_PRODUCT_FORM } from '@/features/products/lib/product-form';
 
 export const ProductFormFields = withForm({
   defaultValues: EMPTY_PRODUCT_FORM,
-  props: {} as { disabled?: boolean; needsDispensingUnit?: boolean },
-  render: function Render({ form, disabled, needsDispensingUnit = true }) {
+  props: {} as { disabled?: boolean; sizeCode?: string | null | undefined },
+  render: function Render({ form, disabled, sizeCode }) {
     const { t } = useTranslation();
     return (
       <>
@@ -42,14 +42,18 @@ export const ProductFormFields = withForm({
               {(field) => (
                 <field.TextField
                   autoComplete="off"
-                  description={t('products.form.dispensing-unit-description')}
-                  disabled={disabled}
+                  description={
+                    sizeCode
+                      ? t('products.form.size-code-description', { sizeCode })
+                      : t('products.form.dispensing-unit-description')
+                  }
+                  disabled={disabled || Boolean(sizeCode)}
                   label={t('products.form.dispensing-unit')}
-                  required={needsDispensingUnit}
+                  required={!sizeCode}
                 />
               )}
             </form.AppField>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-5 @md/field-group:grid-cols-2">
               <form.AppField name="netContent">
                 {(field) => (
                   <field.NumberField

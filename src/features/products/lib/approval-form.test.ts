@@ -3,7 +3,6 @@ import {
   type ApprovalFormValues,
   approvalFormSchema,
   EMPTY_APPROVAL_FORM,
-  groupApprovals,
   toApprovalFormValues,
   toApprovalStock,
 } from '@/features/products/lib/approval-form';
@@ -27,8 +26,6 @@ const approval = (
 });
 
 const healthCenterFp = approval('a1', ['hc', 'Health Center'], ['fp', 'Family Planning']);
-const healthCenterEm = approval('a2', ['hc', 'Health Center'], ['em', 'Essential Meds']);
-const hospitalFp = approval('a3', ['dh', 'District Hospital'], ['fp', 'Family Planning']);
 
 const valid: ApprovalFormValues = {
   ...EMPTY_APPROVAL_FORM,
@@ -105,14 +102,5 @@ describe('toApprovalStock', () => {
     expect(
       toApprovalStock({ ...valid, maxPeriodsOfStock: '٢٫٥', emergencyOrderPoint: '' }),
     ).toEqual({ maxPeriodsOfStock: 2.5, emergencyOrderPoint: null, minPeriodsOfStock: null });
-  });
-});
-
-describe('groupApprovals', () => {
-  it('groups approvals by facility type, each by program name', () => {
-    expect(groupApprovals([healthCenterFp, hospitalFp, healthCenterEm])).toEqual([
-      { facilityType: hospitalFp.facilityType, approvals: [hospitalFp] },
-      { facilityType: healthCenterFp.facilityType, approvals: [healthCenterEm, healthCenterFp] },
-    ]);
   });
 });

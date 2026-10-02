@@ -3,7 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, RetryButton, SkeletonLine, serverMessage } from '@/components/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -18,7 +18,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { removeApproval } from '@/features/products/api/api';
 import { productApprovalsOptions } from '@/features/products/api/queries';
-import type { ProductDetail } from '@/features/products/lib/types';
+import { productName } from '@/features/products/lib/product-name';
+import type { Approval, ProductDetail } from '@/features/products/lib/types';
+import { programName } from '@/features/reference-data/lib/programs';
 
 type RemoveApprovalDialogProps = {
   product: ProductDetail;
@@ -30,28 +32,29 @@ export function RemoveApprovalDialog({ product, approvalId, onClose }: RemoveApp
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { shown, dialogProps } = useDialogTarget(approvalId, onClose);
-  const { data: approvals } = useQuery(productApprovalsOptions(product.id));
+  const approvals = useQuery(productApprovalsOptions(product.id));
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useMutation({
     mutationFn: removeApproval,
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: productApprovalsOptions(product.id).queryKey }),
   });
-  const approval = approvals?.find((item) => item.id === shown);
-  const [named, setNamed] = useState<{ id: string; facilityType: string; program: string }>();
-  if (approval && named?.id !== approval.id) {
-    setNamed({
-      id: approval.id,
-      facilityType: approval.facilityType.name,
-      program: approval.program.name || approval.program.code,
-    });
-  }
+  const approval = approvals.data?.find((item) => item.id === shown);
+  const [last, setLast] = useState<Approval>();
+  if (approval && approval !== last) setLast(approval);
+  const named = remove.isSuccess ? last : approval;
+  const state = named
+    ? 'found'
+    : approvals.isPending
+      ? 'loading'
+      : approvals.isError
+        ? 'failed'
+        : 'missing';
   const params = {
-    product: product.fullProductName || product.productCode,
-    facilityType: named?.facilityType ?? '',
-    program: named?.program ?? '',
+    product: productName(product),
+    facilityType: named?.facilityType.name ?? '',
+    program: named ? programName(named.program) : '',
   };
-  const found = remove.isSuccess || Boolean(approval);
   const props = dialogProps(remove.isPending);
 
   return (
@@ -67,12 +70,24 @@ export function RemoveApprovalDialog({ product, approvalId, onClose }: RemoveApp
           <AlertDialogMedia>
             <Trash2Icon />
           </AlertDialogMedia>
-          <AlertDialogTitle>{t('products.approvals.remove-title', params)}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {found
-              ? t('products.approvals.remove-description', params)
-              : t('products.approvals.form.not-found')}
-          </AlertDialogDescription>
+          <AlertDialogTitle>
+            {state === 'found'
+              ? t('products.approvals.remove-title', params)
+              : state === 'missing'
+                ? t('products.approvals.not-found-title')
+                : t('products.approvals.remove-pending-title')}
+          </AlertDialogTitle>
+          {state === 'loading' ? (
+            <SkeletonLine width="medium" />
+          ) : (
+            <AlertDialogDescription>
+              {state === 'found'
+                ? t('products.approvals.remove-description', params)
+                : state === 'missing'
+                  ? t('products.approvals.form.not-found')
+                  : t('products.approvals.error-description')}
+            </AlertDialogDescription>
+          )}
         </AlertDialogHeader>
         {remove.isError && (
           <ErrorAlert
@@ -82,12 +97,13 @@ export function RemoveApprovalDialog({ product, approvalId, onClose }: RemoveApp
         )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={remove.isPending} ref={cancelRef}>
-            {t(found ? 'dialog.cancel' : 'dialog.close')}
+            {t(state === 'missing' || state === 'failed' ? 'dialog.close' : 'dialog.cancel')}
           </AlertDialogCancel>
-          {found && (
+          {state === 'failed' && <RetryButton onClick={() => void approvals.refetch()} />}
+          {(state === 'found' || state === 'loading') && (
             <Button
-              disabled={remove.isPending}
-              focusableWhenDisabled
+              disabled={remove.isPending || state === 'loading'}
+              focusableWhenDisabled={remove.isPending}
               onClick={() =>
                 shown &&
                 remove.mutate(shown, {

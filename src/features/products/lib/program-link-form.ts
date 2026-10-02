@@ -2,7 +2,7 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { ProductDetail } from '@/features/products/lib/types';
 import type { Program } from '@/features/reference-data/lib/types';
-import { decimalText, toDecimal } from '@/lib/decimal';
+import { decimalText, toDecimal, toNumberText } from '@/lib/decimal';
 import { toOptionalWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const errorKey = (key: ParseKeys) => key;
@@ -51,16 +51,14 @@ export const EMPTY_PROGRAM_LINK_FORM: ProgramLinkFormValues = {
   pricePerPack: '',
 };
 
-const numberText = (value: number | null | undefined) => (value == null ? '' : String(value));
-
 export function toProgramLinkFormValues(link: ProductDetail['programs'][number]) {
   return {
     programId: link.programId,
     fullSupply: link.fullSupply ?? false,
-    dosesPerPatient: numberText(link.dosesPerPatient),
+    dosesPerPatient: toNumberText(link.dosesPerPatient),
     orderableDisplayCategoryId: link.orderableDisplayCategoryId ?? null,
-    displayOrder: numberText(link.displayOrder),
-    pricePerPack: numberText(link.pricePerPack),
+    displayOrder: toNumberText(link.displayOrder),
+    pricePerPack: toNumberText(link.pricePerPack),
   } satisfies ProgramLinkFormValues;
 }
 

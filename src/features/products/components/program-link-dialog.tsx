@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useSuspenseQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -28,6 +28,7 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import { productSaveKey, useProductSave } from '@/features/products/hooks/use-product-save';
+import { productName } from '@/features/products/lib/product-name';
 import {
   EMPTY_PROGRAM_LINK_FORM,
   programLinkFormSchema,
@@ -44,7 +45,6 @@ import { programName } from '@/features/reference-data/lib/programs';
 
 type ProgramLinkDialogProps = {
   product: ProductDetail;
-  /** `new` to add a program, or the id of a linked one. */
   target: string | undefined;
   readOnly: boolean;
   onClose: () => void;
@@ -115,16 +115,17 @@ function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormPro
   const { data: programs } = useSuspenseQuery(programsOptions());
   const { data: categories } = useSuspenseQuery(orderableDisplayCategoriesOptions());
   const save = useProductSave(product.id);
-  const productLabel = product.fullProductName || product.productCode;
+  const productLabel = productName(product);
   const program = link && programs.find((item) => item.id === link.programId);
   const linkedName = program ? programName(program) : link?.programId;
 
+  const [productAtOpen] = useState(product);
   const programItems = useMemo(
     () =>
-      unlinkedPrograms(programs, product)
+      unlinkedPrograms(programs, productAtOpen)
         .map((item) => ({ value: item.id, label: programName(item) }))
         .sort((a, b) => a.label.localeCompare(b.label)),
-    [programs, product],
+    [programs, productAtOpen],
   );
   const categoryItems = useMemo(
     () => categories.map((category) => ({ value: category.id, label: category.displayName })),
@@ -137,7 +138,7 @@ function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormPro
     validators: { onDynamic: programLinkFormSchema() },
     onSubmit: ({ value }) =>
       save
-        .mutateAsync(withProgramLink(product, value), {
+        .mutateAsync((latest) => withProgramLink(latest, value), {
           onSuccess: () => {
             const added = programs.find((item) => item.id === value.programId);
             const name = added ? programName(added) : (linkedName ?? '');
@@ -213,7 +214,7 @@ function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormPro
               />
             )}
           </form.AppField>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 @md/field-group:grid-cols-2">
             <form.AppField name="dosesPerPatient">
               {(field) => (
                 <field.NumberField
@@ -276,7 +277,7 @@ function ProgramLinkSkeleton({ title, adding, readOnly }: ProgramLinkSkeletonPro
         <FieldGroup>
           {adding && <FieldSkeleton label={t('products.programs.program')} required />}
           <FieldSkeleton label={t('products.programs.form.category')} required />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 @md/field-group:grid-cols-2">
             <FieldSkeleton label={t('products.programs.form.doses-per-patient')} />
             <FieldSkeleton label={t('products.programs.form.display-order')} />
           </div>

@@ -1,3 +1,4 @@
+import type { HistoryState } from '@tanstack/react-router';
 import { PackageIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
+import { productName } from '@/features/products/lib/product-name';
 import type { ProductDetail } from '@/features/products/lib/types';
 
 const PRODUCT_TABS = [
@@ -30,10 +32,16 @@ const PRODUCT_TABS = [
 type ProductWorkspaceProps = {
   productId: string;
   product?: ProductDetail;
+  tabState?: HistoryState;
   children: ReactNode;
 };
 
-export function ProductWorkspace({ productId, product, children }: ProductWorkspaceProps) {
+export function ProductWorkspace({
+  productId,
+  product,
+  tabState,
+  children,
+}: ProductWorkspaceProps) {
   const { t } = useTranslation();
 
   return (
@@ -47,7 +55,7 @@ export function ProductWorkspace({ productId, product, children }: ProductWorksp
             <WorkspaceTitle>
               {product
                 ? t('products.edit.title', {
-                    product: product.fullProductName || product.productCode,
+                    product: productName(product),
                   })
                 : t('products.edit.crumb')}
             </WorkspaceTitle>
@@ -63,6 +71,7 @@ export function ProductWorkspace({ productId, product, children }: ProductWorksp
         <WorkspaceContent>
           <WorkspaceTabs
             label={t('products.edit.tabs-label')}
+            linkState={tabState}
             tabs={PRODUCT_TABS.map(({ to, labelKey }) => ({
               to,
               params: { id: productId },

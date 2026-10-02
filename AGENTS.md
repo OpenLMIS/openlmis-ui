@@ -103,11 +103,6 @@ loader: ({ context: { queryClient }, params }) =>
   queryClient.ensureQueryData(facilityDetailOptions(params.facilityId)),
 ```
 
-A page that saves its record whole reads it fresh on every opening, so a save never sends back
-an old copy: its loader uses `fetchQuery` with `staleTime: 0` on `cause: 'enter'` and the cached
-copy on `stay`, as a tab switch is, and the route sets `preload: false`, since a preloaded match
-opens at once on the cache while the fresh read runs behind. Product edit is the example.
-
 Three rules that follow from this:
 
 - `prefetchQuery` is the fire-and-forget call, not `ensureQueryData`. It swallows errors
@@ -509,6 +504,12 @@ A dialog whose save sends the whole record back reads that record fresh each tim
 a cached copy could undo another admin's change: its detail query key carries a number the
 dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
 Programs and Facility Types are the examples; Roles and Users still use one cached detail.
+A page whose tabs save the record whole, like product edit, reads it fresh on every opening: its
+loader uses `fetchQuery` with `staleTime: 0` on `cause: 'enter'` and the cached copy on `stay`, as a
+tab switch is, and the route sets `preload: false`, since a preloaded match opens at once on the
+cache while the fresh read runs behind. Each save then reads the record again and applies only its
+own change to it (`saveProductChange`), so a tab left open never sends back an old copy. The
+opening number of a dialog comes from `useOpening()` in `src/hooks/use-opening.ts`.
 A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
 from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
 

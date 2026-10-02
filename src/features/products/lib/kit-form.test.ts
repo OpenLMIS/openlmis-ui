@@ -4,7 +4,7 @@ import {
   kitFormSchema,
   toKitBody,
   toKitFormValues,
-  withKitProducts,
+  toKitRow,
 } from '@/features/products/lib/kit-form';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 
@@ -35,6 +35,12 @@ const kit: ProductDetail = {
   ],
   identifiers: { tradeItem: 't1' },
 };
+
+const withPicked = (values: { children: KitRow[] }, picked: Product[]) => ({
+  children: [...values.children, ...picked.map((item) => toKitRow(item))],
+});
+
+type KitRow = ReturnType<typeof toKitRow>;
 
 const messages = (rows: { quantity: string }[]) =>
   kitFormSchema()
@@ -74,10 +80,9 @@ describe('kitFormSchema', () => {
   });
 });
 
-describe('withKitProducts', () => {
-  it('adds the picked products with no quantity, after the ones already there', () => {
-    const values = toKitFormValues(kit, [gloves, syringe]);
-    expect(withKitProducts(values, [swab]).children.at(-1)).toEqual({
+describe('toKitRow', () => {
+  it('lists a picked product with no quantity yet', () => {
+    expect(toKitRow(swab)).toEqual({
       id: 'w1',
       code: 'W1',
       name: 'Swab',
@@ -93,9 +98,7 @@ describe('toKitBody', () => {
 
   it('sends the quantities and products as edited', () => {
     const values = toKitFormValues(kit, [gloves, syringe]);
-    const edited = withKitProducts({ children: [{ ...values.children[0], quantity: ' ٣ ' }] }, [
-      swab,
-    ]);
+    const edited = withPicked({ children: [{ ...values.children[0], quantity: ' ٣ ' }] }, [swab]);
     edited.children[1].quantity = '0';
 
     expect(toKitBody(edited, kit)).toEqual({
@@ -121,6 +124,6 @@ describe('hasKitChanges', () => {
     expect(hasKitChanges({ children: [{ ...first, quantity: '3' }, second] }, kit)).toBe(true);
     expect(hasKitChanges({ children: [{ ...first, quantity: '' }, second] }, kit)).toBe(true);
     expect(hasKitChanges({ children: [first] }, kit)).toBe(true);
-    expect(hasKitChanges(withKitProducts(values, [swab]), kit)).toBe(true);
+    expect(hasKitChanges(withPicked(values, [swab]), kit)).toBe(true);
   });
 });
