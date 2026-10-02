@@ -289,4 +289,33 @@ describe('editing', () => {
     );
     expect(isManagedExternally({ ...saved, extraData: null })).toBe(false);
   });
+
+  it('sends the fields another system manages exactly as stored, which the server requires', () => {
+    const managed: Facility = {
+      ...saved,
+      name: 'Managed Clinic ',
+      description: '',
+      active: false,
+      extraData: { isManagedExternally: 'true' },
+    };
+    const values = { ...toFacilityFormValues(managed), enabled: true, typeId: 't1' };
+    expect(toFacilityBody(values, managed)).toMatchObject({
+      code: 'HC01',
+      name: 'Managed Clinic ',
+      description: '',
+      active: false,
+      geographicZone: { id: 'z1' },
+      enabled: true,
+      type: { id: 't1' },
+    });
+  });
+
+  it('does not ask for the name or code of a facility another system manages', () => {
+    const managed: Facility = { ...saved, name: null, extraData: { isManagedExternally: 'true' } };
+    expect(
+      facilityFormSchema([], { goLiveDateRequired: true, locked: true }).safeParse(
+        toFacilityFormValues(managed),
+      ).success,
+    ).toBe(true);
+  });
 });

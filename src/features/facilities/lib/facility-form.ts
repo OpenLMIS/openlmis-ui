@@ -41,15 +41,20 @@ const programRowSchema = z
 
 export function facilityFormSchema(
   refusedCodes: readonly string[],
-  { goLiveDateRequired = false }: { goLiveDateRequired?: boolean } = {},
+  {
+    goLiveDateRequired = false,
+    locked = false,
+  }: { goLiveDateRequired?: boolean; locked?: boolean } = {},
 ) {
   const refused = new Set(refusedCodes.map(comparableCode));
   return z.object({
-    name: requiredText('facilities.form.name-required'),
-    code: requiredText('facilities.form.code-required').refine(
-      (code) => !refused.has(comparableCode(code)),
-      errorKey('facilities.form.code-taken'),
-    ),
+    name: locked ? z.string() : requiredText('facilities.form.name-required'),
+    code: locked
+      ? z.string()
+      : requiredText('facilities.form.code-required').refine(
+          (code) => !refused.has(comparableCode(code)),
+          errorKey('facilities.form.code-taken'),
+        ),
     typeId: requiredChoice('facilities.form.type-required'),
     zoneId: requiredChoice('facilities.form.zone-required'),
     goLiveDate: goLiveDateRequired
@@ -109,7 +114,7 @@ export function toFacilityFormValues(saved: Facility): FacilityFormValues {
 }
 
 export function toFacilityBody(values: FacilityFormValues, saved?: Facility): FacilityBody {
-  return {
+  const body: FacilityBody = {
     ...saved,
     code: values.code.trim(),
     name: values.name.trim(),
@@ -127,6 +132,16 @@ export function toFacilityBody(values: FacilityFormValues, saved?: Facility): Fa
       supportLocallyFulfilled: row.supportLocallyFulfilled,
       supportStartDate: row.supportStartDate || null,
     })),
+  };
+  if (!saved || !isManagedExternally(saved)) return body;
+  // The server refuses any change to these, even trimming, for a facility another system manages.
+  return {
+    ...body,
+    code: saved.code,
+    name: saved.name,
+    description: saved.description ?? null,
+    active: saved.active,
+    geographicZone: { id: saved.geographicZone.id },
   };
 }
 
@@ -150,6 +165,10 @@ export function availablePrograms(programs: readonly Program[], rows: readonly P
 }
 
 export type FacilityTab = 'information' | 'programs';
+
+export const facilityEditorSearchSchema = z.object({
+  tab: z.literal('programs').optional().catch(undefined),
+});
 
 export function tabWithFirstError(fieldNames: readonly string[]): FacilityTab | undefined {
   if (fieldNames.length === 0) return undefined;

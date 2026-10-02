@@ -291,12 +291,13 @@ describe('FacilityEditor', () => {
     it('marks the operational date required, with no clear button, as legacy asks for it', async () => {
       renderEdit(facility);
 
-      const date = await screen.findByRole(
-        'button',
-        { name: /^facilities\.form\.go-live-date/ },
-        { timeout: 3000 },
-      );
-      expect(date).toHaveAttribute('aria-required', 'true');
+      expect(
+        await screen.findByRole(
+          'button',
+          { name: /^facilities\.form\.go-live-date Required/ },
+          { timeout: 3000 },
+        ),
+      ).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'facilities.form.clear-go-live-date' }),
       ).toBeNull();

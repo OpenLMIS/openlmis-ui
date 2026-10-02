@@ -12,7 +12,7 @@ type Reference = { id: string };
 
 export type FacilityBody = {
   code: string;
-  name: string;
+  name: string | null;
   description: string | null;
   active: boolean;
   enabled: boolean;
