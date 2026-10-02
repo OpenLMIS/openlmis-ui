@@ -381,6 +381,7 @@
   "products.kit.search-description": "The kit itself and products already in it are left out.",
   "products.kit.search-empty": "No products match.",
   "products.kit.search-error": "Could not search products. Check your connection and try again.",
+  "products.kit.search-more": "The first {shown} of {count} matches are listed. Type more of the code or name to narrow them down.",
   "products.kit.search-placeholder": "Search By Code Or Name",
   "products.kit.searching": "Searching...",
   "products.kit.too-large": "Enter a number no larger than 2147483647.",

@@ -381,6 +381,7 @@
   "products.kit.search-description": "O próprio kit e os produtos que já contém ficam de fora.",
   "products.kit.search-empty": "Nenhum produto encontrado.",
   "products.kit.search-error": "Não foi possível pesquisar produtos. Verifique a sua ligação e tente novamente.",
+  "products.kit.search-more": "São listadas as primeiras {shown} de {count} correspondências. Escreva mais do código ou do nome para as reduzir.",
   "products.kit.search-placeholder": "Pesquisar por Código ou Nome",
   "products.kit.searching": "A pesquisar...",
   "products.kit.too-large": "Introduza um número não superior a 2147483647.",

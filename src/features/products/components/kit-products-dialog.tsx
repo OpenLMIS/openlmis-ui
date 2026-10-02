@@ -106,7 +106,14 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
           <form.AppField name="picked">
             {(field) => (
               <field.MultiComboboxField
-                description={t('products.kit.search-description')}
+                description={
+                  !searching && (results.data?.totalElements ?? 0) > SEARCH_SIZE
+                    ? t('products.kit.search-more', {
+                        shown: SEARCH_SIZE,
+                        count: results.data?.totalElements,
+                      })
+                    : t('products.kit.search-description')
+                }
                 emptyMessage={
                   searching
                     ? t('products.kit.searching')

@@ -937,6 +937,9 @@ export function MultiComboboxField({
         items={items}
         multiple
         onInputValueChange={onSearch}
+        onOpenChange={(_, details) => {
+          if (onSearch && details.reason === 'item-press') details.cancel();
+        }}
         onValueChange={(chosen, details) => {
           if (details.reason === 'escape-key' && chosen.length === 0)
             return details.allowPropagation();

@@ -135,3 +135,21 @@ describe('KitUnpackList', () => {
     expect(screen.getByRole('button', { name: 'products.edit.back' })).toBeInTheDocument();
   });
 });
+
+describe('KitUnpackList search', () => {
+  it('says when there are more matches than it lists', async () => {
+    vi.mocked(fetchProducts).mockResolvedValue({
+      content: [gloves, syringe],
+      totalElements: 45,
+      totalPages: 3,
+      number: 0,
+      size: 20,
+    });
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+
+    expect(await screen.findByText('products.kit.search-more', {}, LOADED)).toBeInTheDocument();
+  });
+});

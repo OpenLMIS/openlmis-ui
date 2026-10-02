@@ -432,10 +432,12 @@ describe('a multi combobox that searches the server', () => {
     const onSearch = vi.fn();
     render(<ServerSearchForm onSearch={onSearch} />);
 
-    await user.type(screen.getByRole('combobox', { name: 'Products' }), 'g');
+    const input = screen.getByRole('combobox', { name: 'Products' });
+    await user.type(input, 'g');
     expect(onSearch).toHaveBeenLastCalledWith('g');
     await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
-    await user.type(screen.getByRole('combobox', { name: 'Products' }), 's');
+    await user.clear(input);
+    await user.type(input, 's');
 
     expect(await screen.findByRole('option', { name: 'S1 - Syringe' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
@@ -468,5 +470,22 @@ describe('a multi combobox', () => {
         .getAllByRole('button', { name: /^Remove / })
         .map((chip) => chip.getAttribute('aria-label')),
     ).toEqual(['Remove G1 - Gloves', 'Remove S1 - Syringe']);
+  });
+});
+
+describe('a multi combobox that searches the server, picking several', () => {
+  it('keeps the search and the list after each pick', async () => {
+    const user = userEvent.setup();
+    render(<ServerSearchForm onSearch={vi.fn()} />);
+    const input = screen.getByRole('combobox', { name: 'Products' });
+
+    await user.type(input, '1');
+    await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
+
+    expect(input).toHaveValue('1');
+    await user.click(screen.getByRole('option', { name: 'S1 - Syringe' }));
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('button', { name: 'Remove G1 - Gloves' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove S1 - Syringe' })).toBeInTheDocument();
   });
 });

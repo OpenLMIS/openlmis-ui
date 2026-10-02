@@ -529,7 +529,8 @@ the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
 `MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
-products, passes `onSearch` and the server's matches as `items`; one of a short fixed list is a
+products, passes `onSearch` and the server's matches as `items`, and keeps the search and the list
+open after each pick; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. Every field takes a `layout`: `stacked` by default; `row` for a settings

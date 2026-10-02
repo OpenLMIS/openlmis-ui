@@ -381,6 +381,7 @@
   "products.kit.search-description": "تُستبعد العُدّة نفسها والمنتجات الموجودة فيها.",
   "products.kit.search-empty": "لا توجد منتجات مطابقة.",
   "products.kit.search-error": "تعذر البحث عن المنتجات. تحقق من اتصالك وحاول مرة أخرى.",
+  "products.kit.search-more": "تُعرض أول {shown} من {count} نتيجة. اكتب المزيد من الرمز أو الاسم لتضييقها.",
   "products.kit.search-placeholder": "ابحث بالرمز أو الاسم",
   "products.kit.searching": "جارٍ البحث...",
   "products.kit.too-large": "أدخل رقماً لا يزيد على 2147483647.",
