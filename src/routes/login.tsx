@@ -1,22 +1,17 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Loader2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
-import { useAppForm } from '@/components/form/form';
-import { LanguageSwitcher } from '@/components/language-switcher';
-import { Logo } from '@/components/logo';
-import { ThemeSwitcher } from '@/components/theme-switcher';
-import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { FieldGroup } from '@/components/ui/field';
+  AuthForm,
+  AuthHeader,
+  AuthLink,
+  AuthPage,
+  AuthSubmit,
+  AuthTitle,
+} from '@/components/auth-card';
+import { useAppForm } from '@/components/form/form';
+import { CardContent, CardDescription } from '@/components/ui/card';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -58,83 +53,46 @@ function LoginPage() {
   });
 
   return (
-    <section className="relative flex min-h-svh w-full flex-col items-center justify-center bg-muted px-6 py-12 text-foreground dark:bg-background">
-      <title>{`${t('login.title')} - ${appName}`}</title>
+    <AuthPage title={t('login.title')}>
+      <AuthHeader>
+        <AuthTitle>{t('login.heading')}</AuthTitle>
+        <CardDescription>{t('login.subtitle', { appName })}</CardDescription>
+      </AuthHeader>
 
-      <div className="absolute top-4 end-4 flex items-center gap-1">
-        <LanguageSwitcher />
-        <ThemeSwitcher />
-      </div>
+      <CardContent>
+        <AuthForm onSubmit={form.handleSubmit}>
+          <form.AppField name="username">
+            {(field) => (
+              <field.TextField
+                autoComplete="username"
+                label={t('login.username')}
+                placeholder={t('login.username-placeholder')}
+              />
+            )}
+          </form.AppField>
 
-      <div className="w-full max-w-sm">
-        <Card>
-          <CardHeader align="center">
-            <Logo className="mx-auto h-12" />
-            <CardTitle size="lg">{t('login.heading')}</CardTitle>
-            <CardDescription>{t('login.subtitle', { appName })}</CardDescription>
-          </CardHeader>
+          <form.AppField name="password">
+            {(field) => (
+              <field.PasswordField
+                action={<AuthLink to="/forgot-password">{t('login.forgot-password')}</AuthLink>}
+                autoComplete="current-password"
+                hideLabel={t('login.hide-password')}
+                label={t('login.password')}
+                placeholder={t('login.password-placeholder')}
+                showLabel={t('login.show-password')}
+              />
+            )}
+          </form.AppField>
 
-          <CardContent>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                form.handleSubmit();
-              }}
-              noValidate
-            >
-              <FieldGroup>
-                <form.AppField name="username">
-                  {(field) => (
-                    <field.TextField
-                      autoComplete="username"
-                      label={t('login.username')}
-                      placeholder={t('login.username-placeholder')}
-                    />
-                  )}
-                </form.AppField>
-
-                <form.AppField name="password">
-                  {(field) => (
-                    <field.PasswordField
-                      autoComplete="current-password"
-                      hideLabel={t('login.hide-password')}
-                      label={t('login.password')}
-                      placeholder={t('login.password-placeholder')}
-                      showLabel={t('login.show-password')}
-                    />
-                  )}
-                </form.AppField>
-
-                <form.Subscribe selector={(state) => state.isSubmitting}>
-                  {(isSubmitting) => (
-                    <Button type="submit" width="full" disabled={isSubmitting}>
-                      {isSubmitting && (
-                        <Loader2Icon data-icon="inline-start" className="animate-spin" />
-                      )}
-                      {isSubmitting ? t('login.submitting') : t('login.submit')}
-                    </Button>
-                  )}
-                </form.Subscribe>
-              </FieldGroup>
-            </form>
-          </CardContent>
-
-          <CardFooter align="center">
-            <p className="text-muted-foreground text-sm">
-              {t('login.powered-by')}{' '}
-              <a
-                className="underline underline-offset-4 hover:text-primary"
-                href="https://openlmis.org/"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                OpenLMIS
-              </a>
-              .
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
-    </section>
+          <form.Subscribe selector={(state) => state.isSubmitting}>
+            {(isSubmitting) => (
+              <AuthSubmit pending={isSubmitting}>
+                {isSubmitting ? t('login.submitting') : t('login.submit')}
+              </AuthSubmit>
+            )}
+          </form.Subscribe>
+        </AuthForm>
+      </CardContent>
+    </AuthPage>
   );
 }

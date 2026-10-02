@@ -2,10 +2,10 @@ import type { ParseKeys } from 'i18next';
 import { CheckIcon, CircleIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
-  PASSWORD_RULES,
   type PasswordOwner,
   type PasswordRule,
   passwordChecks,
+  passwordRules,
 } from '@/lib/password-rules';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ const RULE_LABELS: Record<PasswordRule, ParseKeys> = {
 type PasswordRequirementsProps = {
   id: string;
   password: string;
-  owner: PasswordOwner;
+  owner?: PasswordOwner;
 };
 
 export function PasswordRequirements({ id, password, owner }: PasswordRequirementsProps) {
@@ -28,7 +28,7 @@ export function PasswordRequirements({ id, password, owner }: PasswordRequiremen
 
   return (
     <ul aria-label={t('users.password.requirements')} className="grid gap-1 text-sm" id={id}>
-      {PASSWORD_RULES.map((rule) => {
+      {passwordRules(owner).map((rule) => {
         const met = checks[rule];
         const Icon = met ? CheckIcon : CircleIcon;
         return (

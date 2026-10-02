@@ -5,8 +5,8 @@ import { type PasswordOwner, passwordIssue } from '@/lib/password-rules';
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;
 
-/** The new password, typed twice; it may not contain the user's username or names. */
-export const changePasswordSchema = (owner: PasswordOwner) =>
+/** The new password, typed twice; with an owner, it may not contain their username or names. */
+export const newPasswordSchema = (owner?: PasswordOwner) =>
   z
     .object({ password: z.string(), confirm: z.string() })
     .superRefine(({ password, confirm }, context) => {

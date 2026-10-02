@@ -49,3 +49,15 @@ export async function fetchPermissionStrings(userId: string): Promise<string[]> 
   const { data } = await client.get<string[]>(`/users/${userId}/permissionStrings`);
   return data;
 }
+
+/** Emails a reset link to the account with this address; the server answers alike for any address. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await client.post('/users/auth/forgotPassword', undefined, {
+    params: { email },
+    anonymous: true,
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await client.post('/users/auth/changePassword', { token, newPassword }, { anonymous: true });
+}

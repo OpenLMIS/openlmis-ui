@@ -5,6 +5,7 @@ import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { Trans, useTranslation } from 'react-i18next';
 import * as z from 'zod';
+import { AuthLink } from '@/components/auth-card';
 import { ErrorAlert } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -27,6 +28,7 @@ import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { isSignInPage } from '@/lib/redirect';
 
 // Its own field name, so its id never clashes with a password field on the page behind it.
 const passwordSchema = z.object({ sessionPassword: loginSchema.shape.password });
@@ -41,7 +43,7 @@ function signInErrorKey(error: unknown): ParseKeys {
 export function SessionExpiredDialog() {
   const expired = useLoginData((state) => state.isAuthenticated && state.expired);
   const username = useLoginData((state) => state.username);
-  const onLogin = useRouterState({ select: (state) => state.location.pathname === '/login' });
+  const onLogin = useRouterState({ select: (state) => isSignInPage(state.location.pathname) });
   // Keeps the last username through the close animation, so the dialog never empties as it fades.
   const { shown, dialogProps } = useDialogTarget(
     expired && !onLogin && username ? username : undefined,
@@ -114,6 +116,12 @@ function SignInAgainForm({ username }: { username: string }) {
           <form.AppField name="sessionPassword">
             {(field) => (
               <field.PasswordField
+                action={
+                  // A new tab, so the page and its unsaved work stay behind the dialog.
+                  <AuthLink newTab to="/forgot-password">
+                    {t('login.forgot-password')}
+                  </AuthLink>
+                }
                 autoComplete="current-password"
                 description={
                   <Trans

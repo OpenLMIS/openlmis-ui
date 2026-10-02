@@ -399,6 +399,13 @@ They are hidden on Home and on pages outside the nav without one. None of them a
 page needs a different treatment, add a variant to the component rather than overriding
 at the call site.
 
+Signed-out pages (Sign In, Forgot Password, Reset Password) sit outside the app shell and
+compose `src/components/auth-card.tsx` instead: `AuthPage` with the page's title, then
+`AuthHeader` holding an `AuthTitle` (the page's heading) and a `CardDescription`, then
+`CardContent` holding an `AuthForm` with its fields, an `AuthSubmit` and any `AuthLink`. A card
+that replaces the form the user was in, such as a confirmation, passes `focus` to its
+`AuthTitle`, so keyboard and screen-reader users land on it.
+
 ## List pages
 
 Server-paged lists follow the Users page (`src/routes/(protected)/_protected.administration.users.tsx`).
@@ -527,7 +534,11 @@ exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTit
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns` and
 `SelectTrigger width`. In a row, `SwitchField` and `SelectField` take an `action` in the label's
-row, such as a flag's info button and Reset; `TextField` takes a `badge` there. A select's list
+row, such as a flag's info button and Reset; `TextField` takes a `badge` there. Stacked, a
+`PasswordField` takes an `action` at the end of its label's line, such as Forgot Password?,
+reached after the input with Tab, and
+two of them that show and hide as one, a password and its confirmation, share `visible` and
+`onVisibleChange`. A select's list
 opens below its input, never over it: `alignItemWithTrigger` is `false`.
 `RadioGroupField` takes `variant="tile"` for a grid of small options such as colours, and
 `columns="row"` to put a few cards side by side once the page has room.
@@ -632,7 +643,9 @@ with a `SessionEndedError`, and so does a refusal of a request sent for a user w
 longer the one signed in (`sentFor`), so nothing is ever resent as someone else. A `401` for a token that has since been replaced is resent, not
 treated as a new expiry. Signing in and out pass `session: false`, so their own refusals
 never open the dialog, and a request that brings its own `Authorization` (the login's Basic
-header) keeps it. Queries never retry a `401` or `403`.
+header) keeps it. Forgot Password and Reset Password pass `anonymous: true`: no token at all,
+since the auth service refuses any bearer on those endpoints, and no waiting for a session.
+The session dialog stays off the signed-out pages `isSignInPage()` lists. Queries never retry a `401` or `403`.
 
 Anything that signs the user out on purpose goes through `useOfflineSignOut()`
 (`src/components/offline-sign-out.tsx`) before `whenLeaveAllowed`: offline, it asks first,
