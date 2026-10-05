@@ -77,6 +77,7 @@ export default defineConfig(({ mode }) => {
       css: false,
       clearMocks: true,
       restoreMocks: true,
+      testTimeout: 20_000,
     },
     build: {
       rollupOptions: {

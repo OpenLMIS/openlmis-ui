@@ -27,7 +27,7 @@ describe('date field calendar loading', () => {
 
     await user.click(screen.getByRole('button', { name: /^Opened/ }));
 
-    expect(await screen.findByRole('dialog', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(calendarLoads.count).toBe(2);
   });
 });

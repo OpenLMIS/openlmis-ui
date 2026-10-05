@@ -38,8 +38,6 @@ const kit: ProductDetail = {
   children: [{ orderable: { id: 'g1' }, quantity: 2 }],
 };
 
-const LOADED = { timeout: 3000 };
-
 const updateProduct = vi.fn<(id: string, body: ProductDetail) => Promise<ProductDetail>>();
 
 beforeEach(() => {
@@ -81,9 +79,7 @@ describe('KitUnpackList', () => {
 
     await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
     await user.click(await screen.findByRole('combobox', { name: 'products.kit.products' }));
-    expect(
-      await screen.findByRole('option', { name: 'S1 - Syringe (each)' }, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'S1 - Syringe (each)' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /KIT1/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /Gloves/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'S1 - Syringe (each)' }));
@@ -171,6 +167,6 @@ describe('KitUnpackList search', () => {
 
     await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
 
-    expect(await screen.findByText('products.kit.search-more', {}, LOADED)).toBeInTheDocument();
+    expect(await screen.findByText('products.kit.search-more')).toBeInTheDocument();
   });
 });

@@ -106,13 +106,13 @@ const duplicateCode = () =>
     data: { messageKey: 'referenceData.error.facility.code.mustBeUnique' },
   });
 
-describe('FacilityEditor', { timeout: 20_000 }, () => {
+describe('FacilityEditor', () => {
   it('keeps what was typed on one tab while the other is open', async () => {
     const user = userEvent.setup();
     renderPage(<Editor save={vi.fn()} />, { queryClient: seededClient() });
 
     await user.type(
-      await screen.findByRole('textbox', { name: 'facilities.form.name' }, { timeout: 10_000 }),
+      await screen.findByRole('textbox', { name: 'facilities.form.name' }),
       'Comfort',
     );
     await user.click(screen.getByRole('tab', { name: /programs/i }));
@@ -145,15 +145,13 @@ describe('FacilityEditor', { timeout: 20_000 }, () => {
       { queryClient: seededClient() },
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Create' }, { timeout: 10_000 }));
+    await user.click(await screen.findByRole('button', { name: 'Create' }));
 
-    await waitFor(
-      () =>
-        expect(screen.getByRole('tab', { name: /programs/i })).toHaveAttribute(
-          'aria-selected',
-          'true',
-        ),
-      { timeout: 5000 },
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /programs/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
     );
     expect(save).not.toHaveBeenCalled();
   });
@@ -226,7 +224,7 @@ describe('FacilityEditor', { timeout: 20_000 }, () => {
     const save = vi.fn().mockReturnValue(new Promise(() => {}));
     renderPage(<Editor initialValues={filled} save={save} />, { queryClient: seededClient() });
 
-    await user.click(await screen.findByRole('button', { name: 'Create' }, { timeout: 10_000 }));
+    await user.click(await screen.findByRole('button', { name: 'Create' }));
 
     await waitFor(() => expect(save).toHaveBeenCalled());
     expect(screen.getByRole('tablist').closest('[inert]')).not.toBeNull();
@@ -265,17 +263,15 @@ describe('FacilityEditor', { timeout: 20_000 }, () => {
     it('keeps the current type on offer though it is no longer active', async () => {
       renderEdit(facility);
 
-      expect(
-        await screen.findByRole('combobox', { name: 'facilities.form.type' }, { timeout: 10_000 }),
-      ).toHaveValue('Retired Type');
+      expect(await screen.findByRole('combobox', { name: 'facilities.form.type' })).toHaveValue(
+        'Retired Type',
+      );
     });
 
     it('locks what another system manages and says why', async () => {
       renderEdit({ ...facility, extraData: { isManagedExternally: 'true' } });
 
-      expect(
-        await screen.findByRole('textbox', { name: 'facilities.form.name' }, { timeout: 10_000 }),
-      ).toBeDisabled();
+      expect(await screen.findByRole('textbox', { name: 'facilities.form.name' })).toBeDisabled();
       expect(screen.getByRole('textbox', { name: 'facilities.form.code' })).toBeDisabled();
       expect(screen.getByRole('textbox', { name: 'facilities.form.description' })).toBeDisabled();
       expect(screen.getByRole('switch', { name: 'facilities.form.active' })).toHaveAttribute(
@@ -294,11 +290,7 @@ describe('FacilityEditor', { timeout: 20_000 }, () => {
       renderEdit(facility);
 
       expect(
-        await screen.findByRole(
-          'button',
-          { name: /^facilities\.form\.go-live-date Required/ },
-          { timeout: 10_000 },
-        ),
+        await screen.findByRole('button', { name: /^facilities\.form\.go-live-date Required/ }),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'facilities.form.clear-go-live-date' }),
@@ -309,7 +301,7 @@ describe('FacilityEditor', { timeout: 20_000 }, () => {
       const user = userEvent.setup();
       renderEdit(facility);
 
-      await user.click(await screen.findByRole('tab', { name: /programs/i }, { timeout: 10_000 }));
+      await user.click(await screen.findByRole('tab', { name: /programs/i }));
 
       expect(screen.getByText('Family Planning')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'facilities.form.remove-program' })).toBeNull();

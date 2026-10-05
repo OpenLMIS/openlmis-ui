@@ -58,8 +58,6 @@ const approval: Approval = {
   program: familyPlanning,
 };
 
-const LOADED = { timeout: 3000 };
-
 const refusal = () => httpError(400, { message: 'Refused by the server' });
 
 beforeEach(() => {
@@ -91,7 +89,7 @@ function renderDialog(target: string, { readOnly = false } = {}) {
 
 async function pick(label: RegExp, option: string) {
   const user = userEvent.setup();
-  await user.click(await screen.findByRole('combobox', { name: label }, LOADED));
+  await user.click(await screen.findByRole('combobox', { name: label }));
   await user.click(await screen.findByRole('option', { name: option }));
 }
 
@@ -101,9 +99,7 @@ describe('ApprovalDialog', () => {
     const { onClose } = renderDialog('new');
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('combobox', { name: /products.approvals.program/ }, LOADED),
-    );
+    await user.click(await screen.findByRole('combobox', { name: /products.approvals.program/ }));
     expect(screen.queryByRole('option', { name: 'TB' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
     await pick(/products.approvals.facility-type/, 'District Hospital');
@@ -128,9 +124,7 @@ describe('ApprovalDialog', () => {
     await user.type(screen.getByLabelText(/products.approvals.max-periods/), '3');
     await user.click(screen.getByRole('button', { name: 'products.approvals.form.add' }));
 
-    expect(
-      await screen.findByText('products.approvals.form.duplicate', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.approvals.form.duplicate')).toBeInTheDocument();
     expect(addApproval).not.toHaveBeenCalled();
   });
 
@@ -141,7 +135,7 @@ describe('ApprovalDialog', () => {
     const { onClose } = renderDialog('a1');
     const user = userEvent.setup();
 
-    const max = await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED);
+    const max = await screen.findByLabelText(/products.approvals.max-periods/);
     expect(max).toHaveValue('4');
     expect(
       screen.getByRole('combobox', { name: /products.approvals.facility-type/ }),
@@ -165,12 +159,10 @@ describe('ApprovalDialog', () => {
     const { onClose } = renderDialog('a1');
     const user = userEvent.setup();
 
-    await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED);
+    await screen.findByLabelText(/products.approvals.max-periods/);
     await user.click(screen.getByRole('button', { name: 'products.approvals.form.save' }));
 
-    expect(
-      await screen.findByText('products.approvals.form.not-found', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.approvals.form.not-found')).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -180,14 +172,12 @@ describe('ApprovalDialog', () => {
     const { onClose } = renderDialog('a1');
     const user = userEvent.setup();
 
-    const max = await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED);
+    const max = await screen.findByLabelText(/products.approvals.max-periods/);
     await user.clear(max);
     await user.type(max, '6');
     await user.click(screen.getByRole('button', { name: 'products.approvals.form.save' }));
 
-    expect(
-      await screen.findByText('products.approvals.form.save-error-title', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.approvals.form.save-error-title')).toBeInTheDocument();
     expect(screen.getByText('Refused by the server')).toBeInTheDocument();
     expect(max).toHaveValue('6');
     expect(onClose).not.toHaveBeenCalled();
@@ -197,9 +187,7 @@ describe('ApprovalDialog', () => {
     vi.mocked(fetchApproval).mockResolvedValueOnce(approval);
     renderDialog('a1', { readOnly: true });
 
-    expect(
-      await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED),
-    ).toBeDisabled();
+    expect(await screen.findByLabelText(/products.approvals.max-periods/)).toBeDisabled();
     expect(screen.getByRole('button', { name: 'dialog.close' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.approvals.form.save' }),
@@ -214,9 +202,7 @@ describe('RemoveApprovalDialog', () => {
     renderPage(<RemoveApprovalDialog approvalId="a1" onClose={onClose} product={product} />);
     const user = userEvent.setup();
 
-    expect(
-      await screen.findByText('products.approvals.remove-description', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.approvals.remove-description')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'products.approvals.remove' }));
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -231,13 +217,9 @@ describe('RemoveApprovalDialog when the server refuses', () => {
     renderPage(<RemoveApprovalDialog approvalId="a1" onClose={onClose} product={product} />);
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'products.approvals.remove' }, LOADED),
-    );
+    await user.click(await screen.findByRole('button', { name: 'products.approvals.remove' }));
 
-    expect(
-      await screen.findByText('products.approvals.remove-error-title', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.approvals.remove-error-title')).toBeInTheDocument();
     expect(screen.getByText('Refused by the server')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'products.approvals.remove' })).toBeEnabled();
     expect(onClose).not.toHaveBeenCalled();
@@ -260,11 +242,7 @@ describe('RemoveApprovalDialog while the approvals load', () => {
     renderPage(<RemoveApprovalDialog approvalId="gone" onClose={vi.fn()} product={product} />);
 
     expect(
-      await screen.findByRole(
-        'alertdialog',
-        { name: 'products.approvals.not-found-title' },
-        LOADED,
-      ),
+      await screen.findByRole('alertdialog', { name: 'products.approvals.not-found-title' }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.approvals.remove' }),

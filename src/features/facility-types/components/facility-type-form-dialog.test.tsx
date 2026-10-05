@@ -63,15 +63,13 @@ describe('FacilityTypeFormDialog', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     fetchOne.mockResolvedValueOnce(foo);
     renderPage(<FacilityTypeFormDialog onClose={vi.fn()} target="ft9" />, { queryClient });
-    expect(await screen.findByDisplayValue('Foo', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Foo')).toBeInTheDocument();
 
     cleanup();
     fetchOne.mockResolvedValueOnce({ ...foo, name: 'Foo Renamed' });
     renderPage(<FacilityTypeFormDialog onClose={vi.fn()} target="ft9" />, { queryClient });
 
-    expect(
-      await screen.findByDisplayValue('Foo Renamed', {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Foo Renamed')).toBeInTheDocument();
   });
 
   it('checks names against the types as they are now, not as they were cached', async () => {

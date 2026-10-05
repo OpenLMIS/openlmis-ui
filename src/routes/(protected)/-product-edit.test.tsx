@@ -37,8 +37,6 @@ vi.mock('@/features/reference-data/api/api', () => ({
 
 const fetchMock = vi.mocked(fetchProduct);
 
-const LOADED = { timeout: 3000 };
-
 const version = (fullProductName: string) =>
   ({ id: 'o1', productCode: 'C100', fullProductName }) as ProductDetail;
 
@@ -161,7 +159,7 @@ async function openTab(tab: 'general' | 'facility-types' | 'kit-unpack-list') {
 }
 
 async function expectBackOnList(router: AnyRouter) {
-  expect(await screen.findByText('products list', {}, LOADED)).toBeInTheDocument();
+  expect(await screen.findByText('products list')).toBeInTheDocument();
   expect(router.state.location.pathname).toBe('/administration/products');
   expect(router.state.location.search).toEqual(listSearch);
 }
@@ -188,7 +186,7 @@ describe('product edit page', () => {
     const router = await openTab('general');
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'products.edit.cancel' }, LOADED));
+    await user.click(await screen.findByRole('button', { name: 'products.edit.cancel' }));
 
     await expectBackOnList(router);
   });
@@ -197,7 +195,7 @@ describe('product edit page', () => {
     const router = await openTab('kit-unpack-list');
     const user = userEvent.setup();
 
-    await screen.findByRole('textbox', { name: 'products.kit.quantity-of' }, LOADED);
+    await screen.findByRole('textbox', { name: 'products.kit.quantity-of' });
     await user.click(screen.getByRole('button', { name: 'products.edit.cancel' }));
 
     await expectBackOnList(router);
@@ -207,11 +205,7 @@ describe('product edit page', () => {
     const router = await openTab('kit-unpack-list');
     const user = userEvent.setup();
 
-    const quantity = await screen.findByRole(
-      'textbox',
-      { name: 'products.kit.quantity-of' },
-      LOADED,
-    );
+    const quantity = await screen.findByRole('textbox', { name: 'products.kit.quantity-of' });
     await user.type(quantity, '5');
     await user.click(screen.getByRole('button', { name: 'products.edit.cancel' }));
 
@@ -228,9 +222,7 @@ describe('product edit page', () => {
     await openTab('facility-types');
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'products.approvals.actions-for' }, LOADED),
-    );
+    await user.click(await screen.findByRole('button', { name: 'products.approvals.actions-for' }));
 
     expect(
       await screen.findByRole('menuitem', { name: 'products.approvals.view' }),
@@ -251,9 +243,7 @@ describe('product edit page', () => {
     await openTab('facility-types');
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'products.approvals.actions-for' }, LOADED),
-    );
+    await user.click(await screen.findByRole('button', { name: 'products.approvals.actions-for' }));
 
     expect(
       await screen.findByRole('menuitem', { name: 'products.approvals.edit' }),

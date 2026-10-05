@@ -54,15 +54,13 @@ describe('ProgramFormDialog', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     fetchOne.mockResolvedValueOnce(malaria);
     renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
-    expect(await screen.findByDisplayValue('Malaria', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Malaria')).toBeInTheDocument();
 
     cleanup();
     fetchOne.mockResolvedValueOnce({ ...malaria, name: 'Malaria Control' });
     renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
 
-    expect(
-      await screen.findByDisplayValue('Malaria Control', {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Malaria Control')).toBeInTheDocument();
   });
 
   it('loads only the program, not every program, to edit one', async () => {
