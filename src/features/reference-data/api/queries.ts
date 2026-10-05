@@ -115,18 +115,18 @@ export const reasonsOptions = () =>
 
 export const orderablesSearchOptions = (q: string) =>
   queryOptions({
-    queryKey: [...queryKeys.orderables.all, 'search', q.trim()] as const,
+    queryKey: queryKeys.orderables.list({ q: q.trim() }),
     queryFn: () => fetchOrderables(q),
   });
 
 export const orderablesByIdsOptions = (ids: readonly string[]) =>
   queryOptions({
-    queryKey: [...queryKeys.orderables.all, 'byIds', ids.toSorted()] as const,
+    queryKey: queryKeys.orderables.list({ ids: ids.toSorted() }),
     queryFn: () => fetchOrderablesByIds(ids),
   });
 
 export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =>
   queryOptions({
-    queryKey: [...queryKeys.orderables.all, 'byTradeItems', tradeItemIds.toSorted()] as const,
+    queryKey: queryKeys.orderables.list({ tradeItemIds: tradeItemIds.toSorted() }),
     queryFn: () => fetchOrderablesByTradeItems(tradeItemIds),
   });

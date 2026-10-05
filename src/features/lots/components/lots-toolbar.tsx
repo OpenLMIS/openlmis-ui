@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableComboboxFilter } from '@/components/data-table/data-table-filters';
@@ -11,14 +11,16 @@ import {
   orderablesByIdsOptions,
   orderablesSearchOptions,
 } from '@/features/reference-data/api/queries';
+import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { isOfflineError } from '@/lib/http';
 
 const SEARCH_DELAY = 300;
 
 const toOption = (orderable: Orderable) => ({
   value: orderable.id,
-  label: orderable.fullProductName || orderable.productCode,
+  label: productName(orderable),
   description: orderable.productCode,
 });
 
@@ -41,7 +43,7 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
           value={search.product}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-52 @2xl/main:flex-none">
+      <div className="min-w-64 flex-1 @2xl/main:max-w-80">
         <DatePicker
           clearLabel={t('data-table.clear-filter', { label: t('lots.earliest-expiry') })}
           id="lots-earliest-expiry"
@@ -54,7 +56,7 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
           value={search.expiryFrom ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-52 @2xl/main:flex-none">
+      <div className="min-w-64 flex-1 @2xl/main:max-w-80">
         <DatePicker
           clearLabel={t('data-table.clear-filter', { label: t('lots.latest-expiry') })}
           earliest={search.expiryFrom}
@@ -87,20 +89,15 @@ type ProductFilterProps = {
 function ProductFilter({ value, onValueChange }: ProductFilterProps) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
-  const [query, setQuery] = useState('');
+  const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
   const [opened, setOpened] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(typed.trim()), SEARCH_DELAY);
-    return () => clearTimeout(timer);
-  }, [typed]);
 
   const results = useQuery({
     ...orderablesSearchOptions(query),
     placeholderData: keepPreviousData,
     enabled: opened,
   });
-  const { data: picked } = useQuery({
+  const picked = useQuery({
     ...orderablesByIdsOptions(value ? [value] : []),
     enabled: Boolean(value),
   });
@@ -108,10 +105,13 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
 
   const options = useMemo(() => {
     const found = (results.data?.content ?? []).map(toOption);
-    if (!value || found.some((option) => option.value === value)) return found;
-    const named = picked?.find((orderable) => orderable.id === value);
-    return [named ? toOption(named) : { value, label: t('lots.unknown-product') }, ...found];
-  }, [results.data, picked, value, t]);
+    if (!value) return found;
+    const others = found.filter((option) => option.value !== value);
+    const named = picked.data?.find((orderable) => orderable.id === value);
+    if (named) return [toOption(named), ...others];
+    return picked.isSuccess ? [{ value, label: t('lots.unknown-product') }, ...others] : others;
+  }, [results.data, picked.data, picked.isSuccess, value, t]);
+  const pickedLabel = options.find((option) => option.value === value)?.label;
 
   return (
     <DataTableComboboxFilter
@@ -126,7 +126,8 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
       onOpenChange={(open) => {
         if (open) setOpened(true);
       }}
-      onSearch={setTyped}
+      // The pick's own name fills the input; reopening lists products afresh rather than searching it.
+      onSearch={(text) => setTyped(text === pickedLabel ? '' : text)}
       onValueChange={onValueChange}
       options={options}
       value={value ?? ''}

@@ -38,8 +38,8 @@ import {
   toKitFormValues,
   toKitRow,
 } from '@/features/products/lib/kit-form';
-import { productName } from '@/features/products/lib/product-name';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
 const FORM_ID = 'kit-unpack-list-form';

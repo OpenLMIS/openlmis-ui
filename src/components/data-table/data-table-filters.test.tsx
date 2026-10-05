@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -129,5 +129,18 @@ describe('DataTableComboboxFilter', () => {
     await user.type(screen.getByRole('combobox', { name: 'Zone' }), 'chi');
 
     expect(await screen.findByText('Searching')).toBeInTheDocument();
+  });
+
+  it('keeps each option label and description in its own direction', async () => {
+    const user = userEvent.setup();
+    render(
+      <DataTableComboboxFilter label="Zone" onValueChange={vi.fn()} options={zones} value="" />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Zone' }));
+    const gaza = await screen.findByRole('option', { name: /Gaza/ });
+
+    expect(within(gaza).getByText('Gaza')).toHaveAttribute('dir', 'auto');
+    expect(within(gaza).getByText('Province')).toHaveAttribute('dir', 'auto');
   });
 });

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatDateValue } from '@/components/form/date-value';
@@ -104,5 +104,20 @@ describe('LotsTable', () => {
     );
 
     expect(await screen.findByText('lots.empty-title')).toBeInTheDocument();
+  });
+
+  it('goes back to the last page when the one asked for is past the end', async () => {
+    vi.mocked(fetchLotRows).mockResolvedValue({ ...page([], 17), totalPages: 2 });
+    const onSearchChange = vi.fn();
+    renderPage(
+      <LotsTable
+        columnVisibility={{}}
+        onEdit={vi.fn()}
+        onSearchChange={onSearchChange}
+        search={{ page: 5 }}
+      />,
+    );
+
+    await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: 2 }, true));
   });
 });

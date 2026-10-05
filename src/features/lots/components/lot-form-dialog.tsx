@@ -43,8 +43,9 @@ import {
 } from '@/features/lots/lib/lot-form';
 import type { Lot } from '@/features/lots/lib/types';
 import { orderablesByTradeItemsOptions } from '@/features/reference-data/api/queries';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { useOpening } from '@/hooks/use-opening';
-import { isNotFound } from '@/lib/http';
+import { isNotFound, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
 const saveKey = (id: string) => [...queryKeys.lots.all, 'save', id] as const;
@@ -101,17 +102,18 @@ function ExistingLot({ lotId, opening, onDone }: ExistingLotProps) {
 
 function LotProduct({ tradeItemId }: { tradeItemId: string }) {
   const { t } = useTranslation();
-  const { data, isPending } = useQuery(orderablesByTradeItemsOptions([tradeItemId]));
+  const { data, isPending, isError, error } = useQuery(
+    orderablesByTradeItemsOptions([tradeItemId]),
+  );
   if (isPending) return <SkeletonLine width="medium" />;
   const product = data?.[0];
   return (
     <FormDialogDescription>
-      {product
-        ? t('lots.form.product', {
-            product: product.fullProductName || product.productCode,
-            code: product.productCode,
-          })
-        : t('lots.form.no-product')}
+      {isError
+        ? t(isOfflineError(error) ? 'offline.notice-title' : 'lots.form.product-error')
+        : product
+          ? t('lots.form.product', { product: productName(product), code: product.productCode })
+          : t('lots.form.no-product')}
     </FormDialogDescription>
   );
 }
@@ -166,19 +168,14 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
           )}
           <form.AppField name="lotCode">
             {(field) => (
-              <field.TextField
-                autoComplete="off"
-                dir="ltr"
-                label={t('lots.form.lot-code')}
-                required
-              />
+              <field.TextField autoComplete="off" dir="ltr" label={t('lots.lot-code')} required />
             )}
           </form.AppField>
           <form.AppField name="expirationDate">
             {(field) => (
               <field.DateField
                 clearLabel={t('lots.form.clear-expiration-date')}
-                label={t('lots.form.expiration-date')}
+                label={t('lots.expiration-date')}
                 placeholder={t('lots.form.pick-date')}
               />
             )}
@@ -187,7 +184,7 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
             {(field) => (
               <field.DateField
                 clearLabel={t('lots.form.clear-manufacture-date')}
-                label={t('lots.form.manufacture-date')}
+                label={t('lots.manufacture-date')}
                 placeholder={t('lots.form.pick-date')}
               />
             )}
@@ -212,9 +209,9 @@ function LotFormSkeleton() {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          <FieldSkeleton label={t('lots.form.lot-code')} required />
-          <FieldSkeleton label={t('lots.form.expiration-date')} />
-          <FieldSkeleton label={t('lots.form.manufacture-date')} />
+          <FieldSkeleton label={t('lots.lot-code')} required />
+          <FieldSkeleton label={t('lots.expiration-date')} />
+          <FieldSkeleton label={t('lots.manufacture-date')} />
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>

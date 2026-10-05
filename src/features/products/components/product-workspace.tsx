@@ -13,8 +13,8 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
-import { productName } from '@/features/products/lib/product-name';
 import type { ProductDetail } from '@/features/products/lib/types';
+import { productName } from '@/features/reference-data/lib/product-name';
 
 const PRODUCT_TABS = [
   { to: '/administration/products/$id/general', labelKey: 'products.edit.tabs.general' },

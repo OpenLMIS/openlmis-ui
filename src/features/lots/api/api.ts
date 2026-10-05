@@ -4,11 +4,10 @@ import { fetchOrderablesByTradeItems } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
 
-/** A page of lots, each with its product, asking only for the products of the lots shown. */
 export async function fetchLotRows(query: LotsQuery) {
   const { data } = await client.get<Page<Lot>>('/lots', { params: query });
   const tradeItemIds = [...new Set(data.content.map((lot) => lot.tradeItemId))];
-  const orderables = tradeItemIds.length > 0 ? await fetchOrderablesByTradeItems(tradeItemIds) : [];
+  const orderables = await fetchOrderablesByTradeItems(tradeItemIds);
   return { ...data, content: toLotRows(data.content, orderables) };
 }
 

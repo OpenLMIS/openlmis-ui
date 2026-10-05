@@ -18,6 +18,7 @@ import { FieldGroup } from '@/components/ui/field';
 import type { Product } from '@/features/products/lib/types';
 import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { isOfflineError } from '@/lib/http';
 
 const SEARCH_DELAY = 300;
@@ -54,13 +55,8 @@ type KitProductsFormProps = Omit<KitProductsDialogProps, 'open' | 'onClose'> & {
 function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
-  const [query, setQuery] = useState('');
+  const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
   const [seen, setSeen] = useState<ReadonlyMap<string, Product>>(new Map());
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(typed.trim()), SEARCH_DELAY);
-    return () => clearTimeout(timer);
-  }, [typed]);
 
   const results = useQuery({
     ...orderablesSearchOptions(query),

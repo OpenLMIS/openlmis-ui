@@ -22,7 +22,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { productsListOptions } from '@/features/products/api/queries';
-import { productName } from '@/features/products/lib/product-name';
 import {
   CLEARED_PRODUCT_FILTERS,
   DEFAULT_PRODUCTS_SORT,
@@ -31,6 +30,7 @@ import {
   toProductsQuery,
 } from '@/features/products/lib/search';
 import type { Product } from '@/features/products/lib/types';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();

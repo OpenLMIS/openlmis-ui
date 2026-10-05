@@ -54,14 +54,22 @@ describe('LotFormDialog', () => {
     renderDialog();
 
     expect(await screen.findByDisplayValue('LC2017A')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /lots.form.expiration-date/ })).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /lots.expiration-date/ })).toHaveTextContent(
       formatDateValue('2019-01-30', 'en'),
     );
-    expect(screen.getByRole('button', { name: /lots.form.manufacture-date/ })).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /lots.manufacture-date/ })).toHaveTextContent(
       formatDateValue('2017-01-30', 'en'),
     );
     expect(await screen.findByText('lots.form.product')).toBeInTheDocument();
     expect(fetchOrderablesByTradeItems).toHaveBeenCalledWith(['t1']);
+  });
+
+  it('says the product could not be loaded rather than that there is none', async () => {
+    vi.mocked(fetchOrderablesByTradeItems).mockRejectedValue(httpError(500));
+    renderDialog();
+
+    expect(await screen.findByText('lots.form.product-error')).toBeInTheDocument();
+    expect(screen.queryByText('lots.form.no-product')).not.toBeInTheDocument();
   });
 
   it('asks for a lot code', async () => {

@@ -1,7 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LotsToolbar } from '@/features/lots/components/lots-toolbar';
+import type { LotsSearch } from '@/features/lots/lib/search';
 import { fetchOrderables, fetchOrderablesByIds } from '@/features/reference-data/api/api';
 import { renderPage } from '@/tests/render-page';
 
@@ -93,5 +95,72 @@ describe('LotsToolbar', () => {
     await user.click(within(calendar).getByRole('button', { name: /January 10th, 2019/ }));
 
     expect(onFilterChange).toHaveBeenCalledWith({ expiryFrom: '2019-01-10', page: undefined });
+  });
+
+  it('lists products afresh when reopened after a pick, not just the picked one', async () => {
+    function Toolbar() {
+      const [search, setSearch] = useState<LotsSearch>({});
+      return (
+        <LotsToolbar
+          columnView={columnView}
+          onFilterChange={(patch) => setSearch((previous) => ({ ...previous, ...patch }))}
+          search={search}
+        />
+      );
+    }
+    renderPage(<Toolbar />);
+    const user = userEvent.setup();
+
+    const product = await screen.findByRole('combobox', { name: 'lots.product' });
+    await user.click(product);
+    await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
+    await waitFor(() => expect(product).toHaveValue('Acetylsalicylic Acid'));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(fetchOrderables).not.toHaveBeenCalledWith('Acetylsalicylic Acid');
+  });
+
+  it('shows no made-up name while a linked product is still being looked up', async () => {
+    vi.mocked(fetchOrderablesByIds).mockReturnValue(new Promise(() => {}));
+    renderPage(
+      <LotsToolbar
+        columnView={columnView}
+        onFilterChange={vi.fn()}
+        search={{ product: acid.id }}
+      />,
+    );
+
+    const product = await screen.findByRole('combobox', { name: 'lots.product' });
+    expect(product).toHaveValue('');
+  });
+
+  it('says the product is unknown when the lookup finds none', async () => {
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
+    renderPage(
+      <LotsToolbar
+        columnView={columnView}
+        onFilterChange={vi.fn()}
+        search={{ product: acid.id }}
+      />,
+    );
+
+    expect(await screen.findByDisplayValue('lots.unknown-product')).toBeInTheDocument();
+  });
+
+  it('keeps naming each expiry date once it is picked', async () => {
+    renderPage(
+      <LotsToolbar
+        columnView={columnView}
+        onFilterChange={vi.fn()}
+        search={{ expiryFrom: '2019-01-10', expiryTo: '2019-01-20' }}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: /^lots.earliest-expiry/ })).toHaveTextContent(
+      'lots.earliest-expiry',
+    );
+    expect(screen.getByRole('button', { name: /^lots.latest-expiry/ })).toHaveTextContent(
+      'lots.latest-expiry',
+    );
   });
 });

@@ -679,7 +679,7 @@ describe('date picker', () => {
       />,
     );
     expect(
-      screen.getByRole('button', { name: 'Earliest Expiry Jan 30, 2019' }),
+      screen.getByRole('button', { name: 'Earliest Expiry: Jan 30, 2019' }),
     ).toBeInTheDocument();
   });
 

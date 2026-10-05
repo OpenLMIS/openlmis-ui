@@ -8,7 +8,6 @@ import { QueryBoundary } from '@/components/query-boundary';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import { KitUnpackListSkeleton } from '@/features/products/components/product-tab-skeletons';
-
 import { useBackToProducts } from '@/features/products/hooks/back-to-products';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { orderablesByIdsOptions } from '@/features/reference-data/api/queries';

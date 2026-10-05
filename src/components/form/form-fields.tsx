@@ -1204,7 +1204,6 @@ export function DateField({
         disabled={disabled}
         id={field.name}
         invalid={state.isInvalid}
-        labelId={`${field.name}-label`}
         onBlur={field.handleBlur}
         onValueChange={field.handleChange}
         placeholder={placeholder}
@@ -1221,10 +1220,8 @@ type DatePickerProps = {
   value: string;
   onValueChange: (value: string) => void;
   placeholder: string;
-  /** Names the picker when no visible label does, as in a toolbar. */
+  /** Names the picker where no field label does, as in a toolbar; shown before a picked date. */
   label?: string | undefined;
-  /** The visible label that names the picker. */
-  labelId?: string | undefined;
   required?: boolean | undefined;
   disabled?: boolean | undefined;
   /** Shows a clear button while a date is picked, unless the date is required. */
@@ -1237,14 +1234,13 @@ type DatePickerProps = {
   onBlur?: (() => void) | undefined;
 };
 
-/** A date picked from a calendar, shown in the page's language; the calendar loads on first use. */
+/** A date picked from a calendar, shown in the page's language; the calendar loads as it mounts. */
 export function DatePicker({
   id,
   value,
   onValueChange,
   placeholder,
   label,
-  labelId = `${id}-label`,
   required,
   disabled,
   clearLabel,
@@ -1254,6 +1250,7 @@ export function DatePicker({
   describedBy,
   onBlur,
 }: DatePickerProps) {
+  const labelId = `${id}-label`;
   const requiredId = `${id}-required`;
   const valueId = `${id}-value`;
   const { requiredLabel, dateLanguage, loadDateLocale } = useDateMessages();
@@ -1289,11 +1286,6 @@ export function DatePicker({
 
   return (
     <div className="relative">
-      {label && (
-        <span className="sr-only" id={labelId}>
-          {label}
-        </span>
-      )}
       <Popover
         onOpenChange={(next) => {
           setOpen(next);
@@ -1327,8 +1319,18 @@ export function DatePicker({
               {requiredLabel}
             </span>
           )}
-          <span className={shown ? 'truncate' : 'truncate text-muted-foreground'} id={valueId}>
-            {shown || placeholder}
+          <span className={canClear ? 'flex min-w-0 gap-1 pe-6' : 'flex min-w-0 gap-1'}>
+            {label && (
+              <span className={shown ? 'shrink-0 text-muted-foreground' : 'sr-only'} id={labelId}>
+                {shown ? `${label}:` : label}
+              </span>
+            )}
+            <span
+              className={shown ? 'min-w-0 truncate' : 'min-w-0 truncate text-muted-foreground'}
+              id={valueId}
+            >
+              {shown || placeholder}
+            </span>
           </span>
         </PopoverTrigger>
         <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">

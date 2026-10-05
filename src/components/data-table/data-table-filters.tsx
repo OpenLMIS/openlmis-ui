@@ -141,9 +141,11 @@ export function DataTableComboboxFilter({
         <ComboboxList>
           {(option: DataTableComboboxFilterOption) => (
             <ComboboxItem key={option.value} value={option}>
-              <span className="min-w-0 truncate">{option.label}</span>
+              <span className="min-w-0 truncate" dir="auto">
+                {option.label}
+              </span>
               {option.description && (
-                <span className="ms-auto shrink-0 text-muted-foreground text-xs">
+                <span className="ms-auto shrink-0 text-muted-foreground text-xs" dir="auto">
                   {option.description}
                 </span>
               )}

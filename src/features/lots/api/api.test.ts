@@ -52,13 +52,6 @@ describe('fetchLotRows', () => {
     expect(get).toHaveBeenCalledWith('/lots', { params: { ...query, orderableId: 'c1' } });
     expect(byTradeItems).toHaveBeenCalledWith(['t1']);
   });
-
-  it('asks for no products when the page has no lots', async () => {
-    get.mockResolvedValueOnce({ data: { content: [], totalElements: 0, totalPages: 0 } });
-
-    await expect(fetchLotRows(query)).resolves.toMatchObject({ content: [] });
-    expect(byTradeItems).not.toHaveBeenCalled();
-  });
 });
 
 describe('fetchLot', () => {

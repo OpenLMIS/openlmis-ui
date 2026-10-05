@@ -28,7 +28,6 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import { productSaveKey, useProductSave } from '@/features/products/hooks/use-product-save';
-import { productName } from '@/features/products/lib/product-name';
 import {
   EMPTY_PROGRAM_LINK_FORM,
   programLinkFormSchema,
@@ -41,6 +40,7 @@ import {
   orderableDisplayCategoriesOptions,
   programsOptions,
 } from '@/features/reference-data/api/queries';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 import { decimalMark } from '@/lib/decimal';
 
