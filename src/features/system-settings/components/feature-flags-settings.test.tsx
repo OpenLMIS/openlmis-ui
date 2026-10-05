@@ -21,7 +21,7 @@ vi.mock('@/features/system-settings/api/api', () => ({
 vi.mock('@/lib/runtime-config', () => ({ getDeploymentFlags: () => ({ GS1_SCANNING: 'true' }) }));
 
 function FromCache({ initialSearch }: { initialSearch: string }) {
-  const { data } = useSuspenseQuery(appConfigurationOptions());
+  const { data } = useSuspenseQuery({ ...appConfigurationOptions(), staleTime: Infinity });
   const [search, setSearch] = useState(initialSearch);
   return data ? (
     <FeatureFlagsSettings onSearchChange={setSearch} saved={data} search={search} />

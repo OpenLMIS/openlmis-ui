@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,8 +43,6 @@ const product: ProductDetail = {
   programs: [familyPlanning],
 };
 
-const LOADED = { timeout: 3000 };
-
 beforeEach(() => {
   vi.resetAllMocks();
   update.mockReset();
@@ -73,9 +71,7 @@ describe('ProgramLinkDialog', () => {
     const { onClose } = renderDialog('new');
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('combobox', { name: /products.programs.program/ }, LOADED),
-    );
+    await user.click(await screen.findByRole('combobox', { name: /products.programs.program/ }));
     expect(screen.queryByRole('option', { name: 'Family Planning' })).not.toBeInTheDocument();
     await user.click(await screen.findByRole('option', { name: 'Essential Meds' }));
     await user.click(screen.getByRole('combobox', { name: /products.programs.form.category/ }));
@@ -83,7 +79,7 @@ describe('ProgramLinkDialog', () => {
     await user.type(screen.getByLabelText(/products.programs.price/), '3.50');
     await user.click(screen.getByRole('button', { name: 'products.programs.form.add' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', {
       ...product,
       programs: [
@@ -105,7 +101,7 @@ describe('ProgramLinkDialog', () => {
     renderDialog('new');
     const user = userEvent.setup();
 
-    await screen.findByRole('combobox', { name: /products.programs.program/ }, LOADED);
+    await screen.findByRole('combobox', { name: /products.programs.program/ });
     await user.click(screen.getByRole('button', { name: 'products.programs.form.add' }));
 
     expect(await screen.findByText('products.programs.form.program-required')).toBeInTheDocument();
@@ -120,11 +116,7 @@ describe('ProgramLinkDialog', () => {
     const { onClose } = renderDialog('fp');
     const user = userEvent.setup();
 
-    const doses = await screen.findByLabelText(
-      /products.programs.form.doses-per-patient/,
-      {},
-      LOADED,
-    );
+    const doses = await screen.findByLabelText(/products.programs.form.doses-per-patient/);
     expect(doses).toHaveValue('1');
     await user.clear(doses);
     await user.type(doses, '2');
@@ -142,9 +134,7 @@ describe('ProgramLinkDialog', () => {
   it('only shows a linked program to a user who may not change it', async () => {
     renderDialog('fp', { readOnly: true });
 
-    expect(
-      await screen.findByLabelText(/products.programs.form.doses-per-patient/, {}, LOADED),
-    ).toBeDisabled();
+    expect(await screen.findByLabelText(/products.programs.form.doses-per-patient/)).toBeDisabled();
     expect(screen.getByRole('button', { name: 'dialog.close' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.programs.form.save' }),
@@ -154,9 +144,7 @@ describe('ProgramLinkDialog', () => {
   it('says so when the program is no longer linked', async () => {
     renderDialog('gone');
 
-    expect(
-      await screen.findByText('products.programs.form.not-found', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.programs.form.not-found')).toBeInTheDocument();
   });
 });
 
@@ -167,12 +155,10 @@ describe('RemoveProgramLinkDialog', () => {
     renderPage(<RemoveProgramLinkDialog onClose={onClose} product={product} programId="fp" />);
     const user = userEvent.setup();
 
-    expect(
-      await screen.findByText('products.programs.remove-description', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.programs.remove-description')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'products.programs.remove' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', { ...product, programs: [] });
   });
 });
@@ -184,13 +170,9 @@ describe('RemoveProgramLinkDialog when the server refuses', () => {
     renderPage(<RemoveProgramLinkDialog onClose={onClose} product={product} programId="fp" />);
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'products.programs.remove' }, LOADED),
-    );
+    await user.click(await screen.findByRole('button', { name: 'products.programs.remove' }));
 
-    expect(
-      await screen.findByText('products.programs.remove-error-title', {}, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('products.programs.remove-error-title')).toBeInTheDocument();
     expect(screen.getByText('Refused by the server')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'products.programs.remove' })).toBeEnabled();
     expect(onClose).not.toHaveBeenCalled();
@@ -202,7 +184,7 @@ describe('RemoveProgramLinkDialog for a program the product is not in', () => {
     renderPage(<RemoveProgramLinkDialog onClose={vi.fn()} product={product} programId="gone" />);
 
     expect(
-      await screen.findByRole('alertdialog', { name: 'products.programs.not-found-title' }, LOADED),
+      await screen.findByRole('alertdialog', { name: 'products.programs.not-found-title' }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.programs.remove' }),
@@ -232,11 +214,9 @@ describe('RemoveProgramLinkDialog after removing', () => {
     renderPage(<RemoveFromList />);
     const user = userEvent.setup();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'products.programs.remove' }, LOADED),
-    );
+    await user.click(await screen.findByRole('button', { name: 'products.programs.remove' }));
 
-    await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Programs' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Programs' })).toHaveFocus());
   });
 });
 
@@ -247,9 +227,7 @@ describe('RemoveProgramLinkDialog when the programs cannot load', () => {
       queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
     });
 
-    expect(
-      await screen.findByRole('button', { name: 'error.try-again' }, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'error.try-again' })).toBeInTheDocument();
     expect(screen.queryByText(/fp/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'products.programs.remove' }),

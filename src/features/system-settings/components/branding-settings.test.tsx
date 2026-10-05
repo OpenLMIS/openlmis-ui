@@ -24,7 +24,7 @@ vi.mock('@/features/system-settings/api/api', () => ({
 }));
 
 function FromCache() {
-  const { data } = useSuspenseQuery(appConfigurationOptions());
+  const { data } = useSuspenseQuery({ ...appConfigurationOptions(), staleTime: Infinity });
   return data ? <BrandingSettings saved={data} /> : null;
 }
 

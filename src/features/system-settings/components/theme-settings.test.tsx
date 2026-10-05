@@ -17,7 +17,7 @@ vi.mock('@/features/system-settings/api/api', () => ({
 }));
 
 function FromCache() {
-  const { data } = useSuspenseQuery(appConfigurationOptions());
+  const { data } = useSuspenseQuery({ ...appConfigurationOptions(), staleTime: Infinity });
   return data ? <ThemeSettings saved={data} /> : null;
 }
 
@@ -47,7 +47,7 @@ beforeEach(() => {
   vi.spyOn(toast, 'success').mockImplementation(() => '');
 });
 
-describe('ThemeSettings', { timeout: 15_000 }, () => {
+describe('ThemeSettings', () => {
   it('saves the chosen preset and appearance', async () => {
     vi.mocked(updateAppConfiguration).mockResolvedValue({
       ...savedConfiguration,

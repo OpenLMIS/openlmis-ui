@@ -64,17 +64,19 @@ export function DataTableSelectionBar({ count, onClear, children }: DataTableSel
   const labels = useDataTableLabels();
 
   return (
-    <div className="sticky bottom-4 z-10">
+    <div className="@container/selection sticky bottom-2 z-10 -mb-2 lg:-mb-4">
       {count > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-2 ps-4 shadow-lg">
-          <span aria-hidden className="font-medium text-sm">
+        <div className="mx-auto flex w-full max-w-lg flex-col gap-2 rounded-xl border bg-card p-2 shadow-lg @md/selection:flex-row @md/selection:items-center @md/selection:ps-4">
+          <span aria-hidden className="px-2 pt-1 font-medium text-sm @md/selection:p-0">
             {labels.selectedCount(count)}
           </span>
-          <Button onClick={onClear} size="sm" variant="ghost">
-            <XIcon data-icon="inline-start" />
-            {labels.clearSelection}
-          </Button>
-          <div className="ms-auto flex flex-wrap gap-2">{children}</div>
+          <div className="flex gap-2 *:flex-1 @md/selection:ms-auto @md/selection:*:flex-none">
+            <Button onClick={onClear} size="sm" variant="secondary">
+              <XIcon data-icon="inline-start" />
+              {labels.clearSelection}
+            </Button>
+            {children}
+          </div>
         </div>
       )}
       <span className="sr-only" role="status">

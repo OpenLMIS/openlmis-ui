@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProgram, fetchProgram } from '@/features/programs/api/api';
@@ -54,15 +54,13 @@ describe('ProgramFormDialog', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     fetchOne.mockResolvedValueOnce(malaria);
     renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
-    expect(await screen.findByDisplayValue('Malaria', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Malaria')).toBeInTheDocument();
 
     cleanup();
     fetchOne.mockResolvedValueOnce({ ...malaria, name: 'Malaria Control' });
     renderPage(<ProgramFormDialog onClose={vi.fn()} target="p9" />, { queryClient });
 
-    expect(
-      await screen.findByDisplayValue('Malaria Control', {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Malaria Control')).toBeInTheDocument();
   });
 
   it('loads only the program, not every program, to edit one', async () => {
@@ -80,7 +78,7 @@ describe('ProgramFormDialog', () => {
 
     await fillAndCreate('PRG009');
 
-    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(create).toHaveBeenCalled());
     expect(screen.queryByText('programs.form.code-taken')).not.toBeInTheDocument();
   });
 

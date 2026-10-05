@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,8 +37,6 @@ const kit: ProductDetail = {
   programs: [],
   children: [{ orderable: { id: 'g1' }, quantity: 2 }],
 };
-
-const LOADED = { timeout: 3000 };
 
 const updateProduct = vi.fn<(id: string, body: ProductDetail) => Promise<ProductDetail>>();
 
@@ -81,9 +79,7 @@ describe('KitUnpackList', () => {
 
     await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
     await user.click(await screen.findByRole('combobox', { name: 'products.kit.products' }));
-    expect(
-      await screen.findByRole('option', { name: 'S1 - Syringe (each)' }, LOADED),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'S1 - Syringe (each)' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /KIT1/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /Gloves/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'S1 - Syringe (each)' }));
@@ -96,7 +92,7 @@ describe('KitUnpackList', () => {
     await user.type(quantities[1], '4');
     await user.click(screen.getByRole('button', { name: 'products.kit.save' }));
 
-    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(updateProduct).toHaveBeenCalledWith('k1', {
       ...kit,
       children: [
@@ -117,7 +113,7 @@ describe('KitUnpackList', () => {
     expect(updateProduct).not.toHaveBeenCalled();
     const quantity = within(table).getByRole('textbox', { name: 'products.kit.quantity-of' });
     await user.type(quantity, '1');
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.queryByText('products.kit.quantity-required')).not.toBeInTheDocument(),
     );
     expect(quantity).toHaveAttribute('aria-invalid', 'false');
@@ -125,7 +121,7 @@ describe('KitUnpackList', () => {
     await user.click(screen.getByRole('button', { name: 'products.kit.actions-for' }));
     await user.click(await screen.findByRole('menuitem', { name: 'products.kit.remove' }));
     expect(await screen.findByText('products.kit.empty-title')).toBeInTheDocument();
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus(),
     );
   });
@@ -171,6 +167,6 @@ describe('KitUnpackList search', () => {
 
     await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
 
-    expect(await screen.findByText('products.kit.search-more', {}, LOADED)).toBeInTheDocument();
+    expect(await screen.findByText('products.kit.search-more')).toBeInTheDocument();
   });
 });

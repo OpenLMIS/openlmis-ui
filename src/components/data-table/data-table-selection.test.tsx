@@ -96,6 +96,17 @@ describe('DataTableSelectionBar', () => {
     expect(onClear).toHaveBeenCalled();
   });
 
+  it('puts Clear right before the actions', () => {
+    render(
+      <DataTableSelectionBar count={3} onClear={vi.fn()}>
+        <button type="button">Delete</button>
+      </DataTableSelectionBar>,
+    );
+
+    const clear = screen.getByRole('button', { name: 'Clear Selection' });
+    expect(clear.nextElementSibling).toBe(screen.getByRole('button', { name: 'Delete' }));
+  });
+
   it('shows no bar with nothing selected, but keeps the announcement region', () => {
     render(
       <DataTableSelectionBar count={0} onClear={vi.fn()}>
