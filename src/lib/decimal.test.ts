@@ -12,6 +12,11 @@ const message = (schema: ReturnType<typeof decimalText>, value: string) =>
   schema.safeParse(value).error?.issues.map((i) => i.message);
 
 describe('decimalText', () => {
+  it.each(['es', 'fr'])('uses the decimal comma for %s', (language) => {
+    expect(decimalMark(language)).toBe(',');
+    expect(toNumberText(12.5, decimalMark(language))).toBe('12,5');
+    expect(toDecimal('12,5')).toBe(12.5);
+  });
   const schema = decimalText(messages);
 
   it('accepts a number with or without decimals, ignoring spaces around it', () => {

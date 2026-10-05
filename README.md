@@ -71,7 +71,7 @@ docker/               # Container entrypoint, nginx template, Consul registratio
 
 ## Languages
 
-Ships with English, Portuguese and Arabic. Catalogs are static assets under
+Ships with English, Portuguese, Arabic, Spanish and French. Catalogs are static assets under
 `public/locales/`, fetched at runtime rather than bundled, so a deployment can correct a
 string or add a language without rebuilding.
 

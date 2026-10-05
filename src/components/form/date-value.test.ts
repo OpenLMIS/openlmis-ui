@@ -34,6 +34,8 @@ describe('formatDateValue', () => {
   it('shows the day in the given language', () => {
     expect(formatDateValue('2026-10-01', 'en-US')).toBe('Oct 1, 2026');
     expect(formatDateValue('2026-10-01', 'pt')).toBe('1 de out. de 2026');
+    expect(formatDateValue('2026-10-01', 'es')).toBe('1 oct 2026');
+    expect(formatDateValue('2026-10-01', 'fr')).toBe('1 oct. 2026');
   });
 
   it('shows nothing for no date', () => {

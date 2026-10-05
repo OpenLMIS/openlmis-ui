@@ -6,6 +6,8 @@ describe('loadDateLocale', () => {
     expect((await loadDateLocale('ar-EG')).code).toBe('ar');
     expect((await loadDateLocale('pt-BR')).code).toBe('pt');
     expect((await loadDateLocale('en')).code).toBe('en-US');
+    expect((await loadDateLocale('es-MX')).code).toBe('es');
+    expect((await loadDateLocale('fr-CA')).code).toBe('fr');
   });
 
   it('falls back to English for a language it does not know', async () => {

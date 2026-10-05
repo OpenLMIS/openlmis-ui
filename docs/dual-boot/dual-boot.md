@@ -80,7 +80,7 @@ are already open. Your language choice is kept.
 
 ## Languages and direction
 
-The new UI ships in English, Portuguese and Arabic, and renders right to left in
+The new UI ships in English, Portuguese, Arabic, Spanish and French, and renders right to left in
 Arabic. The existing UI has its own language list and its own switcher. The two do
 not share a language setting yet, so you may need to set it in both.
 

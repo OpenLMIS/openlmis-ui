@@ -28,6 +28,8 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English', dir: 'ltr' },
   { code: 'pt', name: 'Português', dir: 'ltr' },
   { code: 'ar', name: 'العربية', dir: 'rtl' },
+  { code: 'es', name: 'Español', dir: 'ltr' },
+  { code: 'fr', name: 'Français', dir: 'ltr' },
 ] as const satisfies readonly SupportedLanguage[];
 
 export const DEFAULT_TEXT_DIRECTION: TextDirection = 'ltr';

@@ -231,6 +231,8 @@ describe('warming the offline files', () => {
       `${base}locales/en.json`,
       `${base}locales/pt.json`,
       `${base}locales/ar.json`,
+      `${base}locales/es.json`,
+      `${base}locales/fr.json`,
     ]);
   });
 
@@ -240,7 +242,7 @@ describe('warming the offline files', () => {
 
     registerServiceWorker({ enabled: true });
 
-    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
 
   it('leaves the legacy UI worker alone, which may control the page before ours', async () => {
