@@ -90,12 +90,14 @@ function createColumns(
         <DataTableColumnHeader column={column} title={t('valid-assignments.program')} />
       ),
       cell: ({ getValue }) => named(getValue()),
+      meta: { className: 'w-36 @2xl/main:w-auto' },
     }),
     columnHelper.accessor('facilityType', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('valid-assignments.facility-type')} />
       ),
       cell: ({ getValue }) => named(getValue()),
+      meta: { className: 'w-36 @2xl/main:w-auto' },
     }),
     columnHelper.accessor('label', {
       id: 'name',
@@ -107,7 +109,7 @@ function createColumns(
           {getValue()}
         </span>
       ),
-      meta: { className: '@2xl/main:w-1/4' },
+      meta: { className: 'w-44 @2xl/main:w-1/4' },
     }),
     columnHelper.display({
       id: 'geoZone',
@@ -136,7 +138,7 @@ function createColumns(
       cell: ({ row }) => (
         <AssignmentActions
           label={row.original.rowName}
-          onDelete={() => onDelete({ id: row.original.id, name: row.original.label })}
+          onDelete={() => onDelete({ id: row.original.id, name: row.original.rowName })}
         />
       ),
     }),

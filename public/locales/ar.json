@@ -995,7 +995,7 @@
   "valid-assignments.clear-filters": "مسح عوامل التصفية",
   "valid-assignments.delete": "حذف",
   "valid-assignments.delete-confirm": "حذف",
-  "valid-assignments.delete-description": "{kind, select, destinations {لن يعرض الصرف {count, plural, one {{name}} other {هذه العناصر}} بعد الآن. لا يمكن التراجع عن ذلك.} other {لن يعرض الاستلام {count, plural, one {{name}} other {هذه العناصر}} بعد الآن. لا يمكن التراجع عن ذلك.}}",
+  "valid-assignments.delete-description": "{kind, select, destinations {{count, plural, one {لن تكون {name} وجهة صالحة بعد الآن.} other {لن تكون هذه وجهات صالحة بعد الآن.}} لا يمكن التراجع عن ذلك.} other {{count, plural, one {لن يكون {name} مصدرًا صالحًا بعد الآن.} other {لن تكون هذه مصادر صالحة بعد الآن.}} لا يمكن التراجع عن ذلك.}}",
   "valid-assignments.delete-error-description": "لم يُحذف أي شيء. تحقق من الاتصال وحاول مرة أخرى.",
   "valid-assignments.delete-error-title": "تعذر الحذف",
   "valid-assignments.delete-selected": "حذف المحدد",

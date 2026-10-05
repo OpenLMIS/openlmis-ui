@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ASSIGNMENT_HIDEABLE_COLUMNS,
   assignmentFilterKey,
   assignmentsSearchSchema,
   hasAssignmentFilters,
@@ -81,5 +82,11 @@ describe('assignmentFilterKey', () => {
     expect(assignmentFilterKey({ facilityId: FACILITY })).not.toBe(both);
     expect(assignmentFilterKey({ programId: PROGRAM })).not.toBe(both);
     expect(assignmentFilterKey({})).not.toBe(assignmentFilterKey({ programId: PROGRAM }));
+  });
+});
+
+describe('ASSIGNMENT_HIDEABLE_COLUMNS', () => {
+  it('never hides the facility type, which tells rows for the same place apart', () => {
+    expect(ASSIGNMENT_HIDEABLE_COLUMNS.map(({ id }) => id)).not.toContain('facilityType');
   });
 });

@@ -17,13 +17,26 @@ describe('deleteAssignments', () => {
   });
 
   it('reports the ones that failed apart from the ones deleted', async () => {
+    const refused = httpError(500, {});
     const remove = vi.fn((id: string) =>
-      id === 'b' ? Promise.reject(httpError(500, {})) : Promise.resolve(),
+      id === 'b' ? Promise.reject(refused) : Promise.resolve(),
     );
 
     await expect(deleteAssignments(remove, ['a', 'b', 'c'])).resolves.toEqual({
       deleted: ['a', 'c'],
       failed: ['b'],
+      error: refused,
+    });
+  });
+
+  it('keeps the first refusal, so its reason can be shown', async () => {
+    const refused = httpError(403, { message: 'You do not have the right.' });
+    const remove = vi.fn().mockRejectedValue(refused);
+
+    await expect(deleteAssignments(remove, ['a', 'b'])).resolves.toEqual({
+      deleted: [],
+      failed: ['a', 'b'],
+      error: refused,
     });
   });
 

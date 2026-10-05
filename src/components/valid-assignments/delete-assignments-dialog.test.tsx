@@ -63,6 +63,15 @@ beforeEach(() => {
 });
 
 describe('DeleteAssignmentsDialog', { timeout: 10_000 }, () => {
+  it("shows the server's reason when it refuses every delete", async () => {
+    remove.mockRejectedValue(httpError(403, { message: 'You do not have the right.' }));
+    renderPage(<Harness onDeleted={vi.fn()} />);
+
+    await confirmDelete();
+
+    expect(await screen.findByText('You do not have the right.')).toBeVisible();
+  });
+
   it('deletes every picked row, says so and closes', async () => {
     const onDeleted = vi.fn();
     remove.mockResolvedValue(undefined);

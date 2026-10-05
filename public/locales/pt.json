@@ -995,7 +995,7 @@
   "valid-assignments.clear-filters": "Limpar Filtros",
   "valid-assignments.delete": "Eliminar",
   "valid-assignments.delete-confirm": "Eliminar",
-  "valid-assignments.delete-description": "{kind, select, destinations {Emitir deixará de {count, plural, one {oferecer {name}} other {os oferecer}}. Esta ação não pode ser anulada.} other {Receber deixará de {count, plural, one {oferecer {name}} other {as oferecer}}. Esta ação não pode ser anulada.}}",
+  "valid-assignments.delete-description": "{kind, select, destinations {{count, plural, one {{name} deixará de ser um destino válido.} other {Deixarão de ser destinos válidos.}} Esta ação não pode ser anulada.} other {{count, plural, one {{name} deixará de ser uma origem válida.} other {Deixarão de ser origens válidas.}} Esta ação não pode ser anulada.}}",
   "valid-assignments.delete-error-description": "Nada foi eliminado. Verifique a ligação e tente novamente.",
   "valid-assignments.delete-error-title": "Não Foi Possível Eliminar",
   "valid-assignments.delete-selected": "Eliminar Selecionados",

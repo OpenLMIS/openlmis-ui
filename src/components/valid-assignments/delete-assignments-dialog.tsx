@@ -3,7 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert } from '@/components/dialog-parts';
+import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -103,7 +103,9 @@ export function DeleteAssignmentsDialog({
         </AlertDialogHeader>
         {nothingDeleted && (
           <ErrorAlert
-            description={t('valid-assignments.delete-error-description')}
+            description={
+              serverMessage(remove.data?.error) ?? t('valid-assignments.delete-error-description')
+            }
             title={t('valid-assignments.delete-error-title')}
           />
         )}

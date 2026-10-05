@@ -10,9 +10,10 @@ const isAlreadyGone = (error: unknown) =>
 export async function deleteAssignments(
   remove: (id: string) => Promise<void>,
   ids: readonly string[],
-): Promise<{ deleted: string[]; failed: string[] }> {
+): Promise<{ deleted: string[]; failed: string[]; error?: unknown }> {
   const deleted: string[] = [];
   const failed: string[] = [];
+  let firstError: unknown;
   const queue = [...ids];
 
   const worker = async () => {
@@ -21,11 +22,16 @@ export async function deleteAssignments(
         await remove(id);
         deleted.push(id);
       } catch (error) {
-        (isAlreadyGone(error) ? deleted : failed).push(id);
+        if (isAlreadyGone(error)) {
+          deleted.push(id);
+        } else {
+          failed.push(id);
+          firstError ??= error;
+        }
       }
     }
   };
   await Promise.all(Array.from({ length: Math.min(AT_ONCE, ids.length) }, worker));
 
-  return { deleted, failed };
+  return firstError === undefined ? { deleted, failed } : { deleted, failed, error: firstError };
 }

@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { Suspense } from 'react';
@@ -44,6 +45,8 @@ const ngo: ValidAssignment = {
 };
 
 function renderTable(content: ValidAssignment[], search: AssignmentsSearch = {}) {
+  const onDelete = vi.fn();
+  const onPickedChange = vi.fn();
   const api: AssignmentsApi = {
     kind: 'destinations',
     queryKey: ['validDestinations'],
@@ -66,14 +69,15 @@ function renderTable(content: ValidAssignment[], search: AssignmentsSearch = {})
       <AssignmentsTable
         api={api}
         columnVisibility={{}}
-        onDelete={vi.fn()}
-        onPickedChange={vi.fn()}
+        onDelete={onDelete}
+        onPickedChange={onPickedChange}
         onSearchChange={vi.fn()}
         picked={NOTHING_PICKED}
         search={search}
       />
     </Suspense>,
   );
+  return { onDelete, onPickedChange };
 }
 
 beforeAll(async () => {
@@ -144,6 +148,19 @@ describe('AssignmentsTable', { timeout: 10_000 }, () => {
         name: 'Actions For Balaka District Hospital, EPI, Health Center',
       }),
     ).toBeVisible();
+  });
+
+  it('names a picked or deleted row with its program and type, for the confirm', async () => {
+    const { onDelete, onPickedChange } = renderTable([balaka('a2', 'p2')]);
+    const user = userEvent.setup();
+    const name = 'Balaka District Hospital, EPI, Health Center';
+
+    await user.click(await screen.findByRole('checkbox', { name: `Select ${name}` }));
+    expect(onPickedChange).toHaveBeenCalledWith(new Map([['a2', name]]), '|');
+
+    await user.click(screen.getByRole('button', { name: `Actions For ${name}` }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    expect(onDelete).toHaveBeenCalledWith({ id: 'a2', name });
   });
 
   it('says when nothing exists yet, with no way to clear filters', async () => {

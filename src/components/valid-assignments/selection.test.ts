@@ -8,8 +8,8 @@ import {
 } from '@/components/valid-assignments/selection';
 
 const rows = [
-  { id: 'a', label: 'Balaka' },
-  { id: 'b', label: 'CHW' },
+  { id: 'a', rowName: 'Balaka' },
+  { id: 'b', rowName: 'CHW' },
 ];
 
 describe('applySelection', () => {

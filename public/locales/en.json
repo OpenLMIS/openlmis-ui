@@ -995,7 +995,7 @@
   "valid-assignments.clear-filters": "Clear Filters",
   "valid-assignments.delete": "Delete",
   "valid-assignments.delete-confirm": "Delete",
-  "valid-assignments.delete-description": "{kind, select, destinations {Issue will no longer offer {count, plural, one {{name}} other {them}}. This cannot be undone.} other {Receive will no longer offer {count, plural, one {{name}} other {them}}. This cannot be undone.}}",
+  "valid-assignments.delete-description": "{kind, select, destinations {{count, plural, one {{name} will no longer be a valid destination.} other {They will no longer be valid destinations.}} This cannot be undone.} other {{count, plural, one {{name} will no longer be a valid source.} other {They will no longer be valid sources.}} This cannot be undone.}}",
   "valid-assignments.delete-error-description": "Nothing was deleted. Check your connection and try again.",
   "valid-assignments.delete-error-title": "Could Not Delete",
   "valid-assignments.delete-selected": "Delete Selected",

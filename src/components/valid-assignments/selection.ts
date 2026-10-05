@@ -12,9 +12,9 @@ export const toRowSelection = (picked: Picked): RowSelectionState =>
 export function applySelection(
   picked: Picked,
   next: RowSelectionState,
-  rows: readonly { id: string; label: string }[],
+  rows: readonly { id: string; rowName: string }[],
 ): Picked {
-  const names = new Map(rows.map((row) => [row.id, row.label]));
+  const names = new Map(rows.map((row) => [row.id, row.rowName]));
   return new Map(Object.keys(next).map((id) => [id, picked.get(id) ?? names.get(id) ?? id]));
 }
 
