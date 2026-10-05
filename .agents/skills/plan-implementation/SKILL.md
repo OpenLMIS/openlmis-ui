@@ -31,7 +31,9 @@ and the code the ticket touches, so the research starts from what already exists
 Launch three background `Agent`s in a single message. Give each the ticket key, the AC,
 the parent story, and the **browser rules** from the `review-pr` skill
 (`.agents/skills/review-pr/SKILL.md`), copied verbatim: nothing may write to the shared
-server, and legacy is look-only. Each returns findings with evidence, not opinions, and
+server, legacy is look-only, and every browser runs headless. Researcher A drives the
+browser tool; another researcher that needs a browser runs a headless script, as those
+rules say. Each returns findings with evidence, not opinions, and
 changes no files. When the test server answers `5xx`, researchers wait and retry, and
 report what they could not see rather than guessing.
 

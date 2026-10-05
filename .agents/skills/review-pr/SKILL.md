@@ -54,9 +54,8 @@ every reviewer the same brief:
   server-side work and browser checks say what was intended, and its drops are deliberate
 - AGENTS.md is the rulebook; read it first
 - The worktree path and head SHA, and that it is the only tree to read or run
-- The **browser rules** below, copied verbatim, and who drives the browser: only
-  Reviewer E does, since the agents share one. The others work from code, tests and the
-  screenshots in `.screenshots/`
+- The **browser rules** below, copied verbatim. Reviewer E drives the browser tool; any
+  other reviewer that needs a browser runs its own headless script, as the rules say
 - Scratch work (throwaway tests, copies) goes under the worktree's `.screenshots/` folder
   or is deleted before reporting; never copy the repo or `.env` anywhere else
 - Return findings only, most severe first, each with: `file:line`, a one-sentence
@@ -137,7 +136,7 @@ A screenshot counts as evidence only if it was taken from the head SHA.
 ### Reviewer E: legacy UI parity
 
 Opens each touched screen in both UIs, signed in as the same user, and compares them from
-the user's side, not the code's. It is the one reviewer that drives the browser:
+the user's side, not the code's. It is the reviewer that drives the browser tool:
 
 - **Capability**: every field, column, filter, sort, action, validation rule, message and
   rights check the legacy screen has. Anything missing in the new UI is a regression
@@ -162,6 +161,14 @@ anchor to the new UI's file and line, and quote what legacy does.
 
 ### Browser rules (give these to every reviewer, and to every `plan-implementation` researcher)
 
+- Every browser runs headless; never open a visible window. The `playwright` browser tool
+  is started with `--headless --isolated`.
+- The browser tool is one browser shared by every agent in the session, so only one agent
+  drives it at a time. Any other agent that needs a browser at the same time runs its own
+  headless Chrome from a Node script under `.screenshots/<KEY>/`, importing the project's
+  `playwright-core` and launching with
+  `chromium.launch({ channel: 'chrome', headless: true })`, which uses the installed Chrome.
+  The rules below apply to scripts too, and a script closes its browser in a `finally`.
 - The API target is a shared server. **Never let a write reach it**: route every
   non-`GET` request under `/api/` to a stub (`route.fulfill`), except
   `POST /api/oauth/token` for signing in. A real write needs the user's explicit
