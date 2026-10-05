@@ -19,14 +19,29 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard } from '@/components/data-table/data-table';
 import {
+  DialogLoadError,
   ErrorAlert,
   FieldSkeleton,
   LookupBoundary,
+  SwitchSkeleton,
   serverMessage,
 } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import type { TagRefusal } from '@/components/form/tags';
+import {
+  FormDialog,
+  FormDialogBody,
+  FormDialogCancel,
+  FormDialogDescription,
+  FormDialogFooter,
+  FormDialogForm,
+  FormDialogHeader,
+  FormDialogSubmit,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -442,20 +457,33 @@ function PairsFields({ form }: { form: ReasonForm }) {
   const { data: types } = useSuspenseQuery(LOOKUPS.facilityTypes);
   const names = useMemo(() => pairNames(t, programs, types), [t, programs, types]);
   const table = useRef<HTMLDivElement>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const [adding, setAdding] = useState(false);
 
   const removeRow = (index: number) => {
     form.removeFieldValue('pairs', index);
-    // The pressed button is gone, so the next row's takes the focus, or the program picker.
+    // The pressed button is gone, so the next row's takes the focus, or Add.
     requestAnimationFrame(() => {
       const buttons = table.current?.querySelectorAll<HTMLElement>('[data-remove-pair]');
       const next = buttons?.[Math.min(index, buttons.length - 1)];
-      (next ?? document.getElementById('programId'))?.focus();
+      (next ?? addButton.current)?.focus();
     });
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <AddPairRow form={form} rows={rows} />
+      <div className="flex justify-end">
+        <Button onClick={() => setAdding(true)} ref={addButton} variant="outline">
+          <PlusIcon data-icon="inline-start" />
+          {t('reasons.form.add-pair-title')}
+        </Button>
+      </div>
+      <AddPairDialog
+        onAdd={(pair) => form.pushFieldValue('pairs', pair)}
+        onClose={() => setAdding(false)}
+        open={adding}
+        rows={rows}
+      />
       <div ref={table}>
         <DataTableCard>
           {rows.length === 0 ? (
@@ -535,7 +563,47 @@ function PairsFields({ form }: { form: ReasonForm }) {
 
 const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label);
 
-function AddPairRow({ form, rows }: { form: ReasonForm; rows: PairDraft[] }) {
+type AddPairDialogProps = {
+  open: boolean;
+  rows: PairDraft[];
+  onAdd: (pair: PairDraft) => void;
+  onClose: () => void;
+};
+
+function AddPairDialog({ open, rows, onAdd, onClose }: AddPairDialogProps) {
+  const { t } = useTranslation();
+  const { shown, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
+  const title = t('reasons.form.add-pair-title');
+
+  return (
+    <FormDialog {...dialogProps()}>
+      {shown && (
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <DialogLoadError
+              error={error}
+              errorTitle={t('reasons.form.load-error-title')}
+              onRetry={reset}
+              title={title}
+            />
+          )}
+          pendingFallback={<AddPairSkeleton />}
+          resetKey="add-pair"
+        >
+          <AddPairForm
+            onAdd={(pair) => {
+              onAdd(pair);
+              onClose();
+            }}
+            rows={rows}
+          />
+        </QueryBoundary>
+      )}
+    </FormDialog>
+  );
+}
+
+function AddPairForm({ rows, onAdd }: Pick<AddPairDialogProps, 'rows' | 'onAdd'>) {
   const { t } = useTranslation();
   const { data: programs } = useSuspenseQuery(LOOKUPS.programs);
   const { data: types } = useSuspenseQuery(LOOKUPS.activeFacilityTypes);
@@ -550,67 +618,69 @@ function AddPairRow({ form, rows }: { form: ReasonForm; rows: PairDraft[] }) {
   );
   const schema = useMemo(() => addPairSchema(rows), [rows]);
 
-  const addForm = useAppForm({
+  const form = useAppForm({
     defaultValues: { programId: '', facilityTypeId: '', show: true },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
-    onSubmit: ({ value, formApi }) => {
-      form.pushFieldValue('pairs', value);
-      formApi.reset();
-    },
+    onSubmit: ({ value }) => onAdd(value),
   });
 
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        void addForm.handleSubmit();
-      }}
-    >
-      <FieldGroup>
-        <div className="flex flex-col gap-x-4 gap-y-5 @2xl/main:flex-row @2xl/main:items-start">
-          <div className="min-w-0 flex-1">
-            <addForm.AppField name="programId">
-              {(field) => (
-                <field.SelectField
-                  items={programItems}
-                  label={t('reasons.form.program')}
-                  required
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="min-w-0 flex-1">
-            <addForm.AppField name="facilityTypeId">
-              {(field) => (
-                <field.SelectField
-                  items={typeItems}
-                  label={t('reasons.form.facility-type')}
-                  required
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="@2xl/main:w-28 @2xl/main:pt-6">
-            <addForm.AppField name="show">
-              {(field) => (
-                <field.SwitchField
-                  description={t('reasons.form.show-description')}
-                  label={t('reasons.form.show')}
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="@2xl/main:pt-6">
-            <Button type="submit" variant="outline" width="full">
-              <PlusIcon data-icon="inline-start" />
-              {t('reasons.form.add-pair')}
-            </Button>
-          </div>
-        </div>
-      </FieldGroup>
-    </form>
+    <FormDialogForm onSubmit={form.handleSubmit}>
+      <FormDialogHeader>
+        <FormDialogTitle>{t('reasons.form.add-pair-title')}</FormDialogTitle>
+        <FormDialogDescription>{t('reasons.form.add-pair-description')}</FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <FieldGroup>
+          <form.AppField name="programId">
+            {(field) => (
+              <field.SelectField items={programItems} label={t('reasons.form.program')} required />
+            )}
+          </form.AppField>
+          <form.AppField name="facilityTypeId">
+            {(field) => (
+              <field.SelectField
+                items={typeItems}
+                label={t('reasons.form.facility-type')}
+                required
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="show">
+            {(field) => (
+              <field.SwitchField
+                description={t('reasons.form.show-description')}
+                label={t('reasons.form.show')}
+              />
+            )}
+          </form.AppField>
+        </FieldGroup>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+        <FormDialogSubmit>{t('reasons.form.add-pair')}</FormDialogSubmit>
+      </FormDialogFooter>
+    </FormDialogForm>
+  );
+}
+
+function AddPairSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{t('reasons.form.add-pair-title')}</FormDialogTitle>
+        <FormDialogDescription>{t('reasons.form.add-pair-description')}</FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <FieldGroup>
+          <FieldSkeleton label={t('reasons.form.program')} required />
+          <FieldSkeleton label={t('reasons.form.facility-type')} required />
+          <SwitchSkeleton />
+        </FieldGroup>
+      </FormDialogBody>
+    </>
   );
 }
 
