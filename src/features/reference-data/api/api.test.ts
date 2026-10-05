@@ -7,6 +7,7 @@ import {
   fetchGeographicZones,
   fetchOrderableDisplayCategories,
   fetchOrganizations,
+  fetchReasons,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
 
@@ -127,5 +128,22 @@ describe('fetchOrganizations', () => {
       { id: 'o2', name: 'NGO' },
     ]);
     expect(get).toHaveBeenCalledWith('/organizations');
+  });
+});
+
+describe('fetchReasons', () => {
+  it('lists every reason in one request, since the endpoint cannot page', async () => {
+    const reason = {
+      id: 'r1',
+      name: 'Damage',
+      reasonType: 'DEBIT',
+      reasonCategory: 'ADJUSTMENT',
+      isFreeTextAllowed: false,
+      tags: [],
+    };
+    get.mockResolvedValueOnce({ data: [reason] });
+
+    await expect(fetchReasons()).resolves.toEqual([reason]);
+    expect(get).toHaveBeenCalledWith('/stockCardLineItemReasons');
   });
 });

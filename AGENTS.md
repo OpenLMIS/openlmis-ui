@@ -552,7 +552,7 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `NumberField`, `DecimalField`, `TextareaField`, `PasswordField`, `SwitchField`,
-`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`, `DateField`). Two
+`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `TagsField`, `SelectField`, `ImageField`, `DateField`). Two
 forms that share their fields, such as Add Product and the product's General tab, define them once
 with `withForm`, from the same `form.tsx`. A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
@@ -567,7 +567,9 @@ with a dot; `maxDecimals` caps
 the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
+`MultiComboboxField` with chips, not a column of checkboxes, and free text such as a reason's tags is a
+`TagsField`, where Enter, a comma or leaving the box adds what was typed and `suggestions` are offered once
+something is typed; and a list too long to load, such as
 products, passes `onSearch` and the server's matches as `items`, and keeps the search and the list
 open after each pick; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the

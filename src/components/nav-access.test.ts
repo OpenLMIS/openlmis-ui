@@ -92,4 +92,11 @@ describe('canOpen', () => {
     expect(canOpen('/administration/valid-sources', sources)).toBe(true);
     expect(canOpen('/administration/valid-sources', destinations)).toBe(false);
   });
+
+  it('opens Reasons to the right to manage reasons only', () => {
+    expect(
+      canOpen('/administration/reasons', new Set(['STOCK_CARD_LINE_ITEM_REASONS_MANAGE'])),
+    ).toBe(true);
+    expect(canOpen('/administration/reasons', new Set(['STOCK_ADJUST']))).toBe(false);
+  });
 });
