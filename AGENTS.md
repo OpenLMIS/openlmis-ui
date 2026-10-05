@@ -526,6 +526,9 @@ example: Add/Edit User is a dialog, Edit User Roles is a page. A record whose ad
 child records, as a facility's programs, adds on a page too, with one save for the record and
 its children: Add Facility (`src/features/facilities/components/facility-editor.tsx`) keeps
 one draft above its tabs, the tab in `?tab=`, and opens the tab with the first error on save.
+A child row, such as a facility's program, is added from a `FormDialog` opened by an Add button
+above its table, never from a row of fields inline, and no field spans the page: in the
+two-column field grid each one, a description or tags included, takes a single column.
 Each field that picks from a lookup loads behind its own `QueryBoundary`, so the page never
 waits for one, and the footer's save button submits the fields' `<form>` through its `form`
 attribute, so Enter saves. Edit Facility is the same editor given the stored record as
