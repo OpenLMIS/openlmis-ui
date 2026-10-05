@@ -177,6 +177,26 @@ describe('RemoveProgramLinkDialog', () => {
   });
 });
 
+describe('RemoveProgramLinkDialog when the server refuses', () => {
+  it('says why and stays open, so the user can try again', async () => {
+    update.mockRejectedValueOnce(httpError(400, { message: 'Refused by the server' }));
+    const onClose = vi.fn();
+    renderPage(<RemoveProgramLinkDialog onClose={onClose} product={product} programId="fp" />);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'products.programs.remove' }, LOADED),
+    );
+
+    expect(
+      await screen.findByText('products.programs.remove-error-title', {}, LOADED),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Refused by the server')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'products.programs.remove' })).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
 describe('RemoveProgramLinkDialog for a program the product is not in', () => {
   it('names it as not found, with only Close', async () => {
     renderPage(<RemoveProgramLinkDialog onClose={vi.fn()} product={product} programId="gone" />);
