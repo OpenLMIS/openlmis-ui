@@ -188,6 +188,12 @@ popovers, menus and tooltips flip too.
 | `space-x-*` | `gap-*` on a flex/grid parent |
 | `slide-in-from-left/right` | `slide-in-from-start/end` |
 
+**Names and codes filled into a message keep their own order.** In a right-to-left language,
+`IsolatingICU` (`src/lib/isolate-values.ts`, used by `src/integrations/i18n.ts`) wraps each plain
+`{value}` in Unicode isolation marks, so "2 in 1 Dandruff" or `0363-0755` never reorders inside an
+Arabic sentence. Select, plural, number and date values are left as they are. Pass the raw value
+to `t()`; never isolate it by hand.
+
 **Flip directional icons with `rtl:rotate-180`.** Anything that points along the reading
 axis: `ChevronLeft`/`ChevronRight`, `ArrowLeft`/`ArrowRight`, `LogOutIcon`, `PanelLeftIcon`.
 Do **not** flip icons whose meaning is not reading-order: `RotateCcwIcon` (undo),
