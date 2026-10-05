@@ -178,6 +178,6 @@ describe('DataTableComboboxFilter', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Zone' }));
 
-    expect(await screen.findByText('Type to find more')).toBeInTheDocument();
+    expect(await screen.findByText('Type to find more')).toHaveAttribute('role', 'status');
   });
 });

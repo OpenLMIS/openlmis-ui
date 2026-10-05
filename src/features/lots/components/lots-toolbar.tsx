@@ -6,8 +6,8 @@ import { DataTableComboboxFilter } from '@/components/data-table/data-table-filt
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { DatePicker } from '@/components/form/form-fields';
+import { productSearchStatus } from '@/features/lots/lib/product-search-status';
 import { LOT_HIDEABLE_COLUMNS, type LotsSearch } from '@/features/lots/lib/search';
-import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
 import {
   orderablesByIdsOptions,
   orderablesSearchOptions,
@@ -104,14 +104,6 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
     enabled: Boolean(value),
   });
   const searching = typed.trim() !== query || results.isFetching;
-  const total = results.data?.totalElements ?? 0;
-  const status =
-    searching || total <= ORDERABLE_SEARCH_SIZE
-      ? undefined
-      : t(query ? 'lots.search-more' : 'lots.search-hint', {
-          shown: ORDERABLE_SEARCH_SIZE,
-          count: total,
-        });
 
   const options = useMemo(() => {
     const found = (results.data?.content ?? []).map(toOption);
@@ -121,6 +113,15 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
     if (named) return [toOption(named), ...others];
     return picked.isPending ? others : [{ value, label: t('lots.unknown-product') }, ...others];
   }, [results.data, picked.data, picked.isPending, value, t]);
+
+  const status =
+    results.data && !searching
+      ? productSearchStatus({
+          listed: options.length,
+          total: results.data.totalElements,
+          typed: query !== '',
+        })
+      : undefined;
 
   return (
     <DataTableComboboxFilter
@@ -142,7 +143,7 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
         onValueChange(id);
       }}
       options={options}
-      status={status}
+      status={status && t(status.key, { shown: status.shown, count: status.count })}
       value={value ?? ''}
     />
   );

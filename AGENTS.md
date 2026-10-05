@@ -130,16 +130,17 @@ its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
 the OpenLMIS reference data many screens look up (facilities, facility types, programs,
-supervisory nodes and roles), named after the backend's `referencedata` service, plus
+supervisory nodes, roles and products), named after the backend's `referencedata` service, plus
 stock management's organizations, which Valid Destinations and Valid Sources both pick from, and its
 reasons, which the stock screens offer. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own. When that screen's list is the lookup's own
 endpoint, as for Roles and Reasons, it reads the lookup query and widens its type rather than
-fetching the same list twice. Products are looked up the same way: `orderablesSearchOptions`,
-`orderablesByIdsOptions` and `orderablesByTradeItemsOptions`, the last keeping the latest
-version of each product, since the server sends every version.
+fetching the same list twice. Products are looked up by search, by ids or by trade items
+(`orderablesSearchOptions`, `orderablesByIdsOptions`, `orderablesByTradeItemsOptions`), all
+keyed under `queryKeys.orderables.list` so a product save refreshes them; the trade item lookup
+keeps the latest version of each product, since the server sends every version.
 
 ### Internationalization (i18next)
 
@@ -482,9 +483,10 @@ page header, so everything that acts on the list is in one row.
 **A filter over a list too long to load searches the server.** `DataTableComboboxFilter` takes
 `onSearch`, then lists its `options` as given, and the page asks for matches only once the filter
 is first opened, so loading the list loads none; the picked value stays among the options, named
-by its own lookup when it came from a link. Its `status` says above the options how many the
-search left out and that typing finds the rest, as the kit picker does. Products on Lots is the example. A date filter is a
-`DatePicker`, with `earliest` and `latest` tying a from and to pair together.
+by its own lookup when it came from a link. Its `status`, a line above the options that screen
+readers announce, says how many are listed of how many match and that typing finds the rest.
+Products on Lots is the example. A date filter is a `DatePicker`, with `earliest` and `latest`
+tying a from and to pair together.
 
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a

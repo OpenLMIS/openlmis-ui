@@ -8,6 +8,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxStatus,
 } from '@/components/ui/combobox';
 import {
   Select,
@@ -142,9 +143,7 @@ export function DataTableComboboxFilter({
         width="full"
       />
       <ComboboxContent>
-        {status && options.length > 0 && (
-          <div className="border-b px-3 py-2 text-muted-foreground text-xs">{status}</div>
-        )}
+        {onSearch && <ComboboxStatus>{options.length > 0 && status}</ComboboxStatus>}
         <ComboboxEmpty>{emptyMessage ?? labels.noMatches}</ComboboxEmpty>
         <ComboboxList>
           {(option: DataTableComboboxFilterOption) => (
