@@ -76,7 +76,6 @@ export async function fetchGeographicLevels(): Promise<GeographicLevel[]> {
   return data.toSorted((a, b) => a.levelNumber - b.levelNumber);
 }
 
-/** Places that are not facilities, such as an NGO, kept by stock management. */
 export async function fetchOrganizations(): Promise<Organization[]> {
   const { data } = await client.get<Organization[]>('/organizations');
   return data.toSorted((a, b) => a.name.localeCompare(b.name));

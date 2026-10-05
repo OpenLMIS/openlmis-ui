@@ -1,5 +1,5 @@
 import { ArrowDownToLineIcon, ArrowUpFromLineIcon, Trash2Icon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableSelectionBar } from '@/components/data-table/data-table-selection';
@@ -17,11 +17,17 @@ import { DeleteAssignmentsDialog } from '@/components/valid-assignments/delete-a
 import {
   ASSIGNMENT_HIDEABLE_COLUMNS,
   type AssignmentsSearch,
+  assignmentFilterKey,
   CLEARED_ASSIGNMENT_FILTERS,
   isHalfFiltered,
   toAssignmentsQuery,
 } from '@/components/valid-assignments/search';
-import { type Picked, withoutIds } from '@/components/valid-assignments/selection';
+import {
+  NOTHING_PICKED,
+  type Picked,
+  useFilterSelection,
+  withoutIds,
+} from '@/components/valid-assignments/selection';
 import type { AssignmentKind, AssignmentsApi } from '@/components/valid-assignments/types';
 import {
   Workspace,
@@ -41,8 +47,6 @@ const AddAssignmentDialog = lazy(() =>
 );
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
-
-const NOTHING_PICKED: Picked = new Map();
 
 type AssignmentsPageProps = {
   api: AssignmentsApi;
@@ -65,20 +69,22 @@ export function AssignmentsPage({
 }: AssignmentsPageProps) {
   const { t } = useTranslation();
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
+  const content = useRef<HTMLDivElement>(null);
+  const contentRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      measureContent(element);
+      content.current = element;
+    },
+    [measureContent],
+  );
   const columnView = useColumnVisibility(
     ASSIGNMENT_HIDEABLE_COLUMNS,
     useStoredState(`valid-${api.kind}.column-visibility`, columnChoicesSchema, {}),
     contentWidth,
   );
 
-  // A new filter drops the selection, so a delete never reaches rows the user cannot see.
-  const filterKey = `${search.facilityId ?? ''}|${search.programId ?? ''}`;
-  const [selection, setSelection] = useState({ filterKey, picked: NOTHING_PICKED });
-  const picked = selection.filterKey === filterKey ? selection.picked : NOTHING_PICKED;
-  const setPicked = useCallback(
-    (next: Picked) => setSelection({ filterKey, picked: next }),
-    [filterKey],
-  );
+  const filterKey = assignmentFilterKey(search);
+  const [picked, setPicked] = useFilterSelection(filterKey);
   const [deleting, setDeleting] = useState<Picked | undefined>(undefined);
   const deleteOne = useCallback(
     (row: { id: string; name: string }) => setDeleting(new Map([[row.id, row.name]])),
@@ -95,7 +101,11 @@ export function AssignmentsPage({
     <Workspace>
       <AssignmentsHeader kind={api.kind} />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div
+          className="flex flex-col gap-4 outline-none @4xl/main:gap-6"
+          ref={contentRef}
+          tabIndex={-1}
+        >
           <AssignmentsToolbar
             columnView={columnView}
             kind={api.kind}
@@ -137,7 +147,10 @@ export function AssignmentsPage({
               />
             </QueryBoundary>
           )}
-          <DataTableSelectionBar count={picked.size} onClear={() => setPicked(NOTHING_PICKED)}>
+          <DataTableSelectionBar
+            count={picked.size}
+            onClear={() => setPicked(NOTHING_PICKED, filterKey)}
+          >
             <Button onClick={() => setDeleting(picked)} size="sm" variant="destructive">
               <Trash2Icon data-icon="inline-start" />
               {t('valid-assignments.delete-selected')}
@@ -146,8 +159,9 @@ export function AssignmentsPage({
         </div>
         <DeleteAssignmentsDialog
           api={api}
+          focusAfterDelete={content}
           onClose={() => setDeleting(undefined)}
-          onDeleted={(ids) => setPicked(withoutIds(picked, ids))}
+          onDeleted={(ids) => setPicked(withoutIds(picked, ids), filterKey)}
           targets={deleting}
         />
         {dialogMounted && (

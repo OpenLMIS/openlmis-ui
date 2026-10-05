@@ -1042,6 +1042,7 @@
   "valid-assignments.partly-deleted": "حُذف {deleted, number} وتعذر حذف {failed, number}. ما زالت محددة لتتمكن من المحاولة مرة أخرى.",
   "valid-assignments.partly-deleted-title": "لم يُحذف بعضها",
   "valid-assignments.program": "البرنامج",
+  "valid-assignments.row-name": "{name}، {program}، {type}",
   "valid-assignments.title": "{kind, select, destinations {الوجهات الصالحة} other {المصادر الصالحة}}",
   "valid-assignments.unknown": "غير معروف"
 }

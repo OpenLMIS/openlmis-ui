@@ -45,7 +45,6 @@ function SelectRowCheckbox<TData extends RowData>({
   );
 }
 
-/** A leading checkbox column; the header picks every row on the page, and `rowLabel` names each row's box. */
 export function selectionColumn<TData extends RowData>(rowLabel: (row: TData) => string) {
   return createColumnHelper<DataTableFeatures, TData>().display({
     id: 'select',
@@ -58,11 +57,9 @@ export function selectionColumn<TData extends RowData>(rowLabel: (row: TData) =>
 type DataTableSelectionBarProps = {
   count: number;
   onClear: () => void;
-  /** Actions on the selected rows, e.g. a Delete button. */
   children: ReactNode;
 };
 
-/** A bar held at the bottom of the window while rows are selected; the count is announced as it changes. */
 export function DataTableSelectionBar({ count, onClear, children }: DataTableSelectionBarProps) {
   const labels = useDataTableLabels();
 

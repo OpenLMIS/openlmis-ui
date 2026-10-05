@@ -4,11 +4,14 @@ import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucid
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard } from '@/components/data-table/data-table';
-import { ErrorAlert, FieldSkeleton, serverMessage } from '@/components/dialog-parts';
+import {
+  ErrorAlert,
+  FieldSkeleton,
+  LookupBoundary,
+  serverMessage,
+} from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Block } from '@/components/skeleton-block';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -257,31 +260,14 @@ export function FacilityEditor({
   );
 }
 
-function LookupField({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-}) {
+function LookupField(props: { label: string; required?: boolean; children: ReactNode }) {
   const { t } = useTranslation();
   return (
-    <QueryBoundary
-      errorComponent={({ error, reset }) => (
-        <LoadError
-          description={t('facilities.form.load-error-description')}
-          error={error}
-          reset={reset}
-          title={t('facilities.form.load-error-title')}
-        />
-      )}
-      pendingFallback={<FieldSkeleton label={label} required={required} />}
-      resetKey={label}
-    >
-      {children}
-    </QueryBoundary>
+    <LookupBoundary
+      errorDescription={t('facilities.form.load-error-description')}
+      errorTitle={t('facilities.form.load-error-title')}
+      {...props}
+    />
   );
 }
 

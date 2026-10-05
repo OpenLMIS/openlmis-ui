@@ -37,6 +37,12 @@ Today the new UI has these screens:
 | Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles. Needs the Manage Users right; without it the menu leaves Users out and the page says so |
 | Administration / Roles | Find roles, see their rights, and create or edit them. Opening the page needs Manage Users, seeing a role's rights needs View Rights, and creating or editing needs Manage User Roles and View Rights |
 | Administration / Service Accounts | See the API keys other systems use, copy them, add a new one and delete one. Needs the Manage Service Accounts right; without it the menu leaves Service Accounts out and the page says so |
+| Administration / Facilities | Find facilities by name or zone, add one with its programs, and edit one. Needs the Manage Facilities right |
+| Administration / Facility Types | See facility types, and add or edit one. Needs the Manage Facilities right |
+| Administration / Programs | Find programs, and add or edit one. Needs the Manage Programs right |
+| Administration / Products | Find products by code, name or program, and add one. Needs the Manage Orderables right or the Manage Facility Approved Orderables right; adding needs Manage Orderables |
+| Administration / Valid Destinations | See where each type of facility may issue stock to, per program, filter by facility and program, add one and delete one or several at once. Needs the Manage Stock Destinations right |
+| Administration / Valid Sources | The same for where each type of facility may receive stock from. Needs the Manage Stock Sources right |
 | Profile | Open it from Account in the menu at the top right. Change your name, email and phone, see your roles, set up notification digests and change your password. Every signed-in user has one |
 | Settings | Open it from Settings in the menu at the top right. Change the app name and logo, the colour theme and default appearance, and turn optional features on or off for everyone. Needs the Manage System Settings right; without it the menu leaves Settings out and the page says so |
 

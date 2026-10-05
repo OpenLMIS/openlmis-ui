@@ -216,7 +216,7 @@ export function DataTableSkeleton<TData extends RowData>({
               <TableRow key={row}>
                 {columns.map((column) => (
                   <TableCell key={column.id}>
-                    <SkeletonBar />
+                    {column.id === 'select' ? <SkeletonBox /> : <SkeletonBar />}
                   </TableCell>
                 ))}
               </TableRow>
@@ -227,6 +227,14 @@ export function DataTableSkeleton<TData extends RowData>({
           <DataTablePaginationSkeleton />
         </DataTableFooter>
       </DataTableCard>
+    </div>
+  );
+}
+
+function SkeletonBox() {
+  return (
+    <div className="size-4">
+      <Skeleton fill />
     </div>
   );
 }

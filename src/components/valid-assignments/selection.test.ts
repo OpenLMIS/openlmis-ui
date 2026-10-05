@@ -1,13 +1,15 @@
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
   applySelection,
   toRowSelection,
+  useFilterSelection,
   withoutIds,
 } from '@/components/valid-assignments/selection';
 
 const rows = [
-  { id: 'a', name: 'Balaka' },
-  { id: 'b', name: 'CHW' },
+  { id: 'a', label: 'Balaka' },
+  { id: 'b', label: 'CHW' },
 ];
 
 describe('applySelection', () => {
@@ -50,5 +52,35 @@ describe('withoutIds', () => {
     ]);
 
     expect(withoutIds(picked, ['a'])).toEqual(new Map([['b', 'CHW']]));
+  });
+});
+
+describe('useFilterSelection', () => {
+  const balaka = new Map([['a', 'Balaka']]);
+
+  it('keeps what was picked under the same filter', () => {
+    const { result } = renderHook(() => useFilterSelection('f1|p1'));
+
+    act(() => result.current[1](balaka, 'f1|p1'));
+    expect(result.current[0]).toEqual(balaka);
+  });
+
+  it('clears the selection when the filter changes, and does not bring it back on return', () => {
+    const { result, rerender } = renderHook(({ filter }) => useFilterSelection(filter), {
+      initialProps: { filter: '|' },
+    });
+    act(() => result.current[1](balaka, '|'));
+
+    rerender({ filter: '|p1' });
+    expect(result.current[0].size).toBe(0);
+    rerender({ filter: '|' });
+    expect(result.current[0].size).toBe(0);
+  });
+
+  it('ignores a pick on rows still showing from the previous filter', () => {
+    const { result } = renderHook(() => useFilterSelection('f1|p2'));
+
+    act(() => result.current[1](balaka, 'f1|p1'));
+    expect(result.current[0].size).toBe(0);
   });
 });

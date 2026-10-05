@@ -10,13 +10,14 @@ import {
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
-import { withPicked } from '@/components/valid-assignments/filter-options';
+import { toFacilityOption, toProgramOption } from '@/components/valid-assignments/options';
 import {
   ASSIGNMENT_HIDEABLE_COLUMNS,
   type AssignmentsSearch,
 } from '@/components/valid-assignments/search';
 import type { AssignmentKind } from '@/components/valid-assignments/types';
 import { minimalFacilitiesOptions, programsOptions } from '@/features/reference-data/api/queries';
+import { withPicked } from '@/lib/filter-options';
 
 type AssignmentsToolbarProps = {
   kind: AssignmentKind;
@@ -38,25 +39,11 @@ export function AssignmentsToolbar({
   const { data: programs } = useQuery(programsOptions());
   const unknown = t('valid-assignments.unknown');
   const facilityFilter = useMemo(
-    () =>
-      withPicked(
-        facilities?.map((facility) => ({
-          value: facility.id,
-          label: facility.name,
-          description: facility.code,
-        })),
-        search.facilityId,
-        unknown,
-      ),
+    () => withPicked(facilities?.map(toFacilityOption), search.facilityId, unknown),
     [facilities, search.facilityId, unknown],
   );
   const programFilter = useMemo(
-    () =>
-      withPicked(
-        programs?.map((program) => ({ value: program.id, label: program.name ?? program.code })),
-        search.programId,
-        unknown,
-      ),
+    () => withPicked(programs?.map(toProgramOption), search.programId, unknown),
     [programs, search.programId, unknown],
   );
 

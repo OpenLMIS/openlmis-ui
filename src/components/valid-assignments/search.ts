@@ -2,7 +2,6 @@ import { z } from 'zod';
 import type { AssignmentsQuery } from '@/components/valid-assignments/types';
 import { tableSearchSchema, toPaginationState } from '@/lib/table-search';
 
-/** View menu columns in display order; Program and Name always show. */
 export const ASSIGNMENT_HIDEABLE_COLUMNS = [
   { id: 'facilityType', labelKey: 'valid-assignments.facility-type', hideBelow: 'lg' },
   { id: 'geoZone', labelKey: 'valid-assignments.geo-zone', hideBelow: 'xl' },
@@ -33,6 +32,9 @@ export const CLEARED_ASSIGNMENT_FILTERS = {
 
 export const hasAssignmentFilters = (search: AssignmentsSearch) =>
   Boolean(search.facilityId || search.programId);
+
+export const assignmentFilterKey = (search: AssignmentsSearch) =>
+  `${search.facilityId ?? ''}|${search.programId ?? ''}`;
 
 /** The server takes the facility and the program only as a pair. */
 export const isHalfFiltered = (search: AssignmentsSearch) =>

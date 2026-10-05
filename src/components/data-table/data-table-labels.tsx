@@ -18,7 +18,6 @@ export type DataTableLabels = {
   lastPage: string;
   retry: string;
   selectPage: string;
-  /** Names a row's checkbox, e.g. 'Select Balaka District Hospital'. */
   selectRow: (row: string) => string;
   selectedCount: (count: number) => string;
   clearSelection: string;

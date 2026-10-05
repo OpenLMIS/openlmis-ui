@@ -29,9 +29,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { assignmentsListOptions } from '@/components/valid-assignments/queries';
 import {
   type AssignmentsSearch,
+  assignmentFilterKey,
   CLEARED_ASSIGNMENT_FILTERS,
   hasAssignmentFilters,
   toAssignmentsQuery,
@@ -48,6 +48,7 @@ import {
   geographicLevelsOptions,
   programsOptions,
 } from '@/features/reference-data/api/queries';
+import { programName } from '@/features/reference-data/lib/programs';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import {
   type DefaultSort,
@@ -56,9 +57,9 @@ import {
   useTableSearchState,
 } from '@/lib/table-search';
 
-/** A row as the table shows it: the ids resolved to names from the lookups. */
 type AssignmentRow = ValidAssignment & {
   label: string;
+  rowName: string;
   program: string | undefined;
   facilityType: string | undefined;
   geoLevel: string | undefined;
@@ -83,7 +84,7 @@ function createColumns(
     );
 
   return columnHelper.columns([
-    selectionColumn<AssignmentRow>((row) => row.label),
+    selectionColumn<AssignmentRow>((row) => row.rowName),
     columnHelper.accessor('program', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('valid-assignments.program')} />
@@ -91,7 +92,6 @@ function createColumns(
       cell: ({ getValue }) => named(getValue()),
     }),
     columnHelper.accessor('facilityType', {
-      id: 'facilityType',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('valid-assignments.facility-type')} />
       ),
@@ -118,13 +118,7 @@ function createColumns(
         if (!row.original.node.refDataFacility) return muted(t('valid-assignments.organization'));
         if (!zones) return <ZoneSkeleton />;
         const zone = zones.get(row.original.node.referenceId);
-        return zone ? (
-          <span className="block whitespace-normal break-words" dir="auto">
-            {zone}
-          </span>
-        ) : (
-          muted('-')
-        );
+        return zone ? named(zone) : muted('-');
       },
     }),
     columnHelper.accessor('geoLevel', {
@@ -141,7 +135,7 @@ function createColumns(
       meta: { className: 'w-16' },
       cell: ({ row }) => (
         <AssignmentActions
-          label={row.original.label}
+          label={row.original.rowName}
           onDelete={() => onDelete({ id: row.original.id, name: row.original.label })}
         />
       ),
@@ -186,7 +180,6 @@ function AssignmentActions({ label, onDelete }: { label: string; onDelete: () =>
   );
 }
 
-/** Program, type and level names from the lookups; a lookup still loading leaves its names undefined. */
 function useAssignmentRows(data: readonly ValidAssignment[]): AssignmentRow[] {
   const { t } = useTranslation();
   const { data: programs } = useQuery(programsOptions());
@@ -194,25 +187,33 @@ function useAssignmentRows(data: readonly ValidAssignment[]): AssignmentRow[] {
   const { data: levels } = useQuery(geographicLevelsOptions());
 
   return useMemo(() => {
-    const programNames = new Map(
-      programs?.map((program) => [program.id, program.name ?? program.code]),
-    );
+    const programNames = new Map(programs?.map((program) => [program.id, programName(program)]));
     const typeNames = new Map(types?.map((type) => [type.id, type.name ?? type.code]));
     const levelNames = new Map(levels?.map((level) => [level.id, level.name ?? level.code]));
-    return data.map((assignment) => ({
-      ...assignment,
-      label: assignment.name ?? t('valid-assignments.unknown'),
-      program: programs ? programNames.get(assignment.programId) : '',
-      facilityType: types ? typeNames.get(assignment.facilityTypeId) : '',
-      geoLevel:
-        assignment.geoLevelAffinityId && levels
-          ? levelNames.get(assignment.geoLevelAffinityId)
-          : '',
-    }));
+    const unknown = t('valid-assignments.unknown');
+    return data.map((assignment) => {
+      const label = assignment.name ?? unknown;
+      const program = programs ? programNames.get(assignment.programId) : '';
+      const facilityType = types ? typeNames.get(assignment.facilityTypeId) : '';
+      return {
+        ...assignment,
+        label,
+        rowName: t('valid-assignments.row-name', {
+          name: label,
+          program: program ?? unknown,
+          type: facilityType ?? unknown,
+        }),
+        program,
+        facilityType,
+        geoLevel:
+          assignment.geoLevelAffinityId && levels
+            ? levelNames.get(assignment.geoLevelAffinityId)
+            : '',
+      };
+    });
   }, [data, programs, types, levels, t]);
 }
 
-/** The zone of each facility on the page, from one request for just those facilities. */
 function useZones(data: readonly ValidAssignment[]) {
   const ids = useMemo(
     () =>
@@ -236,7 +237,7 @@ type AssignmentsTableProps = {
   onSearchChange: SearchChange<AssignmentsSearch>;
   columnVisibility: ColumnVisibilityState;
   picked: Picked;
-  onPickedChange: (picked: Map<string, string>) => void;
+  onPickedChange: (picked: Picked, rowsFilterKey: string) => void;
   onDelete: (row: { id: string; name: string }) => void;
 };
 
@@ -318,9 +319,7 @@ export function AssignmentsTable({
 }: AssignmentsTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
-  const { data } = useSuspenseQuery(
-    assignmentsListOptions(api, toAssignmentsQuery(deferredSearch)),
-  );
+  const { data } = useSuspenseQuery(api.listOptions(toAssignmentsQuery(deferredSearch)));
   const rows = useAssignmentRows(data.content);
   const zones = useZones(data.content);
   const rowSelection = useMemo(() => toRowSelection(picked), [picked]);
@@ -334,13 +333,7 @@ export function AssignmentsTable({
     rowSelection,
     onRowSelectionChange: (updater) => {
       const next = typeof updater === 'function' ? updater(rowSelection) : updater;
-      onPickedChange(
-        applySelection(
-          picked,
-          next,
-          rows.map((row) => ({ id: row.id, name: row.label })),
-        ),
-      );
+      onPickedChange(applySelection(picked, next, rows), assignmentFilterKey(deferredSearch));
     },
     onDelete,
   });
@@ -381,7 +374,6 @@ export function AssignmentsTable({
   );
 }
 
-/** Shown instead of the table while only one of the facility and program filters is picked. */
 export function HalfFilteredNotice({
   search,
   onClear,
@@ -394,7 +386,7 @@ export function HalfFilteredNotice({
     <DataTableCard>
       <DataTableEmpty
         action={
-          <Button onClick={onClear} variant="outline">
+          <Button onClick={onClear} variant="destructive">
             {t('valid-assignments.clear-filters')}
           </Button>
         }

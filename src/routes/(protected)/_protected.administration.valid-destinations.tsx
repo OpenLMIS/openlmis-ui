@@ -4,7 +4,6 @@ import {
   AssignmentsPage,
   AssignmentsPagePending,
 } from '@/components/valid-assignments/assignments-page';
-import { assignmentsListOptions } from '@/components/valid-assignments/queries';
 import {
   type AssignmentsSearch,
   assignmentsSearchSchema,
@@ -14,7 +13,10 @@ import {
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { programsOptions } from '@/features/reference-data/api/queries';
-import { VALID_DESTINATIONS_API } from '@/features/valid-destinations/api/queries';
+import {
+  VALID_DESTINATIONS_API,
+  validDestinationsListOptions,
+} from '@/features/valid-destinations/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const CLOSED_DIALOGS = { assignment: undefined } satisfies Partial<AssignmentsSearch>;
@@ -25,7 +27,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/val
   loader: async ({ context: { queryClient }, deps }) => {
     const rights = await requireRight(queryClient, RIGHTS.stockDestinationsManage);
     if (!deps.half) {
-      queryClient.prefetchQuery(assignmentsListOptions(VALID_DESTINATIONS_API, deps.query));
+      queryClient.prefetchQuery(validDestinationsListOptions(deps.query));
     }
     queryClient.prefetchQuery(programsOptions());
     return { canPickOrganizations: rights.has(RIGHTS.stockOrganizationsManage) };

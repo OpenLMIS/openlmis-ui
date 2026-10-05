@@ -27,7 +27,7 @@ const create = vi.fn();
 const api: AssignmentsApi = {
   kind: 'destinations',
   queryKey: ['validDestinations'],
-  fetchList: vi.fn(),
+  listOptions: vi.fn(),
   create,
   remove: vi.fn(),
 };

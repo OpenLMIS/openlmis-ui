@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assignmentFilterKey,
   assignmentsSearchSchema,
   hasAssignmentFilters,
   isHalfFiltered,
@@ -64,5 +65,21 @@ describe('filters', () => {
     expect(isHalfFiltered({ facilityId: FACILITY })).toBe(true);
     expect(isHalfFiltered({ programId: PROGRAM })).toBe(true);
     expect(isHalfFiltered({ facilityId: FACILITY, programId: PROGRAM })).toBe(false);
+  });
+});
+
+describe('assignmentFilterKey', () => {
+  it('is the same on every page of one filter', () => {
+    expect(assignmentFilterKey({ facilityId: FACILITY, programId: PROGRAM, page: 2 })).toBe(
+      assignmentFilterKey({ facilityId: FACILITY, programId: PROGRAM }),
+    );
+  });
+
+  it('changes with either filter', () => {
+    const both = assignmentFilterKey({ facilityId: FACILITY, programId: PROGRAM });
+
+    expect(assignmentFilterKey({ facilityId: FACILITY })).not.toBe(both);
+    expect(assignmentFilterKey({ programId: PROGRAM })).not.toBe(both);
+    expect(assignmentFilterKey({})).not.toBe(assignmentFilterKey({ programId: PROGRAM }));
   });
 });

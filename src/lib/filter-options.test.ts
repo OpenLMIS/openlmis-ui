@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { withPicked } from '@/components/valid-assignments/filter-options';
+import { withPicked } from '@/lib/filter-options';
 
 const options = [{ value: 'p1', label: 'EPI' }];
 

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
-import { useRef } from 'react';
+import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorAlert } from '@/components/dialog-parts';
@@ -17,15 +17,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { deleteAssignments } from '@/components/valid-assignments/delete-assignments';
+import type { Picked } from '@/components/valid-assignments/selection';
 import type { AssignmentsApi } from '@/components/valid-assignments/types';
 
 type DeleteAssignmentsDialogProps = {
   api: AssignmentsApi;
-  /** The rows to delete, by id and name; none closes the dialog. */
-  targets: ReadonlyMap<string, string> | undefined;
+  targets: Picked | undefined;
   onClose: () => void;
-  /** Called with the ids that are gone, whatever happened to the rest. */
   onDeleted: (ids: string[]) => void;
+  focusAfterDelete: RefObject<HTMLElement | null>;
 };
 
 export function DeleteAssignmentsDialog({
@@ -33,11 +33,13 @@ export function DeleteAssignmentsDialog({
   targets,
   onClose,
   onDeleted,
+  focusAfterDelete,
 }: DeleteAssignmentsDialogProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { shown, dialogProps } = useDialogTarget(targets, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const deletedSome = useRef(false);
   const count = shown?.size ?? 0;
 
   const remove = useMutation({
@@ -45,6 +47,7 @@ export function DeleteAssignmentsDialog({
     onSuccess: ({ deleted, failed }) => {
       onDeleted(deleted);
       if (deleted.length === 0) return;
+      deletedSome.current = true;
       onClose();
       if (failed.length === 0) {
         toast.success(
@@ -75,10 +78,14 @@ export function DeleteAssignmentsDialog({
       {...props}
       onOpenChangeComplete={(next) => {
         props.onOpenChangeComplete(next);
-        if (!next) remove.reset();
+        if (next) deletedSome.current = false;
+        else remove.reset();
       }}
     >
-      <AlertDialogContent initialFocus={cancelRef}>
+      <AlertDialogContent
+        finalFocus={() => (deletedSome.current ? focusAfterDelete.current : true)}
+        initialFocus={cancelRef}
+      >
         <AlertDialogHeader>
           <AlertDialogMedia>
             <Trash2Icon />

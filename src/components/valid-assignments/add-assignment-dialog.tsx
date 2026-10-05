@@ -6,11 +6,12 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { BuildingIcon, UsersIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, FieldSkeleton, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, LookupBoundary, serverMessage } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
+import { ComboboxField, SelectField } from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -23,8 +24,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import {
   type AssignmentFormValues,
@@ -32,6 +31,7 @@ import {
   EMPTY_ASSIGNMENT_FORM,
   toAssignmentBody,
 } from '@/components/valid-assignments/assignment-form';
+import { toFacilityOption, toProgramOption } from '@/components/valid-assignments/options';
 import type { AssignmentsApi } from '@/components/valid-assignments/types';
 import {
   facilityTypesOptions,
@@ -45,11 +45,13 @@ type AddAssignmentDialogProps = {
   api: AssignmentsApi;
   open: boolean;
   onClose: () => void;
-  /** Whether the user may list organizations; without it the node is always a facility. */
   canPickOrganizations: boolean;
 };
 
 const saveKey = (api: AssignmentsApi) => [...api.queryKey, 'create'];
+
+const toLabel = (lookup: { code: string; name: string | null } | undefined) =>
+  lookup && (lookup.name || lookup.code);
 
 export function AddAssignmentDialog({
   api,
@@ -87,12 +89,16 @@ function AddAssignmentForm({
     onSuccess: ({ assignment, created }) => {
       const names = {
         name: assignment.name ?? '',
-        type: queryClient
-          .getQueryData(facilityTypesOptions({ active: true }).queryKey)
-          ?.find((type) => type.id === assignment.facilityTypeId)?.name,
-        program: queryClient
-          .getQueryData(programsOptions().queryKey)
-          ?.find((program) => program.id === assignment.programId)?.name,
+        type: toLabel(
+          queryClient
+            .getQueryData(facilityTypesOptions({ active: true }).queryKey)
+            ?.find((type) => type.id === assignment.facilityTypeId),
+        ),
+        program: toLabel(
+          queryClient
+            .getQueryData(programsOptions().queryKey)
+            ?.find((program) => program.id === assignment.programId),
+        ),
       };
       if (created) {
         toast.success(t('valid-assignments.form.created-title', { kind: api.kind }), {
@@ -132,34 +138,10 @@ function AddAssignmentForm({
             />
           )}
           <LookupField label={t('valid-assignments.program')} required>
-            <form.AppField name="programId">
-              {(field) => (
-                <ProgramItems>
-                  {(items) => (
-                    <field.SelectField
-                      items={items}
-                      label={t('valid-assignments.program')}
-                      required
-                    />
-                  )}
-                </ProgramItems>
-              )}
-            </form.AppField>
+            <form.AppField name="programId">{() => <ProgramSelect />}</form.AppField>
           </LookupField>
           <LookupField label={t('valid-assignments.facility-type')} required>
-            <form.AppField name="facilityTypeId">
-              {(field) => (
-                <FacilityTypeItems>
-                  {(items) => (
-                    <field.SelectField
-                      items={items}
-                      label={t('valid-assignments.facility-type')}
-                      required
-                    />
-                  )}
-                </FacilityTypeItems>
-              )}
-            </form.AppField>
+            <form.AppField name="facilityTypeId">{() => <FacilityTypeSelect />}</form.AppField>
           </LookupField>
           {canPickOrganizations && (
             <form.AppField name="nodeType">
@@ -187,55 +169,15 @@ function AddAssignmentForm({
           )}
           {nodeType === 'organization' ? (
             <LookupField label={t('valid-assignments.organization')} required>
-              <form.AppField name="organizationId">
-                {(field) => (
-                  <OrganizationItems>
-                    {(items) => (
-                      <field.SelectField
-                        items={items}
-                        label={t('valid-assignments.organization')}
-                        required
-                      />
-                    )}
-                  </OrganizationItems>
-                )}
-              </form.AppField>
+              <form.AppField name="organizationId">{() => <OrganizationSelect />}</form.AppField>
             </LookupField>
           ) : (
             <LookupField label={t('valid-assignments.facility')} required>
-              <form.AppField name="facilityId">
-                {(field) => (
-                  <FacilityItems>
-                    {(items) => (
-                      <field.ComboboxField
-                        clearLabel={t('valid-assignments.form.clear-facility')}
-                        emptyMessage={t('data-table.no-matches')}
-                        items={items}
-                        label={t('valid-assignments.facility')}
-                        required
-                      />
-                    )}
-                  </FacilityItems>
-                )}
-              </form.AppField>
+              <form.AppField name="facilityId">{() => <FacilityCombobox />}</form.AppField>
             </LookupField>
           )}
           <LookupField label={t('valid-assignments.geo-level-affinity')}>
-            <form.AppField name="geoLevelAffinityId">
-              {(field) => (
-                <GeoLevelItems>
-                  {(items) => (
-                    <field.ComboboxField
-                      clearLabel={t('valid-assignments.form.clear-geo-level-affinity')}
-                      description={t('valid-assignments.form.geo-level-affinity-description')}
-                      emptyMessage={t('data-table.no-matches')}
-                      items={items}
-                      label={t('valid-assignments.geo-level-affinity')}
-                    />
-                  )}
-                </GeoLevelItems>
-              )}
-            </form.AppField>
+            <form.AppField name="geoLevelAffinityId">{() => <GeoLevelCombobox />}</form.AppField>
           </LookupField>
         </FieldGroup>
       </FormDialogBody>
@@ -249,76 +191,78 @@ function AddAssignmentForm({
   );
 }
 
-type Item = { value: string; label: string; description?: string };
-type ItemsProps = { children: (items: Item[]) => ReactNode };
-
-function ProgramItems({ children }: ItemsProps) {
+function ProgramSelect() {
+  const { t } = useTranslation();
   const { data } = useSuspenseQuery(programsOptions());
-  return children(
-    data.map((program) => ({ value: program.id, label: program.name ?? program.code })),
-  );
+  const items = useMemo(() => data.map(toProgramOption), [data]);
+  return <SelectField items={items} label={t('valid-assignments.program')} required />;
 }
 
-function FacilityTypeItems({ children }: ItemsProps) {
+function FacilityTypeSelect() {
+  const { t } = useTranslation();
   const { data } = useSuspenseQuery(facilityTypesOptions({ active: true }));
-  return children(data.map((type) => ({ value: type.id, label: type.name ?? type.code })));
+  const items = useMemo(
+    () => data.map((type) => ({ value: type.id, label: type.name || type.code })),
+    [data],
+  );
+  return <SelectField items={items} label={t('valid-assignments.facility-type')} required />;
 }
 
-function FacilityItems({ children }: ItemsProps) {
+function FacilityCombobox() {
+  const { t } = useTranslation();
   const { data } = useSuspenseQuery(minimalFacilitiesOptions());
-  return children(
-    data.map((facility) => ({
-      value: facility.id,
-      label: facility.name,
-      description: facility.code,
-    })),
+  const items = useMemo(() => data.map(toFacilityOption), [data]);
+  return (
+    <ComboboxField
+      clearLabel={t('valid-assignments.form.clear-facility')}
+      emptyMessage={t('data-table.no-matches')}
+      items={items}
+      label={t('valid-assignments.facility')}
+      required
+    />
   );
 }
 
-function OrganizationItems({ children }: ItemsProps) {
+function OrganizationSelect() {
+  const { t } = useTranslation();
   const { data } = useSuspenseQuery(organizationsOptions());
-  return children(
-    data.map((organization) => ({ value: organization.id, label: organization.name })),
+  const items = useMemo(
+    () => data.map((organization) => ({ value: organization.id, label: organization.name })),
+    [data],
   );
+  return <SelectField items={items} label={t('valid-assignments.organization')} required />;
 }
 
-function GeoLevelItems({ children }: ItemsProps) {
+function GeoLevelCombobox() {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(geographicLevelsOptions());
-  return children(
-    data.map((level) => ({
-      value: level.id,
-      label: level.name ?? level.code,
-      description: t('valid-assignments.form.level', { level: level.levelNumber }),
-    })),
+  const items = useMemo(
+    () =>
+      data.map((level) => ({
+        value: level.id,
+        label: level.name || level.code,
+        description: t('valid-assignments.form.level', { level: level.levelNumber }),
+      })),
+    [data, t],
+  );
+  return (
+    <ComboboxField
+      clearLabel={t('valid-assignments.form.clear-geo-level-affinity')}
+      description={t('valid-assignments.form.geo-level-affinity-description')}
+      emptyMessage={t('data-table.no-matches')}
+      items={items}
+      label={t('valid-assignments.geo-level-affinity')}
+    />
   );
 }
 
-/** Each picker loads on its own, so the dialog never waits for the slowest list. */
-function LookupField({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-}) {
+function LookupField(props: { label: string; required?: boolean; children: ReactNode }) {
   const { t } = useTranslation();
   return (
-    <QueryBoundary
-      errorComponent={({ error, reset }) => (
-        <LoadError
-          description={t('valid-assignments.form.load-error-description')}
-          error={error}
-          reset={reset}
-          title={t('valid-assignments.form.load-error-title')}
-        />
-      )}
-      pendingFallback={<FieldSkeleton label={label} required={required} />}
-      resetKey={label}
-    >
-      {children}
-    </QueryBoundary>
+    <LookupBoundary
+      errorDescription={t('valid-assignments.form.load-error-description')}
+      errorTitle={t('valid-assignments.form.load-error-title')}
+      {...props}
+    />
   );
 }

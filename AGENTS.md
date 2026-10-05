@@ -470,10 +470,12 @@ Clear Filters action.
 **Rows the user acts on together are selected with a checkbox column**, `selectionColumn()`
 from `src/components/data-table/data-table-selection.tsx`: the header picks the page, and a
 selection is kept across pages by id, with each row's name, so a confirm can count and name
-rows not on screen. A filter change clears it, so an action never reaches rows the user cannot
-see. While anything is selected, `DataTableSelectionBar` after the table shows the count, Clear
-and the actions. It is not in the URL. Valid Destinations is the example, and its bulk delete
-awaits every request and reports the ones that failed.
+rows not on screen. A filter change clears it, and rows still showing from the last filter
+cannot change it, so an action never reaches rows the user cannot see. Each row's box is named
+for everything that tells it apart, not only its name. While anything is selected,
+`DataTableSelectionBar` after the table shows the count, Clear and the actions. It is not in the
+URL. Valid Destinations is the example: its bulk delete awaits every request, reports the ones
+that failed and then moves focus to the list, since the bar and the rows it came from are gone.
 
 A filter on a short fixed list, such as status, is a `DataTableSelectFilter`; on a long one,
 such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
@@ -490,7 +492,8 @@ unchanged, so it follows the registry's rules rather than this app's:
   such as `Button tone`; the exceptions are `SelectTrigger width`, `Table density` and
   `layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width`/`clearLabel` and `Skeleton fill`, which become plain `className`s in the registry, where layout
-  classes are allowed.
+  classes are allowed. `selectionColumn` also needs the app's `checkbox.tsx` edit to draw a
+  partly selected page as a minus; it ships with that edit.
 - Text comes from `DataTableLabelsProvider`, which defaults to English.
   `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
 - Table state and the URL are app glue and stay in `src/lib/table-search.ts`.

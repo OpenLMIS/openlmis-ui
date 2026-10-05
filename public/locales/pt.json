@@ -1042,6 +1042,7 @@
   "valid-assignments.partly-deleted": "{deleted, number} eliminados, {failed, number} não. Esses continuam selecionados, para que possa tentar novamente.",
   "valid-assignments.partly-deleted-title": "Alguns Não Foram Eliminados",
   "valid-assignments.program": "Programa",
+  "valid-assignments.row-name": "{name}, {program}, {type}",
   "valid-assignments.title": "{kind, select, destinations {Destinos Válidos} other {Origens Válidas}}",
   "valid-assignments.unknown": "Desconhecido"
 }
