@@ -46,5 +46,9 @@ export const decimalMark = (language: string) =>
   new Intl.NumberFormat(language).formatToParts(1.5).find((part) => part.type === 'decimal')
     ?.value ?? '.';
 
-export const toNumberText = (value: number | null | undefined, mark = '.') =>
-  value == null ? '' : String(value).replace('.', mark);
+export function toNumberText(value: number | null | undefined, mark = '.') {
+  if (value == null) return '';
+  const text = String(value);
+  const marked = text.replace('.', mark);
+  return toLatinNumber(marked) === text ? marked : text;
+}

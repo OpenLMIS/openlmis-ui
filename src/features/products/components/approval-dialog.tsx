@@ -31,7 +31,7 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
-import { addApproval, updateApproval } from '@/features/products/api/api';
+import { ApprovalRemovedError, addApproval, saveApprovalStock } from '@/features/products/api/api';
 import { approvalDetailOptions, productApprovalsOptions } from '@/features/products/api/queries';
 import {
   type ApprovalFormValues,
@@ -174,7 +174,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
     mutationKey: saveKey(product.id),
     mutationFn: (values: ApprovalFormValues) => {
       const stock = toApprovalStock(values);
-      if (approval) return updateApproval({ ...approval, ...stock });
+      if (approval) return saveApprovalStock(approval.id, stock);
       const facilityType = facilityTypes.find((type) => type.id === values.facilityTypeId);
       const program = programs.find((item) => item.id === values.programId);
       if (!facilityType || !program) throw new Error('Unknown facility type or program');
@@ -242,7 +242,11 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('products.form.save-error')}
+              description={
+                save.error instanceof ApprovalRemovedError
+                  ? t('products.approvals.form.not-found')
+                  : (serverMessage(save.error) ?? t('products.form.save-error'))
+              }
               title={t('products.approvals.form.save-error-title')}
             />
           )}

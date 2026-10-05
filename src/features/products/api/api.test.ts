@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  ApprovalRemovedError,
   addApproval,
   createProduct,
   fetchApproval,
@@ -8,6 +9,7 @@ import {
   fetchProducts,
   fetchProductsByIds,
   removeApproval,
+  saveApprovalStock,
   saveProductChange,
   updateApproval,
 } from '@/features/products/api/api';
@@ -175,6 +177,27 @@ describe('removeApproval', () => {
       ...latest,
       active: false,
     });
+  });
+});
+
+describe('saveApprovalStock', () => {
+  const stock = { maxPeriodsOfStock: 6, minPeriodsOfStock: null, emergencyOrderPoint: 2 };
+
+  it('applies the stock to the latest version of the approval', async () => {
+    const latest = { ...approval, meta: { versionNumber: 3 } };
+    get.mockResolvedValueOnce({ data: latest });
+    put.mockResolvedValueOnce({ data: { ...latest, ...stock } });
+
+    await saveApprovalStock('a1', stock);
+    expect(get).toHaveBeenCalledWith('/facilityTypeApprovedProducts/a1');
+    expect(put).toHaveBeenCalledWith('/facilityTypeApprovedProducts/a1', { ...latest, ...stock });
+  });
+
+  it('refuses to bring back an approval removed since the dialog opened', async () => {
+    get.mockResolvedValueOnce({ data: { ...approval, active: false } });
+
+    await expect(saveApprovalStock('a1', stock)).rejects.toBeInstanceOf(ApprovalRemovedError);
+    expect(put).not.toHaveBeenCalled();
   });
 });
 

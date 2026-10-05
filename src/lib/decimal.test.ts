@@ -113,4 +113,14 @@ describe('toNumberText with a decimal mark', () => {
     expect(toNumberText(3, ',')).toBe('3');
     expect(toNumberText(null, ',')).toBe('');
   });
+
+  it('keeps a dot before exactly three decimals, so the value it shows stays valid', () => {
+    const schema = decimalText(messages);
+    const text = toNumberText(1.234, ',');
+
+    expect(text).toBe('1.234');
+    expect(message(schema, text)).toBeUndefined();
+    expect(toDecimal(text)).toBe(1.234);
+    expect(toNumberText(1.2345, ',')).toBe('1,2345');
+  });
 });

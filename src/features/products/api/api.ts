@@ -1,5 +1,6 @@
 import type {
   Approval,
+  ApprovalStock,
   CreateProductBody,
   NewApproval,
   Product,
@@ -44,6 +45,19 @@ export async function fetchApproval(id: string) {
 export async function updateApproval(approval: Approval) {
   const { data } = await client.put<Approval>(`${APPROVALS}/${approval.id}`, approval);
   return data;
+}
+
+export class ApprovalRemovedError extends Error {
+  constructor() {
+    super('The approval was removed');
+    this.name = 'ApprovalRemovedError';
+  }
+}
+
+export async function saveApprovalStock(id: string, stock: ApprovalStock) {
+  const latest = await fetchApproval(id);
+  if (!latest.active) throw new ApprovalRemovedError();
+  return updateApproval({ ...latest, ...stock });
 }
 
 export async function addApproval({ orderableId, facilityType, program, stock }: NewApproval) {

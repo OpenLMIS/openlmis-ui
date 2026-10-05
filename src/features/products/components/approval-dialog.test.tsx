@@ -2,11 +2,12 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  ApprovalRemovedError,
   addApproval,
   fetchApproval,
   fetchApprovals,
   removeApproval,
-  updateApproval,
+  saveApprovalStock,
 } from '@/features/products/api/api';
 import { ApprovalDialog } from '@/features/products/components/approval-dialog';
 import { RemoveApprovalDialog } from '@/features/products/components/remove-approval-dialog';
@@ -14,12 +15,14 @@ import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { fetchFacilityTypes, fetchPrograms } from '@/features/reference-data/api/api';
 import { renderPage } from '@/tests/render-page';
 
-vi.mock('@/features/products/api/api', () => ({
+vi.mock('@/features/products/api/api', async (importOriginal) => ({
+  ApprovalRemovedError: (await importOriginal<typeof import('@/features/products/api/api')>())
+    .ApprovalRemovedError,
   addApproval: vi.fn(),
   fetchApproval: vi.fn(),
   fetchApprovals: vi.fn(),
   removeApproval: vi.fn(),
-  updateApproval: vi.fn(),
+  saveApprovalStock: vi.fn(),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacilityTypes: vi.fn(),
@@ -128,10 +131,10 @@ describe('ApprovalDialog', () => {
     expect(addApproval).not.toHaveBeenCalled();
   });
 
-  it('reads the approval fresh, keeps the pair and sends it back whole', async () => {
+  it('reads the approval fresh, keeps the pair and saves only its stock', async () => {
     const latest = { ...approval, maxPeriodsOfStock: 4, meta: { versionNumber: 2 } };
     vi.mocked(fetchApproval).mockResolvedValueOnce(latest);
-    vi.mocked(updateApproval).mockResolvedValueOnce(latest);
+    vi.mocked(saveApprovalStock).mockResolvedValueOnce(latest);
     const { onClose } = renderDialog('a1');
     const user = userEvent.setup();
 
@@ -146,7 +149,26 @@ describe('ApprovalDialog', () => {
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(fetchApproval).toHaveBeenCalledWith('a1');
-    expect(updateApproval).toHaveBeenCalledWith({ ...latest, maxPeriodsOfStock: 6 });
+    expect(saveApprovalStock).toHaveBeenCalledWith('a1', {
+      maxPeriodsOfStock: 6,
+      emergencyOrderPoint: 1,
+      minPeriodsOfStock: 1.5,
+    });
+  });
+
+  it('says so, and stays open, when the approval was removed while it was open', async () => {
+    vi.mocked(fetchApproval).mockResolvedValueOnce(approval);
+    vi.mocked(saveApprovalStock).mockRejectedValueOnce(new ApprovalRemovedError());
+    const { onClose } = renderDialog('a1');
+    const user = userEvent.setup();
+
+    await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED);
+    await user.click(screen.getByRole('button', { name: 'products.approvals.form.save' }));
+
+    expect(
+      await screen.findByText('products.approvals.form.not-found', {}, LOADED),
+    ).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('only shows an approval to a user who may not change it', async () => {

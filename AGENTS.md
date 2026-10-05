@@ -542,7 +542,8 @@ with `withForm`, from the same `form.tsx`. A whole number is a
 number passes `optional` and reads with `toOptionalWholeNumber`. A number with decimals, such as a price, is a
 `DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal` and shown with
 `toNumberText(value, decimalMark(language))`; it takes a dot or the language's comma, and refuses a comma
-before exactly three digits as a possible thousands separator; `maxDecimals` caps
+before exactly three digits as a possible thousands separator, so `toNumberText` shows such a value
+with a dot; `maxDecimals` caps
 the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
