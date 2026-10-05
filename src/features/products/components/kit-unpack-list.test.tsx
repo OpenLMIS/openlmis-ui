@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,7 +92,7 @@ describe('KitUnpackList', () => {
     await user.type(quantities[1], '4');
     await user.click(screen.getByRole('button', { name: 'products.kit.save' }));
 
-    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(updateProduct).toHaveBeenCalledWith('k1', {
       ...kit,
       children: [
@@ -113,7 +113,7 @@ describe('KitUnpackList', () => {
     expect(updateProduct).not.toHaveBeenCalled();
     const quantity = within(table).getByRole('textbox', { name: 'products.kit.quantity-of' });
     await user.type(quantity, '1');
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.queryByText('products.kit.quantity-required')).not.toBeInTheDocument(),
     );
     expect(quantity).toHaveAttribute('aria-invalid', 'false');
@@ -121,7 +121,7 @@ describe('KitUnpackList', () => {
     await user.click(screen.getByRole('button', { name: 'products.kit.actions-for' }));
     await user.click(await screen.findByRole('menuitem', { name: 'products.kit.remove' }));
     expect(await screen.findByText('products.kit.empty-title')).toBeInTheDocument();
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus(),
     );
   });

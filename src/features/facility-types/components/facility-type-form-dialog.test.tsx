@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFacilityType, fetchFacilityType } from '@/features/facility-types/api/api';
@@ -78,7 +78,7 @@ describe('FacilityTypeFormDialog', () => {
 
     await fillAndCreate('Foo');
 
-    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(create).toHaveBeenCalled());
     expect(screen.queryByText('facility-types.form.name-taken')).not.toBeInTheDocument();
   });
 
@@ -89,7 +89,7 @@ describe('FacilityTypeFormDialog', () => {
 
     await fillAndCreate('Store');
 
-    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(create).toHaveBeenCalled());
   });
 
   it('shows a name the server found in use on the name field', async () => {

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchProducts } from '@/features/products/api/api';
@@ -41,7 +41,7 @@ describe('ProductsTable', () => {
     expect(edit).toHaveAttribute('href', '/administration/products/o1/general');
     await user.click(edit);
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(router.state.location.pathname).toBe('/administration/products/o1/general'),
     );
     expect(router.state.location.state.productsListSearch).toEqual(search);

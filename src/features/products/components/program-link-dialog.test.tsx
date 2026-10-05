@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -79,7 +79,7 @@ describe('ProgramLinkDialog', () => {
     await user.type(screen.getByLabelText(/products.programs.price/), '3.50');
     await user.click(screen.getByRole('button', { name: 'products.programs.form.add' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', {
       ...product,
       programs: [
@@ -116,7 +116,7 @@ describe('ProgramLinkDialog', () => {
     const { onClose } = renderDialog('fp');
     const user = userEvent.setup();
 
-    const doses = await screen.findByLabelText(/products.programs.form.doses-per-patient/, {});
+    const doses = await screen.findByLabelText(/products.programs.form.doses-per-patient/);
     expect(doses).toHaveValue('1');
     await user.clear(doses);
     await user.type(doses, '2');
@@ -158,7 +158,7 @@ describe('RemoveProgramLinkDialog', () => {
     expect(await screen.findByText('products.programs.remove-description')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'products.programs.remove' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', { ...product, programs: [] });
   });
 });
@@ -216,7 +216,7 @@ describe('RemoveProgramLinkDialog after removing', () => {
 
     await user.click(await screen.findByRole('button', { name: 'products.programs.remove' }));
 
-    await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Programs' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Programs' })).toHaveFocus());
   });
 });
 

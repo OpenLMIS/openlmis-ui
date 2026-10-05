@@ -313,6 +313,11 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 - **Tests first, never after** - write the failing unit test, then the code that makes it
   pass. A bug fix starts with a test that reproduces the bug. Test our logic, not shadcn or
   Base UI behaviour
+- **One timeout for the suite** - `vite.config.ts` sets the test timeout and
+  `src/tests/setup.ts` the wait for `findBy*` and `waitFor`, both sized for a loaded machine.
+  Never pass a timeout to a test or a query, and wait with Testing Library's `waitFor`, not
+  `vi.waitFor`, which keeps its own 1 s. A test that seeds the cache and reads it through
+  `useSuspenseQuery` sets `staleTime: Infinity`, or a slow mount refetches it
 - **Biome formatting**: 2-space indent, single quotes, trailing commas, 100 char line width
 - **No Co-Authored-By lines** in commits or PRs
 - **No em dashes** anywhere in the project - not in code, comments, UI copy, translations, docs, commits, or PRs. Use a plain hyphen or rephrase.

@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProgram, fetchProgram } from '@/features/programs/api/api';
@@ -78,7 +78,7 @@ describe('ProgramFormDialog', () => {
 
     await fillAndCreate('PRG009');
 
-    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(create).toHaveBeenCalled());
     expect(screen.queryByText('programs.form.code-taken')).not.toBeInTheDocument();
   });
 

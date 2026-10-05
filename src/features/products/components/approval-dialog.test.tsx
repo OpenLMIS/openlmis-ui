@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -106,7 +106,7 @@ describe('ApprovalDialog', () => {
     await user.type(screen.getByLabelText(/products.approvals.max-periods/), '2.5');
     await user.click(screen.getByRole('button', { name: 'products.approvals.form.add' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(addApproval).toHaveBeenCalledWith({
       orderableId: 'o1',
       facilityType: expect.objectContaining({ id: 'dh', code: 'district_hospital' }),
@@ -144,7 +144,7 @@ describe('ApprovalDialog', () => {
     await user.type(max, '6');
     await user.click(screen.getByRole('button', { name: 'products.approvals.form.save' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(fetchApproval).toHaveBeenCalledWith('a1');
     expect(saveApprovalStock).toHaveBeenCalledWith('a1', {
       maxPeriodsOfStock: 6,
@@ -205,7 +205,7 @@ describe('RemoveApprovalDialog', () => {
     expect(await screen.findByText('products.approvals.remove-description')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'products.approvals.remove' }));
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(removeApproval).toHaveBeenCalledWith('a1');
   });
 });
