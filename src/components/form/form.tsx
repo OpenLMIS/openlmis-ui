@@ -11,6 +11,7 @@ import {
   RadioGroupField,
   SelectField,
   SwitchField,
+  TagsField,
   TextareaField,
   TextField,
 } from '@/components/form/form-fields';
@@ -29,6 +30,7 @@ export const { useAppForm, withForm } = createFormHook({
     RadioGroupField,
     ComboboxField,
     MultiComboboxField,
+    TagsField,
     SelectField,
     ImageField,
     DateField,
