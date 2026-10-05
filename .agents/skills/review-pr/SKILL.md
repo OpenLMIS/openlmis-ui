@@ -106,9 +106,9 @@ conventions. A lint pass catches only a few of them. The ones most often broken:
 - **Docs**: AGENTS.md, README.md and `docs/` updated where the diff changes what they
   describe, each kept to its own audience
 - **The PR itself**: the description follows the Pull Request Format (ticket link,
-  `## Changes` as one-line bullets, screenshots for visible changes, empty sections left
-  out), commits are conventional (`feat:`, `fix:`, `refactor:`...), no Co-Authored-By
-  lines, and the diff contains nothing unrelated to the PR's purpose. A change that
+  `## Changes` as one-line bullets, no Screenshots section, empty sections left out),
+  commits are conventional (`feat:`, `fix:`, `refactor:`...), no Co-Authored-By lines, and
+  the diff contains nothing unrelated to the PR's purpose. A change that
   reaches every page riding in a feature PR is reported with a suggestion to split it
 - **The plan**: a ticket PR carries `plans/<KEY>.md`; every acceptance criterion in it
   is met, and the plan still matches what was built

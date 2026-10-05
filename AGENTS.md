@@ -343,10 +343,9 @@ Keep PR descriptions short and scannable. No walls of text.
 1. **Ticket link** at the top, on its own line.
 2. **`## Changes`** - bullet points only. One line per change, concise and easy to
    understand. No paragraphs, no narration of the process.
-3. **UI artifacts** at the bottom when relevant - screenshots or recordings for any
-   visible change.
 
-Omit a section entirely when it does not apply rather than writing "N/A".
+No Screenshots section: an agent cannot attach images to a PR. Omit a section entirely when it
+does not apply rather than writing "N/A".
 
 ```markdown
 https://tracker.example.com/BROWSE/ABC-123
@@ -355,12 +354,6 @@ https://tracker.example.com/BROWSE/ABC-123
 
 - Add `surface` variant to `Card` so consumers stop overriding `bg-card`
 - Replace arbitrary text sizes with a `text-2xs` theme token
-
-## Screenshots
-
-| Before | After |
-| --- | --- |
-| ... | ... |
 ```
 
 ## Page layout
