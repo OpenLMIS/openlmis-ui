@@ -27,6 +27,7 @@ import {
   type FacilityTypesSearch,
   toFacilityTypesQuery,
 } from '@/features/facility-types/lib/search';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
@@ -113,7 +114,7 @@ function FacilityTypeActions({
         <DropdownMenuTrigger
           render={
             <Button
-              aria-label={t('facility-types.actions-for', { type: type.name || type.code })}
+              aria-label={t('facility-types.actions-for', { type: facilityTypeName(type) })}
               size="icon-sm"
               variant="ghost"
             />

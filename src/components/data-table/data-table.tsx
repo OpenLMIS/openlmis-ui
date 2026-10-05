@@ -161,7 +161,7 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   column,
   title,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  if (!column.getCanSort()) return <HeaderLabel>{title}</HeaderLabel>;
+  if (!column.getCanSort()) return <DataTableHeaderLabel>{title}</DataTableHeaderLabel>;
 
   const direction = column.getIsSorted();
   const SortIcon =
@@ -174,14 +174,14 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   return (
     <div className="-ms-2">
       <Button onClick={column.getToggleSortingHandler()} size="xs" variant="ghost">
-        <HeaderLabel>{title}</HeaderLabel>
+        <DataTableHeaderLabel>{title}</DataTableHeaderLabel>
         <SortIcon className="text-muted-foreground" data-icon="inline-end" />
       </Button>
     </div>
   );
 }
 
-function HeaderLabel({ children }: { children: ReactNode }) {
+export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
   return (
     <span className="font-medium text-muted-foreground text-xs uppercase tracking-label">
       {children}

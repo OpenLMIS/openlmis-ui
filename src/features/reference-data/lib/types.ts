@@ -107,3 +107,10 @@ export type FacilityType = {
   active: boolean | null;
   primaryHealthCare: boolean | null;
 };
+
+export type OrderableDisplayCategory = {
+  id: string;
+  code: string;
+  displayName: string;
+  displayOrder: number;
+};

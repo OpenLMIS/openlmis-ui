@@ -14,6 +14,8 @@ export const PRODUCT_HIDEABLE_COLUMNS = [
 
 export const DEFAULT_PRODUCTS_SORT: DefaultSort = { id: 'fullProductName', desc: false };
 
+export const PRODUCTS_SORT_PARAM = toSortParam({}, DEFAULT_PRODUCTS_SORT);
+
 export const productsSearchSchema = tableSearchSchema(['fullProductName'])
   .omit({ sort: true, dir: true })
   .extend({
@@ -39,7 +41,7 @@ export function toProductsQuery(search: ProductsSearch): ProductsQuery {
   return {
     page: pageIndex,
     size: pageSize,
-    sort: toSortParam({}, DEFAULT_PRODUCTS_SORT),
+    sort: PRODUCTS_SORT_PARAM,
     q: search.q?.trim(),
     program: search.program?.trim(),
   };

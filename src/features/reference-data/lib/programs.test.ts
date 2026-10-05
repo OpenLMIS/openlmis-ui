@@ -12,4 +12,8 @@ describe('programName', () => {
     expect(programName({ ...program, name: null })).toBe('PRG001');
     expect(programName({ ...program, name: '' })).toBe('PRG001');
   });
+
+  it('falls back to the code when the name is only spaces', () => {
+    expect(programName({ ...program, name: '   ' })).toBe('PRG001');
+  });
 });

@@ -5,6 +5,7 @@ import {
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
+  fetchOrderableDisplayCategories,
   fetchOrganizations,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
@@ -42,6 +43,24 @@ describe('fetchFacilityTypes', () => {
 
     await fetchFacilityTypes({ active: true });
     expect(get).toHaveBeenCalledWith('/facilityTypes', { params: { active: true } });
+  });
+});
+
+describe('fetchOrderableDisplayCategories', () => {
+  it('lists every category in its display order', async () => {
+    const category = (code: string, displayOrder: number) => ({
+      id: code,
+      code,
+      displayName: code,
+      displayOrder,
+    });
+    get.mockResolvedValueOnce({ data: [category('C2', 2), category('C1', 1)] });
+
+    await expect(fetchOrderableDisplayCategories()).resolves.toEqual([
+      category('C1', 1),
+      category('C2', 2),
+    ]);
+    expect(get).toHaveBeenCalledWith('/orderableDisplayCategories');
   });
 });
 
