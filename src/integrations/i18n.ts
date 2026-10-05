@@ -1,16 +1,16 @@
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
-import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { SUPPORTED_LANGUAGES } from '@/lib/config';
+import { IsolatingICU } from '@/lib/isolate-values';
 
 export const defaultNS = 'translation' as const;
 
 // Catalogs are fetched, not bundled, so a deployment can correct a language without a rebuild.
 export function initI18n() {
   return i18n
-    .use(ICU)
+    .use(IsolatingICU)
     .use(HttpBackend)
     .use(LanguageDetector)
     .use(initReactI18next)
