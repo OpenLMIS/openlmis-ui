@@ -482,7 +482,8 @@ page header, so everything that acts on the list is in one row.
 **A filter over a list too long to load searches the server.** `DataTableComboboxFilter` takes
 `onSearch`, then lists its `options` as given, and the page asks for matches only once the filter
 is first opened, so loading the list loads none; the picked value stays among the options, named
-by its own lookup when it came from a link. Products on Lots is the example. A date filter is a
+by its own lookup when it came from a link. Its `status` says above the options how many the
+search left out and that typing finds the rest, as the kit picker does. Products on Lots is the example. A date filter is a
 `DatePicker`, with `earliest` and `latest` tying a from and to pair together.
 
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use

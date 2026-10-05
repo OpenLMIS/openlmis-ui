@@ -162,4 +162,22 @@ describe('DataTableComboboxFilter', () => {
     expect(within(gaza).getByText('Gaza')).toHaveAttribute('dir', 'auto');
     expect(within(gaza).getByText('Province')).toHaveAttribute('dir', 'auto');
   });
+
+  it('says above the options what a server search lists', async () => {
+    const user = userEvent.setup();
+    render(
+      <DataTableComboboxFilter
+        label="Zone"
+        onSearch={vi.fn()}
+        onValueChange={vi.fn()}
+        options={zones}
+        status="Type to find more"
+        value=""
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Zone' }));
+
+    expect(await screen.findByText('Type to find more')).toBeInTheDocument();
+  });
 });

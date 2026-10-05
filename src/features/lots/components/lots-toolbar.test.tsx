@@ -8,6 +8,7 @@ import { fetchOrderables, fetchOrderablesByIds } from '@/features/reference-data
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
+  ORDERABLE_SEARCH_SIZE: 20,
   fetchOrderables: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
 }));
@@ -47,6 +48,25 @@ describe('LotsToolbar', () => {
     await user.click(product);
 
     expect(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ })).toBeInTheDocument();
+  });
+
+  it('tells the user to type, since only the first products are listed', async () => {
+    vi.mocked(fetchOrderables).mockImplementation(async (q) => ({
+      content: [acid],
+      totalElements: q ? 45 : 10233,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+    }));
+    renderPage(<LotsToolbar columnView={columnView} onFilterChange={vi.fn()} search={{}} />);
+    const user = userEvent.setup();
+
+    const product = await screen.findByRole('combobox', { name: 'lots.product' });
+    await user.click(product);
+    expect(await screen.findByText('lots.search-hint')).toBeInTheDocument();
+
+    await user.type(product, 'a');
+    expect(await screen.findByText('lots.search-more')).toBeInTheDocument();
   });
 
   it('filters by a product found on the server, back on the first page', async () => {

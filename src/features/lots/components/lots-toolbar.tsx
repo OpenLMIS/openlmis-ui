@@ -7,6 +7,7 @@ import { DataTableViewOptions } from '@/components/data-table/data-table-view-op
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { DatePicker } from '@/components/form/form-fields';
 import { LOT_HIDEABLE_COLUMNS, type LotsSearch } from '@/features/lots/lib/search';
+import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
 import {
   orderablesByIdsOptions,
   orderablesSearchOptions,
@@ -103,6 +104,14 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
     enabled: Boolean(value),
   });
   const searching = typed.trim() !== query || results.isFetching;
+  const total = results.data?.totalElements ?? 0;
+  const status =
+    searching || total <= ORDERABLE_SEARCH_SIZE
+      ? undefined
+      : t(query ? 'lots.search-more' : 'lots.search-hint', {
+          shown: ORDERABLE_SEARCH_SIZE,
+          count: total,
+        });
 
   const options = useMemo(() => {
     const found = (results.data?.content ?? []).map(toOption);
@@ -133,6 +142,7 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
         onValueChange(id);
       }}
       options={options}
+      status={status}
       value={value ?? ''}
     />
   );

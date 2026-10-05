@@ -316,6 +316,8 @@
   "lots.product-code": "Product Code",
   "lots.product-name": "Product Name",
   "lots.search-error": "Could not search products. Try again.",
+  "lots.search-hint": "The first {shown} of {count, number} products are listed. Type a code or name to find the one you need.",
+  "lots.search-more": "The first {shown} of {count, number} matches are listed. Type more of the code or name to narrow them down.",
   "lots.searching": "Searching...",
   "lots.title": "Lots",
   "lots.unknown-product": "Unknown Product",

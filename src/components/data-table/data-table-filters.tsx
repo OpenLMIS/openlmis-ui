@@ -101,6 +101,8 @@ type DataTableComboboxFilterProps = {
   onSearch?: (text: string) => void;
   /** Shown when there is nothing to list; "No Matches" by default. */
   emptyMessage?: string;
+  /** Shown above the options, such as how many a server search left out. */
+  status?: string | undefined;
   onOpenChange?: (open: boolean) => void;
 };
 
@@ -113,6 +115,7 @@ export function DataTableComboboxFilter({
   onSearch,
   emptyMessage,
   onOpenChange,
+  status,
 }: DataTableComboboxFilterProps) {
   const labels = useDataTableLabels();
   const selected = options.find((option) => option.value === value) ?? null;
@@ -139,6 +142,9 @@ export function DataTableComboboxFilter({
         width="full"
       />
       <ComboboxContent>
+        {status && options.length > 0 && (
+          <div className="border-b px-3 py-2 text-muted-foreground text-xs">{status}</div>
+        )}
         <ComboboxEmpty>{emptyMessage ?? labels.noMatches}</ComboboxEmpty>
         <ComboboxList>
           {(option: DataTableComboboxFilterOption) => (

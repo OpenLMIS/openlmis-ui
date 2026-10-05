@@ -316,6 +316,8 @@
   "lots.product-code": "رمز المنتج",
   "lots.product-name": "اسم المنتج",
   "lots.search-error": "تعذر البحث عن المنتجات. حاول مرة أخرى.",
+  "lots.search-hint": "تُعرض أول {shown} من {count, number} منتج. اكتب رمزًا أو اسمًا للعثور على ما تحتاجه.",
+  "lots.search-more": "تُعرض أول {shown} من {count, number} نتيجة. اكتب المزيد من الرمز أو الاسم لتضييقها.",
   "lots.searching": "جارٍ البحث...",
   "lots.title": "الدفعات",
   "lots.unknown-product": "منتج غير معروف",
