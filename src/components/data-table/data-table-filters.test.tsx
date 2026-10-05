@@ -93,4 +93,41 @@ describe('DataTableComboboxFilter', () => {
 
     expect(await screen.findByText('No Matches')).toBeInTheDocument();
   });
+
+  it('leaves the search to the server when it searches, listing the options as given', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(
+      <DataTableComboboxFilter
+        label="Zone"
+        onSearch={onSearch}
+        onValueChange={vi.fn()}
+        options={zones}
+        value=""
+      />,
+    );
+
+    await user.type(screen.getByRole('combobox', { name: 'Zone' }), 'chi');
+
+    expect(onSearch).toHaveBeenLastCalledWith('chi');
+    expect(screen.getByRole('option', { name: /Gaza/ })).toBeInTheDocument();
+  });
+
+  it('says what the server search is doing when it has nothing to list', async () => {
+    const user = userEvent.setup();
+    render(
+      <DataTableComboboxFilter
+        emptyMessage="Searching"
+        label="Zone"
+        onSearch={vi.fn()}
+        onValueChange={vi.fn()}
+        options={[]}
+        value=""
+      />,
+    );
+
+    await user.type(screen.getByRole('combobox', { name: 'Zone' }), 'chi');
+
+    expect(await screen.findByText('Searching')).toBeInTheDocument();
+  });
 });

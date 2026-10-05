@@ -1187,20 +1187,86 @@ export function DateField({
   clearLabel,
 }: DateFieldProps) {
   const field = useFieldContext<string>();
-  const labelId = `${field.name}-label`;
-  const requiredId = `${field.name}-required`;
-  const valueId = `${field.name}-value`;
   const state = useFieldErrors(description);
-  const { isInvalid, describedBy: ariaDescribedBy } = state;
+
+  return (
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
+      <DatePicker
+        clearLabel={clearLabel}
+        describedBy={state.describedBy}
+        disabled={disabled}
+        id={field.name}
+        invalid={state.isInvalid}
+        labelId={`${field.name}-label`}
+        onBlur={field.handleBlur}
+        onValueChange={field.handleChange}
+        placeholder={placeholder}
+        required={required}
+        value={field.state.value}
+      />
+    </FieldFrame>
+  );
+}
+
+type DatePickerProps = {
+  id: string;
+  /** `yyyy-MM-dd`, or an empty string for no date. */
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  /** Names the picker when no visible label does, as in a toolbar. */
+  label?: string | undefined;
+  /** The visible label that names the picker. */
+  labelId?: string | undefined;
+  required?: boolean | undefined;
+  disabled?: boolean | undefined;
+  /** Shows a clear button while a date is picked, unless the date is required. */
+  clearLabel?: string | undefined;
+  /** The first and last days that can be picked, as `yyyy-MM-dd`. */
+  earliest?: string | undefined;
+  latest?: string | undefined;
+  invalid?: boolean | undefined;
+  describedBy?: string | undefined;
+  onBlur?: (() => void) | undefined;
+};
+
+/** A date picked from a calendar, shown in the page's language; the calendar loads on first use. */
+export function DatePicker({
+  id,
+  value,
+  onValueChange,
+  placeholder,
+  label,
+  labelId = `${id}-label`,
+  required,
+  disabled,
+  clearLabel,
+  earliest,
+  latest,
+  invalid,
+  describedBy,
+  onBlur,
+}: DatePickerProps) {
+  const requiredId = `${id}-required`;
+  const valueId = `${id}-value`;
   const { requiredLabel, dateLanguage, loadDateLocale } = useDateMessages();
   const direction = useDirection();
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
-  const selected = parseDateValue(field.state.value);
-  const shown = formatDateValue(field.state.value, dateLanguage);
+  const selected = parseDateValue(value);
+  const shown = formatDateValue(value, dateLanguage);
   const clearable = Boolean(clearLabel && !required);
   const canClear = clearable && Boolean(shown) && !disabled;
+  const first = earliest ? parseDateValue(earliest) : undefined;
+  const last = latest ? parseDateValue(latest) : undefined;
   const mounted = useRef(true);
 
   const loadCalendar = useCallback(
@@ -1222,92 +1288,89 @@ export function DateField({
   }, [loadCalendar]);
 
   return (
-    <FieldFrame
-      description={description}
-      disabled={disabled}
-      label={label}
-      layout={layout}
-      required={required}
-      state={state}
-    >
-      <div className="relative">
-        <Popover
-          onOpenChange={(next) => {
-            setOpen(next);
-            // A calendar that failed to load is tried again when the user asks for it.
-            if (next && !loaded) void loadCalendar();
-          }}
-          open={open && loaded !== null}
-        >
-          <PopoverTrigger
-            render={
-              <Button
-                align="start"
-                aria-describedby={ariaDescribedBy}
-                aria-invalid={isInvalid}
-                aria-labelledby={[labelId, required ? requiredId : '', valueId]
-                  .filter(Boolean)
-                  .join(' ')}
-                disabled={disabled}
-                id={field.name}
-                onBlur={field.handleBlur}
-                ref={trigger}
-                type="button"
-                variant="outline"
-                width="full"
-              />
-            }
-          >
-            <CalendarIcon data-icon="inline-start" />
-            {required && (
-              <span className="sr-only" id={requiredId}>
-                {requiredLabel}
-              </span>
-            )}
-            <span className={shown ? 'truncate' : 'truncate text-muted-foreground'} id={valueId}>
-              {shown || placeholder}
-            </span>
-          </PopoverTrigger>
-          <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">
-            {loaded && (
-              <loaded.Calendar
-                autoFocus
-                captionLayout="dropdown"
-                defaultMonth={selected}
-                dir={direction}
-                endMonth={lastMonth()}
-                formatters={{ formatWeekdayName: (date) => weekdayName(date, dateLanguage) }}
-                locale={loaded.locale}
-                mode="single"
-                onSelect={(date: Date | undefined) => {
-                  field.handleChange(date ? toDateValue(date) : '');
-                  setOpen(false);
-                }}
-                required={!clearable}
-                selected={selected}
-                startMonth={FIRST_MONTH}
-              />
-            )}
-          </PopoverContent>
-        </Popover>
-        {/* A sibling of the trigger, since a button cannot hold another button. */}
-        {canClear && (
-          <div className="absolute inset-y-0 end-1 flex items-center">
+    <div className="relative">
+      {label && (
+        <span className="sr-only" id={labelId}>
+          {label}
+        </span>
+      )}
+      <Popover
+        onOpenChange={(next) => {
+          setOpen(next);
+          // A calendar that failed to load is tried again when the user asks for it.
+          if (next && !loaded) void loadCalendar();
+        }}
+        open={open && loaded !== null}
+      >
+        <PopoverTrigger
+          render={
             <Button
-              aria-label={clearLabel}
-              onClick={() => {
-                field.handleChange('');
-                trigger.current?.focus();
-              }}
-              size="icon-xs"
+              align="start"
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+              aria-labelledby={[labelId, required ? requiredId : '', shown || !label ? valueId : '']
+                .filter(Boolean)
+                .join(' ')}
+              disabled={disabled}
+              id={id}
+              onBlur={onBlur}
+              ref={trigger}
               type="button"
-              variant="ghost"
-            >
-              <XIcon className="size-4" />
-            </Button>
-          </div>
-        )}
-      </div>
-    </FieldFrame>
+              variant="outline"
+              width="full"
+            />
+          }
+        >
+          <CalendarIcon data-icon="inline-start" />
+          {required && (
+            <span className="sr-only" id={requiredId}>
+              {requiredLabel}
+            </span>
+          )}
+          <span className={shown ? 'truncate' : 'truncate text-muted-foreground'} id={valueId}>
+            {shown || placeholder}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">
+          {loaded && (
+            <loaded.Calendar
+              autoFocus
+              captionLayout="dropdown"
+              defaultMonth={selected ?? first ?? last}
+              dir={direction}
+              disabled={[...(first ? [{ before: first }] : []), ...(last ? [{ after: last }] : [])]}
+              endMonth={lastMonth()}
+              formatters={{ formatWeekdayName: (date) => weekdayName(date, dateLanguage) }}
+              locale={loaded.locale}
+              mode="single"
+              onSelect={(date: Date | undefined) => {
+                onValueChange(date ? toDateValue(date) : '');
+                setOpen(false);
+              }}
+              required={!clearable}
+              selected={selected}
+              startMonth={FIRST_MONTH}
+            />
+          )}
+        </PopoverContent>
+      </Popover>
+      {/* A sibling of the trigger, since a button cannot hold another button. */}
+      {canClear && (
+        <div className="absolute inset-y-0 end-1 flex items-center">
+          <Button
+            aria-label={clearLabel}
+            onClick={() => {
+              onValueChange('');
+              trigger.current?.focus();
+            }}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

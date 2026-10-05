@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
+import { DatePicker } from '@/components/form/form-fields';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 
 const schema = z.object({
@@ -647,5 +648,80 @@ describe('date field', () => {
     );
 
     expect(screen.getByRole('button', { name: /^Opened/ })).toHaveTextContent('1 de out. de 2026');
+  });
+});
+
+describe('date picker', () => {
+  it('is named by its label, then by its date once one is picked', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <DatePicker
+        id="from"
+        label="Earliest Expiry"
+        onValueChange={onValueChange}
+        placeholder="Earliest Expiry"
+        value=""
+      />,
+    );
+
+    const calendar = await openCalendar(user, /^Earliest Expiry$/);
+    await user.click(await within(calendar).findByRole('button', { name: /October 15th/ }));
+    expect(onValueChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-10-15$/));
+
+    rerender(
+      <DatePicker
+        id="from"
+        label="Earliest Expiry"
+        onValueChange={onValueChange}
+        placeholder="Earliest Expiry"
+        value="2019-01-30"
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: 'Earliest Expiry Jan 30, 2019' }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers only the days between its earliest and latest', async () => {
+    const user = userEvent.setup();
+    render(
+      <DatePicker
+        earliest="2019-01-10"
+        id="to"
+        label="Latest Expiry"
+        latest="2019-01-20"
+        onValueChange={vi.fn()}
+        placeholder="Latest Expiry"
+        value="2019-01-15"
+      />,
+    );
+
+    const calendar = await openCalendar(user, /^Latest Expiry/);
+    expect(
+      await within(calendar).findByRole('button', { name: /January 9th, 2019/ }),
+    ).toBeDisabled();
+    expect(within(calendar).getByRole('button', { name: /January 10th, 2019/ })).toBeEnabled();
+    expect(within(calendar).getByRole('button', { name: /January 20th, 2019/ })).toBeEnabled();
+    expect(within(calendar).getByRole('button', { name: /January 21st, 2019/ })).toBeDisabled();
+  });
+
+  it('clears its date', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <DatePicker
+        clearLabel="Clear Latest Expiry"
+        id="to"
+        label="Latest Expiry"
+        onValueChange={onValueChange}
+        placeholder="Latest Expiry"
+        value="2019-01-15"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Clear Latest Expiry' }));
+
+    expect(onValueChange).toHaveBeenCalledWith('');
   });
 });
