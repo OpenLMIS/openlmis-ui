@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
-import { useNavGroups } from '@/components/nav-access';
+import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import { SidebarNotices } from '@/components/sidebar-notices';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,13 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
   const navGroups = useNavGroups();
+  const accountLinks = useAccountLinks();
+  const sidebarGroups = navGroups.map((group) => ({
+    ...group,
+    items: group.items.flatMap((item) =>
+      !isNavParent(item) && item.to === '/home' ? [item, ...accountLinks] : [item],
+    ),
+  }));
   const appName = useAppName();
   const showAppName = useShowAppName();
 
@@ -87,7 +94,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {navGroups.map((group) => (
+        {sidebarGroups.map((group) => (
           <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
             {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
             <SidebarGroupContent>
@@ -170,7 +177,7 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        isActive={isNavActive(pathname, item.to)}
+        isActive={pathname === item.to || pathname.startsWith(`${item.to}/`)}
         render={<Link onClick={onNavigate} to={item.to} />}
         tooltip={title}
       >

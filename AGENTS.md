@@ -405,11 +405,11 @@ Settings, goes into the shared header's `WorkspaceActionsSlot` through `Workspac
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
-A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb. The account
-menu, not the sidebar, opens Profile and Settings (`/settings`). `useAccountLinks()` in
-`src/components/nav-access.ts` lists them, each behind its right, for the account menu and the
-command palette alike.
-They are hidden on Home and on pages outside the nav without one. None of them accept a
+A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
+`useAccountLinks()` in `src/components/nav-access.ts` lists Account (Profile) and Settings
+(`/settings`), each behind its right, for the avatar menu, command palette and sidebar.
+The sidebar inserts these links immediately below Home, using its usual link rendering.
+Breadcrumbs are hidden on Home and on pages outside the nav without one. None of them accept a
 `className`, which is what keeps padding and heading scale identical across pages; if a
 page needs a different treatment, add a variant to the component rather than overriding
 at the call site.
@@ -800,7 +800,9 @@ Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lo
 ## Offline
 
 The [offline plan](docs/offline-plan/offline-plan.md) is the design and the order of work. The
-foundation is in place; offline data and drafts come with the first stock screen.
+foundation is in place; stock screens first ship an online milestone, followed by the
+offline data and drafts pass. A stock ticket with offline criteria stays open until those
+criteria are met.
 
 **The service worker keeps the app's files, nothing else.** `vite-plugin-pwa` in
 `vite.config.ts` precaches the build (`**/*.{js,css,html,png,svg,woff2}`) at scope `BASE_URL`

@@ -32,6 +32,13 @@ describe('getTextDirection', () => {
       expect(['ltr', 'rtl']).toContain(lang.dir);
     }
   });
+
+  it('offers Spanish and French with native names and left-to-right text', () => {
+    expect(SUPPORTED_LANGUAGES).toContainEqual({ code: 'es', name: 'Español', dir: 'ltr' });
+    expect(SUPPORTED_LANGUAGES).toContainEqual({ code: 'fr', name: 'Français', dir: 'ltr' });
+    expect(getTextDirection('es-MX')).toBe('ltr');
+    expect(getTextDirection('fr-CA')).toBe('ltr');
+  });
 });
 
 describe('getNavTrail', () => {

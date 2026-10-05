@@ -10,6 +10,8 @@ const DATE_LOCALES: Record<LanguageCode, () => Promise<Locale>> = {
   en: loadEnglish,
   pt: () => import('react-day-picker/locale/pt').then((module) => module.pt),
   ar: () => import('react-day-picker/locale/ar').then((module) => module.ar),
+  es: () => import('react-day-picker/locale/es').then((module) => module.es),
+  fr: () => import('react-day-picker/locale/fr').then((module) => module.fr),
 };
 
 export function loadDateLocale(language: string | undefined): Promise<Locale> {
