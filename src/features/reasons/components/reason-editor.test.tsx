@@ -95,8 +95,12 @@ async function pick(user: ReturnType<typeof userEvent.setup>, field: string, opt
   await user.click(await screen.findByRole('option', { name: option }));
 }
 
+const addPairButton = () => screen.getByRole('button', { name: 'Add Program And Facility Type' });
+
 async function openAddPair(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole('button', { name: 'Add Program And Facility Type' }));
+  // The loading placeholder shows the same button, disabled, until the lookups arrive.
+  await waitFor(() => expect(addPairButton()).toBeEnabled());
+  await user.click(addPairButton());
   return screen.findByRole('dialog', { name: 'Add Program And Facility Type' });
 }
 
@@ -108,8 +112,6 @@ async function addPair(user: ReturnType<typeof userEvent.setup>, program: string
 }
 
 const pairsTable = () => screen.getByRole('table');
-
-const findPairsTable = () => screen.findByRole('table');
 
 beforeAll(async () => {
   await i18n
@@ -236,7 +238,7 @@ describe('ReasonEditor', () => {
 
     await user.click(screen.getByRole('button', { name: 'Remove EPI, Health Center' }));
     expect(await screen.findByText('Not Offered Anywhere Yet')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Add Program And Facility Type' })).toHaveFocus();
+    expect(addPairButton()).toHaveFocus();
   });
 
   it('keeps the category and type of a saved reason, naming one the options lack', async () => {
@@ -246,7 +248,7 @@ describe('ReasonEditor', () => {
     expect(category).toHaveTextContent('Aggregation');
     expect(category).toBeDisabled();
     expect(screen.getByRole('combobox', { name: /^Type/ })).toBeDisabled();
-    expect(await within(await findPairsTable()).findByText('Old Type')).toBeVisible();
+    expect(await screen.findByText('Old Type')).toBeVisible();
   });
 
   it('saves only what changed on a saved reason, keeping what the form does not show', async () => {
@@ -255,9 +257,7 @@ describe('ReasonEditor', () => {
       pairs: [valid('v1', 'p1', 't1'), valid('v2', 'p2', 't1')],
     });
 
-    const row = (await within(await findPairsTable()).findByText('Essential Meds')).closest(
-      'tr',
-    ) as HTMLElement;
+    const row = (await screen.findByText('Essential Meds')).closest('tr') as HTMLElement;
     await user.click(
       within(row).getByRole('switch', { name: 'Show For Essential Meds, Health Center' }),
     );
