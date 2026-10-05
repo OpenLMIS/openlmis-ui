@@ -6,6 +6,9 @@ import {
   fetchGeographicLevels,
   fetchGeographicZones,
   fetchOrderableDisplayCategories,
+  fetchOrderables,
+  fetchOrderablesByIds,
+  fetchOrderablesByTradeItems,
   fetchOrganizations,
   fetchReasons,
 } from '@/features/reference-data/api/api';
@@ -145,5 +148,115 @@ describe('fetchReasons', () => {
 
     await expect(fetchReasons()).resolves.toEqual([reason]);
     expect(get).toHaveBeenCalledWith('/stockCardLineItemReasons');
+  });
+});
+
+const orderable = (id: string, tradeItem?: string, versionNumber = 1) => ({
+  id,
+  productCode: id.toUpperCase(),
+  fullProductName: `Product ${id}`,
+  description: null,
+  ...(tradeItem && { identifiers: { tradeItem } }),
+  meta: { versionNumber },
+});
+
+const page = <T>(content: T[], totalPages = 1) => ({
+  data: { content, totalElements: content.length, totalPages },
+});
+
+describe('fetchOrderables', () => {
+  it('searches by code or name, one page sorted by name', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1')]));
+
+    await expect(fetchOrderables('acid')).resolves.toEqual({
+      content: [orderable('o1')],
+      totalElements: 1,
+      totalPages: 1,
+    });
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { page: 0, size: 20, sort: 'fullProductName,asc', q: 'acid' },
+    });
+  });
+
+  it('sends no search when nothing is typed', async () => {
+    get.mockResolvedValueOnce(page([]));
+
+    await fetchOrderables('  ');
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { page: 0, size: 20, sort: 'fullProductName,asc' },
+    });
+  });
+});
+
+describe('fetchOrderablesByIds', () => {
+  it('reads the named products in one request, each id as its own param', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1')]));
+
+    await expect(fetchOrderablesByIds(['o1', 'o2'])).resolves.toEqual([orderable('o1')]);
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { id: ['o1', 'o2'] },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('asks for nothing when there is nothing to name', async () => {
+    await expect(fetchOrderablesByIds([])).resolves.toEqual([]);
+    expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchOrderablesByTradeItems', () => {
+  it('reads the products of the given trade items in one request', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1', 't1'), orderable('o2', 't2')]));
+
+    await expect(fetchOrderablesByTradeItems(['t1', 't2'])).resolves.toEqual([
+      orderable('o1', 't1'),
+      orderable('o2', 't2'),
+    ]);
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { tradeItemId: ['t1', 't2'], page: 0, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('keeps only the latest version of a product, since every version comes back', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1', 't1', 1), orderable('o1', 't1', 2)]));
+
+    await expect(fetchOrderablesByTradeItems(['t1'])).resolves.toEqual([orderable('o1', 't1', 2)]);
+  });
+
+  it('matches trade items whatever their case', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1', 'ABC-1')]));
+
+    await expect(fetchOrderablesByTradeItems(['abc-1'])).resolves.toEqual([
+      orderable('o1', 'ABC-1'),
+    ]);
+  });
+
+  it('reads further pages when the products do not fit in one', async () => {
+    get
+      .mockResolvedValueOnce(page([orderable('o1', 't1')], 2))
+      .mockResolvedValueOnce(page([orderable('o2', 't2')], 2));
+
+    await expect(fetchOrderablesByTradeItems(['t1', 't2'])).resolves.toEqual([
+      orderable('o1', 't1'),
+      orderable('o2', 't2'),
+    ]);
+    expect(get).toHaveBeenLastCalledWith('/orderables', {
+      params: { tradeItemId: ['t1', 't2'], page: 1, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('finds none when no product has the trade items, though the server then lists every product', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1', 'other'), orderable('o2')], 103));
+
+    await expect(fetchOrderablesByTradeItems(['t1'])).resolves.toEqual([]);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for nothing when there are no trade items', async () => {
+    await expect(fetchOrderablesByTradeItems([])).resolves.toEqual([]);
+    expect(get).not.toHaveBeenCalled();
   });
 });

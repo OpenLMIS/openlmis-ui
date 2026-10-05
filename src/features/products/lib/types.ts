@@ -1,10 +1,6 @@
-export type Product = {
-  id: string;
-  productCode: string;
-  fullProductName: string | null;
-  description: string | null;
-  dispensable?: { displayUnit?: string | null; [key: string]: unknown };
-};
+import type { Orderable } from '@/features/reference-data/lib/types';
+
+export type Product = Orderable;
 
 export type ProductDetail = Product & {
   netContent: number;

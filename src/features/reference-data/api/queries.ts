@@ -8,6 +8,9 @@ import {
   fetchGeographicZones,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
+  fetchOrderables,
+  fetchOrderablesByIds,
+  fetchOrderablesByTradeItems,
   fetchOrganizations,
   fetchPrograms,
   fetchReasons,
@@ -108,4 +111,22 @@ export const reasonsOptions = () =>
     queryKey: queryKeys.reasons.list(),
     queryFn: fetchReasons,
     staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const orderablesSearchOptions = (q: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'search', q.trim()] as const,
+    queryFn: () => fetchOrderables(q),
+  });
+
+export const orderablesByIdsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'byIds', ids.toSorted()] as const,
+    queryFn: () => fetchOrderablesByIds(ids),
+  });
+
+export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'byTradeItems', tradeItemIds.toSorted()] as const,
+    queryFn: () => fetchOrderablesByTradeItems(tradeItemIds),
   });

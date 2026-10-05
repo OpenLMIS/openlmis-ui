@@ -7,7 +7,6 @@ import {
   fetchApprovals,
   fetchProduct,
   fetchProducts,
-  fetchProductsByIds,
   removeApproval,
   saveApprovalStock,
   saveProductChange,
@@ -198,23 +197,6 @@ describe('saveApprovalStock', () => {
 
     await expect(saveApprovalStock('a1', stock)).rejects.toBeInstanceOf(ApprovalRemovedError);
     expect(put).not.toHaveBeenCalled();
-  });
-});
-
-describe('fetchProductsByIds', () => {
-  it('reads the named products in one request, each id as its own param', async () => {
-    get.mockResolvedValueOnce({ data: { content: [product], totalElements: 1 } });
-
-    await expect(fetchProductsByIds(['o1', 'o2'])).resolves.toEqual([product]);
-    expect(get).toHaveBeenCalledWith('/orderables', {
-      params: { id: ['o1', 'o2'] },
-      paramsSerializer: { indexes: null },
-    });
-  });
-
-  it('asks for nothing when there is nothing to name', async () => {
-    await expect(fetchProductsByIds([])).resolves.toEqual([]);
-    expect(get).not.toHaveBeenCalled();
   });
 });
 

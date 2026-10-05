@@ -12,11 +12,15 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
-import { fetchApprovals, fetchProduct, fetchProductsByIds } from '@/features/products/api/api';
+import { fetchApprovals, fetchProduct } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import type { ProductsSearch } from '@/features/products/lib/search';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
-import { fetchFacilityTypes, fetchPrograms } from '@/features/reference-data/api/api';
+import {
+  fetchFacilityTypes,
+  fetchOrderablesByIds,
+  fetchPrograms,
+} from '@/features/reference-data/api/api';
 import { Route } from '@/routes/(protected)/_protected.administration.products_.$id';
 import { Route as FacilityTypesRoute } from '@/routes/(protected)/_protected.administration.products_.$id.facility-types';
 import { Route as GeneralRoute } from '@/routes/(protected)/_protected.administration.products_.$id.general';
@@ -28,10 +32,10 @@ vi.mock('@/features/auth/lib/access', () => ({
 vi.mock('@/features/products/api/api', () => ({
   fetchApprovals: vi.fn(),
   fetchProduct: vi.fn(),
-  fetchProductsByIds: vi.fn(),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacilityTypes: vi.fn(),
+  fetchOrderablesByIds: vi.fn(),
   fetchPrograms: vi.fn(),
 }));
 
@@ -168,7 +172,7 @@ describe('product edit page', () => {
   beforeEach(() => {
     vi.mocked(requireRight).mockResolvedValue(new Set(['ORDERABLES_MANAGE']));
     fetchMock.mockResolvedValue(kit);
-    vi.mocked(fetchProductsByIds).mockResolvedValue([
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([
       {
         id: 'g1',
         productCode: 'G1',

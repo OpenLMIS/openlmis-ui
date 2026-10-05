@@ -3,15 +3,19 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
-import { fetchProducts, saveProductChange } from '@/features/products/api/api';
+import { saveProductChange } from '@/features/products/api/api';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
+import { fetchOrderables } from '@/features/reference-data/api/api';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
-  fetchProducts: vi.fn(),
   saveProductChange: vi.fn(),
+}));
+vi.mock('@/features/reference-data/api/api', () => ({
+  ORDERABLE_SEARCH_SIZE: 20,
+  fetchOrderables: vi.fn(),
 }));
 
 const product = (id: string, code: string, name: string): Product => ({
@@ -44,7 +48,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   updateProduct.mockReset();
   vi.mocked(saveProductChange).mockImplementation((id, change) => updateProduct(id, change(kit)));
-  vi.mocked(fetchProducts).mockResolvedValue({
+  vi.mocked(fetchOrderables).mockResolvedValue({
     content: [product('k1', 'KIT1', 'Delivery Kit'), gloves, syringe],
     totalElements: 3,
     totalPages: 1,
@@ -155,7 +159,7 @@ describe('KitUnpackList', () => {
 
 describe('KitUnpackList search', () => {
   it('says when there are more matches than it lists', async () => {
-    vi.mocked(fetchProducts).mockResolvedValue({
+    vi.mocked(fetchOrderables).mockResolvedValue({
       content: [gloves, syringe],
       totalElements: 45,
       totalPages: 3,

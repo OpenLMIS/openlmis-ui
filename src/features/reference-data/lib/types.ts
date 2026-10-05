@@ -125,3 +125,14 @@ export type Reason = {
   isFreeTextAllowed: boolean;
   tags: string[];
 };
+
+/** A product as the lookups list it; `identifiers.tradeItem` ties it to its lots. */
+export type Orderable = {
+  id: string;
+  productCode: string;
+  fullProductName: string | null;
+  description: string | null;
+  dispensable?: { displayUnit?: string | null; [key: string]: unknown };
+  identifiers?: Record<string, string>;
+  meta?: { versionNumber?: number; [key: string]: unknown };
+};
