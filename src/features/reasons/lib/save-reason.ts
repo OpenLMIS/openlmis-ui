@@ -5,37 +5,31 @@ import {
   deleteValidReason,
   updateReason,
 } from '@/features/reasons/api/api';
-import { diffPairs, type PairDraft, toPairDraft } from '@/features/reasons/lib/reason-form';
+import {
+  diffPairs,
+  type PairDraft,
+  type PairRef,
+  pairKey,
+  toPairDraft,
+} from '@/features/reasons/lib/reason-form';
 import type { ReasonBody, ValidReason } from '@/features/reasons/lib/types';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { settleFew } from '@/lib/settle-few';
-
-export type PairRef = Pick<PairDraft, 'programId' | 'facilityTypeId'>;
 
 const isAlreadyGone = (error: unknown) =>
   isAxiosError<{ messageKey?: string }>(error) &&
   /\.reasonAssignment\.notFound$/.test(error.response?.data?.messageKey ?? '');
 
-const toRef = ({ programId, facilityTypeId }: PairRef): PairRef => ({ programId, facilityTypeId });
-
-const samePair = (a: PairRef, b: PairRef) =>
-  a.programId === b.programId && a.facilityTypeId === b.facilityTypeId;
-
 type SaveReasonInput = {
-  /** The saved reason's id; none creates one. */
   id?: string;
   body: ReasonBody;
   savedPairs: ValidReason[];
   pairs: PairDraft[];
 };
 
-/**
- * Saves the reason, then its pairs: every removal before any addition, since the server answers
- * a re-added pair it still has with the old one. Rejects only when the reason itself is refused.
- */
+/** Removes pairs before adding any, as the server answers a pair it still has with the old one. */
 export async function saveReason({ id, body, savedPairs, pairs }: SaveReasonInput): Promise<{
   reason: Reason;
-  /** What the server holds now, the base for the next save. */
   pairs: ValidReason[];
   failed: PairRef[];
   error?: unknown;
@@ -44,30 +38,38 @@ export async function saveReason({ id, body, savedPairs, pairs }: SaveReasonInpu
   const { remove, add } = diffPairs(savedPairs, pairs);
 
   const removed = await settleFew(remove, (valid) =>
-    deleteValidReason(valid.id).catch((error: unknown) => {
-      if (!isAlreadyGone(error)) throw error;
-    }),
+    deleteValidReason(valid.id).then(
+      () => valid,
+      (error: unknown) => {
+        if (!isAlreadyGone(error)) throw error;
+        return valid;
+      },
+    ),
   );
-  const notRemoved = removed.failed.map((valid) => toPairDraft(valid));
-  const created: ValidReason[] = [];
+  const notRemoved = removed.failed.map(toPairDraft);
+  const stuck = new Set(notRemoved.map(pairKey));
   const added = await settleFew(
-    add.filter((pair) => !notRemoved.some((stuck) => samePair(stuck, pair))),
-    async (pair) => {
-      const valid = await createValidReason({
+    add.filter((pair) => !stuck.has(pairKey(pair))),
+    (pair) =>
+      createValidReason({
         program: { id: pair.programId },
         facilityType: { id: pair.facilityTypeId },
         hidden: !pair.show,
         reason: { id: reason.id },
-      });
-      created.push(valid);
-    },
+      }),
   );
-  const gone = remove.filter((valid) => !removed.failed.includes(valid));
+  // An existing pair comes back unchanged, so a Show it kept is not saved.
+  const mismatched = added.done.filter((valid) => {
+    const draft = add.find((pair) => pairKey(pair) === pairKey(toPairDraft(valid)));
+    return draft?.show === valid.hidden;
+  });
 
   return {
     reason,
-    pairs: [...savedPairs.filter((valid) => !gone.includes(valid)), ...created],
-    failed: [...notRemoved, ...added.failed].map(toRef),
+    pairs: [...savedPairs.filter((valid) => !removed.done.includes(valid)), ...added.done],
+    failed: [...notRemoved, ...added.failed, ...mismatched.map(toPairDraft)].map(
+      ({ programId, facilityTypeId }) => ({ programId, facilityTypeId }),
+    ),
     error: removed.error ?? added.error,
   };
 }

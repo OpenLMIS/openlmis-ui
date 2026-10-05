@@ -131,12 +131,13 @@ its job.
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
 the OpenLMIS reference data many screens look up (facilities, facility types, programs,
 supervisory nodes and roles), named after the backend's `referencedata` service, plus
-stock management's organizations, which Valid Destinations and Valid Sources both pick from. It has the
+stock management's organizations, which Valid Destinations and Valid Sources both pick from, and its
+reasons, which the stock screens offer. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own. When that screen's list is the lookup's own
-endpoint, as for Roles, it reads the lookup query and widens its type rather than fetching
-the same list twice.
+endpoint, as for Roles and Reasons, it reads the lookup query and widens its type rather than
+fetching the same list twice.
 
 ### Internationalization (i18next)
 
@@ -280,7 +281,7 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Seven edits carry no prop, so `tsc` cannot catch
+new files rather than reverting the preset. Eight edits carry no prop, so `tsc` cannot catch
 them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
 that selects part of a page; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
 follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
@@ -288,8 +289,9 @@ follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `fa
 looks disabled; `sonner.tsx`'s `Toaster` reads
 `useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed;
 `chart.tsx` lays the chart's SVG out left to right, so axis labels grow into their gutter in
-Arabic, and formats tooltip numbers in the page's language; and `avatar.tsx`'s `AvatarGroup`
-overlaps with a logical `-ms-2` instead of `-space-x-2`.
+Arabic, and formats tooltip numbers in the page's language; `avatar.tsx`'s `AvatarGroup`
+overlaps with a logical `-ms-2` instead of `-space-x-2`; and `combobox.tsx`'s `ComboboxChip` is
+`max-w-full min-w-0`, so a long tag truncates instead of widening the page.
 
 ### Integrations
 
@@ -572,11 +574,11 @@ with a dot; `maxDecimals` caps
 the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes, and free text such as a reason's tags is a
-`TagsField`, where Enter, a comma or leaving the box adds what was typed and `suggestions` are offered once
-something is typed; and a list too long to load, such as
+`MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
 products, passes `onSearch` and the server's matches as `items`, and keeps the search and the list
-open after each pick; one of a short fixed list is a
+open after each pick; free text such as a reason's tags is a `TagsField`, where Enter, Tab or leaving
+the box takes the highlighted suggestion or the typed text, a comma adds the typed text, and
+`minLength`/`maxLength` refuse a tag with a message; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's

@@ -1021,15 +1021,17 @@ export function MultiComboboxField({
 }
 
 type TagsFieldProps = FieldProps & {
-  /** Existing tags offered as the user types; any other text can be added too. */
   suggestions: readonly string[];
   placeholder?: string;
+  minLength?: number;
+  maxLength?: number;
   removeLabel: (tag: string) => string;
-  /** Says why typed text was not added. */
   refusedMessage: (reason: TagRefusal) => string;
 };
 
-/** Free-text tags: Enter, a comma or leaving the box adds what was typed, and each tag's x removes it. */
+const isTagSeparator = (key: string) => key === ',' || key === '،';
+
+/** Enter, Tab or leaving the box takes the highlighted suggestion or the typed text; a comma, the typed text. */
 export function TagsField({
   label,
   layout,
@@ -1038,12 +1040,15 @@ export function TagsField({
   disabled,
   suggestions,
   placeholder,
+  minLength,
+  maxLength,
   removeLabel,
   refusedMessage,
 }: TagsFieldProps) {
   const field = useFieldContext<string[]>();
   const refusedId = `${field.name}-refused`;
   const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
   const [refusal, setRefusal] = useState<TagRefusal>();
   const highlighted = useRef<string | undefined>(undefined);
   const state = useFieldErrors(description, refusal ? refusedId : undefined);
@@ -1051,9 +1056,14 @@ export function TagsField({
   const anchor = useComboboxAnchor();
   const tags = field.state.value;
   const items = useMemo(() => tagSuggestions(suggestions, tags, text), [suggestions, tags, text]);
+  const listOpen = open && items.length > 0;
+  const suggested = () =>
+    listOpen && highlighted.current && items.includes(highlighted.current)
+      ? highlighted.current
+      : undefined;
 
-  const addTyped = () => {
-    const result = addTag(tags, text);
+  const add = (next: string) => {
+    const result = addTag(tags, next, { min: minLength, max: maxLength });
     if (!result) return;
     if ('refused' in result) {
       setRefusal(result.refused);
@@ -1073,6 +1083,7 @@ export function TagsField({
       state={state}
     >
       <Combobox
+        autoHighlight
         disabled={disabled}
         filter={null}
         inputValue={text}
@@ -1087,11 +1098,13 @@ export function TagsField({
         onItemHighlighted={(item) => {
           highlighted.current = item;
         }}
+        onOpenChange={setOpen}
         onValueChange={(next) => {
           field.handleChange(next);
           setText('');
           setRefusal(undefined);
         }}
+        open={listOpen}
         value={tags}
       >
         <ComboboxChips ref={anchor}>
@@ -1100,7 +1113,9 @@ export function TagsField({
               <>
                 {values.map((tag) => (
                   <ComboboxChip key={tag} removeLabel={removeLabel(tag)}>
-                    <span dir="auto">{tag}</span>
+                    <span className="truncate" dir="auto" title={tag}>
+                      {tag}
+                    </span>
                   </ComboboxChip>
                 ))}
                 <ComboboxChipsInput
@@ -1110,17 +1125,17 @@ export function TagsField({
                   disabled={disabled}
                   id={field.name}
                   onBlur={(event) => {
-                    // Picking a suggestion moves focus into the list; that pick replaces the typed text.
-                    const picking = event.relatedTarget?.closest('[data-slot="combobox-content"]');
-                    if (!picking) addTyped();
+                    // A click on a suggestion moves focus into the list, and picks it there.
+                    const clicked = event.relatedTarget?.closest('[data-slot="combobox-content"]');
+                    if (!clicked) add(suggested() ?? text);
                     field.handleBlur();
                   }}
                   onKeyDown={(event) => {
-                    const picking = event.key === 'Enter' && highlighted.current !== undefined;
-                    if ((event.key !== 'Enter' && event.key !== ',') || picking) return;
-                    if (event.key === 'Enter' && !text.trim()) return;
+                    const separator = isTagSeparator(event.key);
+                    if (!separator && (event.key !== 'Enter' || suggested() || !text.trim()))
+                      return;
                     event.preventDefault();
-                    addTyped();
+                    add(text);
                   }}
                   placeholder={values.length === 0 ? placeholder : undefined}
                 />
@@ -1128,17 +1143,15 @@ export function TagsField({
             )}
           </ComboboxValue>
         </ComboboxChips>
-        {items.length > 0 && (
-          <ComboboxContent anchor={anchor}>
-            <ComboboxList>
-              {(item: string) => (
-                <ComboboxItem key={item} value={item}>
-                  <span dir="auto">{item}</span>
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        )}
+        <ComboboxContent anchor={anchor}>
+          <ComboboxList>
+            {(item: string) => (
+              <ComboboxItem key={item} value={item}>
+                <span dir="auto">{item}</span>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
       </Combobox>
       {refusal && <FieldError errors={[{ message: refusedMessage(refusal) }]} id={refusedId} />}
     </FieldFrame>

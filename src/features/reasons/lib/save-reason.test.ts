@@ -187,6 +187,32 @@ describe('saveReason', () => {
     ]);
   });
 
+  it('reports a pair the server already had with the other Show, which it keeps as it was', async () => {
+    vi.mocked(createValidReason).mockImplementation(async (pair) => ({
+      id: 'theirs',
+      ...pair,
+      hidden: !pair.hidden,
+    }));
+
+    const result = await saveReason({
+      id: 'r1',
+      body: reason,
+      savedPairs: [],
+      pairs: [{ programId: 'p1', facilityTypeId: 't1', show: false }],
+    });
+
+    expect(result.failed).toEqual([{ programId: 'p1', facilityTypeId: 't1' }]);
+    expect(result.pairs).toEqual([
+      {
+        id: 'theirs',
+        program: { id: 'p1' },
+        facilityType: { id: 't1' },
+        hidden: false,
+        reason: { id: 'r1' },
+      },
+    ]);
+  });
+
   it('sends no pairs when the reason itself is refused', async () => {
     vi.mocked(createReason).mockRejectedValue(httpError(400));
 

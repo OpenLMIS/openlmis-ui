@@ -10,14 +10,18 @@ describe('addTag', () => {
     expect(addTag(['credit'], '   ')).toBeNull();
   });
 
-  it('refuses a tag under three characters, as legacy does', () => {
-    expect(addTag([], 'ab')).toEqual({ refused: 'too-short' });
-    expect(addTag([], 'abc')).toEqual({ tags: ['abc'] });
+  it('takes a tag of any length when no limits are given', () => {
+    expect(addTag([], 'a')).toEqual({ tags: ['a'] });
   });
 
-  it('refuses a tag longer than the server stores', () => {
-    expect(addTag([], 'a'.repeat(256))).toEqual({ refused: 'too-long' });
-    expect(addTag([], 'a'.repeat(255))).toEqual({ tags: ['a'.repeat(255)] });
+  it('refuses a tag shorter than the minimum', () => {
+    expect(addTag([], 'ab', { min: 3 })).toEqual({ refused: 'too-short' });
+    expect(addTag([], 'abc', { min: 3 })).toEqual({ tags: ['abc'] });
+  });
+
+  it('refuses a tag longer than the maximum', () => {
+    expect(addTag([], 'a'.repeat(256), { max: 255 })).toEqual({ refused: 'too-long' });
+    expect(addTag([], 'a'.repeat(255), { max: 255 })).toEqual({ tags: ['a'.repeat(255)] });
   });
 
   it('refuses a tag already there, whatever its case', () => {

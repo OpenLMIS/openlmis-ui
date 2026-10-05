@@ -1,6 +1,6 @@
 export type TagRefusal = 'too-short' | 'too-long' | 'duplicate';
 
-type TagLimits = { min?: number; max?: number };
+type TagLimits = { min?: number | undefined; max?: number | undefined };
 
 const sameTag = (a: string, b: string) =>
   a.localeCompare(b, undefined, { sensitivity: 'accent' }) === 0;
@@ -9,7 +9,7 @@ const sameTag = (a: string, b: string) =>
 export function addTag(
   tags: readonly string[],
   text: string,
-  { min = 3, max = 255 }: TagLimits = {},
+  { min = 1, max = Number.POSITIVE_INFINITY }: TagLimits = {},
 ): { tags: string[] } | { refused: TagRefusal } | null {
   const tag = text.trim();
   if (!tag) return null;

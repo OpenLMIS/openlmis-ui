@@ -51,8 +51,9 @@ export function reasonFormSchema(reasons: Reason[], ownId?: string, refused: str
   });
 }
 
-const pairKey = (pair: Pick<PairDraft, 'programId' | 'facilityTypeId'>) =>
-  `${pair.programId}|${pair.facilityTypeId}`;
+export type PairRef = Pick<PairDraft, 'programId' | 'facilityTypeId'>;
+
+export const pairKey = (pair: PairRef) => `${pair.programId}|${pair.facilityTypeId}`;
 
 /** The same program and facility type can be listed once, whatever its Show. */
 export function addPairSchema(rows: PairDraft[]) {

@@ -19,6 +19,8 @@ function Tags({ initial = [] as string[], onTags = (_: string[]) => {} }) {
       {(field) => (
         <field.TagsField
           label="Tags"
+          maxLength={255}
+          minLength={3}
           refusedMessage={(reason) => REFUSED[reason]}
           removeLabel={(tag) => `Remove ${tag}`}
           suggestions={['adjustment', 'cancelAdjustment', 'cancelMovement', 'consumed']}
@@ -75,6 +77,47 @@ describe('TagsField', () => {
     await userEvent.type(input(), 'CONSUMED,');
     expect(screen.getByText('Already added')).toBeVisible();
     expect(onTags).not.toHaveBeenCalled();
+  });
+
+  it('takes the first matching suggestion on Enter, as legacy does', async () => {
+    const onTags = vi.fn();
+    render(<Tags onTags={onTags} />);
+
+    await userEvent.type(input(), 'cancelM');
+    await screen.findByRole('option', { name: 'cancelMovement' });
+    await userEvent.keyboard('{Enter}');
+
+    expect(onTags).toHaveBeenLastCalledWith(['cancelMovement']);
+  });
+
+  it('takes the first matching suggestion when the user tabs away', async () => {
+    const onTags = vi.fn();
+    render(<Tags onTags={onTags} />);
+
+    await userEvent.type(input(), 'cons');
+    await screen.findByRole('option', { name: 'consumed' });
+    await userEvent.tab();
+
+    expect(onTags).toHaveBeenLastCalledWith(['consumed']);
+  });
+
+  it('adds exactly the typed text on a comma, Arabic or Latin, even when it matches a suggestion', async () => {
+    const onTags = vi.fn();
+    render(<Tags onTags={onTags} />);
+
+    await userEvent.type(input(), 'cancel,');
+    await userEvent.type(input(), 'تالف،');
+
+    expect(onTags).toHaveBeenLastCalledWith(['cancel', 'تالف']);
+  });
+
+  it('says the list is closed while there is nothing to suggest', async () => {
+    render(<Tags />);
+
+    await userEvent.click(input());
+    expect(input()).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.type(input(), 'zzz');
+    expect(input()).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('removes a tag with its x', async () => {

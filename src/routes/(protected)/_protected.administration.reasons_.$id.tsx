@@ -27,12 +27,20 @@ import { isNotFound } from '@/lib/http';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/reasons_/$id')({
   staticData: { crumbKey: 'reasons.form.edit-title' },
-  loader: async ({ context: { queryClient }, params }) => {
-    // Read fresh: the save sends the whole reason back, and diffs the pairs against what is stored.
+  // A preloaded page would open on the copy read at hover, and the save sends the whole reason back.
+  preload: false,
+  loader: async ({ context: { queryClient }, params, cause }) => {
+    const detail = reasonDetailOptions(params.id);
+    const pairs = validReasonsOptions(params.id);
+    const stay = cause === 'stay';
     await Promise.all([
       requireRight(queryClient, RIGHTS.stockCardLineItemReasonsManage),
-      queryClient.fetchQuery({ ...reasonDetailOptions(params.id), staleTime: 0 }),
-      queryClient.fetchQuery({ ...validReasonsOptions(params.id), staleTime: 0 }),
+      stay
+        ? queryClient.ensureQueryData(detail)
+        : queryClient.fetchQuery({ ...detail, staleTime: 0 }),
+      stay
+        ? queryClient.ensureQueryData(pairs)
+        : queryClient.fetchQuery({ ...pairs, staleTime: 0 }),
     ]);
     prefetchReasonEditorLookups(queryClient);
   },
@@ -59,7 +67,6 @@ function EditReasonPage() {
     <ReasonEditor
       description={t('reasons.form.edit-description')}
       discardDescription={t('reasons.form.edit-discard-description', { name: saved.reason.name })}
-      key={saved.reason.id}
       onCancel={backToList}
       onSaved={(result) => {
         toast.success(t('reasons.form.saved-title'), {

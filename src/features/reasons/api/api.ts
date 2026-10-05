@@ -27,7 +27,6 @@ export async function fetchReasonCategories(): Promise<string[]> {
   return data;
 }
 
-/** Every tag any reason carries, offered as suggestions. */
 export async function fetchReasonTags(): Promise<string[]> {
   const { data } = await client.get<string[]>('/stockCardLineItemReasonTags');
   return data.toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));

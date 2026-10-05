@@ -2,7 +2,6 @@ import type { ReasonSortField } from '@/features/reasons/lib/search';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { fold } from '@/lib/text';
 
-/** A category or type code in words, in the page's language. */
 export type ReasonLabels = {
   category: (code: string) => string;
   type: (code: string) => string;

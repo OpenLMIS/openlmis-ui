@@ -7,7 +7,7 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import type { TFunction } from 'i18next';
+import type { ParseKeys, TFunction } from 'i18next';
 import {
   Loader2Icon,
   MapPinnedIcon,
@@ -26,8 +26,7 @@ import {
 } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
+import type { TagRefusal } from '@/components/form/tags';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -65,12 +64,14 @@ import {
   addPairSchema,
   EMPTY_REASON_FORM,
   type PairDraft,
+  type PairRef,
+  pairKey,
   type ReasonFormValues,
   reasonFormSchema,
   toReasonBody,
   toReasonFormValues,
 } from '@/features/reasons/lib/reason-form';
-import { type PairRef, saveReason } from '@/features/reasons/lib/save-reason';
+import { saveReason } from '@/features/reasons/lib/save-reason';
 import type { ValidReason } from '@/features/reasons/lib/types';
 import {
   facilityTypesOptions,
@@ -115,27 +116,32 @@ function focusFirstError(container: HTMLElement | null) {
   );
 }
 
-const pairKey = (pair: PairRef) => `${pair.programId}|${pair.facilityTypeId}`;
-
-/** A pair in words, such as "EPI, Health Center"; a program or type the lookups lack is Unknown. */
-function pairNamer(
-  t: TFunction,
-  programs: Program[] | undefined,
-  types: FacilityType[] | undefined,
-) {
-  const programNames = new Map(programs?.map((program) => [program.id, programName(program)]));
-  const typeNames = new Map(types?.map((type) => [type.id, facilityTypeName(type)]));
+function pairNames(t: TFunction, programs: Program[] = [], types: FacilityType[] = []) {
+  const programNames = new Map(programs.map((program) => [program.id, programName(program)]));
+  const typeNames = new Map(types.map((type) => [type.id, facilityTypeName(type)]));
   const unknown = t('reasons.form.unknown');
-  return (pair: PairRef) =>
-    t('reasons.form.pair', {
-      program: programNames.get(pair.programId) ?? unknown,
-      facilityType: typeNames.get(pair.facilityTypeId) ?? unknown,
-    });
+  const program = (id: string) => programNames.get(id) ?? unknown;
+  const facilityType = (id: string) => typeNames.get(id) ?? unknown;
+  return {
+    program,
+    facilityType,
+    pair: (ref: PairRef) =>
+      t('reasons.form.pair', {
+        program: program(ref.programId),
+        facilityType: facilityType(ref.facilityTypeId),
+      }),
+  };
 }
 
+const TAG_REFUSED_KEYS = {
+  'too-short': 'reasons.form.tag-too-short',
+  'too-long': 'reasons.form.tag-too-long',
+  duplicate: 'reasons.form.tag-duplicate',
+} as const satisfies Record<TagRefusal, ParseKeys>;
+
 type ReasonEditorProps = {
-  /** The reason and its pairs as stored; none adds a new reason. */
-  saved?: { reason: Reason; pairs: ValidReason[] } | undefined;
+  /** None adds a new reason. */
+  saved?: { reason: Reason; pairs: ValidReason[] };
   title: string;
   description: string;
   submitLabel: string;
@@ -172,8 +178,8 @@ export function ReasonEditor({
 }: ReasonEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: reasons = [] } = useQuery(reasonsOptions());
-  // What the server holds; after a partial save, the next one only sends what is still missing.
+  const { data: reasons } = useSuspenseQuery(reasonsOptions());
+  // After a partial save, the next one diffs against what the server now holds.
   const [stored, setStored] = useState(() => ({
     reason: saved?.reason,
     pairs: saved?.pairs ?? [],
@@ -198,9 +204,7 @@ export function ReasonEditor({
     onMutate: () => setFailure(undefined),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reasons.list() });
-      void queryClient.invalidateQueries({ queryKey: reasonTagsOptions().queryKey });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reasons.detail(result.reason.id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.validReasons.all });
+      void queryClient.invalidateQueries({ queryKey: LOOKUPS.tags.queryKey });
       if (result.failed.length === 0) {
         leaving.current = true;
         onSaved(result.reason);
@@ -264,20 +268,9 @@ export function ReasonEditor({
             <FieldSet>
               <FieldLegend>{t('reasons.form.where-used')}</FieldLegend>
               <FieldDescription>{t('reasons.form.where-used-description')}</FieldDescription>
-              <QueryBoundary
-                errorComponent={({ error, reset }) => (
-                  <LoadError
-                    description={t('reasons.form.load-error-description')}
-                    error={error}
-                    reset={reset}
-                    title={t('reasons.form.load-error-title')}
-                  />
-                )}
-                pendingFallback={<FieldSkeleton label={t('reasons.form.program')} required />}
-                resetKey="reason-pairs"
-              >
+              <LookupField label={t('reasons.form.program')} required>
                 <PairsFields form={form} />
-              </QueryBoundary>
+              </LookupField>
             </FieldSet>
           </div>
           <DiscardChangesDialog description={discardDescription} {...guard.dialog} />
@@ -287,7 +280,13 @@ export function ReasonEditor({
         <Button disabled={mutation.isPending} onClick={onCancel} size="lg" variant="outline">
           {t('reasons.form.cancel')}
         </Button>
-        <Button disabled={mutation.isPending} form={FORM_ID} size="lg" type="submit">
+        <Button
+          disabled={mutation.isPending}
+          focusableWhenDisabled
+          form={FORM_ID}
+          size="lg"
+          type="submit"
+        >
           {mutation.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {submitLabel}
         </Button>
@@ -300,11 +299,14 @@ function PairsFailedAlert({ failed, error }: { failed: PairRef[]; error: unknown
   const { t } = useTranslation();
   const { data: programs } = useQuery(LOOKUPS.programs);
   const { data: types } = useQuery(LOOKUPS.facilityTypes);
-  const name = pairNamer(t, programs, types);
+  const names = pairNames(t, programs, types);
   const reason = failed.length === 1 ? serverMessage(error) : undefined;
   return (
     <ErrorAlert
-      description={[t('reasons.form.pairs-error', { pairs: failed.map(name).join('; ') }), reason]
+      description={[
+        t('reasons.form.pairs-error', { pairs: failed.map(names.pair).join('; ') }),
+        reason,
+      ]
         .filter(Boolean)
         .join(' ')}
       title={t('reasons.form.pairs-error-title')}
@@ -328,7 +330,7 @@ function ReasonFields({ form, saved }: { form: ReasonForm; saved: Reason | undef
 
   return (
     <FieldGroup>
-      <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
         <div className="@3xl/main:col-span-2">
           <form.AppField name="name">
             {(field) => (
@@ -382,7 +384,7 @@ type CodeFieldProps = SavedFieldProps & {
   codes: string[];
 };
 
-/** Category or type: fixed once the reason is saved, so it shows the stored code even when it isn't offered. */
+/** Fixed once saved, so it shows a stored code the options lack. */
 function CodeField({ form, kind, codes, saved }: CodeFieldProps) {
   const { t } = useTranslation();
   const labels = useReasonLabels();
@@ -422,15 +424,9 @@ function TagsInput({ form }: { form: ReasonForm }) {
           description={t('reasons.form.tags-description')}
           label={t('reasons.form.tags')}
           placeholder={t('reasons.form.tags-placeholder')}
-          refusedMessage={(reason) =>
-            t(
-              reason === 'duplicate'
-                ? 'reasons.form.tag-duplicate'
-                : reason === 'too-long'
-                  ? 'reasons.form.tag-too-long'
-                  : 'reasons.form.tag-too-short',
-            )
-          }
+          maxLength={255}
+          minLength={3}
+          refusedMessage={(reason) => t(TAG_REFUSED_KEYS[reason])}
           removeLabel={(tag) => t('reasons.form.remove-tag', { tag })}
           suggestions={suggestions}
         />
@@ -444,17 +440,8 @@ function PairsFields({ form }: { form: ReasonForm }) {
   const rows = useStore(form.store, (state) => state.values.pairs);
   const { data: programs } = useSuspenseQuery(LOOKUPS.programs);
   const { data: types } = useSuspenseQuery(LOOKUPS.facilityTypes);
-  const name = useMemo(() => pairNamer(t, programs, types), [t, programs, types]);
-  const programNames = useMemo(
-    () => new Map(programs.map((program) => [program.id, programName(program)])),
-    [programs],
-  );
-  const typeNames = useMemo(
-    () => new Map(types.map((type) => [type.id, facilityTypeName(type)])),
-    [types],
-  );
+  const names = useMemo(() => pairNames(t, programs, types), [t, programs, types]);
   const table = useRef<HTMLDivElement>(null);
-  const unknown = t('reasons.form.unknown');
 
   const removeRow = (index: number) => {
     form.removeFieldValue('pairs', index);
@@ -495,17 +482,17 @@ function PairsFields({ form }: { form: ReasonForm }) {
               </TableHeader>
               <TableBody>
                 {rows.map((row, index) => {
-                  const pair = name(row);
+                  const pair = names.pair(row);
                   return (
                     <TableRow key={pairKey(row)}>
                       <TableCell>
                         <span className="whitespace-normal font-medium" dir="auto">
-                          {programNames.get(row.programId) ?? unknown}
+                          {names.program(row.programId)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span className="whitespace-normal" dir="auto">
-                          {typeNames.get(row.facilityTypeId) ?? unknown}
+                          {names.facilityType(row.facilityTypeId)}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -646,7 +633,7 @@ export function ReasonEditorSkeleton({ title, description }: ReasonEditorSkeleto
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
           <div className="@3xl/main:col-span-2">
             <FieldSkeleton label={t('reasons.form.name')} required />
           </div>

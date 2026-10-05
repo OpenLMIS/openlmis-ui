@@ -10,10 +10,14 @@ export async function deleteAssignments(
   remove: (id: string) => Promise<void>,
   ids: readonly string[],
 ): Promise<{ deleted: string[]; failed: string[]; error?: unknown }> {
-  const { failed, error } = await settleFew(ids, (id) =>
-    remove(id).catch((reason: unknown) => {
-      if (!isAlreadyGone(reason)) throw reason;
-    }),
+  const { done, failed, error } = await settleFew(ids, (id) =>
+    remove(id).then(
+      () => id,
+      (reason: unknown) => {
+        if (!isAlreadyGone(reason)) throw reason;
+        return id;
+      },
+    ),
   );
-  return { deleted: ids.filter((id) => !failed.includes(id)), failed, error };
+  return { deleted: done, failed, error };
 }

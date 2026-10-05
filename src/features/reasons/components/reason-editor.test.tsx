@@ -291,6 +291,41 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
     expect(createValidReason).toHaveBeenCalledTimes(2);
   });
 
+  it('checks the name against the other reasons even when their list arrives late', async () => {
+    vi.mocked(fetchReasons).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve([damage, unpack]), 300)),
+    );
+    const { user } = renderEditor();
+
+    await user.type(
+      await screen.findByRole('textbox', { name: /^Name/ }, { timeout: 5000 }),
+      'damage',
+    );
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText('Another reason already has this name.')).toBeVisible();
+    expect(createReason).not.toHaveBeenCalled();
+  });
+
+  it('keeps Save focusable while it saves, so focus is not lost to the page', async () => {
+    let refuse: (error: unknown) => void = () => {};
+    vi.mocked(updateReason).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          refuse = reject;
+        }),
+    );
+    const { user } = renderEditor({ reason: damage, pairs: [] });
+
+    await user.click(await screen.findByRole('button', { name: 'Save' }));
+
+    const save = screen.getByRole('button', { name: 'Save' });
+    await vi.waitFor(() => expect(save).toHaveAttribute('aria-disabled', 'true'));
+    expect(save).not.toHaveAttribute('disabled');
+    refuse(httpError(500));
+    expect(await screen.findByText('Could Not Save Reason')).toBeVisible();
+  });
+
   it("shows the server's reason when the reason itself is refused", async () => {
     vi.mocked(updateReason).mockRejectedValue(httpError(400, { message: 'Tags are invalid.' }));
     const { user } = renderEditor({ reason: damage, pairs: [] });
