@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
@@ -88,6 +88,7 @@ type ProductFilterProps = {
 
 function ProductFilter({ value, onValueChange }: ProductFilterProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [typed, setTyped] = useState('');
   const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
   const [opened, setOpened] = useState(false);
@@ -108,11 +109,8 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
     if (!value) return found;
     const others = found.filter((option) => option.value !== value);
     const named = picked.data?.find((orderable) => orderable.id === value);
-    const option = named
-      ? toOption(named)
-      : (found.find((item) => item.value === value) ??
-        (picked.isPending ? undefined : { value, label: t('lots.unknown-product') }));
-    return option ? [option, ...others] : others;
+    if (named) return [toOption(named), ...others];
+    return picked.isPending ? others : [{ value, label: t('lots.unknown-product') }, ...others];
   }, [results.data, picked.data, picked.isPending, value, t]);
 
   return (
@@ -129,7 +127,11 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
         if (open) setOpened(true);
       }}
       onSearch={setTyped}
-      onValueChange={onValueChange}
+      onValueChange={(id) => {
+        const orderable = results.data?.content.find((item) => item.id === id);
+        if (orderable) queryClient.setQueryData(orderablesByIdsOptions([id]).queryKey, [orderable]);
+        onValueChange(id);
+      }}
       options={options}
       value={value ?? ''}
     />

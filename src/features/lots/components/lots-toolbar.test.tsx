@@ -120,8 +120,16 @@ describe('LotsToolbar', () => {
     expect(fetchOrderables).not.toHaveBeenCalledWith('Acetylsalicylic Acid');
   });
 
-  it('keeps the name a search gave a pick while its own lookup is slow or fails', async () => {
-    vi.mocked(fetchOrderablesByIds).mockRejectedValue(new Error('offline'));
+  it('keeps a pick named once the search moves on, while its lookup is still out', async () => {
+    const other = { ...acid, id: 'o2', productCode: 'C2', fullProductName: 'Glibenclamide' };
+    vi.mocked(fetchOrderables).mockImplementation(async (q) => ({
+      content: q ? [acid] : [other],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+    }));
+    vi.mocked(fetchOrderablesByIds).mockReturnValue(new Promise(() => {}));
     function Toolbar() {
       const [search, setSearch] = useState<LotsSearch>({});
       return (
@@ -136,9 +144,9 @@ describe('LotsToolbar', () => {
     const user = userEvent.setup();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
-    await user.click(product);
+    await user.type(product, 'acid');
     await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
-    await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalled());
+    await waitFor(() => expect(fetchOrderables).toHaveBeenLastCalledWith(''));
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(product).toHaveValue('Acetylsalicylic Acid');
