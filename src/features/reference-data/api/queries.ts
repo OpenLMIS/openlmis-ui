@@ -10,6 +10,7 @@ import {
   fetchOrderableDisplayCategories,
   fetchOrganizations,
   fetchPrograms,
+  fetchReasons,
   fetchRoles,
   fetchSupervisoryNodes,
 } from '@/features/reference-data/api/api';
@@ -99,5 +100,12 @@ export const organizationsOptions = () =>
   queryOptions({
     queryKey: queryKeys.organizations.list(),
     queryFn: fetchOrganizations,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const reasonsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.reasons.list(),
+    queryFn: fetchReasons,
     staleTime: LOOKUP_STALE_TIME,
   });

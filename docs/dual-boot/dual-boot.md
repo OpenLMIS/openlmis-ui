@@ -41,6 +41,7 @@ Today the new UI has these screens:
 | Administration / Facility Types | See facility types, and add or edit one. Needs the Manage Facilities right |
 | Administration / Programs | Find programs, and add or edit one. Needs the Manage Programs right |
 | Administration / Products | Find products by code, name or program, add one, and edit its details, programs, facility types and kit contents. Needs the Manage Orderables right or the Manage Facility Approved Orderables right; adding needs Manage Orderables |
+| Administration / Reasons | See the reasons stock moves for, add one, and edit one with its tags and the programs and facility types it is offered in. Needs the Manage Stock Card Line Item Reasons right |
 | Administration / Valid Destinations | See where each type of facility may issue stock to, per program, filter by facility and program, add one and delete one or several at once. Needs the Manage Stock Destinations right |
 | Administration / Valid Sources | The same for where each type of facility may receive stock from. Needs the Manage Stock Sources right |
 | Profile | Open it from Account in the menu at the top right. Change your name, email and phone, see your roles, set up notification digests and change your password. Every signed-in user has one |

@@ -1,6 +1,5 @@
 import { isAxiosError } from 'axios';
-
-const AT_ONCE = 5;
+import { settleFew } from '@/lib/settle-few';
 
 const isAlreadyGone = (error: unknown) =>
   isAxiosError<{ messageKey?: string }>(error) &&
@@ -11,27 +10,14 @@ export async function deleteAssignments(
   remove: (id: string) => Promise<void>,
   ids: readonly string[],
 ): Promise<{ deleted: string[]; failed: string[]; error?: unknown }> {
-  const deleted: string[] = [];
-  const failed: string[] = [];
-  let firstError: unknown;
-  const queue = [...ids];
-
-  const worker = async () => {
-    for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
-      try {
-        await remove(id);
-        deleted.push(id);
-      } catch (error) {
-        if (isAlreadyGone(error)) {
-          deleted.push(id);
-        } else {
-          failed.push(id);
-          firstError ??= error;
-        }
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(AT_ONCE, ids.length) }, worker));
-
-  return { deleted, failed, error: firstError };
+  const { done, failed, error } = await settleFew(ids, (id) =>
+    remove(id).then(
+      () => id,
+      (reason: unknown) => {
+        if (!isAlreadyGone(reason)) throw reason;
+        return id;
+      },
+    ),
+  );
+  return { deleted: done, failed, error };
 }

@@ -20,6 +20,7 @@ import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/
 import { useFieldContext } from '@/components/form/form-context';
 import { useAboutLabel, useDateMessages, useFormatError } from '@/components/form/form-messages';
 import { SettingsRowFrame } from '@/components/form/settings-list';
+import { addTag, type TagRefusal, tagSuggestions } from '@/components/form/tags';
 import { Button } from '@/components/ui/button';
 import {
   Combobox,
@@ -1015,6 +1016,144 @@ export function MultiComboboxField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
+    </FieldFrame>
+  );
+}
+
+type TagsFieldProps = FieldProps & {
+  suggestions: readonly string[];
+  placeholder?: string;
+  minLength?: number;
+  maxLength?: number;
+  removeLabel: (tag: string) => string;
+  refusedMessage: (reason: TagRefusal) => string;
+};
+
+const isTagSeparator = (key: string) => key === ',' || key === '،';
+
+/** Enter, Tab or leaving the box takes the highlighted suggestion or the typed text; a comma, the typed text. */
+export function TagsField({
+  label,
+  layout,
+  description,
+  required,
+  disabled,
+  suggestions,
+  placeholder,
+  minLength,
+  maxLength,
+  removeLabel,
+  refusedMessage,
+}: TagsFieldProps) {
+  const field = useFieldContext<string[]>();
+  const refusedId = `${field.name}-refused`;
+  const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [refusal, setRefusal] = useState<TagRefusal>();
+  const highlighted = useRef<string | undefined>(undefined);
+  const state = useFieldErrors(description, refusal ? refusedId : undefined);
+  const { isInvalid, describedBy: ariaDescribedBy } = state;
+  const anchor = useComboboxAnchor();
+  const tags = field.state.value;
+  const items = useMemo(() => tagSuggestions(suggestions, tags, text), [suggestions, tags, text]);
+  const listOpen = open && items.length > 0;
+  const suggested = () =>
+    listOpen && highlighted.current && items.includes(highlighted.current)
+      ? highlighted.current
+      : undefined;
+
+  const add = (next: string) => {
+    const result = addTag(tags, next, { min: minLength, max: maxLength });
+    if (!result) return;
+    if ('refused' in result) {
+      setRefusal(result.refused);
+      return;
+    }
+    field.handleChange(result.tags);
+    setText('');
+  };
+
+  return (
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
+      <Combobox
+        autoHighlight
+        disabled={disabled}
+        filter={null}
+        inputValue={text}
+        items={items}
+        multiple
+        onInputValueChange={(value, details) => {
+          // Base UI empties the box on Enter and on closing; refused text stays, as in legacy.
+          if (details.reason === 'input-clear') return;
+          setText(value);
+          setRefusal(undefined);
+        }}
+        onItemHighlighted={(item) => {
+          highlighted.current = item;
+        }}
+        onOpenChange={setOpen}
+        onValueChange={(next) => {
+          field.handleChange(next);
+          setText('');
+          setRefusal(undefined);
+        }}
+        open={listOpen}
+        value={tags}
+      >
+        <ComboboxChips ref={anchor}>
+          <ComboboxValue>
+            {(values: string[]) => (
+              <>
+                {values.map((tag) => (
+                  <ComboboxChip key={tag} removeLabel={removeLabel(tag)}>
+                    <span className="truncate" dir="auto" title={tag}>
+                      {tag}
+                    </span>
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput
+                  aria-describedby={ariaDescribedBy}
+                  aria-invalid={isInvalid || refusal !== undefined}
+                  aria-required={required}
+                  disabled={disabled}
+                  id={field.name}
+                  onBlur={(event) => {
+                    // A click on a suggestion moves focus into the list, and picks it there.
+                    const clicked = event.relatedTarget?.closest('[data-slot="combobox-content"]');
+                    if (!clicked) add(suggested() ?? text);
+                    field.handleBlur();
+                  }}
+                  onKeyDown={(event) => {
+                    const separator = isTagSeparator(event.key);
+                    if (!separator && (event.key !== 'Enter' || suggested() || !text.trim()))
+                      return;
+                    event.preventDefault();
+                    add(text);
+                  }}
+                  placeholder={values.length === 0 ? placeholder : undefined}
+                />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor}>
+          <ComboboxList>
+            {(item: string) => (
+              <ComboboxItem key={item} value={item}>
+                <span dir="auto">{item}</span>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {refusal && <FieldError errors={[{ message: refusedMessage(refusal) }]} id={refusedId} />}
     </FieldFrame>
   );
 }

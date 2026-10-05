@@ -8,6 +8,7 @@ import type {
   OrderableDisplayCategory,
   Organization,
   Program,
+  Reason,
   Role,
   SupervisoryNode,
 } from '@/features/reference-data/lib/types';
@@ -85,4 +86,10 @@ export async function fetchGeographicLevels(): Promise<GeographicLevel[]> {
 export async function fetchOrganizations(): Promise<Organization[]> {
   const { data } = await client.get<Organization[]>('/organizations');
   return data.toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Every stock reason; the endpoint cannot page, sort or filter. */
+export async function fetchReasons(): Promise<Reason[]> {
+  const { data } = await client.get<Reason[]>('/stockCardLineItemReasons');
+  return data;
 }

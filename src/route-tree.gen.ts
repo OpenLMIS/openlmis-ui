@@ -21,6 +21,7 @@ import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from '
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
 import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
+import { Route as protectedProtectedAdministrationReasonsRouteImport } from './routes/(protected)/_protected.administration.reasons'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
@@ -35,6 +36,8 @@ import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(p
 import { Route as protectedProtectedAdministrationFacilitiesIdRouteImport } from './routes/(protected)/_protected.administration.facilities_.$id'
 import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } from './routes/(protected)/_protected.administration.facilities_.new'
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
+import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
+import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
 import { Route as protectedProtectedAdministrationProductsIdIndexRouteImport } from './routes/(protected)/_protected.administration.products_.$id.index'
 import { Route as protectedProtectedAdministrationProductsIdFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.products_.$id.facility-types'
 import { Route as protectedProtectedAdministrationProductsIdGeneralRouteImport } from './routes/(protected)/_protected.administration.products_.$id.general'
@@ -105,6 +108,12 @@ const protectedProtectedAdministrationProgramsRoute =
   protectedProtectedAdministrationProgramsRouteImport.update({
     id: '/administration/programs',
     path: '/administration/programs',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationReasonsRoute =
+  protectedProtectedAdministrationReasonsRouteImport.update({
+    id: '/administration/reasons',
+    path: '/administration/reasons',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationRolesRoute =
@@ -191,6 +200,18 @@ const protectedProtectedAdministrationProductsIdRoute =
     path: '/administration/products/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedAdministrationReasonsIdRoute =
+  protectedProtectedAdministrationReasonsIdRouteImport.update({
+    id: '/administration/reasons_/$id',
+    path: '/administration/reasons/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationReasonsNewRoute =
+  protectedProtectedAdministrationReasonsNewRouteImport.update({
+    id: '/administration/reasons_/new',
+    path: '/administration/reasons/new',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationProductsIdIndexRoute =
   protectedProtectedAdministrationProductsIdIndexRouteImport.update({
     id: '/',
@@ -240,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
+  '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -254,6 +276,8 @@ export interface FileRoutesByFullPath {
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
+  '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
+  '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -271,6 +295,7 @@ export interface FileRoutesByTo {
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
+  '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -284,6 +309,8 @@ export interface FileRoutesByTo {
   '/settings': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
+  '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
+  '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -305,6 +332,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
+  '/(protected)/_protected/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
@@ -319,6 +347,8 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/facilities_/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/(protected)/_protected/administration/facilities_/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
+  '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
+  '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/(protected)/_protected/administration/products_/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/(protected)/_protected/administration/products_/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/(protected)/_protected/administration/products_/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -340,6 +370,7 @@ export interface FileRouteTypes {
     | '/administration/facility-types'
     | '/administration/products'
     | '/administration/programs'
+    | '/administration/reasons'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
@@ -354,6 +385,8 @@ export interface FileRouteTypes {
     | '/administration/facilities/$id'
     | '/administration/facilities/new'
     | '/administration/products/$id'
+    | '/administration/reasons/$id'
+    | '/administration/reasons/new'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/kit-unpack-list'
@@ -371,6 +404,7 @@ export interface FileRouteTypes {
     | '/administration/facility-types'
     | '/administration/products'
     | '/administration/programs'
+    | '/administration/reasons'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/users'
@@ -384,6 +418,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/administration/facilities/$id'
     | '/administration/facilities/new'
+    | '/administration/reasons/$id'
+    | '/administration/reasons/new'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/kit-unpack-list'
@@ -404,6 +440,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/facility-types'
     | '/(protected)/_protected/administration/products'
     | '/(protected)/_protected/administration/programs'
+    | '/(protected)/_protected/administration/reasons'
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
     | '/(protected)/_protected/administration/users'
@@ -418,6 +455,8 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/facilities_/$id'
     | '/(protected)/_protected/administration/facilities_/new'
     | '/(protected)/_protected/administration/products_/$id'
+    | '/(protected)/_protected/administration/reasons_/$id'
+    | '/(protected)/_protected/administration/reasons_/new'
     | '/(protected)/_protected/administration/products_/$id/facility-types'
     | '/(protected)/_protected/administration/products_/$id/general'
     | '/(protected)/_protected/administration/products_/$id/kit-unpack-list'
@@ -520,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationProgramsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/administration/reasons': {
+      id: '/(protected)/_protected/administration/reasons'
+      path: '/administration/reasons'
+      fullPath: '/administration/reasons'
+      preLoaderRoute: typeof protectedProtectedAdministrationReasonsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/administration/roles': {
       id: '/(protected)/_protected/administration/roles'
       path: '/administration/roles'
@@ -616,6 +662,20 @@ declare module '@tanstack/react-router' {
       path: '/administration/products/$id'
       fullPath: '/administration/products/$id'
       preLoaderRoute: typeof protectedProtectedAdministrationProductsIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/reasons_/$id': {
+      id: '/(protected)/_protected/administration/reasons_/$id'
+      path: '/administration/reasons/$id'
+      fullPath: '/administration/reasons/$id'
+      preLoaderRoute: typeof protectedProtectedAdministrationReasonsIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/reasons_/new': {
+      id: '/(protected)/_protected/administration/reasons_/new'
+      path: '/administration/reasons/new'
+      fullPath: '/administration/reasons/new'
+      preLoaderRoute: typeof protectedProtectedAdministrationReasonsNewRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/products_/$id/': {
@@ -736,6 +796,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
   protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
+  protectedProtectedAdministrationReasonsRoute: typeof protectedProtectedAdministrationReasonsRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
@@ -744,6 +805,8 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
+  protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
+  protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 
@@ -759,6 +822,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationProductsRoute,
   protectedProtectedAdministrationProgramsRoute:
     protectedProtectedAdministrationProgramsRoute,
+  protectedProtectedAdministrationReasonsRoute:
+    protectedProtectedAdministrationReasonsRoute,
   protectedProtectedAdministrationRolesRoute:
     protectedProtectedAdministrationRolesRoute,
   protectedProtectedAdministrationServiceAccountsRoute:
@@ -775,6 +840,10 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilitiesNewRoute,
   protectedProtectedAdministrationProductsIdRoute:
     protectedProtectedAdministrationProductsIdRouteWithChildren,
+  protectedProtectedAdministrationReasonsIdRoute:
+    protectedProtectedAdministrationReasonsIdRoute,
+  protectedProtectedAdministrationReasonsNewRoute:
+    protectedProtectedAdministrationReasonsNewRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
     protectedProtectedAdministrationUsersIdRolesRoute,
 }

@@ -36,8 +36,9 @@ import { queryKeys } from '@/lib/key-factory';
 export const Route = createFileRoute('/(protected)/_protected/administration/facilities_/$id')({
   validateSearch: facilityEditorSearchSchema,
   staticData: { crumbKey: 'facilities.form.edit-title' },
+  // A preloaded page would open on the copy read at hover, and the save sends the whole record back.
+  preload: false,
   loader: async ({ context: { queryClient }, params }) => {
-    // Read fresh, since a save sends the whole record back over whatever is stored.
     await Promise.all([
       requireRight(queryClient, RIGHTS.facilitiesManage),
       queryClient.fetchQuery({ ...facilityOptions(params.id), staleTime: 0 }),

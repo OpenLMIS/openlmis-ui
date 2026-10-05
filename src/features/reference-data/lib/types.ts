@@ -114,3 +114,14 @@ export type OrderableDisplayCategory = {
   displayName: string;
   displayOrder: number;
 };
+
+/** Why stock moved; type and category stay plain strings, since the server may hold codes the UI doesn't name. */
+export type Reason = {
+  id: string;
+  name: string;
+  description?: string | null;
+  reasonType: string;
+  reasonCategory: string;
+  isFreeTextAllowed: boolean;
+  tags: string[];
+};

@@ -20,12 +20,14 @@ export const queryKeys = {
   organizations: createQueryKeys('organizations'),
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
+  reasons: createQueryKeys('reasons'),
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
   serviceAccounts: createQueryKeys('serviceAccounts'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
   validDestinations: createQueryKeys('validDestinations'),
+  validReasons: createQueryKeys('validReasons'),
   validSources: createQueryKeys('validSources'),
 } as const;
 
