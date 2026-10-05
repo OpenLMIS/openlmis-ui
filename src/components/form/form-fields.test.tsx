@@ -1,6 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
@@ -17,6 +18,7 @@ const schema = z.object({
   channel: z.string(),
   code: z.string(),
   order: z.string(),
+  price: z.string(),
 });
 
 const facilities = [
@@ -43,6 +45,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
       channel: 'EMAIL',
       code: '',
       order: '',
+      price: '',
     },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
@@ -120,6 +123,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
         {(field) => <field.TextField dir="ltr" label="Code" />}
       </form.AppField>
       <form.AppField name="order">{(field) => <field.NumberField label="Order" />}</form.AppField>
+      <form.AppField name="price">{(field) => <field.DecimalField label="Price" />}</form.AppField>
       <button type="submit">Save</button>
     </form>
   );
@@ -178,6 +182,7 @@ describe('form fields', () => {
       channel: 'EMAIL',
       code: '',
       order: '',
+      price: '',
     });
   });
 
@@ -258,6 +263,14 @@ describe('form fields', () => {
   it('keeps a code-like value left to right in any language', () => {
     renderForm();
     expect(screen.getByRole('textbox', { name: 'Code' })).toHaveAttribute('dir', 'ltr');
+  });
+
+  it('offers a keypad with a decimal mark for a decimal, read left to right', () => {
+    renderForm();
+    const price = screen.getByRole('textbox', { name: 'Price' });
+
+    expect(price).toHaveAttribute('inputmode', 'decimal');
+    expect(price).toHaveAttribute('dir', 'ltr');
   });
 
   it('offers a number keypad for a number, read left to right, and keeps it as typed', async () => {
@@ -356,6 +369,144 @@ describe('field layouts', () => {
     await user.click(screen.getByRole('button', { name: 'translated about Active' }));
     expect(await screen.findByRole('dialog')).toHaveTextContent('Can sign in');
     expect(screen.getByRole('switch', { name: 'Active' })).toBeChecked();
+  });
+});
+
+function LockedComboboxForm() {
+  const form = useAppForm({ defaultValues: { facility: 'f1' as string | null } });
+  return (
+    <form.AppField name="facility">
+      {(field) => (
+        <field.ComboboxField
+          clearLabel="Clear Facility"
+          disabled
+          emptyMessage="No facilities"
+          items={facilities}
+          label="Facility"
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+describe('a locked combobox', () => {
+  it('shows its item and offers no way to clear it', () => {
+    render(<LockedComboboxForm />);
+
+    expect(screen.getByRole('combobox', { name: 'Facility' })).toHaveValue(
+      'HC01 - Comfort Health Clinic',
+    );
+    expect(screen.queryByRole('button', { name: 'Clear Facility' })).not.toBeInTheDocument();
+  });
+});
+
+const catalogue = [
+  { value: 'g1', label: 'G1 - Gloves' },
+  { value: 's1', label: 'S1 - Syringe' },
+];
+
+function ServerSearchForm({ onSearch }: { onSearch: (text: string) => void }) {
+  const [items, setItems] = useState(catalogue);
+  const form = useAppForm({ defaultValues: { picked: [] as string[] } });
+  return (
+    <form.AppField name="picked">
+      {(field) => (
+        <field.MultiComboboxField
+          emptyMessage="No products"
+          items={items}
+          label="Products"
+          onSearch={(text) => {
+            onSearch(text);
+            setItems(catalogue.filter((item) => item.label.includes(text.toUpperCase())));
+          }}
+          removeLabel={(label) => `Remove ${label}`}
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+describe('a multi combobox that searches the server', () => {
+  it('reports what is typed and keeps a picked item after the results move on', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<ServerSearchForm onSearch={onSearch} />);
+
+    const input = screen.getByRole('combobox', { name: 'Products' });
+    await user.type(input, 'g');
+    expect(onSearch).toHaveBeenLastCalledWith('g');
+    await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
+    await user.clear(input);
+    await user.type(input, 's');
+
+    expect(await screen.findByRole('option', { name: 'S1 - Syringe' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('button', { name: 'Remove G1 - Gloves' })).toBeInTheDocument();
+  });
+});
+
+function OrderedChipsForm() {
+  const form = useAppForm({ defaultValues: { picked: ['s1', 'g1'] } });
+  return (
+    <form.AppField name="picked">
+      {(field) => (
+        <field.MultiComboboxField
+          emptyMessage="No products"
+          items={catalogue}
+          label="Products"
+          removeLabel={(label) => `Remove ${label}`}
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+describe('a multi combobox', () => {
+  it('lists the chips in the order of its items, whatever the order of the value', () => {
+    render(<OrderedChipsForm />);
+
+    expect(
+      screen
+        .getAllByRole('button', { name: /^Remove / })
+        .map((chip) => chip.getAttribute('aria-label')),
+    ).toEqual(['Remove G1 - Gloves', 'Remove S1 - Syringe']);
+  });
+});
+
+describe('a multi combobox that searches the server, picking several', () => {
+  it('keeps the search and the list after each pick', async () => {
+    const user = userEvent.setup();
+    render(<ServerSearchForm onSearch={vi.fn()} />);
+    const input = screen.getByRole('combobox', { name: 'Products' });
+
+    await user.type(input, '1');
+    await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
+
+    expect(input).toHaveValue('1');
+    await user.click(screen.getByRole('option', { name: 'S1 - Syringe' }));
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('button', { name: 'Remove G1 - Gloves' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove S1 - Syringe' })).toBeInTheDocument();
+  });
+});
+
+describe('a multi combobox that searches the server, as the results change', () => {
+  it('keeps the chips in the order they were picked', async () => {
+    const user = userEvent.setup();
+    render(<ServerSearchForm onSearch={vi.fn()} />);
+    const input = screen.getByRole('combobox', { name: 'Products' });
+
+    await user.type(input, '1');
+    await user.click(await screen.findByRole('option', { name: 'G1 - Gloves' }));
+    await user.click(screen.getByRole('option', { name: 'S1 - Syringe' }));
+    await user.clear(input);
+    await user.type(input, 'S1');
+
+    expect(
+      screen
+        .getAllByRole('button', { name: /^Remove /, hidden: true })
+        .map((chip) => chip.getAttribute('aria-label')),
+    ).toEqual(['Remove G1 - Gloves', 'Remove S1 - Syringe']);
   });
 });
 

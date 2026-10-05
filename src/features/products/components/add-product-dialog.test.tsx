@@ -32,19 +32,21 @@ async function fillAndAdd(code = 'C100') {
 }
 
 describe('AddProductDialog', () => {
-  it('creates the product and closes', async () => {
+  it('creates the product and opens it', async () => {
     const onClose = vi.fn();
+    const onCreated = vi.fn();
     create.mockResolvedValueOnce({
       id: 'o1',
       productCode: 'C100',
       fullProductName: null,
       description: null,
     });
-    renderPage(<AddProductDialog onClose={onClose} open />);
+    renderPage(<AddProductDialog onClose={onClose} onCreated={onCreated} open />);
 
     await fillAndAdd();
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith('o1'));
+    expect(onClose).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith({
       productCode: 'C100',
       fullProductName: undefined,
@@ -57,20 +59,20 @@ describe('AddProductDialog', () => {
   });
 
   it('shows a code the server found in use on the code field, and stays open', async () => {
-    const onClose = vi.fn();
+    const onCreated = vi.fn();
     create.mockRejectedValueOnce(refusal('referenceData.error.orderable.productCode.mustBeUnique'));
-    renderPage(<AddProductDialog onClose={onClose} open />);
+    renderPage(<AddProductDialog onClose={vi.fn()} onCreated={onCreated} open />);
 
     await fillAndAdd();
 
     expect(await screen.findByText('products.form.code-taken')).toBeInTheDocument();
     expect(screen.queryByText('products.form.save-error-title')).not.toBeInTheDocument();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
   });
 
   it('says why a save failed for any other reason and keeps what was typed', async () => {
     create.mockRejectedValueOnce(refusal('referenceData.error.orderable.dispensable.invalid'));
-    renderPage(<AddProductDialog onClose={vi.fn()} open />);
+    renderPage(<AddProductDialog onClose={vi.fn()} onCreated={vi.fn()} open />);
 
     await fillAndAdd();
 

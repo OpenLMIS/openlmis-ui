@@ -5,6 +5,7 @@ import {
   fetchFacilityTypes,
   fetchGeographicZones,
   fetchMinimalFacilities,
+  fetchOrderableDisplayCategories,
   fetchPrograms,
   fetchRoles,
   fetchSupervisoryNodes,
@@ -53,6 +54,13 @@ export const facilityTypesOptions = (filter: { active?: boolean } = {}) =>
   queryOptions({
     queryKey: [...queryKeys.facilityTypes.all, 'lookup', filter] as const,
     queryFn: () => fetchFacilityTypes(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const orderableDisplayCategoriesOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.orderableDisplayCategories.list(),
+    queryFn: fetchOrderableDisplayCategories,
     staleTime: LOOKUP_STALE_TIME,
   });
 

@@ -385,7 +385,8 @@ opened from, with its page, sort and filters, which the opening link passes in h
 state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
 the saved values back and Save stays. Pages that share a header across tabs, like Profile,
 render it once in the layout route through `WorkspaceTabs` inside `WorkspaceSlots`, and put
-the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), so a tab switch
+the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), `narrow` by
+default and `width="default"` under a full-width page such as product edit, so a tab switch
 never remounts the header. A tab's own header button, such as Reset To Defaults on System
 Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts appear at the top end corner, just below the header, tinted by their kind.
 
@@ -516,22 +517,39 @@ its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
 A dialog whose save sends the whole record back reads that record fresh each time it opens, or
 a cached copy could undo another admin's change: its detail query key carries a number the
 dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
-Programs and Facility Types are the examples; Roles and Users still use one cached detail.
+Programs and Facility Types are the examples, taking that number from `useOpening()`
+(`src/hooks/use-opening.ts`); Roles and Users still use one cached detail.
 A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
 from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
+
+A page whose tabs save the record whole, like product edit, reads it fresh on every opening: its
+loader uses `fetchQuery` with `staleTime: 0` on `cause: 'enter'` and the cached copy on `stay`, as a
+tab switch is, and the route sets `preload: false`, since a preloaded match opens at once on the
+cache while the fresh read runs behind. Each save then reads the record again and applies only its
+own change to it (`saveProductChange`), so a tab left open never sends back an old copy.
 
 Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `NumberField`, `TextareaField`, `PasswordField`, `SwitchField`, `RadioGroupField`,
-`ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`, `DateField`). A whole number is a
+(`TextField`, `NumberField`, `DecimalField`, `TextareaField`, `PasswordField`, `SwitchField`,
+`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `SelectField`, `ImageField`, `DateField`). Two
+forms that share their fields, such as Add Product and the product's General tab, define them once
+with `withForm`, from the same `form.tsx`. A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
-`max: Number.MAX_SAFE_INTEGER`, and a lower bound passes `min` with its own message. A yes/no setting is a `SwitchField`,
+`max: Number.MAX_SAFE_INTEGER`, a lower bound passes `min` with its own message, and an optional whole
+number passes `optional` and reads with `toOptionalWholeNumber`. A number with decimals, such as a price, is a
+`DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal` and shown with
+`toNumberText(value, decimalMark(language))`; it takes a dot or the language's comma, and refuses a comma
+before exactly three digits as a possible thousands separator, so `toNumberText` shows such a value
+with a dot; `maxDecimals` caps
+the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes; one of a short fixed list is a
+`MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
+products, passes `onSearch` and the server's matches as `items`, and keeps the search and the list
+open after each pick; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's

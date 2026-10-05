@@ -6,7 +6,7 @@ const MAX_WHOLE_NUMBER = 2_147_483_647;
 const ARABIC_INDIC_ZERO = 0x0660;
 const PERSIAN_ZERO = 0x06f0;
 
-function toLatinDigits(text: string) {
+export function toLatinDigits(text: string) {
   return text.replace(/[٠-٩۰-۹]/g, (digit) => {
     const code = digit.charCodeAt(0);
     return String(code - (code >= PERSIAN_ZERO ? PERSIAN_ZERO : ARABIC_INDIC_ZERO));
@@ -14,7 +14,7 @@ function toLatinDigits(text: string) {
 }
 
 type WholeNumberMessages = {
-  required: ParseKeys;
+  required?: ParseKeys;
   invalid: ParseKeys;
   tooLarge: ParseKeys;
 };
@@ -22,16 +22,20 @@ type WholeNumberMessages = {
 type WholeNumberRange = {
   min?: { value: number; tooSmall: ParseKeys } | undefined;
   max?: number;
+  optional?: boolean;
 };
 
 export function wholeNumberText(
   messages: WholeNumberMessages,
-  { min, max = MAX_WHOLE_NUMBER }: WholeNumberRange = {},
+  { min, max = MAX_WHOLE_NUMBER, optional = false }: WholeNumberRange = {},
 ) {
   return z.string().superRefine((value, context) => {
     const text = toLatinDigits(value.trim());
-    if (!text) context.addIssue({ code: 'custom', message: messages.required });
-    else if (!/^[0-9]+$/.test(text))
+    if (!text) {
+      if (!optional) {
+        context.addIssue({ code: 'custom', message: messages.required ?? messages.invalid });
+      }
+    } else if (!/^[0-9]+$/.test(text))
       context.addIssue({ code: 'custom', message: messages.invalid });
     else if (Number(text) > max) context.addIssue({ code: 'custom', message: messages.tooLarge });
     else if (min && Number(text) < min.value) {
@@ -42,4 +46,8 @@ export function wholeNumberText(
 
 export function toWholeNumber(text: string) {
   return Number(toLatinDigits(text.trim()));
+}
+
+export function toOptionalWholeNumber(text: string) {
+  return text.trim() ? toWholeNumber(text) : null;
 }

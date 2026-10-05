@@ -252,9 +252,9 @@ type TextFieldProps = FieldProps &
     autoComplete?: string;
     placeholder?: string;
     maxLength?: number;
-    /** `ltr` for values read left to right in any language, such as codes and phone numbers. */
-    dir?: 'ltr';
-    inputMode?: 'numeric';
+    /** `ltr` for codes and phone numbers; `auto` for free text that may be in another script. */
+    dir?: 'ltr' | 'auto';
+    inputMode?: 'numeric' | 'decimal';
   };
 
 export function TextField({
@@ -310,8 +310,13 @@ export function NumberField(props: FieldProps) {
   return <TextField {...props} autoComplete="off" dir="ltr" inputMode="numeric" />;
 }
 
+export function DecimalField(props: FieldProps) {
+  return <TextField {...props} autoComplete="off" dir="ltr" inputMode="decimal" />;
+}
+
 type TextareaFieldProps = FieldProps & {
   placeholder?: string;
+  dir?: 'auto';
 };
 
 export function TextareaField({
@@ -321,6 +326,7 @@ export function TextareaField({
   required,
   disabled,
   placeholder,
+  dir,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -336,6 +342,7 @@ export function TextareaField({
       state={state}
     >
       <Textarea
+        dir={dir}
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         aria-required={required}
@@ -888,7 +895,7 @@ export function ComboboxField({
           id={field.name}
           onBlur={field.handleBlur}
           placeholder={placeholder}
-          showClear={selected !== null}
+          showClear={selected !== null && !disabled}
           width="full"
         />
         <ComboboxContent>
@@ -896,7 +903,9 @@ export function ComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                <span className="min-w-0 truncate">{item.label}</span>
+                <span className="min-w-0 truncate" dir="auto">
+                  {item.label}
+                </span>
                 {item.description && (
                   <span className="ms-auto shrink-0 text-muted-foreground text-xs">
                     {item.description}
@@ -916,6 +925,7 @@ type MultiComboboxFieldProps = FieldProps & {
   placeholder?: string;
   emptyMessage: ReactNode;
   removeLabel: (label: string) => string;
+  onSearch?: (text: string) => void;
 };
 
 export function MultiComboboxField({
@@ -928,15 +938,21 @@ export function MultiComboboxField({
   placeholder,
   emptyMessage,
   removeLabel,
+  onSearch,
 }: MultiComboboxFieldProps) {
   const field = useFieldContext<string[]>();
   const state = useFieldErrors(description);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
   const anchor = useComboboxAnchor();
+  const [picked, setPicked] = useState<readonly ComboboxFieldItem[]>([]);
   const selected = useMemo(() => {
+    if (onSearch) {
+      const known = new Map([...picked, ...items].map((item) => [item.value, item]));
+      return field.state.value.flatMap((value) => known.get(value) ?? []);
+    }
     const chosen = new Set(field.state.value);
     return items.filter((item) => chosen.has(item.value));
-  }, [items, field.state.value]);
+  }, [items, picked, field.state.value, onSearch]);
 
   return (
     <FieldFrame
@@ -951,11 +967,17 @@ export function MultiComboboxField({
         disabled={disabled}
         isItemEqualToValue={(item, value) => item.value === value.value}
         itemToStringLabel={(item) => item.label}
+        filter={onSearch ? null : undefined}
         items={items}
         multiple
+        onInputValueChange={onSearch}
+        onOpenChange={(_, details) => {
+          if (onSearch && details.reason === 'item-press') details.cancel();
+        }}
         onValueChange={(chosen, details) => {
           if (details.reason === 'escape-key' && chosen.length === 0)
             return details.allowPropagation();
+          setPicked(chosen);
           field.handleChange(chosen.map((item) => item.value));
         }}
         value={selected}
@@ -966,7 +988,7 @@ export function MultiComboboxField({
               <>
                 {values.map((item) => (
                   <ComboboxChip key={item.value} removeLabel={removeLabel(item.label)}>
-                    {item.label}
+                    <span dir="auto">{item.label}</span>
                   </ComboboxChip>
                 ))}
                 <ComboboxChipsInput
@@ -987,7 +1009,7 @@ export function MultiComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                {item.label}
+                <span dir="auto">{item.label}</span>
               </ComboboxItem>
             )}
           </ComboboxList>
