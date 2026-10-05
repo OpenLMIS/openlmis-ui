@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFacilityType, fetchFacilityType } from '@/features/facility-types/api/api';
@@ -63,15 +63,13 @@ describe('FacilityTypeFormDialog', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     fetchOne.mockResolvedValueOnce(foo);
     renderPage(<FacilityTypeFormDialog onClose={vi.fn()} target="ft9" />, { queryClient });
-    expect(await screen.findByDisplayValue('Foo', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Foo')).toBeInTheDocument();
 
     cleanup();
     fetchOne.mockResolvedValueOnce({ ...foo, name: 'Foo Renamed' });
     renderPage(<FacilityTypeFormDialog onClose={vi.fn()} target="ft9" />, { queryClient });
 
-    expect(
-      await screen.findByDisplayValue('Foo Renamed', {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Foo Renamed')).toBeInTheDocument();
   });
 
   it('checks names against the types as they are now, not as they were cached', async () => {
@@ -80,7 +78,7 @@ describe('FacilityTypeFormDialog', () => {
 
     await fillAndCreate('Foo');
 
-    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(create).toHaveBeenCalled());
     expect(screen.queryByText('facility-types.form.name-taken')).not.toBeInTheDocument();
   });
 
@@ -91,7 +89,7 @@ describe('FacilityTypeFormDialog', () => {
 
     await fillAndCreate('Store');
 
-    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(create).toHaveBeenCalled());
   });
 
   it('shows a name the server found in use on the name field', async () => {

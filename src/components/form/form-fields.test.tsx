@@ -549,10 +549,10 @@ function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) 
 
 const openCalendar = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
   await user.click(screen.getByRole('button', { name }));
-  return screen.findByRole('dialog', undefined, { timeout: 3000 });
+  return screen.findByRole('dialog');
 };
 
-describe('date field', { timeout: 15_000 }, () => {
+describe('date field', () => {
   it('names the picker by its label and its day, and stores the picked day as yyyy-MM-dd', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

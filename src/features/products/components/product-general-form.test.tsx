@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -69,7 +69,7 @@ describe('ProductGeneralForm', () => {
 
     await rename('Levora Plus');
 
-    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', saved);
     expect(queryClient.getQueryData(productDetailOptions('o1').queryKey)).toEqual(saved);
   });
@@ -81,7 +81,7 @@ describe('ProductGeneralForm', () => {
 
     await rename('Levora Plus');
 
-    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(toast.success).toHaveBeenCalledWith('products.edit.saved-title', {
       description: 'products.edit.saved',
     });
@@ -98,7 +98,7 @@ describe('ProductGeneralForm', () => {
     expect(unit).toHaveAccessibleDescription(/products.form.size-code-description/);
     await rename('BCG');
 
-    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', { ...vaccine, fullProductName: 'BCG' });
   });
 
@@ -112,7 +112,7 @@ describe('ProductGeneralForm', () => {
 
     finish({ ...product, fullProductName: 'Levora Plus' });
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(screen.getByRole('button', { name: 'products.edit.save' })).toBeEnabled(),
     );
     expect(screen.getByLabelText(/products.form.name/)).toHaveValue('Levora Plus 2');

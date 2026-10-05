@@ -46,7 +46,7 @@ describe('ProgramLinksTable', () => {
       />,
     );
 
-    expect(await screen.findByText('Family Planning', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText('Family Planning')).toBeInTheDocument();
     expect(await screen.findByText('Antibiotics')).toBeInTheDocument();
   });
 
@@ -65,7 +65,7 @@ describe('ProgramLinksTable', () => {
       />,
     );
 
-    await screen.findByText('TB', {}, { timeout: 3000 });
+    await screen.findByText('TB');
     const [, ...rows] = screen.getAllByRole('row');
     expect(rows.map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
       'Essential Meds',

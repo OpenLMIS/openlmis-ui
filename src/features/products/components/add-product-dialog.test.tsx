@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProduct } from '@/features/products/api/api';
@@ -45,7 +45,7 @@ describe('AddProductDialog', () => {
 
     await fillAndAdd();
 
-    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith('o1'));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith('o1'));
     expect(onClose).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith({
       productCode: 'C100',
