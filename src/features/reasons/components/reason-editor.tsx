@@ -346,29 +346,25 @@ function ReasonFields({ form, saved }: { form: ReasonForm; saved: Reason | undef
   return (
     <FieldGroup>
       <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-        <div className="@3xl/main:col-span-2">
-          <form.AppField name="name">
-            {(field) => (
-              <field.TextField
-                autoComplete="off"
-                dir="auto"
-                label={t('reasons.form.name')}
-                required
-              />
-            )}
-          </form.AppField>
-        </div>
+        <form.AppField name="name">
+          {(field) => (
+            <field.TextField
+              autoComplete="off"
+              dir="auto"
+              label={t('reasons.form.name')}
+              required
+            />
+          )}
+        </form.AppField>
+        <LookupField label={t('reasons.form.tags')}>
+          <TagsInput form={form} />
+        </LookupField>
         <LookupField label={t('reasons.form.category')} required>
           <CategoryField form={form} saved={saved} />
         </LookupField>
         <LookupField label={t('reasons.form.type')} required>
           <TypeField form={form} saved={saved} />
         </LookupField>
-        <div className="@3xl/main:col-span-2">
-          <LookupField label={t('reasons.form.tags')}>
-            <TagsInput form={form} />
-          </LookupField>
-        </div>
         <form.AppField name="isFreeTextAllowed">
           {(field) => (
             <field.SwitchField
@@ -704,14 +700,10 @@ export function ReasonEditorSkeleton({ title, description }: ReasonEditorSkeleto
       </WorkspaceHeader>
       <WorkspaceContent>
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-          <div className="@3xl/main:col-span-2">
-            <FieldSkeleton label={t('reasons.form.name')} required />
-          </div>
+          <FieldSkeleton label={t('reasons.form.name')} required />
+          <FieldSkeleton label={t('reasons.form.tags')} />
           <FieldSkeleton label={t('reasons.form.category')} required />
           <FieldSkeleton label={t('reasons.form.type')} required />
-          <div className="@3xl/main:col-span-2">
-            <FieldSkeleton label={t('reasons.form.tags')} />
-          </div>
         </div>
       </WorkspaceContent>
     </Workspace>
