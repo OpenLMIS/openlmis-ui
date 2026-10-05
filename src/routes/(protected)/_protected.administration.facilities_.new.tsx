@@ -76,6 +76,7 @@ function AddFacilityPending() {
   const { t } = useTranslation();
   return (
     <FacilityEditorSkeleton
+      submitLabel={t('facilities.form.create')}
       description={t('facilities.form.create-description')}
       title={t('facilities.form.create-title')}
     />

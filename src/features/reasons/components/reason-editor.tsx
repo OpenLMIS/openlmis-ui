@@ -23,6 +23,7 @@ import {
   ErrorAlert,
   FieldSkeleton,
   LookupBoundary,
+  SwitchRowSkeleton,
   SwitchSkeleton,
   serverMessage,
 } from '@/components/dialog-parts';
@@ -41,7 +42,9 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -247,6 +250,7 @@ export function ReasonEditor({
   }, [refused, form]);
 
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
+  const pairCount = useStore(form.store, (state) => state.values.pairs.length);
   const guard = useDiscardGuard(changed, { allowLeave: () => leaving.current });
 
   return (
@@ -283,9 +287,20 @@ export function ReasonEditor({
             <FieldSet>
               <FieldLegend>{t('reasons.form.where-used')}</FieldLegend>
               <FieldDescription>{t('reasons.form.where-used-description')}</FieldDescription>
-              <LookupField label={t('reasons.form.program')} required>
+              <QueryBoundary
+                errorComponent={({ error, reset }) => (
+                  <LoadError
+                    description={t('reasons.form.load-error-description')}
+                    error={error}
+                    reset={reset}
+                    title={t('reasons.form.load-error-title')}
+                  />
+                )}
+                pendingFallback={<PairsSkeleton rows={pairCount} />}
+                resetKey="reason-pairs"
+              >
                 <PairsFields form={form} />
-              </LookupField>
+              </QueryBoundary>
             </FieldSet>
           </div>
           <DiscardChangesDialog description={discardDescription} {...guard.dialog} />
@@ -329,7 +344,12 @@ function PairsFailedAlert({ failed, error }: { failed: PairRef[]; error: unknown
   );
 }
 
-function LookupField(props: { label: string; required?: boolean; children: ReactNode }) {
+function LookupField(props: {
+  label: string;
+  required?: boolean;
+  description?: string | undefined;
+  children: ReactNode;
+}) {
   const { t } = useTranslation();
   return (
     <LookupBoundary
@@ -356,10 +376,17 @@ function ReasonFields({ form, saved }: { form: ReasonForm; saved: Reason | undef
             />
           )}
         </form.AppField>
-        <LookupField label={t('reasons.form.tags')}>
+        <LookupField
+          description={t('reasons.form.tags-description')}
+          label={t('reasons.form.tags')}
+        >
           <TagsInput form={form} />
         </LookupField>
-        <LookupField label={t('reasons.form.category')} required>
+        <LookupField
+          description={saved ? t('reasons.form.fixed-description') : undefined}
+          label={t('reasons.form.category')}
+          required
+        >
           <CategoryField form={form} saved={saved} />
         </LookupField>
         <LookupField label={t('reasons.form.type')} required>
@@ -680,32 +707,127 @@ function AddPairSkeleton() {
   );
 }
 
+function PairsSkeleton({ rows }: { rows: number }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <Button disabled variant="outline">
+          <PlusIcon data-icon="inline-start" />
+          {t('reasons.form.add-pair-title')}
+        </Button>
+      </div>
+      <DataTableCard>
+        {rows === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <MapPinnedIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t('reasons.form.no-pairs-title')}</EmptyTitle>
+              <EmptyDescription>{t('reasons.form.no-pairs-description')}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <Table density="comfortable">
+            <TableHeader surface="muted">
+              <TableRow>
+                <TableHead>{t('reasons.form.program')}</TableHead>
+                <TableHead>{t('reasons.form.facility-type')}</TableHead>
+                <TableHead>{t('reasons.form.show')}</TableHead>
+                <TableHead>
+                  <span className="sr-only">{t('reasons.form.actions')}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: rows }, (_, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have nothing else to key on.
+                <TableRow key={index}>
+                  <TableCell>
+                    <Block className="h-4 w-28" />
+                  </TableCell>
+                  <TableCell>
+                    <Block className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Block className="h-4.5 w-8" shape="circle" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <Block className="size-7" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </DataTableCard>
+    </div>
+  );
+}
+
 type ReasonEditorSkeletonProps = {
   title: string;
   description: string;
+  submitLabel: string;
+  editing?: boolean;
 };
 
-export function ReasonEditorSkeleton({ title, description }: ReasonEditorSkeletonProps) {
+export function ReasonEditorSkeleton({
+  title,
+  description,
+  submitLabel,
+  editing = false,
+}: ReasonEditorSkeletonProps) {
   const { t } = useTranslation();
   return (
-    <Workspace width="narrow">
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <MessageSquareTextIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>{title}</WorkspaceTitle>
-          <WorkspaceDescription>{description}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-          <FieldSkeleton label={t('reasons.form.name')} required />
-          <FieldSkeleton label={t('reasons.form.tags')} />
-          <FieldSkeleton label={t('reasons.form.category')} required />
-          <FieldSkeleton label={t('reasons.form.type')} required />
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+    <>
+      <Workspace width="narrow">
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <MessageSquareTextIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>{title}</WorkspaceTitle>
+            <WorkspaceDescription>{description}</WorkspaceDescription>
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <div className="flex flex-col gap-8">
+            <FieldGroup>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+                <FieldSkeleton label={t('reasons.form.name')} required />
+                <FieldSkeleton
+                  description={t('reasons.form.tags-description')}
+                  label={t('reasons.form.tags')}
+                />
+                <FieldSkeleton
+                  description={editing ? t('reasons.form.fixed-description') : undefined}
+                  label={t('reasons.form.category')}
+                  required
+                />
+                <FieldSkeleton label={t('reasons.form.type')} required />
+                <SwitchRowSkeleton label={t('reasons.form.free-text')} />
+              </div>
+            </FieldGroup>
+            <FieldSet>
+              <FieldLegend>{t('reasons.form.where-used')}</FieldLegend>
+              <FieldDescription>{t('reasons.form.where-used-description')}</FieldDescription>
+              <PairsSkeleton rows={editing ? 3 : 0} />
+            </FieldSet>
+          </div>
+        </WorkspaceContent>
+      </Workspace>
+      <WorkspaceFooter width="narrow">
+        <Button disabled size="lg" variant="outline">
+          {t('reasons.form.cancel')}
+        </Button>
+        <Button disabled size="lg">
+          {submitLabel}
+        </Button>
+      </WorkspaceFooter>
+    </>
   );
 }

@@ -15,7 +15,7 @@ import { useOfflineFailure } from '@/components/offline-notice';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** The server's own message when it sent one, e.g. that a username is taken. */
@@ -90,15 +90,43 @@ export function DialogLoadError({ title, errorTitle, error, onRetry }: DialogLoa
   );
 }
 
-/** The field's real label over a placeholder input, since only the value is still loading. */
-export function FieldSkeleton({ label, required = false }: { label: string; required?: boolean }) {
+type FieldSkeletonProps = {
+  label: string;
+  required?: boolean;
+  description?: string;
+  /** `textarea` for the taller box of a multi-line field. */
+  control?: 'input' | 'textarea';
+};
+
+/** The field's real label and help text around a placeholder input, since only the value is still loading. */
+export function FieldSkeleton({
+  label,
+  required = false,
+  description,
+  control = 'input',
+}: FieldSkeletonProps) {
   return (
     <Field spacing="tight">
       <FieldLabel>
         <FieldLabelText label={label} required={required} />
       </FieldLabel>
-      <div className="h-8 w-full">
+      <div className={control === 'textarea' ? 'h-16 w-full' : 'h-8 w-full'}>
         <Skeleton fill />
+      </div>
+      {description && <FieldDescription>{description}</FieldDescription>}
+    </Field>
+  );
+}
+
+/** A stacked switch field's label with a placeholder switch at the end. */
+export function SwitchRowSkeleton({ label }: { label: string }) {
+  return (
+    <Field orientation="horizontal">
+      <div className="flex min-h-8 min-w-0 flex-1 items-center">
+        <FieldLabel>{label}</FieldLabel>
+      </div>
+      <div className="h-4.5 w-8">
+        <Skeleton fill shape="circle" />
       </div>
     </Field>
   );
@@ -107,6 +135,7 @@ export function FieldSkeleton({ label, required = false }: { label: string; requ
 type LookupBoundaryProps = {
   label: string;
   required?: boolean;
+  description?: string;
   errorTitle: string;
   errorDescription: string;
   children: ReactNode;
@@ -115,6 +144,7 @@ type LookupBoundaryProps = {
 export function LookupBoundary({
   label,
   required,
+  description,
   errorTitle,
   errorDescription,
   children,
@@ -124,7 +154,9 @@ export function LookupBoundary({
       errorComponent={({ error, reset }) => (
         <LoadError description={errorDescription} error={error} reset={reset} title={errorTitle} />
       )}
-      pendingFallback={<FieldSkeleton label={label} required={required} />}
+      pendingFallback={
+        <FieldSkeleton description={description} label={label} required={required} />
+      }
       resetKey={label}
     >
       {children}

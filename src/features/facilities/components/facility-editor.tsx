@@ -9,6 +9,7 @@ import {
   ErrorAlert,
   FieldSkeleton,
   LookupBoundary,
+  SwitchRowSkeleton,
   serverMessage,
 } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
@@ -698,42 +699,74 @@ function AddProgramSkeleton() {
 type FacilityEditorSkeletonProps = {
   title: string;
   description: string;
+  submitLabel: string;
   goLiveDateRequired?: boolean;
 };
 
 export function FacilityEditorSkeleton({
   title,
   description,
+  submitLabel,
   goLiveDateRequired = false,
 }: FacilityEditorSkeletonProps) {
   const { t } = useTranslation();
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <BuildingIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>{title}</WorkspaceTitle>
-          <WorkspaceDescription>{description}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="flex flex-col gap-6">
-          <Block className="h-9 w-80" />
-          <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-            <FieldSkeleton label={t('facilities.form.name')} required />
-            <FieldSkeleton label={t('facilities.form.code')} required />
-            <FieldSkeleton label={t('facilities.form.type')} required />
-            <FieldSkeleton label={t('facilities.form.zone')} required />
-            <FieldSkeleton
-              label={t('facilities.form.go-live-date')}
-              required={goLiveDateRequired}
-            />
-            <FieldSkeleton label={t('facilities.form.operator')} />
+    <>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <BuildingIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>{title}</WorkspaceTitle>
+            <WorkspaceDescription>{description}</WorkspaceDescription>
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4 @4xl/main:gap-6">
+            <Tabs spacing="page" value="information">
+              <TabsList aria-label={t('facilities.form.tabs-label')}>
+                <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
+                <TabsTrigger value="programs">
+                  {t('facilities.form.programs')}
+                  <Badge variant="secondary">
+                    <Block className="h-3 w-2" />
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="information">
+                <FieldGroup>
+                  <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+                    <FieldSkeleton label={t('facilities.form.name')} required />
+                    <FieldSkeleton label={t('facilities.form.code')} required />
+                    <FieldSkeleton label={t('facilities.form.type')} required />
+                    <FieldSkeleton label={t('facilities.form.zone')} required />
+                    <FieldSkeleton
+                      description={t('facilities.form.go-live-date-description')}
+                      label={t('facilities.form.go-live-date')}
+                      required={goLiveDateRequired}
+                    />
+                    <FieldSkeleton label={t('facilities.form.operator')} />
+                    <FieldSkeleton control="textarea" label={t('facilities.form.description')} />
+                    <div className="@3xl/main:col-start-1">
+                      <SwitchRowSkeleton label={t('facilities.form.active')} />
+                    </div>
+                    <SwitchRowSkeleton label={t('facilities.form.enabled')} />
+                  </div>
+                </FieldGroup>
+              </TabsContent>
+            </Tabs>
           </div>
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+        </WorkspaceContent>
+      </Workspace>
+      <WorkspaceFooter>
+        <Button disabled size="lg" variant="outline">
+          {t('facilities.form.cancel')}
+        </Button>
+        <Button disabled size="lg">
+          {submitLabel}
+        </Button>
+      </WorkspaceFooter>
+    </>
   );
 }
