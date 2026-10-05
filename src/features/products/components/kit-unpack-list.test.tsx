@@ -6,6 +6,7 @@ import { WorkspaceSlots } from '@/components/workspace-tabs';
 import { fetchProducts, saveProductChange } from '@/features/products/api/api';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
+import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
@@ -127,6 +128,23 @@ describe('KitUnpackList', () => {
     await vi.waitFor(() =>
       expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus(),
     );
+  });
+
+  it('says why a save failed and keeps the quantities typed', async () => {
+    updateProduct.mockRejectedValueOnce(httpError(400, { message: 'Refused by the server' }));
+    const onDone = vi.fn();
+    renderPage(<Kit onDone={onDone} />);
+    const user = userEvent.setup();
+
+    const quantity = await screen.findByRole('textbox', { name: 'products.kit.quantity-of' });
+    await user.clear(quantity);
+    await user.type(quantity, '5');
+    await user.click(screen.getByRole('button', { name: 'products.kit.save' }));
+
+    expect(await screen.findByText('products.kit.save-error-title')).toBeInTheDocument();
+    expect(screen.getByText('Refused by the server')).toBeInTheDocument();
+    expect(quantity).toHaveValue('5');
+    expect(onDone).not.toHaveBeenCalled();
   });
 
   it('only shows the kit to a user who may not change it', async () => {

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProgramLinksTable } from '@/features/products/components/program-links-table';
 import type { ProductDetail } from '@/features/products/lib/types';
@@ -26,6 +26,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchPrograms).mockResolvedValue([
     { id: 'fp', code: 'PRG001', name: 'Family Planning', active: true },
+    { id: 'em', code: 'PRG002', name: 'Essential Meds', active: true },
+    { id: 'tb', code: 'PRG003', name: 'TB', active: true },
   ]);
   vi.mocked(fetchOrderableDisplayCategories).mockResolvedValue([
     { id: 'c2', code: 'C2', displayName: 'Antibiotics', displayOrder: 2 },
@@ -46,5 +48,29 @@ describe('ProgramLinksTable', () => {
 
     expect(await screen.findByText('Family Planning', {}, { timeout: 3000 })).toBeInTheDocument();
     expect(await screen.findByText('Antibiotics')).toBeInTheDocument();
+  });
+
+  it('lists every linked program, sorted by name', async () => {
+    const linked = {
+      ...product,
+      programs: [{ programId: 'tb' }, { programId: 'fp' }, { programId: 'em' }],
+    };
+    renderPage(
+      <ProgramLinksTable
+        canEdit
+        columnVisibility={{}}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        product={linked}
+      />,
+    );
+
+    await screen.findByText('TB', {}, { timeout: 3000 });
+    const [, ...rows] = screen.getAllByRole('row');
+    expect(rows.map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
+      'Essential Meds',
+      'Family Planning',
+      'TB',
+    ]);
   });
 });

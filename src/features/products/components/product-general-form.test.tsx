@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
 import { saveProductChange } from '@/features/products/api/api';
@@ -71,6 +72,19 @@ describe('ProductGeneralForm', () => {
     await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', saved);
     expect(queryClient.getQueryData(productDetailOptions('o1').queryKey)).toEqual(saved);
+  });
+
+  it('says the product is saved once the save goes through', async () => {
+    vi.spyOn(toast, 'success').mockImplementation(() => '');
+    update.mockImplementationOnce(async (_, body) => body);
+    const { onDone } = renderForm();
+
+    await rename('Levora Plus');
+
+    await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(toast.success).toHaveBeenCalledWith('products.edit.saved-title', {
+      description: 'products.edit.saved',
+    });
   });
 
   it('saves a product sized by a size code without asking for a dispensing unit', async () => {

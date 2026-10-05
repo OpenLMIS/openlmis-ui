@@ -13,6 +13,7 @@ import { ApprovalDialog } from '@/features/products/components/approval-dialog';
 import { RemoveApprovalDialog } from '@/features/products/components/remove-approval-dialog';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { fetchFacilityTypes, fetchPrograms } from '@/features/reference-data/api/api';
+import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', async (importOriginal) => ({
@@ -58,6 +59,8 @@ const approval: Approval = {
 };
 
 const LOADED = { timeout: 3000 };
+
+const refusal = () => httpError(400, { message: 'Refused by the server' });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -171,6 +174,25 @@ describe('ApprovalDialog', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('says why a save failed and keeps what was typed', async () => {
+    vi.mocked(fetchApproval).mockResolvedValueOnce(approval);
+    vi.mocked(saveApprovalStock).mockRejectedValueOnce(refusal());
+    const { onClose } = renderDialog('a1');
+    const user = userEvent.setup();
+
+    const max = await screen.findByLabelText(/products.approvals.max-periods/, {}, LOADED);
+    await user.clear(max);
+    await user.type(max, '6');
+    await user.click(screen.getByRole('button', { name: 'products.approvals.form.save' }));
+
+    expect(
+      await screen.findByText('products.approvals.form.save-error-title', {}, LOADED),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Refused by the server')).toBeInTheDocument();
+    expect(max).toHaveValue('6');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('only shows an approval to a user who may not change it', async () => {
     vi.mocked(fetchApproval).mockResolvedValueOnce(approval);
     renderDialog('a1', { readOnly: true });
@@ -199,6 +221,26 @@ describe('RemoveApprovalDialog', () => {
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(removeApproval).toHaveBeenCalledWith('a1');
+  });
+});
+
+describe('RemoveApprovalDialog when the server refuses', () => {
+  it('says why and stays open, so the user can try again', async () => {
+    vi.mocked(removeApproval).mockRejectedValueOnce(refusal());
+    const onClose = vi.fn();
+    renderPage(<RemoveApprovalDialog approvalId="a1" onClose={onClose} product={product} />);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'products.approvals.remove' }, LOADED),
+    );
+
+    expect(
+      await screen.findByText('products.approvals.remove-error-title', {}, LOADED),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Refused by the server')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'products.approvals.remove' })).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 
