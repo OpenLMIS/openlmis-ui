@@ -25,7 +25,7 @@
   "data-table.search": "بحث...",
   "data-table.select-page": "تحديد الصفحة",
   "data-table.select-row": "تحديد {row}",
-  "data-table.selected-count": "{count, number} محدد",
+  "data-table.selected-count": "المحدد: {count, number}",
   "data-table.toggle-columns": "إظهار الأعمدة",
   "data-table.view": "عرض",
   "dialog.cancel": "إلغاء",
@@ -1179,7 +1179,7 @@
   "valid-assignments.form.exists-title": "{kind, select, destinations {وجهة صالحة بالفعل} other {مصدر صالح بالفعل}}",
   "valid-assignments.form.facility-required": "اختر مرفقًا.",
   "valid-assignments.form.facility-type-required": "اختر نوع المرفق.",
-  "valid-assignments.form.geo-level-affinity-description": "اعرضه فقط على المرافق الموجودة في المنطقة نفسها عند هذا المستوى، مثل المنطقة نفسها.",
+  "valid-assignments.form.geo-level-affinity-description": "اعرضه فقط على المرافق الموجودة في المنطقة نفسها عند هذا المستوى، مثل المقاطعة نفسها.",
   "valid-assignments.form.is-facility-description": "مرفق ضمن النظام.",
   "valid-assignments.form.is-organization-description": "مكان خارج النظام، مثل منظمة غير حكومية.",
   "valid-assignments.form.level": "المستوى {level, number}",
@@ -1203,7 +1203,7 @@
   "valid-assignments.partly-deleted": "حُذف {deleted, number} وتعذر حذف {failed, number}. ما زالت محددة لتتمكن من المحاولة مرة أخرى.",
   "valid-assignments.partly-deleted-title": "لم يُحذف بعضها",
   "valid-assignments.program": "البرنامج",
-  "valid-assignments.row-name": "{name}، {program}، {type}",
+  "valid-assignments.row-name": "{name} لنوع {type} في {program}",
   "valid-assignments.title": "{kind, select, destinations {الوجهات الصالحة} other {المصادر الصالحة}}",
   "valid-assignments.unknown": "غير معروف"
 }

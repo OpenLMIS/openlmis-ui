@@ -12,8 +12,12 @@ import {
 } from '@/components/valid-assignments/search';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { programsOptions } from '@/features/reference-data/api/queries';
-import { VALID_SOURCES_API, validSourcesListOptions } from '@/features/valid-sources/api/queries';
+import {
+  facilityTypesOptions,
+  geographicLevelsOptions,
+  programsOptions,
+} from '@/features/reference-data/api/queries';
+import { VALID_SOURCES_API } from '@/features/valid-sources/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const CLOSED_DIALOGS = { assignment: undefined } satisfies Partial<AssignmentsSearch>;
@@ -24,9 +28,11 @@ export const Route = createFileRoute('/(protected)/_protected/administration/val
   loader: async ({ context: { queryClient }, deps }) => {
     const rights = await requireRight(queryClient, RIGHTS.stockSourcesManage);
     if (!deps.half) {
-      queryClient.prefetchQuery(validSourcesListOptions(deps.query));
+      queryClient.prefetchQuery(VALID_SOURCES_API.listOptions(deps.query));
     }
     queryClient.prefetchQuery(programsOptions());
+    queryClient.prefetchQuery(facilityTypesOptions());
+    queryClient.prefetchQuery(geographicLevelsOptions());
     return { canPickOrganizations: rights.has(RIGHTS.stockOrganizationsManage) };
   },
   pendingComponent: () => <AssignmentsPagePending kind="sources" />,

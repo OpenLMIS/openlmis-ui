@@ -25,7 +25,7 @@ import {
 import {
   NOTHING_PICKED,
   type Picked,
-  useFilterSelection,
+  useFilterScoped,
   withoutIds,
 } from '@/components/valid-assignments/selection';
 import type { AssignmentKind, AssignmentsApi } from '@/components/valid-assignments/types';
@@ -68,10 +68,10 @@ export function AssignmentsPage({
   canPickOrganizations,
 }: AssignmentsPageProps) {
   const { t } = useTranslation();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const content = useRef<HTMLDivElement>(null);
+  const [measureContent, contentWidth] = useElementWidth<HTMLElement>();
+  const content = useRef<HTMLElement>(null);
   const contentRef = useCallback(
-    (element: HTMLDivElement | null) => {
+    (element: HTMLElement | null) => {
       measureContent(element);
       content.current = element;
     },
@@ -84,11 +84,12 @@ export function AssignmentsPage({
   );
 
   const filterKey = assignmentFilterKey(search);
-  const [picked, setPicked] = useFilterSelection(filterKey);
-  const [deleting, setDeleting] = useState<Picked | undefined>(undefined);
+  const [picked, setPicked] = useFilterScoped(filterKey, NOTHING_PICKED);
+  const [deleting, setDeleting] = useFilterScoped<Picked | undefined>(filterKey, undefined);
   const deleteOne = useCallback(
-    (row: { id: string; name: string }) => setDeleting(new Map([[row.id, row.name]])),
-    [],
+    (row: { id: string; name: string }, rowsFilterKey: string) =>
+      setDeleting(new Map([[row.id, row.name]]), rowsFilterKey),
+    [setDeleting],
   );
 
   const [dialogMounted, setDialogMounted] = useState(adding);
@@ -101,7 +102,8 @@ export function AssignmentsPage({
     <Workspace>
       <AssignmentsHeader kind={api.kind} />
       <WorkspaceContent>
-        <div
+        <section
+          aria-label={t('valid-assignments.title', { kind: api.kind })}
           className="flex flex-col gap-4 outline-none @4xl/main:gap-6"
           ref={contentRef}
           tabIndex={-1}
@@ -151,16 +153,16 @@ export function AssignmentsPage({
             count={picked.size}
             onClear={() => setPicked(NOTHING_PICKED, filterKey)}
           >
-            <Button onClick={() => setDeleting(picked)} size="sm" variant="destructive">
+            <Button onClick={() => setDeleting(picked, filterKey)} size="sm" variant="destructive">
               <Trash2Icon data-icon="inline-start" />
               {t('valid-assignments.delete-selected')}
             </Button>
           </DataTableSelectionBar>
-        </div>
+        </section>
         <DeleteAssignmentsDialog
           api={api}
           focusAfterDelete={content}
-          onClose={() => setDeleting(undefined)}
+          onClose={() => setDeleting(undefined, filterKey)}
           onDeleted={(ids) => setPicked(withoutIds(picked, ids), filterKey)}
           targets={deleting}
         />

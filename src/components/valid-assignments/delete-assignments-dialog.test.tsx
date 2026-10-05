@@ -37,7 +37,9 @@ function Harness({ onDeleted }: { onDeleted: (ids: string[]) => void }) {
           Delete Selected
         </button>
       )}
-      <div data-testid="list" ref={list} tabIndex={-1} />
+      <div data-testid="list" ref={list} tabIndex={-1}>
+        <input aria-label="Available To" />
+      </div>
       <DeleteAssignmentsDialog
         api={api}
         focusAfterDelete={list}

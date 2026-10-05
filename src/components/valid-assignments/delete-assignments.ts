@@ -33,5 +33,5 @@ export async function deleteAssignments(
   };
   await Promise.all(Array.from({ length: Math.min(AT_ONCE, ids.length) }, worker));
 
-  return firstError === undefined ? { deleted, failed } : { deleted, failed, error: firstError };
+  return { deleted, failed, error: firstError };
 }

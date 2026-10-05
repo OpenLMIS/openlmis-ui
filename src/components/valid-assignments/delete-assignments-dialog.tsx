@@ -39,7 +39,6 @@ export function DeleteAssignmentsDialog({
   const queryClient = useQueryClient();
   const { shown, dialogProps } = useDialogTarget(targets, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const deletedSome = useRef(false);
   const count = shown?.size ?? 0;
 
   const remove = useMutation({
@@ -47,7 +46,6 @@ export function DeleteAssignmentsDialog({
     onSuccess: ({ deleted, failed }) => {
       onDeleted(deleted);
       if (deleted.length === 0) return;
-      deletedSome.current = true;
       onClose();
       if (failed.length === 0) {
         toast.success(
@@ -69,7 +67,7 @@ export function DeleteAssignmentsDialog({
       void queryClient.invalidateQueries({ queryKey: api.queryKey });
     },
   });
-  const nothingDeleted = remove.isError || remove.data?.deleted.length === 0;
+  const nothingDeleted = remove.data?.deleted.length === 0;
 
   const props = dialogProps(remove.isPending);
 
@@ -78,12 +76,15 @@ export function DeleteAssignmentsDialog({
       {...props}
       onOpenChangeComplete={(next) => {
         props.onOpenChangeComplete(next);
-        if (next) deletedSome.current = false;
-        else remove.reset();
+        if (!next) remove.reset();
       }}
     >
       <AlertDialogContent
-        finalFocus={() => (deletedSome.current ? focusAfterDelete.current : true)}
+        finalFocus={() => {
+          if (!remove.data?.deleted.length) return true;
+          focusAfterDelete.current?.focus();
+          return false;
+        }}
         initialFocus={cancelRef}
       >
         <AlertDialogHeader>

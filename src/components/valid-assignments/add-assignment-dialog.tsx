@@ -40,6 +40,8 @@ import {
   organizationsOptions,
   programsOptions,
 } from '@/features/reference-data/api/queries';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
+import { programName } from '@/features/reference-data/lib/programs';
 
 type AddAssignmentDialogProps = {
   api: AssignmentsApi;
@@ -50,8 +52,14 @@ type AddAssignmentDialogProps = {
 
 const saveKey = (api: AssignmentsApi) => [...api.queryKey, 'create'];
 
-const toLabel = (lookup: { code: string; name: string | null } | undefined) =>
-  lookup && (lookup.name || lookup.code);
+function lookupName<T extends { id: string }>(
+  items: readonly T[] | undefined,
+  id: string,
+  name: (item: T) => string,
+) {
+  const item = items?.find((candidate) => candidate.id === id);
+  return item && name(item);
+}
 
 export function AddAssignmentDialog({
   api,
@@ -89,15 +97,15 @@ function AddAssignmentForm({
     onSuccess: ({ assignment, created }) => {
       const names = {
         name: assignment.name ?? '',
-        type: toLabel(
-          queryClient
-            .getQueryData(facilityTypesOptions({ active: true }).queryKey)
-            ?.find((type) => type.id === assignment.facilityTypeId),
+        type: lookupName(
+          queryClient.getQueryData(facilityTypesOptions({ active: true }).queryKey),
+          assignment.facilityTypeId,
+          facilityTypeName,
         ),
-        program: toLabel(
-          queryClient
-            .getQueryData(programsOptions().queryKey)
-            ?.find((program) => program.id === assignment.programId),
+        program: lookupName(
+          queryClient.getQueryData(programsOptions().queryKey),
+          assignment.programId,
+          programName,
         ),
       };
       if (created) {
@@ -202,7 +210,7 @@ function FacilityTypeSelect() {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(facilityTypesOptions({ active: true }));
   const items = useMemo(
-    () => data.map((type) => ({ value: type.id, label: type.name || type.code })),
+    () => data.map((type) => ({ value: type.id, label: facilityTypeName(type) })),
     [data],
   );
   return <SelectField items={items} label={t('valid-assignments.facility-type')} required />;

@@ -471,8 +471,9 @@ Clear Filters action.
 **Rows the user acts on together are selected with a checkbox column**, `selectionColumn()`
 from `src/components/data-table/data-table-selection.tsx`: the header picks the page, and a
 selection is kept across pages by id, with each row's name, so a confirm can count and name
-rows not on screen. A filter change clears it, and rows still showing from the last filter
-cannot change it, so an action never reaches rows the user cannot see. Each row's box is named
+rows not on screen. A filter change clears it and closes an open confirm, and rows still
+showing from the last filter can neither change it nor open a delete (`useFilterScoped`), so
+an action never reaches rows the user cannot see. Each row's box is named
 for everything that tells it apart, not only its name. While anything is selected,
 `DataTableSelectionBar` after the table shows the count, Clear and the actions. It is not in the
 URL. Valid Destinations is the example: its bulk delete awaits every request, reports the ones

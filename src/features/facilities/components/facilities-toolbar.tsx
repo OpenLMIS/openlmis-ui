@@ -9,8 +9,9 @@ import { DataTableViewOptions } from '@/components/data-table/data-table-view-op
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
 import { FACILITY_HIDEABLE_COLUMNS, type FacilitiesSearch } from '@/features/facilities/lib/search';
-import { toZoneFilter } from '@/features/facilities/lib/zone-filter';
+import { toZoneOption } from '@/features/facilities/lib/zone-filter';
 import { geographicZonesOptions } from '@/features/reference-data/api/queries';
+import { withPicked } from '@/lib/filter-options';
 
 type FacilitiesToolbarProps = {
   search: FacilitiesSearch;
@@ -28,7 +29,7 @@ export function FacilitiesToolbar({
   const { t } = useTranslation();
   const { data: zones } = useQuery(geographicZonesOptions());
   const zoneFilter = useMemo(
-    () => toZoneFilter(zones, search.zoneId, t('facilities.unknown-zone')),
+    () => withPicked(zones?.map(toZoneOption), search.zoneId, t('facilities.unknown-zone')),
     [zones, search.zoneId, t],
   );
 

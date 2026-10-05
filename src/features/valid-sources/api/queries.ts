@@ -12,16 +12,14 @@ import {
 import { queryKeys } from '@/lib/key-factory';
 import type { Page } from '@/lib/types';
 
-export const validSourcesListOptions = (query: AssignmentsQuery) =>
-  queryOptions<Page<ValidAssignment>, Error, Page<ValidAssignment>, QueryKey>({
-    queryKey: queryKeys.validSources.list(query),
-    queryFn: () => fetchValidSources(query),
-  });
-
 export const VALID_SOURCES_API: AssignmentsApi = {
   kind: 'sources',
   queryKey: queryKeys.validSources.all,
-  listOptions: validSourcesListOptions,
+  listOptions: (query: AssignmentsQuery) =>
+    queryOptions<Page<ValidAssignment>, Error, Page<ValidAssignment>, QueryKey>({
+      queryKey: queryKeys.validSources.list(query),
+      queryFn: () => fetchValidSources(query),
+    }),
   create: createValidSource,
   remove: deleteValidSource,
 };

@@ -3,6 +3,8 @@ import type { AssignmentsQuery } from '@/components/valid-assignments/types';
 import { tableSearchSchema, toPaginationState } from '@/lib/table-search';
 
 export const ASSIGNMENT_HIDEABLE_COLUMNS = [
+  { id: 'program', labelKey: 'valid-assignments.program', hideBelow: 'lg' },
+  { id: 'facilityType', labelKey: 'valid-assignments.facility-type', hideBelow: 'lg' },
   { id: 'geoZone', labelKey: 'valid-assignments.geo-zone', hideBelow: 'xl' },
   { id: 'geoLevelAffinity', labelKey: 'valid-assignments.geo-level-affinity', hideBelow: '3xl' },
 ] as const;

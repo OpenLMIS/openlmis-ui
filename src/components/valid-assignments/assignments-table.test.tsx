@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
@@ -44,9 +45,27 @@ const ngo: ValidAssignment = {
   geoLevelAffinityId: null,
 };
 
-function renderTable(content: ValidAssignment[], search: AssignmentsSearch = {}) {
+type TableOptions = {
+  queryClient?: QueryClient;
+  search?: AssignmentsSearch;
+  columnVisibility?: Record<string, boolean>;
+  totalElements?: number;
+  totalPages?: number;
+};
+
+function renderTable(
+  content: ValidAssignment[],
+  {
+    queryClient = new QueryClient(),
+    search = {},
+    columnVisibility = {},
+    totalElements,
+    totalPages = 1,
+  }: TableOptions = {},
+) {
   const onDelete = vi.fn();
   const onPickedChange = vi.fn();
+  const onSearchChange = vi.fn();
   const api: AssignmentsApi = {
     kind: 'destinations',
     queryKey: ['validDestinations'],
@@ -54,8 +73,8 @@ function renderTable(content: ValidAssignment[], search: AssignmentsSearch = {})
       queryKey: ['validDestinations', 'list', query],
       queryFn: async () => ({
         content,
-        totalElements: content.length,
-        totalPages: 1,
+        totalElements: totalElements ?? content.length,
+        totalPages,
         number: 0,
         size: 10,
         numberOfElements: content.length,
@@ -68,16 +87,17 @@ function renderTable(content: ValidAssignment[], search: AssignmentsSearch = {})
     <Suspense>
       <AssignmentsTable
         api={api}
-        columnVisibility={{}}
+        columnVisibility={columnVisibility}
         onDelete={onDelete}
         onPickedChange={onPickedChange}
-        onSearchChange={vi.fn()}
+        onSearchChange={onSearchChange}
         picked={NOTHING_PICKED}
         search={search}
       />
     </Suspense>,
+    { queryClient },
   );
-  return { onDelete, onPickedChange };
+  return { onDelete, onPickedChange, onSearchChange };
 }
 
 beforeAll(async () => {
@@ -119,8 +139,8 @@ describe('AssignmentsTable', { timeout: 10_000 }, () => {
   it('shows the program and type names, and Unknown for a program the list does not have', async () => {
     renderTable([balaka('a1', 'p1'), balaka('a2', 'gone')]);
 
-    expect(await screen.findByText('Essential Meds')).toBeVisible();
-    expect(await screen.findByText('Unknown')).toBeVisible();
+    expect(await screen.findByText('Essential Meds', {}, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByText('Unknown', {}, { timeout: 5000 })).toBeVisible();
     expect(screen.getAllByText('Health Center')).toHaveLength(2);
   });
 
@@ -137,30 +157,79 @@ describe('AssignmentsTable', { timeout: 10_000 }, () => {
 
     expect(
       await screen.findByRole('checkbox', {
-        name: 'Select Balaka District Hospital, Essential Meds, Health Center',
+        name: 'Select Balaka District Hospital for Health Center in Essential Meds',
       }),
     ).toBeVisible();
     expect(
-      screen.getByRole('checkbox', { name: 'Select Balaka District Hospital, EPI, Health Center' }),
+      screen.getByRole('checkbox', {
+        name: 'Select Balaka District Hospital for Health Center in EPI',
+      }),
     ).toBeVisible();
     expect(
       screen.getByRole('button', {
-        name: 'Actions For Balaka District Hospital, EPI, Health Center',
+        name: 'Actions For Balaka District Hospital for Health Center in EPI',
       }),
     ).toBeVisible();
   });
 
-  it('names a picked or deleted row with its program and type, for the confirm', async () => {
+  it('names a picked or deleted row in full, with the filter its rows came from', async () => {
     const { onDelete, onPickedChange } = renderTable([balaka('a2', 'p2')]);
     const user = userEvent.setup();
-    const name = 'Balaka District Hospital, EPI, Health Center';
+    const name = 'Balaka District Hospital for Health Center in EPI';
 
     await user.click(await screen.findByRole('checkbox', { name: `Select ${name}` }));
     expect(onPickedChange).toHaveBeenCalledWith(new Map([['a2', name]]), '|');
 
     await user.click(screen.getByRole('button', { name: `Actions For ${name}` }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
-    expect(onDelete).toHaveBeenCalledWith({ id: 'a2', name });
+    expect(onDelete).toHaveBeenCalledWith({ id: 'a2', name }, '|');
+  });
+
+  it('names a row by its place alone until the program and type names arrive', async () => {
+    vi.mocked(fetchFacilityTypes).mockReturnValue(new Promise(() => {}));
+    renderTable([balaka('a1', 'p1')]);
+
+    expect(
+      await screen.findByRole('checkbox', { name: 'Select Balaka District Hospital' }),
+    ).toBeVisible();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+  });
+
+  it('says Unknown rather than leaving cells blank when the names cannot be loaded', async () => {
+    vi.mocked(fetchPrograms).mockRejectedValue(new Error('offline'));
+    vi.mocked(fetchFacilityTypes).mockRejectedValue(new Error('offline'));
+    renderTable([balaka('a1', 'p1')], {
+      queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    });
+
+    expect(await screen.findAllByText('Unknown')).toHaveLength(2);
+  });
+
+  it('shows the program and type under the name when their columns are hidden', async () => {
+    renderTable([balaka('a1', 'p1')], {
+      columnVisibility: { program: false, facilityType: false },
+    });
+
+    expect(await screen.findByText('Essential Meds · Health Center')).toBeVisible();
+    expect(screen.queryByRole('columnheader', { name: 'Program' })).not.toBeInTheDocument();
+  });
+
+  it('leaves the zone out when the facilities cannot be loaded', async () => {
+    vi.mocked(fetchFacilitiesByIds).mockRejectedValue(new Error('offline'));
+    renderTable([balaka('a1', 'p1')]);
+
+    const row = (await screen.findByText('Balaka District Hospital')).closest('tr');
+    expect(await within(row as HTMLElement).findByText('-')).toBeVisible();
+  });
+
+  it('moves back to the last page when the page asked for is past the end', async () => {
+    const { onSearchChange } = renderTable([], {
+      search: { page: 5 },
+      totalElements: 15,
+      totalPages: 2,
+    });
+
+    await vi.waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: 2 }, true));
   });
 
   it('says when nothing exists yet, with no way to clear filters', async () => {
@@ -172,8 +241,10 @@ describe('AssignmentsTable', { timeout: 10_000 }, () => {
 
   it('offers to clear the filters when they match nothing', async () => {
     renderTable([], {
-      facilityId: '13037147-1769-4735-90a7-b9b310d128b8',
-      programId: 'dce17f2e-af3e-40ad-8e00-3496adef44c3',
+      search: {
+        facilityId: '13037147-1769-4735-90a7-b9b310d128b8',
+        programId: 'dce17f2e-af3e-40ad-8e00-3496adef44c3',
+      },
     });
 
     expect(await screen.findByText('Nothing Available')).toBeVisible();

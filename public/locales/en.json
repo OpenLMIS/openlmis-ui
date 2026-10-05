@@ -1203,7 +1203,7 @@
   "valid-assignments.partly-deleted": "{deleted, number} deleted, {failed, number} could not be. Those are still selected, so you can try again.",
   "valid-assignments.partly-deleted-title": "Some Were Not Deleted",
   "valid-assignments.program": "Program",
-  "valid-assignments.row-name": "{name}, {program}, {type}",
+  "valid-assignments.row-name": "{name} for {type} in {program}",
   "valid-assignments.title": "{kind, select, destinations {Valid Destinations} other {Valid Sources}}",
   "valid-assignments.unknown": "Unknown"
 }

@@ -2,8 +2,9 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
   applySelection,
+  NOTHING_PICKED,
   toRowSelection,
-  useFilterSelection,
+  useFilterScoped,
   withoutIds,
 } from '@/components/valid-assignments/selection';
 
@@ -38,6 +39,17 @@ describe('applySelection', () => {
   });
 });
 
+describe('applySelection names', () => {
+  it('renames a picked row still on screen with its current name', () => {
+    const picked = new Map([['a', 'Balaka']]);
+    const named = [{ id: 'a', rowName: 'Balaka for Health Center in EPI' }];
+
+    expect(applySelection(picked, { a: true }, named)).toEqual(
+      new Map([['a', 'Balaka for Health Center in EPI']]),
+    );
+  });
+});
+
 describe('toRowSelection', () => {
   it('marks every picked id selected, for the table', () => {
     expect(toRowSelection(new Map([['a', 'Balaka']]))).toEqual({ a: true });
@@ -55,20 +67,23 @@ describe('withoutIds', () => {
   });
 });
 
-describe('useFilterSelection', () => {
+describe('useFilterScoped', () => {
   const balaka = new Map([['a', 'Balaka']]);
 
   it('keeps what was picked under the same filter', () => {
-    const { result } = renderHook(() => useFilterSelection('f1|p1'));
+    const { result } = renderHook(() => useFilterScoped('f1|p1', NOTHING_PICKED));
 
     act(() => result.current[1](balaka, 'f1|p1'));
     expect(result.current[0]).toEqual(balaka);
   });
 
   it('clears the selection when the filter changes, and does not bring it back on return', () => {
-    const { result, rerender } = renderHook(({ filter }) => useFilterSelection(filter), {
-      initialProps: { filter: '|' },
-    });
+    const { result, rerender } = renderHook(
+      ({ filter }) => useFilterScoped(filter, NOTHING_PICKED),
+      {
+        initialProps: { filter: '|' },
+      },
+    );
     act(() => result.current[1](balaka, '|'));
 
     rerender({ filter: '|p1' });
@@ -78,7 +93,7 @@ describe('useFilterSelection', () => {
   });
 
   it('ignores a pick on rows still showing from the previous filter', () => {
-    const { result } = renderHook(() => useFilterSelection('f1|p2'));
+    const { result } = renderHook(() => useFilterScoped('f1|p2', NOTHING_PICKED));
 
     act(() => result.current[1](balaka, 'f1|p1'));
     expect(result.current[0].size).toBe(0);

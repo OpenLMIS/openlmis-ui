@@ -1,6 +1,5 @@
 type Option = { value: string; label: string; description?: string };
 
-/** The options with the picked one kept, named "Unknown" when the list does not have it. */
 export function withPicked(
   options: Option[] | undefined,
   picked: string | undefined,
