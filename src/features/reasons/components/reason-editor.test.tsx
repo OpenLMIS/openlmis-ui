@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
@@ -91,21 +91,27 @@ function renderEditor(saved?: { reason: Reason; pairs: ValidReason[] }) {
 }
 
 async function pick(user: ReturnType<typeof userEvent.setup>, field: string, option: string) {
-  await user.click(
-    await screen.findByRole('combobox', { name: new RegExp(`^${field}`) }, { timeout: 5000 }),
-  );
+  await user.click(await screen.findByRole('combobox', { name: new RegExp(`^${field}`) }));
   await user.click(await screen.findByRole('option', { name: option }));
 }
 
+const addPairButton = () => screen.getByRole('button', { name: 'Add Program And Facility Type' });
+
+async function openAddPair(user: ReturnType<typeof userEvent.setup>) {
+  // The loading placeholder shows the same button, disabled, until the lookups arrive.
+  await waitFor(() => expect(addPairButton()).toBeEnabled());
+  await user.click(addPairButton());
+  return screen.findByRole('dialog', { name: 'Add Program And Facility Type' });
+}
+
 async function addPair(user: ReturnType<typeof userEvent.setup>, program: string, type: string) {
+  const dialog = await openAddPair(user);
   await pick(user, 'Program', program);
   await pick(user, 'Facility Type', type);
-  await user.click(screen.getByRole('button', { name: 'Add' }));
+  await user.click(within(dialog).getByRole('button', { name: 'Add' }));
 }
 
 const pairsTable = () => screen.getByRole('table');
-
-const findPairsTable = () => screen.findByRole('table', {}, { timeout: 5000 });
 
 beforeAll(async () => {
   await i18n
@@ -159,7 +165,7 @@ beforeEach(() => {
   vi.mocked(deleteValidReason).mockResolvedValue();
 });
 
-describe('ReasonEditor', { timeout: 20_000 }, () => {
+describe('ReasonEditor', () => {
   it('asks for a name, a category and a type before sending anything', async () => {
     const { user } = renderEditor();
 
@@ -192,7 +198,7 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
     await addPair(user, 'EPI', 'Health Center');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
-    await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(createReason).toHaveBeenCalledWith({
       name: 'Expired',
       reasonCategory: 'ADJUSTMENT',
@@ -208,14 +214,16 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
     });
   });
 
-  it('adds a pair with Show off, refuses the same pair twice, and removes one', async () => {
+  it('adds a pair from a dialog with Show off, refuses the same pair twice, and removes one', async () => {
     const { user } = renderEditor();
 
+    const dialog = await openAddPair(user);
     await pick(user, 'Program', 'EPI');
     await pick(user, 'Facility Type', 'Health Center');
-    await user.click(screen.getByRole('switch', { name: /^Show$/ }));
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(within(dialog).getByRole('switch', { name: /^Show$/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Add' }));
 
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const row = within(pairsTable()).getByText('EPI').closest('tr') as HTMLElement;
     expect(
       within(row).getByRole('switch', { name: 'Show For EPI, Health Center' }),
@@ -225,19 +233,22 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
     expect(
       await screen.findByText('This program and facility type are already listed.'),
     ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: 'Remove EPI, Health Center' }));
     expect(await screen.findByText('Not Offered Anywhere Yet')).toBeVisible();
+    expect(addPairButton()).toHaveFocus();
   });
 
   it('keeps the category and type of a saved reason, naming one the options lack', async () => {
     renderEditor({ reason: unpack, pairs: [valid('v1', 'p1', 't2')] });
 
-    const category = await screen.findByRole('combobox', { name: /^Category/ }, { timeout: 5000 });
+    const category = await screen.findByRole('combobox', { name: /^Category/ });
     expect(category).toHaveTextContent('Aggregation');
     expect(category).toBeDisabled();
     expect(screen.getByRole('combobox', { name: /^Type/ })).toBeDisabled();
-    expect(await within(await findPairsTable()).findByText('Old Type')).toBeVisible();
+    expect(await screen.findByText('Old Type')).toBeVisible();
   });
 
   it('saves only what changed on a saved reason, keeping what the form does not show', async () => {
@@ -246,15 +257,13 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
       pairs: [valid('v1', 'p1', 't1'), valid('v2', 'p2', 't1')],
     });
 
-    const row = (await within(await findPairsTable()).findByText('Essential Meds')).closest(
-      'tr',
-    ) as HTMLElement;
+    const row = (await screen.findByText('Essential Meds')).closest('tr') as HTMLElement;
     await user.click(
       within(row).getByRole('switch', { name: 'Show For Essential Meds, Health Center' }),
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(updateReason).toHaveBeenCalledWith(
       'r1',
       expect.objectContaining({ description: 'Broken in transit' }),
@@ -285,7 +294,7 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
-    await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(createReason).toHaveBeenCalledTimes(1);
     expect(updateReason).toHaveBeenCalledWith('new', expect.objectContaining({ name: 'Expired' }));
     expect(createValidReason).toHaveBeenCalledTimes(2);
@@ -297,10 +306,7 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
     );
     const { user } = renderEditor();
 
-    await user.type(
-      await screen.findByRole('textbox', { name: /^Name/ }, { timeout: 5000 }),
-      'damage',
-    );
+    await user.type(await screen.findByRole('textbox', { name: /^Name/ }), 'damage');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('Another reason already has this name.')).toBeVisible();
@@ -320,7 +326,7 @@ describe('ReasonEditor', { timeout: 20_000 }, () => {
     await user.click(await screen.findByRole('button', { name: 'Save' }));
 
     const save = screen.getByRole('button', { name: 'Save' });
-    await vi.waitFor(() => expect(save).toHaveAttribute('aria-disabled', 'true'));
+    await waitFor(() => expect(save).toHaveAttribute('aria-disabled', 'true'));
     expect(save).not.toHaveAttribute('disabled');
     refuse(httpError(500));
     expect(await screen.findByText('Could Not Save Reason')).toBeVisible();

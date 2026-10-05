@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
@@ -140,6 +140,6 @@ describe('ReasonsTable', () => {
     });
 
     await screen.findByRole('table');
-    await vi.waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: undefined }, true));
+    await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: undefined }, true));
   });
 });

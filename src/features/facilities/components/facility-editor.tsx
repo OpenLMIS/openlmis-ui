@@ -5,13 +5,28 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard } from '@/components/data-table/data-table';
 import {
+  DialogLoadError,
   ErrorAlert,
   FieldSkeleton,
   LookupBoundary,
+  SwitchRowSkeleton,
   serverMessage,
 } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
+import {
+  FormDialog,
+  FormDialogBody,
+  FormDialogCancel,
+  FormDialogDescription,
+  FormDialogFooter,
+  FormDialogForm,
+  FormDialogHeader,
+  FormDialogSubmit,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { QueryBoundary } from '@/components/query-boundary';
 import { Block } from '@/components/skeleton-block';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -324,22 +339,22 @@ function InformationFields({ form, locked, saved }: InformationFieldsProps) {
         <LookupField label={t('facilities.form.operator')}>
           <OperatorField form={form} />
         </LookupField>
-        <div className="@3xl/main:col-span-2">
-          <form.AppField name="description">
+        <form.AppField name="description">
+          {(field) => (
+            <field.TextareaField disabled={locked} label={t('facilities.form.description')} />
+          )}
+        </form.AppField>
+        <div className="@3xl/main:col-start-1">
+          <form.AppField name="active">
             {(field) => (
-              <field.TextareaField disabled={locked} label={t('facilities.form.description')} />
+              <field.SwitchField
+                description={t('facilities.form.active-description')}
+                disabled={locked}
+                label={t('facilities.form.active')}
+              />
             )}
           </form.AppField>
         </div>
-        <form.AppField name="active">
-          {(field) => (
-            <field.SwitchField
-              description={t('facilities.form.active-description')}
-              disabled={locked}
-              label={t('facilities.form.active')}
-            />
-          )}
-        </form.AppField>
         <form.AppField name="enabled">
           {(field) => (
             <field.SwitchField
@@ -433,22 +448,33 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
   const { t } = useTranslation();
   const rows = useStore(form.store, (state) => state.values.programs);
   const table = useRef<HTMLDivElement>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const [adding, setAdding] = useState(false);
 
   const removeRow = (index: number) => {
     form.removeFieldValue('programs', index);
-    // The pressed button is gone, so the next row's takes the focus, or the program picker.
+    // The pressed button is gone, so the next row's takes the focus, or Add Program.
     requestAnimationFrame(() => {
       const buttons = table.current?.querySelectorAll<HTMLElement>('[data-remove-program]');
       const next = buttons?.[Math.min(index, buttons.length - 1)];
-      (next ?? document.getElementById('programId'))?.focus();
+      (next ?? addButton.current)?.focus();
     });
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <LookupField label={t('facilities.form.program')} required>
-        <AddProgramRow form={form} rows={rows} />
-      </LookupField>
+      <div className="flex justify-end">
+        <Button onClick={() => setAdding(true)} ref={addButton} variant="outline">
+          <PlusIcon data-icon="inline-start" />
+          {t('facilities.form.add-program')}
+        </Button>
+      </div>
+      <AddProgramDialog
+        onAdd={(row) => form.pushFieldValue('programs', row)}
+        onClose={() => setAdding(false)}
+        open={adding}
+        rows={rows}
+      />
       <div ref={table}>
         <DataTableCard>
           {rows.length === 0 ? (
@@ -547,13 +573,56 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
   );
 }
 
-function AddProgramRow({
-  form,
-  rows,
-}: {
-  form: FacilityForm;
+type AddProgramDialogProps = {
+  open: boolean;
   rows: FacilityFormValues['programs'];
-}) {
+  onAdd: (row: FacilityFormValues['programs'][number]) => void;
+  onClose: () => void;
+};
+
+function AddProgramDialog({ open, rows, onAdd, onClose }: AddProgramDialogProps) {
+  const { t } = useTranslation();
+  const { shown, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
+
+  return (
+    <FormDialog {...dialogProps()}>
+      {shown && (
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <DialogLoadError
+              error={error}
+              errorTitle={t('facilities.form.load-error-title')}
+              onRetry={reset}
+              title={t('facilities.form.add-program')}
+            />
+          )}
+          pendingFallback={<AddProgramSkeleton />}
+          resetKey="add-program"
+        >
+          <AddProgramForm
+            onAdd={(row) => {
+              onAdd(row);
+              onClose();
+            }}
+            rows={rows}
+          />
+        </QueryBoundary>
+      )}
+    </FormDialog>
+  );
+}
+
+function AddProgramHeader() {
+  const { t } = useTranslation();
+  return (
+    <FormDialogHeader>
+      <FormDialogTitle>{t('facilities.form.add-program')}</FormDialogTitle>
+      <FormDialogDescription>{t('facilities.form.add-program-description')}</FormDialogDescription>
+    </FormDialogHeader>
+  );
+}
+
+function AddProgramForm({ rows, onAdd }: Pick<AddProgramDialogProps, 'rows' | 'onAdd'>) {
   const { t } = useTranslation();
   const { data: programs } = useSuspenseQuery(FACILITY_EDITOR_LOOKUPS.programs);
   const items = useMemo(
@@ -565,105 +634,139 @@ function AddProgramRow({
     [programs, rows],
   );
 
-  const addForm = useAppForm({
+  const form = useAppForm({
     defaultValues: { programId: null as string | null, startDate: '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: addProgramSchema },
-    onSubmit: ({ value, formApi }) => {
+    onSubmit: ({ value }) => {
       const program = programs.find((item) => item.id === value.programId);
-      if (!program) return;
-      form.pushFieldValue('programs', toProgramRow(program, value.startDate));
-      formApi.reset();
+      if (program) onAdd(toProgramRow(program, value.startDate));
     },
   });
 
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        void addForm.handleSubmit();
-      }}
-    >
-      <FieldGroup>
-        <div className="flex flex-col gap-x-4 gap-y-5 @2xl/main:flex-row @2xl/main:items-start">
-          <div className="min-w-0 flex-1">
-            <addForm.AppField name="programId">
-              {(field) => (
-                <field.ComboboxField
-                  clearLabel={t('facilities.form.clear-program')}
-                  emptyMessage={t('facilities.form.no-matches')}
-                  items={items}
-                  label={t('facilities.form.program')}
-                  placeholder={t('facilities.form.pick-program')}
-                  required
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="@2xl/main:w-64">
-            <addForm.AppField name="startDate">
-              {(field) => (
-                <field.DateField
-                  description={t('facilities.form.start-date-description')}
-                  label={t('facilities.form.start-date')}
-                  placeholder={t('facilities.form.pick-date')}
-                  required
-                />
-              )}
-            </addForm.AppField>
-          </div>
-          <div className="@2xl/main:pt-6">
-            <Button type="submit" variant="outline" width="full">
-              <PlusIcon data-icon="inline-start" />
-              {t('facilities.form.add-program')}
-            </Button>
-          </div>
-        </div>
-      </FieldGroup>
-    </form>
+    <FormDialogForm onSubmit={form.handleSubmit}>
+      <AddProgramHeader />
+      <FormDialogBody>
+        <FieldGroup>
+          <form.AppField name="programId">
+            {(field) => (
+              <field.ComboboxField
+                clearLabel={t('facilities.form.clear-program')}
+                emptyMessage={t('facilities.form.no-matches')}
+                items={items}
+                label={t('facilities.form.program')}
+                placeholder={t('facilities.form.pick-program')}
+                required
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="startDate">
+            {(field) => (
+              <field.DateField
+                description={t('facilities.form.start-date-description')}
+                label={t('facilities.form.start-date')}
+                placeholder={t('facilities.form.pick-date')}
+                required
+              />
+            )}
+          </form.AppField>
+        </FieldGroup>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+        <FormDialogSubmit>{t('facilities.form.add')}</FormDialogSubmit>
+      </FormDialogFooter>
+    </FormDialogForm>
+  );
+}
+
+function AddProgramSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <AddProgramHeader />
+      <FormDialogBody>
+        <FieldGroup>
+          <FieldSkeleton label={t('facilities.form.program')} required />
+          <FieldSkeleton label={t('facilities.form.start-date')} required />
+        </FieldGroup>
+      </FormDialogBody>
+    </>
   );
 }
 
 type FacilityEditorSkeletonProps = {
   title: string;
   description: string;
+  submitLabel: string;
   goLiveDateRequired?: boolean;
 };
 
 export function FacilityEditorSkeleton({
   title,
   description,
+  submitLabel,
   goLiveDateRequired = false,
 }: FacilityEditorSkeletonProps) {
   const { t } = useTranslation();
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <BuildingIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>{title}</WorkspaceTitle>
-          <WorkspaceDescription>{description}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="flex flex-col gap-6">
-          <Block className="h-9 w-80" />
-          <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-            <FieldSkeleton label={t('facilities.form.name')} required />
-            <FieldSkeleton label={t('facilities.form.code')} required />
-            <FieldSkeleton label={t('facilities.form.type')} required />
-            <FieldSkeleton label={t('facilities.form.zone')} required />
-            <FieldSkeleton
-              label={t('facilities.form.go-live-date')}
-              required={goLiveDateRequired}
-            />
-            <FieldSkeleton label={t('facilities.form.operator')} />
+    <>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <BuildingIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>{title}</WorkspaceTitle>
+            <WorkspaceDescription>{description}</WorkspaceDescription>
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4 @4xl/main:gap-6">
+            <Tabs spacing="page" value="information">
+              <TabsList aria-label={t('facilities.form.tabs-label')}>
+                <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
+                <TabsTrigger value="programs">
+                  {t('facilities.form.programs')}
+                  <Badge variant="secondary">
+                    <Block className="h-3 w-2" />
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="information">
+                <FieldGroup>
+                  <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+                    <FieldSkeleton label={t('facilities.form.name')} required />
+                    <FieldSkeleton label={t('facilities.form.code')} required />
+                    <FieldSkeleton label={t('facilities.form.type')} required />
+                    <FieldSkeleton label={t('facilities.form.zone')} required />
+                    <FieldSkeleton
+                      description={t('facilities.form.go-live-date-description')}
+                      label={t('facilities.form.go-live-date')}
+                      required={goLiveDateRequired}
+                    />
+                    <FieldSkeleton label={t('facilities.form.operator')} />
+                    <FieldSkeleton control="textarea" label={t('facilities.form.description')} />
+                    <div className="@3xl/main:col-start-1">
+                      <SwitchRowSkeleton label={t('facilities.form.active')} />
+                    </div>
+                    <SwitchRowSkeleton label={t('facilities.form.enabled')} />
+                  </div>
+                </FieldGroup>
+              </TabsContent>
+            </Tabs>
           </div>
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+        </WorkspaceContent>
+      </Workspace>
+      <WorkspaceFooter>
+        <Button disabled size="lg" variant="outline">
+          {t('facilities.form.cancel')}
+        </Button>
+        <Button disabled size="lg">
+          {submitLabel}
+        </Button>
+      </WorkspaceFooter>
+    </>
   );
 }

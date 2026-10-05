@@ -99,6 +99,7 @@ function EditFacilityPending() {
   const { t } = useTranslation();
   return (
     <FacilityEditorSkeleton
+      submitLabel={t('facilities.form.save')}
       description={t('facilities.form.edit-description')}
       goLiveDateRequired
       title={t('facilities.form.edit-title')}

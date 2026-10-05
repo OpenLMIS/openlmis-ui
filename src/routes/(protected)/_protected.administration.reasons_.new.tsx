@@ -53,6 +53,7 @@ function AddReasonPending() {
   const { t } = useTranslation();
   return (
     <ReasonEditorSkeleton
+      submitLabel={t('reasons.form.create')}
       description={t('reasons.form.create-description')}
       title={t('reasons.form.create-title')}
     />
