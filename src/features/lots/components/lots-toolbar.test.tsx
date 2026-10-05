@@ -120,6 +120,31 @@ describe('LotsToolbar', () => {
     expect(fetchOrderables).not.toHaveBeenCalledWith('Acetylsalicylic Acid');
   });
 
+  it('keeps the name a search gave a pick while its own lookup is slow or fails', async () => {
+    vi.mocked(fetchOrderablesByIds).mockRejectedValue(new Error('offline'));
+    function Toolbar() {
+      const [search, setSearch] = useState<LotsSearch>({});
+      return (
+        <LotsToolbar
+          columnView={columnView}
+          onFilterChange={(patch) => setSearch((previous) => ({ ...previous, ...patch }))}
+          search={search}
+        />
+      );
+    }
+    renderPage(<Toolbar />);
+    const user = userEvent.setup();
+
+    const product = await screen.findByRole('combobox', { name: 'lots.product' });
+    await user.click(product);
+    await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
+    await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(product).toHaveValue('Acetylsalicylic Acid');
+    expect(screen.getByRole('button', { name: /Clear/ })).toBeInTheDocument();
+  });
+
   it('shows no made-up name while a linked product is still being looked up', async () => {
     vi.mocked(fetchOrderablesByIds).mockReturnValue(new Promise(() => {}));
     renderPage(

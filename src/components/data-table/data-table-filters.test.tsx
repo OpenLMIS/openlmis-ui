@@ -113,6 +113,25 @@ describe('DataTableComboboxFilter', () => {
     expect(screen.getByRole('option', { name: /Gaza/ })).toBeInTheDocument();
   });
 
+  it('searches for nothing once a pick fills the input, so reopening lists afresh', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(
+      <DataTableComboboxFilter
+        label="Zone"
+        onSearch={onSearch}
+        onValueChange={vi.fn()}
+        options={zones}
+        value=""
+      />,
+    );
+
+    await user.type(screen.getByRole('combobox', { name: 'Zone' }), 'chi');
+    await user.click(screen.getByRole('option', { name: /Chibuto/ }));
+
+    expect(onSearch).toHaveBeenLastCalledWith('');
+  });
+
   it('says what the server search is doing when it has nothing to list', async () => {
     const user = userEvent.setup();
     render(

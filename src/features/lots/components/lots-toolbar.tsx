@@ -108,10 +108,12 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
     if (!value) return found;
     const others = found.filter((option) => option.value !== value);
     const named = picked.data?.find((orderable) => orderable.id === value);
-    if (named) return [toOption(named), ...others];
-    return picked.isSuccess ? [{ value, label: t('lots.unknown-product') }, ...others] : others;
-  }, [results.data, picked.data, picked.isSuccess, value, t]);
-  const pickedLabel = options.find((option) => option.value === value)?.label;
+    const option = named
+      ? toOption(named)
+      : (found.find((item) => item.value === value) ??
+        (picked.isPending ? undefined : { value, label: t('lots.unknown-product') }));
+    return option ? [option, ...others] : others;
+  }, [results.data, picked.data, picked.isPending, value, t]);
 
   return (
     <DataTableComboboxFilter
@@ -126,8 +128,7 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
       onOpenChange={(open) => {
         if (open) setOpened(true);
       }}
-      // The pick's own name fills the input; reopening lists products afresh rather than searching it.
-      onSearch={(text) => setTyped(text === pickedLabel ? '' : text)}
+      onSearch={setTyped}
       onValueChange={onValueChange}
       options={options}
       value={value ?? ''}

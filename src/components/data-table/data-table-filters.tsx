@@ -97,7 +97,7 @@ type DataTableComboboxFilterProps = {
   onValueChange: (value: string) => void;
   options: DataTableComboboxFilterOption[];
   limit?: number;
-  /** Searches the server with the typed text; the options are then listed as given, unfiltered. */
+  /** Searches the server with what the user types; the options are then listed as given. */
   onSearch?: (text: string) => void;
   /** Shown when there is nothing to list; "No Matches" by default. */
   emptyMessage?: string;
@@ -124,7 +124,9 @@ export function DataTableComboboxFilter({
       itemToStringLabel={(item) => item.label}
       items={options}
       limit={limit}
-      onInputValueChange={onSearch && ((text) => onSearch(text))}
+      onInputValueChange={
+        onSearch && ((text, details) => onSearch(details.reason === 'input-change' ? text : ''))
+      }
       onOpenChange={onOpenChange && ((open) => onOpenChange(open))}
       onValueChange={(item) => onValueChange(item?.value ?? '')}
       value={selected}
