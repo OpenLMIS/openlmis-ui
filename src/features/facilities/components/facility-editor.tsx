@@ -201,7 +201,7 @@ export function FacilityEditor({
 
   return (
     <>
-      <Workspace>
+      <Workspace width="narrow">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -262,7 +262,7 @@ export function FacilityEditor({
           <DiscardChangesDialog description={discardDescription} {...guard.dialog} />
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width="narrow">
         <Button disabled={mutation.isPending} onClick={onCancel} size="lg" variant="outline">
           {t('facilities.form.cancel')}
         </Button>
@@ -554,7 +554,7 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
                               data-remove-program
                               onClick={() => removeRow(index)}
                               size="icon-sm"
-                              variant="ghost"
+                              variant="destructive"
                             >
                               <Trash2Icon />
                             </Button>
@@ -712,7 +712,7 @@ export function FacilityEditorSkeleton({
   const { t } = useTranslation();
   return (
     <>
-      <Workspace>
+      <Workspace width="narrow">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -759,7 +759,7 @@ export function FacilityEditorSkeleton({
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width="narrow">
         <Button disabled size="lg" variant="outline">
           {t('facilities.form.cancel')}
         </Button>
