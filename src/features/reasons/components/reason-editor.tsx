@@ -236,7 +236,7 @@ export function ReasonEditor({
 
   return (
     <>
-      <Workspace>
+      <Workspace width="narrow">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -276,7 +276,7 @@ export function ReasonEditor({
           <DiscardChangesDialog description={discardDescription} {...guard.dialog} />
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width="narrow">
         <Button disabled={mutation.isPending} onClick={onCancel} size="lg" variant="outline">
           {t('reasons.form.cancel')}
         </Button>
@@ -622,7 +622,7 @@ type ReasonEditorSkeletonProps = {
 export function ReasonEditorSkeleton({ title, description }: ReasonEditorSkeletonProps) {
   const { t } = useTranslation();
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceIcon>
