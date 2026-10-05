@@ -566,7 +566,7 @@ function PairsFields({ form }: { form: ReasonForm }) {
                             data-remove-pair
                             onClick={() => removeRow(index)}
                             size="icon-sm"
-                            variant="ghost"
+                            variant="destructive"
                           >
                             <Trash2Icon />
                           </Button>
