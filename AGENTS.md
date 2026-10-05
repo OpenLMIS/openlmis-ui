@@ -137,7 +137,9 @@ usual `api/` and `lib/` layout and imports no other feature itself, so the excep
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own. When that screen's list is the lookup's own
 endpoint, as for Roles and Reasons, it reads the lookup query and widens its type rather than
-fetching the same list twice.
+fetching the same list twice. Products are looked up the same way: `orderablesSearchOptions`,
+`orderablesByIdsOptions` and `orderablesByTradeItemsOptions`, the last keeping the latest
+version of each product, since the server sends every version.
 
 ### Internationalization (i18next)
 
@@ -477,6 +479,12 @@ page to page.
 **The create action ends the toolbar**, after the View menu, rather than sitting in the
 page header, so everything that acts on the list is in one row.
 
+**A filter over a list too long to load searches the server.** `DataTableComboboxFilter` takes
+`onSearch`, then lists its `options` as given, and the page asks for matches only once the filter
+is first opened, so loading the list loads none; the picked value stays among the options, named
+by its own lookup when it came from a link. Products on Lots is the example. A date filter is a
+`DatePicker`, with `earliest` and `latest` tying a from and to pair together.
+
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a
 Clear Filters action.
@@ -590,7 +598,10 @@ file is flagged as soon as it is picked. A date is a `DateField`: a calendar in 
 language, holding `yyyy-MM-dd` or an empty string, with a `clearLabel` when it is optional. The
 calendar and its language (`loadDateLocale` from `FormMessagesProvider`) are fetched once a date
 field mounts and again when it is opened after a failed load, so no other page carries the date
-libraries; a required date reads out the provider's `requiredLabel` with its name. A `ComboboxField` item takes a `description`, shown
+libraries; a required date reads out the provider's `requiredLabel` with its name. Outside a
+form, the same picker is `DatePicker`, which `DateField` wraps. Show a date anywhere else, such
+as a table cell, with `formatDateValue` (`src/components/form/date-value.ts`) in the page's
+language, so it reads as it does in the picker. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;

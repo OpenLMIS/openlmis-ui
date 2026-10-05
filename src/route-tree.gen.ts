@@ -19,6 +19,7 @@ import { Route as protectedProtectedProfileRouteImport } from './routes/(protect
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
+import { Route as protectedProtectedAdministrationLotsRouteImport } from './routes/(protected)/_protected.administration.lots'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
 import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
 import { Route as protectedProtectedAdministrationReasonsRouteImport } from './routes/(protected)/_protected.administration.reasons'
@@ -96,6 +97,12 @@ const protectedProtectedAdministrationFacilityTypesRoute =
   protectedProtectedAdministrationFacilityTypesRouteImport.update({
     id: '/administration/facility-types',
     path: '/administration/facility-types',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationLotsRoute =
+  protectedProtectedAdministrationLotsRouteImport.update({
+    id: '/administration/lots',
+    path: '/administration/lots',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationProductsRoute =
@@ -259,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
+  '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
@@ -293,6 +301,7 @@ export interface FileRoutesByTo {
   '/home': typeof protectedProtectedHomeRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
+  '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
@@ -330,6 +339,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
+  '/(protected)/_protected/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/(protected)/_protected/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/administration/facilities'
     | '/administration/facility-types'
+    | '/administration/lots'
     | '/administration/products'
     | '/administration/programs'
     | '/administration/reasons'
@@ -402,6 +413,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/administration/facilities'
     | '/administration/facility-types'
+    | '/administration/lots'
     | '/administration/products'
     | '/administration/programs'
     | '/administration/reasons'
@@ -438,6 +450,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings'
     | '/(protected)/_protected/administration/facilities'
     | '/(protected)/_protected/administration/facility-types'
+    | '/(protected)/_protected/administration/lots'
     | '/(protected)/_protected/administration/products'
     | '/(protected)/_protected/administration/programs'
     | '/(protected)/_protected/administration/reasons'
@@ -543,6 +556,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/facility-types'
       fullPath: '/administration/facility-types'
       preLoaderRoute: typeof protectedProtectedAdministrationFacilityTypesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/lots': {
+      id: '/(protected)/_protected/administration/lots'
+      path: '/administration/lots'
+      fullPath: '/administration/lots'
+      preLoaderRoute: typeof protectedProtectedAdministrationLotsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/products': {
@@ -794,6 +814,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
+  protectedProtectedAdministrationLotsRoute: typeof protectedProtectedAdministrationLotsRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
   protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
   protectedProtectedAdministrationReasonsRoute: typeof protectedProtectedAdministrationReasonsRoute
@@ -818,6 +839,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilitiesRoute,
   protectedProtectedAdministrationFacilityTypesRoute:
     protectedProtectedAdministrationFacilityTypesRoute,
+  protectedProtectedAdministrationLotsRoute:
+    protectedProtectedAdministrationLotsRoute,
   protectedProtectedAdministrationProductsRoute:
     protectedProtectedAdministrationProductsRoute,
   protectedProtectedAdministrationProgramsRoute:

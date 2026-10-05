@@ -19,6 +19,7 @@ export const RIGHTS = {
   stockSourcesManage: 'STOCK_SOURCES_MANAGE',
   stockOrganizationsManage: 'STOCK_ORGANIZATIONS_MANAGE',
   stockCardLineItemReasonsManage: 'STOCK_CARD_LINE_ITEM_REASONS_MANAGE',
+  lotsManage: 'LOTS_MANAGE',
 } as const;
 
 /** The right names a user holds anywhere; a permission string is `RIGHT`, `RIGHT|facility|program` or `RIGHT|facility`. */

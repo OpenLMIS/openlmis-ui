@@ -99,4 +99,9 @@ describe('canOpen', () => {
     ).toBe(true);
     expect(canOpen('/administration/reasons', new Set(['STOCK_ADJUST']))).toBe(false);
   });
+
+  it('opens Lots to the lots right only', () => {
+    expect(canOpen('/administration/lots', new Set(['LOTS_MANAGE']))).toBe(true);
+    expect(canOpen('/administration/lots', new Set(['ORDERABLES_MANAGE']))).toBe(false);
+  });
 });
