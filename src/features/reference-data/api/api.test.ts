@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchFacilitiesByIds,
   fetchFacilityOperators,
   fetchFacilityTypes,
+  fetchGeographicLevels,
   fetchGeographicZones,
   fetchOrderableDisplayCategories,
+  fetchOrganizations,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
 
@@ -78,5 +81,51 @@ describe('fetchFacilityOperators', () => {
 
     await expect(fetchFacilityOperators()).resolves.toEqual([moh]);
     expect(get).toHaveBeenCalledWith('/facilityOperators');
+  });
+});
+
+describe('fetchFacilitiesByIds', () => {
+  it('asks for the given facilities in one request, repeating the id param', async () => {
+    const balaka = { id: 'f1', name: 'Balaka', geographicZone: { name: 'Balaka' } };
+    get.mockResolvedValueOnce({ data: { content: [balaka], totalElements: 1 } });
+
+    await expect(fetchFacilitiesByIds(['f1', 'f2'])).resolves.toEqual([balaka]);
+    expect(get).toHaveBeenCalledWith('/facilities', {
+      params: { id: ['f1', 'f2'] },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('asks for nothing when there are no ids, since the endpoint would return every facility', async () => {
+    await expect(fetchFacilitiesByIds([])).resolves.toEqual([]);
+    expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchGeographicLevels', () => {
+  it('lists the levels from the top down', async () => {
+    const district = { id: 'l3', code: 'District', name: 'District', levelNumber: 3 };
+    const country = { id: 'l1', code: 'Country', name: 'Country', levelNumber: 1 };
+    get.mockResolvedValueOnce({ data: [district, country] });
+
+    await expect(fetchGeographicLevels()).resolves.toEqual([country, district]);
+    expect(get).toHaveBeenCalledWith('/geographicLevels');
+  });
+});
+
+describe('fetchOrganizations', () => {
+  it('lists the organizations stock management knows, by name', async () => {
+    get.mockResolvedValueOnce({
+      data: [
+        { id: 'o2', name: 'NGO' },
+        { id: 'o1', name: 'CHW' },
+      ],
+    });
+
+    await expect(fetchOrganizations()).resolves.toEqual([
+      { id: 'o1', name: 'CHW' },
+      { id: 'o2', name: 'NGO' },
+    ]);
+    expect(get).toHaveBeenCalledWith('/organizations');
   });
 });

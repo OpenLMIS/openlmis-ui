@@ -10,7 +10,9 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { LoadError } from '@/components/load-error';
 import { useOfflineFailure } from '@/components/offline-notice';
+import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -99,6 +101,34 @@ export function FieldSkeleton({ label, required = false }: { label: string; requ
         <Skeleton fill />
       </div>
     </Field>
+  );
+}
+
+type LookupBoundaryProps = {
+  label: string;
+  required?: boolean;
+  errorTitle: string;
+  errorDescription: string;
+  children: ReactNode;
+};
+
+export function LookupBoundary({
+  label,
+  required,
+  errorTitle,
+  errorDescription,
+  children,
+}: LookupBoundaryProps) {
+  return (
+    <QueryBoundary
+      errorComponent={({ error, reset }) => (
+        <LoadError description={errorDescription} error={error} reset={reset} title={errorTitle} />
+      )}
+      pendingFallback={<FieldSkeleton label={label} required={required} />}
+      resetKey={label}
+    >
+      {children}
+    </QueryBoundary>
   );
 }
 

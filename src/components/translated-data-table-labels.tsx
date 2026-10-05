@@ -23,6 +23,10 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
       nextPage: t('data-table.next-page'),
       lastPage: t('data-table.last-page'),
       retry: t('data-table.retry'),
+      selectPage: t('data-table.select-page'),
+      selectRow: (row) => t('data-table.select-row', { row }),
+      selectedCount: (count) => t('data-table.selected-count', { count }),
+      clearSelection: t('data-table.clear-selection'),
     }),
     [t],
   );

@@ -17,6 +17,10 @@ export type DataTableLabels = {
   nextPage: string;
   lastPage: string;
   retry: string;
+  selectPage: string;
+  selectRow: (row: string) => string;
+  selectedCount: (count: number) => string;
+  clearSelection: string;
 };
 
 export const defaultDataTableLabels: DataTableLabels = {
@@ -35,6 +39,10 @@ export const defaultDataTableLabels: DataTableLabels = {
   nextPage: 'Next Page',
   lastPage: 'Last Page',
   retry: 'Try Again',
+  selectPage: 'Select Page',
+  selectRow: (row) => `Select ${row}`,
+  selectedCount: (count) => `${count.toLocaleString()} Selected`,
+  clearSelection: 'Clear Selection',
 };
 
 const DataTableLabelsContext = createContext<DataTableLabels>(defaultDataTableLabels);

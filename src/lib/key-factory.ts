@@ -12,10 +12,12 @@ export const queryKeys = {
   facilityOperators: createQueryKeys('facilityOperators'),
   facilityTypeApprovedProducts: createQueryKeys('facilityTypeApprovedProducts'),
   facilityTypes: createQueryKeys('facilityTypes'),
+  geographicLevels: createQueryKeys('geographicLevels'),
   geographicZones: createQueryKeys('geographicZones'),
   home: createQueryKeys('home'),
   orderableDisplayCategories: createQueryKeys('orderableDisplayCategories'),
   orderables: createQueryKeys('orderables'),
+  organizations: createQueryKeys('organizations'),
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
   rights: createQueryKeys('rights'),
@@ -23,6 +25,8 @@ export const queryKeys = {
   serviceAccounts: createQueryKeys('serviceAccounts'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
+  validDestinations: createQueryKeys('validDestinations'),
+  validSources: createQueryKeys('validSources'),
 } as const;
 
 export const userRightsKey = (userId: string) => [...queryKeys.auth.all, 'rights', userId] as const;

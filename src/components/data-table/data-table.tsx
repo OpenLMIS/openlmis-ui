@@ -5,6 +5,7 @@ import {
   type ReactTable,
   type RowData,
   rowPaginationFeature,
+  rowSelectionFeature,
   rowSortingFeature,
   tableFeatures,
 } from '@tanstack/react-table';
@@ -46,6 +47,7 @@ export const dataTableFeatures = tableFeatures({
   columnVisibilityFeature,
   rowSortingFeature,
   rowPaginationFeature,
+  rowSelectionFeature,
   columnMeta: {} as DataTableColumnMeta,
 });
 
@@ -81,7 +83,7 @@ export function DataTable<TData extends RowData>({
           <TableBody>
             {rows.length > 0 ? (
               rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow data-state={row.getIsSelected() ? 'selected' : undefined} key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       <FlexRender cell={cell} />
@@ -214,7 +216,7 @@ export function DataTableSkeleton<TData extends RowData>({
               <TableRow key={row}>
                 {columns.map((column) => (
                   <TableCell key={column.id}>
-                    <SkeletonBar />
+                    {column.id === 'select' ? <SkeletonBox /> : <SkeletonBar />}
                   </TableCell>
                 ))}
               </TableRow>
@@ -225,6 +227,14 @@ export function DataTableSkeleton<TData extends RowData>({
           <DataTablePaginationSkeleton />
         </DataTableFooter>
       </DataTableCard>
+    </div>
+  );
+}
+
+function SkeletonBox() {
+  return (
+    <div className="size-4">
+      <Skeleton fill />
     </div>
   );
 }

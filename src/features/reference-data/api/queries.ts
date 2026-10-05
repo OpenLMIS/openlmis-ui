@@ -1,11 +1,14 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
   fetchFacilityTypes,
+  fetchGeographicLevels,
   fetchGeographicZones,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
+  fetchOrganizations,
   fetchPrograms,
   fetchRoles,
   fetchSupervisoryNodes,
@@ -26,6 +29,13 @@ export const facilityOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.facilities.detail(id),
     queryFn: () => fetchFacility(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const facilitiesByIdsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.facilities.all, 'byIds', ids] as const,
+    queryFn: () => fetchFacilitiesByIds(ids),
     staleTime: LOOKUP_STALE_TIME,
   });
 
@@ -75,5 +85,19 @@ export const facilityOperatorsOptions = () =>
   queryOptions({
     queryKey: queryKeys.facilityOperators.list(),
     queryFn: fetchFacilityOperators,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const geographicLevelsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.geographicLevels.list(),
+    queryFn: fetchGeographicLevels,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const organizationsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.organizations.list(),
+    queryFn: fetchOrganizations,
     staleTime: LOOKUP_STALE_TIME,
   });
