@@ -15,13 +15,13 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { FieldGroup } from '@/components/ui/field';
-import { productsListOptions } from '@/features/products/api/queries';
-import { PRODUCTS_SORT_PARAM } from '@/features/products/lib/search';
 import type { Product } from '@/features/products/lib/types';
+import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
+import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { isOfflineError } from '@/lib/http';
 
 const SEARCH_DELAY = 300;
-const SEARCH_SIZE = 20;
 
 type KitProductsDialogProps = {
   open: boolean;
@@ -55,21 +55,11 @@ type KitProductsFormProps = Omit<KitProductsDialogProps, 'open' | 'onClose'> & {
 function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
-  const [query, setQuery] = useState('');
+  const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
   const [seen, setSeen] = useState<ReadonlyMap<string, Product>>(new Map());
 
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(typed.trim()), SEARCH_DELAY);
-    return () => clearTimeout(timer);
-  }, [typed]);
-
   const results = useQuery({
-    ...productsListOptions({
-      page: 0,
-      size: SEARCH_SIZE,
-      sort: PRODUCTS_SORT_PARAM,
-      q: query || undefined,
-    }),
+    ...orderablesSearchOptions(query),
     placeholderData: keepPreviousData,
   });
   const found = results.data?.content;
@@ -108,9 +98,9 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
             {(field) => (
               <field.MultiComboboxField
                 description={
-                  !searching && (results.data?.totalElements ?? 0) > SEARCH_SIZE
+                  !searching && (results.data?.totalElements ?? 0) > ORDERABLE_SEARCH_SIZE
                     ? t('products.kit.search-more', {
-                        shown: SEARCH_SIZE,
+                        shown: ORDERABLE_SEARCH_SIZE,
                         count: results.data?.totalElements,
                       })
                     : t('products.kit.search-description')

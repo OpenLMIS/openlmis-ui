@@ -39,6 +39,7 @@ Today the new UI has these screens:
 | Administration / Service Accounts | See the API keys other systems use, copy them, add a new one and delete one. Needs the Manage Service Accounts right; without it the menu leaves Service Accounts out and the page says so |
 | Administration / Facilities | Find facilities by name or zone, add one with its programs, and edit one. Needs the Manage Facilities right |
 | Administration / Facility Types | See facility types, and add or edit one. Needs the Manage Facilities right |
+| Administration / Lots | Find lots by product and expiry dates, and correct a lot's code or dates. Needs the Manage Lots right |
 | Administration / Programs | Find programs, and add or edit one. Needs the Manage Programs right |
 | Administration / Products | Find products by code, name or program, add one, and edit its details, programs, facility types and kit contents. Needs the Manage Orderables right or the Manage Facility Approved Orderables right; adding needs Manage Orderables |
 | Administration / Reasons | See the reasons stock moves for, add one, and edit one with its tags and the programs and facility types it is offered in. Needs the Manage Stock Card Line Item Reasons right |

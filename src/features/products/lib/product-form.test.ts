@@ -148,7 +148,7 @@ const saved: ProductDetail = {
   children: [{ orderable: { id: 'o2' }, quantity: 3 }],
   identifiers: { tradeItem: 't1' },
   extraData: { useVVM: 'true' },
-  meta: { versionNumber: '4', lastUpdated: '2026-09-30T10:00:00Z' },
+  meta: { versionNumber: 4, lastUpdated: '2026-09-30T10:00:00Z' },
 };
 
 describe('toProductFormValues', () => {

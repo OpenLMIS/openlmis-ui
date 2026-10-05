@@ -8,6 +8,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxStatus,
 } from '@/components/ui/combobox';
 import {
   Select,
@@ -97,6 +98,13 @@ type DataTableComboboxFilterProps = {
   onValueChange: (value: string) => void;
   options: DataTableComboboxFilterOption[];
   limit?: number;
+  /** Searches the server with what the user types; the options are then listed as given. */
+  onSearch?: (text: string) => void;
+  /** Shown when there is nothing to list; "No Matches" by default. */
+  emptyMessage?: string;
+  /** Shown above the options, such as how many a server search left out. */
+  status?: string | undefined;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function DataTableComboboxFilter({
@@ -105,16 +113,25 @@ export function DataTableComboboxFilter({
   onValueChange,
   options,
   limit = 50,
+  onSearch,
+  emptyMessage,
+  onOpenChange,
+  status,
 }: DataTableComboboxFilterProps) {
   const labels = useDataTableLabels();
   const selected = options.find((option) => option.value === value) ?? null;
 
   return (
     <Combobox
+      filter={onSearch ? null : undefined}
       isItemEqualToValue={(item, picked) => item.value === picked.value}
       itemToStringLabel={(item) => item.label}
       items={options}
       limit={limit}
+      onInputValueChange={
+        onSearch && ((text, details) => onSearch(details.reason === 'input-change' ? text : ''))
+      }
+      onOpenChange={onOpenChange && ((open) => onOpenChange(open))}
       onValueChange={(item) => onValueChange(item?.value ?? '')}
       value={selected}
     >
@@ -126,13 +143,16 @@ export function DataTableComboboxFilter({
         width="full"
       />
       <ComboboxContent>
-        <ComboboxEmpty>{labels.noMatches}</ComboboxEmpty>
+        {onSearch && <ComboboxStatus>{options.length > 0 && status}</ComboboxStatus>}
+        <ComboboxEmpty>{emptyMessage ?? labels.noMatches}</ComboboxEmpty>
         <ComboboxList>
           {(option: DataTableComboboxFilterOption) => (
             <ComboboxItem key={option.value} value={option}>
-              <span className="min-w-0 truncate">{option.label}</span>
+              <span className="min-w-0 truncate" dir="auto">
+                {option.label}
+              </span>
               {option.description && (
-                <span className="ms-auto shrink-0 text-muted-foreground text-xs">
+                <span className="ms-auto shrink-0 text-muted-foreground text-xs" dir="auto">
                   {option.description}
                 </span>
               )}

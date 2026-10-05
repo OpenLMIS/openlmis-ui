@@ -18,9 +18,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { removeApproval } from '@/features/products/api/api';
 import { productApprovalsOptions } from '@/features/products/api/queries';
-import { productName } from '@/features/products/lib/product-name';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 
 type RemoveApprovalDialogProps = {

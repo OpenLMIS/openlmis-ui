@@ -5,11 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
-import { productDetailOptions, productsByIdsOptions } from '@/features/products/api/queries';
+import { productDetailOptions } from '@/features/products/api/queries';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import { KitUnpackListSkeleton } from '@/features/products/components/product-tab-skeletons';
 import { useBackToProducts } from '@/features/products/hooks/back-to-products';
 import type { ProductDetail } from '@/features/products/lib/types';
+import { orderablesByIdsOptions } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const productRoute = getRouteApi('/(protected)/_protected/administration/products_/$id');
@@ -33,7 +34,7 @@ export const Route = createFileRoute(
   loader: ({ context: { queryClient }, params }) => {
     queryClient
       .ensureQueryData(productDetailOptions(params.id))
-      .then((kit) => queryClient.prefetchQuery(productsByIdsOptions(kitProductIds(kit))))
+      .then((kit) => queryClient.prefetchQuery(orderablesByIdsOptions(kitProductIds(kit))))
       .catch(() => undefined);
   },
   component: KitTab,
@@ -67,7 +68,7 @@ function KitEditor({ kit }: { kit: ProductDetail }) {
   const adding = Route.useSearch({ select: (search) => search.product === 'new' });
   const idsKey = useDeferredValue(kitProductIds(kit).join(' '));
   const ids = useMemo(() => (idsKey ? idsKey.split(' ') : []), [idsKey]);
-  const { data: products } = useSuspenseQuery(productsByIdsOptions(ids));
+  const { data: products } = useSuspenseQuery(orderablesByIdsOptions(ids));
   const { openDialog, closeDialog } = useSearchNavigation<KitSearch>(CLOSED_DIALOGS);
   const backToProducts = useBackToProducts();
 

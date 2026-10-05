@@ -23,8 +23,8 @@ import {
   toProductFormValues,
   toProductUpdateBody,
 } from '@/features/products/lib/product-form';
-import { productName } from '@/features/products/lib/product-name';
 import type { ProductDetail } from '@/features/products/lib/types';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { queryKeys } from '@/lib/key-factory';
 

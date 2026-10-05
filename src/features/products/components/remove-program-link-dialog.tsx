@@ -17,10 +17,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useProductSave } from '@/features/products/hooks/use-product-save';
-import { productName } from '@/features/products/lib/product-name';
 import { withoutProgramLink } from '@/features/products/lib/program-link-form';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 
 type RemoveProgramLinkDialogProps = {

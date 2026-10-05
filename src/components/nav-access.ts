@@ -12,6 +12,7 @@ import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readonly string[]>> = {
   '/administration/facilities': RIGHTS.facilitiesManage,
   '/administration/facility-types': RIGHTS.facilitiesManage,
+  '/administration/lots': RIGHTS.lotsManage,
   '/administration/products': [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage],
   '/administration/users': RIGHTS.usersManage,
   '/administration/roles': RIGHTS.usersManage,

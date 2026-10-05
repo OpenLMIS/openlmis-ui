@@ -130,14 +130,17 @@ its job.
 
 **`src/features/reference-data/` is the exception: every feature may import it.** It holds
 the OpenLMIS reference data many screens look up (facilities, facility types, programs,
-supervisory nodes and roles), named after the backend's `referencedata` service, plus
+supervisory nodes, roles and products), named after the backend's `referencedata` service, plus
 stock management's organizations, which Valid Destinations and Valid Sources both pick from, and its
 reasons, which the stock screens offer. It has the
 usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
 turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
 facilities list, is a feature of its own. When that screen's list is the lookup's own
 endpoint, as for Roles and Reasons, it reads the lookup query and widens its type rather than
-fetching the same list twice.
+fetching the same list twice. Products are looked up by search, by ids or by trade items
+(`orderablesSearchOptions`, `orderablesByIdsOptions`, `orderablesByTradeItemsOptions`), all
+keyed under `queryKeys.orderables.list` so a product save refreshes them; the trade item lookup
+keeps the latest version of each product, since the server sends every version.
 
 ### Internationalization (i18next)
 
@@ -340,10 +343,9 @@ Keep PR descriptions short and scannable. No walls of text.
 1. **Ticket link** at the top, on its own line.
 2. **`## Changes`** - bullet points only. One line per change, concise and easy to
    understand. No paragraphs, no narration of the process.
-3. **UI artifacts** at the bottom when relevant - screenshots or recordings for any
-   visible change.
 
-Omit a section entirely when it does not apply rather than writing "N/A".
+No Screenshots section: an agent cannot attach images to a PR. Omit a section entirely when it
+does not apply rather than writing "N/A".
 
 ```markdown
 https://tracker.example.com/BROWSE/ABC-123
@@ -352,12 +354,6 @@ https://tracker.example.com/BROWSE/ABC-123
 
 - Add `surface` variant to `Card` so consumers stop overriding `bg-card`
 - Replace arbitrary text sizes with a `text-2xs` theme token
-
-## Screenshots
-
-| Before | After |
-| --- | --- |
-| ... | ... |
 ```
 
 ## Page layout
@@ -477,6 +473,14 @@ page to page.
 **The create action ends the toolbar**, after the View menu, rather than sitting in the
 page header, so everything that acts on the list is in one row.
 
+**A filter over a list too long to load searches the server.** `DataTableComboboxFilter` takes
+`onSearch`, then lists its `options` as given, and the page asks for matches only once the filter
+is first opened, so loading the list loads none; the picked value stays among the options, named
+by its own lookup when it came from a link. Its `status`, a line above the options that screen
+readers announce, says how many are listed of how many match and that typing finds the rest.
+Products on Lots is the example. A date filter is a `DatePicker`, with `earliest` and `latest`
+tying a from and to pair together.
+
 **Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
 two different empty states: no records at all, and no matches for the filters with a
 Clear Filters action.
@@ -590,7 +594,10 @@ file is flagged as soon as it is picked. A date is a `DateField`: a calendar in 
 language, holding `yyyy-MM-dd` or an empty string, with a `clearLabel` when it is optional. The
 calendar and its language (`loadDateLocale` from `FormMessagesProvider`) are fetched once a date
 field mounts and again when it is opened after a failed load, so no other page carries the date
-libraries; a required date reads out the provider's `requiredLabel` with its name. A `ComboboxField` item takes a `description`, shown
+libraries; a required date reads out the provider's `requiredLabel` with its name. Outside a
+form, the same picker is `DatePicker`, which `DateField` wraps. Show a date anywhere else, such
+as a table cell, with `formatDateValue` (`src/components/form/date-value.ts`) in the page's
+language, so it reads as it does in the picker. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;

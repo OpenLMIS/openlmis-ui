@@ -27,7 +27,7 @@ import {
   productFormSchema,
   toCreateProductBody,
 } from '@/features/products/lib/product-form';
-import { productName } from '@/features/products/lib/product-name';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { queryKeys } from '@/lib/key-factory';
 
 const SAVE_KEY = [...queryKeys.orderables.all, 'create'] as const;

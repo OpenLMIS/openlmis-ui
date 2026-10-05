@@ -40,10 +40,10 @@ import {
   toApprovalFormValues,
   toApprovalStock,
 } from '@/features/products/lib/approval-form';
-import { productName } from '@/features/products/lib/product-name';
 import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
+import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useOpening } from '@/hooks/use-opening';
 import { decimalMark } from '@/lib/decimal';

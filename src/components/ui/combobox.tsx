@@ -128,6 +128,16 @@ function ComboboxContent({
 }
 
 /** The list scrolls as a ScrollArea viewport, so its edges fade where items continue past them. */
+function ComboboxStatus({ className, ...props }: ComboboxPrimitive.Status.Props) {
+  return (
+    <ComboboxPrimitive.Status
+      data-slot="combobox-status"
+      className={cn("border-b px-3 py-1.5 text-xs text-muted-foreground empty:border-b-0 empty:py-0", className)}
+      {...props}
+    />
+  )
+}
+
 function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
   return (
     <ScrollAreaPrimitive.Root
@@ -314,6 +324,7 @@ export {
   Combobox,
   ComboboxInput,
   ComboboxContent,
+  ComboboxStatus,
   ComboboxList,
   ComboboxItem,
   ComboboxGroup,

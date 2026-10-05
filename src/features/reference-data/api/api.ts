@@ -5,6 +5,7 @@ import type {
   GeographicLevel,
   GeographicZone,
   MinimalFacility,
+  Orderable,
   OrderableDisplayCategory,
   Organization,
   Program,
@@ -92,4 +93,57 @@ export async function fetchOrganizations(): Promise<Organization[]> {
 export async function fetchReasons(): Promise<Reason[]> {
   const { data } = await client.get<Reason[]>('/stockCardLineItemReasons');
   return data;
+}
+
+export const ORDERABLE_SEARCH_SIZE = 20;
+
+/** The first products whose code or name holds `q`, by name, for a picker that searches as you type. */
+export async function fetchOrderables(q: string) {
+  const { data } = await client.get<Page<Orderable>>('/orderables', {
+    params: {
+      page: 0,
+      size: ORDERABLE_SEARCH_SIZE,
+      sort: 'fullProductName,asc',
+      ...(q.trim() && { q: q.trim() }),
+    },
+  });
+  return data;
+}
+
+/** The given products in one request; no ids would list every product, so none is sent. */
+export async function fetchOrderablesByIds(ids: readonly string[]): Promise<Orderable[]> {
+  if (ids.length === 0) return [];
+  const { data } = await client.get<Page<Orderable>>('/orderables', {
+    params: { id: ids },
+    paramsSerializer: { indexes: null },
+  });
+  return data.content;
+}
+
+const TRADE_ITEM_PAGE_SIZE = 100;
+
+const tradeItemOf = (orderable: Orderable) => orderable.identifiers?.tradeItem?.toLowerCase();
+
+/** The latest version of each product of the given trade items, the server sending every version. */
+export async function fetchOrderablesByTradeItems(
+  tradeItemIds: readonly string[],
+): Promise<Orderable[]> {
+  const wanted = new Set(tradeItemIds.map((id) => id.toLowerCase()));
+  const latest = new Map<string, Orderable>();
+  for (let page = 0; wanted.size > 0; page += 1) {
+    const { data } = await client.get<Page<Orderable>>('/orderables', {
+      params: { tradeItemId: tradeItemIds, page, size: TRADE_ITEM_PAGE_SIZE },
+      paramsSerializer: { indexes: null },
+    });
+    const matching = data.content.filter((orderable) => wanted.has(tradeItemOf(orderable) ?? ''));
+    // Trade items no product points to are answered with every product, not none.
+    if (matching.length === 0) break;
+    for (const orderable of matching) {
+      const kept = latest.get(orderable.id);
+      const version = orderable.meta?.versionNumber ?? 0;
+      if (!kept || version > (kept.meta?.versionNumber ?? 0)) latest.set(orderable.id, orderable);
+    }
+    if (page + 1 >= data.totalPages) break;
+  }
+  return [...latest.values()];
 }
