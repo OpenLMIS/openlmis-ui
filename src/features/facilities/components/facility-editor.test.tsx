@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { useState } from 'react';
@@ -215,7 +215,36 @@ describe('FacilityEditor', () => {
     );
     await user.click(screen.getByRole('button', { name: 'facilities.form.remove-program' }));
     await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: 'facilities.form.program' })).toHaveFocus(),
+      expect(screen.getByRole('button', { name: 'facilities.form.add-program' })).toHaveFocus(),
+    );
+  });
+
+  it('adds a program from a dialog that asks for the program and its start date', async () => {
+    const user = userEvent.setup();
+    renderPage(<Editor initialValues={filled} save={vi.fn()} />, { queryClient: seededClient() });
+    await user.click(await screen.findByRole('tab', { name: /programs/i }));
+
+    await user.click(screen.getByRole('button', { name: 'facilities.form.add-program' }));
+    const dialog = await screen.findByRole('dialog', { name: 'facilities.form.add-program' });
+    await user.click(within(dialog).getByRole('button', { name: 'facilities.form.add' }));
+    expect(await within(dialog).findByText('facilities.form.program-required')).toBeVisible();
+    expect(within(dialog).getByText('facilities.form.start-date-required')).toBeVisible();
+
+    await user.click(within(dialog).getByRole('combobox', { name: 'facilities.form.program' }));
+    await user.click(await screen.findByRole('option', { name: 'Family Planning' }));
+    await user.click(within(dialog).getByRole('button', { name: /^facilities\.form\.start-date/ }));
+    const calendar = await screen.findByRole('dialog', { name: /facilities\.form\.start-date/ });
+    await user.click(
+      (await within(calendar).findAllByRole('button', { name: /Today/ }))[0] as HTMLElement,
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'facilities.form.add' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'facilities.form.add-program' })).toBeNull(),
+    );
+    expect(within(screen.getByRole('table')).getByText('Family Planning')).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'facilities.form.add-program' })).toHaveFocus(),
     );
   });
 
