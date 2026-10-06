@@ -537,7 +537,7 @@
   "products.kit.search-name": "اسم المنتج",
   "products.kit.this-kit": "(العُدّة التي تعدّلها)",
   "products.kit.too-large": "أدخل رقماً لا يزيد على 2147483647.",
-  "products.kit.unit": "الوحدة",
+  "products.kit.unit": "وحدة الصرف",
   "products.kit.whole-number": "أدخل عدداً صحيحاً، مثل 0 أو 12.",
   "products.name": "الاسم",
   "products.no-results-description": "جرّب بحثًا مختلفًا أو امسح عوامل التصفية.",

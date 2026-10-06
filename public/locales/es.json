@@ -537,7 +537,7 @@
   "products.kit.search-name": "Nombre del producto",
   "products.kit.this-kit": "(el kit que está editando)",
   "products.kit.too-large": "Introduzca un número que no supere 2147483647.",
-  "products.kit.unit": "Unidad",
+  "products.kit.unit": "Unidad de Dispensación",
   "products.kit.whole-number": "Introduzca un número entero, como 0 o 12.",
   "products.name": "Nombre",
   "products.no-results-description": "Pruebe otra búsqueda o borre los filtros.",

@@ -537,7 +537,7 @@
   "products.kit.search-name": "Product Name",
   "products.kit.this-kit": "(the kit you are editing)",
   "products.kit.too-large": "Enter a number no larger than 2147483647.",
-  "products.kit.unit": "Unit",
+  "products.kit.unit": "Unit Of Issue",
   "products.kit.whole-number": "Enter a whole number, such as 0 or 12.",
   "products.name": "Name",
   "products.no-results-description": "Try a different search or clear the filters.",

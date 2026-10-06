@@ -537,7 +537,7 @@
   "products.kit.search-name": "Nom du produit",
   "products.kit.this-kit": "(le kit que vous modifiez)",
   "products.kit.too-large": "Saisissez un nombre inférieur ou égal à 2147483647.",
-  "products.kit.unit": "Unité",
+  "products.kit.unit": "Unité de Distribution",
   "products.kit.whole-number": "Saisissez un nombre entier, par exemple 0 ou 12.",
   "products.name": "Nom",
   "products.no-results-description": "Essayez une autre recherche ou effacez les filtres.",
