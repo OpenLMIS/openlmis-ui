@@ -3,8 +3,9 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/nav-user';
-import { rightsOptions } from '@/features/auth/api/queries';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/profile/api/api', () => ({ fetchProfile: () => new Promise(() => {}) }));
@@ -12,7 +13,7 @@ vi.mock('@/features/profile/api/api', () => ({ fetchProfile: () => new Promise((
 function renderMenu(rights: string[]) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
-  queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
+  queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
   renderPage(<NavUser trigger={<button type="button">Menu</button>} />, { queryClient });
 }
 

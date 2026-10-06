@@ -34,6 +34,7 @@ import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(pr
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
+import { Route as protectedProtectedStockManagementStockOnHandRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand'
 import { Route as protectedProtectedAdministrationFacilitiesIdRouteImport } from './routes/(protected)/_protected.administration.facilities_.$id'
 import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } from './routes/(protected)/_protected.administration.facilities_.new'
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
@@ -189,6 +190,12 @@ const protectedProtectedSettingsThemeRoute =
     path: '/theme',
     getParentRoute: () => protectedProtectedSettingsRoute,
   } as any)
+const protectedProtectedStockManagementStockOnHandRoute =
+  protectedProtectedStockManagementStockOnHandRouteImport.update({
+    id: '/stock-management/stock-on-hand',
+    path: '/stock-management/stock-on-hand',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationFacilitiesIdRoute =
   protectedProtectedAdministrationFacilitiesIdRouteImport.update({
     id: '/administration/facilities_/$id',
@@ -279,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
+  '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/profile/': typeof protectedProtectedProfileIndexRoute
   '/settings/': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
@@ -314,6 +322,7 @@ export interface FileRoutesByTo {
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
+  '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/profile': typeof protectedProtectedProfileIndexRoute
   '/settings': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
@@ -352,6 +361,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
+  '/(protected)/_protected/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
   '/(protected)/_protected/settings/': typeof protectedProtectedSettingsIndexRoute
   '/(protected)/_protected/administration/facilities_/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/profile/roles'
     | '/settings/feature-flags'
     | '/settings/theme'
+    | '/stock-management/stock-on-hand'
     | '/profile/'
     | '/settings/'
     | '/administration/facilities/$id'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/profile/roles'
     | '/settings/feature-flags'
     | '/settings/theme'
+    | '/stock-management/stock-on-hand'
     | '/profile'
     | '/settings'
     | '/administration/facilities/$id'
@@ -463,6 +475,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/settings/feature-flags'
     | '/(protected)/_protected/settings/theme'
+    | '/(protected)/_protected/stock-management/stock-on-hand'
     | '/(protected)/_protected/profile/'
     | '/(protected)/_protected/settings/'
     | '/(protected)/_protected/administration/facilities_/$id'
@@ -663,6 +676,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedSettingsThemeRouteImport
       parentRoute: typeof protectedProtectedSettingsRoute
     }
+    '/(protected)/_protected/stock-management/stock-on-hand': {
+      id: '/(protected)/_protected/stock-management/stock-on-hand'
+      path: '/stock-management/stock-on-hand'
+      fullPath: '/stock-management/stock-on-hand'
+      preLoaderRoute: typeof protectedProtectedStockManagementStockOnHandRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/administration/facilities_/$id': {
       id: '/(protected)/_protected/administration/facilities_/$id'
       path: '/administration/facilities/$id'
@@ -823,6 +843,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
+  protectedProtectedStockManagementStockOnHandRoute: typeof protectedProtectedStockManagementStockOnHandRoute
   protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
@@ -857,6 +878,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidDestinationsRoute,
   protectedProtectedAdministrationValidSourcesRoute:
     protectedProtectedAdministrationValidSourcesRoute,
+  protectedProtectedStockManagementStockOnHandRoute:
+    protectedProtectedStockManagementStockOnHandRoute,
   protectedProtectedAdministrationFacilitiesIdRoute:
     protectedProtectedAdministrationFacilitiesIdRoute,
   protectedProtectedAdministrationFacilitiesNewRoute:

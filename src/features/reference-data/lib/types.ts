@@ -133,6 +133,15 @@ export type Orderable = {
   fullProductName: string | null;
   description: string | null;
   dispensable?: { displayUnit?: string | null; [key: string]: unknown };
+  /** How many dispensing units make a pack. */
+  netContent?: number | null;
   identifiers?: Record<string, string>;
   meta?: { versionNumber?: number; [key: string]: unknown };
+};
+
+/** A lot as a lookup by id lists it, enough to name it beside a stock balance. */
+export type LotSummary = {
+  id: string;
+  lotCode: string;
+  expirationDate: string | null;
 };

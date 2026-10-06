@@ -5,12 +5,15 @@ import {
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
+  fetchLotsByIds,
   fetchOrderableDisplayCategories,
   fetchOrderables,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
   fetchOrganizations,
   fetchReasons,
+  fetchUserPrograms,
+  fetchUserRecord,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
 
@@ -189,12 +192,12 @@ describe('fetchOrderables', () => {
 });
 
 describe('fetchOrderablesByIds', () => {
-  it('reads the named products in one request, each id as its own param', async () => {
+  it('reads the named products, each id as its own param, a page of 100 at a time', async () => {
     get.mockResolvedValueOnce(page([orderable('o1')]));
 
-    await expect(fetchOrderablesByIds(['o1', 'o2'])).resolves.toEqual([orderable('o1')]);
+    await expect(fetchOrderablesByIds(['o1', 'o2', 'o1'])).resolves.toEqual([orderable('o1')]);
     expect(get).toHaveBeenCalledWith('/orderables', {
-      params: { id: ['o1', 'o2'] },
+      params: { id: ['o1', 'o2'], page: 0, size: 100 },
       paramsSerializer: { indexes: null },
     });
   });
@@ -202,6 +205,77 @@ describe('fetchOrderablesByIds', () => {
   it('asks for nothing when there is nothing to name', async () => {
     await expect(fetchOrderablesByIds([])).resolves.toEqual([]);
     expect(get).not.toHaveBeenCalled();
+  });
+
+  it('splits more than 100 ids into batches, so no query string grows too long', async () => {
+    const ids = Array.from({ length: 150 }, (_, index) => `o${index}`);
+    get
+      .mockResolvedValueOnce(page([orderable('o0')]))
+      .mockResolvedValueOnce(page([orderable('o100')]));
+
+    await expect(fetchOrderablesByIds(ids)).resolves.toEqual([orderable('o0'), orderable('o100')]);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(get.mock.calls[0]?.[1]?.params).toMatchObject({ id: ids.slice(0, 100) });
+    expect(get.mock.calls[1]?.[1]?.params).toMatchObject({ id: ids.slice(100) });
+  });
+
+  it('reads further pages when the server sends fewer per page than asked', async () => {
+    get
+      .mockResolvedValueOnce(page([orderable('o1')], 2))
+      .mockResolvedValueOnce(page([orderable('o2')], 2));
+
+    await expect(fetchOrderablesByIds(['o1', 'o2'])).resolves.toEqual([
+      orderable('o1'),
+      orderable('o2'),
+    ]);
+    expect(get).toHaveBeenLastCalledWith('/orderables', {
+      params: { id: ['o1', 'o2'], page: 1, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('keeps the latest version when a product comes back twice', async () => {
+    get.mockResolvedValueOnce(page([orderable('o1', undefined, 1), orderable('o1', undefined, 3)]));
+
+    await expect(fetchOrderablesByIds(['o1'])).resolves.toEqual([orderable('o1', undefined, 3)]);
+  });
+});
+
+describe('fetchLotsByIds', () => {
+  it('reads the named lots a page of 100 at a time, each id once', async () => {
+    const lot = { id: 'l1', lotCode: 'L-1', expirationDate: '2027-01-31' };
+    get.mockResolvedValueOnce(page([lot]));
+
+    await expect(fetchLotsByIds(['l1', 'l1'])).resolves.toEqual([lot]);
+    expect(get).toHaveBeenCalledWith('/lots', {
+      params: { id: ['l1'], page: 0, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('asks for nothing when there is nothing to name', async () => {
+    await expect(fetchLotsByIds([])).resolves.toEqual([]);
+    expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchUserRecord', () => {
+  it('reads the user whole', async () => {
+    get.mockResolvedValueOnce({ data: { id: 'u1', homeFacilityId: 'f1' } });
+
+    await expect(fetchUserRecord('u1')).resolves.toEqual({ id: 'u1', homeFacilityId: 'f1' });
+    expect(get).toHaveBeenCalledWith('/users/u1');
+  });
+});
+
+describe('fetchUserPrograms', () => {
+  it('reads the programs the user has a role for', async () => {
+    get.mockResolvedValueOnce({ data: [{ id: 'p1', code: 'EM', name: 'Essential Meds' }] });
+
+    await expect(fetchUserPrograms('u1')).resolves.toEqual([
+      { id: 'p1', code: 'EM', name: 'Essential Meds' },
+    ]);
+    expect(get).toHaveBeenCalledWith('/users/u1/programs');
   });
 });
 

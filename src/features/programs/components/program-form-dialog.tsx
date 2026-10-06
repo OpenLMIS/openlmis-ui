@@ -182,6 +182,7 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
         queryKey: queryKeys.programs.all,
         predicate: (query) => query.queryKey[1] !== 'detail',
       });
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'programs'] });
     },
     onError: (error, values) => {
       if (!isDuplicateCode(error)) return;

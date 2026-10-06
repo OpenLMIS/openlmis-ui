@@ -140,7 +140,10 @@ endpoint, as for Roles and Reasons, it reads the lookup query and widens its typ
 fetching the same list twice. Products are looked up by search, by ids or by trade items
 (`orderablesSearchOptions`, `orderablesByIdsOptions`, `orderablesByTradeItemsOptions`), all
 keyed under `queryKeys.orderables.list` so a product save refreshes them; the trade item lookup
-keeps the latest version of each product, since the server sends every version.
+keeps the latest version of each product, since the server sends every version. Lookups by ids
+(`fetchOrderablesByIds`, `fetchLotsByIds`) send at most 100 ids a request and read every page, so
+a long page of stock never builds an oversized address. The signed-in user's own record and programs
+are `userRecordOptions` and `userProgramsOptions`, keyed apart from the Users page's richer detail.
 
 ### Internationalization (i18next)
 
@@ -270,7 +273,7 @@ Two ways out when a page needs a different treatment:
    `PopoverContent width/padding`,
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
+   `Table density`/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
@@ -627,6 +630,19 @@ resolves them through `FormMessagesProvider`.
 "Roles Saved") and a sentence of detail as `description`, which is cut at two lines. The
 shared `Toaster` adds a translated close button, so a call never passes one.
 
+## Facility and program picker
+
+Screens about one facility and program, such as Stock On Hand, start with
+`FacilityProgramSelector` (`src/components/facility-program-selector/`), legacy's My Facility or
+Supervised Facility picker. `facilityProgramOptions` in `src/lib/facility-program-selection.ts` builds
+its options from the user's home facility and programs, every facility and the page's grants, as
+legacy does: home programs, then supervised programs granted away from home, then that program's
+facilities, home included. The route passes the grants of the right it needs, so the picker imports
+no auth. The URL keeps `mode`, `programId` and `facilityId` only once Search is pressed; the picker's
+changes before that are a draft, and the page hides results that no longer match it. A link whose
+selection the picker would not offer (`validSelection`) is refused, and nothing about it is fetched:
+the loader checks it before it prefetches.
+
 ## Rights and dashboards
 
 **A screen shows only what the user's rights allow.** `rightsOptions(userId)` in
@@ -638,6 +654,13 @@ flags down. Features stay free of auth imports; the Home route is the example. A
 may change a user, such as Edit User or Edit User Roles, calls `invalidateUserQueries(queryClient,
 userId)` from `src/lib/user-queries.ts`. The cache holds per-user data only for the signed-in
 user, so it reloads your rights, Profile and Home only when the user is you.
+
+**Rights are read once, as `permissionsOptions(userId)`**: the permission strings parsed into right
+names and `RIGHT|facility|program` grants (`src/lib/permissions.ts`). `rightsOptions` is the same
+query with `select` for the names, for components; `fetchQuery` and `ensureQueryData` ignore
+`select`, so a loader reads `permissionsOptions(...).rights`, or `requirePermissions`, which
+`requireRight` wraps. A page about one facility and program checks the exact grant with
+`hasProgramGrant`; holding the right elsewhere, or unscoped, never counts.
 
 **A page that needs one right checks it before it loads.** Its loader awaits
 `requireRight(queryClient, RIGHTS.x)` from `src/features/auth/lib/access.ts`, alongside the

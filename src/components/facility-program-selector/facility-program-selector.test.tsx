@@ -1,0 +1,152 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import { FacilityProgramSelector } from '@/components/facility-program-selector/facility-program-selector';
+import {
+  type FacilityProgramSelection,
+  facilityProgramOptions,
+} from '@/lib/facility-program-selection';
+
+const named = (id: string, name: string) => ({ id, code: id.toUpperCase(), name });
+
+const options = facilityProgramOptions({
+  homeFacilityId: 'home',
+  programs: [named('fp', 'Family Planning'), named('em', 'Essential Meds')],
+  facilities: [named('home', 'Comfort Health Clinic'), named('bal', 'Balaka District Hospital')],
+  grants: [
+    { facilityId: 'home', programId: 'fp' },
+    { facilityId: 'bal', programId: 'em' },
+  ],
+});
+
+function renderSelector(applied: FacilityProgramSelection = {}, pickerOptions = options) {
+  const onSearch = vi.fn();
+  const onDraftChange = vi.fn();
+  const view = render(
+    <FacilityProgramSelector
+      applied={applied}
+      onDraftChange={onDraftChange}
+      onSearch={onSearch}
+      options={pickerOptions}
+    />,
+  );
+  return { onSearch, onDraftChange, ...view };
+}
+
+describe('FacilityProgramSelector', () => {
+  it('starts on the home facility and searches with a program granted there', async () => {
+    const user = userEvent.setup();
+    const { onSearch } = renderSelector();
+
+    expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: /facility-program.facility/ })).toHaveTextContent(
+      'Comfort Health Clinic',
+    );
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Family Planning',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Family Planning' }));
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+    expect(onSearch).toHaveBeenCalledWith({ mode: 'my', programId: 'fp', facilityId: 'home' });
+  });
+
+  it('asks for a program before searching, never picking one itself', async () => {
+    const user = userEvent.setup();
+    const { onSearch } = renderSelector();
+
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+    expect(await screen.findByText('facility-program.program-required')).toBeInTheDocument();
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('offers supervised facilities once a program is picked, and tells the page of each change', async () => {
+    const user = userEvent.setup();
+    const { onSearch, onDraftChange } = renderSelector();
+
+    await user.click(screen.getByRole('radio', { name: /facility-program.supervised-facility/ }));
+    const facility = screen.getByRole('combobox', { name: /facility-program.facility/ });
+    expect(facility).toBeDisabled();
+    expect(onDraftChange).toHaveBeenLastCalledWith({ mode: 'supervised' });
+
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
+    await waitFor(() => expect(facility).toBeEnabled());
+    await user.click(facility);
+    await user.click(await screen.findByRole('option', { name: /Balaka District Hospital/ }));
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+    expect(onSearch).toHaveBeenCalledWith({
+      mode: 'supervised',
+      programId: 'em',
+      facilityId: 'bal',
+    });
+  });
+
+  it('starts from the selection last searched for', () => {
+    renderSelector({ mode: 'supervised', programId: 'em', facilityId: 'bal' });
+
+    expect(
+      screen.getByRole('radio', { name: /facility-program.supervised-facility/ }),
+    ).toBeChecked();
+    expect(screen.getByRole('combobox', { name: /facility-program.facility/ })).toHaveValue(
+      'Balaka District Hospital',
+    );
+  });
+
+  it('follows a new selection from the address, such as after Back', async () => {
+    const { rerender, onDraftChange, onSearch } = renderSelector();
+
+    rerender(
+      <FacilityProgramSelector
+        applied={{ mode: 'supervised', programId: 'em', facilityId: 'bal' }}
+        onDraftChange={onDraftChange}
+        onSearch={onSearch}
+        options={options}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('radio', { name: /facility-program.supervised-facility/ }),
+      ).toBeChecked(),
+    );
+  });
+
+  it('turns off my facility without a home, and starts supervised', () => {
+    renderSelector({}, facilityProgramOptions({ ...sourcesWithoutHome() }));
+
+    expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(
+      screen.getByRole('radio', { name: /facility-program.supervised-facility/ }),
+    ).toBeChecked();
+  });
+
+  it('says so when the home facility has no program for the page', () => {
+    renderSelector(
+      {},
+      facilityProgramOptions({
+        homeFacilityId: 'home',
+        programs: [named('em', 'Essential Meds')],
+        facilities: [named('home', 'Comfort Health Clinic'), named('bal', 'Balaka')],
+        grants: [{ facilityId: 'bal', programId: 'em' }],
+      }),
+    );
+
+    expect(screen.getByText('facility-program.no-home-programs')).toBeInTheDocument();
+  });
+});
+
+function sourcesWithoutHome() {
+  return {
+    homeFacilityId: null,
+    programs: [named('em', 'Essential Meds')],
+    facilities: [named('bal', 'Balaka District Hospital')],
+    grants: [{ facilityId: 'bal', programId: 'em' }],
+  };
+}

@@ -3,14 +3,15 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CommandPalette } from '@/components/command-palette';
-import { rightsOptions } from '@/features/auth/api/queries';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
 function renderPalette(rights: string[]) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
-  queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
+  queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
   renderPage(<CommandPalette />, { queryClient });
 }
 

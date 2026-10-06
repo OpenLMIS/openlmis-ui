@@ -695,6 +695,7 @@ export type RadioGroupFieldOption = {
   label: ReactNode;
   description?: ReactNode;
   media?: ReactNode;
+  disabled?: boolean;
 };
 
 type RadioGroupFieldProps = {
@@ -737,26 +738,26 @@ export function RadioGroupField({
           if (variant === 'tile') {
             return (
               <ChoiceTile
-                disabled={disabled}
+                disabled={disabled || option.disabled}
                 htmlFor={id}
                 key={option.value}
                 label={option.label}
                 media={option.media}
               >
-                <RadioGroupItem id={id} value={option.value} />
+                <RadioGroupItem disabled={option.disabled} id={id} value={option.value} />
               </ChoiceTile>
             );
           }
           return (
             <ChoiceCard
               description={option.description}
-              disabled={disabled}
+              disabled={disabled || option.disabled}
               htmlFor={id}
               key={option.value}
               label={option.label}
               media={option.media}
             >
-              <RadioGroupItem id={id} value={option.value} />
+              <RadioGroupItem disabled={option.disabled} id={id} value={option.value} />
             </ChoiceCard>
           );
         })}

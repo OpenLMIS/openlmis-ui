@@ -25,6 +25,7 @@ export const queryKeys = {
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
   serviceAccounts: createQueryKeys('serviceAccounts'),
+  stockCardSummaries: createQueryKeys('stockCardSummaries'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
   validDestinations: createQueryKeys('validDestinations'),

@@ -20,9 +20,5 @@ export const RIGHTS = {
   stockOrganizationsManage: 'STOCK_ORGANIZATIONS_MANAGE',
   stockCardLineItemReasonsManage: 'STOCK_CARD_LINE_ITEM_REASONS_MANAGE',
   lotsManage: 'LOTS_MANAGE',
+  stockCardsView: 'STOCK_CARDS_VIEW',
 } as const;
-
-/** The right names a user holds anywhere; a permission string is `RIGHT`, `RIGHT|facility|program` or `RIGHT|facility`. */
-export function toRights(permissionStrings: readonly string[]): ReadonlySet<string> {
-  return new Set(permissionStrings.map((permission) => permission.split('|', 1)[0]));
-}
