@@ -212,18 +212,18 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
           <DataTableToolbar>
             <div className="w-full sm:w-56">
               <DataTableSearch
-                label={t('products.kit.search-name')}
-                onValueChange={(name) => filter({ name })}
-                placeholder={t('products.search-name')}
-                value={filters.name}
-              />
-            </div>
-            <div className="w-full sm:w-56">
-              <DataTableSearch
                 label={t('products.kit.search-code')}
                 onValueChange={(code) => filter({ code })}
                 placeholder={t('products.search-code')}
                 value={filters.code}
+              />
+            </div>
+            <div className="w-full sm:w-56">
+              <DataTableSearch
+                label={t('products.kit.search-name')}
+                onValueChange={(name) => filter({ name })}
+                placeholder={t('products.search-name')}
+                value={filters.name}
               />
             </div>
           </DataTableToolbar>
