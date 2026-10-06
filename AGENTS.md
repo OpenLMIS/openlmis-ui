@@ -678,8 +678,10 @@ uses `success`, `warning` and `destructive` with an icon and a label, never colo
 **Branding, theme and feature flags come from the server**, `GET /api/appConfiguration`,
 loaded in `src/lib/app-configuration.ts` before the first render and cached in localStorage for
 the next boot. A slow or missing server falls back to the cache, then to the built-in defaults.
-A backend without the endpoint never answers it, so `useServerSettings()` stays false and the
-Settings link is hidden; the page itself, opened by its address, says the server cannot store them.
+The Settings page is behind the `SYSTEM_SETTINGS` flag, off by default since the released backend
+has no endpoint. It is `deploymentOnly`: read from `config.json` alone and left out of
+`ADMIN_FLAG_KEYS`, the list on Settings' own Feature Flags tab, so an administrator can never turn
+Settings off from inside it. `pnpm dev` sees it off unless `public/config.json` turns it on.
 `startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
 favicon, preset tokens and light or dark class in step with the store.
 

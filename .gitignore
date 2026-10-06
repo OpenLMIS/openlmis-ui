@@ -45,3 +45,4 @@ tsconfig.tsbuildinfo
 !.claude/skills/
 .agents/*
 !.agents/skills/
+public/config.json

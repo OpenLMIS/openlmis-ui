@@ -5,8 +5,8 @@ import { useMemo } from 'react';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { useServerSettings } from '@/lib/app-configuration';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
+import { useFlag } from '@/lib/feature-flags';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
 /** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
@@ -74,9 +74,8 @@ export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; i
 
 export function useAccountLinks(): AccountLink[] {
   const mayManageSettings = useHasRight(RIGHTS.systemSettingsManage);
-  // A backend without stored settings has nothing for the page to edit.
-  const serverSettings = useServerSettings();
-  const canManageSettings = mayManageSettings && serverSettings;
+  const settingsOn = useFlag('SYSTEM_SETTINGS');
+  const canManageSettings = mayManageSettings && settingsOn;
   return [
     { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
     ...(canManageSettings

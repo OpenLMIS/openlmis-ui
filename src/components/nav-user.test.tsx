@@ -5,24 +5,35 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/nav-user';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { useAppConfigurationStore } from '@/lib/app-configuration';
+import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/profile/api/api', () => ({ fetchProfile: () => new Promise(() => {}) }));
 
-function renderMenu(rights: string[], fromServer = true) {
+async function renderMenu(rights: string[], systemSettings = 'true') {
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ featureFlags: { SYSTEM_SETTINGS: systemSettings } })),
+      ),
+  );
+  await loadRuntimeConfig();
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
-  useAppConfigurationStore.setState({ fromServer });
   const queryClient = new QueryClient();
   queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
   renderPage(<NavUser trigger={<button type="button">Menu</button>} />, { queryClient });
 }
 
-afterEach(() => useLoginData.setState({ referenceDataUserId: null, username: null }));
+afterEach(() => {
+  useLoginData.setState({ referenceDataUserId: null, username: null });
+  vi.unstubAllGlobals();
+});
 
 describe('NavUser', () => {
   it('offers Settings below Account to someone who may manage system settings', async () => {
-    renderMenu(['SYSTEM_SETTINGS_MANAGE']);
+    await renderMenu(['SYSTEM_SETTINGS_MANAGE']);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
 
@@ -34,8 +45,8 @@ describe('NavUser', () => {
     );
   });
 
-  it('leaves Settings out when the server keeps no settings, as a backend without them', async () => {
-    renderMenu(['SYSTEM_SETTINGS_MANAGE'], false);
+  it('leaves Settings out while the deployment has the Settings flag off', async () => {
+    await renderMenu(['SYSTEM_SETTINGS_MANAGE'], 'false');
 
     await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
 
@@ -44,7 +55,7 @@ describe('NavUser', () => {
   });
 
   it('leaves Settings out for everyone else', async () => {
-    renderMenu(['USERS_MANAGE']);
+    await renderMenu(['USERS_MANAGE']);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
 

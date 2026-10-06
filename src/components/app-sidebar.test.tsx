@@ -7,12 +7,21 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import * as mobile from '@/hooks/use-mobile';
-import { useAppConfigurationStore } from '@/lib/app-configuration';
 import { renderPage } from '@/tests/render-page';
+
+vi.mock('@/lib/feature-flags', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/feature-flags')>();
+  return {
+    ...actual,
+    useFlag: (key: string) => {
+      const value = actual.useFlag(key as never);
+      return key === 'SYSTEM_SETTINGS' || value;
+    },
+  };
+});
 
 function renderSidebar(rights: string[], { path = '/', defaultOpen = true } = {}) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
-  useAppConfigurationStore.setState({ fromServer: true });
   const queryClient = new QueryClient();
   queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
   renderPage(

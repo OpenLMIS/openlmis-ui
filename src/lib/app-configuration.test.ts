@@ -9,7 +9,6 @@ import {
   parseAppConfiguration,
   rememberAppConfiguration,
   setAppConfiguration,
-  useAppConfigurationStore,
 } from '@/lib/app-configuration';
 
 const CACHE_KEY = 'openlmis-ui.app-configuration';
@@ -32,7 +31,6 @@ function respond(status: number, body?: unknown) {
 beforeEach(() => {
   localStorage.clear();
   setAppConfiguration(DEFAULT_APP_CONFIGURATION);
-  useAppConfigurationStore.setState({ fromServer: false });
 });
 
 afterEach(() => {
@@ -127,31 +125,6 @@ describe('loadAppConfiguration', () => {
     await loadAppConfiguration();
 
     expect(getAppConfiguration()).toEqual(DEFAULT_APP_CONFIGURATION);
-  });
-
-  it('knows the server keeps settings once it answers', async () => {
-    vi.stubGlobal('fetch', respond(200, stored));
-
-    await loadAppConfiguration();
-
-    expect(useAppConfigurationStore.getState().fromServer).toBe(true);
-  });
-
-  it('knows the server keeps none while it has never answered, as a backend without them', async () => {
-    vi.stubGlobal('fetch', respond(404));
-
-    await loadAppConfiguration();
-
-    expect(useAppConfigurationStore.getState().fromServer).toBe(false);
-  });
-
-  it('still counts the settings through a gateway gap once an answer was seen', async () => {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
-    vi.stubGlobal('fetch', respond(404));
-
-    await loadAppConfiguration();
-
-    expect(useAppConfigurationStore.getState().fromServer).toBe(true);
   });
 
   it('keeps the last answer when a success brings no JSON', async () => {

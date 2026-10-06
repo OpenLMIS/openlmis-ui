@@ -41,13 +41,8 @@ export function parseAppConfiguration(value: unknown): AppConfiguration {
   return configurationSchema.catch(DEFAULT_APP_CONFIGURATION).parse(value);
 }
 
-/** `fromServer` once the server has answered with its settings; a backend without them never does. */
-export const useAppConfigurationStore = create<{
-  configuration: AppConfiguration;
-  fromServer: boolean;
-}>(() => ({
+export const useAppConfigurationStore = create<{ configuration: AppConfiguration }>(() => ({
   configuration: DEFAULT_APP_CONFIGURATION,
-  fromServer: false,
 }));
 
 export function getAppConfiguration(): AppConfiguration {
@@ -81,13 +76,10 @@ export function saveAppConfigurationAgain(): void {
 export function rememberAppConfiguration(value: unknown): void {
   writeCache(value);
   setAppConfiguration(parseAppConfiguration(value));
-  useAppConfigurationStore.setState({ fromServer: true });
 }
 
 export async function loadAppConfiguration(): Promise<void> {
-  const cached = readCache();
-  setAppConfiguration(parseAppConfiguration(cached));
-  useAppConfigurationStore.setState({ fromServer: cached !== null });
+  setAppConfiguration(parseAppConfiguration(readCache()));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
   try {
@@ -113,10 +105,6 @@ export function getLogoUrl(configuration: AppConfiguration): string {
 
 export function useAppName(): string {
   return useAppConfigurationStore((state) => getAppName(state.configuration));
-}
-
-export function useServerSettings(): boolean {
-  return useAppConfigurationStore((state) => state.fromServer);
 }
 
 export function useShowAppName(): boolean {

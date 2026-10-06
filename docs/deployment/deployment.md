@@ -72,7 +72,7 @@ before it shows anything:
 - A server that is down, answers slowly (more than 3 seconds) or has no route to the endpoint
   gets the settings this browser saw last, or the built-in look the first time.
 - A reference data service without this endpoint, as the released versions are, always gets the
-  built-in look, and the Settings page is not offered.
+  built-in look.
 
 Nothing about branding needs a rebuild or a redeploy.
 
@@ -84,6 +84,9 @@ Optional features are turned on or off in two places:
   `BATCH_APPROVE_SCREEN`, `GS1_SCANNING` and `SHOW_REQUISITION_LESS_ORDER` (`true` or `false`),
   `QUANTITY_UNIT_OPTION` (`PACKS`, `DOSES` or `BOTH`) and `DEFAULT_QUANTITY_UNIT` (`PACKS` or
   `DOSES`). The entrypoint writes them into `config.json`; an unset variable means the default.
+- **`SYSTEM_SETTINGS`** (`true` or `false`, off by default) offers the Settings page. Turn it on only
+  where the reference data service stores the new UI's settings; the released versions do not. It
+  is read from the environment alone, so it never appears among the flags below.
 - **Settings > Feature Flags**, opened from the account menu at the top right, where an administrator's value wins over
   the environment's. Reset on a flag goes back to the environment's value, or the default.
 
