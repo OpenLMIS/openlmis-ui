@@ -8,7 +8,6 @@ import { fetchOrderables, fetchOrderablesByIds } from '@/features/reference-data
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
-  ORDERABLE_SEARCH_SIZE: 20,
   fetchOrderables: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
 }));
@@ -51,9 +50,9 @@ describe('LotsToolbar', () => {
   });
 
   it('tells the user to type, since only the first products are listed', async () => {
-    vi.mocked(fetchOrderables).mockImplementation(async (q) => ({
+    vi.mocked(fetchOrderables).mockImplementation(async ({ name }) => ({
       content: [acid],
-      totalElements: q ? 45 : 10233,
+      totalElements: name ? 45 : 10233,
       totalPages: 1,
       number: 0,
       size: 20,
@@ -77,7 +76,7 @@ describe('LotsToolbar', () => {
     const user = userEvent.setup();
 
     await user.type(await screen.findByRole('combobox', { name: 'lots.product' }), 'acid');
-    await waitFor(() => expect(fetchOrderables).toHaveBeenCalledWith('acid'));
+    await waitFor(() => expect(fetchOrderables).toHaveBeenCalledWith({ name: 'acid', code: '' }));
     await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
 
     expect(onFilterChange).toHaveBeenCalledWith({ product: acid.id, page: undefined });
@@ -137,13 +136,13 @@ describe('LotsToolbar', () => {
     await waitFor(() => expect(product).toHaveValue('Acetylsalicylic Acid'));
     await new Promise((resolve) => setTimeout(resolve, 400));
 
-    expect(fetchOrderables).not.toHaveBeenCalledWith('Acetylsalicylic Acid');
+    expect(fetchOrderables).not.toHaveBeenCalledWith({ name: 'Acetylsalicylic Acid', code: '' });
   });
 
   it('keeps a pick named once the search moves on, while its lookup is still out', async () => {
     const other = { ...acid, id: 'o2', productCode: 'C2', fullProductName: 'Glibenclamide' };
-    vi.mocked(fetchOrderables).mockImplementation(async (q) => ({
-      content: q ? [acid] : [other],
+    vi.mocked(fetchOrderables).mockImplementation(async ({ name }) => ({
+      content: name ? [acid] : [other],
       totalElements: 1,
       totalPages: 1,
       number: 0,
@@ -166,7 +165,7 @@ describe('LotsToolbar', () => {
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
     await user.type(product, 'acid');
     await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
-    await waitFor(() => expect(fetchOrderables).toHaveBeenLastCalledWith(''));
+    await waitFor(() => expect(fetchOrderables).toHaveBeenLastCalledWith({ name: '', code: '' }));
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(product).toHaveValue('Acetylsalicylic Acid');

@@ -97,7 +97,7 @@ export function KitUnpackList({
     const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-actions]');
     (buttons?.[Math.min(index, buttons.length - 1)] ?? addButton.current)?.focus();
   };
-  const excluded = useMemo(() => new Set([kit.id, ...rows.map((row) => row.id)]), [kit.id, rows]);
+  const inKit = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
 
   const addProducts = (picked: Product[]) =>
     form.setFieldValue('children', (current) => [
@@ -253,7 +253,8 @@ export function KitUnpackList({
         )}
       </WorkspaceFooterPortal>
       <KitProductsDialog
-        excluded={excluded}
+        inKit={inKit}
+        kitId={kit.id}
         onAdd={addProducts}
         onClose={onAddClose}
         open={adding && !readOnly}

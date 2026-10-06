@@ -13,14 +13,17 @@ function SelectPageCheckbox<TData extends RowData>({
   table: Table<DataTableFeatures, TData>;
 }) {
   const labels = useDataTableLabels();
-  const all = table.getIsAllPageRowsSelected();
+  const rows = table.getRowModel().rows;
+  const selectable = rows.filter((row) => row.getCanSelect());
+  const counted = selectable.length > 0 ? selectable : rows;
+  const all = counted.length > 0 && counted.every((row) => row.getIsSelected());
 
   return (
     <Checkbox
       aria-label={labels.selectPage}
       checked={all}
-      disabled={table.getRowModel().rows.length === 0}
-      indeterminate={!all && table.getIsSomePageRowsSelected()}
+      disabled={selectable.length === 0}
+      indeterminate={!all && rows.some((row) => row.getIsSelected())}
       onCheckedChange={(checked) => table.toggleAllPageRowsSelected(checked)}
     />
   );

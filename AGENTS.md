@@ -271,7 +271,7 @@ Two ways out when a page needs a different treatment:
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
-   `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+   `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
@@ -286,7 +286,7 @@ every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call s
 passing props the regenerated component no longer accepts. Re-apply the variants to the
 new files rather than reverting the preset. Eight edits carry no prop, so `tsc` cannot catch
 them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
-that selects part of a page; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
+that selects part of a page, and dims on `data-disabled`, which Base UI sets instead of `:disabled`; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
 follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
 looks disabled; `sonner.tsx`'s `Toaster` reads
@@ -589,9 +589,7 @@ with a dot; `maxDecimals` caps
 the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
-products, passes `onSearch` and the server's matches as `items`, and keeps the search and the list
-open after each pick; free text such as a reason's tags is a `TagsField`, where Enter, Tab or leaving
+`MultiComboboxField` with chips, not a column of checkboxes; free text such as a reason's tags is a `TagsField`, where Enter, Tab or leaving
 the box takes the highlighted suggestion or the typed text, a comma adds the typed text, and
 `minLength`/`maxLength` refuse a tag with a message; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
@@ -614,7 +612,7 @@ the first submit and then follow each correction.
 
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
-exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+exceptions are `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
 `SelectTrigger width`, `Button align/width` and `PopoverContent width/padding`. In a row,

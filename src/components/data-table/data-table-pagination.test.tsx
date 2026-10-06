@@ -13,10 +13,12 @@ function Harness({
   pagination,
   rowCount,
   onPaginationChange,
+  disabled,
 }: {
   pagination: PaginationState;
   rowCount: number;
   onPaginationChange: (updater: unknown) => void;
+  disabled?: boolean;
 }) {
   const table = useTable({
     features: dataTableFeatures,
@@ -27,7 +29,7 @@ function Harness({
     state: { pagination },
     onPaginationChange,
   });
-  return <DataTablePagination table={table} />;
+  return <DataTablePagination disabled={disabled} table={table} />;
 }
 
 describe('DataTablePagination', () => {
@@ -53,6 +55,20 @@ describe('DataTablePagination', () => {
     );
 
     expect(screen.getByText('1-5 / 5')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous Page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next Page' })).toBeDisabled();
+  });
+
+  it('turns every page control off while disabled', () => {
+    render(
+      <Harness
+        disabled
+        onPaginationChange={vi.fn()}
+        pagination={{ pageIndex: 1, pageSize: 10 }}
+        rowCount={25}
+      />,
+    );
+
     expect(screen.getByRole('button', { name: 'Previous Page' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next Page' })).toBeDisabled();
   });

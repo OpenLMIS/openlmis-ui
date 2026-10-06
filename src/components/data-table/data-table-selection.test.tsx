@@ -26,7 +26,13 @@ const firstPage: Row[] = [
 ];
 const secondPage: Row[] = [{ id: '3', name: 'Linus' }];
 
-function Harness({ initial = {} }: { initial?: RowSelectionState }) {
+function Harness({
+  initial = {},
+  locked = [],
+}: {
+  initial?: RowSelectionState;
+  locked?: string[];
+}) {
   const [data, setData] = useState(firstPage);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>(initial);
   const table = useTable({
@@ -34,6 +40,7 @@ function Harness({ initial = {} }: { initial?: RowSelectionState }) {
     columns,
     data,
     getRowId: (row) => row.id,
+    enableRowSelection: (row) => !locked.includes(row.id),
     state: { rowSelection },
     onRowSelectionChange: setRowSelection,
   });
@@ -78,6 +85,42 @@ describe('selectionColumn', () => {
 
     expect(screen.getByRole('status', { hidden: true })).toHaveTextContent('1,3');
     expect(screen.getByRole('checkbox', { name: 'Select Page' })).toBeChecked();
+  });
+});
+
+describe('selectionColumn with locked rows', () => {
+  it('cannot select a page where no row can be picked', () => {
+    render(<Harness initial={{ '1': true }} locked={['1', '2']} />);
+
+    expect(screen.getByRole('checkbox', { name: 'Select Page' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+
+  it('shows a page of locked rows that are all selected as selected', () => {
+    render(<Harness initial={{ '1': true, '2': true }} locked={['1', '2']} />);
+
+    expect(screen.getByRole('checkbox', { name: 'Select Page' })).toBeChecked();
+  });
+
+  it('shows a page as partly selected when only a locked row is', () => {
+    render(<Harness initial={{ '1': true }} locked={['1']} />);
+
+    expect(screen.getByRole('checkbox', { name: 'Select Page' })).toHaveAttribute(
+      'aria-checked',
+      'mixed',
+    );
+  });
+
+  it('shows a page as selected once every row that can be picked is', async () => {
+    render(<Harness locked={['1']} />);
+    const all = screen.getByRole('checkbox', { name: 'Select Page' });
+
+    await userEvent.click(all);
+
+    expect(screen.getByRole('status', { hidden: true })).toHaveTextContent('2');
+    expect(all).toBeChecked();
   });
 });
 

@@ -95,16 +95,24 @@ export async function fetchReasons(): Promise<Reason[]> {
   return data;
 }
 
-export const ORDERABLE_SEARCH_SIZE = 20;
+const ORDERABLE_SEARCH_SIZE = 20;
 
-/** The first products whose name holds `q`, by name, for a picker that searches as you type. */
-export async function fetchOrderables(q: string) {
+export type OrderableSearch = { name?: string; code?: string; page?: number; size?: number };
+
+/** One page of products whose name and code hold the texts given; the server matches both. */
+export async function fetchOrderables({
+  name,
+  code,
+  page = 0,
+  size = ORDERABLE_SEARCH_SIZE,
+}: OrderableSearch) {
   const { data } = await client.get<Page<Orderable>>('/orderables', {
     params: {
-      page: 0,
-      size: ORDERABLE_SEARCH_SIZE,
+      page,
+      size,
       sort: 'fullProductName,asc',
-      ...(q.trim() && { name: q.trim() }),
+      ...(name && { name }),
+      ...(code && { code }),
     },
   });
   return data;

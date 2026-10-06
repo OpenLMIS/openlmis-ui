@@ -45,6 +45,11 @@ const dialogContentVariants = cva(
       size: {
         default: "sm:max-w-sm",
         lg: "sm:max-w-lg",
+        xl: "sm:max-w-3xl",
+      },
+      height: {
+        auto: "",
+        fixed: "h-[min(52rem,calc(100dvh-2rem))]",
       },
       // `scroll` keeps the dialog inside the viewport; its child decides what scrolls.
       layout: {
@@ -54,6 +59,7 @@ const dialogContentVariants = cva(
     },
     defaultVariants: {
       size: "default",
+      height: "auto",
       layout: "default",
     },
   }
@@ -64,6 +70,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   size,
+  height,
   layout,
   ...props
 }: DialogPrimitive.Popup.Props &
@@ -75,7 +82,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
-        className={cn(dialogContentVariants({ size, layout }), className)}
+        className={cn(dialogContentVariants({ size, height, layout }), className)}
         {...props}
       >
         {children}
