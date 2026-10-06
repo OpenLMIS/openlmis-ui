@@ -79,7 +79,7 @@ type RoleFormDialogProps = {
 
 export function RoleFormDialog({ target, canEdit, onClose, onSaved }: RoleFormDialogProps) {
   const { t } = useTranslation();
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
@@ -89,7 +89,7 @@ export function RoleFormDialog({ target, canEdit, onClose, onSaved }: RoleFormDi
           title={t(shown === 'new' ? 'roles.form.create-title' : 'roles.form.edit-title')}
         />
       )}
-      {shown && canEdit && <RoleDialogContent onDone={onClose} onSaved={onSaved} target={shown} />}
+      {shown && canEdit && <RoleDialogContent onDone={close} onSaved={onSaved} target={shown} />}
     </FormDialog>
   );
 }

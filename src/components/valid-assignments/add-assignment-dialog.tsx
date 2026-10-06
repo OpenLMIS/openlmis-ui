@@ -67,13 +67,13 @@ export function AddAssignmentDialog({
   onClose,
   canPickOrganizations,
 }: AddAssignmentDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(open || undefined, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(open || undefined, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(api) }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
       {shown && (
-        <AddAssignmentForm api={api} canPickOrganizations={canPickOrganizations} onDone={onClose} />
+        <AddAssignmentForm api={api} canPickOrganizations={canPickOrganizations} onDone={close} />
       )}
     </FormDialog>
   );

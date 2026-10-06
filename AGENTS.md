@@ -284,8 +284,9 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Eight edits carry no prop, so `tsc` cannot catch
-them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
+new files rather than reverting the preset. `dialog.tsx` also exports `DialogCloseLabelProvider`,
+which the root route fills with the translated "Close" for every dialog's close buttons. Eight edits
+carry no prop, so `tsc` cannot catch them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
 that selects part of a page, and dims on `data-disabled`, which Base UI sets instead of `:disabled`; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
 follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button

@@ -37,7 +37,7 @@ export function RemoveProgramLinkDialog({
   onClose,
 }: RemoveProgramLinkDialogProps) {
   const { t } = useTranslation();
-  const { shown, dialogProps } = useDialogTarget(programId, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(programId, onClose);
   const programs = useQuery(programsOptions());
   const save = useProductSave(product.id);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -117,7 +117,7 @@ export function RemoveProgramLinkDialog({
                         program: name,
                       }),
                     });
-                    onClose();
+                    close();
                   },
                 })
               }

@@ -26,4 +26,40 @@ describe('useDialogTarget', () => {
     result.current.dialogProps(false).onOpenChange(false);
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('closes once, at the first ask, while the page is still catching up', () => {
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useDialogTarget('ada', onClose));
+
+    act(() => result.current.dialogProps().onOpenChange(false));
+    act(() => result.current.dialogProps().onOpenChange(false));
+    act(() => result.current.close());
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(result.current.dialogProps().open).toBe(false);
+  });
+
+  it('opens again for the next target after a close', () => {
+    const { result, rerender } = renderHook(({ target }) => useDialogTarget(target, vi.fn()), {
+      initialProps: { target: 'ada' as string | undefined },
+    });
+
+    act(() => result.current.close());
+    rerender({ target: undefined });
+    rerender({ target: 'ada' });
+
+    expect(result.current.dialogProps().open).toBe(true);
+  });
+
+  it('closes once when asked twice in the same event', () => {
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useDialogTarget('ada', onClose));
+
+    act(() => {
+      result.current.close();
+      result.current.dialogProps().onOpenChange(false);
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });
