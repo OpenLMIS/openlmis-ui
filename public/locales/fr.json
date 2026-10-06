@@ -514,7 +514,7 @@
   "products.kit.add-picked": "{count, plural, =0 {Ajouter des produits} one {Ajouter # produit} other {Ajouter # produits}}",
   "products.kit.add-title": "Ajouter des produits",
   "products.kit.code": "Code du produit",
-  "products.kit.code-placeholder": "Rechercher par code",
+  "products.kit.code-matches": "{count, plural, =0 {Aucun produit ne correspond à ce code.} one {# produit correspond à ce code.} other {# produits correspondent à ce code.}}",
   "products.kit.discard-description": "Vos modifications de la composition du kit n’ont pas été enregistrées. Cet abandon est irréversible.",
   "products.kit.empty-description": "Ajoutez les produits issus du déconditionnement de ce kit.",
   "products.kit.empty-read-only": "Ce produit ne se déconditionne en aucun autre produit.",

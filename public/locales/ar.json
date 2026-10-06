@@ -514,7 +514,7 @@
   "products.kit.add-picked": "{count, plural, zero {إضافة منتجات} one {إضافة منتج واحد} two {إضافة منتجين} few {إضافة # منتجات} many {إضافة # منتجاً} other {إضافة # منتج}}",
   "products.kit.add-title": "إضافة منتجات",
   "products.kit.code": "رمز المنتج",
-  "products.kit.code-placeholder": "البحث بالرمز",
+  "products.kit.code-matches": "{count, plural, =0 {لا توجد منتجات تطابق هذا الرمز.} zero {لا توجد منتجات تطابق هذا الرمز.} one {منتج واحد يطابق هذا الرمز.} two {منتجان يطابقان هذا الرمز.} few {# منتجات تطابق هذا الرمز.} many {# منتجًا يطابق هذا الرمز.} other {# منتج يطابق هذا الرمز.}}",
   "products.kit.discard-description": "لم تُحفظ التغييرات على قائمة تفريغ العُدّة. لا يمكن التراجع عن التجاهل.",
   "products.kit.empty-description": "أضف المنتجات التي تُفرَّغ إليها هذه العُدّة.",
   "products.kit.empty-read-only": "لا يُفرَّغ هذا المنتج إلى منتجات أخرى.",

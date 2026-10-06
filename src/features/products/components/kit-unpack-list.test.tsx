@@ -174,6 +174,39 @@ describe('KitUnpackList search', () => {
     expect(await screen.findByText('products.kit.search-more')).toBeInTheDocument();
   });
 
+  it('searches when Enter is pressed in the code box, never adding what is picked so far', async () => {
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    await user.click(await screen.findByRole('combobox', { name: 'products.kit.products' }));
+    await user.click(await screen.findByRole('option', { name: /Syringe/ }));
+    await user.keyboard('{Escape}');
+    await user.type(screen.getByRole('textbox', { name: 'products.kit.code' }), 'S1{Enter}');
+
+    await waitFor(() => expect(fetchOrderables).toHaveBeenLastCalledWith({ name: '', code: 'S1' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'products.kit.add-picked' })).toBeEnabled();
+  });
+
+  it('says under the code box how many products match it, without opening the list', async () => {
+    vi.mocked(fetchOrderables).mockImplementation(async ({ code }) => ({
+      content: code ? [syringe] : [gloves, syringe],
+      totalElements: code ? 1 : 2,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+    }));
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    expect(screen.queryByText('products.kit.code-matches')).not.toBeInTheDocument();
+    await user.type(await screen.findByRole('textbox', { name: 'products.kit.code' }), 'S1');
+
+    expect(await screen.findByText('products.kit.code-matches')).toBeInTheDocument();
+  });
+
   it('searches by product code in its own box, as legacy does', async () => {
     renderPage(<Kit onDone={vi.fn()} />);
     const user = userEvent.setup();

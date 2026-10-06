@@ -114,14 +114,13 @@ export const reasonsOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const orderablesSearchOptions = (search: OrderableSearch) =>
-  queryOptions({
-    queryKey: queryKeys.orderables.list({
-      name: search.name?.trim() ?? '',
-      code: search.code?.trim() ?? '',
-    }),
-    queryFn: () => fetchOrderables(search),
+export const orderablesSearchOptions = (search: OrderableSearch) => {
+  const trimmed = { name: search.name?.trim() ?? '', code: search.code?.trim() ?? '' };
+  return queryOptions({
+    queryKey: queryKeys.orderables.list(trimmed),
+    queryFn: () => fetchOrderables(trimmed),
   });
+};
 
 export const orderablesByIdsOptions = (ids: readonly string[]) =>
   queryOptions({

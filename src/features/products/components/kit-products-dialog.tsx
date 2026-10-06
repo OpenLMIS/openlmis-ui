@@ -1,5 +1,6 @@
+import { useStore } from '@tanstack/react-form';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -14,8 +15,7 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+import { FieldGroup } from '@/components/ui/field';
 import type { Product } from '@/features/products/lib/types';
 import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
@@ -55,12 +55,18 @@ type KitProductsFormProps = Omit<KitProductsDialogProps, 'open' | 'onClose'> & {
 
 function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
   const { t } = useTranslation();
-  const codeId = useId();
   const [typed, setTyped] = useState('');
-  const [typedCode, setTypedCode] = useState('');
+  const [seen, setSeen] = useState<ReadonlyMap<string, Product>>(new Map());
+  const form = useAppForm({
+    defaultValues: { picked: [] as string[], code: '' },
+    onSubmit: ({ value }) => {
+      onAdd(value.picked.flatMap((id) => seen.get(id) ?? []));
+      onDone();
+    },
+  });
+  const typedCode = useStore(form.store, (state) => state.values.code);
   const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
   const code = useDebouncedValue(typedCode.trim(), SEARCH_DELAY);
-  const [seen, setSeen] = useState<ReadonlyMap<string, Product>>(new Map());
 
   const results = useQuery({
     ...orderablesSearchOptions({ name: query, code }),
@@ -82,14 +88,6 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
     [found, excluded],
   );
 
-  const form = useAppForm({
-    defaultValues: { picked: [] as string[] },
-    onSubmit: ({ value }) => {
-      onAdd(value.picked.flatMap((id) => seen.get(id) ?? []));
-      onDone();
-    },
-  });
-
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
       <FormDialogHeader>
@@ -98,24 +96,35 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor={codeId}>{t('products.kit.code')}</FieldLabel>
-            <Input
-              autoComplete="off"
-              dir="ltr"
-              id={codeId}
-              onChange={(event) => setTypedCode(event.target.value)}
-              placeholder={t('products.kit.code-placeholder')}
-              value={typedCode}
-            />
-          </Field>
+          {/* Enter searches the code, as the box does as you type; only Add closes the dialog. */}
+          <fieldset
+            className="contents"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.preventDefault();
+            }}
+          >
+            <form.AppField name="code">
+              {(field) => (
+                <field.TextField
+                  autoComplete="off"
+                  description={
+                    code && !searching && results.data
+                      ? t('products.kit.code-matches', { count: results.data.totalElements })
+                      : undefined
+                  }
+                  label={t('products.kit.code')}
+                  placeholder={t('products.search-code')}
+                />
+              )}
+            </form.AppField>
+          </fieldset>
           <form.AppField name="picked">
             {(field) => (
               <field.MultiComboboxField
                 description={
                   !searching && (results.data?.totalElements ?? 0) > ORDERABLE_SEARCH_SIZE
                     ? t('products.kit.search-more', {
-                        shown: ORDERABLE_SEARCH_SIZE,
+                        shown: items.length,
                         count: results.data?.totalElements,
                       })
                     : t('products.kit.search-description')

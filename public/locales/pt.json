@@ -514,7 +514,7 @@
   "products.kit.add-picked": "{count, plural, =0 {Adicionar Produtos} one {Adicionar # Produto} other {Adicionar # Produtos}}",
   "products.kit.add-title": "Adicionar Produtos",
   "products.kit.code": "Código do Produto",
-  "products.kit.code-placeholder": "Pesquisar Por Código",
+  "products.kit.code-matches": "{count, plural, =0 {Nenhum produto corresponde a este código.} one {# produto corresponde a este código.} other {# produtos correspondem a este código.}}",
   "products.kit.discard-description": "As alterações à lista de desembalagem do kit não foram guardadas. Descartar não pode ser anulado.",
   "products.kit.empty-description": "Adicione os produtos em que este kit se desembala.",
   "products.kit.empty-read-only": "Este produto não se desembala em outros produtos.",

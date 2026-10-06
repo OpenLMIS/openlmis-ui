@@ -514,7 +514,7 @@
   "products.kit.add-picked": "{count, plural, =0 {Add Products} one {Add # Product} other {Add # Products}}",
   "products.kit.add-title": "Add Products",
   "products.kit.code": "Product Code",
-  "products.kit.code-placeholder": "Search By Code",
+  "products.kit.code-matches": "{count, plural, =0 {No products match this code.} one {# product matches this code.} other {# products match this code.}}",
   "products.kit.discard-description": "Your changes to the kit unpack list have not been saved. Discarding cannot be undone.",
   "products.kit.empty-description": "Add the products this kit unpacks into.",
   "products.kit.empty-read-only": "This product unpacks into no other products.",

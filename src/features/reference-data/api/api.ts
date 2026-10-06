@@ -99,15 +99,15 @@ export const ORDERABLE_SEARCH_SIZE = 20;
 
 export type OrderableSearch = { name?: string; code?: string };
 
-/** The first products, by name, whose name and code hold the text given; the server matches both. */
+/** One page of products whose name and code hold the texts given; the server matches both. */
 export async function fetchOrderables({ name, code }: OrderableSearch) {
   const { data } = await client.get<Page<Orderable>>('/orderables', {
     params: {
       page: 0,
       size: ORDERABLE_SEARCH_SIZE,
       sort: 'fullProductName,asc',
-      ...(name?.trim() && { name: name.trim() }),
-      ...(code?.trim() && { code: code.trim() }),
+      ...(name && { name }),
+      ...(code && { code }),
     },
   });
   return data;
