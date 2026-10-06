@@ -1,8 +1,28 @@
-import { useStore } from '@tanstack/react-form';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  createColumnHelper,
+  type PaginationState,
+  type RowSelectionState,
+  type Updater,
+  useTable,
+} from '@tanstack/react-table';
+import { PackageSearchIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppForm } from '@/components/form/form';
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmpty,
+  DataTableError,
+  type DataTableFeatures,
+  DataTableSkeleton,
+  DataTableToolbar,
+  dataTableFeatures,
+} from '@/components/data-table/data-table';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { DataTableSearch } from '@/components/data-table/data-table-search';
+import { selectionColumn } from '@/components/data-table/data-table-selection';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import {
   FormDialog,
   FormDialogBody,
@@ -15,28 +35,29 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { FieldGroup } from '@/components/ui/field';
 import type { Product } from '@/features/products/lib/types';
-import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
-import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { isOfflineError } from '@/lib/http';
 
-const SEARCH_DELAY = 300;
+const PAGE_SIZE = 10;
+
+const UNIT_MIN_WIDTH = 480;
 
 type KitProductsDialogProps = {
   open: boolean;
-  excluded: ReadonlySet<string>;
+  kitId: string;
+  /** Products the kit already unpacks into, shown picked and locked. */
+  inKit: ReadonlySet<string>;
   onAdd: (products: Product[]) => void;
   onClose: () => void;
 };
 
-export function KitProductsDialog({ open, excluded, onAdd, onClose }: KitProductsDialogProps) {
+export function KitProductsDialog({ open, kitId, inKit, onAdd, onClose }: KitProductsDialogProps) {
   const { shown, dialogProps } = useDialogTarget(open ? 'add' : undefined, onClose);
 
   return (
-    <FormDialog {...dialogProps(false)}>
-      {shown && <KitProductsForm excluded={excluded} onAdd={onAdd} onDone={onClose} />}
+    <FormDialog {...dialogProps(false)} size="xl">
+      {shown && <KitProductsForm inKit={inKit} kitId={kitId} onAdd={onAdd} onDone={onClose} />}
     </FormDialog>
   );
 }
@@ -49,116 +70,187 @@ const productLabel = (product: Product) => {
   return unit ? `${name} (${unit})` : name;
 };
 
+const columnHelper = createColumnHelper<DataTableFeatures, Product>();
+
+function useColumns(kitId: string) {
+  const { t } = useTranslation();
+  return useMemo(
+    () =>
+      columnHelper.columns([
+        selectionColumn<Product>(productLabel),
+        columnHelper.accessor('productCode', {
+          header: ({ column }) => (
+            <DataTableColumnHeader column={column} title={t('products.code')} />
+          ),
+          cell: ({ getValue }) => (
+            <span className="flex">
+              <span className="min-w-0 truncate" dir="ltr">
+                {getValue()}
+              </span>
+            </span>
+          ),
+          meta: { className: 'w-24 @lg/table:w-36' },
+        }),
+        columnHelper.accessor((product) => product.fullProductName ?? '', {
+          id: 'name',
+          header: ({ column }) => (
+            <DataTableColumnHeader column={column} title={t('products.kit.product')} />
+          ),
+          cell: ({ row, getValue }) => (
+            <span className="block whitespace-normal break-words">
+              <bdi>{getValue()}</bdi>
+              {row.id === kitId && (
+                <span className="text-muted-foreground"> {t('products.kit.this-kit')}</span>
+              )}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((product) => product.dispensable?.displayUnit ?? '', {
+          id: 'unit',
+          header: ({ column }) => (
+            <DataTableColumnHeader column={column} title={t('products.kit.unit')} />
+          ),
+          cell: ({ getValue }) => <bdi>{getValue()}</bdi>,
+          meta: { className: 'w-32' },
+        }),
+      ]),
+    [t, kitId],
+  );
+}
+
 type KitProductsFormProps = Omit<KitProductsDialogProps, 'open' | 'onClose'> & {
   onDone: () => void;
 };
 
-function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
+const getRowId = (product: Product) => product.id;
+
+function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) {
   const { t } = useTranslation();
-  const [typed, setTyped] = useState('');
-  const [seen, setSeen] = useState<ReadonlyMap<string, Product>>(new Map());
-  const form = useAppForm({
-    defaultValues: { picked: [] as string[], code: '' },
-    onSubmit: ({ value }) => {
-      onAdd(value.picked.flatMap((id) => seen.get(id) ?? []));
-      onDone();
-    },
+  const [filters, setFilters] = useState({ name: '', code: '' });
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
   });
-  const typedCode = useStore(form.store, (state) => state.values.code);
-  const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
-  const code = useDebouncedValue(typedCode.trim(), SEARCH_DELAY);
+  const [picked, setPicked] = useState<ReadonlyMap<string, Product>>(new Map());
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  // The unit gives way first, so a phone still has room for the product's name.
+  const wide = width === undefined || width >= UNIT_MIN_WIDTH;
 
   const results = useQuery({
-    ...orderablesSearchOptions({ name: query, code }),
+    ...orderablesSearchOptions({
+      ...filters,
+      page: pagination.pageIndex,
+      size: pagination.pageSize,
+    }),
     placeholderData: keepPreviousData,
   });
-  const found = results.data?.content;
-  const searching = typed.trim() !== query || typedCode.trim() !== code || results.isFetching;
+  const rows = results.data?.content ?? [];
 
-  useEffect(() => {
-    if (!found) return;
-    setSeen((previous) => new Map([...previous, ...found.map((item) => [item.id, item] as const)]));
-  }, [found]);
-
-  const items = useMemo(
-    () =>
-      (found ?? [])
-        .filter((product) => !excluded.has(product.id))
-        .map((product) => ({ value: product.id, label: productLabel(product) })),
-    [found, excluded],
+  const rowSelection = useMemo<RowSelectionState>(
+    () => Object.fromEntries([...inKit, ...picked.keys()].map((id) => [id, true])),
+    [inKit, picked],
   );
+  const changeSelection = (updater: Updater<RowSelectionState>) => {
+    const next = typeof updater === 'function' ? updater(rowSelection) : updater;
+    const shown = new Map(rows.map((product) => [product.id, product]));
+    setPicked(
+      new Map(
+        Object.keys(next)
+          .filter((id) => !inKit.has(id))
+          .flatMap((id) => {
+            const product = shown.get(id) ?? picked.get(id);
+            return product ? [[id, product] as const] : [];
+          }),
+      ),
+    );
+  };
+  const filter = (patch: Partial<typeof filters>) => {
+    setFilters((current) => ({ ...current, ...patch }));
+    setPagination((current) => ({ ...current, pageIndex: 0 }));
+  };
+
+  const table = useTable({
+    features: dataTableFeatures,
+    columns: useColumns(kitId),
+    data: rows,
+    getRowId,
+    rowCount: results.data?.totalElements ?? 0,
+    manualPagination: true,
+    manualSorting: true,
+    enableSorting: false,
+    // The kit cannot hold itself, and a product already in it is changed in the list, not here.
+    enableRowSelection: (row) => row.id !== kitId && !inKit.has(row.id),
+    state: { pagination, rowSelection, columnVisibility: { unit: wide } },
+    onPaginationChange: setPagination,
+    onRowSelectionChange: changeSelection,
+  });
+
+  const submit = () => {
+    onAdd([...picked.values()]);
+    onDone();
+  };
 
   return (
-    <FormDialogForm onSubmit={form.handleSubmit}>
+    <FormDialogForm onSubmit={submit}>
       <FormDialogHeader>
         <FormDialogTitle>{t('products.kit.add-title')}</FormDialogTitle>
         <FormDialogDescription>{t('products.kit.add-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
-        <FieldGroup>
-          {/* Enter searches the code, as the box does as you type; only Add closes the dialog. */}
-          <fieldset
-            className="contents"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.preventDefault();
-            }}
-          >
-            <form.AppField name="code">
-              {(field) => (
-                <field.TextField
-                  autoComplete="off"
-                  description={
-                    code && !searching && results.data
-                      ? t('products.kit.code-matches', { count: results.data.totalElements })
-                      : undefined
-                  }
-                  label={t('products.kit.code')}
-                  placeholder={t('products.search-code')}
-                />
-              )}
-            </form.AppField>
-          </fieldset>
-          <form.AppField name="picked">
-            {(field) => (
-              <field.MultiComboboxField
-                description={
-                  !searching && (results.data?.totalElements ?? 0) > ORDERABLE_SEARCH_SIZE
-                    ? t('products.kit.search-more', {
-                        shown: items.length,
-                        count: results.data?.totalElements,
-                      })
-                    : t('products.kit.search-description')
-                }
-                emptyMessage={
-                  searching
-                    ? t('products.kit.searching')
-                    : results.isError
-                      ? t(
-                          isOfflineError(results.error)
-                            ? 'offline.notice-title'
-                            : 'products.kit.search-error',
-                        )
-                      : t('products.kit.search-empty')
-                }
-                items={items}
-                label={t('products.kit.products')}
-                onSearch={setTyped}
-                placeholder={t('products.kit.search-placeholder')}
-                removeLabel={(label) => t('products.kit.unpick', { product: label })}
+        <div className="flex flex-col gap-4" ref={measure}>
+          <DataTableToolbar>
+            <div className="min-w-48 flex-1">
+              <DataTableSearch
+                label={t('products.kit.search-name')}
+                onValueChange={(name) => filter({ name })}
+                placeholder={t('products.search-name')}
+                value={filters.name}
               />
-            )}
-          </form.AppField>
-        </FieldGroup>
+            </div>
+            <div className="min-w-48 flex-1">
+              <DataTableSearch
+                label={t('products.kit.search-code')}
+                onValueChange={(code) => filter({ code })}
+                placeholder={t('products.search-code')}
+                value={filters.code}
+              />
+            </div>
+          </DataTableToolbar>
+          {results.isError && !results.data ? (
+            <DataTableError
+              description={t(
+                isOfflineError(results.error)
+                  ? 'offline.notice-title'
+                  : 'products.kit.search-error',
+              )}
+              onRetry={() => void results.refetch()}
+              title={t('products.kit.search-error-title')}
+            />
+          ) : results.isPending ? (
+            <DataTableSkeleton rowCount={PAGE_SIZE} table={table} />
+          ) : (
+            <DataTable
+              empty={
+                <DataTableEmpty
+                  description={t('products.kit.search-empty-description')}
+                  icon={<PackageSearchIcon />}
+                  title={t('products.kit.search-empty')}
+                />
+              }
+              footer={
+                (results.data?.totalElements ?? 0) > 0 && <DataTablePagination table={table} />
+              }
+              isStale={results.isPlaceholderData}
+              table={table}
+            />
+          )}
+        </div>
       </FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
-        <form.Subscribe selector={(state) => state.values.picked.length}>
-          {(count) => (
-            <FormDialogSubmit disabled={count === 0}>
-              {t('products.kit.add-picked', { count })}
-            </FormDialogSubmit>
-          )}
-        </form.Subscribe>
+        <FormDialogSubmit disabled={picked.size === 0}>
+          {t('products.kit.add-picked', { count: picked.size })}
+        </FormDialogSubmit>
       </FormDialogFooter>
     </FormDialogForm>
   );

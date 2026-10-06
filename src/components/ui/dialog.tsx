@@ -45,6 +45,7 @@ const dialogContentVariants = cva(
       size: {
         default: "sm:max-w-sm",
         lg: "sm:max-w-lg",
+        xl: "sm:max-w-3xl",
       },
       // `scroll` keeps the dialog inside the viewport; its child decides what scrolls.
       layout: {

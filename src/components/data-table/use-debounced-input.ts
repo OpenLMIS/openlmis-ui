@@ -63,7 +63,10 @@ export function useDebouncedInput(
     onChange: (event: ChangeEvent<HTMLInputElement>) => change(event.target.value),
     onBlur: flush,
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') commit(event.currentTarget.value);
+      if (event.key !== 'Enter') return;
+      // A search inside a form, as in a dialog, searches rather than submitting it.
+      event.preventDefault();
+      commit(event.currentTarget.value);
     },
   };
 

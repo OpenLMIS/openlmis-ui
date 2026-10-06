@@ -187,6 +187,15 @@ describe('fetchOrderables', () => {
     });
   });
 
+  it('reads the page and page size asked for, as a paged table does', async () => {
+    get.mockResolvedValueOnce(page([]));
+
+    await fetchOrderables({ name: 'acid', page: 2, size: 10 });
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { page: 2, size: 10, sort: 'fullProductName,asc', name: 'acid' },
+    });
+  });
+
   it('sends a code and a name as the separate filters the server matches together', async () => {
     get.mockResolvedValueOnce(page([]));
 

@@ -115,7 +115,11 @@ export const reasonsOptions = () =>
   });
 
 export const orderablesSearchOptions = (search: OrderableSearch) => {
-  const trimmed = { name: search.name?.trim() ?? '', code: search.code?.trim() ?? '' };
+  const trimmed = {
+    ...search,
+    name: search.name?.trim() ?? '',
+    code: search.code?.trim() ?? '',
+  };
   return queryOptions({
     queryKey: queryKeys.orderables.list(trimmed),
     queryFn: () => fetchOrderables(trimmed),
