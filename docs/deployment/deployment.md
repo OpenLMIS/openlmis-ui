@@ -76,6 +76,16 @@ before it shows anything:
 
 Nothing about branding needs a rebuild or a redeploy.
 
+## Password reset
+
+Forgot Password works with any auth service: the new UI sends the request, and the auth service
+emails a link. Where that link opens depends on the auth service:
+
+- The released versions always link to the legacy UI's reset page, `/#!/resetPassword/<token>`,
+  so the user finishes there. Nothing needs setting.
+- An auth service with `PASSWORD_RESET_URL` (on its `migration` branch) can link to the new UI's
+  page instead, with `PASSWORD_RESET_URL=https://<host>/v2/reset-password/`.
+
 ## Feature flags
 
 Optional features are turned on or off in two places:
