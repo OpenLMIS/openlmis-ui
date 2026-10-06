@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -7,14 +8,13 @@ import { saveProductChange } from '@/features/products/api/api';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { fetchOrderables } from '@/features/reference-data/api/api';
-import { httpError } from '@/tests/http-error';
+import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
   saveProductChange: vi.fn(),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
-  ORDERABLE_SEARCH_SIZE: 20,
   fetchOrderables: vi.fn(),
 }));
 
@@ -250,5 +250,131 @@ describe('KitUnpackList add products', () => {
     await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
 
     expect(await screen.findByText('products.kit.search-empty')).toBeInTheDocument();
+  });
+
+  it('turns paging off while a narrowed filter loads', async () => {
+    let answer: (page: Awaited<ReturnType<typeof fetchOrderables>>) => void = () => {};
+    vi.mocked(fetchOrderables).mockImplementation(({ name }) =>
+      name
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : Promise.resolve({
+            content: [syringe],
+            totalElements: 11,
+            totalPages: 2,
+            number: 0,
+            size: 10,
+          }),
+    );
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    const dialog = await screen.findByRole('dialog');
+    const next = await within(dialog).findByRole('button', { name: 'Next Page' });
+    expect(next).toBeEnabled();
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'products.kit.search-name' }),
+      'tape',
+    );
+
+    await waitFor(() => expect(next).toBeDisabled());
+    answer({
+      content: [product('t1', 'T1', 'Tape')],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 10,
+    });
+    expect(await within(dialog).findByText('Tape')).toBeInTheDocument();
+    expect(next).toBeDisabled();
+  });
+
+  it('says so when reloading a page fails, rather than showing the old rows', async () => {
+    let firstPageCalls = 0;
+    vi.mocked(fetchOrderables).mockImplementation(async ({ page = 0 }) => {
+      if (page === 0 && ++firstPageCalls > 1) throw httpError(500);
+      return {
+        content: [page ? gloves : syringe],
+        totalElements: 11,
+        totalPages: 2,
+        number: page,
+        size: 10,
+      };
+    });
+    renderPage(<Kit onDone={vi.fn()} />, {
+      queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByRole('button', { name: 'Next Page' }));
+    await within(dialog).findByText('Gloves');
+    await user.click(within(dialog).getByRole('button', { name: 'Previous Page' }));
+
+    expect(await within(dialog).findByText('products.kit.search-error-title')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Syringe')).not.toBeInTheDocument();
+  });
+
+  it('asks for a connection when the search cannot reach the server', async () => {
+    vi.mocked(fetchOrderables).mockRejectedValue(networkError());
+    renderPage(<Kit onDone={vi.fn()} />, {
+      queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+
+    expect(
+      await within(await screen.findByRole('dialog')).findByText('offline.notice-title'),
+    ).toBeInTheDocument();
+  });
+
+  it('adds nothing once the only pick is unticked', async () => {
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    const dialog = await screen.findByRole('dialog');
+    const syringeBox = await within(dialog).findByRole('checkbox', {
+      name: 'Select S1 - Syringe (each)',
+    });
+    await user.click(syringeBox);
+    await user.click(syringeBox);
+
+    expect(within(dialog).getByRole('button', { name: 'products.kit.add-picked' })).toBeDisabled();
+  });
+
+  it('keeps a pick when the filter no longer lists it', async () => {
+    const tape = product('t1', 'T1', 'Tape');
+    vi.mocked(fetchOrderables).mockImplementation(async ({ name }) => ({
+      content: name ? [tape] : [syringe],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 10,
+    }));
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      await within(dialog).findByRole('checkbox', { name: 'Select S1 - Syringe (each)' }),
+    );
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'products.kit.search-name' }),
+      'tape',
+    );
+    await user.click(
+      await within(dialog).findByRole('checkbox', { name: 'Select T1 - Tape (each)' }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'products.kit.add-picked' }));
+
+    expect(
+      await screen.findAllByRole('textbox', { name: 'products.kit.quantity-of' }),
+    ).toHaveLength(3);
   });
 });

@@ -13,7 +13,6 @@ import {
   DataTable,
   DataTableColumnHeader,
   DataTableEmpty,
-  DataTableError,
   type DataTableFeatures,
   DataTableSkeleton,
   DataTableToolbar,
@@ -22,7 +21,10 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  resolveColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import {
   FormDialog,
   FormDialogBody,
@@ -35,18 +37,17 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { LoadError } from '@/components/load-error';
 import type { Product } from '@/features/products/lib/types';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
-import { isOfflineError } from '@/lib/http';
 
 const PAGE_SIZE = 10;
 
-const UNIT_MIN_WIDTH = 480;
+const HIDEABLE_COLUMNS = [{ id: 'unit', hideBelow: 'md' }] as const;
 
 type KitProductsDialogProps = {
   open: boolean;
   kitId: string;
-  /** Products the kit already unpacks into, shown picked and locked. */
   inKit: ReadonlySet<string>;
   onAdd: (products: Product[]) => void;
   onClose: () => void;
@@ -72,7 +73,6 @@ const productLabel = (product: Product) => {
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();
 
-/** A row the user cannot pick, the kit itself or a product already in it, reads as disabled. */
 function Locked({ locked, children }: { locked: boolean; children: ReactNode }) {
   return locked ? <span className="text-muted-foreground">{children}</span> : children;
 }
@@ -89,10 +89,8 @@ function useColumns(kitId: string) {
           ),
           cell: ({ row, getValue }) => (
             <Locked locked={!row.getCanSelect()}>
-              <span className="flex">
-                <span className="min-w-0 truncate" dir="ltr">
-                  {getValue()}
-                </span>
+              <span className="block whitespace-normal break-all" dir="ltr">
+                {getValue()}
               </span>
             </Locked>
           ),
@@ -119,7 +117,11 @@ function useColumns(kitId: string) {
           ),
           cell: ({ row, getValue }) => (
             <Locked locked={!row.getCanSelect()}>
-              <bdi>{getValue()}</bdi>
+              <span className="flex">
+                <span className="min-w-0 truncate" dir="ltr">
+                  {getValue()}
+                </span>
+              </span>
             </Locked>
           ),
           meta: { className: 'w-32' },
@@ -144,8 +146,6 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
   });
   const [picked, setPicked] = useState<ReadonlyMap<string, Product>>(new Map());
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  // The unit gives way first, so a phone still has room for the product's name.
-  const wide = width === undefined || width >= UNIT_MIN_WIDTH;
 
   const results = useQuery({
     ...orderablesSearchOptions({
@@ -189,9 +189,12 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
     manualPagination: true,
     manualSorting: true,
     enableSorting: false,
-    // The kit cannot hold itself, and a product already in it is changed in the list, not here.
     enableRowSelection: (row) => row.id !== kitId && !inKit.has(row.id),
-    state: { pagination, rowSelection, columnVisibility: { unit: wide } },
+    state: {
+      pagination,
+      rowSelection,
+      columnVisibility: resolveColumnVisibility(HIDEABLE_COLUMNS, {}, width),
+    },
     onPaginationChange: setPagination,
     onRowSelectionChange: changeSelection,
   });
@@ -208,9 +211,9 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
         <FormDialogDescription>{t('products.kit.add-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
-        <div className="flex flex-col gap-4" ref={measure}>
+        <div className="@container/kit flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
-            <div className="w-full sm:w-56">
+            <div className="w-full @md/kit:w-56">
               <DataTableSearch
                 label={t('products.kit.search-code')}
                 onValueChange={(code) => filter({ code })}
@@ -218,7 +221,7 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
                 value={filters.code}
               />
             </div>
-            <div className="w-full sm:w-56">
+            <div className="w-full @md/kit:w-56">
               <DataTableSearch
                 label={t('products.kit.search-name')}
                 onValueChange={(name) => filter({ name })}
@@ -227,14 +230,11 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
               />
             </div>
           </DataTableToolbar>
-          {results.isError && !results.data ? (
-            <DataTableError
-              description={t(
-                isOfflineError(results.error)
-                  ? 'offline.notice-title'
-                  : 'products.kit.search-error',
-              )}
-              onRetry={() => void results.refetch()}
+          {results.isError ? (
+            <LoadError
+              description={t('products.kit.search-error')}
+              error={results.error}
+              reset={() => void results.refetch()}
               title={t('products.kit.search-error-title')}
             />
           ) : results.isPending ? (
@@ -249,7 +249,9 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
                 />
               }
               footer={
-                (results.data?.totalElements ?? 0) > 0 && <DataTablePagination table={table} />
+                (results.data?.totalElements ?? 0) > 0 && (
+                  <DataTablePagination disabled={results.isPlaceholderData} table={table} />
+                )
               }
               isStale={results.isPlaceholderData}
               table={table}

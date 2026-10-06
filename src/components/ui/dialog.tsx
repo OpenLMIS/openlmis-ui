@@ -47,7 +47,6 @@ const dialogContentVariants = cva(
         lg: "sm:max-w-lg",
         xl: "sm:max-w-3xl",
       },
-      // `fixed` keeps a dialog the same height whatever it shows, such as a table being filtered.
       height: {
         auto: "",
         fixed: "h-[min(52rem,calc(100dvh-2rem))]",

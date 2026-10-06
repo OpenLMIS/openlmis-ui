@@ -95,7 +95,7 @@ export async function fetchReasons(): Promise<Reason[]> {
   return data;
 }
 
-export const ORDERABLE_SEARCH_SIZE = 20;
+const ORDERABLE_SEARCH_SIZE = 20;
 
 export type OrderableSearch = { name?: string; code?: string; page?: number; size?: number };
 

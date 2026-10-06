@@ -8,7 +8,6 @@ import { fetchOrderables, fetchOrderablesByIds } from '@/features/reference-data
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
-  ORDERABLE_SEARCH_SIZE: 20,
   fetchOrderables: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
 }));

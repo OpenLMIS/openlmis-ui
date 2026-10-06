@@ -510,7 +510,7 @@
   "products.form.whole-number": "Introduzca un número entero, como 1 o 12.",
   "products.kit.actions-for": "Acciones para {product}",
   "products.kit.add": "Añadir productos",
-  "products.kit.add-description": "Filtre por nombre o código y marque los productos en los que se desglosa este kit. Indique sus cantidades en la lista.",
+  "products.kit.add-description": "Filtre por código o nombre y marque los productos en los que se desglosa este kit. Indique sus cantidades en la lista.",
   "products.kit.add-picked": "{count, plural, =0 {Añadir productos} one {Añadir # producto} many {Añadir # productos} other {Añadir # productos}}",
   "products.kit.add-title": "Añadir productos",
   "products.kit.discard-description": "Sus cambios en la lista de contenido del kit no se han guardado. Esta acción no se puede deshacer.",

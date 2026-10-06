@@ -64,7 +64,6 @@ export function useDebouncedInput(
     onBlur: flush,
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key !== 'Enter') return;
-      // A search inside a form, as in a dialog, searches rather than submitting it.
       event.preventDefault();
       commit(event.currentTarget.value);
     },

@@ -510,7 +510,7 @@
   "products.form.whole-number": "Enter a whole number, such as 1 or 12.",
   "products.kit.actions-for": "Actions For {product}",
   "products.kit.add": "Add Products",
-  "products.kit.add-description": "Filter by name or code and tick the products this kit unpacks into. Enter their quantities in the list.",
+  "products.kit.add-description": "Filter by code or name and tick the products this kit unpacks into. Enter their quantities in the list.",
   "products.kit.add-picked": "{count, plural, =0 {Add Products} one {Add # Product} other {Add # Products}}",
   "products.kit.add-title": "Add Products",
   "products.kit.discard-description": "Your changes to the kit unpack list have not been saved. Discarding cannot be undone.",
