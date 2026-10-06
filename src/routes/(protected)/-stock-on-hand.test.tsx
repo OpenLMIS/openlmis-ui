@@ -421,4 +421,32 @@ describe('stock on hand page', () => {
     );
     expect(fetchStockOnHandReport).not.toHaveBeenCalled();
   });
+
+  it('shows the earlier results again after Back from a newer search', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute(appliedPath());
+
+    await screen.findAllByText('Levonorgestrel');
+    await user.click(screen.getByRole('radio', { name: /facility-program.supervised-facility/ }));
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
+    await user.click(screen.getByRole('combobox', { name: /facility-program.facility/ }));
+    await user.click(await screen.findByRole('option', { name: /Balaka District Hospital/ }));
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ programId: EM }));
+    await screen.findAllByText('Levonorgestrel');
+
+    let hidden = false;
+    const watch = new MutationObserver(() => {
+      if (screen.queryByText('stock-on-hand.search-pending-title')) hidden = true;
+    });
+    watch.observe(document.body, { childList: true, subtree: true });
+    await act(() => router.history.back());
+
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ programId: FP }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
+    watch.disconnect();
+    expect(hidden).toBe(false);
+    expect(screen.getAllByText('Levonorgestrel')).not.toHaveLength(0);
+  });
 });

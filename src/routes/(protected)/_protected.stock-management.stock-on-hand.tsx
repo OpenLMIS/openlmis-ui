@@ -198,20 +198,14 @@ function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: Sto
     [search.mode, search.programId, search.facilityId],
   );
   const valid = validSelection(applied, options);
-  // A draft counts only against the selection it was picked over, so Back or a link drops it.
-  const [draft, setDraft] = useState<{
-    over: FacilityProgramSelection;
-    selection: FacilityProgramSelection;
-  } | null>(null);
-  const pending =
-    valid !== null &&
-    draft !== null &&
-    sameSelection(draft.over, applied) &&
-    !sameSelection(draft.selection, valid);
-  const onDraftChange = useCallback(
-    (selection: FacilityProgramSelection) => setDraft({ over: applied, selection }),
-    [applied],
-  );
+  // Back, a link or a finished Search brings a new selection, which the picker starts over from.
+  const [draft, setDraft] = useState<FacilityProgramSelection | null>(null);
+  const [draftOver, setDraftOver] = useState(applied);
+  if (!sameSelection(draftOver, applied)) {
+    setDraftOver(applied);
+    setDraft(null);
+  }
+  const pending = valid !== null && draft !== null && !sameSelection(draft, valid);
 
   const onSearch = useCallback(
     (selection: CompleteSelection) => {
@@ -227,7 +221,7 @@ function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: Sto
     <>
       <FacilityProgramSelector
         applied={applied}
-        onDraftChange={onDraftChange}
+        onDraftChange={setDraft}
         onSearch={onSearch}
         options={options}
       />
