@@ -1290,7 +1290,6 @@
   "valid-assignments.actions": "الإجراءات",
   "valid-assignments.actions-for": "إجراءات {name}",
   "valid-assignments.add": "{kind, select, destinations {إضافة وجهة صالحة} other {إضافة مصدر صالح}}",
-  "valid-assignments.available-to": "متاح لـ",
   "valid-assignments.clear-filters": "مسح عوامل التصفية",
   "valid-assignments.delete": "حذف",
   "valid-assignments.delete-confirm": "حذف",
