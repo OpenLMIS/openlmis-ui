@@ -5,13 +5,19 @@ import { cn } from "cn"
 function RadioGroup({
   className,
   columns,
+  variant = "default",
   ...props
-}: RadioGroupPrimitive.Props & { columns?: "tiles" | "row" }) {
+}: RadioGroupPrimitive.Props & {
+  columns?: "tiles" | "row"
+  variant?: "default" | "segmented"
+}) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
       className={cn(
-        "grid w-full gap-2",
+        variant === "segmented"
+          ? "flex h-8 w-full gap-0.5 rounded-lg border border-input bg-background p-0.5"
+          : "grid w-full gap-2",
         columns === "tiles" && "grid-cols-3 @md/main:grid-cols-4 @2xl/main:grid-cols-6",
         columns === "row" && "@md/main:auto-cols-fr @md/main:grid-flow-col",
         className
@@ -21,7 +27,26 @@ function RadioGroup({
   )
 }
 
-function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
+function RadioGroupItem({
+  className,
+  variant = "default",
+  children,
+  ...props
+}: RadioPrimitive.Root.Props & { variant?: "default" | "segmented" }) {
+  if (variant === "segmented") {
+    return (
+      <RadioPrimitive.Root
+        data-slot="radio-group-item"
+        className={cn(
+          "flex flex-1 cursor-pointer items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:bg-secondary data-checked:text-secondary-foreground data-disabled:cursor-not-allowed data-disabled:opacity-50 data-disabled:hover:text-muted-foreground",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </RadioPrimitive.Root>
+    )
+  }
   return (
     <RadioPrimitive.Root
       data-slot="radio-group-item"

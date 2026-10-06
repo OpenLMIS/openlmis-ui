@@ -705,8 +705,8 @@ type RadioGroupFieldProps = {
   disabled?: boolean;
   /** `row` puts the cards side by side once there is room. */
   columns?: 'row';
-  /** `tile` puts the media above the label, in a grid of small options such as colours. */
-  variant?: 'card' | 'tile';
+  /** `tile` puts the media above the label, in a grid of small options such as colours; `segmented` is a compact row of a few short options. */
+  variant?: 'card' | 'tile' | 'segmented';
 };
 
 /** One choice from a few, each drawn as a card, or as a small tile. */
@@ -718,6 +718,36 @@ export function RadioGroupField({
   variant = 'card',
 }: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
+
+  if (variant === 'segmented') {
+    return (
+      <Field data-disabled={disabled} spacing="tight">
+        <span className="font-medium text-sm leading-snug" id={`${field.name}-legend`}>
+          {label}
+        </span>
+        <RadioGroup
+          aria-labelledby={`${field.name}-legend`}
+          disabled={disabled}
+          name={field.name}
+          onBlur={field.handleBlur}
+          onValueChange={(value) => field.handleChange(String(value))}
+          value={field.state.value}
+          variant="segmented"
+        >
+          {options.map((option) => (
+            <RadioGroupItem
+              disabled={option.disabled}
+              key={option.value}
+              value={option.value}
+              variant="segmented"
+            >
+              {option.label}
+            </RadioGroupItem>
+          ))}
+        </RadioGroup>
+      </Field>
+    );
+  }
 
   return (
     <FieldSet>

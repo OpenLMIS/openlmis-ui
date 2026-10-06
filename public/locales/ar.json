@@ -151,7 +151,6 @@
   "facility-program.program": "البرنامج",
   "facility-program.program-required": "اختر برنامجًا.",
   "facility-program.search": "بحث",
-  "facility-program.supervised-description": "{count, plural, =0 {لا توجد برامج تشرف عليها} zero {لا توجد برامج تشرف عليها} one {برنامج واحد تشرف عليه} two {برنامجان تشرف عليهما} few {# برامج تشرف عليها} many {# برنامجًا تشرف عليه} other {# برنامج تشرف عليه}}",
   "facility-program.supervised-facility": "منشأة خاضعة للإشراف",
   "facility-types.actions": "الإجراءات",
   "facility-types.actions-for": "إجراءات {type}",

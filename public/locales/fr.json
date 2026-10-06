@@ -151,7 +151,6 @@
   "facility-program.program": "Programme",
   "facility-program.program-required": "Choisissez un programme.",
   "facility-program.search": "Rechercher",
-  "facility-program.supervised-description": "{count, plural, =0 {Aucun programme supervisé} one {# programme supervisé} other {# programmes supervisés}}",
   "facility-program.supervised-facility": "Établissement supervisé",
   "facility-types.actions": "Actions",
   "facility-types.actions-for": "Actions pour {type}",

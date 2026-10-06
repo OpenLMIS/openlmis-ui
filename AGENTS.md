@@ -273,7 +273,7 @@ Two ways out when a page needs a different treatment:
    `PopoverContent width/padding`,
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
+   `Table density`/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
    `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
@@ -621,8 +621,9 @@ end of its label's line, such as Forgot Password?, reached after the input with 
 them that show and hide as one, a password and its confirmation, share `visible` and
 `onVisibleChange`. A select's list
 opens below its input, never over it: `alignItemWithTrigger` is `false`.
-`RadioGroupField` takes `variant="tile"` for a grid of small options such as colours, and
-`columns="row"` to put a few cards side by side once the page has room.
+`RadioGroupField` takes `variant="tile"` for a grid of small options such as colours,
+`variant="segmented"` for two or three short options in a compact row, such as the facility
+picker's mode, and `columns="row"` to put a few cards side by side once the page has room.
 Validation messages are translation keys; `TranslatedFormMessages` in the app shell
 resolves them through `FormMessagesProvider`.
 

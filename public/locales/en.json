@@ -151,7 +151,6 @@
   "facility-program.program": "Program",
   "facility-program.program-required": "Pick a program.",
   "facility-program.search": "Search",
-  "facility-program.supervised-description": "{count, plural, =0 {No programs you supervise} one {# program you supervise} other {# programs you supervise}}",
   "facility-program.supervised-facility": "Supervised Facility",
   "facility-types.actions": "Actions",
   "facility-types.actions-for": "Actions For {type}",

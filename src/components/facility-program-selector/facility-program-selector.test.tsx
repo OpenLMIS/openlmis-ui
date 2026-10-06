@@ -52,6 +52,24 @@ describe('FacilityProgramSelector', () => {
     expect(onSearch).toHaveBeenCalledWith({ mode: 'my', programId: 'fp', facilityId: 'home' });
   });
 
+  it('starts fresh after a search, so switching mode marks nothing as missing', async () => {
+    const user = userEvent.setup();
+    renderSelector();
+
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    await user.click(screen.getByRole('option', { name: 'Family Planning' }));
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    await user.click(screen.getByRole('radio', { name: /facility-program.supervised-facility/ }));
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
+
+    expect(screen.getByRole('combobox', { name: /facility-program.facility/ })).not.toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.queryByText('facility-program.facility-required')).not.toBeInTheDocument();
+  });
+
   it('asks for a program before searching, never picking one itself', async () => {
     const user = userEvent.setup();
     const { onSearch } = renderSelector();

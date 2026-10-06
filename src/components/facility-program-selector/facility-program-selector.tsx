@@ -1,7 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
 import { SearchIcon } from 'lucide-react';
-import { memo, useEffect, useRef } from 'react';
+import { Children, memo, type ReactNode, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
@@ -68,7 +68,11 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: selectionSchema },
     listeners: { onChange: ({ formApi }) => onDraftChange(fromValues(formApi.state.values)) },
-    onSubmit: ({ value }) => onSearch(selectionSchema.parse(value)),
+    onSubmit: ({ value, formApi }) => {
+      onSearch(selectionSchema.parse(value));
+      // A new search starts fresh, so the next change marks nothing missing until Search.
+      formApi.reset(value);
+    },
     onSubmitInvalid: () =>
       requestAnimationFrame(() =>
         formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
@@ -186,32 +190,26 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
           >
             {(field) => (
               <field.RadioGroupField
-                columns="row"
                 label={t('facility-program.mode')}
                 options={[
                   {
                     value: 'my',
                     label: t('facility-program.my-facility'),
                     disabled: !options.home,
-                    description: options.home
-                      ? recordLabel(options.home)
-                      : t('facility-program.no-home'),
                   },
                   {
                     value: 'supervised',
                     label: t('facility-program.supervised-facility'),
                     disabled: options.supervisedPrograms.length === 0,
-                    description: t('facility-program.supervised-description', {
-                      count: options.supervisedPrograms.length,
-                    }),
                   },
                 ]}
+                variant="segmented"
               />
             )}
           </form.AppField>
         }
         search={
-          <Button size="lg" type="submit">
+          <Button type="submit">
             <SearchIcon data-icon="inline-start" />
             {t('facility-program.search')}
           </Button>
@@ -236,19 +234,26 @@ function NoOptions({ label, message }: { label: string; message: string }) {
 }
 
 type SelectorFrameProps = {
-  mode: React.ReactNode;
-  children: React.ReactNode;
-  search: React.ReactNode;
+  mode: ReactNode;
+  children: ReactNode;
+  search: ReactNode;
 };
 
 function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
   return (
     <Card>
       <CardContent>
-        <div className="flex flex-col gap-4">
-          {mode}
-          <div className="grid grid-cols-1 items-start gap-4 @3xl/main:grid-cols-2">{children}</div>
-          <div className="flex @3xl/main:justify-end">{search}</div>
+        <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-start">
+          <div className="shrink-0">{mode}</div>
+          {Children.map(children, (field) => (
+            <div className="min-w-0 flex-1">{field}</div>
+          ))}
+          <div className="flex flex-col gap-1">
+            <span aria-hidden className="invisible hidden text-sm leading-snug @3xl/main:block">
+              &nbsp;
+            </span>
+            {search}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -262,7 +267,7 @@ export function FacilityProgramSelectorSkeleton() {
       <span className="font-medium text-sm">
         <FieldLabelText label={label} required />
       </span>
-      <div className="h-9">
+      <div className="h-8">
         <Skeleton fill />
       </div>
     </div>
@@ -273,18 +278,13 @@ export function FacilityProgramSelectorSkeleton() {
         mode={
           <div className="flex flex-col gap-2">
             <span className="font-medium text-sm">{t('facility-program.mode')}</span>
-            <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2">
-              <div className="h-16">
-                <Skeleton fill />
-              </div>
-              <div className="h-16">
-                <Skeleton fill />
-              </div>
+            <div className="h-8 w-64">
+              <Skeleton fill />
             </div>
           </div>
         }
         search={
-          <div className="h-10 w-28">
+          <div className="h-8 w-24">
             <Skeleton fill />
           </div>
         }
