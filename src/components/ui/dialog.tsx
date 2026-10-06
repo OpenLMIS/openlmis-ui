@@ -47,6 +47,11 @@ const dialogContentVariants = cva(
         lg: "sm:max-w-lg",
         xl: "sm:max-w-3xl",
       },
+      // `fixed` keeps a dialog the same height whatever it shows, such as a table being filtered.
+      height: {
+        auto: "",
+        fixed: "h-[min(52rem,calc(100dvh-2rem))]",
+      },
       // `scroll` keeps the dialog inside the viewport; its child decides what scrolls.
       layout: {
         default: "grid",
@@ -55,6 +60,7 @@ const dialogContentVariants = cva(
     },
     defaultVariants: {
       size: "default",
+      height: "auto",
       layout: "default",
     },
   }
@@ -65,6 +71,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   size,
+  height,
   layout,
   ...props
 }: DialogPrimitive.Popup.Props &
@@ -76,7 +83,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
-        className={cn(dialogContentVariants({ size, layout }), className)}
+        className={cn(dialogContentVariants({ size, height, layout }), className)}
         {...props}
       >
         {children}

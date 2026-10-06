@@ -271,7 +271,7 @@ Two ways out when a page needs a different treatment:
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`),
-   `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+   `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
@@ -614,7 +614,7 @@ the first submit and then follow each correction.
 
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
-exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+exceptions are `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
 `SelectTrigger width`, `Button align/width` and `PopoverContent width/padding`. In a row,

@@ -56,7 +56,7 @@ export function KitProductsDialog({ open, kitId, inKit, onAdd, onClose }: KitPro
   const { shown, dialogProps } = useDialogTarget(open ? 'add' : undefined, onClose);
 
   return (
-    <FormDialog {...dialogProps(false)} size="xl">
+    <FormDialog {...dialogProps(false)} height="fixed" size="xl">
       {shown && <KitProductsForm inKit={inKit} kitId={kitId} onAdd={onAdd} onDone={onClose} />}
     </FormDialog>
   );

@@ -20,6 +20,8 @@ type FormDialogProps = {
   closeButton?: boolean;
   /** `xl` for a dialog holding a table, such as a list to pick from. */
   size?: 'lg' | 'xl';
+  /** `fixed` keeps the same height whatever the body shows, such as a table as it is filtered. */
+  height?: 'auto' | 'fixed';
   children: ReactNode;
 };
 
@@ -30,6 +32,7 @@ export function FormDialog({
   onOpenChangeComplete,
   closeButton = true,
   size = 'lg',
+  height = 'auto',
   children,
 }: FormDialogProps) {
   const popupRef = useRef<HTMLDivElement>(null);
@@ -50,6 +53,7 @@ export function FormDialog({
         layout="scroll"
         ref={popupRef}
         showCloseButton={closeButton}
+        height={height}
         size={size}
       >
         {children}
