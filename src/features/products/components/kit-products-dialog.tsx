@@ -7,7 +7,7 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import { PackageSearchIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -72,6 +72,11 @@ const productLabel = (product: Product) => {
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();
 
+/** A row the user cannot pick, the kit itself or a product already in it, reads as disabled. */
+function Locked({ locked, children }: { locked: boolean; children: ReactNode }) {
+  return locked ? <span className="text-muted-foreground">{children}</span> : children;
+}
+
 function useColumns(kitId: string) {
   const { t } = useTranslation();
   return useMemo(
@@ -82,12 +87,14 @@ function useColumns(kitId: string) {
           header: ({ column }) => (
             <DataTableColumnHeader column={column} title={t('products.code')} />
           ),
-          cell: ({ getValue }) => (
-            <span className="flex">
-              <span className="min-w-0 truncate" dir="ltr">
-                {getValue()}
+          cell: ({ row, getValue }) => (
+            <Locked locked={!row.getCanSelect()}>
+              <span className="flex">
+                <span className="min-w-0 truncate" dir="ltr">
+                  {getValue()}
+                </span>
               </span>
-            </span>
+            </Locked>
           ),
           meta: { className: 'w-24 @lg/table:w-36' },
         }),
@@ -97,12 +104,12 @@ function useColumns(kitId: string) {
             <DataTableColumnHeader column={column} title={t('products.kit.product')} />
           ),
           cell: ({ row, getValue }) => (
-            <span className="block whitespace-normal break-words">
-              <bdi>{getValue()}</bdi>
-              {row.id === kitId && (
-                <span className="text-muted-foreground"> {t('products.kit.this-kit')}</span>
-              )}
-            </span>
+            <Locked locked={!row.getCanSelect()}>
+              <span className="block whitespace-normal break-words">
+                <bdi>{getValue()}</bdi>
+                {row.id === kitId && ` ${t('products.kit.this-kit')}`}
+              </span>
+            </Locked>
           ),
         }),
         columnHelper.accessor((product) => product.dispensable?.displayUnit ?? '', {
@@ -110,7 +117,11 @@ function useColumns(kitId: string) {
           header: ({ column }) => (
             <DataTableColumnHeader column={column} title={t('products.kit.unit')} />
           ),
-          cell: ({ getValue }) => <bdi>{getValue()}</bdi>,
+          cell: ({ row, getValue }) => (
+            <Locked locked={!row.getCanSelect()}>
+              <bdi>{getValue()}</bdi>
+            </Locked>
+          ),
           meta: { className: 'w-32' },
         }),
       ]),

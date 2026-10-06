@@ -535,7 +535,7 @@
   "products.kit.search-error": "Não foi possível pesquisar produtos. Tente novamente.",
   "products.kit.search-error-title": "Não Foi Possível Pesquisar Produtos",
   "products.kit.search-name": "Nome do Produto",
-  "products.kit.this-kit": "(o kit que está a editar, que não se pode desagregar em si próprio)",
+  "products.kit.this-kit": "(o kit que está a editar)",
   "products.kit.too-large": "Introduza um número não superior a 2147483647.",
   "products.kit.unit": "Unidade",
   "products.kit.whole-number": "Introduza um número inteiro, como 0 ou 12.",
