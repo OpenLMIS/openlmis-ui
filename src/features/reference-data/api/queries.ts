@@ -16,6 +16,7 @@ import {
   fetchReasons,
   fetchRoles,
   fetchSupervisoryNodes,
+  type OrderableSearch,
 } from '@/features/reference-data/api/api';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -113,10 +114,13 @@ export const reasonsOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const orderablesSearchOptions = (q: string) =>
+export const orderablesSearchOptions = (search: OrderableSearch) =>
   queryOptions({
-    queryKey: queryKeys.orderables.list({ q: q.trim() }),
-    queryFn: () => fetchOrderables(q),
+    queryKey: queryKeys.orderables.list({
+      name: search.name?.trim() ?? '',
+      code: search.code?.trim() ?? '',
+    }),
+    queryFn: () => fetchOrderables(search),
   });
 
 export const orderablesByIdsOptions = (ids: readonly string[]) =>

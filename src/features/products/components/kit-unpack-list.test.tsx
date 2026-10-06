@@ -173,4 +173,14 @@ describe('KitUnpackList search', () => {
 
     expect(await screen.findByText('products.kit.search-more')).toBeInTheDocument();
   });
+
+  it('searches by product code in its own box, as legacy does', async () => {
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    await user.type(await screen.findByRole('textbox', { name: 'products.kit.code' }), 'C1');
+
+    await waitFor(() => expect(fetchOrderables).toHaveBeenLastCalledWith({ name: '', code: 'C1' }));
+  });
 });

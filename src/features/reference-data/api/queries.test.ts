@@ -11,7 +11,7 @@ describe('product lookups', () => {
   it('are refreshed when a product save refreshes the product lists', async () => {
     const queryClient = new QueryClient();
     const lookups = [
-      orderablesSearchOptions('acid'),
+      orderablesSearchOptions({ name: 'acid' }),
       orderablesByIdsOptions(['o1']),
       orderablesByTradeItemsOptions(['t1']),
     ];

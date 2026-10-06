@@ -95,7 +95,7 @@ function ProductFilter({ value, onValueChange }: ProductFilterProps) {
   const [opened, setOpened] = useState(false);
 
   const results = useQuery({
-    ...orderablesSearchOptions(query),
+    ...orderablesSearchOptions({ name: query }),
     placeholderData: keepPreviousData,
     enabled: opened,
   });

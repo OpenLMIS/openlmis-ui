@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -14,7 +14,8 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { FieldGroup } from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import type { Product } from '@/features/products/lib/types';
 import { ORDERABLE_SEARCH_SIZE } from '@/features/reference-data/api/api';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
@@ -54,16 +55,19 @@ type KitProductsFormProps = Omit<KitProductsDialogProps, 'open' | 'onClose'> & {
 
 function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
   const { t } = useTranslation();
+  const codeId = useId();
   const [typed, setTyped] = useState('');
+  const [typedCode, setTypedCode] = useState('');
   const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
+  const code = useDebouncedValue(typedCode.trim(), SEARCH_DELAY);
   const [seen, setSeen] = useState<ReadonlyMap<string, Product>>(new Map());
 
   const results = useQuery({
-    ...orderablesSearchOptions(query),
+    ...orderablesSearchOptions({ name: query, code }),
     placeholderData: keepPreviousData,
   });
   const found = results.data?.content;
-  const searching = typed.trim() !== query || results.isFetching;
+  const searching = typed.trim() !== query || typedCode.trim() !== code || results.isFetching;
 
   useEffect(() => {
     if (!found) return;
@@ -94,6 +98,17 @@ function KitProductsForm({ excluded, onAdd, onDone }: KitProductsFormProps) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={codeId}>{t('products.kit.code')}</FieldLabel>
+            <Input
+              autoComplete="off"
+              dir="ltr"
+              id={codeId}
+              onChange={(event) => setTypedCode(event.target.value)}
+              placeholder={t('products.kit.code-placeholder')}
+              value={typedCode}
+            />
+          </Field>
           <form.AppField name="picked">
             {(field) => (
               <field.MultiComboboxField
