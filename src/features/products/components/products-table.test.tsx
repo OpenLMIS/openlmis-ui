@@ -8,7 +8,7 @@ import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/products/api/api', () => ({ fetchProducts: vi.fn() }));
 
-const search: ProductsSearch = { q: 'lev', page: 2 };
+const search: ProductsSearch = { name: 'lev', page: 2 };
 
 beforeEach(() => {
   vi.resetAllMocks();

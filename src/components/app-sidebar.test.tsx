@@ -9,6 +9,17 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import * as mobile from '@/hooks/use-mobile';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('@/lib/feature-flags', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/feature-flags')>();
+  return {
+    ...actual,
+    useFlag: (key: string) => {
+      const value = actual.useFlag(key as never);
+      return key === 'SYSTEM_SETTINGS' || value;
+    },
+  };
+});
+
 function renderSidebar(rights: string[], { path = '/', defaultOpen = true } = {}) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();

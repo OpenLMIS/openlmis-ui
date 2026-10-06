@@ -6,6 +6,7 @@ import {
   setAppConfiguration,
 } from '@/lib/app-configuration';
 import {
+  ADMIN_FLAG_KEYS,
   FEATURE_FLAGS,
   type FeatureFlagDefinition,
   getFlag,
@@ -62,11 +63,28 @@ describe('resolveFlag', () => {
     });
   });
 
+  it('reads a deployment-only flag from the deployment alone, so Settings cannot lock itself out', () => {
+    expect(resolveFlag('SYSTEM_SETTINGS', { SYSTEM_SETTINGS: true }, {})).toEqual({
+      value: false,
+      source: 'default',
+    });
+    expect(
+      resolveFlag('SYSTEM_SETTINGS', { SYSTEM_SETTINGS: false }, { SYSTEM_SETTINGS: 'true' }),
+    ).toEqual({ value: true, source: 'deployment' });
+  });
+
   it('treats an unset deployment variable as absent', () => {
     expect(resolveFlag('GS1_SCANNING', {}, { GS1_SCANNING: '' })).toEqual({
       value: false,
       source: 'default',
     });
+  });
+});
+
+describe('ADMIN_FLAG_KEYS', () => {
+  it('leaves deployment-only flags off the list an administrator can change', () => {
+    expect(ADMIN_FLAG_KEYS).not.toContain('SYSTEM_SETTINGS');
+    expect(ADMIN_FLAG_KEYS).toContain('GS1_SCANNING');
   });
 });
 

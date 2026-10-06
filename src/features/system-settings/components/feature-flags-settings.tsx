@@ -31,7 +31,7 @@ import {
 } from '@/features/system-settings/lib/flags';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
-import { FEATURE_FLAG_KEYS, FEATURE_FLAGS, type FeatureFlagDefinition } from '@/lib/feature-flags';
+import { ADMIN_FLAG_KEYS, FEATURE_FLAGS, type FeatureFlagDefinition } from '@/lib/feature-flags';
 import { getDeploymentFlags } from '@/lib/runtime-config';
 
 const FORM_ID = 'feature-flags-form';
@@ -101,7 +101,7 @@ export function FeatureFlagsSettings({ saved, search, onSearchChange }: FeatureF
   const guard = useDiscardGuard(settings.changed);
 
   const needle = search.trim().toLowerCase();
-  const visibleFlags = FEATURE_FLAG_KEYS.filter((flag) => {
+  const visibleFlags = ADMIN_FLAG_KEYS.filter((flag) => {
     const { labelKey, descriptionKey, usedByKey } = FEATURE_FLAGS[flag];
     return (
       !needle ||

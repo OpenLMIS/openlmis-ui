@@ -33,7 +33,8 @@ export type ProductsQuery = {
   page: number;
   size: number;
   sort: string;
-  q?: string | undefined;
+  code?: string | undefined;
+  name?: string | undefined;
   program?: string | undefined;
 };
 

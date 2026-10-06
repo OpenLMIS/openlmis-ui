@@ -21,12 +21,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { programsListOptions } from '@/features/programs/api/queries';
-import {
-  DEFAULT_PROGRAMS_SORT,
-  type ProgramsSearch,
-  toProgramsQuery,
-} from '@/features/programs/lib/search';
+import { pageOfPrograms } from '@/features/programs/lib/programs-list';
+import { DEFAULT_PROGRAMS_SORT, type ProgramsSearch } from '@/features/programs/lib/search';
+import { programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
@@ -184,7 +181,8 @@ export function ProgramsTable({
 }: ProgramsTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
-  const { data } = useSuspenseQuery(programsListOptions(toProgramsQuery(deferredSearch)));
+  const { data: programs } = useSuspenseQuery(programsOptions());
+  const data = useMemo(() => pageOfPrograms(programs, deferredSearch), [programs, deferredSearch]);
   const table = useProgramsTable({
     data: data.content,
     rowCount: data.totalElements,
