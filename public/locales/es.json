@@ -1290,7 +1290,6 @@
   "valid-assignments.actions": "Acciones",
   "valid-assignments.actions-for": "Acciones para {name}",
   "valid-assignments.add": "{kind, select, destinations {Añadir destino válido} other {Añadir origen válido}}",
-  "valid-assignments.available-to": "Disponible para",
   "valid-assignments.clear-filters": "Borrar filtros",
   "valid-assignments.delete": "Eliminar",
   "valid-assignments.delete-confirm": "Eliminar",
