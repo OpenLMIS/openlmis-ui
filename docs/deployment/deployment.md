@@ -71,6 +71,8 @@ before it shows anything:
 - A server with nothing configured gets the built-in OpenLMIS look.
 - A server that is down, answers slowly (more than 3 seconds) or has no route to the endpoint
   gets the settings this browser saw last, or the built-in look the first time.
+- A reference data service without this endpoint, as the released versions are, always gets the
+  built-in look, and the Settings page is not offered.
 
 Nothing about branding needs a rebuild or a redeploy.
 

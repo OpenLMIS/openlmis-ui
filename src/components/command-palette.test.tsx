@@ -5,10 +5,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { CommandPalette } from '@/components/command-palette';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { useAppConfigurationStore } from '@/lib/app-configuration';
 import { renderPage } from '@/tests/render-page';
 
 function renderPalette(rights: string[]) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
+  useAppConfigurationStore.setState({ fromServer: true });
   const queryClient = new QueryClient();
   queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
   renderPage(<CommandPalette />, { queryClient });

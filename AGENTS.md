@@ -440,8 +440,14 @@ size returns to page 1.
 
 **When the endpoint cannot page or sort**, as `GET /roles`, the list loads every record once
 and filters, sorts and pages it in the browser behind the same URL state, clamping a page past
-the end; with no request per page, nothing suspends after the first load. Roles is the example.
-It moves to server paging once the API can page, as Programs did with `POST /programs/search`.
+the end; with no request per page, nothing suspends after the first load. Roles and Programs
+(`GET /programs`) are the examples.
+
+**Every screen works against the backend services as they are on master**, since the new UI is
+deployed on its own beside the legacy backend. Never rely on an endpoint or parameter that only a
+backend branch has: where legacy's API is limited, as `GET /orderables` takes `code` and `name`
+as separate filters with no search across both, the screen keeps legacy's shape, here Search By
+Code and Search By Name.
 
 **Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
 (`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The
@@ -672,6 +678,8 @@ uses `success`, `warning` and `destructive` with an icon and a label, never colo
 **Branding, theme and feature flags come from the server**, `GET /api/appConfiguration`,
 loaded in `src/lib/app-configuration.ts` before the first render and cached in localStorage for
 the next boot. A slow or missing server falls back to the cache, then to the built-in defaults.
+A backend without the endpoint never answers it, so `useServerSettings()` stays false and the
+Settings link is hidden; the page itself, opened by its address, says the server cannot store them.
 `startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
 favicon, preset tokens and light or dark class in step with the store.
 

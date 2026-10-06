@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createProgram,
-  fetchProgram,
-  fetchProgramsPage,
-  updateProgram,
-} from '@/features/programs/api/api';
+import { createProgram, fetchProgram, updateProgram } from '@/features/programs/api/api';
 import { client } from '@/integrations/axios';
 
 vi.mock('@/integrations/axios', () => ({
@@ -29,17 +24,6 @@ const arv = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-});
-
-describe('fetchProgramsPage', () => {
-  it('asks the server for one sorted page, with no filters', async () => {
-    const page = { content: [arv], totalElements: 1, totalPages: 1 };
-    post.mockResolvedValueOnce({ data: page });
-
-    const query = { page: 1, size: 20, sort: 'name,asc' };
-    await expect(fetchProgramsPage(query)).resolves.toEqual(page);
-    expect(post).toHaveBeenCalledWith('/programs/search', {}, { params: query });
-  });
 });
 
 describe('fetchProgram', () => {

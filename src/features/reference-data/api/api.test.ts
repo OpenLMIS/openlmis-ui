@@ -165,16 +165,16 @@ const page = <T>(content: T[], totalPages = 1) => ({
 });
 
 describe('fetchOrderables', () => {
-  it('searches by code or name, one page sorted by name', async () => {
+  it('searches by name, one page sorted by name, as the server has no code-or-name search', async () => {
     get.mockResolvedValueOnce(page([orderable('o1')]));
 
-    await expect(fetchOrderables('acid')).resolves.toEqual({
+    await expect(fetchOrderables(' acid ')).resolves.toEqual({
       content: [orderable('o1')],
       totalElements: 1,
       totalPages: 1,
     });
     expect(get).toHaveBeenCalledWith('/orderables', {
-      params: { page: 0, size: 20, sort: 'fullProductName,asc', q: 'acid' },
+      params: { page: 0, size: 20, sort: 'fullProductName,asc', name: 'acid' },
     });
   });
 

@@ -5,12 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/nav-user';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { useAppConfigurationStore } from '@/lib/app-configuration';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/profile/api/api', () => ({ fetchProfile: () => new Promise(() => {}) }));
 
-function renderMenu(rights: string[]) {
+function renderMenu(rights: string[], fromServer = true) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
+  useAppConfigurationStore.setState({ fromServer });
   const queryClient = new QueryClient();
   queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
   renderPage(<NavUser trigger={<button type="button">Menu</button>} />, { queryClient });
@@ -30,6 +32,15 @@ describe('NavUser', () => {
       'href',
       '/settings',
     );
+  });
+
+  it('leaves Settings out when the server keeps no settings, as a backend without them', async () => {
+    renderMenu(['SYSTEM_SETTINGS_MANAGE'], false);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
+
+    expect(await screen.findByRole('menuitem', { name: 'nav-user.account' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'nav-user.settings' })).not.toBeInTheDocument();
   });
 
   it('leaves Settings out for everyone else', async () => {

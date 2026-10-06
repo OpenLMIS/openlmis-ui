@@ -97,14 +97,14 @@ export async function fetchReasons(): Promise<Reason[]> {
 
 export const ORDERABLE_SEARCH_SIZE = 20;
 
-/** The first products whose code or name holds `q`, by name, for a picker that searches as you type. */
+/** The first products whose name holds `q`, by name, for a picker that searches as you type. */
 export async function fetchOrderables(q: string) {
   const { data } = await client.get<Page<Orderable>>('/orderables', {
     params: {
       page: 0,
       size: ORDERABLE_SEARCH_SIZE,
       sort: 'fullProductName,asc',
-      ...(q.trim() && { q: q.trim() }),
+      ...(q.trim() && { name: q.trim() }),
     },
   });
   return data;

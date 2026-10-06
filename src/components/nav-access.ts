@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { useServerSettings } from '@/lib/app-configuration';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
@@ -72,7 +73,10 @@ export function useCanOpen() {
 export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; icon: LucideIcon };
 
 export function useAccountLinks(): AccountLink[] {
-  const canManageSettings = useHasRight(RIGHTS.systemSettingsManage);
+  const mayManageSettings = useHasRight(RIGHTS.systemSettingsManage);
+  // A backend without stored settings has nothing for the page to edit.
+  const serverSettings = useServerSettings();
+  const canManageSettings = mayManageSettings && serverSettings;
   return [
     { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
     ...(canManageSettings

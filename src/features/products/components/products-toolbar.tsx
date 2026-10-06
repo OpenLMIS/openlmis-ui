@@ -34,11 +34,18 @@ export function ProductsToolbar({
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72">
+      <div className="w-full @2xl/main:w-56">
         <DataTableSearch
-          onValueChange={(q) => onFilterChange({ q: q || undefined, page: undefined })}
-          placeholder={t('products.search')}
-          value={search.q ?? ''}
+          onValueChange={(code) => onFilterChange({ code: code || undefined, page: undefined })}
+          placeholder={t('products.search-code')}
+          value={search.code ?? ''}
+        />
+      </div>
+      <div className="w-full @2xl/main:w-56">
+        <DataTableSearch
+          onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
+          placeholder={t('products.search-name')}
+          value={search.name ?? ''}
         />
       </div>
       <div className="flex-1 @2xl/main:w-72 @2xl/main:flex-none">

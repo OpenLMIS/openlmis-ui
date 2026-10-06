@@ -17,7 +17,6 @@ import {
 } from '@/components/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { programsListOptions } from '@/features/programs/api/queries';
 import {
   ProgramsTable,
   ProgramsTableSkeleton,
@@ -27,7 +26,6 @@ import {
   PROGRAM_HIDEABLE_COLUMNS,
   type ProgramsSearch,
   programsSearchSchema,
-  toProgramsQuery,
 } from '@/features/programs/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -44,10 +42,10 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 export const Route = createFileRoute('/(protected)/_protected/administration/programs')({
   validateSearch: programsSearchSchema,
-  loaderDeps: ({ search }) => ({ query: toProgramsQuery(search), program: search.program }),
+  loaderDeps: ({ search }) => ({ program: search.program }),
   loader: async ({ context: { queryClient }, deps }) => {
     await requireRight(queryClient, RIGHTS.programsManage);
-    queryClient.prefetchQuery(programsListOptions(deps.query));
+    queryClient.prefetchQuery(programsOptions());
     if (deps.program === 'new') queryClient.prefetchQuery(programsOptions());
   },
   pendingComponent: ProgramsPagePending,
