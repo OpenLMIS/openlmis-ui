@@ -7,7 +7,6 @@ type QuantityUnitToggleProps = {
   onUnitChange: (unit: QuantityUnit) => void;
 };
 
-/** Packs or doses, as two pressed-or-not buttons, as legacy's toggle. */
 export function QuantityUnitToggle({ unit, onUnitChange }: QuantityUnitToggleProps) {
   const { t } = useTranslation();
   const units = [

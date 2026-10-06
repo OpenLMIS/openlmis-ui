@@ -30,7 +30,7 @@ const summary = (
   cards: StockCardSummaryEntry[],
   stockOnHand = 10,
 ): StockCardSummary => ({
-  orderable: { id, versionNumber: 1 },
+  orderable: { id },
   stockOnHand,
   canFulfillForMe: cards,
 });

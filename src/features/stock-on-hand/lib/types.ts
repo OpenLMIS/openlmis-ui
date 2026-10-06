@@ -7,12 +7,11 @@ export type StockCardSummaryEntry = {
   lot: { id: string } | null;
   stockOnHand: number | null;
   occurredDate: string | null;
-  processedDate?: string | null;
   active: boolean;
 };
 
 export type StockCardSummary = {
-  orderable: { id: string; versionNumber?: number };
+  orderable: { id: string };
   stockOnHand: number | null;
   canFulfillForMe: StockCardSummaryEntry[];
 };
@@ -36,7 +35,6 @@ export type StockCardRow = {
   lot: LotSummary | undefined | null;
   stockOnHand: number | null;
   occurredDate: string | null;
-  active: boolean;
 };
 
 export type StockProductGroup = {

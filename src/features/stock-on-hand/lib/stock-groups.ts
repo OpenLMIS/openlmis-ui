@@ -5,7 +5,6 @@ import type {
   StockProductGroup,
 } from '@/features/stock-on-hand/lib/types';
 
-/** The products and lots one page names, each once, for looking up their names. */
 export function summaryIds(summaries: readonly StockCardSummary[]) {
   const orderableIds = new Set<string>();
   const lotIds = new Set<string>();
@@ -42,7 +41,6 @@ export function toStockGroups(
           lot: entry.lot ? lotById.get(entry.lot.id) : null,
           stockOnHand: entry.stockOnHand,
           occurredDate: entry.occurredDate,
-          active: entry.active,
         }),
       )
       .sort((a, b) => lotCodeOf(a).localeCompare(lotCodeOf(b)));

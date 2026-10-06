@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export type SelectionMode = 'my' | 'supervised';
 
-/** What the picker holds; the URL keeps the one last searched for. */
 export type FacilityProgramSelection = {
   mode?: SelectionMode | undefined;
   programId?: string | undefined;
@@ -15,7 +14,6 @@ export type CompleteSelection = Required<{
 
 export type NamedRecord = { id: string; code: string; name: string | null };
 
-/** What the options are built from: the user's home and programs, every facility, and the right's grants. */
 export type FacilityProgramSources = {
   homeFacilityId: string | null | undefined;
   programs: readonly NamedRecord[];
@@ -47,6 +45,7 @@ export function facilityProgramOptions({
     const granted = facilitiesByProgram.get(programId) ?? new Set();
     facilitiesByProgram.set(programId, granted.add(facilityId));
   }
+  const facilitiesForProgram = new Map<string, NamedRecord[]>();
   const grantedAt = (programId: string, matches: (facilityId: string) => boolean) =>
     [...(facilitiesByProgram.get(programId) ?? [])].some(matches);
 
@@ -59,13 +58,18 @@ export function facilityProgramOptions({
       .filter((program) => grantedAt(program.id, (id) => id !== homeFacilityId))
       .sort(byLabel),
     facilitiesFor: (programId) => {
+      const cached = facilitiesForProgram.get(programId);
+      if (cached) return cached;
       const granted = facilitiesByProgram.get(programId);
-      return granted ? facilities.filter((facility) => granted.has(facility.id)).sort(byLabel) : [];
+      const offered = granted
+        ? facilities.filter((facility) => granted.has(facility.id)).sort(byLabel)
+        : [];
+      facilitiesForProgram.set(programId, offered);
+      return offered;
     },
   };
 }
 
-/** The picker's starting point: the link's selection, or my facility when the user has a home. */
 export function initialSelection(
   applied: FacilityProgramSelection,
   options: FacilityProgramOptions,
@@ -97,6 +101,9 @@ export function changeProgram(
     facilityId: keepsFacility ? current.facilityId : undefined,
   };
 }
+
+export const sameSelection = (a: FacilityProgramSelection, b: FacilityProgramSelection) =>
+  a.mode === b.mode && a.programId === b.programId && a.facilityId === b.facilityId;
 
 export function isCompleteSelection(
   selection: FacilityProgramSelection,

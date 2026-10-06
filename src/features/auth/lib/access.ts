@@ -31,7 +31,6 @@ export async function requirePermissions(
   return permissions;
 }
 
-/** `requirePermissions` resolving with the right names alone. */
 export async function requireRight(queryClient: QueryClient, right: string | readonly string[]) {
   return (await requirePermissions(queryClient, right)).rights;
 }

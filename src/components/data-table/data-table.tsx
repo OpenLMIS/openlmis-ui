@@ -139,7 +139,7 @@ export function DataTableCard({ children }: { children: ReactNode }) {
   );
 }
 
-function DataTableFooter({ children }: { children: ReactNode }) {
+export function DataTableFooter({ children }: { children: ReactNode }) {
   return <div className="border-t bg-muted/30 px-4 py-3">{children}</div>;
 }
 

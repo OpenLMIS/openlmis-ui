@@ -645,25 +645,22 @@ the loader checks it before it prefetches.
 
 ## Rights and dashboards
 
-**A screen shows only what the user's rights allow.** `rightsOptions(userId)` in
-`src/features/auth/api/queries.ts` loads the user's permission strings once per session
-as a set of right names, and `RIGHTS` names the ones this app checks. A route that
-depends on them awaits `ensureQueryData(rightsOptions(...))` in its loader, since that is
-a permission check, then prefetches only the parts the user may see and passes plain
-flags down. Features stay free of auth imports; the Home route is the example. A save that
+**A screen shows only what the user's rights allow.** `permissionsOptions(userId)` in
+`src/features/auth/api/queries.ts` loads the user's permission strings once per session,
+parsed into right names and `RIGHT|facility|program` grants (`src/lib/permissions.ts`), and
+`RIGHTS` names the ones this app checks. A route that depends on them awaits
+`ensureQueryData(permissionsOptions(...))` in its loader and reads `.rights`, since that is a
+permission check, then prefetches only the parts the user may see and passes plain flags down.
+`rightsOptions` is the same query with `select` for the names, for components only:
+`fetchQuery` and `ensureQueryData` ignore `select`. Features stay free of auth imports; the
+Home route is the example. A page about one facility and program checks the exact grant with
+`hasProgramGrant`; holding the right elsewhere, or unscoped, never counts. A save that
 may change a user, such as Edit User or Edit User Roles, calls `invalidateUserQueries(queryClient,
 userId)` from `src/lib/user-queries.ts`. The cache holds per-user data only for the signed-in
 user, so it reloads your rights, Profile and Home only when the user is you.
 
-**Rights are read once, as `permissionsOptions(userId)`**: the permission strings parsed into right
-names and `RIGHT|facility|program` grants (`src/lib/permissions.ts`). `rightsOptions` is the same
-query with `select` for the names, for components; `fetchQuery` and `ensureQueryData` ignore
-`select`, so a loader reads `permissionsOptions(...).rights`, or `requirePermissions`, which
-`requireRight` wraps. A page about one facility and program checks the exact grant with
-`hasProgramGrant`; holding the right elsewhere, or unscoped, never counts.
-
 **A page that needs one right checks it before it loads.** Its loader awaits
-`requireRight(queryClient, RIGHTS.x)` from `src/features/auth/lib/access.ts`, alongside the
+`requireRight(queryClient, RIGHTS.x)`, or `requirePermissions` for the grants too, from `src/features/auth/lib/access.ts`, alongside the
 data it must have, and a missing right throws a `ForbiddenError`. The default error component
 shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
 `errorComponent` renders `ErrorFallback` with its own `title` and `description`, which checks

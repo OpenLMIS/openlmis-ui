@@ -25,7 +25,6 @@ export function useFacilityProgramOptions(userId: string, grants: readonly Progr
   );
 }
 
-/** For a loader: the same options, waiting for their reads. */
 export async function loadFacilityProgramOptions(
   queryClient: QueryClient,
   userId: string,

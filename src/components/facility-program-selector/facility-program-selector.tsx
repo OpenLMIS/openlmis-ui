@@ -1,12 +1,13 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
 import { SearchIcon } from 'lucide-react';
-import { useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   type CompleteSelection,
@@ -17,6 +18,7 @@ import {
   initialSelection,
   recordLabel,
   type SelectionMode,
+  sameSelection,
 } from '@/lib/facility-program-selection';
 
 const errorKey = (key: ParseKeys) => key;
@@ -43,26 +45,23 @@ const fromValues = (values: SelectionValues): FacilityProgramSelection => ({
   facilityId: values.facilityId || undefined,
 });
 
-const sameValues = (a: SelectionValues, b: SelectionValues) =>
-  a.mode === b.mode && a.programId === b.programId && a.facilityId === b.facilityId;
-
 type FacilityProgramSelectorProps = {
   options: FacilityProgramOptions;
   /** The selection last searched for, from the URL; the picker starts from it and returns to it when it changes. */
   applied: FacilityProgramSelection;
   onSearch: (selection: CompleteSelection) => void;
-  /** Each change before Search, so the page can stop showing results for another selection. */
   onDraftChange: (draft: FacilityProgramSelection) => void;
 };
 
 /** Legacy's facility and program picker: my facility or one supervised, then a program the right is granted for there. */
-export function FacilityProgramSelector({
+export const FacilityProgramSelector = memo(function FacilityProgramSelector({
   options,
   applied,
   onSearch,
   onDraftChange,
 }: FacilityProgramSelectorProps) {
   const { t } = useTranslation();
+  const formRef = useRef<HTMLFormElement>(null);
   const start = toValues(initialSelection(applied, options));
   const form = useAppForm({
     defaultValues: start,
@@ -70,16 +69,20 @@ export function FacilityProgramSelector({
     validators: { onDynamic: selectionSchema },
     listeners: { onChange: ({ formApi }) => onDraftChange(fromValues(formApi.state.values)) },
     onSubmit: ({ value }) => onSearch(selectionSchema.parse(value)),
+    onSubmitInvalid: () =>
+      requestAnimationFrame(() =>
+        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+      ),
   });
   const mode = useStore(form.store, (state) => state.values.mode);
   const programId = useStore(form.store, (state) => state.values.programId);
 
   // Back, Forward or a link brings another selection; the picker follows it.
-  const startKey = JSON.stringify(start);
+  const { mode: startMode, programId: startProgram, facilityId: startFacility } = start;
   useEffect(() => {
-    const next = JSON.parse(startKey) as SelectionValues;
-    if (!sameValues(form.state.values, next)) form.reset(next);
-  }, [form, startKey]);
+    const next = { mode: startMode, programId: startProgram, facilityId: startFacility };
+    if (!sameSelection(form.state.values, next)) form.reset(next);
+  }, [form, startMode, startProgram, startFacility]);
 
   const apply = (selection: FacilityProgramSelection) => {
     const values = toValues(selection);
@@ -158,6 +161,7 @@ export function FacilityProgramSelector({
             emptyMessage={t('facility-program.no-facilities')}
             items={facilityItems}
             label={t('facility-program.facility')}
+            limit={-1}
             placeholder={t('facility-program.facility-placeholder')}
             required
           />
@@ -168,6 +172,7 @@ export function FacilityProgramSelector({
   return (
     <form
       noValidate
+      ref={formRef}
       onSubmit={(event) => {
         event.preventDefault();
         void form.handleSubmit();
@@ -217,7 +222,7 @@ export function FacilityProgramSelector({
       </SelectorFrame>
     </form>
   );
-}
+});
 
 function NoOptions({ label, message }: { label: string; message: string }) {
   return (
@@ -238,15 +243,18 @@ type SelectorFrameProps = {
 
 function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
   return (
-    <div className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-xs">
-      {mode}
-      <div className="grid grid-cols-1 items-start gap-4 @3xl/main:grid-cols-2">{children}</div>
-      <div className="flex @3xl/main:justify-end">{search}</div>
-    </div>
+    <Card>
+      <CardContent>
+        <div className="flex flex-col gap-4">
+          {mode}
+          <div className="grid grid-cols-1 items-start gap-4 @3xl/main:grid-cols-2">{children}</div>
+          <div className="flex @3xl/main:justify-end">{search}</div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-/** The picker's shape while its options load. */
 export function FacilityProgramSelectorSkeleton() {
   const { t } = useTranslation();
   const field = (label: string) => (

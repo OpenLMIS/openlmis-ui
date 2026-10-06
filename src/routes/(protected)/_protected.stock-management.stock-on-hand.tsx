@@ -46,6 +46,7 @@ import {
   stockOnHandSearchSchema,
   toSummariesQuery,
 } from '@/features/stock-on-hand/lib/search';
+import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { downloadFile } from '@/lib/download-file';
@@ -55,17 +56,20 @@ import {
   type FacilityProgramSelection,
   isCompleteSelection,
   type NamedRecord,
+  recordLabel,
+  sameSelection,
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-import { hasProgramGrant, programGrants } from '@/lib/permissions';
+import type { ProgramGrant } from '@/lib/permissions';
+import { hasProgramGrant, type Permissions, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
+import type { SearchChange } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.stockCardsView;
 
 const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
 
-/** Cards stack once the content is narrower than the table needs. */
 const TABLE_MIN_WIDTH = 768;
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/stock-on-hand')({
@@ -75,22 +79,28 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     const permissions = await requirePermissions(queryClient, RIGHT);
     const userId = useLoginData.getState().referenceDataUserId;
+    if (!userId) return;
+    const options = loadFacilityProgramOptions(
+      queryClient,
+      userId,
+      programGrants(permissions, RIGHT),
+    );
+    // The picker shows a failed lookup with a retry; no stock loads for a selection not checked.
+    const checked = options.catch(() => null);
     const selection = {
       mode: search.mode,
       programId: search.programId,
       facilityId: search.facilityId,
     };
-    if (!userId || !isCompleteSelection(selection)) return;
-    if (!hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)) return;
-    try {
-      const options = await loadFacilityProgramOptions(
-        queryClient,
-        userId,
-        programGrants(permissions, RIGHT),
-      );
-      if (!validSelection(selection, options)) return;
-    } catch {
-      // The picker shows the failure with a retry; no stock loads for a selection not checked.
+    if (!isCompleteSelection(selection)) return;
+    const granted = (current: Permissions) =>
+      hasProgramGrant(current, RIGHT, selection.facilityId, selection.programId);
+    if (!granted(permissions)) return;
+    const loaded = await checked;
+    if (!loaded || !validSelection(selection, loaded)) return;
+    // Rights or the user can change while the lookups load.
+    const current = await queryClient.fetchQuery(permissionsOptions(userId)).catch(() => null);
+    if (useLoginData.getState().referenceDataUserId !== userId || !current || !granted(current)) {
       return;
     }
     queryClient.prefetchQuery(stockCardSummariesOptions(toSummariesQuery(search, selection)));
@@ -174,14 +184,11 @@ function StockOnHandContent({ userId }: { userId: string }) {
 
 type StockOnHandBodyProps = {
   userId: string;
-  grants: ReturnType<typeof programGrants>;
+  grants: readonly ProgramGrant[];
   search: StockOnHandSearch;
   layout: ResultsLayout;
-  onSearchChange: ReturnType<typeof useSearchNavigation<StockOnHandSearch>>['updateSearch'];
+  onSearchChange: SearchChange<StockOnHandSearch>;
 };
-
-const selectionKey = (selection: FacilityProgramSelection) =>
-  [selection.mode, selection.programId, selection.facilityId].join('|');
 
 function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: StockOnHandBodyProps) {
   const queryClient = useQueryClient();
@@ -191,18 +198,24 @@ function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: Sto
     [search.mode, search.programId, search.facilityId],
   );
   const valid = validSelection(applied, options);
-  const [draft, setDraft] = useState<FacilityProgramSelection | null>(null);
-  const [draftFor, setDraftFor] = useState(selectionKey(applied));
-  if (draftFor !== selectionKey(applied)) {
-    setDraftFor(selectionKey(applied));
-    setDraft(null);
-  }
-  const pending = valid !== null && draft !== null && selectionKey(draft) !== selectionKey(valid);
+  // A draft counts only against the selection it was picked over, so Back or a link drops it.
+  const [draft, setDraft] = useState<{
+    over: FacilityProgramSelection;
+    selection: FacilityProgramSelection;
+  } | null>(null);
+  const pending =
+    valid !== null &&
+    draft !== null &&
+    sameSelection(draft.over, applied) &&
+    !sameSelection(draft.selection, valid);
+  const onDraftChange = useCallback(
+    (selection: FacilityProgramSelection) => setDraft({ over: applied, selection }),
+    [applied],
+  );
 
   const onSearch = useCallback(
     (selection: CompleteSelection) => {
-      setDraft(null);
-      if (selectionKey(selection) === selectionKey(applied)) {
+      if (sameSelection(selection, applied)) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.stockCardSummaries.all });
       }
       onSearchChange({ ...selection, page: undefined });
@@ -214,7 +227,7 @@ function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: Sto
     <>
       <FacilityProgramSelector
         applied={applied}
-        onDraftChange={setDraft}
+        onDraftChange={onDraftChange}
         onSearch={onSearch}
         options={options}
       />
@@ -276,12 +289,15 @@ function StockOnHandOutcome({
       </DataTableCard>
     );
   }
+  const programs = valid.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
   return (
     <StockOnHandList
-      facility={named(options, valid, 'facility')}
+      facility={options
+        .facilitiesFor(valid.programId)
+        .find((facility) => facility.id === valid.facilityId)}
       layout={layout}
       onSearchChange={onSearchChange}
-      program={named(options, valid, 'program')}
+      program={programs.find((program) => program.id === valid.programId)}
       search={search}
       selection={valid}
       userId={userId}
@@ -289,17 +305,7 @@ function StockOnHandOutcome({
   );
 }
 
-function named(
-  options: FacilityProgramOptions,
-  { mode, programId, facilityId }: CompleteSelection,
-  kind: 'facility' | 'program',
-): NamedRecord | undefined {
-  if (kind === 'facility') {
-    return options.facilitiesFor(programId).find((facility) => facility.id === facilityId);
-  }
-  const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
-  return programs.find((program) => program.id === programId);
-}
+const label = (record: NamedRecord | undefined) => (record ? recordLabel(record) : '');
 
 type StockOnHandListProps = {
   userId: string;
@@ -308,7 +314,7 @@ type StockOnHandListProps = {
   facility: NamedRecord | undefined;
   program: NamedRecord | undefined;
   layout: ResultsLayout;
-  onSearchChange: StockOnHandBodyProps['onSearchChange'];
+  onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
 function StockOnHandList({
@@ -324,7 +330,6 @@ function StockOnHandList({
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const query = toSummariesQuery(search, selection);
   const collapsedKey = `stock-on-hand.collapsed:${userId}:${selection.facilityId}:${selection.programId}`;
-  const label = (record: NamedRecord | undefined) => record?.name || record?.code || '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -383,10 +388,9 @@ type PrintButtonProps = {
   facility: NamedRecord | undefined;
   program: NamedRecord | undefined;
   unit: QuantityUnit;
-  query: ReturnType<typeof toSummariesQuery>;
+  query: StockCardSummariesQuery;
 };
 
-/** Downloads the whole facility and program's report, after checking the right is still held there. */
 function PrintButton({ userId, selection, facility, program, unit, query }: PrintButtonProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -409,14 +413,17 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
       downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`);
       toast.success(t('stock-on-hand.printed-title'), {
         description: t('stock-on-hand.printed', {
-          facility: facility?.name ?? facility?.code ?? '',
-          program: program?.name ?? program?.code ?? '',
+          facility: label(facility),
+          program: label(program),
         }),
       });
     },
     onError: (error) => {
       toast.error(t('stock-on-hand.print-error-title'), {
-        description: serverMessage(error) ?? t('stock-on-hand.error-description'),
+        description:
+          error instanceof ForbiddenError
+            ? t('stock-on-hand.print-refused')
+            : (serverMessage(error) ?? t('stock-on-hand.print-error')),
       });
     },
   });

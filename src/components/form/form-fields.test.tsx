@@ -81,6 +81,7 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
             options={[
               { value: 'email', label: 'Email' },
               { value: 'manual', label: 'Manual' },
+              { value: 'post', label: 'Post', disabled: true },
             ]}
           />
         )}
@@ -153,6 +154,17 @@ describe('form fields', () => {
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('keeps a disabled option from being picked, leaving the others open', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole('radio', { name: 'Post' }));
+
+    expect(screen.getByRole('radio', { name: 'Post' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('radio', { name: 'Post' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Manual' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('names the radio group by its label', () => {

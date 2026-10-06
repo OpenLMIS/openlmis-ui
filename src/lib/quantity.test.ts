@@ -49,6 +49,11 @@ describe('productQuantity', () => {
     expect(productQuantity(170, [170], null, 'PACKS')).toBe('0');
   });
 
+  it('has nothing to show in packs while a card shown has no balance', () => {
+    expect(productQuantity(null, [null, undefined], 10, 'PACKS')).toBeNull();
+    expect(productQuantity(90, [90, null], 10, 'PACKS')).toBeNull();
+  });
+
   it('has nothing to show in doses without a total', () => {
     expect(productQuantity(null, [], 10, 'DOSES')).toBeNull();
   });

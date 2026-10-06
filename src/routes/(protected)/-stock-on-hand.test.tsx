@@ -25,6 +25,7 @@ import { fetchStockCardSummaries, fetchStockOnHandReport } from '@/features/stoc
 import type { StockCardSummary } from '@/features/stock-on-hand/lib/types';
 import { downloadFile } from '@/lib/download-file';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
+import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -50,7 +51,7 @@ const EM = '10845cb9-d365-4aaa-badd-b4fa39c6a26a';
 const grants = [`STOCK_CARDS_VIEW|${HOME}|${FP}`, `STOCK_CARDS_VIEW|${BALAKA}|${EM}`];
 
 const summary: StockCardSummary = {
-  orderable: { id: 'o1', versionNumber: 1 },
+  orderable: { id: 'o1' },
   stockOnHand: 170,
   canFulfillForMe: [
     {
@@ -277,5 +278,147 @@ describe('stock on hand page', () => {
       expect.objectContaining({ programId: FP, facilityId: HOME, showInDoses: false }),
     );
     expect(toast.success).toHaveBeenCalled();
+  });
+
+  it('keeps the last results hidden while a newly searched selection loads', async () => {
+    const user = userEvent.setup();
+    const { queryClient } = renderRoute(appliedPath());
+
+    await screen.findAllByText('Levonorgestrel');
+    await user.click(screen.getByRole('radio', { name: /facility-program.supervised-facility/ }));
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
+    await user.click(screen.getByRole('combobox', { name: /facility-program.facility/ }));
+    await user.click(await screen.findByRole('option', { name: /Balaka District Hospital/ }));
+    vi.mocked(fetchPermissionStrings).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(grants), 300)),
+    );
+    await act(() =>
+      queryClient.invalidateQueries({
+        queryKey: permissionsOptions(USER).queryKey,
+        refetchType: 'none',
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+    expect(screen.queryAllByText('Levonorgestrel')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'stock-on-hand.print' })).not.toBeInTheDocument();
+  });
+
+  it('asks for no stock when the right is taken away while the picker loads', async () => {
+    let releaseFacilities = () => {};
+    vi.mocked(fetchMinimalFacilities).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseFacilities = () =>
+            resolve([
+              { id: HOME, code: 'HC01', name: 'Comfort Health Clinic', active: true },
+              { id: BALAKA, code: 'DH01', name: 'Balaka District Hospital', active: true },
+            ]);
+        }),
+    );
+    const { queryClient } = renderRoute(appliedPath());
+
+    await waitFor(() => expect(fetchMinimalFacilities).toHaveBeenCalled());
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([`STOCK_CARDS_VIEW|${BALAKA}|${EM}`]);
+    await act(() =>
+      queryClient.invalidateQueries({
+        queryKey: permissionsOptions(USER).queryKey,
+        refetchType: 'none',
+      }),
+    );
+    await act(async () => releaseFacilities());
+
+    expect(await screen.findByText('stock-on-hand.refused-title')).toBeInTheDocument();
+    expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+  });
+
+  it('shows each balance in packs once packs are picked', async () => {
+    const user = userEvent.setup();
+    renderRoute(appliedPath());
+
+    await screen.findAllByText('Levonorgestrel');
+    await user.click(
+      within(screen.getByRole('group', { name: 'quantity-unit.label' })).getByRole('button', {
+        name: 'quantity-unit.packs',
+      }),
+    );
+
+    expect(screen.getByText('5 ( +10 )')).toBeInTheDocument();
+    expect(screen.getByText('10 ( +10 )')).toBeInTheDocument();
+    expect(screen.getByText('5 ( +0 )')).toBeInTheDocument();
+  });
+
+  it('goes back to the last page when the page asked for is past the end', async () => {
+    vi.mocked(fetchStockCardSummaries).mockImplementation(async ({ page: number }) =>
+      number === 0
+        ? page([summary])
+        : { content: [], totalElements: 1, totalPages: 1, number, size: 10 },
+    );
+    const { router } = renderRoute(appliedPath(HOME, FP, 'my', '&page=4'));
+
+    await screen.findAllByText('Levonorgestrel');
+    expect(router.state.location.search).not.toHaveProperty('page');
+  });
+
+  it('explains a page left empty by hiding inactive items, and offers them back', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchStockCardSummaries).mockResolvedValue(
+      page([
+        {
+          ...summary,
+          canFulfillForMe: summary.canFulfillForMe.map((card) => ({ ...card, active: false })),
+        },
+      ]),
+    );
+    const { router } = renderRoute(appliedPath(HOME, FP, 'my', '&includeInactive=false'));
+
+    expect(await screen.findByText('stock-on-hand.inactive-only-title')).toBeInTheDocument();
+    await user.click(
+      screen.getAllByRole('button', { name: 'stock-on-hand.include-inactive' })[0] as HTMLElement,
+    );
+
+    expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+    expect(router.state.location.search).not.toHaveProperty('includeInactive');
+  });
+
+  it('tells the user when printing fails, with the server message', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchStockOnHandReport).mockRejectedValue(
+      httpError(403, { message: 'Permission check failed.' }),
+    );
+    renderRoute(appliedPath());
+
+    const print = await screen.findByRole('button', { name: 'stock-on-hand.print' });
+    await waitFor(() => expect(print).toBeEnabled());
+    await user.click(print);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('stock-on-hand.print-error-title', {
+        description: 'Permission check failed.',
+      }),
+    );
+    expect(downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses to print once the right is gone, without asking for the report', async () => {
+    const user = userEvent.setup();
+    const { queryClient } = renderRoute(appliedPath());
+
+    const print = await screen.findByRole('button', { name: 'stock-on-hand.print' });
+    await waitFor(() => expect(print).toBeEnabled());
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([`STOCK_CARDS_VIEW|${BALAKA}|${EM}`]);
+    queryClient
+      .getQueryCache()
+      .find({ queryKey: permissionsOptions(USER).queryKey })
+      ?.invalidate();
+    await user.click(print);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('stock-on-hand.print-error-title', {
+        description: 'stock-on-hand.print-refused',
+      }),
+    );
+    expect(fetchStockOnHandReport).not.toHaveBeenCalled();
   });
 });

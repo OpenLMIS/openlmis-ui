@@ -7,6 +7,7 @@ import { z } from 'zod';
 import {
   DataTableCard,
   DataTableEmpty,
+  DataTableFooter,
   DataTableHeaderLabel,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { lotsByIdsOptions, orderablesByIdsOptions } from '@/features/reference-data/api/queries';
+import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { stockCardSummariesOptions } from '@/features/stock-on-hand/api/queries';
 import {
@@ -49,7 +51,6 @@ type StockOnHandResultsProps = {
   programId: string;
   unit: QuantityUnit;
   layout: ResultsLayout;
-  /** Where the products the user collapsed are kept, one place per user, facility and program. */
   collapsedKey: string;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
@@ -123,7 +124,7 @@ export function StockOnHandResults({
           }
           description={t('stock-on-hand.no-matches-description')}
           icon={<SearchXIcon />}
-          title={t('stock-on-hand.no-products')}
+          title={t('stock-on-hand.no-matches-title')}
         />
       ) : (
         <DataTableEmpty
@@ -144,7 +145,7 @@ export function StockOnHandResults({
         }
         description={t('stock-on-hand.page-inactive-only')}
         icon={<PackageSearchIcon />}
-        title={t('stock-on-hand.no-products')}
+        title={t('stock-on-hand.inactive-only-title')}
       />
     );
   const footer = page.totalElements > 0 && (
@@ -171,16 +172,31 @@ type GroupedViewProps = {
   isStale: boolean;
 };
 
+function ResultsFrame({
+  isStale,
+  footer,
+  children,
+}: Pick<GroupedViewProps, 'isStale' | 'footer'> & { children: ReactNode }) {
+  return (
+    <DataTableCard>
+      <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
+        {children}
+      </div>
+      {footer && <DataTableFooter>{footer}</DataTableFooter>}
+    </DataTableCard>
+  );
+}
+
 function useStockText() {
   const { t, i18n } = useTranslation();
   const productCode = (product: Orderable | undefined) =>
-    product ? product.productCode : t('stock-on-hand.unknown-product');
+    product ? <Code>{product.productCode}</Code> : <bdi>{t('stock-on-hand.unknown-product')}</bdi>;
   const productLabel = (product: Orderable | undefined) =>
-    product ? (product.fullProductName ?? product.productCode) : t('stock-on-hand.unknown-product');
-  const lotLabel = (row: StockCardRow) =>
-    row.lot === null
-      ? t('stock-on-hand.no-lot')
-      : (row.lot?.lotCode ?? t('stock-on-hand.unknown-lot'));
+    product ? productName(product) : t('stock-on-hand.unknown-product');
+  const lotLabel = (row: StockCardRow) => {
+    if (row.lot) return <Code>{row.lot.lotCode}</Code>;
+    return <bdi>{t(row.lot === null ? 'stock-on-hand.no-lot' : 'stock-on-hand.unknown-lot')}</bdi>;
+  };
   const date = (value: string | null | undefined) =>
     value ? formatDateValue(value.slice(0, 10), i18n.language) : '';
   const unavailable = t('stock-on-hand.unavailable');
@@ -225,28 +241,6 @@ function Wrapped({ children }: { children: ReactNode }) {
 
 function ToggleIcon({ open }: { open: boolean }) {
   return <ChevronDownIcon className={open ? undefined : '-rotate-90 rtl:rotate-90'} />;
-}
-
-function ToggleButton({
-  open,
-  label,
-  onToggle,
-}: {
-  open: boolean;
-  label: string;
-  onToggle: () => void;
-}) {
-  return (
-    <Button
-      aria-expanded={open}
-      aria-label={label}
-      onClick={onToggle}
-      size="icon-sm"
-      variant="ghost"
-    >
-      <ToggleIcon open={open} />
-    </Button>
-  );
 }
 
 const TABLE_COLUMNS = [
@@ -294,78 +288,75 @@ function GroupedTable({
   const text = useStockText();
 
   return (
-    <DataTableCard>
-      <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
-        <Table density="comfortable" layout="fixed">
-          <StockTableHeader />
-          <TableBody>
-            {groups.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={TABLE_COLUMNS.length}>
-                  <div className="whitespace-normal">{empty}</div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              groups.map((group) => {
-                const open = !collapsed.includes(group.id);
-                const name = text.productLabel(group.product);
-                return [
-                  <TableRow key={group.id} surface="muted">
-                    <TableCell>
-                      <span className="flex items-center gap-1">
-                        <ToggleButton
-                          label={t('stock-on-hand.toggle-product', { product: name })}
-                          onToggle={() => onToggle(group.id, !open)}
-                          open={open}
-                        />
-                        <Code>{text.productCode(group.product)}</Code>
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Wrapped>{name}</Wrapped>
-                    </TableCell>
-                    <TableCell>{group.product?.netContent ?? ''}</TableCell>
-                    <TableCell />
-                    <TableCell />
-                    <TableCell />
-                    <TableCell>
-                      <Quantity unavailable={text.unavailable} value={groupBalance(group, unit)} />
-                    </TableCell>
-                  </TableRow>,
-                  ...(open
-                    ? group.cards.map((card) => (
-                        <TableRow key={`${group.id}:${card.id}`}>
-                          <TableCell>
-                            <span className="flex ps-9">
-                              <Code>{text.productCode(card.product)}</Code>
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Wrapped>{text.productLabel(card.product)}</Wrapped>
-                          </TableCell>
-                          <TableCell>{card.product?.netContent ?? ''}</TableCell>
-                          <TableCell>
-                            <Code>{text.lotLabel(card)}</Code>
-                          </TableCell>
-                          <TableCell>{text.date(card.lot?.expirationDate)}</TableCell>
-                          <TableCell>{text.date(card.occurredDate)}</TableCell>
-                          <TableCell>
-                            <Quantity
-                              unavailable={text.unavailable}
-                              value={cardQuantity(card.stockOnHand, card.product?.netContent, unit)}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    : []),
-                ];
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      {footer && <div className="border-t bg-muted/30 px-4 py-3">{footer}</div>}
-    </DataTableCard>
+    <ResultsFrame footer={footer} isStale={isStale}>
+      <Table density="comfortable" layout="fixed">
+        <StockTableHeader />
+        <TableBody>
+          {groups.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={TABLE_COLUMNS.length}>
+                <div className="whitespace-normal">{empty}</div>
+              </TableCell>
+            </TableRow>
+          ) : (
+            groups.map((group) => {
+              const open = !collapsed.includes(group.id);
+              const name = text.productLabel(group.product);
+              return [
+                <TableRow key={group.id} surface="muted">
+                  <TableCell>
+                    <span className="flex items-center gap-1">
+                      <Button
+                        aria-expanded={open}
+                        aria-label={t('stock-on-hand.toggle-product', { product: name })}
+                        onClick={() => onToggle(group.id, !open)}
+                        size="icon-sm"
+                        variant="ghost"
+                      >
+                        <ToggleIcon open={open} />
+                      </Button>
+                      {text.productCode(group.product)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Wrapped>{name}</Wrapped>
+                  </TableCell>
+                  <TableCell>{group.product?.netContent ?? ''}</TableCell>
+                  <TableCell />
+                  <TableCell />
+                  <TableCell />
+                  <TableCell>
+                    <Quantity unavailable={text.unavailable} value={groupBalance(group, unit)} />
+                  </TableCell>
+                </TableRow>,
+                ...(open
+                  ? group.cards.map((card) => (
+                      <TableRow key={`${group.id}:${card.id}`}>
+                        <TableCell>
+                          <span className="flex ps-9">{text.productCode(card.product)}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Wrapped>{text.productLabel(card.product)}</Wrapped>
+                        </TableCell>
+                        <TableCell>{card.product?.netContent ?? ''}</TableCell>
+                        <TableCell>{text.lotLabel(card)}</TableCell>
+                        <TableCell>{text.date(card.lot?.expirationDate)}</TableCell>
+                        <TableCell>{text.date(card.occurredDate)}</TableCell>
+                        <TableCell>
+                          <Quantity
+                            unavailable={text.unavailable}
+                            value={cardQuantity(card.stockOnHand, card.product?.netContent, unit)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : []),
+              ];
+            })
+          )}
+        </TableBody>
+      </Table>
+    </ResultsFrame>
   );
 }
 
@@ -391,100 +382,99 @@ function GroupedCards({
   const text = useStockText();
 
   return (
-    <DataTableCard>
-      <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
-        {groups.length === 0 ? (
-          <div className="p-4">{empty}</div>
-        ) : (
-          <ul className="divide-y">
-            {groups.map((group) => {
-              const open = !collapsed.includes(group.id);
-              const name = text.productLabel(group.product);
-              return (
-                <li key={group.id}>
-                  <Collapsible onOpenChange={(next) => onToggle(group.id, next)} open={open}>
-                    <div className="flex items-start gap-2 bg-muted/30 p-3">
-                      <CollapsibleTrigger
-                        render={
-                          <Button
-                            aria-label={t('stock-on-hand.toggle-product', { product: name })}
-                            size="icon-sm"
-                            variant="ghost"
-                          />
-                        }
-                      >
-                        <ToggleIcon open={open} />
-                      </CollapsibleTrigger>
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span className="font-medium text-sm">
-                          <Wrapped>{name}</Wrapped>
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          <Code>{text.productCode(group.product)}</Code>
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          {t('stock-on-hand.pack-size')}: {group.product?.netContent ?? '-'}
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-0.5">
-                        <span className="text-muted-foreground text-xs">
-                          {t('stock-on-hand.stock-on-hand')}
-                        </span>
-                        <span className="font-medium text-sm">
-                          <Quantity
-                            unavailable={text.unavailable}
-                            value={groupBalance(group, unit)}
-                          />
-                        </span>
-                      </div>
+    <ResultsFrame footer={footer} isStale={isStale}>
+      {groups.length === 0 ? (
+        <div className="p-4">{empty}</div>
+      ) : (
+        <ul className="divide-y">
+          {groups.map((group) => {
+            const open = !collapsed.includes(group.id);
+            const name = text.productLabel(group.product);
+            return (
+              <li key={group.id}>
+                <Collapsible onOpenChange={(next) => onToggle(group.id, next)} open={open}>
+                  <div className="flex items-start gap-2 bg-muted/30 p-3">
+                    <CollapsibleTrigger
+                      render={
+                        <Button
+                          aria-label={t('stock-on-hand.toggle-product', { product: name })}
+                          size="icon-sm"
+                          variant="ghost"
+                        />
+                      }
+                    >
+                      <ToggleIcon open={open} />
+                    </CollapsibleTrigger>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="font-medium text-sm">
+                        <Wrapped>{name}</Wrapped>
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {text.productCode(group.product)}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {t('stock-on-hand.pack-size-value', {
+                          size: group.product?.netContent ?? '-',
+                        })}
+                      </span>
                     </div>
-                    <CollapsibleContent>
-                      <ul className="divide-y border-t">
-                        {group.cards.map((card) => (
-                          <li className="p-3 ps-12" key={card.id}>
-                            <dl className="grid grid-cols-2 gap-3 @md/table:grid-cols-3">
-                              <Detail label={t('stock-on-hand.lot-code')}>
-                                <Code>{text.lotLabel(card)}</Code>
-                              </Detail>
-                              <Detail label={t('stock-on-hand.stock-on-hand')}>
-                                <Quantity
-                                  unavailable={text.unavailable}
-                                  value={cardQuantity(
-                                    card.stockOnHand,
-                                    card.product?.netContent,
-                                    unit,
-                                  )}
-                                />
-                              </Detail>
-                              <Detail label={t('stock-on-hand.expiry-date')}>
-                                {text.date(card.lot?.expirationDate)}
-                              </Detail>
-                              <Detail label={t('stock-on-hand.last-update')}>
-                                {text.date(card.occurredDate)}
-                              </Detail>
-                              <Detail label={t('stock-on-hand.product')}>
-                                <Wrapped>{text.productLabel(card.product)}</Wrapped>
-                              </Detail>
-                              <Detail label={t('stock-on-hand.product-code')}>
-                                <Code>{text.productCode(card.product)}</Code>
-                              </Detail>
-                              <Detail label={t('stock-on-hand.pack-size')}>
-                                {card.product?.netContent ?? ''}
-                              </Detail>
-                            </dl>
-                          </li>
-                        ))}
-                      </ul>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-      {footer && <div className="border-t bg-muted/30 px-4 py-3">{footer}</div>}
-    </DataTableCard>
+                    <div className="flex shrink-0 flex-col items-end gap-0.5">
+                      <span className="text-muted-foreground text-xs">
+                        {t('stock-on-hand.stock-on-hand')}
+                      </span>
+                      <span className="font-medium text-sm">
+                        <Quantity
+                          unavailable={text.unavailable}
+                          value={groupBalance(group, unit)}
+                        />
+                      </span>
+                    </div>
+                  </div>
+                  <CollapsibleContent>
+                    <ul className="divide-y border-t">
+                      {group.cards.map((card) => (
+                        <li className="p-3 ps-12" key={card.id}>
+                          <dl className="grid grid-cols-2 gap-3 @md/table:grid-cols-3">
+                            <Detail label={t('stock-on-hand.lot-code')}>
+                              {text.lotLabel(card)}
+                            </Detail>
+                            <Detail label={t('stock-on-hand.stock-on-hand')}>
+                              <Quantity
+                                unavailable={text.unavailable}
+                                value={cardQuantity(
+                                  card.stockOnHand,
+                                  card.product?.netContent,
+                                  unit,
+                                )}
+                              />
+                            </Detail>
+                            <Detail label={t('stock-on-hand.expiry-date')}>
+                              {text.date(card.lot?.expirationDate)}
+                            </Detail>
+                            <Detail label={t('stock-on-hand.last-update')}>
+                              {text.date(card.occurredDate)}
+                            </Detail>
+                            <Detail label={t('stock-on-hand.product')}>
+                              <Wrapped>{text.productLabel(card.product)}</Wrapped>
+                            </Detail>
+                            <Detail label={t('stock-on-hand.product-code')}>
+                              {text.productCode(card.product)}
+                            </Detail>
+                            <Detail label={t('stock-on-hand.pack-size')}>
+                              {card.product?.netContent ?? ''}
+                            </Detail>
+                          </dl>
+                        </li>
+                      ))}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ResultsFrame>
   );
 }
 
@@ -496,7 +486,6 @@ function SkeletonBar() {
   );
 }
 
-/** The results' shape while a page loads: product rows each with two card rows. */
 export function StockOnHandResultsSkeleton({
   search,
   layout,
@@ -509,9 +498,9 @@ export function StockOnHandResultsSkeleton({
     (_, index) => index,
   );
   const footer = (
-    <div className="border-t bg-muted/30 px-4 py-3">
+    <DataTableFooter>
       <DataTablePaginationSkeleton />
-    </div>
+    </DataTableFooter>
   );
 
   if (layout === 'cards') {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  hasStockFilters,
   showsInactive,
   stockOnHandSearchSchema,
   toSummariesQuery,
@@ -86,13 +85,5 @@ describe('toSummariesQuery', () => {
     expect(
       toSummariesQuery({ productCode: ' C1 ' }, { facilityId: FACILITY, programId: PROGRAM }),
     ).toMatchObject({ orderableCode: 'C1' });
-  });
-});
-
-describe('hasStockFilters', () => {
-  it('counts the text filters and hidden inactive cards', () => {
-    expect(hasStockFilters({})).toBe(false);
-    expect(hasStockFilters({ lotCode: 'L' })).toBe(true);
-    expect(hasStockFilters({ includeInactive: false })).toBe(true);
   });
 });

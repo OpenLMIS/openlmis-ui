@@ -25,6 +25,7 @@ export function productQuantity(
   unit: QuantityUnit,
 ): string | null {
   if (unit === 'DOSES') return stockOnHand == null ? null : String(stockOnHand);
+  if (cardBalances.some((balance) => balance == null)) return null;
   if (!hasPackSize(netContent)) return '0';
   const doses = cardBalances.reduce<number>((sum, balance) => sum + (balance ?? 0), 0);
   const packs = Math.floor(doses / netContent);

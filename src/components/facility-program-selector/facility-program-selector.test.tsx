@@ -127,6 +127,37 @@ describe('FacilityProgramSelector', () => {
     ).toBeChecked();
   });
 
+  it('lists every supervised facility, as legacy does, however many there are', async () => {
+    const user = userEvent.setup();
+    const facilities = Array.from({ length: 120 }, (_, index) =>
+      named(`f${String(index).padStart(3, '0')}`, `Facility ${String(index).padStart(3, '0')}`),
+    );
+    renderSelector(
+      { mode: 'supervised', programId: 'em' },
+      facilityProgramOptions({
+        homeFacilityId: null,
+        programs: [named('em', 'Essential Meds')],
+        facilities,
+        grants: facilities.map((facility) => ({ facilityId: facility.id, programId: 'em' })),
+      }),
+    );
+
+    await user.click(screen.getByRole('combobox', { name: /facility-program.facility/ }));
+
+    expect(await screen.findAllByRole('option')).toHaveLength(120);
+  });
+
+  it('moves focus to the field to fix when Search is pressed too soon', async () => {
+    const user = userEvent.setup();
+    renderSelector();
+
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveFocus(),
+    );
+  });
+
   it('says so when the home facility has no program for the page', () => {
     renderSelector(
       {},

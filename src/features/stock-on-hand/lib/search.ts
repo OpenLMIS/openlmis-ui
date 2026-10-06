@@ -27,12 +27,6 @@ export const CLEARED_STOCK_FILTERS = {
 export const showsInactive = (search: Pick<StockOnHandSearch, 'includeInactive'>) =>
   search.includeInactive !== false;
 
-export function hasStockFilters(search: StockOnHandSearch) {
-  return Boolean(
-    search.productCode || search.productName || search.lotCode || !showsInactive(search),
-  );
-}
-
 export function toSummariesQuery(
   search: StockOnHandSearch,
   { facilityId, programId }: { facilityId: string; programId: string },

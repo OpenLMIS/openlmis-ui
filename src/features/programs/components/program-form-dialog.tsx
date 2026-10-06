@@ -49,7 +49,7 @@ import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
-import { queryKeys } from '@/lib/key-factory';
+import { queryKeys, userProgramsKey } from '@/lib/key-factory';
 
 const NO_PROGRAMS: Program[] = [];
 
@@ -182,7 +182,7 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
         queryKey: queryKeys.programs.all,
         predicate: (query) => query.queryKey[1] !== 'detail',
       });
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'programs'] });
+      void queryClient.invalidateQueries({ queryKey: userProgramsKey() });
     },
     onError: (error, values) => {
       if (!isDuplicateCode(error)) return;

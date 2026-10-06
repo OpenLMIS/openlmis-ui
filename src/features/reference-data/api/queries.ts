@@ -20,7 +20,7 @@ import {
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
-import { queryKeys } from '@/lib/key-factory';
+import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -143,14 +143,14 @@ export const lotsByIdsOptions = (ids: readonly string[]) =>
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
 export const userRecordOptions = (id: string) =>
   queryOptions({
-    queryKey: [...queryKeys.users.all, 'record', id] as const,
+    queryKey: userRecordKey(id),
     queryFn: () => fetchUserRecord(id),
     staleTime: LOOKUP_STALE_TIME,
   });
 
 export const userProgramsOptions = (id: string) =>
   queryOptions({
-    queryKey: [...queryKeys.users.all, 'programs', id] as const,
+    queryKey: userProgramsKey(id),
     queryFn: () => fetchUserPrograms(id),
     staleTime: LOOKUP_STALE_TIME,
   });

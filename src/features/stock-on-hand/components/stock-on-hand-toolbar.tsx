@@ -14,7 +14,6 @@ type StockOnHandToolbarProps = {
   onFilterChange: (patch: Partial<StockOnHandSearch>) => void;
   unit: QuantityUnit;
   onUnitChange: ((unit: QuantityUnit) => void) | undefined;
-  /** Ends the toolbar, as a list's main action does. */
   print: ReactNode;
 };
 

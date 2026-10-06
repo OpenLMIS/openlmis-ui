@@ -1,7 +1,5 @@
-/** A right held for one program at one facility, from a `RIGHT|facility|program` permission string. */
 export type ProgramGrant = { right: string; facilityId: string; programId: string };
 
-/** The signed-in user's permission strings, read once: every right name, and each facility and program grant. */
 export type Permissions = {
   rights: ReadonlySet<string>;
   grants: readonly ProgramGrant[];
