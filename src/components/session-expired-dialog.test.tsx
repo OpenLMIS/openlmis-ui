@@ -94,6 +94,16 @@ describe('SessionExpiredDialog', () => {
     expect(screen.queryByLabelText('login.username')).not.toBeInTheDocument();
   });
 
+  it('stays open on Escape, since the page waits on it', async () => {
+    await renderAt('/users');
+    act(() => useLoginData.getState().expireSession());
+    await screen.findByRole('dialog');
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('asks for the password before trying', async () => {
     useLoginData.getState().expireSession();
     await renderAt('/users');
