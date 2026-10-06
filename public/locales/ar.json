@@ -535,7 +535,7 @@
   "products.kit.search-error": "تعذر البحث عن المنتجات. حاول مرة أخرى.",
   "products.kit.search-error-title": "تعذر البحث عن المنتجات",
   "products.kit.search-name": "اسم المنتج",
-  "products.kit.this-kit": "(هذه المجموعة)",
+  "products.kit.this-kit": "(المجموعة التي تعدّلها، ولا يمكن أن تتفكك إلى نفسها)",
   "products.kit.too-large": "أدخل رقماً لا يزيد على 2147483647.",
   "products.kit.unit": "الوحدة",
   "products.kit.whole-number": "أدخل عدداً صحيحاً، مثل 0 أو 12.",

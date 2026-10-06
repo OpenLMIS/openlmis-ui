@@ -535,7 +535,7 @@
   "products.kit.search-error": "Impossible de rechercher des produits. Réessayez.",
   "products.kit.search-error-title": "Impossible de rechercher des produits",
   "products.kit.search-name": "Nom du produit",
-  "products.kit.this-kit": "(ce kit)",
+  "products.kit.this-kit": "(le kit que vous modifiez, qui ne peut pas se décomposer en lui-même)",
   "products.kit.too-large": "Saisissez un nombre inférieur ou égal à 2147483647.",
   "products.kit.unit": "Unité",
   "products.kit.whole-number": "Saisissez un nombre entier, par exemple 0 ou 12.",

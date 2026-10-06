@@ -199,7 +199,7 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
       <FormDialogBody>
         <div className="flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
-            <div className="min-w-48 flex-1">
+            <div className="w-full sm:w-56">
               <DataTableSearch
                 label={t('products.kit.search-name')}
                 onValueChange={(name) => filter({ name })}
@@ -207,7 +207,7 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
                 value={filters.name}
               />
             </div>
-            <div className="min-w-48 flex-1">
+            <div className="w-full sm:w-56">
               <DataTableSearch
                 label={t('products.kit.search-code')}
                 onValueChange={(code) => filter({ code })}

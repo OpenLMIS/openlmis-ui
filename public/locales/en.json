@@ -535,7 +535,7 @@
   "products.kit.search-error": "Could not search products. Try again.",
   "products.kit.search-error-title": "Could Not Search Products",
   "products.kit.search-name": "Product Name",
-  "products.kit.this-kit": "(this kit)",
+  "products.kit.this-kit": "(the kit you are editing, which cannot unpack into itself)",
   "products.kit.too-large": "Enter a number no larger than 2147483647.",
   "products.kit.unit": "Unit",
   "products.kit.whole-number": "Enter a whole number, such as 0 or 12.",
