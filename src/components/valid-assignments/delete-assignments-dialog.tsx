@@ -37,7 +37,7 @@ export function DeleteAssignmentsDialog({
 }: DeleteAssignmentsDialogProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { shown, dialogProps } = useDialogTarget(targets, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(targets, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const count = shown?.size ?? 0;
 
@@ -46,7 +46,7 @@ export function DeleteAssignmentsDialog({
     onSuccess: ({ deleted, failed }) => {
       onDeleted(deleted);
       if (deleted.length === 0) return;
-      onClose();
+      close();
       if (failed.length === 0) {
         toast.success(
           t('valid-assignments.deleted-title', { kind: api.kind, count: deleted.length }),

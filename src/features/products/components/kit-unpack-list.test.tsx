@@ -377,4 +377,19 @@ describe('KitUnpackList add products', () => {
       await screen.findAllByRole('textbox', { name: 'products.kit.quantity-of' }),
     ).toHaveLength(3);
   });
+
+  it('adds the picks once when Add is clicked twice', async () => {
+    renderPage(<Kit onDone={vi.fn()} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'products.kit.add' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      await within(dialog).findByRole('checkbox', { name: 'Select S1 - Syringe (each)' }),
+    );
+    await user.dblClick(within(dialog).getByRole('button', { name: 'products.kit.add-picked' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getAllByRole('textbox', { name: 'products.kit.quantity-of' })).toHaveLength(2);
+  });
 });

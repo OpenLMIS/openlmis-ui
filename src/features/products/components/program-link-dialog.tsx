@@ -52,13 +52,13 @@ type ProgramLinkDialogProps = {
 };
 
 export function ProgramLinkDialog({ product, target, readOnly, onClose }: ProgramLinkDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: productSaveKey(product.id) }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
       {shown && (
-        <ProgramLinkContent onDone={onClose} product={product} readOnly={readOnly} target={shown} />
+        <ProgramLinkContent onDone={close} product={product} readOnly={readOnly} target={shown} />
       )}
     </FormDialog>
   );

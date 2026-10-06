@@ -69,14 +69,14 @@ type UserFormDialogProps = {
 };
 
 export function UserFormDialog({ target, onClose, onCreated }: UserFormDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown === 'new' && <UserForm onCreated={onCreated} onDone={onClose} />}
+      {shown === 'new' && <UserForm onCreated={onCreated} onDone={close} />}
       {shown !== undefined && shown !== 'new' && (
-        <EditUserForm key={shown} onDone={onClose} userId={shown} />
+        <EditUserForm key={shown} onDone={close} userId={shown} />
       )}
     </FormDialog>
   );

@@ -6,6 +6,18 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+const DialogCloseLabelContext = React.createContext("Close")
+
+function DialogCloseLabelProvider({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return <DialogCloseLabelContext value={label}>{children}</DialogCloseLabelContext>
+}
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -77,6 +89,7 @@ function DialogContent({
   VariantProps<typeof dialogContentVariants> & {
     showCloseButton?: boolean
   }) {
+  const closeLabel = React.use(DialogCloseLabelContext)
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -99,7 +112,7 @@ function DialogContent({
           >
             <XIcon
             />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{closeLabel}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>
@@ -133,6 +146,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
 }) {
+  const closeLabel = React.use(DialogCloseLabelContext)
   return (
     <div
       data-slot="dialog-footer"
@@ -145,7 +159,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close render={<Button variant="outline" />}>
-          Close
+          {closeLabel}
         </DialogPrimitive.Close>
       )}
     </div>
@@ -189,6 +203,7 @@ function DialogDescription({
 export {
   Dialog,
   DialogClose,
+  DialogCloseLabelProvider,
   DialogContent,
   DialogDescription,
   DialogFooter,

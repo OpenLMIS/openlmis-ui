@@ -595,7 +595,7 @@ type AddPairDialogProps = {
 
 function AddPairDialog({ open, rows, onAdd, onClose }: AddPairDialogProps) {
   const { t } = useTranslation();
-  const { shown, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
   const title = t('reasons.form.add-pair-title');
 
   return (
@@ -615,8 +615,7 @@ function AddPairDialog({ open, rows, onAdd, onClose }: AddPairDialogProps) {
         >
           <AddPairForm
             onAdd={(pair) => {
-              onAdd(pair);
-              onClose();
+              if (close()) onAdd(pair);
             }}
             rows={rows}
           />

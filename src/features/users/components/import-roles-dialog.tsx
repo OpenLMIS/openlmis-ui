@@ -40,10 +40,10 @@ type ImportRolesDialogProps = {
 };
 
 export function ImportRolesDialog({ open, onClose, ...props }: ImportRolesDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(open || undefined, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(open || undefined, onClose);
   return (
     <FormDialog {...dialogProps()}>
-      {shown && <ImportRolesForm onDone={onClose} {...props} />}
+      {shown && <ImportRolesForm onDone={close} {...props} />}
     </FormDialog>
   );
 }

@@ -54,11 +54,20 @@ type KitProductsDialogProps = {
 };
 
 export function KitProductsDialog({ open, kitId, inKit, onAdd, onClose }: KitProductsDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(open ? 'add' : undefined, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(open ? 'add' : undefined, onClose);
 
   return (
     <FormDialog {...dialogProps(false)} height="fixed" size="xl">
-      {shown && <KitProductsForm inKit={inKit} kitId={kitId} onAdd={onAdd} onDone={onClose} />}
+      {shown && (
+        <KitProductsForm
+          inKit={inKit}
+          kitId={kitId}
+          onAdd={(products) => {
+            if (close()) onAdd(products);
+          }}
+          onDone={close}
+        />
+      )}
     </FormDialog>
   );
 }

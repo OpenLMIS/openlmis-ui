@@ -56,12 +56,12 @@ type LotFormDialogProps = {
 };
 
 export function LotFormDialog({ target, onClose }: LotFormDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? '') }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && <LotDialogContent lotId={shown} onDone={onClose} />}
+      {shown && <LotDialogContent lotId={shown} onDone={close} />}
     </FormDialog>
   );
 }

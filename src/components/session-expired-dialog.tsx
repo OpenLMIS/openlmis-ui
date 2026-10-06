@@ -52,7 +52,7 @@ export function SessionExpiredDialog() {
 
   return (
     // The pages behind are waiting on it, so only signing in or out closes it.
-    <FormDialog closeButton={false} {...dialogProps()}>
+    <FormDialog closeButton={false} {...dialogProps(true)}>
       {shown && <SignInAgainForm username={shown} />}
     </FormDialog>
   );
