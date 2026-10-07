@@ -70,20 +70,46 @@ export function facilityProgramOptions({
   };
 }
 
+const onlyId = (records: readonly NamedRecord[]) =>
+  records.length === 1 ? records[0]?.id : undefined;
+
+/** Legacy picks a required select's only option, so a user with one program or facility is not asked. */
+function withOnlyOptions(
+  selection: FacilityProgramSelection,
+  options: FacilityProgramOptions,
+): FacilityProgramSelection {
+  const programs = selection.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
+  const programId = selection.programId ?? onlyId(programs);
+  if (selection.mode !== 'supervised' || programId === undefined) {
+    return programId === undefined ? selection : { ...selection, programId };
+  }
+  return {
+    ...selection,
+    programId,
+    facilityId: selection.facilityId ?? onlyId(options.facilitiesFor(programId)),
+  };
+}
+
 export function initialSelection(
   applied: FacilityProgramSelection,
   options: FacilityProgramOptions,
 ): FacilityProgramSelection {
   const mode = applied.mode ?? (options.home ? 'my' : 'supervised');
-  if (mode === 'my') return { mode, programId: applied.programId, facilityId: options.home?.id };
-  return { mode, programId: applied.programId, facilityId: applied.facilityId };
+  const start =
+    mode === 'my'
+      ? { mode, programId: applied.programId, facilityId: options.home?.id }
+      : { mode, programId: applied.programId, facilityId: applied.facilityId };
+  return withOnlyOptions(start, options);
 }
 
 export function changeMode(
   mode: SelectionMode,
   options: FacilityProgramOptions,
 ): FacilityProgramSelection {
-  return mode === 'my' ? { mode, facilityId: options.home?.id } : { mode };
+  return withOnlyOptions(
+    mode === 'my' ? { mode, facilityId: options.home?.id } : { mode },
+    options,
+  );
 }
 
 export function changeProgram(
@@ -95,11 +121,12 @@ export function changeProgram(
   const keepsFacility =
     programId !== undefined &&
     options.facilitiesFor(programId).some((facility) => facility.id === current.facilityId);
-  return {
+  const next = {
     mode: current.mode,
     programId,
     facilityId: keepsFacility ? current.facilityId : undefined,
   };
+  return programId === undefined ? next : withOnlyOptions(next, options);
 }
 
 export const sameSelection = (a: FacilityProgramSelection, b: FacilityProgramSelection) =>

@@ -15,7 +15,9 @@ const options = facilityProgramOptions({
   facilities: [named('home', 'Comfort Health Clinic'), named('bal', 'Balaka District Hospital')],
   grants: [
     { facilityId: 'home', programId: 'fp' },
+    { facilityId: 'home', programId: 'em' },
     { facilityId: 'bal', programId: 'em' },
+    { facilityId: 'bal', programId: 'fp' },
   ],
 });
 
@@ -44,6 +46,7 @@ describe('FacilityProgramSelector', () => {
     );
     await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Essential Meds',
       'Family Planning',
     ]);
     await user.click(screen.getByRole('option', { name: 'Family Planning' }));
@@ -70,7 +73,27 @@ describe('FacilityProgramSelector', () => {
     expect(screen.queryByText('facility-program.facility-required')).not.toBeInTheDocument();
   });
 
-  it('asks for a program before searching, never picking one itself', async () => {
+  it('picks the only program the home facility offers, so Search works at once, as legacy', async () => {
+    const user = userEvent.setup();
+    const { onSearch } = renderSelector(
+      {},
+      facilityProgramOptions({
+        homeFacilityId: 'home',
+        programs: [named('fp', 'Family Planning')],
+        facilities: [named('home', 'Comfort Health Clinic')],
+        grants: [{ facilityId: 'home', programId: 'fp' }],
+      }),
+    );
+
+    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveTextContent(
+      'Family Planning',
+    );
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+    expect(onSearch).toHaveBeenCalledWith({ mode: 'my', programId: 'fp', facilityId: 'home' });
+  });
+
+  it('asks for a program before searching, picking none of several itself', async () => {
     const user = userEvent.setup();
     const { onSearch } = renderSelector();
 

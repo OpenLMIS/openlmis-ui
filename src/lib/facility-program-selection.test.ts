@@ -85,7 +85,34 @@ describe('initialSelection', () => {
     expect(initialSelection({}, noHome)).toEqual({ mode: 'supervised' });
   });
 
-  it('keeps the selection the link holds, and never picks a program for the user', () => {
+  it('picks the only program my facility offers, as legacy does', () => {
+    const onlyAlpha = facilityProgramOptions({
+      ...sources,
+      grants: [{ facilityId: HOME, programId: 'pa' }],
+    });
+
+    expect(initialSelection({}, onlyAlpha)).toEqual({
+      mode: 'my',
+      programId: 'pa',
+      facilityId: HOME,
+    });
+  });
+
+  it('picks the only supervised program and its only facility, as legacy does', () => {
+    const onlyGamma = facilityProgramOptions({
+      ...sources,
+      homeFacilityId: null,
+      grants: [{ facilityId: 'fa', programId: 'pc' }],
+    });
+
+    expect(initialSelection({}, onlyGamma)).toEqual({
+      mode: 'supervised',
+      programId: 'pc',
+      facilityId: 'fa',
+    });
+  });
+
+  it('keeps the selection the link holds, and picks no program from several', () => {
     const applied = { mode: 'supervised', programId: 'pc', facilityId: 'fa' } as const;
 
     expect(initialSelection(applied, options)).toEqual(applied);
@@ -106,6 +133,22 @@ describe('changeMode', () => {
   it('clears the program and facility, fixing my facility to home', () => {
     expect(changeMode('my', options)).toEqual({ mode: 'my', facilityId: HOME });
     expect(changeMode('supervised', options)).toEqual({ mode: 'supervised' });
+  });
+
+  it('picks the only program the mode offers, and its only facility', () => {
+    const onlyGamma = facilityProgramOptions({
+      ...sources,
+      grants: [
+        { facilityId: HOME, programId: 'pa' },
+        { facilityId: 'fa', programId: 'pc' },
+      ],
+    });
+
+    expect(changeMode('supervised', onlyGamma)).toEqual({
+      mode: 'supervised',
+      programId: 'pc',
+      facilityId: 'fa',
+    });
   });
 });
 
@@ -128,9 +171,20 @@ describe('changeProgram', () => {
     ).toEqual({ mode: 'supervised', programId: 'pb', facilityId: 'fa' });
   });
 
-  it('clears a supervised facility the new program is not granted at', () => {
+  it('picks the only facility the new program is granted at, as legacy does', () => {
     expect(
       changeProgram({ mode: 'supervised', programId: 'pb', facilityId: 'fz' }, 'pc', options),
+    ).toEqual({ mode: 'supervised', programId: 'pc', facilityId: 'fa' });
+  });
+
+  it('clears a supervised facility the new program is not granted at', () => {
+    const wider = facilityProgramOptions({
+      ...sources,
+      grants: [...sources.grants, { facilityId: 'fz', programId: 'pc' }],
+    });
+
+    expect(
+      changeProgram({ mode: 'supervised', programId: 'pb', facilityId: HOME }, 'pc', wider),
     ).toEqual({ mode: 'supervised', programId: 'pc' });
   });
 });
