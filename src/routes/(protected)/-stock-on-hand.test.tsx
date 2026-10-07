@@ -463,6 +463,27 @@ describe('stock on hand page', () => {
     expect(downloadFile).not.toHaveBeenCalled();
   });
 
+  it('drops a report that arrives after another user signed in', async () => {
+    const user = userEvent.setup();
+    let releaseReport = (_report: Blob) => {};
+    vi.mocked(fetchStockOnHandReport).mockReturnValue(
+      new Promise((resolve) => {
+        releaseReport = resolve;
+      }),
+    );
+    renderRoute(appliedPath());
+
+    const print = await screen.findByRole('button', { name: 'stock-on-hand.print' });
+    await waitFor(() => expect(print).toBeEnabled());
+    await user.click(print);
+    await waitFor(() => expect(fetchStockOnHandReport).toHaveBeenCalled());
+    act(() => useLoginData.setState({ referenceDataUserId: 'someone-else' }));
+    await act(async () => releaseReport(new Blob(['%PDF'])));
+
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
   it('keeps a server failure in plain words when printing fails', async () => {
     const user = userEvent.setup();
     vi.mocked(fetchStockOnHandReport).mockRejectedValue(

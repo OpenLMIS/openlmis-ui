@@ -446,6 +446,7 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
+  const stillSignedIn = () => useLoginData.getState().referenceDataUserId === userId;
   const print = useMutation({
     mutationFn: async () => {
       const permissions = await queryClient.fetchQuery(permissionsOptions(userId));
@@ -460,6 +461,7 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
       });
     },
     onSuccess: (report) => {
+      if (!stillSignedIn()) return;
       const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
       downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`);
       toast.success(t('stock-on-hand.printed-title'), {
@@ -470,6 +472,7 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
       });
     },
     onError: (error) => {
+      if (!stillSignedIn()) return;
       toast.error(t('stock-on-hand.print-error-title'), {
         description:
           error instanceof ForbiddenError
