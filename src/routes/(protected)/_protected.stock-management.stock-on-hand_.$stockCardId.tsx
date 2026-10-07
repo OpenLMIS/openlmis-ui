@@ -52,7 +52,10 @@ export const Route = createFileRoute(
   '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId',
 )({
   validateSearch: stockCardSearchSchema,
-  staticData: { crumbKey: 'stock-card.crumb' },
+  staticData: {
+    crumbKey: 'stock-card.crumb',
+    crumbParentSearch: (search) => stockOnHandSearchSchema.parse(search),
+  },
   loader: async ({ context: { queryClient }, params }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);

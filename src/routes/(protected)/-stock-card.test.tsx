@@ -310,24 +310,36 @@ describe('stock card print', () => {
 
 describe('stock card return breadcrumbs', () => {
   it('returns the whole validated list search after opening a shared card link', async () => {
-    const search = { mode: 'supervised', facilityId: HOME, programId: FP, productCode: 'C1',
-      productName: 'Vaccine', lotCode: 'LOT-A', includeInactive: 'false', page: '7', size: '20',
+    const search = {
+      mode: 'supervised',
+      facilityId: HOME,
+      programId: FP,
+      productCode: 'C1',
+      productName: 'Vaccine',
+      lotCode: 'LOT-A',
+      includeInactive: 'false',
+      page: '7',
+      size: '20',
     };
     const { unmount } = renderRoute(path(`?${new URLSearchParams(search)}&cardPage=3&cardSize=20`));
     await screen.findByText('Vaccine - each');
     const link = screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' });
-    const url = new URL(link.getAttribute('href')!, 'http://localhost');
+    const url = new URL((link as HTMLAnchorElement).href);
     expect(url.pathname).toBe('/stock-management/stock-on-hand');
     expect(Object.fromEntries(url.searchParams)).toEqual(search);
     unmount();
     renderRoute(path(`?${new URLSearchParams(search)}&cardPage=3&cardSize=20`));
     await screen.findByText('Vaccine - each');
-    expect(screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' })).toHaveAttribute('href', url.pathname + url.search);
+    expect(
+      screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' }),
+    ).toHaveAttribute('href', url.pathname + url.search);
   });
 
   it('returns to bare Stock On Hand when the card has no list search', async () => {
     renderRoute(path('?cardPage=3&cardSize=20'));
     await screen.findByText('Vaccine - each');
-    expect(screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' })).toHaveAttribute('href', '/stock-management/stock-on-hand');
+    expect(
+      screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' }),
+    ).toHaveAttribute('href', '/stock-management/stock-on-hand');
   });
 });

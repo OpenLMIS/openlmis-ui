@@ -1,4 +1,5 @@
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useTable } from '@tanstack/react-table';
 import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
 import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
@@ -157,12 +158,22 @@ export function StockOnHandResults({
     </div>
   );
   const isStale = search !== deferredSearch;
-  const view = { groups, unit, collapsed, onToggle: toggle, empty, footer, isStale };
+  const view = {
+    groups,
+    search: deferredSearch,
+    unit,
+    collapsed,
+    onToggle: toggle,
+    empty,
+    footer,
+    isStale,
+  };
 
   return layout === 'table' ? <GroupedTable {...view} /> : <GroupedCards {...view} />;
 }
 
 type GroupedViewProps = {
+  search: StockOnHandSearch;
   groups: StockProductGroup[];
   unit: QuantityUnit;
   collapsed: readonly string[];
@@ -251,6 +262,7 @@ const TABLE_COLUMNS = [
   { key: 'expiry', labelKey: 'stock-on-hand.expiry-date', width: 'w-32' },
   { key: 'lastUpdate', labelKey: 'stock-on-hand.last-update', width: 'w-32' },
   { key: 'stockOnHand', labelKey: 'stock-on-hand.stock-on-hand', width: 'w-36' },
+  { key: 'view', labelKey: 'stock-on-hand.view', width: 'w-20' },
 ] as const;
 
 function StockTableHeader() {
@@ -276,6 +288,7 @@ function StockTableHeader() {
 }
 
 function GroupedTable({
+  search,
   groups,
   unit,
   collapsed,
@@ -328,6 +341,7 @@ function GroupedTable({
                   <TableCell>
                     <Quantity unavailable={text.unavailable} value={groupBalance(group, unit)} />
                   </TableCell>
+                  <TableCell />
                 </TableRow>,
                 ...(open
                   ? group.cards.map((card) => (
@@ -346,6 +360,15 @@ function GroupedTable({
                           <Quantity
                             unavailable={text.unavailable}
                             value={cardQuantity(card.stockOnHand, card.product?.netContent, unit)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StockCardView
+                            card={card}
+                            search={search}
+                            disabled={isStale}
+                            product={text.productLabel(card.product)}
+                            lot={card.lot?.lotCode ?? t('stock-on-hand.no-lot')}
                           />
                         </TableCell>
                       </TableRow>
@@ -370,6 +393,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function GroupedCards({
+  search,
   groups,
   unit,
   collapsed,
@@ -464,6 +488,15 @@ function GroupedCards({
                               {card.product?.netContent ?? ''}
                             </Detail>
                           </dl>
+                          <div className="mt-3 flex justify-end">
+                            <StockCardView
+                              card={card}
+                              search={search}
+                              disabled={isStale}
+                              product={text.productLabel(card.product)}
+                              lot={card.lot?.lotCode ?? t('stock-on-hand.no-lot')}
+                            />
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -475,6 +508,41 @@ function GroupedCards({
         </ul>
       )}
     </ResultsFrame>
+  );
+}
+
+function StockCardView({
+  card,
+  search,
+  product,
+  lot,
+  disabled,
+}: {
+  card: StockCardRow;
+  search: StockOnHandSearch;
+  product: string;
+  lot: string;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+  if (!card.stockCardId) return null;
+  return (
+    <Button
+      nativeButton={false}
+      variant="outline"
+      size="sm"
+      disabled={disabled}
+      aria-label={t('stock-on-hand.view-card', { product, lot })}
+      render={
+        <Link
+          to="/stock-management/stock-on-hand/$stockCardId"
+          params={{ stockCardId: card.stockCardId }}
+          search={search}
+        />
+      }
+    >
+      {t('stock-on-hand.view')}
+    </Button>
   );
 }
 
@@ -566,6 +634,9 @@ export function StockOnHandResultsSkeleton({
                           </div>
                         ))}
                       </dl>
+                      <div className="mt-3 flex justify-end">
+                        <SkeletonBar height="h-7" width="w-12" />
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -603,6 +674,7 @@ export function StockOnHandResultsSkeleton({
                 <TableCell />
                 <TableCell />
                 {cell('w-10')}
+                <TableCell />
               </TableRow>,
               ...product.cards.map((card) => (
                 <TableRow key={card}>
@@ -617,6 +689,7 @@ export function StockOnHandResultsSkeleton({
                   {cell('w-20')}
                   {cell('w-20')}
                   {cell('w-10')}
+                  {cell('w-12')}
                 </TableRow>
               )),
             ])}

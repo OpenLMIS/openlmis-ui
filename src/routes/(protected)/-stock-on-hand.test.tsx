@@ -558,3 +558,55 @@ describe('stock on hand page', () => {
     expect(screen.getAllByText('Levonorgestrel')).not.toHaveLength(0);
   });
 });
+
+describe('stock on hand View', () => {
+  it.each([1200, 390])(
+    'offers View only for existing cards at content width %i and keeps the whole search',
+    async (width) => {
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        width,
+      } as DOMRect);
+      vi.mocked(fetchStockCardSummaries).mockResolvedValue(
+        page([
+          {
+            ...summary,
+            canFulfillForMe: [
+              ...summary.canFulfillForMe,
+              {
+                orderable: { id: 'o1' },
+                stockOnHand: 0,
+                occurredDate: null,
+                active: true,
+                stockCard: null,
+                lot: null,
+              },
+            ],
+          },
+        ]),
+      );
+      renderRoute(
+        appliedPath(HOME, FP, 'my', '&page=2&size=20&productCode=C1&productName=Levo&lotCode=LOT'),
+      );
+      await screen.findAllByText('Levonorgestrel');
+      const view = screen.getAllByRole('button', { name: 'stock-on-hand.view-card' });
+      expect(view).toHaveLength(2);
+      const urls = view.map((link) => new URL((link as HTMLAnchorElement).href));
+      expect(urls.map((url) => url.pathname).sort()).toEqual([
+        '/stock-management/stock-on-hand/c1',
+        '/stock-management/stock-on-hand/c2',
+      ]);
+      for (const url of urls) {
+        expect(Object.fromEntries(url.searchParams)).toEqual({
+          mode: 'my',
+          facilityId: HOME,
+          programId: FP,
+          page: '2',
+          size: '20',
+          productCode: 'C1',
+          productName: 'Levo',
+          lotCode: 'LOT',
+        });
+      }
+    },
+  );
+});
