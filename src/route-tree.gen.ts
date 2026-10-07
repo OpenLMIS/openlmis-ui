@@ -34,12 +34,14 @@ import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(pr
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
+import { Route as protectedProtectedStockManagementAdjustmentsRouteImport } from './routes/(protected)/_protected.stock-management.adjustments'
 import { Route as protectedProtectedStockManagementStockOnHandRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand'
 import { Route as protectedProtectedAdministrationFacilitiesIdRouteImport } from './routes/(protected)/_protected.administration.facilities_.$id'
 import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } from './routes/(protected)/_protected.administration.facilities_.new'
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
+import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementStockOnHandStockCardIdRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId'
 import { Route as protectedProtectedAdministrationProductsIdIndexRouteImport } from './routes/(protected)/_protected.administration.products_.$id.index'
 import { Route as protectedProtectedAdministrationProductsIdFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.products_.$id.facility-types'
@@ -191,6 +193,12 @@ const protectedProtectedSettingsThemeRoute =
     path: '/theme',
     getParentRoute: () => protectedProtectedSettingsRoute,
   } as any)
+const protectedProtectedStockManagementAdjustmentsRoute =
+  protectedProtectedStockManagementAdjustmentsRouteImport.update({
+    id: '/stock-management/adjustments',
+    path: '/stock-management/adjustments',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementStockOnHandRoute =
   protectedProtectedStockManagementStockOnHandRouteImport.update({
     id: '/stock-management/stock-on-hand',
@@ -225,6 +233,12 @@ const protectedProtectedAdministrationReasonsNewRoute =
   protectedProtectedAdministrationReasonsNewRouteImport.update({
     id: '/administration/reasons_/new',
     path: '/administration/reasons/new',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedStockManagementAdjustmentsProgramIdRoute =
+  protectedProtectedStockManagementAdjustmentsProgramIdRouteImport.update({
+    id: '/stock-management/adjustments_/$programId',
+    path: '/stock-management/adjustments/$programId',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedStockManagementStockOnHandStockCardIdRoute =
@@ -293,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
+  '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
   '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/profile/': typeof protectedProtectedProfileIndexRoute
   '/settings/': typeof protectedProtectedSettingsIndexRoute
@@ -301,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
@@ -330,6 +346,7 @@ export interface FileRoutesByTo {
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
+  '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
   '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/profile': typeof protectedProtectedProfileIndexRoute
   '/settings': typeof protectedProtectedSettingsIndexRoute
@@ -337,6 +354,7 @@ export interface FileRoutesByTo {
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
@@ -370,6 +388,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
+  '/(protected)/_protected/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
   '/(protected)/_protected/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
   '/(protected)/_protected/settings/': typeof protectedProtectedSettingsIndexRoute
@@ -378,6 +397,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/(protected)/_protected/administration/products_/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/(protected)/_protected/administration/products_/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
@@ -411,6 +431,7 @@ export interface FileRouteTypes {
     | '/profile/roles'
     | '/settings/feature-flags'
     | '/settings/theme'
+    | '/stock-management/adjustments'
     | '/stock-management/stock-on-hand'
     | '/profile/'
     | '/settings/'
@@ -419,6 +440,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/stock-management/adjustments/$programId'
     | '/stock-management/stock-on-hand/$stockCardId'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
@@ -448,6 +470,7 @@ export interface FileRouteTypes {
     | '/profile/roles'
     | '/settings/feature-flags'
     | '/settings/theme'
+    | '/stock-management/adjustments'
     | '/stock-management/stock-on-hand'
     | '/profile'
     | '/settings'
@@ -455,6 +478,7 @@ export interface FileRouteTypes {
     | '/administration/facilities/new'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/stock-management/adjustments/$programId'
     | '/stock-management/stock-on-hand/$stockCardId'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
@@ -487,6 +511,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/settings/feature-flags'
     | '/(protected)/_protected/settings/theme'
+    | '/(protected)/_protected/stock-management/adjustments'
     | '/(protected)/_protected/stock-management/stock-on-hand'
     | '/(protected)/_protected/profile/'
     | '/(protected)/_protected/settings/'
@@ -495,6 +520,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id'
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
+    | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId'
     | '/(protected)/_protected/administration/products_/$id/facility-types'
     | '/(protected)/_protected/administration/products_/$id/general'
@@ -689,6 +715,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedSettingsThemeRouteImport
       parentRoute: typeof protectedProtectedSettingsRoute
     }
+    '/(protected)/_protected/stock-management/adjustments': {
+      id: '/(protected)/_protected/stock-management/adjustments'
+      path: '/stock-management/adjustments'
+      fullPath: '/stock-management/adjustments'
+      preLoaderRoute: typeof protectedProtectedStockManagementAdjustmentsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/stock-management/stock-on-hand': {
       id: '/(protected)/_protected/stock-management/stock-on-hand'
       path: '/stock-management/stock-on-hand'
@@ -729,6 +762,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/reasons/new'
       fullPath: '/administration/reasons/new'
       preLoaderRoute: typeof protectedProtectedAdministrationReasonsNewRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/stock-management/adjustments_/$programId': {
+      id: '/(protected)/_protected/stock-management/adjustments_/$programId'
+      path: '/stock-management/adjustments/$programId'
+      fullPath: '/stock-management/adjustments/$programId'
+      preLoaderRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId': {
@@ -863,12 +903,14 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
+  protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
   protectedProtectedStockManagementStockOnHandRoute: typeof protectedProtectedStockManagementStockOnHandRoute
   protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
+  protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementStockOnHandStockCardIdRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
@@ -899,6 +941,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidDestinationsRoute,
   protectedProtectedAdministrationValidSourcesRoute:
     protectedProtectedAdministrationValidSourcesRoute,
+  protectedProtectedStockManagementAdjustmentsRoute:
+    protectedProtectedStockManagementAdjustmentsRoute,
   protectedProtectedStockManagementStockOnHandRoute:
     protectedProtectedStockManagementStockOnHandRoute,
   protectedProtectedAdministrationFacilitiesIdRoute:
@@ -911,6 +955,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsIdRoute,
   protectedProtectedAdministrationReasonsNewRoute:
     protectedProtectedAdministrationReasonsNewRoute,
+  protectedProtectedStockManagementAdjustmentsProgramIdRoute:
+    protectedProtectedStockManagementAdjustmentsProgramIdRoute,
   protectedProtectedStockManagementStockOnHandStockCardIdRoute:
     protectedProtectedStockManagementStockOnHandStockCardIdRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
