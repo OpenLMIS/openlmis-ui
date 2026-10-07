@@ -36,3 +36,18 @@ export function productQuantity(
   const remainder = doses % netContent;
   return remainder === 0 ? format(packs) : `${format(packs)} ( +${format(remainder)} )`;
 }
+
+export type PackQuantity = { packs: number; remainder: number };
+
+export function toDoses(
+  { packs, remainder }: PackQuantity,
+  netContent: number | null | undefined,
+): number {
+  return hasPackSize(netContent) ? packs * netContent + remainder : 0;
+}
+
+export function fromDoses(doses: number, netContent: number | null | undefined): PackQuantity {
+  return hasPackSize(netContent)
+    ? { packs: Math.floor(doses / netContent), remainder: doses % netContent }
+    : { packs: 0, remainder: 0 };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardQuantity, productQuantity } from '@/lib/quantity';
+import { cardQuantity, fromDoses, productQuantity, toDoses } from '@/lib/quantity';
 
 describe('cardQuantity', () => {
   it('formats doses and both pack quantities in the requested language', () => {
@@ -76,5 +76,26 @@ describe('productQuantity', () => {
 
   it('has nothing to show in doses without a total', () => {
     expect(productQuantity(null, [], 10, 'DOSES')).toBeNull();
+  });
+});
+
+describe('quantity entry conversion', () => {
+  it('combines whole packs and remaining doses and splits them back', () => {
+    expect(toDoses({ packs: 3, remainder: 2 }, 16)).toBe(50);
+    expect(fromDoses(50, 16)).toEqual({ packs: 3, remainder: 2 });
+    expect(fromDoses(48, 16)).toEqual({ packs: 3, remainder: 0 });
+    expect(fromDoses(0, 16)).toEqual({ packs: 0, remainder: 0 });
+  });
+
+  it('allows a remainder larger than the pack size without losing doses', () => {
+    expect(fromDoses(toDoses({ packs: 1, remainder: 18 }, 16), 16)).toEqual({
+      packs: 2,
+      remainder: 2,
+    });
+  });
+
+  it.each([0, null, undefined])('returns zero without a pack size (%s), as legacy does', (size) => {
+    expect(toDoses({ packs: 3, remainder: 2 }, size)).toBe(0);
+    expect(fromDoses(50, size)).toEqual({ packs: 0, remainder: 0 });
   });
 });
