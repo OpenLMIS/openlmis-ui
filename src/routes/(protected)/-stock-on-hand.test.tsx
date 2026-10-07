@@ -81,7 +81,10 @@ const page = (content: StockCardSummary[]) => ({
   size: 10,
 });
 
-function renderRoute(path: string, queryClient = new QueryClient(), pendingMs?: number) {
+const appQueryClient = () =>
+  new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } });
+
+function renderRoute(path: string, queryClient = appQueryClient(), pendingMs?: number) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -308,27 +311,29 @@ describe('stock on hand page', () => {
 
   it('keeps the last results hidden while a newly searched selection loads', async () => {
     const user = userEvent.setup();
-    const { queryClient } = renderRoute(appliedPath());
+    const { router } = renderRoute(appliedPath());
 
     await screen.findAllByText('Levonorgestrel');
+    let releaseStock = () => {};
+    vi.mocked(fetchStockCardSummaries).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseStock = () => resolve(page([summary]));
+        }),
+    );
     await user.click(screen.getByRole('radio', { name: /facility-program.supervised-facility/ }));
     await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
     await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
     await user.click(screen.getByRole('combobox', { name: /facility-program.facility/ }));
     await user.click(await screen.findByRole('option', { name: /Balaka District Hospital/ }));
-    vi.mocked(fetchPermissionStrings).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(grants), 300)),
-    );
-    await act(() =>
-      queryClient.invalidateQueries({
-        queryKey: permissionsOptions(USER).queryKey,
-        refetchType: 'none',
-      }),
-    );
     await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
 
+    await waitFor(() =>
+      expect(router.state.resolvedLocation?.search).toMatchObject({ programId: EM }),
+    );
     expect(screen.queryAllByText('Levonorgestrel')).toHaveLength(0);
-    expect(screen.queryByRole('button', { name: 'stock-on-hand.print' })).not.toBeInTheDocument();
+    await act(async () => releaseStock());
+    expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
   });
 
   it('asks for no stock when the right is taken away while the picker loads', async () => {
@@ -469,8 +474,10 @@ describe('stock on hand page', () => {
     watch.observe(document.body, { childList: true, subtree: true });
     await act(() => router.history.back());
 
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ programId: FP }));
-    await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
+    await waitFor(() =>
+      expect(router.state.resolvedLocation?.search).toMatchObject({ programId: FP }),
+    );
+    await waitFor(() => expect(router.state.status).toBe('idle'));
     watch.disconnect();
     expect(hidden).toBe(false);
     expect(screen.getAllByText('Levonorgestrel')).not.toHaveLength(0);
