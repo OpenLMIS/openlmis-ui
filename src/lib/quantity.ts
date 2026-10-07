@@ -8,13 +8,15 @@ export function cardQuantity(
   stockOnHand: number | null | undefined,
   netContent: number | null | undefined,
   unit: QuantityUnit,
+  language?: string,
 ): string | null {
   if (stockOnHand == null) return null;
-  if (unit === 'DOSES') return String(stockOnHand);
-  if (!hasPackSize(netContent)) return '0';
+  const format = language ? new Intl.NumberFormat(language).format : String;
+  if (unit === 'DOSES') return format(stockOnHand);
+  if (!hasPackSize(netContent)) return format(0);
   const packs = Math.trunc(stockOnHand / netContent);
   const remainder = stockOnHand % netContent;
-  return `${packs} ( ${remainder < 0 ? '' : '+'}${remainder} )`;
+  return `${format(packs)} ( ${remainder < 0 ? '' : '+'}${format(remainder)} )`;
 }
 
 /** A product's balance: its own total in doses, or the cards shown summed into packs, floored as legacy does. */

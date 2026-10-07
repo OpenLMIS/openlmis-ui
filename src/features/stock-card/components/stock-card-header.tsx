@@ -34,12 +34,16 @@ export function StockCardHeader({ card, unit }: { card: StockCard; unit: Quantit
         <CardContent>
           <dl className="grid grid-cols-1 gap-4 @sm/main:grid-cols-2 @3xl/main:grid-cols-4">
             <Detail label={t('stock-card.product-code')}>{card.orderable.productCode}</Detail>
-            <Detail label={t('stock-card.pack-size')}>{card.orderable.netContent}</Detail>
+            <Detail label={t('stock-card.pack-size')}>
+              {card.orderable.netContent == null
+                ? ''
+                : new Intl.NumberFormat(i18n.language).format(card.orderable.netContent)}
+            </Detail>
             <Detail label={t('stock-card.facility')}>{card.facility.name}</Detail>
             <Detail label={t('stock-card.program')}>{card.program.name}</Detail>
             <Detail label={t('stock-card.stock-on-hand')}>
               <span className="tabular-nums" dir="ltr">
-                {cardQuantity(card.stockOnHand, card.orderable.netContent, unit)}
+                {cardQuantity(card.stockOnHand, card.orderable.netContent, unit, i18n.language)}
               </span>
             </Detail>
             {card.lot && (

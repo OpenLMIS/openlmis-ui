@@ -90,7 +90,12 @@ function LineCell({
     case 'balance':
       return (
         <span className="block whitespace-normal break-words tabular-nums" dir="ltr">
-          {cardQuantity(id === 'balance' ? line.stockOnHand : line.quantity, netContent, unit)}
+          {cardQuantity(
+            id === 'balance' ? line.stockOnHand : line.quantity,
+            netContent,
+            unit,
+            i18n.language,
+          )}
         </span>
       );
     case 'performedBy':
@@ -126,7 +131,11 @@ export function StockCardLines({ card, search, onSearchChange, unit, layout }: L
         COLUMNS.map(([id, key]) =>
           columnHelper.display({
             id,
-            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
+            header: () => (
+              <div className="whitespace-normal break-words">
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+              </div>
+            ),
             cell: ({ row }) => (
               <LineCell
                 id={id}
@@ -228,7 +237,11 @@ export function StockCardLinesSkeleton({
         COLUMNS.map(([id, key]) =>
           columnHelper.display({
             id,
-            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
+            header: () => (
+              <div className="whitespace-normal break-words">
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+              </div>
+            ),
           }),
         ),
       ),

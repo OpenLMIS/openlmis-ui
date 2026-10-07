@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { cardQuantity, productQuantity } from '@/lib/quantity';
 
 describe('cardQuantity', () => {
+  it('formats doses and both pack quantities in the requested language', () => {
+    expect(cardQuantity(1234, 5, 'DOSES', 'fr')).toBe('1\u202f234');
+    expect(cardQuantity(1234, 5, 'DOSES', 'ar-EG')).toBe('١٬٢٣٤');
+    expect(cardQuantity(14, 5, 'PACKS', 'ar-EG')).toBe('٢ ( +٤ )');
+    expect(cardQuantity(-11, 10, 'PACKS', 'fr')).toBe('-1 ( -1 )');
+    expect(cardQuantity(2, null, 'PACKS', 'ar-EG')).toBe('٠');
+    expect(cardQuantity(null, 5, 'DOSES', 'fr')).toBeNull();
+  });
+
   it('shows doses as they are', () => {
     expect(cardQuantity(150, 16, 'DOSES')).toBe('150');
     expect(cardQuantity(-3, 16, 'DOSES')).toBe('-3');

@@ -56,11 +56,15 @@ export const Route = createFileRoute(
     crumbKey: 'stock-card.crumb',
     crumbParentSearch: (search) => stockOnHandSearchSchema.parse(search),
   },
-  loader: async ({ context: { queryClient }, params }) => {
+  preload: false,
+  loader: async ({ context: { queryClient }, params, cause }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    const card = await queryClient.ensureQueryData(stockCardOptions(params.stockCardId));
+    const options = stockCardOptions(params.stockCardId);
+    const card = await (cause === 'stay'
+      ? queryClient.ensureQueryData(options)
+      : queryClient.fetchQuery({ ...options, staleTime: 0 }));
     if (useLoginData.getState().referenceDataUserId !== userId) return;
     if (!hasProgramGrant(permissions, RIGHT, card.facility.id, card.program.id)) {
       throw new ForbiddenError(RIGHT);

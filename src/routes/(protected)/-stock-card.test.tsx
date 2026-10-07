@@ -343,3 +343,23 @@ describe('stock card return breadcrumbs', () => {
     ).toHaveAttribute('href', '/stock-management/stock-on-hand');
   });
 });
+
+describe('stock card freshness', () => {
+  it.each(['stale', 'invalidated', 'fresh'])('reloads a %s cached card on entry', async (state) => {
+    const queryClient = appQueryClient();
+    const first = renderRoute(path(), queryClient);
+    await screen.findByText('Vaccine - each');
+    first.unmount();
+    const queryKey = ['stockCards', 'detail', 'card1'];
+    if (state === 'stale')
+      queryClient.setQueryData(queryKey, card, { updatedAt: Date.now() - 31_000 });
+    if (state === 'invalidated') await queryClient.invalidateQueries({ queryKey });
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 999 });
+    renderRoute(path(), queryClient);
+    await screen.findByText('Vaccine - each');
+    expect(fetchStockCard).toHaveBeenCalledTimes(2);
+    expect(
+      within(screen.getByRole('region', { name: 'Vaccine - each' })).getByText('999'),
+    ).toBeInTheDocument();
+  });
+});

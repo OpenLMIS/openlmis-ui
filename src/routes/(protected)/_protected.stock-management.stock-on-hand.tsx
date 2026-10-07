@@ -71,7 +71,7 @@ const RIGHT = RIGHTS.stockCardsView;
 
 const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
 
-const TABLE_MIN_WIDTH = 768;
+const TABLE_MIN_WIDTH = 1024;
 
 const noop = () => {};
 
