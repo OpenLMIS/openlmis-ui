@@ -7,7 +7,8 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -162,5 +163,124 @@ describe('stock card route', () => {
     await act(async () => release());
     await waitFor(() => expect(router.state.status).toBe('idle'));
     expect(screen.queryByText('Vaccine - each')).not.toBeInTheDocument();
+  });
+});
+
+const manyLines = Array.from({ length: 25 }, (_, index) => ({
+  id: `line${index}`,
+  occurredDate: '2026-01-01',
+  quantity: index,
+  stockOnHand: index,
+  username: `person${index}`,
+}));
+
+describe('stock card display and paging', () => {
+  it('shows header fields in legacy order, with a lot and the stored expiry day', async () => {
+    renderRoute();
+    const header = await screen.findByRole('region', { name: 'Vaccine - each' });
+    expect(
+      within(header)
+        .getAllByRole('term')
+        .map((term) => term.textContent),
+    ).toEqual([
+      'stock-card.product-code',
+      'stock-card.pack-size',
+      'stock-card.facility',
+      'stock-card.program',
+      'stock-card.stock-on-hand',
+      'stock-card.lot-number',
+      'stock-card.expiry-date',
+    ]);
+    expect(within(header).getByText('LOT-A')).toBeInTheDocument();
+    expect(within(header).getByText('Jan 31, 2027')).toBeInTheDocument();
+  });
+
+  it('omits lot fields for a card without a lot', async () => {
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lot: null });
+    renderRoute();
+    const header = await screen.findByRole('region', { name: 'Vaccine - each' });
+    expect(within(header).queryByText('stock-card.lot-number')).not.toBeInTheDocument();
+    expect(within(header).queryByText('stock-card.expiry-date')).not.toBeInTheDocument();
+  });
+
+  it('pages newest first from a shared URL, independently from the list page', async () => {
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lineItems: manyLines });
+    const { router } = renderRoute(path('?cardPage=3&page=7&size=20'));
+    expect(await screen.findByText('person4')).toBeInTheDocument();
+    expect(screen.queryByText('person24')).not.toBeInTheDocument();
+    expect(router.state.location.search).toMatchObject({ cardPage: 3, page: 7, size: 20 });
+    expect(fetchStockCard).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps a page past the end and keeps list paging and filters', async () => {
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lineItems: manyLines });
+    const { router } = renderRoute(path('?cardPage=99&page=7&productCode=C1'));
+    expect(await screen.findByText('person4')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        cardPage: 3,
+        page: 7,
+        productCode: 'C1',
+      }),
+    );
+    expect(fetchStockCard).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes pages and returns with Back without fetching the card again', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lineItems: manyLines });
+    const { router } = renderRoute();
+    await screen.findByText('person24');
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    expect(await screen.findByText('person14')).toBeInTheDocument();
+    expect(router.state.location.search).toMatchObject({ cardPage: 2 });
+    await act(() => router.history.back());
+    expect(await screen.findByText('person24')).toBeInTheDocument();
+    expect(fetchStockCard).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes header and row quantities together when packs are chosen', async () => {
+    const user = userEvent.setup();
+    renderRoute();
+    await screen.findByText('Vaccine - each');
+    await user.click(screen.getByRole('radio', { name: 'quantity-unit.packs' }));
+    expect(screen.getAllByText('4 ( +3 )')).toHaveLength(3);
+  });
+
+  it('shows all eleven columns in legacy order on desktop and every field on mobile', async () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+    width.mockReturnValue({ width: 1200 } as DOMRect);
+    const first = renderRoute();
+    const table = await screen.findByRole('table');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      'stock-card.date',
+      'stock-card.receive-from',
+      'stock-card.issue-to',
+      'stock-card.reason',
+      'stock-card.adjustment',
+      'stock-card.stock-on-hand',
+      'stock-card.performed-by',
+      'stock-card.signature',
+      'stock-card.document-number',
+      'stock-card.reversing',
+      'stock-card.reversed-by',
+    ]);
+    first.unmount();
+    width.mockReturnValue({ width: 390 } as DOMRect);
+    renderRoute();
+    await screen.findByText('stock-card.reversed-by');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('term')).toHaveLength(18);
+  });
+
+  it('shows the empty ledger and clamps its stale page to the beginning', async () => {
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lineItems: [] });
+    const { router } = renderRoute(path('?cardPage=99'));
+    expect(await screen.findByText('stock-card.no-transactions')).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('cardPage'));
   });
 });

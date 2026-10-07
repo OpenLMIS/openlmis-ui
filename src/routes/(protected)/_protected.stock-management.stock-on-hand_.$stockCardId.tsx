@@ -2,7 +2,9 @@ import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-route
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorFallback } from '@/components/error-fallback';
+import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -17,17 +19,36 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { stockCardOptions } from '@/features/stock-card/api/queries';
-import { stockCardProductName } from '@/features/stock-card/lib/card-lines';
+import {
+  StockCardHeader,
+  StockCardHeaderSkeleton,
+} from '@/features/stock-card/components/stock-card-header';
+import {
+  type CardLayout,
+  StockCardLines,
+  StockCardLinesSkeleton,
+} from '@/features/stock-card/components/stock-card-lines';
+import { cardPagingSchema } from '@/features/stock-card/lib/search';
 import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
+import { useQuantityUnit } from '@/hooks/use-quantity-unit';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
 import { hasProgramGrant } from '@/lib/permissions';
 
 const RIGHT = RIGHTS.stockCardsView;
+const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
+const NO_DIALOGS = {};
+
+function useCardLayout() {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const layout: CardLayout = width === undefined || width >= 768 ? 'table' : 'cards';
+  return [measure, layout] as const;
+}
 
 export const Route = createFileRoute(
   '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId',
 )({
-  validateSearch: stockOnHandSearchSchema,
+  validateSearch: stockCardSearchSchema,
   staticData: { crumbKey: 'stock-card.crumb' },
   loader: async ({ context: { queryClient }, params }) => {
     const userId = useLoginData.getState().referenceDataUserId;
@@ -48,6 +69,10 @@ export const Route = createFileRoute(
 function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
+  const search = Route.useSearch();
+  const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
+  const { unit, setUnit, canSwitch } = useQuantityUnit();
+  const [measure, layout] = useCardLayout();
   const userId = useLoginData((state) => state.referenceDataUserId);
   if (!data || data.userId !== userId) return null;
   return (
@@ -63,7 +88,21 @@ function StockCardPage() {
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <p>{stockCardProductName(data.card.orderable)}</p>
+        <div className="flex flex-col gap-4" ref={measure}>
+          <StockCardHeader card={data.card} unit={unit} />
+          {canSwitch && (
+            <div className="flex justify-end">
+              <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
+            </div>
+          )}
+          <StockCardLines
+            card={data.card}
+            search={search}
+            onSearchChange={updateSearch}
+            unit={unit}
+            layout={layout}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );
@@ -71,6 +110,8 @@ function StockCardPage() {
 
 function StockCardPending() {
   const { t } = useTranslation();
+  const search = Route.useSearch();
+  const [measure, layout] = useCardLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -79,8 +120,12 @@ function StockCardPending() {
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <div aria-busy className="h-64">
-          <Skeleton fill />
+        <div aria-busy className="flex flex-col gap-4" ref={measure}>
+          <StockCardHeaderSkeleton />
+          <div className="ms-auto h-8 w-36">
+            <Skeleton fill />
+          </div>
+          <StockCardLinesSkeleton layout={layout} search={search} />
         </div>
       </WorkspaceContent>
     </Workspace>
