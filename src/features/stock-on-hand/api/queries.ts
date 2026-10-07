@@ -13,8 +13,10 @@ export const stockCardSummariesOptions = (query: StockCardSummariesQuery) =>
 
 /** Starts the page of stock, then its product and lot names as soon as it arrives; failures show in the list. */
 export function prefetchStockOnHand(queryClient: QueryClient, query: StockCardSummariesQuery) {
-  queryClient.fetchQuery(stockCardSummariesOptions(query)).then(
+  const options = stockCardSummariesOptions(query);
+  queryClient.fetchQuery(options).then(
     (page) => {
+      if (!queryClient.getQueryCache().find({ queryKey: options.queryKey })) return;
       const ids = summaryIds(page.content);
       queryClient.prefetchQuery(orderablesByIdsOptions(ids.orderableIds));
       queryClient.prefetchQuery(lotsByIdsOptions(ids.lotIds));

@@ -87,9 +87,9 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
   // The inactive box only filters the page shown, so it never reloads.
   loaderDeps: ({ search: { includeInactive: _includeInactive, ...search } }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
-    const permissions = await requirePermissions(queryClient, RIGHT);
     const userId = useLoginData.getState().referenceDataUserId;
-    if (!userId) return;
+    const permissions = await requirePermissions(queryClient, RIGHT);
+    if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
     const selection = {
       mode: search.mode,

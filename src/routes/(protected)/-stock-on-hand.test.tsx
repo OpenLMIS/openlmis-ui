@@ -250,6 +250,25 @@ describe('stock on hand page', () => {
     expect(screen.queryByText('Levonorgestrel')).not.toBeInTheDocument();
   });
 
+  it('asks for no stock when another user signs in while the rights load', async () => {
+    let releaseRights = () => {};
+    vi.mocked(fetchPermissionStrings).mockImplementation((userId) =>
+      userId === USER
+        ? new Promise((resolve) => {
+            releaseRights = () => resolve(grants);
+          })
+        : Promise.resolve([]),
+    );
+    renderRoute(appliedPath());
+
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith(USER));
+    act(() => useLoginData.setState({ referenceDataUserId: 'someone-else' }));
+    await act(async () => releaseRights());
+
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('someone-else'));
+    expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+  });
+
   it('asks for the stock of a granted link, then its names, while the picker is still loading', async () => {
     vi.mocked(fetchMinimalFacilities).mockReturnValue(new Promise(() => {}));
     renderRoute(appliedPath());
