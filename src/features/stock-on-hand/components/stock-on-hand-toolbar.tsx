@@ -15,6 +15,7 @@ type StockOnHandToolbarProps = {
   unit: QuantityUnit;
   onUnitChange: ((unit: QuantityUnit) => void) | undefined;
   print: ReactNode;
+  disabled?: boolean;
 };
 
 export function StockOnHandToolbar({
@@ -23,6 +24,7 @@ export function StockOnHandToolbar({
   unit,
   onUnitChange,
   print,
+  disabled = false,
 }: StockOnHandToolbarProps) {
   const { t } = useTranslation();
   const inactiveId = useId();
@@ -46,6 +48,7 @@ export function StockOnHandToolbar({
         <Label htmlFor={inactiveId}>
           <Checkbox
             checked={showsInactive(search)}
+            disabled={disabled}
             id={inactiveId}
             onCheckedChange={(checked) =>
               onFilterChange({ includeInactive: checked ? undefined : false })

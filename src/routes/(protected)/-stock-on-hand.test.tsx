@@ -81,7 +81,7 @@ const page = (content: StockCardSummary[]) => ({
   size: 10,
 });
 
-function renderRoute(path: string, queryClient = new QueryClient()) {
+function renderRoute(path: string, queryClient = new QueryClient(), pendingMs?: number) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -92,12 +92,14 @@ function renderRoute(path: string, queryClient = new QueryClient()) {
     loaderDeps: Route.options.loaderDeps as never,
     loader: Route.options.loader as never,
     component: Route.options.component as never,
+    pendingComponent: Route.options.pendingComponent as never,
   });
   const router = createRouter({
     routeTree: root.addChildren([
       group.addChildren([layout.addChildren([page] as never)] as never),
     ] as never),
     context: { queryClient },
+    defaultPendingMs: pendingMs,
     history: createMemoryHistory({ initialEntries: [path] }),
   } as never) as AnyRouter;
   render(
@@ -156,6 +158,30 @@ describe('stock on hand page', () => {
     expect(await screen.findByText('stock-on-hand.pick-title')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toBeChecked();
     expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+  });
+
+  it('lays out the results while a searched link loads, before the picker has its options', async () => {
+    vi.mocked(fetchMinimalFacilities).mockReturnValue(new Promise(() => {}));
+    renderRoute(appliedPath(HOME, FP, 'my', '&productCode=C1'), undefined, 0);
+
+    const code = await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-code' });
+    expect(code).toBeDisabled();
+    expect(code).toHaveValue('C1');
+    expect(screen.getByRole('button', { name: 'stock-on-hand.print' })).toBeDisabled();
+    expect(
+      screen.getByRole('checkbox', { name: 'stock-on-hand.include-inactive' }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getAllByText('stock-on-hand.lot-code')).not.toHaveLength(0);
+  });
+
+  it('lays out only the picker while a page with no search loads', async () => {
+    vi.mocked(fetchMinimalFacilities).mockReturnValue(new Promise(() => {}));
+    renderRoute('/stock-management/stock-on-hand', undefined, 0);
+
+    expect(await screen.findByText('facility-program.mode')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'stock-on-hand.search-product-code' }),
+    ).not.toBeInTheDocument();
   });
 
   it('opens a searched link on its products, each with its cards', async () => {

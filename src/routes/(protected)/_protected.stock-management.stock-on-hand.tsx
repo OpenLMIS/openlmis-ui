@@ -19,6 +19,7 @@ import { ListError } from '@/components/list-error';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import {
   Workspace,
@@ -124,12 +125,75 @@ function StockOnHandHeader() {
   );
 }
 
+function useResultsLayout() {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const layout: ResultsLayout = width === undefined || width >= TABLE_MIN_WIDTH ? 'table' : 'cards';
+  return [measure, layout] as const;
+}
+
+const noop = () => {};
+
+function StockOnHandListSkeleton({
+  search,
+  layout,
+}: {
+  search: StockOnHandSearch;
+  layout: ResultsLayout;
+}) {
+  const { t } = useTranslation();
+  const { unit, canSwitch } = useQuantityUnit();
+  return (
+    <div aria-busy className="flex flex-col gap-4">
+      <div className="flex h-6 items-center">
+        <div className="h-4 w-72 max-w-full">
+          <Skeleton fill />
+        </div>
+      </div>
+      <fieldset className="min-w-0" disabled>
+        <StockOnHandToolbar
+          disabled
+          onFilterChange={noop}
+          onUnitChange={canSwitch ? noop : undefined}
+          print={
+            <Button type="button">
+              <PrinterIcon data-icon="inline-start" />
+              {t('stock-on-hand.print')}
+            </Button>
+          }
+          search={search}
+          unit={unit}
+        />
+      </fieldset>
+      <StockOnHandResultsSkeleton layout={layout} search={search} />
+    </div>
+  );
+}
+
+function StockOnHandPageSkeleton({
+  search,
+  layout,
+}: {
+  search: StockOnHandSearch;
+  layout: ResultsLayout;
+}) {
+  return (
+    <>
+      <FacilityProgramSelectorSkeleton />
+      {isCompleteSelection(search) && <StockOnHandListSkeleton layout={layout} search={search} />}
+    </>
+  );
+}
+
 function StockOnHandPending() {
+  const search = Route.useSearch();
+  const [measure, layout] = useResultsLayout();
   return (
     <Workspace>
       <StockOnHandHeader />
       <WorkspaceContent>
-        <FacilityProgramSelectorSkeleton />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          <StockOnHandPageSkeleton layout={layout} search={search} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );
@@ -147,9 +211,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
   const { updateSearch } = useSearchNavigation<StockOnHandSearch>(NO_DIALOGS);
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const layout: ResultsLayout =
-    contentWidth === undefined || contentWidth >= TABLE_MIN_WIDTH ? 'table' : 'cards';
+  const [measureContent, layout] = useResultsLayout();
 
   return (
     <Workspace>
@@ -165,7 +227,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
                 title={t('facility-program.load-error-title')}
               />
             )}
-            pendingFallback={<FacilityProgramSelectorSkeleton />}
+            pendingFallback={<StockOnHandPageSkeleton layout={layout} search={search} />}
             resetKey={userId}
           >
             <StockOnHandBody

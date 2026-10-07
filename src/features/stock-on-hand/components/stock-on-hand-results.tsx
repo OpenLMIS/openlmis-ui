@@ -478,13 +478,36 @@ function GroupedCards({
   );
 }
 
-function SkeletonBar() {
+function SkeletonBar({ width = 'w-3/4', height = 'h-4' }: { width?: string; height?: string }) {
   return (
-    <div className="h-4 w-3/4">
+    <div className={`${height} ${width}`}>
       <Skeleton fill />
     </div>
   );
 }
+
+function ToggleSkeleton() {
+  return (
+    <span className="flex size-7 shrink-0 items-center justify-center text-muted-foreground">
+      <ChevronDownIcon />
+    </span>
+  );
+}
+
+const SKELETON_PRODUCTS = [
+  { id: 'a', cards: ['a1', 'a2'] },
+  { id: 'b', cards: ['b1'] },
+  { id: 'c', cards: ['c1'] },
+  { id: 'd', cards: ['d1', 'd2'] },
+  { id: 'e', cards: ['e1'] },
+];
+
+const SKELETON_DETAILS = [
+  'stock-on-hand.lot-code',
+  'stock-on-hand.stock-on-hand',
+  'stock-on-hand.expiry-date',
+  'stock-on-hand.last-update',
+] as const;
 
 export function StockOnHandResultsSkeleton({
   search,
@@ -493,10 +516,8 @@ export function StockOnHandResultsSkeleton({
   search: StockOnHandSearch;
   layout: ResultsLayout;
 }) {
-  const products = Array.from(
-    { length: Math.min(toPaginationState(search).pageSize, 5) },
-    (_, index) => index,
-  );
+  const { t } = useTranslation();
+  const products = SKELETON_PRODUCTS.slice(0, toPaginationState(search).pageSize);
   const footer = (
     <DataTableFooter>
       <DataTablePaginationSkeleton />
@@ -509,11 +530,45 @@ export function StockOnHandResultsSkeleton({
         <DataTableCard>
           <ul className="divide-y">
             {products.map((product) => (
-              <li className="flex flex-col gap-2 p-3" key={product}>
-                <SkeletonBar />
-                <div className="h-3 w-1/3">
-                  <Skeleton fill />
+              <li key={product.id}>
+                <div className="flex items-start gap-2 bg-muted/30 p-3">
+                  <ToggleSkeleton />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex h-5 items-center">
+                      <SkeletonBar width="w-2/3" />
+                    </div>
+                    <div className="flex h-4 items-center">
+                      <SkeletonBar height="h-3" width="w-16" />
+                    </div>
+                    <div className="flex h-4 items-center">
+                      <SkeletonBar height="h-3" width="w-20" />
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    <span className="text-muted-foreground text-xs">
+                      {t('stock-on-hand.stock-on-hand')}
+                    </span>
+                    <div className="flex h-5 items-center">
+                      <SkeletonBar width="w-10" />
+                    </div>
+                  </div>
                 </div>
+                <ul className="divide-y border-t">
+                  {product.cards.map((card) => (
+                    <li className="p-3 ps-12" key={card}>
+                      <dl className="grid grid-cols-2 gap-3 @md/table:grid-cols-3">
+                        {SKELETON_DETAILS.map((labelKey) => (
+                          <div className="flex min-w-0 flex-col gap-0.5" key={labelKey}>
+                            <dt className="text-muted-foreground text-xs">{t(labelKey)}</dt>
+                            <dd className="flex h-5 items-center">
+                              <SkeletonBar width="w-20" />
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>
@@ -523,26 +578,48 @@ export function StockOnHandResultsSkeleton({
     );
   }
 
+  const cell = (width: string) => (
+    <TableCell>
+      <SkeletonBar width={width} />
+    </TableCell>
+  );
   return (
     <div aria-busy>
       <DataTableCard>
         <Table density="comfortable" layout="fixed">
           <StockTableHeader />
           <TableBody>
-            {products.flatMap((product) =>
-              [0, 1, 2].map((row) => (
-                <TableRow key={`${product}:${row}`} surface={row === 0 ? 'muted' : 'default'}>
-                  {TABLE_COLUMNS.map((column) => (
-                    <TableCell key={column.key}>
-                      {row === 0 &&
-                      ['lotCode', 'expiry', 'lastUpdate'].includes(column.key) ? null : (
-                        <SkeletonBar />
-                      )}
-                    </TableCell>
-                  ))}
+            {products.flatMap((product) => [
+              <TableRow key={product.id} surface="muted">
+                <TableCell>
+                  <span className="flex items-center gap-1">
+                    <ToggleSkeleton />
+                    <SkeletonBar width="w-12" />
+                  </span>
+                </TableCell>
+                {cell('w-3/4')}
+                {cell('w-6')}
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                {cell('w-10')}
+              </TableRow>,
+              ...product.cards.map((card) => (
+                <TableRow key={card}>
+                  <TableCell>
+                    <span className="flex ps-9">
+                      <SkeletonBar width="w-12" />
+                    </span>
+                  </TableCell>
+                  {cell('w-3/4')}
+                  {cell('w-6')}
+                  {cell('w-20')}
+                  {cell('w-20')}
+                  {cell('w-20')}
+                  {cell('w-10')}
                 </TableRow>
               )),
-            )}
+            ])}
           </TableBody>
         </Table>
         {footer}

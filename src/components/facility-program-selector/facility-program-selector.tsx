@@ -263,8 +263,8 @@ function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
 export function FacilityProgramSelectorSkeleton() {
   const { t } = useTranslation();
   const field = (label: string) => (
-    <div className="flex flex-col gap-2">
-      <span className="font-medium text-sm">
+    <div className="flex flex-col gap-1">
+      <span className="font-medium text-sm leading-snug">
         <FieldLabelText label={label} required />
       </span>
       <div className="h-8">
@@ -276,8 +276,8 @@ export function FacilityProgramSelectorSkeleton() {
     <div aria-busy>
       <SelectorFrame
         mode={
-          <div className="flex flex-col gap-2">
-            <span className="font-medium text-sm">{t('facility-program.mode')}</span>
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-sm leading-snug">{t('facility-program.mode')}</span>
             <div className="h-8 w-64">
               <Skeleton fill />
             </div>
