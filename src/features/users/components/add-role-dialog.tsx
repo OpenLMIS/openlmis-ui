@@ -51,7 +51,7 @@ type AddRoleDialogProps = {
 
 export function AddRoleDialog({ type, onClose, ...props }: AddRoleDialogProps) {
   const { t } = useTranslation();
-  const { shown, dialogProps } = useDialogTarget(type, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(type, onClose);
 
   return (
     <FormDialog {...dialogProps()}>
@@ -76,7 +76,7 @@ export function AddRoleDialog({ type, onClose, ...props }: AddRoleDialogProps) {
           }
           resetKey={shown}
         >
-          <AddRoleForm key={shown} onDone={onClose} type={shown} {...props} />
+          <AddRoleForm key={shown} onDone={close} type={shown} {...props} />
         </QueryBoundary>
       )}
     </FormDialog>

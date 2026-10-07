@@ -582,7 +582,7 @@ type AddProgramDialogProps = {
 
 function AddProgramDialog({ open, rows, onAdd, onClose }: AddProgramDialogProps) {
   const { t } = useTranslation();
-  const { shown, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
 
   return (
     <FormDialog {...dialogProps()}>
@@ -601,8 +601,7 @@ function AddProgramDialog({ open, rows, onAdd, onClose }: AddProgramDialogProps)
         >
           <AddProgramForm
             onAdd={(row) => {
-              onAdd(row);
-              onClose();
+              if (close()) onAdd(row);
             }}
             rows={rows}
           />

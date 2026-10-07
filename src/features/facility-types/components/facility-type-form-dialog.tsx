@@ -61,12 +61,12 @@ type FacilityTypeFormDialogProps = {
 };
 
 export function FacilityTypeFormDialog({ target, onClose }: FacilityTypeFormDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && <FacilityTypeDialogContent onDone={onClose} target={shown} />}
+      {shown && <FacilityTypeDialogContent onDone={close} target={shown} />}
     </FormDialog>
   );
 }

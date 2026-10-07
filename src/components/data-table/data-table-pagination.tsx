@@ -27,8 +27,10 @@ const PAGE_SIZE_ITEMS = DEFAULT_PAGE_SIZE_OPTIONS.map((size) => ({
 
 export function DataTablePagination<TData extends RowData>({
   table,
+  disabled = false,
 }: {
   table: DataTableInstance<TData>;
+  disabled?: boolean;
 }) {
   const labels = useDataTableLabels();
   const pageSizeId = useId();
@@ -36,8 +38,8 @@ export function DataTablePagination<TData extends RowData>({
   const total = table.getRowCount();
   const from = total === 0 ? 0 : pageIndex * pageSize + 1;
   const to = Math.min((pageIndex + 1) * pageSize, total);
-  const canPrevious = table.getCanPreviousPage();
-  const canNext = table.getCanNextPage();
+  const canPrevious = !disabled && table.getCanPreviousPage();
+  const canNext = !disabled && table.getCanNextPage();
 
   const controls = [
     { label: labels.firstPage, icon: ChevronsLeftIcon, enabled: canPrevious, go: table.firstPage },
@@ -79,6 +81,7 @@ export function DataTablePagination<TData extends RowData>({
             {labels.rowsPerPage}
           </label>
           <Select
+            disabled={disabled}
             items={PAGE_SIZE_ITEMS}
             onValueChange={(value) => {
               if (value !== null) table.setPageSize(value);

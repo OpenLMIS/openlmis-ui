@@ -51,7 +51,7 @@ export function AssignmentsToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableComboboxFilter
-          label={t('valid-assignments.available-to')}
+          label={t('valid-assignments.facility')}
           onValueChange={(facilityId) =>
             onFilterChange({ facilityId: facilityId || undefined, page: undefined })
           }

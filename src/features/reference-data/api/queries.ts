@@ -19,6 +19,7 @@ import {
   fetchSupervisoryNodes,
   fetchUserPrograms,
   fetchUserRecord,
+  type OrderableSearch,
 } from '@/features/reference-data/api/api';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
 
@@ -116,11 +117,17 @@ export const reasonsOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const orderablesSearchOptions = (q: string) =>
-  queryOptions({
-    queryKey: queryKeys.orderables.list({ q: q.trim() }),
-    queryFn: () => fetchOrderables(q),
+export const orderablesSearchOptions = (search: OrderableSearch) => {
+  const trimmed = {
+    ...search,
+    name: search.name?.trim() ?? '',
+    code: search.code?.trim() ?? '',
+  };
+  return queryOptions({
+    queryKey: queryKeys.orderables.list(trimmed),
+    queryFn: () => fetchOrderables(trimmed),
   });
+};
 
 export const orderablesByIdsOptions = (ids: readonly string[]) =>
   queryOptions({

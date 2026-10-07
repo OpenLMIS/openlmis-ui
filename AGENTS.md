@@ -274,7 +274,7 @@ Two ways out when a page needs a different treatment:
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density`/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
-   `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+   `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
@@ -287,9 +287,10 @@ rules enforce. This is the one place where editing generated shadcn files is exp
 **Switching presets or re-running `shadcn add` overwrites these files and silently drops
 every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
 passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. Eight edits carry no prop, so `tsc` cannot catch
-them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
-that selects part of a page; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
+new files rather than reverting the preset. `dialog.tsx` also exports `DialogCloseLabelProvider`,
+which the root route fills with the translated "Close" for every dialog's close buttons. Eight edits
+carry no prop, so `tsc` cannot catch them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
+that selects part of a page, and dims on `data-disabled`, which Base UI sets instead of `:disabled`; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
 follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
 `button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
 looks disabled; `sonner.tsx`'s `Toaster` reads
@@ -443,8 +444,14 @@ size returns to page 1.
 
 **When the endpoint cannot page or sort**, as `GET /roles`, the list loads every record once
 and filters, sorts and pages it in the browser behind the same URL state, clamping a page past
-the end; with no request per page, nothing suspends after the first load. Roles is the example.
-It moves to server paging once the API can page, as Programs did with `POST /programs/search`.
+the end; with no request per page, nothing suspends after the first load. Roles and Programs
+(`GET /programs`) are the examples.
+
+**Every screen works against the backend services as they are on master**, since the new UI is
+deployed on its own beside the legacy backend. Never rely on an endpoint or parameter that only a
+backend branch has: where legacy's API is limited, as `GET /orderables` takes `code` and `name`
+as separate filters with no search across both, the screen keeps legacy's shape, here Search By
+Code and Search By Name.
 
 **Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
 (`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The
@@ -586,9 +593,7 @@ with a dot; `maxDecimals` caps
 the decimals. A yes/no setting is a `SwitchField`,
 one compact row with the label and an info button for its description at the start and the
 switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes, and a list too long to load, such as
-products, passes `onSearch` and the server's matches as `items`, and keeps the search and the list
-open after each pick; free text such as a reason's tags is a `TagsField`, where Enter, Tab or leaving
+`MultiComboboxField` with chips, not a column of checkboxes; free text such as a reason's tags is a `TagsField`, where Enter, Tab or leaving
 the box takes the highlighted suggestion or the typed text, a comma adds the typed text, and
 `minLength`/`maxLength` refuse a tag with a message; one of a short fixed list is a
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
@@ -611,7 +616,7 @@ the first submit and then follow each correction.
 
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
-exceptions are `DialogContent size`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
+exceptions are `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
 `Field spacing`, `FieldLabel weight`,
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
 `SelectTrigger width`, `Button align/width` and `PopoverContent width/padding`. In a row,
@@ -693,6 +698,10 @@ uses `success`, `warning` and `destructive` with an icon and a label, never colo
 **Branding, theme and feature flags come from the server**, `GET /api/appConfiguration`,
 loaded in `src/lib/app-configuration.ts` before the first render and cached in localStorage for
 the next boot. A slow or missing server falls back to the cache, then to the built-in defaults.
+The Settings page is behind the `SYSTEM_SETTINGS` flag, off by default since the released backend
+has no endpoint. It is `deploymentOnly`: read from `config.json` alone and left out of
+`ADMIN_FLAG_KEYS`, the list on Settings' own Feature Flags tab, so an administrator can never turn
+Settings off from inside it. `pnpm dev` sees it off unless `public/config.json` turns it on.
 `startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
 favicon, preset tokens and light or dark class in step with the store.
 

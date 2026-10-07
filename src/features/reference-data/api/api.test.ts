@@ -168,25 +168,43 @@ const page = <T>(content: T[], totalPages = 1) => ({
 });
 
 describe('fetchOrderables', () => {
-  it('searches by code or name, one page sorted by name', async () => {
+  it('searches by name, one page sorted by name', async () => {
     get.mockResolvedValueOnce(page([orderable('o1')]));
 
-    await expect(fetchOrderables('acid')).resolves.toEqual({
+    await expect(fetchOrderables({ name: 'acid' })).resolves.toEqual({
       content: [orderable('o1')],
       totalElements: 1,
       totalPages: 1,
     });
     expect(get).toHaveBeenCalledWith('/orderables', {
-      params: { page: 0, size: 20, sort: 'fullProductName,asc', q: 'acid' },
+      params: { page: 0, size: 20, sort: 'fullProductName,asc', name: 'acid' },
     });
   });
 
   it('sends no search when nothing is typed', async () => {
     get.mockResolvedValueOnce(page([]));
 
-    await fetchOrderables('  ');
+    await fetchOrderables({ name: '', code: '' });
     expect(get).toHaveBeenCalledWith('/orderables', {
       params: { page: 0, size: 20, sort: 'fullProductName,asc' },
+    });
+  });
+
+  it('reads the page and page size asked for, as a paged table does', async () => {
+    get.mockResolvedValueOnce(page([]));
+
+    await fetchOrderables({ name: 'acid', page: 2, size: 10 });
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { page: 2, size: 10, sort: 'fullProductName,asc', name: 'acid' },
+    });
+  });
+
+  it('sends a code and a name as the separate filters the server matches together', async () => {
+    get.mockResolvedValueOnce(page([]));
+
+    await fetchOrderables({ name: 'acid', code: 'C1' });
+    expect(get).toHaveBeenCalledWith('/orderables', {
+      params: { page: 0, size: 20, sort: 'fullProductName,asc', name: 'acid', code: 'C1' },
     });
   });
 });

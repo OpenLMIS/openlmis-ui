@@ -44,7 +44,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [created, setCreated] = useState<ServiceAccount>();
-  const { dialogProps } = useDialogTarget(open || undefined, onClose);
+  const { close, dialogProps } = useDialogTarget(open || undefined, onClose);
 
   const add = useMutation({
     mutationFn: createServiceAccount,
@@ -80,7 +80,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
             {/* The new key is what the dialog is now about, so focus moves to its Copy button. */}
             <KeyBox autoFocus token={created.token} />
             <AlertDialogFooter>
-              <Button onClick={onClose}>{t('service-accounts.done')}</Button>
+              <Button onClick={close}>{t('service-accounts.done')}</Button>
             </AlertDialogFooter>
           </>
         ) : (
@@ -142,7 +142,7 @@ function DeleteServiceAccountDialog({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { shown, dialogProps } = useDialogTarget(token, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(token, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const remove = useMutation({
@@ -192,7 +192,7 @@ function DeleteServiceAccountDialog({
           <Button
             disabled={remove.isPending}
             focusableWhenDisabled
-            onClick={() => shown && remove.mutate(shown, { onSuccess: onClose })}
+            onClick={() => shown && remove.mutate(shown, { onSuccess: close })}
             variant="destructive"
           >
             {remove.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}

@@ -108,7 +108,7 @@ const approval: Approval = {
   program: { id: 'fp', code: 'PRG001', name: 'Family Planning' },
 };
 
-const listSearch: ProductsSearch = { q: 'kit', page: 2 };
+const listSearch: ProductsSearch = { name: 'kit', page: 2 };
 
 const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({ component: Outlet });
 const shell = createRoute({

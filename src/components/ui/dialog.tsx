@@ -6,6 +6,18 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+const DialogCloseLabelContext = React.createContext("Close")
+
+function DialogCloseLabelProvider({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return <DialogCloseLabelContext value={label}>{children}</DialogCloseLabelContext>
+}
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -45,6 +57,11 @@ const dialogContentVariants = cva(
       size: {
         default: "sm:max-w-sm",
         lg: "sm:max-w-lg",
+        xl: "sm:max-w-3xl",
+      },
+      height: {
+        auto: "",
+        fixed: "h-[min(52rem,calc(100dvh-2rem))]",
       },
       // `scroll` keeps the dialog inside the viewport; its child decides what scrolls.
       layout: {
@@ -54,6 +71,7 @@ const dialogContentVariants = cva(
     },
     defaultVariants: {
       size: "default",
+      height: "auto",
       layout: "default",
     },
   }
@@ -64,18 +82,20 @@ function DialogContent({
   children,
   showCloseButton = true,
   size,
+  height,
   layout,
   ...props
 }: DialogPrimitive.Popup.Props &
   VariantProps<typeof dialogContentVariants> & {
     showCloseButton?: boolean
   }) {
+  const closeLabel = React.use(DialogCloseLabelContext)
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
-        className={cn(dialogContentVariants({ size, layout }), className)}
+        className={cn(dialogContentVariants({ size, height, layout }), className)}
         {...props}
       >
         {children}
@@ -92,7 +112,7 @@ function DialogContent({
           >
             <XIcon
             />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{closeLabel}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>
@@ -126,6 +146,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
 }) {
+  const closeLabel = React.use(DialogCloseLabelContext)
   return (
     <div
       data-slot="dialog-footer"
@@ -138,7 +159,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close render={<Button variant="outline" />}>
-          Close
+          {closeLabel}
         </DialogPrimitive.Close>
       )}
     </div>
@@ -182,6 +203,7 @@ function DialogDescription({
 export {
   Dialog,
   DialogClose,
+  DialogCloseLabelProvider,
   DialogContent,
   DialogDescription,
   DialogFooter,

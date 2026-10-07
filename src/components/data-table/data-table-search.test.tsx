@@ -25,6 +25,18 @@ describe('DataTableSearch', () => {
     expect(onValueChange).toHaveBeenCalledWith('ad');
   });
 
+  it('searches at once on Enter, without submitting a form it sits in, such as a dialog', () => {
+    const onValueChange = vi.fn();
+    render(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />);
+    const input = screen.getByRole('textbox', { name: 'Search' });
+
+    fireEvent.change(input, { target: { value: 'kit' } });
+    const allowed = fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onValueChange).toHaveBeenCalledWith('kit');
+    expect(allowed).toBe(false);
+  });
+
   it('clears immediately', () => {
     const onValueChange = vi.fn();
     render(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="admin" />);

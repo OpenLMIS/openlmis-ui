@@ -61,13 +61,13 @@ type ApprovalDialogProps = {
 };
 
 export function ApprovalDialog({ product, target, readOnly, onClose }: ApprovalDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(product.id) }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
       {shown && (
-        <ApprovalContent onDone={onClose} product={product} readOnly={readOnly} target={shown} />
+        <ApprovalContent onDone={close} product={product} readOnly={readOnly} target={shown} />
       )}
     </FormDialog>
   );

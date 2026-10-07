@@ -18,6 +18,10 @@ type FormDialogProps = {
   onOpenChangeComplete?: (open: boolean) => void;
   /** `false` for a dialog the user must answer, which has no close button. */
   closeButton?: boolean;
+  /** `xl` for a dialog holding a table, such as a list to pick from. */
+  size?: 'lg' | 'xl';
+  /** `fixed` keeps the same height whatever the body shows, such as a table as it is filtered. */
+  height?: 'auto' | 'fixed';
   children: ReactNode;
 };
 
@@ -27,6 +31,8 @@ export function FormDialog({
   onOpenChange,
   onOpenChangeComplete,
   closeButton = true,
+  size = 'lg',
+  height = 'auto',
   children,
 }: FormDialogProps) {
   const popupRef = useRef<HTMLDivElement>(null);
@@ -47,7 +53,8 @@ export function FormDialog({
         layout="scroll"
         ref={popupRef}
         showCloseButton={closeButton}
-        size="lg"
+        height={height}
+        size={size}
       >
         {children}
       </DialogContent>

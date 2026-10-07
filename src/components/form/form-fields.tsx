@@ -957,7 +957,6 @@ type MultiComboboxFieldProps = FieldProps & {
   placeholder?: string;
   emptyMessage: ReactNode;
   removeLabel: (label: string) => string;
-  onSearch?: (text: string) => void;
 };
 
 export function MultiComboboxField({
@@ -970,21 +969,15 @@ export function MultiComboboxField({
   placeholder,
   emptyMessage,
   removeLabel,
-  onSearch,
 }: MultiComboboxFieldProps) {
   const field = useFieldContext<string[]>();
   const state = useFieldErrors(description);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
   const anchor = useComboboxAnchor();
-  const [picked, setPicked] = useState<readonly ComboboxFieldItem[]>([]);
   const selected = useMemo(() => {
-    if (onSearch) {
-      const known = new Map([...picked, ...items].map((item) => [item.value, item]));
-      return field.state.value.flatMap((value) => known.get(value) ?? []);
-    }
     const chosen = new Set(field.state.value);
     return items.filter((item) => chosen.has(item.value));
-  }, [items, picked, field.state.value, onSearch]);
+  }, [items, field.state.value]);
 
   return (
     <FieldFrame
@@ -999,17 +992,11 @@ export function MultiComboboxField({
         disabled={disabled}
         isItemEqualToValue={(item, value) => item.value === value.value}
         itemToStringLabel={(item) => item.label}
-        filter={onSearch ? null : undefined}
         items={items}
         multiple
-        onInputValueChange={onSearch}
-        onOpenChange={(_, details) => {
-          if (onSearch && details.reason === 'item-press') details.cancel();
-        }}
         onValueChange={(chosen, details) => {
           if (details.reason === 'escape-key' && chosen.length === 0)
             return details.allowPropagation();
-          setPicked(chosen);
           field.handleChange(chosen.map((item) => item.value));
         }}
         value={selected}

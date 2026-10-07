@@ -1,12 +1,23 @@
 import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandPalette } from '@/components/command-palette';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
+
+vi.mock('@/lib/feature-flags', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/feature-flags')>();
+  return {
+    ...actual,
+    useFlag: (key: string) => {
+      const value = actual.useFlag(key as never);
+      return key === 'SYSTEM_SETTINGS' || value;
+    },
+  };
+});
 
 function renderPalette(rights: string[]) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });

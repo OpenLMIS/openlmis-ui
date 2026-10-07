@@ -93,12 +93,12 @@ type ProgramFormDialogProps = {
 };
 
 export function ProgramFormDialog({ target, onClose }: ProgramFormDialogProps) {
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && <ProgramDialogContent onDone={onClose} target={shown} />}
+      {shown && <ProgramDialogContent onDone={close} target={shown} />}
     </FormDialog>
   );
 }

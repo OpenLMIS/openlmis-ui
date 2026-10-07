@@ -7,7 +7,8 @@ type FlagText = {
   descriptionKey: ParseKeys;
   usedByKey: ParseKeys;
 };
-type BooleanFlag = FlagText & { type: 'boolean'; default: boolean };
+/** `deploymentOnly` flags are read from the deployment's config.json alone and are not listed for administrators. */
+type BooleanFlag = FlagText & { type: 'boolean'; default: boolean; deploymentOnly?: boolean };
 type EnumFlag<Option extends string = string> = FlagText & {
   type: 'enum';
   options: readonly Option[];
@@ -58,6 +59,14 @@ export const FEATURE_FLAGS = {
     descriptionKey: 'feature-flags.quantity-unit-option.description',
     usedByKey: 'feature-flags.quantity-unit-option.used-by',
   }),
+  SYSTEM_SETTINGS: {
+    type: 'boolean',
+    default: false,
+    deploymentOnly: true,
+    labelKey: 'feature-flags.system-settings.label',
+    descriptionKey: 'feature-flags.system-settings.description',
+    usedByKey: 'feature-flags.system-settings.used-by',
+  },
   SHOW_REQUISITION_LESS_ORDER: {
     type: 'boolean',
     default: true,
@@ -72,6 +81,14 @@ export type FeatureFlagDefinition = BooleanFlag | EnumFlag;
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlagKey[];
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;
+
+const isDeploymentOnly = (definition: FeatureFlagDefinition) =>
+  definition.type === 'boolean' && definition.deploymentOnly === true;
+
+/** The flags an administrator can set on the Feature Flags tab. */
+export const ADMIN_FLAG_KEYS = FEATURE_FLAG_KEYS.filter(
+  (key) => !isDeploymentOnly(FEATURE_FLAGS[key]),
+);
 
 type FeatureFlagValue<K extends FeatureFlagKey> = (typeof FEATURE_FLAGS)[K] extends {
   options: readonly (infer Option)[];
@@ -101,7 +118,9 @@ export function resolveFlag<K extends FeatureFlagKey>(
 ): { value: FeatureFlagValue<K>; source: FeatureFlagSource } {
   const definition: FeatureFlagDefinition = FEATURE_FLAGS[key];
 
-  const fromAdmin = readFlagValue(definition, admin[key]);
+  const fromAdmin = isDeploymentOnly(definition)
+    ? undefined
+    : readFlagValue(definition, admin[key]);
   if (fromAdmin !== undefined) return { value: fromAdmin as FeatureFlagValue<K>, source: 'admin' };
 
   const fromDeployment = readFlagValue(definition, deployment[key]);

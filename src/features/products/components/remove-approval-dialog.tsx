@@ -38,7 +38,7 @@ export function RemoveApprovalDialog({
 }: RemoveApprovalDialogProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { shown, dialogProps } = useDialogTarget(approvalId, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(approvalId, onClose);
   const approvals = useQuery(productApprovalsOptions(product.id));
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useMutation({
@@ -119,7 +119,7 @@ export function RemoveApprovalDialog({
                     toast.success(t('products.approvals.removed-title'), {
                       description: t('products.approvals.removed', params),
                     });
-                    onClose();
+                    close();
                   },
                 })
               }

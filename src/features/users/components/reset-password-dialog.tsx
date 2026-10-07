@@ -53,7 +53,7 @@ type ResetPasswordDialogProps = {
 
 export function ResetPasswordDialog({ target, onClose }: ResetPasswordDialogProps) {
   const { t } = useTranslation();
-  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: passwordKey(shown?.userId ?? '') }) > 0;
   const title = t(shown?.created ? 'users.password.set-title' : 'users.password.reset-title');
 
@@ -72,7 +72,7 @@ export function ResetPasswordDialog({ target, onClose }: ResetPasswordDialogProp
           pendingFallback={<PasswordFormSkeleton title={title} />}
           resetKey={shown.userId}
         >
-          <PasswordForm key={shown.userId} onDone={onClose} target={shown} title={title} />
+          <PasswordForm key={shown.userId} onDone={close} target={shown} title={title} />
         </QueryBoundary>
       )}
     </FormDialog>
