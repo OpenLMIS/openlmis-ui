@@ -12,6 +12,7 @@ import {
 import {
   Workspace,
   WorkspaceContent,
+  WorkspaceDescription,
   WorkspaceHeader,
   WorkspaceHeading,
   WorkspaceIcon,
@@ -65,6 +66,7 @@ function AdjustmentsHeader({ userId }: { userId?: string }) {
             ? t('stock-adjustment.title', { facility: recordLabel(home) })
             : t('nav.stock-management.adjustments')}
         </WorkspaceTitle>
+        <WorkspaceDescription>{t('stock-adjustment.page-description')}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
   );

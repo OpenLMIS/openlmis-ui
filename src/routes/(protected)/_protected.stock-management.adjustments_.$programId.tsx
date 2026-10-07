@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
   WorkspaceContent,
+  WorkspaceDescription,
   WorkspaceHeader,
   WorkspaceHeading,
   WorkspaceIcon,
@@ -78,6 +79,7 @@ function AdjustmentPage() {
               program: recordLabel(program),
             })}
           </WorkspaceTitle>
+          <WorkspaceDescription>{t('stock-adjustment.editor-description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>{null}</WorkspaceContent>

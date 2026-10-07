@@ -383,8 +383,9 @@ hand-rolling padding:
 </Workspace>
 ```
 
-Every part takes only `children` - no boolean props, no `renderX` callbacks. A page
-without an icon, a description or actions just leaves those parts out. The one variant is
+Every part takes only `children` - no boolean props, no `renderX` callbacks. Every page has a
+`WorkspaceDescription`, one plain sentence on what the page is for, so headers stay consistent; a
+page without an icon or actions leaves those parts out. The one variant is
 `width="narrow"` on `Workspace` and `WorkspaceFooter`, for a page of settings like Profile.
 
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
