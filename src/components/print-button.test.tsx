@@ -7,10 +7,12 @@ import { PrintButton } from '@/components/print-button';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { downloadFile } from '@/lib/download-file';
+import { openReport } from '@/lib/open-report';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
+vi.mock('@/lib/open-report', () => ({ openReport: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const USER = 'user1';
 const labels = {
@@ -23,7 +25,7 @@ const labels = {
 };
 const request = vi.fn<() => Promise<Blob>>();
 const grant = ['STOCK_CARDS_VIEW|f1|p1'];
-function renderButton() {
+function renderButton(reportAction: 'download' | 'open' = 'download') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, retry: false } },
   });
@@ -36,6 +38,7 @@ function renderButton() {
         right="STOCK_CARDS_VIEW"
         request={request}
         filename="card.pdf"
+        reportAction={reportAction}
         labels={labels}
       />
     </QueryClientProvider>,
@@ -51,6 +54,13 @@ beforeEach(() => {
 afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
 
 describe('PrintButton', () => {
+  it('opens card reports for printing after the same scoped permission check', async () => {
+    renderButton('open');
+    await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+    await waitFor(() => expect(openReport).toHaveBeenCalledWith(expect.any(Blob)));
+    expect(downloadFile).not.toHaveBeenCalled();
+  });
+
   it('downloads after rechecking the exact grant and reports success', async () => {
     renderButton();
     await userEvent.click(screen.getByRole('button', { name: 'Print' }));

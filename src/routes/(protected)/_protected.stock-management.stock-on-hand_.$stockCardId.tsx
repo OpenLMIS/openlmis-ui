@@ -103,6 +103,7 @@ function StockCardPage() {
             facilityId={data.card.facility.id}
             programId={data.card.program.id}
             size="lg"
+            reportAction="open"
             request={(lang) =>
               fetchStockCardReport(data.card.id, { showInDoses: unit === 'DOSES', lang })
             }

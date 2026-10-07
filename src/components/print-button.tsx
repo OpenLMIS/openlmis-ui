@@ -11,6 +11,7 @@ import { ForbiddenError } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { downloadFile } from '@/lib/download-file';
+import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 
 type PrintButtonProps = {
@@ -20,6 +21,7 @@ type PrintButtonProps = {
   right: string;
   request: (language: string) => Promise<Blob>;
   filename: string;
+  reportAction?: 'download' | 'open';
   labels: {
     button: string;
     successTitle: string;
@@ -51,7 +53,8 @@ export function PrintButton({ disabled, size = 'default', ...props }: PrintButto
     },
     onSuccess: (report, sent) => {
       if (!stillSignedIn(sent.userId)) return;
-      downloadFile(report, sent.filename);
+      if (sent.reportAction === 'open') openReport(report);
+      else downloadFile(report, sent.filename);
       toast.success(sent.labels.successTitle, { description: sent.labels.successDescription });
     },
     onError: (error, sent) => {

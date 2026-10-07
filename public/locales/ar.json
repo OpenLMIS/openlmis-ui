@@ -1046,7 +1046,7 @@
   "stock-card.print-error": "حاول طباعة بطاقة المخزون هذه مرة أخرى.",
   "stock-card.print-error-title": "تعذّرت طباعة بطاقة المخزون",
   "stock-card.print-refused": "لم يعد لديك إذن لطباعة بطاقة المخزون هذه.",
-  "stock-card.printed": "تم تنزيل بطاقة المخزون للمنتج {product}.",
+  "stock-card.printed": "بطاقة المخزون للمنتج {product} جاهزة للطباعة.",
   "stock-card.printed-title": "بطاقة المخزون جاهزة",
   "stock-card.product-code": "رمز المنتج",
   "stock-card.program": "البرنامج",

@@ -1046,7 +1046,7 @@
   "stock-card.print-error": "Réessayez d’imprimer cette fiche de stock.",
   "stock-card.print-error-title": "Impossible d’imprimer la fiche de stock",
   "stock-card.print-refused": "Vous n’avez plus l’autorisation d’imprimer cette fiche de stock.",
-  "stock-card.printed": "La fiche de stock de {product} a été téléchargée.",
+  "stock-card.printed": "La fiche de stock de {product} est prête à être imprimée.",
   "stock-card.printed-title": "Fiche de stock prête",
   "stock-card.product-code": "Code du produit",
   "stock-card.program": "Programme",

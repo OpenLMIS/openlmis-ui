@@ -1046,7 +1046,7 @@
   "stock-card.print-error": "Try again to print this bin card.",
   "stock-card.print-error-title": "Could Not Print Bin Card",
   "stock-card.print-refused": "You no longer have permission to print this bin card.",
-  "stock-card.printed": "The bin card for {product} has been downloaded.",
+  "stock-card.printed": "The bin card for {product} is ready to print.",
   "stock-card.printed-title": "Bin Card Ready",
   "stock-card.product-code": "Product Code",
   "stock-card.program": "Program",

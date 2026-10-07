@@ -14,7 +14,7 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
-import { downloadFile } from '@/lib/download-file';
+import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
 import { httpError } from '@/tests/http-error';
 
@@ -23,7 +23,7 @@ vi.mock('@/features/stock-card/api/api', () => ({
   fetchStockCard: vi.fn(),
   fetchStockCardReport: vi.fn(),
 }));
-vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
+vi.mock('@/lib/open-report', () => ({ openReport: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 
@@ -304,7 +304,7 @@ describe('stock card print', () => {
         lang: 'en',
       }),
     );
-    expect(downloadFile).toHaveBeenCalledWith(pdf, 'stock-card-card1.pdf');
+    expect(openReport).toHaveBeenCalledWith(pdf);
   });
 });
 

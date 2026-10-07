@@ -1046,7 +1046,7 @@
   "stock-card.print-error": "Intente de nuevo imprimir esta tarjeta de existencias.",
   "stock-card.print-error-title": "No se pudo imprimir la tarjeta de existencias",
   "stock-card.print-refused": "Ya no tiene permiso para imprimir esta tarjeta de existencias.",
-  "stock-card.printed": "Se ha descargado la tarjeta de existencias de {product}.",
+  "stock-card.printed": "La tarjeta de existencias de {product} está lista para imprimir.",
   "stock-card.printed-title": "Tarjeta de existencias lista",
   "stock-card.product-code": "Código de producto",
   "stock-card.program": "Programa",
