@@ -23,7 +23,8 @@ vi.mock('@/features/stock-card/api/api', () => ({
   fetchStockCard: vi.fn(),
   fetchStockCardReport: vi.fn(),
 }));
-vi.mock('@/lib/open-report', () => ({ openReport: vi.fn() }));
+const deliver = vi.fn();
+vi.mock('@/lib/open-report', () => ({ openReport: vi.fn(() => ({ deliver, close: vi.fn() })) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 
@@ -96,6 +97,33 @@ afterEach(() => {
 });
 
 describe('stock card route', () => {
+  it.each([true, false])('rechecks the card for a changed user, grant=%s', async (allowed) => {
+    renderRoute();
+    await screen.findByText('Vaccine - each');
+    vi.mocked(fetchPermissionStrings).mockResolvedValue(allowed ? grants : []);
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 999 });
+    act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
+    if (allowed) expect(await screen.findByText('999')).toBeInTheDocument();
+    else
+      expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+    expect(fetchPermissionStrings).toHaveBeenCalledWith('other');
+    expect(fetchStockCard).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns from Not Found with the same list search as the breadcrumb', async () => {
+    vi.mocked(fetchStockCard).mockRejectedValue(httpError(404));
+    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&productCode=C1&page=7&cardPage=2`));
+    const back = await screen.findByRole('button', { name: 'stock-card.back' });
+    expect(back).toHaveAttribute(
+      'href',
+      screen
+        .getByRole('link', {
+          name: 'nav.stock-management.stock-on-hand',
+        })
+        .getAttribute('href'),
+    );
+  });
+
   it('opens an inactive card when the exact facility and program grant exists', async () => {
     renderRoute();
     expect(await screen.findByRole('heading', { name: 'stock-card.title' })).toBeInTheDocument();
@@ -142,7 +170,7 @@ describe('stock card route', () => {
     expect(screen.getByRole('button', { name: 'error.try-again' })).toBeInTheDocument();
   });
 
-  it('does not ask for a card when the user changes while permissions load', async () => {
+  it('starts the card request while permissions are still loading', async () => {
     let release = () => {};
     vi.mocked(fetchPermissionStrings).mockReturnValue(
       new Promise((resolve) => {
@@ -151,9 +179,9 @@ describe('stock card route', () => {
     );
     renderRoute();
     await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalled());
-    act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
+    expect(fetchStockCard).toHaveBeenCalledWith('card1');
     await act(async () => release());
-    expect(fetchStockCard).not.toHaveBeenCalled();
+    expect(await screen.findByText('Vaccine - each')).toBeInTheDocument();
   });
 
   it('does not reveal a late card after the user changes', async () => {
@@ -165,6 +193,7 @@ describe('stock card route', () => {
     );
     const { router } = renderRoute();
     await waitFor(() => expect(fetchStockCard).toHaveBeenCalled());
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
     await act(async () => release());
     await waitFor(() => expect(router.state.status).toBe('idle'));
@@ -278,9 +307,11 @@ describe('stock card display and paging', () => {
     first.unmount();
     width.mockReturnValue({ width: 390 } as DOMRect);
     renderRoute();
-    await screen.findByText('stock-card.reversed-by');
+    await screen.findByText('Vaccine - each');
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('term')).toHaveLength(18);
+    expect(screen.getAllByRole('term')).toHaveLength(11);
+    expect(screen.queryByText('stock-card.reversed-by')).not.toBeInTheDocument();
+    expect(screen.queryByText('stock-card.receive-from')).not.toBeInTheDocument();
   });
 
   it('shows the empty ledger and clamps its stale page to the beginning', async () => {
@@ -304,7 +335,8 @@ describe('stock card print', () => {
         lang: 'en',
       }),
     );
-    expect(openReport).toHaveBeenCalledWith(pdf);
+    expect(openReport).toHaveBeenCalledWith('stock_card_card1.pdf', 'stock-card.print-loading');
+    expect(deliver).toHaveBeenCalledWith(pdf);
   });
 });
 
@@ -345,6 +377,20 @@ describe('stock card return breadcrumbs', () => {
 });
 
 describe('stock card freshness', () => {
+  it('fetches fresh on Try Again after a failed entry with an old cached balance', async () => {
+    const queryClient = appQueryClient();
+    const first = renderRoute(path(), queryClient);
+    await screen.findByText('Vaccine - each');
+    first.unmount();
+    vi.mocked(fetchStockCard).mockRejectedValueOnce(httpError(500));
+    renderRoute(path(), queryClient);
+    await screen.findByRole('heading', { name: 'stock-card.error-title' });
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 999 });
+    await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+    expect(await screen.findByText('999')).toBeInTheDocument();
+    expect(fetchStockCard).toHaveBeenCalledTimes(3);
+  });
+
   it.each(['stale', 'invalidated', 'fresh'])('reloads a %s cached card on entry', async (state) => {
     const queryClient = appQueryClient();
     const first = renderRoute(path(), queryClient);

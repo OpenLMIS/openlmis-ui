@@ -15,10 +15,10 @@ import {
 } from '@/components/facility-program-selector/use-facility-program-options';
 import { ListError } from '@/components/list-error';
 import { LoadError } from '@/components/load-error';
-import { PrintButton } from '@/components/print-button';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Workspace,
   WorkspaceContent,
@@ -49,8 +49,10 @@ import {
   toSummariesQuery,
 } from '@/features/stock-on-hand/lib/search';
 import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
+import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
   type FacilityProgramOptions,
@@ -71,7 +73,7 @@ const RIGHT = RIGHTS.stockCardsView;
 
 const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
 
-const TABLE_MIN_WIDTH = 1024;
+const TABLE_MIN_WIDTH = 768;
 
 const noop = () => {};
 
@@ -446,33 +448,39 @@ function StockOnHandPrintButton({
   const { t } = useTranslation();
   const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
   const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
+  const print = usePrintReport({
+    userId,
+    right: RIGHT,
+    facilityId: selection.facilityId,
+    programId: selection.programId,
+    request: (lang) =>
+      fetchStockOnHandReport({
+        programId: selection.programId,
+        facilityId: selection.facilityId,
+        showInDoses: unit === 'DOSES',
+        lang,
+      }),
+    onReport: () => ({
+      deliver: (report) => downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`),
+      close: noop,
+    }),
+    successTitle: t('stock-on-hand.printed-title'),
+    successDescription: t('stock-on-hand.printed', {
+      facility: label(facility),
+      program: label(program),
+    }),
+    errorTitle: t('stock-on-hand.print-error-title'),
+    errorDescription: t('stock-on-hand.print-error'),
+    refusedDescription: t('stock-on-hand.print-refused'),
+  });
   return (
-    <PrintButton
-      userId={userId}
-      right={RIGHT}
-      facilityId={selection.facilityId}
-      programId={selection.programId}
-      disabled={!page || page.totalElements === 0}
-      request={(lang) =>
-        fetchStockOnHandReport({
-          programId: selection.programId,
-          facilityId: selection.facilityId,
-          showInDoses: unit === 'DOSES',
-          lang,
-        })
-      }
-      filename={`stock-on-hand${codes ? `-${codes}` : ''}.pdf`}
-      labels={{
-        button: t('stock-on-hand.print'),
-        successTitle: t('stock-on-hand.printed-title'),
-        successDescription: t('stock-on-hand.printed', {
-          facility: label(facility),
-          program: label(program),
-        }),
-        errorTitle: t('stock-on-hand.print-error-title'),
-        errorDescription: t('stock-on-hand.print-error'),
-        refusedDescription: t('stock-on-hand.print-refused'),
-      }}
-    />
+    <Button disabled={!page || page.totalElements === 0 || print.isPending} onClick={print.print}>
+      {print.isPending ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <PrinterIcon data-icon="inline-start" />
+      )}
+      {t('stock-on-hand.print')}
+    </Button>
   );
 }

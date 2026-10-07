@@ -235,7 +235,7 @@ function Quantity({ value, unavailable }: { value: string | null; unavailable: s
 function Code({ children }: { children: ReactNode }) {
   return (
     <span className="flex">
-      <span className="min-w-0 truncate" dir="ltr">
+      <span className="min-w-0 whitespace-normal break-normal" dir="ltr">
         {children}
       </span>
     </span>
@@ -244,7 +244,7 @@ function Code({ children }: { children: ReactNode }) {
 
 function Wrapped({ children }: { children: ReactNode }) {
   return (
-    <span className="block whitespace-normal break-words">
+    <span className="block whitespace-normal break-normal">
       <bdi>{children}</bdi>
     </span>
   );
@@ -255,14 +255,14 @@ function ToggleIcon({ open }: { open: boolean }) {
 }
 
 const TABLE_COLUMNS = [
-  { key: 'productCode', labelKey: 'stock-on-hand.product-code', width: 'w-40' },
+  { key: 'productCode', labelKey: 'stock-on-hand.product-code', width: 'w-28 @4xl/main:w-36' },
   { key: 'product', labelKey: 'stock-on-hand.product', width: undefined },
-  { key: 'packSize', labelKey: 'stock-on-hand.pack-size', width: 'w-24' },
-  { key: 'lotCode', labelKey: 'stock-on-hand.lot-code', width: 'w-36' },
-  { key: 'expiry', labelKey: 'stock-on-hand.expiry-date', width: 'w-32' },
-  { key: 'lastUpdate', labelKey: 'stock-on-hand.last-update', width: 'w-32' },
-  { key: 'stockOnHand', labelKey: 'stock-on-hand.stock-on-hand', width: 'w-36' },
-  { key: 'view', labelKey: 'stock-on-hand.view', width: 'w-20' },
+  { key: 'packSize', labelKey: 'stock-on-hand.pack-size', width: 'w-12 @4xl/main:w-20' },
+  { key: 'lotCode', labelKey: 'stock-on-hand.lot-code', width: 'w-28' },
+  { key: 'expiry', labelKey: 'stock-on-hand.expiry-date', width: 'w-26 @4xl/main:w-28' },
+  { key: 'lastUpdate', labelKey: 'stock-on-hand.last-update', width: 'w-26 @4xl/main:w-28' },
+  { key: 'stockOnHand', labelKey: 'stock-on-hand.stock-on-hand', width: 'w-20 @4xl/main:w-28' },
+  { key: 'view', labelKey: 'stock-on-hand.view', width: 'w-20 @4xl/main:w-24' },
 ] as const;
 
 function StockTableHeader() {
@@ -278,7 +278,9 @@ function StockTableHeader() {
         <TableRow>
           {TABLE_COLUMNS.map((column) => (
             <TableHead key={column.key}>
-              <DataTableHeaderLabel>{t(column.labelKey)}</DataTableHeaderLabel>
+              <div className="whitespace-normal break-normal">
+                <DataTableHeaderLabel>{t(column.labelKey)}</DataTableHeaderLabel>
+              </div>
             </TableHead>
           ))}
         </TableRow>
@@ -302,7 +304,7 @@ function GroupedTable({
 
   return (
     <ResultsFrame footer={footer} isStale={isStale}>
-      <Table density="comfortable" layout="fixed">
+      <Table density="default" layout="fixed">
         <StockTableHeader />
         <TableBody>
           {groups.length === 0 ? (
@@ -318,7 +320,7 @@ function GroupedTable({
               return [
                 <TableRow key={group.id} surface="muted">
                   <TableCell>
-                    <span className="flex items-center gap-1">
+                    <span className="flex flex-col items-start gap-1 @4xl/main:flex-row @4xl/main:items-center">
                       <Button
                         aria-expanded={open}
                         aria-label={t('stock-on-hand.toggle-product', { product: name })}
@@ -347,13 +349,17 @@ function GroupedTable({
                   ? group.cards.map((card) => (
                       <TableRow key={`${group.id}:${card.id}`}>
                         <TableCell>
-                          <span className="flex ps-9">{text.productCode(card.product)}</span>
+                          <span className="flex @4xl/main:ps-9">
+                            {text.productCode(card.product)}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <Wrapped>{text.productLabel(card.product)}</Wrapped>
                         </TableCell>
                         <TableCell>{card.product?.netContent ?? ''}</TableCell>
-                        <TableCell>{text.lotLabel(card)}</TableCell>
+                        <TableCell>
+                          <Wrapped>{text.lotLabel(card)}</Wrapped>
+                        </TableCell>
                         <TableCell>{text.date(card.lot?.expirationDate)}</TableCell>
                         <TableCell>{text.date(card.occurredDate)}</TableCell>
                         <TableCell>
@@ -657,13 +663,13 @@ export function StockOnHandResultsSkeleton({
   return (
     <div aria-busy>
       <DataTableCard>
-        <Table density="comfortable" layout="fixed">
+        <Table density="default" layout="fixed">
           <StockTableHeader />
           <TableBody>
             {products.flatMap((product) => [
               <TableRow key={product.id} surface="muted">
                 <TableCell>
-                  <span className="flex items-center gap-1">
+                  <span className="flex flex-col items-start gap-1 @4xl/main:flex-row @4xl/main:items-center">
                     <ToggleSkeleton />
                     <SkeletonBar width="w-12" />
                   </span>
@@ -679,7 +685,7 @@ export function StockOnHandResultsSkeleton({
               ...product.cards.map((card) => (
                 <TableRow key={card}>
                   <TableCell>
-                    <span className="flex ps-9">
+                    <span className="flex @4xl/main:ps-9">
                       <SkeletonBar width="w-12" />
                     </span>
                   </TableCell>

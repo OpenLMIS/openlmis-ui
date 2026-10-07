@@ -43,23 +43,23 @@ const NO_SORT = { id: 'date', desc: true };
 const columnHelper = createColumnHelper<DataTableFeatures, CardLineRow>();
 const getRowId = (row: CardLineRow) => row.rowId;
 const COLUMNS = [
-  ['date', 'stock-card.date'],
-  ['receiveFrom', 'stock-card.receive-from'],
-  ['issueTo', 'stock-card.issue-to'],
-  ['reason', 'stock-card.reason'],
-  ['adjustment', 'stock-card.adjustment'],
-  ['balance', 'stock-card.stock-on-hand'],
-  ['performedBy', 'stock-card.performed-by'],
-  ['signature', 'stock-card.signature'],
-  ['document', 'stock-card.document-number'],
-  ['reversing', 'stock-card.reversing'],
-  ['reversedBy', 'stock-card.reversed-by'],
+  ['date', 'stock-card.date', 'w-28'],
+  ['receiveFrom', 'stock-card.receive-from', 'w-20'],
+  ['issueTo', 'stock-card.issue-to', 'w-16'],
+  ['reason', 'stock-card.reason', undefined],
+  ['adjustment', 'stock-card.adjustment', 'w-28'],
+  ['balance', 'stock-card.stock-on-hand', 'w-24'],
+  ['performedBy', 'stock-card.performed-by', 'w-28'],
+  ['signature', 'stock-card.signature', 'w-24'],
+  ['document', 'stock-card.document-number', 'w-24'],
+  ['reversing', 'stock-card.reversing', 'w-24'],
+  ['reversedBy', 'stock-card.reversed-by', 'w-20'],
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
 
 function Wrapped({ children }: { children: ReactNode }) {
   return (
-    <span className="block whitespace-normal break-words">
+    <span className="block whitespace-normal break-normal">
       <bdi>{children}</bdi>
     </span>
   );
@@ -79,7 +79,11 @@ function LineCell({
   const { t, i18n } = useTranslation();
   switch (id) {
     case 'date':
-      return <Wrapped>{formatDateValue(line.occurredDate, i18n.language)}</Wrapped>;
+      return (
+        <span className="whitespace-nowrap">
+          <bdi>{formatDateValue(line.occurredDate, i18n.language)}</bdi>
+        </span>
+      );
     case 'receiveFrom':
       return <Wrapped>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
     case 'issueTo':
@@ -89,7 +93,7 @@ function LineCell({
     case 'adjustment':
     case 'balance':
       return (
-        <span className="block whitespace-normal break-words tabular-nums" dir="ltr">
+        <span className="block whitespace-nowrap tabular-nums" dir="ltr">
           {cardQuantity(
             id === 'balance' ? line.stockOnHand : line.quantity,
             netContent,
@@ -114,6 +118,54 @@ function LineCell({
   }
 }
 
+function useLineColumns(netContent?: number | null, unit: QuantityUnit = 'DOSES') {
+  const { t } = useTranslation();
+  return useMemo(
+    () =>
+      columnHelper.columns(
+        COLUMNS.map(([id, key, width]) =>
+          columnHelper.display({
+            id,
+            meta: { className: width },
+            header: () => (
+              <div className="whitespace-normal break-normal">
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+              </div>
+            ),
+            cell: ({ row }) => (
+              <LineCell id={id} line={row.original} netContent={netContent} unit={unit} />
+            ),
+          }),
+        ),
+      ),
+    [t, netContent, unit],
+  );
+}
+
+function hasLineValue(id: CellId, line: CardLineRow) {
+  switch (id) {
+    case 'date':
+    case 'reason':
+    case 'adjustment':
+    case 'balance':
+      return true;
+    case 'receiveFrom':
+      return Boolean(namedWithFreeText(line.source, line.sourceFreeText));
+    case 'issueTo':
+      return Boolean(namedWithFreeText(line.destination, line.destinationFreeText));
+    case 'performedBy':
+      return Boolean(line.username);
+    case 'signature':
+      return Boolean(line.signature);
+    case 'document':
+      return Boolean(line.eventOrigin);
+    case 'reversing':
+      return Boolean(line.reversedEventId);
+    case 'reversedBy':
+      return Boolean(line.cancellationEventId);
+  }
+}
+
 type LinesProps = {
   card: StockCard;
   search: CardPagingSearch;
@@ -125,31 +177,7 @@ type LinesProps = {
 export function StockCardLines({ card, search, onSearchChange, unit, layout }: LinesProps) {
   const { t } = useTranslation();
   const lines = useMemo(() => toCardLines(card.lineItems), [card.lineItems]);
-  const columns = useMemo(
-    () =>
-      columnHelper.columns(
-        COLUMNS.map(([id, key]) =>
-          columnHelper.display({
-            id,
-            meta: { className: id === 'adjustment' ? 'w-28' : undefined },
-            header: () => (
-              <div className="whitespace-normal break-words">
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-              </div>
-            ),
-            cell: ({ row }) => (
-              <LineCell
-                id={id}
-                line={row.original}
-                netContent={card.orderable.netContent}
-                unit={unit}
-              />
-            ),
-          }),
-        ),
-      ),
-    [t, card.orderable.netContent, unit],
-  );
+  const columns = useLineColumns(card.orderable.netContent, unit);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
     (update, replace) => {
       onSearchChange((previous) => changeCardPaging(previous, update), replace);
@@ -200,7 +228,7 @@ export function StockCardLines({ card, search, onSearchChange, unit, layout }: L
           {rows.map((line) => (
             <li className="p-4" key={line.rowId}>
               <dl className="grid grid-cols-2 gap-3 @md/table:grid-cols-3">
-                {COLUMNS.map(([id, key]) => (
+                {COLUMNS.filter(([id]) => hasLineValue(id, line)).map(([id, key]) => (
                   <div className="flex min-w-0 flex-col gap-1" key={id}>
                     <dt className="text-muted-foreground text-xs">{t(key)}</dt>
                     <dd className="min-w-0 text-sm">
@@ -233,23 +261,7 @@ export function StockCardLinesSkeleton({
   search: CardPagingSearch;
 }) {
   const { t } = useTranslation();
-  const columns = useMemo(
-    () =>
-      columnHelper.columns(
-        COLUMNS.map(([id, key]) =>
-          columnHelper.display({
-            id,
-            meta: { className: id === 'adjustment' ? 'w-28' : undefined },
-            header: () => (
-              <div className="whitespace-normal break-words">
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-              </div>
-            ),
-          }),
-        ),
-      ),
-    [t],
-  );
+  const columns = useLineColumns();
   const table = useTable({ features: dataTableFeatures, columns, data: [], enableSorting: false });
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
   if (layout === 'table')

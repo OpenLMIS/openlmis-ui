@@ -11,6 +11,12 @@ describe('cardQuantity', () => {
     expect(cardQuantity(null, 5, 'DOSES', 'fr')).toBeNull();
   });
 
+  it('normalizes negative zero packs before localizing', () => {
+    expect(cardQuantity(-3, 10, 'PACKS', 'en')).toBe('0 ( -3 )');
+    expect(cardQuantity(-3, 10, 'PACKS', 'fr')).toBe('0 ( -3 )');
+    expect(cardQuantity(-10, 10, 'PACKS', 'en')).toBe('-1 ( +0 )');
+  });
+
   it('shows doses as they are', () => {
     expect(cardQuantity(150, 16, 'DOSES')).toBe('150');
     expect(cardQuantity(-3, 16, 'DOSES')).toBe('-3');

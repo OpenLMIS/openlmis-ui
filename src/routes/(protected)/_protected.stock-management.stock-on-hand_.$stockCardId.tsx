@@ -1,13 +1,23 @@
-import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { createFileRoute, type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
-import { ClipboardListIcon } from 'lucide-react';
+import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorFallback } from '@/components/error-fallback';
-import { PrintButton } from '@/components/print-button';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Workspace,
   WorkspaceActions,
@@ -32,11 +42,15 @@ import {
   StockCardLinesSkeleton,
 } from '@/features/stock-card/components/stock-card-lines';
 import { cardPagingSchema } from '@/features/stock-card/lib/search';
+import type { StockCard } from '@/features/stock-card/lib/types';
 import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
+import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
+import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
+import type { QuantityUnit } from '@/lib/quantity';
 
 const RIGHT = RIGHTS.stockCardsView;
 const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
@@ -44,7 +58,7 @@ const NO_DIALOGS = {};
 
 function useCardLayout() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  const layout: CardLayout = width === undefined || width >= 768 ? 'table' : 'cards';
+  const layout: CardLayout = width === undefined || width >= 1088 ? 'table' : 'cards';
   return [measure, layout] as const;
 }
 
@@ -59,13 +73,15 @@ export const Route = createFileRoute(
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
     const userId = useLoginData.getState().referenceDataUserId;
-    const permissions = await requirePermissions(queryClient, RIGHT);
-    if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     const options = stockCardOptions(params.stockCardId);
-    const card = await (cause === 'stay'
-      ? queryClient.ensureQueryData(options)
-      : queryClient.fetchQuery({ ...options, staleTime: 0 }));
-    if (useLoginData.getState().referenceDataUserId !== userId) return;
+    const state = queryClient.getQueryState(options.queryKey);
+    const [permissions, card] = await Promise.all([
+      requirePermissions(queryClient, RIGHT),
+      cause === 'stay' && !state?.error && !state?.isInvalidated
+        ? queryClient.ensureQueryData(options)
+        : queryClient.fetchQuery({ ...options, staleTime: 0 }),
+    ]);
+    if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     if (!hasProgramGrant(permissions, RIGHT, card.facility.id, card.program.id)) {
       throw new ForbiddenError(RIGHT);
     }
@@ -76,6 +92,23 @@ export const Route = createFileRoute(
   errorComponent: StockCardError,
 });
 
+function useReloadForUser(loadedUserId: string | undefined | null) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { stockCardId } = Route.useParams();
+  const userId = useLoginData((state) => state.referenceDataUserId);
+  const previousUser = useRef(userId);
+  useEffect(() => {
+    const changed = previousUser.current !== userId;
+    previousUser.current = userId;
+    if (userId && (changed || loadedUserId !== userId)) {
+      queryClient.removeQueries({ queryKey: stockCardOptions(stockCardId).queryKey });
+      void router.invalidate();
+    }
+  }, [userId, loadedUserId, queryClient, router, stockCardId]);
+  return userId;
+}
+
 function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
@@ -83,7 +116,7 @@ function StockCardPage() {
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const [measure, layout] = useCardLayout();
-  const userId = useLoginData((state) => state.referenceDataUserId);
+  const userId = useReloadForUser(data?.userId);
   if (!data || data.userId !== userId) return null;
   return (
     <Workspace>
@@ -97,28 +130,7 @@ function StockCardPage() {
           </WorkspaceTitle>
         </WorkspaceHeading>
         <WorkspaceActions>
-          <PrintButton
-            userId={data.userId}
-            right={RIGHT}
-            facilityId={data.card.facility.id}
-            programId={data.card.program.id}
-            size="lg"
-            reportAction="open"
-            request={(lang) =>
-              fetchStockCardReport(data.card.id, { showInDoses: unit === 'DOSES', lang })
-            }
-            filename={`stock-card-${data.card.id}.pdf`}
-            labels={{
-              button: t('stock-card.print'),
-              successTitle: t('stock-card.printed-title'),
-              successDescription: t('stock-card.printed', {
-                product: data.card.orderable.fullProductName,
-              }),
-              errorTitle: t('stock-card.print-error-title'),
-              errorDescription: t('stock-card.print-error'),
-              refusedDescription: t('stock-card.print-refused'),
-            }}
-          />
+          <StockCardPrint card={data.card} userId={data.userId} unit={unit} />
         </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
@@ -142,23 +154,71 @@ function StockCardPage() {
   );
 }
 
-function StockCardPending() {
+function StockCardPrint({
+  card,
+  userId,
+  unit,
+}: {
+  card: StockCard;
+  userId: string;
+  unit: QuantityUnit;
+}) {
   const { t } = useTranslation();
+  const print = usePrintReport({
+    userId,
+    right: RIGHT,
+    facilityId: card.facility.id,
+    programId: card.program.id,
+    request: (lang) => fetchStockCardReport(card.id, { showInDoses: unit === 'DOSES', lang }),
+    onReport: () => openReport(`stock_card_${card.id}.pdf`, t('stock-card.print-loading')),
+    successTitle: t('stock-card.printed-title'),
+    successDescription: t('stock-card.printed', { product: card.orderable.fullProductName }),
+    errorTitle: t('stock-card.print-error-title'),
+    errorDescription: t('stock-card.print-error'),
+    refusedDescription: t('stock-card.print-refused'),
+  });
+  return (
+    <Button size="lg" disabled={print.isPending} onClick={print.print}>
+      {print.isPending ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <PrinterIcon data-icon="inline-start" />
+      )}
+      {t('stock-card.print')}
+    </Button>
+  );
+}
+
+function StockCardPending() {
+  const { canSwitch } = useQuantityUnit();
+  useReloadForUser(useLoginData((state) => state.referenceDataUserId));
   const search = Route.useSearch();
   const [measure, layout] = useCardLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
-          <WorkspaceTitle>{t('stock-card.crumb')}</WorkspaceTitle>
+          <WorkspaceIcon>
+            <Skeleton fill />
+          </WorkspaceIcon>
+          <div className="h-7 w-72 max-w-full">
+            <Skeleton fill />
+          </div>
         </WorkspaceHeading>
+        <WorkspaceActions>
+          <div className="h-10 w-24">
+            <Skeleton fill />
+          </div>
+        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
         <div aria-busy className="flex flex-col gap-4" ref={measure}>
           <StockCardHeaderSkeleton />
-          <div className="ms-auto h-8 w-36">
-            <Skeleton fill />
-          </div>
+          {canSwitch && (
+            <div className="ms-auto h-8 w-36">
+              <Skeleton fill />
+            </div>
+          )}
           <StockCardLinesSkeleton layout={layout} search={search} />
         </div>
       </WorkspaceContent>
@@ -168,6 +228,8 @@ function StockCardPending() {
 
 function StockCardError(props: ErrorComponentProps) {
   const { t } = useTranslation();
+  const search = Route.useSearch();
+  useReloadForUser(useLoginData((state) => state.referenceDataUserId));
   if (
     !isNotFound(props.error) &&
     !(isAxiosError(props.error) && props.error.response?.status === 400)
@@ -185,11 +247,28 @@ function StockCardError(props: ErrorComponentProps) {
       <WorkspaceContent>
         <Empty>
           <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchXIcon />
+            </EmptyMedia>
             <EmptyTitle>
               <h1>{t('stock-card.not-found-title')}</h1>
             </EmptyTitle>
             <EmptyDescription>{t('stock-card.not-found-description')}</EmptyDescription>
           </EmptyHeader>
+          <EmptyContent>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link
+                  to="/stock-management/stock-on-hand"
+                  search={stockOnHandSearchSchema.parse(search)}
+                />
+              }
+            >
+              {t('stock-card.back')}
+            </Button>
+          </EmptyContent>
         </Empty>
       </WorkspaceContent>
     </Workspace>

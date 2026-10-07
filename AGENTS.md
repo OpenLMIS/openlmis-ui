@@ -409,7 +409,8 @@ Settings, goes into the shared header's `WorkspaceActionsSlot` through `Workspac
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
-A route's `staticData.crumbParentSearch(search)` carries its list search into the last linked crumb, so a reload or shared detail link keeps the return filters.
+A route's `staticData.crumbParentSearch(search)` carries its list search into the last linked
+crumb, so a reload or shared detail link keeps the return filters.
 A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
 `useAccountLinks()` in `src/components/nav-access.ts` lists Account (Profile) and Settings
 (`/settings`), each behind its right, for the avatar menu, command palette and sidebar.
@@ -511,6 +512,13 @@ A filter on a short fixed list, such as status, is a `DataTableSelectFilter`; on
 such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
 with an option's `description` muted after its label.
 
+PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for the permission check,
+user-change guards and toasts; the page renders its own Button and supplies `onReport`, which
+starts delivery in the click handler. Stock Card uses `openReport` to open a waiting tab
+synchronously and downloads if it is blocked or closed. Stock On Hand uses `downloadFile`.
+Both PDF endpoints use `fetchReport` (`src/lib/fetch-report.ts`) for blob responses and JSON
+error decoding.
+
 ### The data-table components
 
 `src/components/data-table/` is written to move into the SolDevelo shadcn registry
@@ -526,6 +534,8 @@ unchanged, so it follows the registry's rules rather than this app's:
   partly selected page as a minus; it ships with that edit.
 - Text comes from `DataTableLabelsProvider`, which defaults to English.
   `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
+- `DataTable` and `DataTableSkeleton` share column metadata and accept `density`, defaulting
+  to `comfortable`; use `default` for compact tables whose columns need more room.
 - Table state and the URL are app glue and stay in `src/lib/table-search.ts`.
 
 `@tanstack/react-table` is v9. Build tables with `useTable` and `dataTableFeatures`,

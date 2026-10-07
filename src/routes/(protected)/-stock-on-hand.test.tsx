@@ -560,13 +560,11 @@ describe('stock on hand page', () => {
 });
 
 describe('stock on hand View', () => {
-  it('uses cards before the View column crowds out the product name', async () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      width: 839,
-    } as DOMRect);
+  it.each([768, 839, 1009])('keeps the table at the original content width %i', async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
     renderRoute(appliedPath());
     await screen.findAllByText('Levonorgestrel');
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'stock-on-hand.view-card' })).toHaveLength(2);
   });
 
