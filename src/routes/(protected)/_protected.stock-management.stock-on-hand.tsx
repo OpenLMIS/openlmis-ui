@@ -1,13 +1,10 @@
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
-import { serverMessage } from '@/components/dialog-parts';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -18,10 +15,10 @@ import {
 } from '@/components/facility-program-selector/use-facility-program-options';
 import { ListError } from '@/components/list-error';
 import { LoadError } from '@/components/load-error';
+import { PrintButton } from '@/components/print-button';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
 import {
   Workspace,
   WorkspaceContent,
@@ -32,7 +29,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
@@ -54,7 +51,6 @@ import {
 import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
   type FacilityProgramOptions,
@@ -78,9 +74,6 @@ const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
 const TABLE_MIN_WIDTH = 768;
 
 const noop = () => {};
-
-const isServerError = (error: unknown) =>
-  isAxiosError(error) && (error.response?.status ?? 0) >= 500;
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/stock-on-hand')({
   validateSearch: stockOnHandSearchSchema,
@@ -391,7 +384,7 @@ function StockOnHandList({
         onFilterChange={(patch) => onSearchChange(patch, true)}
         onUnitChange={canSwitch ? setUnit : undefined}
         print={
-          <PrintButton
+          <StockOnHandPrintButton
             facility={facility}
             program={program}
             query={query}
@@ -442,65 +435,44 @@ type PrintButtonProps = {
   query: StockCardSummariesQuery;
 };
 
-type PrintRequest = {
-  requestedBy: string;
-  facility: NamedRecord | undefined;
-  program: NamedRecord | undefined;
-};
-
-const stillSignedIn = (userId: string) => useLoginData.getState().referenceDataUserId === userId;
-
-function PrintButton({ userId, selection, facility, program, unit, query }: PrintButtonProps) {
-  const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
+function StockOnHandPrintButton({
+  userId,
+  selection,
+  facility,
+  program,
+  unit,
+  query,
+}: PrintButtonProps) {
+  const { t } = useTranslation();
   const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
-  const print = useMutation({
-    mutationFn: async (_request: PrintRequest) => {
-      const permissions = await queryClient.fetchQuery(permissionsOptions(userId));
-      if (!hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)) {
-        throw new ForbiddenError(RIGHT);
+  const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
+  return (
+    <PrintButton
+      userId={userId}
+      right={RIGHT}
+      facilityId={selection.facilityId}
+      programId={selection.programId}
+      disabled={!page || page.totalElements === 0}
+      request={(lang) =>
+        fetchStockOnHandReport({
+          programId: selection.programId,
+          facilityId: selection.facilityId,
+          showInDoses: unit === 'DOSES',
+          lang,
+        })
       }
-      return fetchStockOnHandReport({
-        programId: selection.programId,
-        facilityId: selection.facilityId,
-        showInDoses: unit === 'DOSES',
-        lang: i18n.resolvedLanguage ?? i18n.language,
-      });
-    },
-    onSuccess: (report, { requestedBy, facility, program }) => {
-      if (!stillSignedIn(requestedBy)) return;
-      const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
-      downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`);
-      toast.success(t('stock-on-hand.printed-title'), {
-        description: t('stock-on-hand.printed', {
+      filename={`stock-on-hand${codes ? `-${codes}` : ''}.pdf`}
+      labels={{
+        button: t('stock-on-hand.print'),
+        successTitle: t('stock-on-hand.printed-title'),
+        successDescription: t('stock-on-hand.printed', {
           facility: label(facility),
           program: label(program),
         }),
-      });
-    },
-    onError: (error, { requestedBy }) => {
-      if (!stillSignedIn(requestedBy)) return;
-      toast.error(t('stock-on-hand.print-error-title'), {
-        description:
-          error instanceof ForbiddenError
-            ? t('stock-on-hand.print-refused')
-            : (!isServerError(error) && serverMessage(error)) || t('stock-on-hand.print-error'),
-      });
-    },
-  });
-
-  return (
-    <Button
-      disabled={!page || page.totalElements === 0 || print.isPending}
-      onClick={() => print.mutate({ requestedBy: userId, facility, program })}
-      type="button"
-    >
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <PrinterIcon data-icon="inline-start" />
-      )}
-      {t('stock-on-hand.print')}
-    </Button>
+        errorTitle: t('stock-on-hand.print-error-title'),
+        errorDescription: t('stock-on-hand.print-error'),
+        refusedDescription: t('stock-on-hand.print-refused'),
+      }}
+    />
   );
 }

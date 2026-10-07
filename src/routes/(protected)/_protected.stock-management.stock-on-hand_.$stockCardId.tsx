@@ -4,11 +4,13 @@ import { ClipboardListIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorFallback } from '@/components/error-fallback';
+import { PrintButton } from '@/components/print-button';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
+  WorkspaceActions,
   WorkspaceContent,
   WorkspaceHeader,
   WorkspaceHeading,
@@ -18,6 +20,7 @@ import {
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchStockCardReport } from '@/features/stock-card/api/api';
 import { stockCardOptions } from '@/features/stock-card/api/queries';
 import {
   StockCardHeader,
@@ -86,6 +89,29 @@ function StockCardPage() {
             {t('stock-card.title', { program: data.card.program.name })}
           </WorkspaceTitle>
         </WorkspaceHeading>
+        <WorkspaceActions>
+          <PrintButton
+            userId={data.userId}
+            right={RIGHT}
+            facilityId={data.card.facility.id}
+            programId={data.card.program.id}
+            size="lg"
+            request={(lang) =>
+              fetchStockCardReport(data.card.id, { showInDoses: unit === 'DOSES', lang })
+            }
+            filename={`stock-card-${data.card.id}.pdf`}
+            labels={{
+              button: t('stock-card.print'),
+              successTitle: t('stock-card.printed-title'),
+              successDescription: t('stock-card.printed', {
+                product: data.card.orderable.fullProductName,
+              }),
+              errorTitle: t('stock-card.print-error-title'),
+              errorDescription: t('stock-card.print-error'),
+              refusedDescription: t('stock-card.print-refused'),
+            }}
+          />
+        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>

@@ -12,13 +12,19 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchStockCard } from '@/features/stock-card/api/api';
+import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
+import { downloadFile } from '@/lib/download-file';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
-vi.mock('@/features/stock-card/api/api', () => ({ fetchStockCard: vi.fn() }));
+vi.mock('@/features/stock-card/api/api', () => ({
+  fetchStockCard: vi.fn(),
+  fetchStockCardReport: vi.fn(),
+}));
+vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 
 const USER = 'user1';
@@ -282,5 +288,46 @@ describe('stock card display and paging', () => {
     const { router } = renderRoute(path('?cardPage=99'));
     expect(await screen.findByText('stock-card.no-transactions')).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('cardPage'));
+  });
+});
+
+describe('stock card print', () => {
+  it('prints the whole card in the selected unit and page language', async () => {
+    const pdf = new Blob(['%PDF']);
+    vi.mocked(fetchStockCardReport).mockResolvedValue(pdf);
+    renderRoute();
+    await userEvent.click(await screen.findByRole('radio', { name: 'quantity-unit.packs' }));
+    await userEvent.click(screen.getByRole('button', { name: 'stock-card.print' }));
+    await waitFor(() =>
+      expect(fetchStockCardReport).toHaveBeenCalledWith('card1', {
+        showInDoses: false,
+        lang: 'en',
+      }),
+    );
+    expect(downloadFile).toHaveBeenCalledWith(pdf, 'stock-card-card1.pdf');
+  });
+});
+
+describe('stock card return breadcrumbs', () => {
+  it('returns the whole validated list search after opening a shared card link', async () => {
+    const search = { mode: 'supervised', facilityId: HOME, programId: FP, productCode: 'C1',
+      productName: 'Vaccine', lotCode: 'LOT-A', includeInactive: 'false', page: '7', size: '20',
+    };
+    const { unmount } = renderRoute(path(`?${new URLSearchParams(search)}&cardPage=3&cardSize=20`));
+    await screen.findByText('Vaccine - each');
+    const link = screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' });
+    const url = new URL(link.getAttribute('href')!, 'http://localhost');
+    expect(url.pathname).toBe('/stock-management/stock-on-hand');
+    expect(Object.fromEntries(url.searchParams)).toEqual(search);
+    unmount();
+    renderRoute(path(`?${new URLSearchParams(search)}&cardPage=3&cardSize=20`));
+    await screen.findByText('Vaccine - each');
+    expect(screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' })).toHaveAttribute('href', url.pathname + url.search);
+  });
+
+  it('returns to bare Stock On Hand when the card has no list search', async () => {
+    renderRoute(path('?cardPage=3&cardSize=20'));
+    await screen.findByText('Vaccine - each');
+    expect(screen.getByRole('link', { name: 'nav.stock-management.stock-on-hand' })).toHaveAttribute('href', '/stock-management/stock-on-hand');
   });
 });
