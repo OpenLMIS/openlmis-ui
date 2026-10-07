@@ -40,7 +40,6 @@ import {
   stockCardSummariesOptions,
 } from '@/features/stock-on-hand/api/queries';
 import {
-  type ResultsLayout,
   STOCK_HIDEABLE_COLUMNS,
   StockOnHandResults,
   StockOnHandResultsSkeleton,
@@ -121,31 +120,27 @@ function StockOnHandHeader() {
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-type PageLayout = ResultsLayout & { view: ReturnType<typeof useColumnVisibility> };
+type ColumnView = ReturnType<typeof useColumnVisibility>;
 
-function useResultsLayout() {
+function useColumnView() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  const view = useColumnVisibility(
+  const columnView = useColumnVisibility(
     STOCK_HIDEABLE_COLUMNS,
     useStoredState('stock-on-hand.column-visibility', columnChoicesSchema, {}),
     width,
   );
-  const layout: PageLayout = {
-    columns: view.visibility,
-    view,
-  };
-  return [measure, layout] as const;
+  return [measure, columnView] as const;
 }
 
-function ColumnsMenu({ layout }: { layout: PageLayout }) {
+function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   const { t } = useTranslation();
   return (
     <div>
       <DataTableViewOptions
         columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-        onReset={layout.view.onReset}
-        onVisibilityChange={layout.view.onVisibilityChange}
-        visibility={layout.view.visibility}
+        onReset={columnView.onReset}
+        onVisibilityChange={columnView.onVisibilityChange}
+        visibility={columnView.visibility}
       />
     </div>
   );
@@ -153,10 +148,10 @@ function ColumnsMenu({ layout }: { layout: PageLayout }) {
 
 function StockOnHandListSkeleton({
   search,
-  layout,
+  columnView,
 }: {
   search: StockOnHandSearch;
-  layout: PageLayout;
+  columnView: ColumnView;
 }) {
   const { t } = useTranslation();
   const { unit, canSwitch } = useQuantityUnit();
@@ -180,38 +175,40 @@ function StockOnHandListSkeleton({
           }
           search={search}
           unit={unit}
-          view={<ColumnsMenu layout={layout} />}
+          view={<ColumnsMenu columnView={columnView} />}
         />
       </fieldset>
-      <StockOnHandResultsSkeleton layout={layout} search={search} />
+      <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
     </div>
   );
 }
 
 function StockOnHandPageSkeleton({
   search,
-  layout,
+  columnView,
 }: {
   search: StockOnHandSearch;
-  layout: PageLayout;
+  columnView: ColumnView;
 }) {
   return (
     <>
       <FacilityProgramSelectorSkeleton />
-      {isCompleteSelection(search) && <StockOnHandListSkeleton layout={layout} search={search} />}
+      {isCompleteSelection(search) && (
+        <StockOnHandListSkeleton columnView={columnView} search={search} />
+      )}
     </>
   );
 }
 
 function StockOnHandPending() {
   const search = Route.useSearch();
-  const [measure, layout] = useResultsLayout();
+  const [measure, columnView] = useColumnView();
   return (
     <Workspace>
       <StockOnHandHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-          <StockOnHandPageSkeleton layout={layout} search={search} />
+          <StockOnHandPageSkeleton columnView={columnView} search={search} />
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -230,7 +227,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
   const { updateSearch } = useSearchNavigation<StockOnHandSearch>(NO_DIALOGS);
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
-  const [measureContent, layout] = useResultsLayout();
+  const [measureContent, columnView] = useColumnView();
 
   return (
     <Workspace>
@@ -246,12 +243,12 @@ function StockOnHandContent({ userId }: { userId: string }) {
                 title={t('facility-program.load-error-title')}
               />
             )}
-            pendingFallback={<StockOnHandPageSkeleton layout={layout} search={search} />}
+            pendingFallback={<StockOnHandPageSkeleton columnView={columnView} search={search} />}
             resetKey={userId}
           >
             <StockOnHandBody
               grants={grants}
-              layout={layout}
+              columnView={columnView}
               onSearchChange={updateSearch}
               search={search}
               userId={userId}
@@ -267,11 +264,17 @@ type StockOnHandBodyProps = {
   userId: string;
   grants: readonly ProgramGrant[];
   search: StockOnHandSearch;
-  layout: PageLayout;
+  columnView: ColumnView;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
-function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: StockOnHandBodyProps) {
+function StockOnHandBody({
+  userId,
+  grants,
+  search,
+  columnView,
+  onSearchChange,
+}: StockOnHandBodyProps) {
   const queryClient = useQueryClient();
   const options = useFacilityProgramOptions(userId, grants);
   const applied = useMemo(
@@ -308,7 +311,7 @@ function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: Sto
       />
       <StockOnHandOutcome
         applied={applied}
-        layout={layout}
+        columnView={columnView}
         onSearchChange={onSearchChange}
         options={options}
         pending={pending}
@@ -330,7 +333,7 @@ type StockOnHandOutcomeProps = Omit<StockOnHandBodyProps, 'grants'> & {
 function StockOnHandOutcome({
   userId,
   search,
-  layout,
+  columnView,
   onSearchChange,
   options,
   applied,
@@ -370,7 +373,7 @@ function StockOnHandOutcome({
       facility={options
         .facilitiesFor(valid.programId)
         .find((facility) => facility.id === valid.facilityId)}
-      layout={layout}
+      columnView={columnView}
       onSearchChange={onSearchChange}
       program={programs.find((program) => program.id === valid.programId)}
       search={search}
@@ -388,7 +391,7 @@ type StockOnHandListProps = {
   selection: CompleteSelection;
   facility: NamedRecord | undefined;
   program: NamedRecord | undefined;
-  layout: PageLayout;
+  columnView: ColumnView;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
@@ -398,7 +401,7 @@ function StockOnHandList({
   selection,
   facility,
   program,
-  layout,
+  columnView,
   onSearchChange,
 }: StockOnHandListProps) {
   const { t } = useTranslation();
@@ -414,7 +417,7 @@ function StockOnHandList({
       <StockOnHandToolbar
         onFilterChange={(patch) => onSearchChange(patch, true)}
         onUnitChange={canSwitch ? setUnit : undefined}
-        view={<ColumnsMenu layout={layout} />}
+        view={<ColumnsMenu columnView={columnView} />}
         print={
           <StockOnHandPrintButton
             facility={facility}
@@ -437,14 +440,16 @@ function StockOnHandList({
             title={t('stock-on-hand.error-title')}
           />
         )}
-        pendingFallback={<StockOnHandResultsSkeleton layout={layout} search={search} />}
+        pendingFallback={
+          <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
+        }
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
           collapsedKey={collapsedKey}
           facilityId={selection.facilityId}
           key={collapsedKey}
-          layout={layout}
+          columns={columnView.visibility}
           onSearchChange={onSearchChange}
           programId={selection.programId}
           search={search}

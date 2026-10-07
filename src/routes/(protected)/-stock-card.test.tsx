@@ -111,6 +111,24 @@ describe('stock card route', () => {
     expect(fetchStockCard).toHaveBeenCalledTimes(2);
   });
 
+  it('loads for the new user when the first load fails after a user change', async () => {
+    let fail: (error: unknown) => void = () => {};
+    vi.mocked(fetchStockCard).mockReturnValueOnce(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    renderRoute();
+    await waitFor(() => expect(fetchStockCard).toHaveBeenCalledTimes(1));
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 999 });
+    act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
+    await act(async () => fail(httpError(500)));
+
+    expect(await screen.findByText('999')).toBeInTheDocument();
+    expect(fetchPermissionStrings).toHaveBeenCalledWith('other');
+    expect(screen.queryByText('stock-card.error-title')).not.toBeInTheDocument();
+  });
+
   it('returns from Not Found with the same list search as the breadcrumb', async () => {
     vi.mocked(fetchStockCard).mockRejectedValue(httpError(404));
     renderRoute(path(`?facilityId=${HOME}&programId=${FP}&productCode=C1&page=7&cardPage=2`));
@@ -283,7 +301,7 @@ describe('stock card display and paging', () => {
     expect(screen.getAllByText('4 ( +3 )')).toHaveLength(3);
   });
 
-  it('shows the columns in legacy order, hiding the lowest priority ones as room shrinks', async () => {
+  it('shows the columns in legacy order, Signature and the reversals hidden until turned on', async () => {
     const width = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
     const headers = () =>
       within(screen.getByRole('table'))
@@ -300,10 +318,7 @@ describe('stock card display and paging', () => {
       'stock-card.adjustment',
       'stock-card.stock-on-hand',
       'stock-card.performed-by',
-      'stock-card.signature',
       'stock-card.document-number',
-      'stock-card.reversing',
-      'stock-card.reversed-by',
     ]);
     first.unmount();
     width.mockReturnValue({ width: 390 } as DOMRect);

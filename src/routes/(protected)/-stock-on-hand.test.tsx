@@ -356,7 +356,9 @@ describe('stock on hand page', () => {
 
     const filter = await screen.findByRole('button', { name: /stock-on-hand.filter/ });
     expect(filter).toHaveTextContent('2');
+    expect(filter).toHaveAccessibleName('stock-on-hand.filter stock-on-hand.active-filters');
     await user.click(filter);
+    expect(await screen.findByRole('dialog', { name: 'stock-on-hand.filter' })).toBeInTheDocument();
     expect(
       await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-code' }),
     ).toHaveValue('C1');

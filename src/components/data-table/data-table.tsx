@@ -82,7 +82,6 @@ export function DataTable<TData extends RowData>({
   return (
     <DataTableCard>
       <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
-        {/* Fixed widths keep the columns still from page to page. */}
         <Table density={density} layout={layout}>
           <DataTableHeader table={table} />
           <TableBody>
@@ -250,8 +249,10 @@ function SkeletonBox() {
 
 function SkeletonBar() {
   return (
-    <div className="h-4 w-3/4">
-      <Skeleton fill />
+    <div className="flex h-5 items-center">
+      <div className="h-4 w-3/4">
+        <Skeleton fill />
+      </div>
     </div>
   );
 }

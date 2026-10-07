@@ -53,10 +53,10 @@ const COLUMNS = [
 export const STOCK_CARD_HIDEABLE_COLUMNS = [
   { id: 'receiveFrom', labelKey: 'stock-card.receive-from', hideBelow: 844 },
   { id: 'issueTo', labelKey: 'stock-card.issue-to', hideBelow: 844 },
-  { id: 'signature', labelKey: 'stock-card.signature', hideBelow: 1308 },
+  { id: 'signature', labelKey: 'stock-card.signature', defaultHidden: true },
   { id: 'document', labelKey: 'stock-card.document-number', hideBelow: 1004 },
-  { id: 'reversing', labelKey: 'stock-card.reversing', hideBelow: 1212 },
-  { id: 'reversedBy', labelKey: 'stock-card.reversed-by', hideBelow: 1212 },
+  { id: 'reversing', labelKey: 'stock-card.reversing', defaultHidden: true },
+  { id: 'reversedBy', labelKey: 'stock-card.reversed-by', defaultHidden: true },
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
 
@@ -96,7 +96,7 @@ function LineCell({
     case 'adjustment':
     case 'balance':
       return (
-        <span className="block whitespace-nowrap tabular-nums" dir="ltr">
+        <span className="whitespace-nowrap tabular-nums" dir="ltr">
           {cardQuantity(
             id === 'balance' ? line.stockOnHand : line.quantity,
             netContent,

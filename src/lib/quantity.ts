@@ -25,12 +25,14 @@ export function productQuantity(
   cardBalances: readonly (number | null | undefined)[],
   netContent: number | null | undefined,
   unit: QuantityUnit,
+  language?: string,
 ): string | null {
-  if (unit === 'DOSES') return stockOnHand == null ? null : String(stockOnHand);
+  const format = language ? new Intl.NumberFormat(language).format : String;
+  if (unit === 'DOSES') return stockOnHand == null ? null : format(stockOnHand);
   if (cardBalances.some((balance) => balance == null)) return null;
-  if (!hasPackSize(netContent)) return '0';
+  if (!hasPackSize(netContent)) return format(0);
   const doses = cardBalances.reduce<number>((sum, balance) => sum + (balance ?? 0), 0);
   const packs = Math.floor(doses / netContent);
   const remainder = doses % netContent;
-  return remainder === 0 ? String(packs) : `${packs} ( +${remainder} )`;
+  return remainder === 0 ? format(packs) : `${format(packs)} ( +${format(remainder)} )`;
 }

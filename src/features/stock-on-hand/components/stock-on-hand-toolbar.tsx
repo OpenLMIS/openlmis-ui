@@ -54,9 +54,16 @@ export function StockOnHandToolbar({
         <PopoverTrigger render={<Button disabled={disabled} type="button" variant="outline" />}>
           <FilterIcon data-icon="inline-start" />
           {t('stock-on-hand.filter')}
-          {count > 0 && <Badge variant="secondary">{count}</Badge>}
+          {count > 0 && (
+            <>
+              <Badge aria-hidden variant="secondary">
+                {count}
+              </Badge>
+              <span className="sr-only">{t('stock-on-hand.active-filters', { count })}</span>
+            </>
+          )}
         </PopoverTrigger>
-        <PopoverContent align="start" side="top">
+        <PopoverContent align="start" aria-label={t('stock-on-hand.filter')} side="top">
           <div className="flex flex-col gap-3">
             {text('productCode', t('stock-on-hand.search-product-code'))}
             {text('productName', t('stock-on-hand.search-product-name'))}

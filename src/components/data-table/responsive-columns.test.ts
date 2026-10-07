@@ -42,6 +42,15 @@ describe('resolveColumnVisibility', () => {
     expect(resolveColumnVisibility(wide, {}, 1308)).toEqual({ date: true, signature: true });
   });
 
+  it('starts a column hidden at every width until the user turns it on', () => {
+    const optional = [{ id: 'date' }, { id: 'signature', defaultHidden: true }] as const;
+    expect(resolveColumnVisibility(optional, {}, 5000)).toEqual({ date: true, signature: false });
+    expect(resolveColumnVisibility(optional, { signature: true }, 300)).toEqual({
+      date: true,
+      signature: true,
+    });
+  });
+
   it('shows everything before the width is known', () => {
     expect(resolveColumnVisibility(columns, {}, undefined)).toMatchObject({ email: true });
   });

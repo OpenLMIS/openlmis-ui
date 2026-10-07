@@ -44,14 +44,12 @@ import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
-export type ResultsLayout = { columns: ColumnVisibilityState };
-
 type StockOnHandResultsProps = {
   search: StockOnHandSearch;
   facilityId: string;
   programId: string;
   unit: QuantityUnit;
-  layout: ResultsLayout;
+  columns: ColumnVisibilityState;
   collapsedKey: string;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
@@ -65,7 +63,7 @@ export function StockOnHandResults({
   facilityId,
   programId,
   unit,
-  layout,
+  columns,
   collapsedKey,
   onSearchChange,
 }: StockOnHandResultsProps) {
@@ -162,7 +160,7 @@ export function StockOnHandResults({
     isStale,
   };
 
-  return <GroupedTable {...view} columns={layout.columns} />;
+  return <GroupedTable {...view} columns={columns} />;
 }
 
 type GroupedViewProps = {
@@ -204,15 +202,28 @@ function useStockText() {
   const date = (value: string | null | undefined) =>
     value ? formatDateValue(value.slice(0, 10), i18n.language) : '';
   const unavailable = t('stock-on-hand.unavailable');
-  return { productCode, productLabel, lotLabel, date, unavailable };
+  const packSize = (product: Orderable | undefined) =>
+    product?.netContent == null
+      ? orEmpty(product?.netContent)
+      : new Intl.NumberFormat(i18n.language).format(product.netContent);
+  return {
+    productCode,
+    productLabel,
+    lotLabel,
+    date,
+    unavailable,
+    packSize,
+    language: i18n.language,
+  };
 }
 
-const groupBalance = (group: StockProductGroup, unit: QuantityUnit) =>
+const groupBalance = (group: StockProductGroup, unit: QuantityUnit, language: string) =>
   productQuantity(
     group.stockOnHand,
     group.cards.map((card) => card.stockOnHand),
     group.product?.netContent,
     unit,
+    language,
   );
 
 function Quantity({ value, unavailable }: { value: string | null; unavailable: string }) {
@@ -353,11 +364,11 @@ function GroupedTable({
                         </span>
                       ),
                       product: <Wrapped>{name}</Wrapped>,
-                      packSize: orEmpty(group.product?.netContent),
+                      packSize: text.packSize(group.product),
                       stockOnHand: (
                         <Quantity
                           unavailable={text.unavailable}
-                          value={groupBalance(group, unit)}
+                          value={groupBalance(group, unit, text.language)}
                         />
                       ),
                     }}
@@ -373,7 +384,7 @@ function GroupedTable({
                               <span className="flex ps-8">{text.productCode(card.product)}</span>
                             ),
                             product: <Wrapped>{text.productLabel(card.product)}</Wrapped>,
-                            packSize: orEmpty(card.product?.netContent),
+                            packSize: text.packSize(card.product),
                             lotCode: <Wrapped>{text.lotLabel(card)}</Wrapped>,
                             expiry: orEmpty(text.date(card.lot?.expirationDate)),
                             lastUpdate: orEmpty(text.date(card.occurredDate)),
@@ -384,6 +395,7 @@ function GroupedTable({
                                   card.stockOnHand,
                                   card.product?.netContent,
                                   unit,
+                                  text.language,
                                 )}
                               />
                             ),
@@ -444,9 +456,9 @@ function StockCardView({
   );
 }
 
-function SkeletonBar({ width = 'w-3/4', height = 'h-4' }: { width?: string; height?: string }) {
+function SkeletonBar({ width }: { width: string }) {
   return (
-    <div className={`${height} ${width}`}>
+    <div className={`h-4 ${width}`}>
       <Skeleton fill />
     </div>
   );
@@ -470,12 +482,11 @@ const SKELETON_PRODUCTS = [
 
 export function StockOnHandResultsSkeleton({
   search,
-  layout,
+  columns,
 }: {
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  columns: ColumnVisibilityState;
 }) {
-  const columns = layout.columns;
   const products = SKELETON_PRODUCTS.slice(0, toPaginationState(search).pageSize);
   const footer = (
     <DataTableFooter>

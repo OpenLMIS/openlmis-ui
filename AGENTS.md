@@ -477,10 +477,11 @@ list page therefore follows the content width, never viewport breakpoints like `
 - The pagination follows the table card's own `@container/table`.
 
 A table stays a table at every width, never stacked cards: lower-priority columns hide as the
-room shrinks (`hideBelow` also takes a width in px for a table wider than the container sizes),
-and on a phone the table scrolls sideways. Column headers are always one line. An empty cell or
-field shows `EMPTY_VALUE` through `orEmpty` (`src/lib/empty-value.ts`), so the placeholder changes
-in one place.
+room shrinks (`hideBelow` also takes a width in px for a table wider than the container sizes,
+and `defaultHidden` starts a column hidden at every width), and on a phone the table scrolls
+sideways. Column headers are always one line. A value the record lacks shows `EMPTY_VALUE`
+through `orEmpty` (`src/lib/empty-value.ts`), so the placeholder changes in one place; a cell
+that does not apply to its row, such as a product row's lot, stays blank.
 Keep the identifying column and actions always on by leaving them out of the View menu;
 everything else, status included, can drop on a narrow page and come back from it. Row actions live in a "..." menu
 at the end of the row at every width, so the actions column stays narrow.
@@ -540,7 +541,8 @@ unchanged, so it follows the registry's rules rather than this app's:
 - Text comes from `DataTableLabelsProvider`, which defaults to English.
   `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
 - `DataTable` and `DataTableSkeleton` share column metadata and accept `density`, defaulting
-  to `comfortable`; use `default` for compact tables whose columns need more room.
+  to `comfortable`; use `default` for compact tables whose columns need more room. They also
+  accept `layout`, `fixed` by default; `auto` sizes each column to its content, as the bin card does.
 - Table state and the URL are app glue and stay in `src/lib/table-search.ts`.
 
 `@tanstack/react-table` is v9. Build tables with `useTable` and `dataTableFeatures`,

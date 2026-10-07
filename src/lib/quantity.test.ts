@@ -60,6 +60,11 @@ describe('productQuantity', () => {
     expect(productQuantity(-11, [-11], 10, 'PACKS')).toBe('-2 ( +-1 )');
   });
 
+  it('formats the numbers in the language given, as the card does', () => {
+    expect(productQuantity(2549, [2549], 10, 'DOSES', 'en')).toBe('2,549');
+    expect(productQuantity(25_495, [25_495], 10, 'PACKS', 'en')).toBe('2,549 ( +5 )');
+  });
+
   it('shows no packs without a pack size', () => {
     expect(productQuantity(170, [170], null, 'PACKS')).toBe('0');
   });

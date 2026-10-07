@@ -85,13 +85,18 @@ export const Route = createFileRoute(
     const userId = useLoginData.getState().referenceDataUserId;
     const options = stockCardOptions(params.stockCardId);
     const state = queryClient.getQueryState(options.queryKey);
-    const [permissions, card] = await Promise.all([
-      requirePermissions(queryClient, RIGHT),
-      cause === 'stay' && !state?.error && !state?.isInvalidated
-        ? queryClient.ensureQueryData(options)
-        : queryClient.fetchQuery({ ...options, staleTime: 0 }),
-    ]);
-    if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
+    const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
+    const [permissions, card] =
+      (await Promise.all([
+        requirePermissions(queryClient, RIGHT),
+        cause === 'stay' && !state?.error && !state?.isInvalidated
+          ? queryClient.ensureQueryData(options)
+          : queryClient.fetchQuery({ ...options, staleTime: 0 }),
+      ]).catch((error: unknown) => {
+        if (userChanged()) return undefined;
+        throw error;
+      })) ?? [];
+    if (!userId || userChanged() || !permissions || !card) return;
     if (!hasProgramGrant(permissions, RIGHT, card.facility.id, card.program.id)) {
       throw new ForbiddenError(RIGHT);
     }
