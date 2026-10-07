@@ -10,11 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  CLEARED_STOCK_FILTERS,
-  type StockOnHandSearch,
-  showsInactive,
-} from '@/features/stock-on-hand/lib/search';
+import { type StockOnHandSearch, showsInactive } from '@/features/stock-on-hand/lib/search';
 import type { QuantityUnit } from '@/lib/quantity';
 
 type StockOnHandToolbarProps = {
@@ -75,15 +71,6 @@ export function StockOnHandToolbar({
               />
               {t('stock-on-hand.include-inactive')}
             </Label>
-            {count > 0 && (
-              <Button
-                onClick={() => onFilterChange(CLEARED_STOCK_FILTERS)}
-                type="button"
-                variant="outline"
-              >
-                {t('stock-on-hand.clear-filters')}
-              </Button>
-            )}
           </div>
         </PopoverContent>
       </Popover>

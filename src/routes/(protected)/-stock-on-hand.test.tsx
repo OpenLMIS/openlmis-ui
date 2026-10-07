@@ -350,7 +350,7 @@ describe('stock on hand page', () => {
     expect(screen.getByText('stock-on-hand.search-pending-title')).toBeInTheDocument();
   });
 
-  it('filters from a popover that counts the filters in use and clears them', async () => {
+  it('filters from a popover that counts the filters in use, each cleared by its own button', async () => {
     const user = userEvent.setup();
     const { router } = renderRoute(appliedPath(HOME, FP, 'my', '&productCode=C1&lotCode=L'));
 
@@ -360,10 +360,14 @@ describe('stock on hand page', () => {
     expect(
       await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-code' }),
     ).toHaveValue('C1');
-    await user.click(screen.getByRole('button', { name: 'stock-on-hand.clear-filters' }));
+    expect(
+      screen.queryByRole('button', { name: 'stock-on-hand.clear-filters' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Clear Search' })[0] as HTMLElement);
 
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('productCode'));
-    expect(router.state.location.search).not.toHaveProperty('lotCode');
+    expect(router.state.location.search).toMatchObject({ lotCode: 'L' });
+    expect(filter).toHaveTextContent('1');
   });
 
   it('hides inactive cards without asking the server again', async () => {
