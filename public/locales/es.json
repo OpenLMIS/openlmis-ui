@@ -1059,6 +1059,7 @@
   "stock-card.signature": "Firma",
   "stock-card.stock-on-hand": "Existencias disponibles",
   "stock-card.title": "Tarjeta de existencias de {program}",
+  "stock-on-hand.actions": "Acciones",
   "stock-on-hand.applied": "{facility} · {program}",
   "stock-on-hand.clear-filters": "Borrar filtros",
   "stock-on-hand.error-description": "No se pudieron cargar las existencias disponibles.",

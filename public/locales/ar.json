@@ -1059,6 +1059,7 @@
   "stock-card.signature": "التوقيع",
   "stock-card.stock-on-hand": "المخزون المتاح",
   "stock-card.title": "بطاقة المخزون لبرنامج {program}",
+  "stock-on-hand.actions": "الإجراءات",
   "stock-on-hand.applied": "{facility} · {program}",
   "stock-on-hand.clear-filters": "مسح عوامل التصفية",
   "stock-on-hand.error-description": "تعذر تحميل المخزون المتوفر.",

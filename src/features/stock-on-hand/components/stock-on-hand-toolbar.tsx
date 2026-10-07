@@ -60,7 +60,7 @@ export function StockOnHandToolbar({
           {t('stock-on-hand.filter')}
           {count > 0 && <Badge variant="secondary">{count}</Badge>}
         </PopoverTrigger>
-        <PopoverContent align="start">
+        <PopoverContent align="start" side="top">
           <div className="flex flex-col gap-3">
             {text('productCode', t('stock-on-hand.search-product-code'))}
             {text('productName', t('stock-on-hand.search-product-name'))}

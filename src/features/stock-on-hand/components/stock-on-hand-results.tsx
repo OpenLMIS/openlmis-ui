@@ -255,7 +255,7 @@ const TABLE_COLUMNS = [
   { key: 'expiry', labelKey: 'stock-on-hand.expiry-date', width: 'w-28' },
   { key: 'lastUpdate', labelKey: 'stock-on-hand.last-update', width: 'w-28' },
   { key: 'stockOnHand', labelKey: 'stock-on-hand.stock-on-hand', width: 'w-32' },
-  { key: 'view', labelKey: 'stock-on-hand.view', width: 'w-20' },
+  { key: 'view', labelKey: 'stock-on-hand.actions', width: 'w-24' },
 ] as const;
 
 type ColumnKey = (typeof TABLE_COLUMNS)[number]['key'];

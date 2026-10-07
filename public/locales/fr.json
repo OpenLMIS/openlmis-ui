@@ -1059,6 +1059,7 @@
   "stock-card.signature": "Signature",
   "stock-card.stock-on-hand": "Stock disponible",
   "stock-card.title": "Fiche de stock pour {program}",
+  "stock-on-hand.actions": "Actions",
   "stock-on-hand.applied": "{facility} · {program}",
   "stock-on-hand.clear-filters": "Effacer les filtres",
   "stock-on-hand.error-description": "Impossible de charger le stock disponible.",

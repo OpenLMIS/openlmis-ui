@@ -217,7 +217,7 @@ describe('stock on hand page', () => {
       'stock-on-hand.product',
       'stock-on-hand.lot-code',
       'stock-on-hand.stock-on-hand',
-      'stock-on-hand.view',
+      'stock-on-hand.actions',
     ]);
   });
 
