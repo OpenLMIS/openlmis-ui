@@ -8,11 +8,12 @@ import {
 import { facilityProgramOptions } from '@/lib/facility-program-selection';
 import type { ProgramGrant } from '@/lib/permissions';
 
+const sourceQueries = (userId: string) =>
+  [userRecordOptions(userId), userProgramsOptions(userId), minimalFacilitiesOptions()] as const;
+
 /** The picker's options for one right, from the same four reads legacy makes; suspends until they load. */
 export function useFacilityProgramOptions(userId: string, grants: readonly ProgramGrant[]) {
-  const [user, programs, facilities] = useSuspenseQueries({
-    queries: [userRecordOptions(userId), userProgramsOptions(userId), minimalFacilitiesOptions()],
-  });
+  const [user, programs, facilities] = useSuspenseQueries({ queries: sourceQueries(userId) });
   return useMemo(
     () =>
       facilityProgramOptions({
@@ -25,20 +26,10 @@ export function useFacilityProgramOptions(userId: string, grants: readonly Progr
   );
 }
 
-export async function loadFacilityProgramOptions(
-  queryClient: QueryClient,
-  userId: string,
-  grants: readonly ProgramGrant[],
-) {
-  const [user, programs, facilities] = await Promise.all([
-    queryClient.ensureQueryData(userRecordOptions(userId)),
-    queryClient.ensureQueryData(userProgramsOptions(userId)),
-    queryClient.ensureQueryData(minimalFacilitiesOptions()),
-  ]);
-  return facilityProgramOptions({
-    homeFacilityId: user.homeFacilityId,
-    programs,
-    facilities,
-    grants,
-  });
+/** Starts the picker's reads without waiting; a failed one shows in the picker with a retry. */
+export function prefetchFacilityProgramOptions(queryClient: QueryClient, userId: string) {
+  const [user, programs, facilities] = sourceQueries(userId);
+  queryClient.prefetchQuery(user);
+  queryClient.prefetchQuery(programs);
+  queryClient.prefetchQuery(facilities);
 }

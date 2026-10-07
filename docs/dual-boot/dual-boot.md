@@ -45,6 +45,7 @@ Today the new UI has these screens:
 | Administration / Reasons | See the reasons stock moves for, add one, and edit one with its tags and the programs and facility types it is offered in. Needs the Manage Stock Card Line Item Reasons right |
 | Administration / Valid Destinations | See where each type of facility may issue stock to, per program, filter by facility and program, add one and delete one or several at once. Needs the Manage Stock Destinations right |
 | Administration / Valid Sources | The same for where each type of facility may receive stock from. Needs the Manage Stock Sources right |
+| Stock Management / Stock On Hand | Pick your facility, or one you supervise, and a program, then see its stock by product and lot. Filter by product code, product name or lot code, show packs or doses, and print the report. Needs the View Stock Cards right for that facility and program |
 | Profile | Open it from Account in the menu at the top right. Change your name, email and phone, see your roles, set up notification digests and change your password. Every signed-in user has one |
 | Settings | Open it from Settings in the menu at the top right. Change the app name and logo, the colour theme and default appearance, and turn optional features on or off for everyone. Needs the Manage System Settings right; without it the menu leaves Settings out and the page says so |
 

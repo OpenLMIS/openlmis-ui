@@ -133,6 +133,7 @@ export const orderablesByIdsOptions = (ids: readonly string[]) =>
   queryOptions({
     queryKey: queryKeys.orderables.list({ ids: ids.toSorted() }),
     queryFn: () => fetchOrderablesByIds(ids),
+    staleTime: LOOKUP_STALE_TIME,
   });
 
 export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =>
@@ -145,6 +146,7 @@ export const lotsByIdsOptions = (ids: readonly string[]) =>
   queryOptions({
     queryKey: queryKeys.lots.list({ ids: ids.toSorted() }),
     queryFn: () => fetchLotsByIds(ids),
+    staleTime: LOOKUP_STALE_TIME,
   });
 
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */

@@ -1037,7 +1037,7 @@
   "stock-on-hand.no-lot": "No Lot Defined",
   "stock-on-hand.no-matches-description": "No product or lot matches these filters.",
   "stock-on-hand.no-matches-title": "No Matching Products",
-  "stock-on-hand.no-products": "No products found.",
+  "stock-on-hand.no-products": "No Products Found",
   "stock-on-hand.no-products-description": "This facility has no stock cards for this program.",
   "stock-on-hand.pack-size": "Pack Size",
   "stock-on-hand.pack-size-value": "Pack Size: {size}",

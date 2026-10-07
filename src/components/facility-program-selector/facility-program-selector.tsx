@@ -17,7 +17,6 @@ import {
   type FacilityProgramSelection,
   initialSelection,
   recordLabel,
-  type SelectionMode,
   sameSelection,
 } from '@/lib/facility-program-selection';
 
@@ -29,9 +28,7 @@ const selectionSchema = z.object({
   facilityId: z.string().min(1, errorKey('facility-program.facility-required')),
 });
 
-type SelectionValues = { mode: SelectionMode; programId: string; facilityId: string };
-
-function toValues(selection: FacilityProgramSelection): SelectionValues {
+function toValues(selection: FacilityProgramSelection): CompleteSelection {
   return {
     mode: selection.mode ?? 'supervised',
     programId: selection.programId ?? '',
@@ -39,7 +36,7 @@ function toValues(selection: FacilityProgramSelection): SelectionValues {
   };
 }
 
-const fromValues = (values: SelectionValues): FacilityProgramSelection => ({
+const fromValues = (values: CompleteSelection): FacilityProgramSelection => ({
   mode: values.mode,
   programId: values.programId || undefined,
   facilityId: values.facilityId || undefined,
@@ -69,7 +66,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     validators: { onDynamic: selectionSchema },
     listeners: { onChange: ({ formApi }) => onDraftChange(fromValues(formApi.state.values)) },
     onSubmit: ({ value, formApi }) => {
-      onSearch(selectionSchema.parse(value));
+      onSearch(value);
       // A new search starts fresh, so the next change marks nothing missing until Search.
       formApi.reset(value);
     },

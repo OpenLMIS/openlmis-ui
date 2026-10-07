@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +13,7 @@ import {
   FacilityProgramSelectorSkeleton,
 } from '@/components/facility-program-selector/facility-program-selector';
 import {
-  loadFacilityProgramOptions,
+  prefetchFacilityProgramOptions,
   useFacilityProgramOptions,
 } from '@/components/facility-program-selector/use-facility-program-options';
 import { ListError } from '@/components/list-error';
@@ -35,7 +36,10 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
-import { stockCardSummariesOptions } from '@/features/stock-on-hand/api/queries';
+import {
+  prefetchStockOnHand,
+  stockCardSummariesOptions,
+} from '@/features/stock-on-hand/api/queries';
 import {
   type ResultsLayout,
   StockOnHandResults,
@@ -62,8 +66,8 @@ import {
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-import type { ProgramGrant } from '@/lib/permissions';
-import { hasProgramGrant, type Permissions, programGrants } from '@/lib/permissions';
+
+import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -73,6 +77,11 @@ const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
 
 const TABLE_MIN_WIDTH = 768;
 
+const noop = () => {};
+
+const isServerError = (error: unknown) =>
+  isAxiosError(error) && (error.response?.status ?? 0) >= 500;
+
 export const Route = createFileRoute('/(protected)/_protected/stock-management/stock-on-hand')({
   validateSearch: stockOnHandSearchSchema,
   // The inactive box only filters the page shown, so it never reloads.
@@ -81,30 +90,18 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
     const permissions = await requirePermissions(queryClient, RIGHT);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
-    const options = loadFacilityProgramOptions(
-      queryClient,
-      userId,
-      programGrants(permissions, RIGHT),
-    );
-    // The picker shows a failed lookup with a retry; no stock loads for a selection not checked.
-    const checked = options.catch(() => null);
+    prefetchFacilityProgramOptions(queryClient, userId);
     const selection = {
       mode: search.mode,
       programId: search.programId,
       facilityId: search.facilityId,
     };
-    if (!isCompleteSelection(selection)) return;
-    const granted = (current: Permissions) =>
-      hasProgramGrant(current, RIGHT, selection.facilityId, selection.programId);
-    if (!granted(permissions)) return;
-    const loaded = await checked;
-    if (!loaded || !validSelection(selection, loaded)) return;
-    // Rights or the user can change while the lookups load.
-    const current = await queryClient.fetchQuery(permissionsOptions(userId)).catch(() => null);
-    if (useLoginData.getState().referenceDataUserId !== userId || !current || !granted(current)) {
-      return;
+    if (
+      isCompleteSelection(selection) &&
+      hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)
+    ) {
+      prefetchStockOnHand(queryClient, toSummariesQuery(search, selection));
     }
-    queryClient.prefetchQuery(stockCardSummariesOptions(toSummariesQuery(search, selection)));
   },
   pendingComponent: StockOnHandPending,
   component: StockOnHandPage,
@@ -130,8 +127,6 @@ function useResultsLayout() {
   const layout: ResultsLayout = width === undefined || width >= TABLE_MIN_WIDTH ? 'table' : 'cards';
   return [measure, layout] as const;
 }
-
-const noop = () => {};
 
 function StockOnHandListSkeleton({
   search,
@@ -479,7 +474,7 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
         description:
           error instanceof ForbiddenError
             ? t('stock-on-hand.print-refused')
-            : (serverMessage(error) ?? t('stock-on-hand.print-error')),
+            : (!isServerError(error) && serverMessage(error)) || t('stock-on-hand.print-error'),
       });
     },
   });

@@ -1037,7 +1037,7 @@
   "stock-on-hand.no-lot": "Aucun lot défini",
   "stock-on-hand.no-matches-description": "Aucun produit ni lot ne correspond à ces filtres.",
   "stock-on-hand.no-matches-title": "Aucun produit correspondant",
-  "stock-on-hand.no-products": "Aucun produit trouvé.",
+  "stock-on-hand.no-products": "Aucun produit trouvé",
   "stock-on-hand.no-products-description": "Cet établissement n'a aucune fiche de stock pour ce programme.",
   "stock-on-hand.pack-size": "Taille du conditionnement",
   "stock-on-hand.pack-size-value": "Taille du conditionnement : {size}",

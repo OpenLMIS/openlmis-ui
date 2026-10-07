@@ -1037,7 +1037,7 @@
   "stock-on-hand.no-lot": "Sem Lote Definido",
   "stock-on-hand.no-matches-description": "Nenhum produto ou lote corresponde a estes filtros.",
   "stock-on-hand.no-matches-title": "Nenhum Produto Corresponde",
-  "stock-on-hand.no-products": "Nenhum produto encontrado.",
+  "stock-on-hand.no-products": "Nenhum Produto Encontrado",
   "stock-on-hand.no-products-description": "Esta instalação não tem fichas de stock para este programa.",
   "stock-on-hand.pack-size": "Tamanho da Embalagem",
   "stock-on-hand.pack-size-value": "Tamanho da Embalagem: {size}",

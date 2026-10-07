@@ -646,8 +646,9 @@ legacy does: home programs, then supervised programs granted away from home, the
 facilities, home included. The route passes the grants of the right it needs, so the picker imports
 no auth. The URL keeps `mode`, `programId` and `facilityId` only once Search is pressed; the picker's
 changes before that are a draft, and the page hides results that no longer match it. A link whose
-selection the picker would not offer (`validSelection`) is refused, and nothing about it is fetched:
-the loader checks it before it prefetches.
+selection the picker would not offer (`validSelection`) is refused. The loader asks for stock only for a
+pair the user's grants include, and without waiting for the picker's lookups, so the two load side by side.
+A required list with one option has it picked, as legacy does.
 
 ## Rights and dashboards
 

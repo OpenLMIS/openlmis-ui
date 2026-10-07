@@ -1037,7 +1037,7 @@
   "stock-on-hand.no-lot": "لا توجد دفعة محددة",
   "stock-on-hand.no-matches-description": "لا يوجد منتج أو دفعة تطابق عوامل التصفية هذه.",
   "stock-on-hand.no-matches-title": "لا توجد منتجات مطابقة",
-  "stock-on-hand.no-products": "لم يتم العثور على منتجات.",
+  "stock-on-hand.no-products": "لم يتم العثور على منتجات",
   "stock-on-hand.no-products-description": "لا توجد لدى هذه المنشأة بطاقات مخزون لهذا البرنامج.",
   "stock-on-hand.pack-size": "حجم العبوة",
   "stock-on-hand.pack-size-value": "حجم العبوة: {size}",

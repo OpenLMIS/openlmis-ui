@@ -105,12 +105,12 @@ function renderRoute(path: string, queryClient = appQueryClient(), pendingMs?: n
     defaultPendingMs: pendingMs,
     history: createMemoryHistory({ initialEntries: [path] }),
   } as never) as AnyRouter;
-  render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return { router, queryClient };
+  return { router, queryClient, unmount: view.unmount };
 }
 
 const appliedPath = (facility = HOME, program = FP, mode = 'my', extra = '') =>
@@ -152,7 +152,11 @@ beforeEach(() => {
   vi.mocked(fetchStockCardSummaries).mockResolvedValue(page([summary]));
 });
 
-afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+afterEach(() => {
+  useLoginData.setState({ referenceDataUserId: null });
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
 
 describe('stock on hand page', () => {
   it('shows the picker and asks for nothing about stock before a search', async () => {
@@ -187,6 +191,34 @@ describe('stock on hand page', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps a product folded away after the page is opened again', async () => {
+    const user = userEvent.setup();
+    const first = renderRoute(appliedPath());
+
+    await screen.findByText('LOT-A');
+    await user.click(screen.getByRole('button', { name: 'stock-on-hand.toggle-product' }));
+    await waitFor(() => expect(screen.queryByText('LOT-A')).not.toBeInTheDocument());
+    first.unmount();
+    renderRoute(appliedPath());
+
+    expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+    expect(screen.queryByText('LOT-A')).not.toBeInTheDocument();
+  });
+
+  it('lists products in a table once the page is wide enough, and as cards below it', async () => {
+    const wide = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+    wide.mockReturnValue({ width: 1200 } as DOMRect);
+    const first = renderRoute(appliedPath());
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    first.unmount();
+    wide.mockReturnValue({ width: 500 } as DOMRect);
+    renderRoute(appliedPath());
+
+    expect(await screen.findByText('LOT-A')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
   it('opens a searched link on its products, each with its cards', async () => {
     renderRoute(appliedPath());
 
@@ -215,7 +247,15 @@ describe('stock on hand page', () => {
     renderRoute(appliedPath(BALAKA, EM, 'my'));
 
     expect(await screen.findByText('stock-on-hand.refused-title')).toBeInTheDocument();
-    expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+    expect(screen.queryByText('Levonorgestrel')).not.toBeInTheDocument();
+  });
+
+  it('asks for the stock of a granted link, then its names, while the picker is still loading', async () => {
+    vi.mocked(fetchMinimalFacilities).mockReturnValue(new Promise(() => {}));
+    renderRoute(appliedPath());
+
+    await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalledWith(['o1']));
+    expect(fetchLotsByIds).toHaveBeenCalledWith(['l1']);
   });
 
   it('keeps the page closed to a user without the right', async () => {
@@ -336,34 +376,6 @@ describe('stock on hand page', () => {
     expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
   });
 
-  it('asks for no stock when the right is taken away while the picker loads', async () => {
-    let releaseFacilities = () => {};
-    vi.mocked(fetchMinimalFacilities).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          releaseFacilities = () =>
-            resolve([
-              { id: HOME, code: 'HC01', name: 'Comfort Health Clinic', active: true },
-              { id: BALAKA, code: 'DH01', name: 'Balaka District Hospital', active: true },
-            ]);
-        }),
-    );
-    const { queryClient } = renderRoute(appliedPath());
-
-    await waitFor(() => expect(fetchMinimalFacilities).toHaveBeenCalled());
-    vi.mocked(fetchPermissionStrings).mockResolvedValue([`STOCK_CARDS_VIEW|${BALAKA}|${EM}`]);
-    await act(() =>
-      queryClient.invalidateQueries({
-        queryKey: permissionsOptions(USER).queryKey,
-        refetchType: 'none',
-      }),
-    );
-    await act(async () => releaseFacilities());
-
-    expect(await screen.findByText('stock-on-hand.refused-title')).toBeInTheDocument();
-    expect(fetchStockCardSummaries).not.toHaveBeenCalled();
-  });
-
   it('shows each balance in packs once packs are picked', async () => {
     const user = userEvent.setup();
     renderRoute(appliedPath());
@@ -430,6 +442,24 @@ describe('stock on hand page', () => {
       }),
     );
     expect(downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps a server failure in plain words when printing fails', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchStockOnHandReport).mockRejectedValue(
+      httpError(500, { message: 'Index: 0, Size: 0' }),
+    );
+    renderRoute(appliedPath());
+
+    const print = await screen.findByRole('button', { name: 'stock-on-hand.print' });
+    await waitFor(() => expect(print).toBeEnabled());
+    await user.click(print);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('stock-on-hand.print-error-title', {
+        description: 'stock-on-hand.print-error',
+      }),
+    );
   });
 
   it('refuses to print once the right is gone, without asking for the report', async () => {
