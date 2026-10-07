@@ -471,13 +471,18 @@ describe('stock on hand page', () => {
         releaseReport = resolve;
       }),
     );
-    renderRoute(appliedPath());
+    const { queryClient } = renderRoute(appliedPath());
 
     const print = await screen.findByRole('button', { name: 'stock-on-hand.print' });
     await waitFor(() => expect(print).toBeEnabled());
     await user.click(print);
     await waitFor(() => expect(fetchStockOnHandReport).toHaveBeenCalled());
-    act(() => useLoginData.setState({ referenceDataUserId: 'someone-else' }));
+    act(() => {
+      queryClient.clear();
+      useLoginData.setState({ referenceDataUserId: 'someone-else' });
+    });
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('someone-else'));
+    expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
     await act(async () => releaseReport(new Blob(['%PDF'])));
 
     expect(downloadFile).not.toHaveBeenCalled();

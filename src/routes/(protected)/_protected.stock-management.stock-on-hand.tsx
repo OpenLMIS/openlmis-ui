@@ -442,13 +442,20 @@ type PrintButtonProps = {
   query: StockCardSummariesQuery;
 };
 
+type PrintRequest = {
+  requestedBy: string;
+  facility: NamedRecord | undefined;
+  program: NamedRecord | undefined;
+};
+
+const stillSignedIn = (userId: string) => useLoginData.getState().referenceDataUserId === userId;
+
 function PrintButton({ userId, selection, facility, program, unit, query }: PrintButtonProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
-  const stillSignedIn = () => useLoginData.getState().referenceDataUserId === userId;
   const print = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_request: PrintRequest) => {
       const permissions = await queryClient.fetchQuery(permissionsOptions(userId));
       if (!hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)) {
         throw new ForbiddenError(RIGHT);
@@ -460,8 +467,8 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
         lang: i18n.resolvedLanguage ?? i18n.language,
       });
     },
-    onSuccess: (report) => {
-      if (!stillSignedIn()) return;
+    onSuccess: (report, { requestedBy, facility, program }) => {
+      if (!stillSignedIn(requestedBy)) return;
       const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
       downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`);
       toast.success(t('stock-on-hand.printed-title'), {
@@ -471,8 +478,8 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
         }),
       });
     },
-    onError: (error) => {
-      if (!stillSignedIn()) return;
+    onError: (error, { requestedBy }) => {
+      if (!stillSignedIn(requestedBy)) return;
       toast.error(t('stock-on-hand.print-error-title'), {
         description:
           error instanceof ForbiddenError
@@ -485,7 +492,7 @@ function PrintButton({ userId, selection, facility, program, unit, query }: Prin
   return (
     <Button
       disabled={!page || page.totalElements === 0 || print.isPending}
-      onClick={() => print.mutate()}
+      onClick={() => print.mutate({ requestedBy: userId, facility, program })}
       type="button"
     >
       {print.isPending ? (
