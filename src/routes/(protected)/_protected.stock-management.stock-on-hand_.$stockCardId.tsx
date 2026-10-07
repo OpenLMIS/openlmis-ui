@@ -4,7 +4,9 @@ import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { z } from 'zod';
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
+import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorFallback } from '@/components/error-fallback';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import {
   Workspace,
   WorkspaceActions,
   WorkspaceContent,
+  WorkspaceDescription,
   WorkspaceHeader,
   WorkspaceHeading,
   WorkspaceIcon,
@@ -37,7 +40,7 @@ import {
   StockCardHeaderSkeleton,
 } from '@/features/stock-card/components/stock-card-header';
 import {
-  type CardLayout,
+  STOCK_CARD_HIDEABLE_COLUMNS,
   StockCardLines,
   StockCardLinesSkeleton,
 } from '@/features/stock-card/components/stock-card-lines';
@@ -47,6 +50,7 @@ import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { isNotFound } from '@/lib/http';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
@@ -56,10 +60,16 @@ const RIGHT = RIGHTS.stockCardsView;
 const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
 const NO_DIALOGS = {};
 
+const columnChoicesSchema = z.record(z.string(), z.boolean());
+
 function useCardLayout() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  const layout: CardLayout = width === undefined || width >= 1088 ? 'table' : 'cards';
-  return [measure, layout] as const;
+  const columnView = useColumnVisibility(
+    STOCK_CARD_HIDEABLE_COLUMNS,
+    useStoredState('stock-card.column-visibility', columnChoicesSchema, {}),
+    width,
+  );
+  return { measure, columnView };
 }
 
 export const Route = createFileRoute(
@@ -115,7 +125,7 @@ function StockCardPage() {
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const [measure, layout] = useCardLayout();
+  const { measure, columnView } = useCardLayout();
   const userId = useReloadForUser(data?.userId);
   if (!data || data.userId !== userId) return null;
   return (
@@ -128,6 +138,9 @@ function StockCardPage() {
           <WorkspaceTitle>
             {t('stock-card.title', { program: data.card.program.name })}
           </WorkspaceTitle>
+          <WorkspaceDescription>
+            <bdi>{data.card.orderable.fullProductName}</bdi>
+          </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
           <StockCardPrint card={data.card} userId={data.userId} unit={unit} />
@@ -136,21 +149,37 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
-          {canSwitch && (
-            <div className="flex justify-end">
-              <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
-            </div>
-          )}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {canSwitch && <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />}
+            <StockCardColumns columnView={columnView} />
+          </div>
           <StockCardLines
             card={data.card}
             search={search}
             onSearchChange={updateSearch}
             unit={unit}
-            layout={layout}
+            columnVisibility={columnView.visibility}
           />
         </div>
       </WorkspaceContent>
     </Workspace>
+  );
+}
+
+function StockCardColumns({ columnView }: { columnView: ReturnType<typeof useColumnVisibility> }) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <DataTableViewOptions
+        columns={STOCK_CARD_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
+          id,
+          label: t(labelKey),
+        }))}
+        onReset={columnView.onReset}
+        onVisibilityChange={columnView.onVisibilityChange}
+        visibility={columnView.visibility}
+      />
+    </div>
   );
 }
 
@@ -193,7 +222,7 @@ function StockCardPending() {
   const { canSwitch } = useQuantityUnit();
   useReloadForUser(useLoginData((state) => state.referenceDataUserId));
   const search = Route.useSearch();
-  const [measure, layout] = useCardLayout();
+  const { measure, columnView } = useCardLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -202,6 +231,9 @@ function StockCardPending() {
             <Skeleton fill />
           </WorkspaceIcon>
           <div className="h-7 w-72 max-w-full">
+            <Skeleton fill />
+          </div>
+          <div className="h-5 w-48 max-w-full">
             <Skeleton fill />
           </div>
         </WorkspaceHeading>
@@ -214,12 +246,17 @@ function StockCardPending() {
       <WorkspaceContent>
         <div aria-busy className="flex flex-col gap-4" ref={measure}>
           <StockCardHeaderSkeleton />
-          {canSwitch && (
-            <div className="ms-auto h-8 w-36">
+          <div className="flex justify-end gap-2">
+            {canSwitch && (
+              <div className="h-8 w-36">
+                <Skeleton fill />
+              </div>
+            )}
+            <div className="h-8 w-20">
               <Skeleton fill />
             </div>
-          )}
-          <StockCardLinesSkeleton layout={layout} search={search} />
+          </div>
+          <StockCardLinesSkeleton search={search} columnVisibility={columnView.visibility} />
         </div>
       </WorkspaceContent>
     </Workspace>

@@ -24,6 +24,7 @@ import {
 import { fetchStockCardSummaries, fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import type { StockCardSummary } from '@/features/stock-on-hand/lib/types';
 import { downloadFile } from '@/lib/download-file';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
 import { httpError } from '@/tests/http-error';
 
@@ -171,13 +172,10 @@ describe('stock on hand page', () => {
     vi.mocked(fetchMinimalFacilities).mockReturnValue(new Promise(() => {}));
     renderRoute(appliedPath(HOME, FP, 'my', '&productCode=C1'), undefined, 0);
 
-    const code = await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-code' });
-    expect(code).toBeDisabled();
-    expect(code).toHaveValue('C1');
+    const filter = await screen.findByRole('button', { name: /stock-on-hand.filter/ });
+    expect(filter).toBeDisabled();
+    expect(filter).toHaveTextContent('1');
     expect(screen.getByRole('button', { name: 'stock-on-hand.print' })).toBeDisabled();
-    expect(
-      screen.getByRole('checkbox', { name: 'stock-on-hand.include-inactive' }),
-    ).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getAllByText('stock-on-hand.lot-code')).not.toHaveLength(0);
   });
 
@@ -186,9 +184,7 @@ describe('stock on hand page', () => {
     renderRoute('/stock-management/stock-on-hand', undefined, 0);
 
     expect(await screen.findByText('facility-program.mode')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('textbox', { name: 'stock-on-hand.search-product-code' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /stock-on-hand.filter/ })).not.toBeInTheDocument();
   });
 
   it('keeps a product folded away after the page is opened again', async () => {
@@ -205,18 +201,60 @@ describe('stock on hand page', () => {
     expect(screen.queryByText('LOT-A')).not.toBeInTheDocument();
   });
 
-  it('lists products in a table once the page is wide enough, and as cards below it', async () => {
-    const wide = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
-    wide.mockReturnValue({ width: 1200 } as DOMRect);
-    const first = renderRoute(appliedPath());
-
-    expect(await screen.findByRole('table')).toBeInTheDocument();
-    first.unmount();
-    wide.mockReturnValue({ width: 500 } as DOMRect);
+  it('lists products in a table at every width, keeping the core columns on a phone', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 390,
+    } as DOMRect);
     renderRoute(appliedPath());
 
-    expect(await screen.findByText('LOT-A')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const table = await screen.findByRole('table');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual([
+      'stock-on-hand.product-code',
+      'stock-on-hand.product',
+      'stock-on-hand.lot-code',
+      'stock-on-hand.stock-on-hand',
+      'stock-on-hand.view',
+    ]);
+  });
+
+  it('keeps the table on a laptop, hiding the columns there is no room for', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 800,
+    } as DOMRect);
+    renderRoute(appliedPath());
+
+    const table = await screen.findByRole('table');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((header) => header.textContent);
+    expect(headers).toContain('stock-on-hand.pack-size');
+    expect(headers).not.toContain('stock-on-hand.expiry-date');
+    expect(headers).not.toContain('stock-on-hand.last-update');
+
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    await user.click(
+      await screen.findByRole('menuitemcheckbox', { name: 'stock-on-hand.last-update' }),
+    );
+    expect(
+      within(screen.getByRole('table'))
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toContain('stock-on-hand.last-update');
+  });
+
+  it('shows a dash for an empty value in a lot row', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 1200,
+    } as DOMRect);
+    renderRoute(appliedPath());
+
+    const lot = (await screen.findAllByText('stock-on-hand.no-lot'))[0]?.closest('tr');
+    expect(lot && within(lot).getAllByText(EMPTY_VALUE)).not.toHaveLength(0);
   });
 
   it('opens a searched link on its products, each with its cards', async () => {
@@ -312,12 +350,31 @@ describe('stock on hand page', () => {
     expect(screen.getByText('stock-on-hand.search-pending-title')).toBeInTheDocument();
   });
 
+  it('filters from a popover that counts the filters in use and clears them', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute(appliedPath(HOME, FP, 'my', '&productCode=C1&lotCode=L'));
+
+    const filter = await screen.findByRole('button', { name: /stock-on-hand.filter/ });
+    expect(filter).toHaveTextContent('2');
+    await user.click(filter);
+    expect(
+      await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-code' }),
+    ).toHaveValue('C1');
+    await user.click(screen.getByRole('button', { name: 'stock-on-hand.clear-filters' }));
+
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('productCode'));
+    expect(router.state.location.search).not.toHaveProperty('lotCode');
+  });
+
   it('hides inactive cards without asking the server again', async () => {
     const user = userEvent.setup();
     const { router } = renderRoute(appliedPath());
 
     await screen.findByText('stock-on-hand.no-lot');
-    await user.click(screen.getByRole('checkbox', { name: 'stock-on-hand.include-inactive' }));
+    await user.click(screen.getByRole('button', { name: /stock-on-hand.filter/ }));
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'stock-on-hand.include-inactive' }),
+    );
 
     await waitFor(() => expect(screen.queryByText('stock-on-hand.no-lot')).not.toBeInTheDocument());
     expect(screen.getByText('LOT-A')).toBeInTheDocument();

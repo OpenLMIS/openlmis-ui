@@ -36,6 +36,12 @@ describe('resolveColumnVisibility', () => {
     });
   });
 
+  it('takes a width in pixels for a table wider than the container sizes', () => {
+    const wide = [{ id: 'date' }, { id: 'signature', hideBelow: 1308 }] as const;
+    expect(resolveColumnVisibility(wide, {}, 1307)).toEqual({ date: true, signature: false });
+    expect(resolveColumnVisibility(wide, {}, 1308)).toEqual({ date: true, signature: true });
+  });
+
   it('shows everything before the width is known', () => {
     expect(resolveColumnVisibility(columns, {}, undefined)).toMatchObject({ email: true });
   });

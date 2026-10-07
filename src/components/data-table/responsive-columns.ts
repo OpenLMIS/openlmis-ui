@@ -17,8 +17,8 @@ export type ContainerSize = keyof typeof CONTAINER_WIDTHS;
 
 export type ResponsiveColumn = {
   id: string;
-  /** The column is hidden by default when the table has less room than this container size. */
-  hideBelow?: ContainerSize;
+  /** The column is hidden by default when the table has less room than this container size or width in px. */
+  hideBelow?: ContainerSize | number;
 };
 
 /** Width of an element, kept current as it resizes; the sidebar changes it, not just the window. */
@@ -39,6 +39,9 @@ export function useElementWidth<T extends HTMLElement>() {
   return [setElement, width] as const;
 }
 
+const minimumWidth = (size: ContainerSize | number) =>
+  typeof size === 'number' ? size : CONTAINER_WIDTHS[size];
+
 /** What shows: the user's own choice for a column, otherwise whether there is room for it. */
 export function resolveColumnVisibility(
   columns: readonly ResponsiveColumn[],
@@ -50,8 +53,7 @@ export function resolveColumnVisibility(
   return Object.fromEntries(
     columns.map((column) => [
       column.id,
-      choices[column.id] ??
-        (column.hideBelow ? available >= CONTAINER_WIDTHS[column.hideBelow] : true),
+      choices[column.id] ?? (column.hideBelow ? available >= minimumWidth(column.hideBelow) : true),
     ]),
   );
 }

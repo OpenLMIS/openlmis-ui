@@ -110,11 +110,13 @@ describe('FacilityProgramSelector', () => {
     await user.click(screen.getByRole('radio', { name: /facility-program.supervised-facility/ }));
     const facility = screen.getByRole('combobox', { name: /facility-program.facility/ });
     expect(facility).toBeDisabled();
+    expect(facility).toHaveAttribute('placeholder', 'facility-program.facility-after-program');
     expect(onDraftChange).toHaveBeenLastCalledWith({ mode: 'supervised' });
 
     await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
     await user.click(screen.getByRole('option', { name: 'Essential Meds' }));
     await waitFor(() => expect(facility).toBeEnabled());
+    expect(facility).toHaveAttribute('placeholder', 'facility-program.facility-placeholder');
     await user.click(facility);
     await user.click(await screen.findByRole('option', { name: /Balaka District Hospital/ }));
     await user.click(screen.getByRole('button', { name: 'facility-program.search' }));

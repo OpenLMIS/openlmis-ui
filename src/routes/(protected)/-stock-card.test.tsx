@@ -14,6 +14,7 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
 import { httpError } from '@/tests/http-error';
@@ -282,16 +283,16 @@ describe('stock card display and paging', () => {
     expect(screen.getAllByText('4 ( +3 )')).toHaveLength(3);
   });
 
-  it('shows all eleven columns in legacy order on desktop and every field on mobile', async () => {
+  it('shows the columns in legacy order, hiding the lowest priority ones as room shrinks', async () => {
     const width = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
-    width.mockReturnValue({ width: 1200 } as DOMRect);
-    const first = renderRoute();
-    const table = await screen.findByRole('table');
-    expect(
-      within(table)
+    const headers = () =>
+      within(screen.getByRole('table'))
         .getAllByRole('columnheader')
-        .map((cell) => cell.textContent),
-    ).toEqual([
+        .map((cell) => cell.textContent);
+    width.mockReturnValue({ width: 1400 } as DOMRect);
+    const first = renderRoute();
+    await screen.findByRole('table');
+    expect(headers()).toEqual([
       'stock-card.date',
       'stock-card.receive-from',
       'stock-card.issue-to',
@@ -307,11 +308,38 @@ describe('stock card display and paging', () => {
     first.unmount();
     width.mockReturnValue({ width: 390 } as DOMRect);
     renderRoute();
-    await screen.findByText('Vaccine - each');
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('term')).toHaveLength(11);
-    expect(screen.queryByText('stock-card.reversed-by')).not.toBeInTheDocument();
-    expect(screen.queryByText('stock-card.receive-from')).not.toBeInTheDocument();
+    await screen.findByRole('table');
+    expect(headers()).toEqual([
+      'stock-card.date',
+      'stock-card.reason',
+      'stock-card.adjustment',
+      'stock-card.stock-on-hand',
+      'stock-card.performed-by',
+    ]);
+  });
+
+  it('brings a hidden column back from the View menu', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    renderRoute();
+    await screen.findByRole('table');
+
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'stock-card.signature' }));
+    expect(
+      within(screen.getByRole('table')).getByRole('columnheader', { name: 'stock-card.signature' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a dash in an empty cell', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 1400,
+    } as DOMRect);
+    renderRoute();
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByText(EMPTY_VALUE).length).toBeGreaterThan(0);
   });
 
   it('shows the empty ledger and clamps its stale page to the beginning', async () => {

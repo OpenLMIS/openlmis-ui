@@ -3,8 +3,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
+import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -39,6 +41,7 @@ import {
 } from '@/features/stock-on-hand/api/queries';
 import {
   type ResultsLayout,
+  STOCK_HIDEABLE_COLUMNS,
   StockOnHandResults,
   StockOnHandResultsSkeleton,
 } from '@/features/stock-on-hand/components/stock-on-hand-results';
@@ -52,6 +55,7 @@ import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
@@ -72,8 +76,6 @@ import type { SearchChange } from '@/lib/table-search';
 const RIGHT = RIGHTS.stockCardsView;
 
 const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
-
-const TABLE_MIN_WIDTH = 768;
 
 const noop = () => {};
 
@@ -117,10 +119,36 @@ function StockOnHandHeader() {
   );
 }
 
+const columnChoicesSchema = z.record(z.string(), z.boolean());
+
+type PageLayout = ResultsLayout & { view: ReturnType<typeof useColumnVisibility> };
+
 function useResultsLayout() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  const layout: ResultsLayout = width === undefined || width >= TABLE_MIN_WIDTH ? 'table' : 'cards';
+  const view = useColumnVisibility(
+    STOCK_HIDEABLE_COLUMNS,
+    useStoredState('stock-on-hand.column-visibility', columnChoicesSchema, {}),
+    width,
+  );
+  const layout: PageLayout = {
+    columns: view.visibility,
+    view,
+  };
   return [measure, layout] as const;
+}
+
+function ColumnsMenu({ layout }: { layout: PageLayout }) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <DataTableViewOptions
+        columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+        onReset={layout.view.onReset}
+        onVisibilityChange={layout.view.onVisibilityChange}
+        visibility={layout.view.visibility}
+      />
+    </div>
+  );
 }
 
 function StockOnHandListSkeleton({
@@ -128,7 +156,7 @@ function StockOnHandListSkeleton({
   layout,
 }: {
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  layout: PageLayout;
 }) {
   const { t } = useTranslation();
   const { unit, canSwitch } = useQuantityUnit();
@@ -152,6 +180,7 @@ function StockOnHandListSkeleton({
           }
           search={search}
           unit={unit}
+          view={<ColumnsMenu layout={layout} />}
         />
       </fieldset>
       <StockOnHandResultsSkeleton layout={layout} search={search} />
@@ -164,7 +193,7 @@ function StockOnHandPageSkeleton({
   layout,
 }: {
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  layout: PageLayout;
 }) {
   return (
     <>
@@ -238,7 +267,7 @@ type StockOnHandBodyProps = {
   userId: string;
   grants: readonly ProgramGrant[];
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  layout: PageLayout;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
@@ -359,7 +388,7 @@ type StockOnHandListProps = {
   selection: CompleteSelection;
   facility: NamedRecord | undefined;
   program: NamedRecord | undefined;
-  layout: ResultsLayout;
+  layout: PageLayout;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
@@ -385,6 +414,7 @@ function StockOnHandList({
       <StockOnHandToolbar
         onFilterChange={(patch) => onSearchChange(patch, true)}
         onUnitChange={canSwitch ? setUnit : undefined}
+        view={<ColumnsMenu layout={layout} />}
         print={
           <StockOnHandPrintButton
             facility={facility}

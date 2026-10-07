@@ -1,23 +1,17 @@
-import { createColumnHelper, useTable } from '@tanstack/react-table';
+import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
-  DataTableCard,
   DataTableEmpty,
   type DataTableFeatures,
-  DataTableFooter,
   DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import {
-  DataTablePagination,
-  DataTablePaginationSkeleton,
-} from '@/components/data-table/data-table-pagination';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   documentNumbers,
   namedWithFreeText,
@@ -30,6 +24,7 @@ import {
   changeCardPaging,
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
+import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import {
   type SearchChange,
@@ -38,29 +33,37 @@ import {
   useTableSearchState,
 } from '@/lib/table-search';
 
-export type CardLayout = 'table' | 'cards';
 const NO_SORT = { id: 'date', desc: true };
 const columnHelper = createColumnHelper<DataTableFeatures, CardLineRow>();
 const getRowId = (row: CardLineRow) => row.rowId;
 const COLUMNS = [
-  ['date', 'stock-card.date', 'w-28'],
-  ['receiveFrom', 'stock-card.receive-from', 'w-20'],
-  ['issueTo', 'stock-card.issue-to', 'w-16'],
-  ['reason', 'stock-card.reason', undefined],
-  ['adjustment', 'stock-card.adjustment', 'w-28'],
-  ['balance', 'stock-card.stock-on-hand', 'w-24'],
-  ['performedBy', 'stock-card.performed-by', 'w-28'],
-  ['signature', 'stock-card.signature', 'w-24'],
-  ['document', 'stock-card.document-number', 'w-24'],
-  ['reversing', 'stock-card.reversing', 'w-24'],
-  ['reversedBy', 'stock-card.reversed-by', 'w-20'],
+  ['date', 'stock-card.date'],
+  ['receiveFrom', 'stock-card.receive-from'],
+  ['issueTo', 'stock-card.issue-to'],
+  ['reason', 'stock-card.reason'],
+  ['adjustment', 'stock-card.adjustment'],
+  ['balance', 'stock-card.stock-on-hand'],
+  ['performedBy', 'stock-card.performed-by'],
+  ['signature', 'stock-card.signature'],
+  ['document', 'stock-card.document-number'],
+  ['reversing', 'stock-card.reversing'],
+  ['reversedBy', 'stock-card.reversed-by'],
+] as const;
+
+export const STOCK_CARD_HIDEABLE_COLUMNS = [
+  { id: 'receiveFrom', labelKey: 'stock-card.receive-from', hideBelow: 844 },
+  { id: 'issueTo', labelKey: 'stock-card.issue-to', hideBelow: 844 },
+  { id: 'signature', labelKey: 'stock-card.signature', hideBelow: 1308 },
+  { id: 'document', labelKey: 'stock-card.document-number', hideBelow: 1004 },
+  { id: 'reversing', labelKey: 'stock-card.reversing', hideBelow: 1212 },
+  { id: 'reversedBy', labelKey: 'stock-card.reversed-by', hideBelow: 1212 },
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
 
-function Wrapped({ children }: { children: ReactNode }) {
+function Wrapped({ children }: { children: string | null | undefined }) {
   return (
-    <span className="block whitespace-normal break-normal">
-      <bdi>{children}</bdi>
+    <span className="block max-w-60 whitespace-normal break-normal">
+      <bdi>{orEmpty(children)}</bdi>
     </span>
   );
 }
@@ -123,15 +126,10 @@ function useLineColumns(netContent?: number | null, unit: QuantityUnit = 'DOSES'
   return useMemo(
     () =>
       columnHelper.columns(
-        COLUMNS.map(([id, key, width]) =>
+        COLUMNS.map(([id, key]) =>
           columnHelper.display({
             id,
-            meta: { className: width },
-            header: () => (
-              <div className="whitespace-normal break-normal">
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-              </div>
-            ),
+            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
             cell: ({ row }) => (
               <LineCell id={id} line={row.original} netContent={netContent} unit={unit} />
             ),
@@ -142,39 +140,21 @@ function useLineColumns(netContent?: number | null, unit: QuantityUnit = 'DOSES'
   );
 }
 
-function hasLineValue(id: CellId, line: CardLineRow) {
-  switch (id) {
-    case 'date':
-    case 'reason':
-    case 'adjustment':
-    case 'balance':
-      return true;
-    case 'receiveFrom':
-      return Boolean(namedWithFreeText(line.source, line.sourceFreeText));
-    case 'issueTo':
-      return Boolean(namedWithFreeText(line.destination, line.destinationFreeText));
-    case 'performedBy':
-      return Boolean(line.username);
-    case 'signature':
-      return Boolean(line.signature);
-    case 'document':
-      return Boolean(line.eventOrigin);
-    case 'reversing':
-      return Boolean(line.reversedEventId);
-    case 'reversedBy':
-      return Boolean(line.cancellationEventId);
-  }
-}
-
 type LinesProps = {
   card: StockCard;
   search: CardPagingSearch;
   onSearchChange: SearchChange<CardPagingSearch>;
   unit: QuantityUnit;
-  layout: CardLayout;
+  columnVisibility: ColumnVisibilityState;
 };
 
-export function StockCardLines({ card, search, onSearchChange, unit, layout }: LinesProps) {
+export function StockCardLines({
+  card,
+  search,
+  onSearchChange,
+  unit,
+  columnVisibility,
+}: LinesProps) {
   const { t } = useTranslation();
   const lines = useMemo(() => toCardLines(card.lineItems), [card.lineItems]);
   const columns = useLineColumns(card.orderable.netContent, unit);
@@ -206,6 +186,7 @@ export function StockCardLines({ card, search, onSearchChange, unit, layout }: L
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    state: { ...searchState.state, columnVisibility },
   });
   useEffect(() => {
     if (pageIndex !== clampedIndex)
@@ -219,76 +200,24 @@ export function StockCardLines({ card, search, onSearchChange, unit, layout }: L
     />
   );
   const footer = lines.length > 0 && <DataTablePagination table={table} />;
-  if (layout === 'table')
-    return <DataTable table={table} empty={empty} footer={footer} density="default" />;
-  return (
-    <DataTableCard>
-      {rows.length ? (
-        <ul className="divide-y">
-          {rows.map((line) => (
-            <li className="p-4" key={line.rowId}>
-              <dl className="grid grid-cols-2 gap-3 @md/table:grid-cols-3">
-                {COLUMNS.filter(([id]) => hasLineValue(id, line)).map(([id, key]) => (
-                  <div className="flex min-w-0 flex-col gap-1" key={id}>
-                    <dt className="text-muted-foreground text-xs">{t(key)}</dt>
-                    <dd className="min-w-0 text-sm">
-                      <LineCell
-                        id={id}
-                        line={line}
-                        netContent={card.orderable.netContent}
-                        unit={unit}
-                      />
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        empty
-      )}
-      {footer && <DataTableFooter>{footer}</DataTableFooter>}
-    </DataTableCard>
-  );
+  return <DataTable table={table} empty={empty} footer={footer} density="default" layout="auto" />;
 }
 
 export function StockCardLinesSkeleton({
-  layout,
   search,
+  columnVisibility,
 }: {
-  layout: CardLayout;
   search: CardPagingSearch;
+  columnVisibility: ColumnVisibilityState;
 }) {
-  const { t } = useTranslation();
   const columns = useLineColumns();
-  const table = useTable({ features: dataTableFeatures, columns, data: [], enableSorting: false });
+  const table = useTable({
+    features: dataTableFeatures,
+    columns,
+    data: [],
+    enableSorting: false,
+    state: { columnVisibility },
+  });
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
-  if (layout === 'table')
-    return <DataTableSkeleton table={table} rowCount={rowCount} density="default" />;
-  return (
-    <div aria-busy>
-      <DataTableCard>
-        <ul className="divide-y">
-          {Array.from({ length: rowCount }, (_, index) => `skeleton:${index}`).map((id) => (
-            <li className="p-4" key={id}>
-              <dl className="grid grid-cols-2 gap-3 @md/table:grid-cols-3">
-                {COLUMNS.map(([id, key]) => (
-                  <div className="flex min-w-0 flex-col gap-1" key={id}>
-                    <dt className="text-muted-foreground text-xs">{t(key)}</dt>
-                    <dd className="h-5 w-3/4">
-                      <Skeleton fill />
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </li>
-          ))}
-        </ul>
-        <DataTableFooter>
-          <DataTablePaginationSkeleton />
-        </DataTableFooter>
-      </DataTableCard>
-    </div>
-  );
+  return <DataTableSkeleton table={table} rowCount={rowCount} density="default" layout="auto" />;
 }

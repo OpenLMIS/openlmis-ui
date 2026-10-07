@@ -476,6 +476,11 @@ list page therefore follows the content width, never viewport breakpoints like `
   `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:w-72`.
 - The pagination follows the table card's own `@container/table`.
 
+A table stays a table at every width, never stacked cards: lower-priority columns hide as the
+room shrinks (`hideBelow` also takes a width in px for a table wider than the container sizes),
+and on a phone the table scrolls sideways. Column headers are always one line. An empty cell or
+field shows `EMPTY_VALUE` through `orEmpty` (`src/lib/empty-value.ts`), so the placeholder changes
+in one place.
 Keep the identifying column and actions always on by leaving them out of the View menu;
 everything else, status included, can drop on a narrow page and come back from it. Row actions live in a "..." menu
 at the end of the row at every width, so the actions column stays narrow.

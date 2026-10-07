@@ -1,92 +1,98 @@
 import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateValue } from '@/components/form/date-value';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { stockCardProductName } from '@/features/stock-card/lib/card-lines';
 import type { StockCard } from '@/features/stock-card/lib/types';
+import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className="break-words text-sm">
+    <div className="flex min-w-0 items-baseline justify-between gap-4 py-2 @2xl/main:flex-col @2xl/main:justify-start @2xl/main:gap-1 @2xl/main:py-0">
+      <dt className="shrink-0 text-muted-foreground text-xs">{label}</dt>
+      <dd className="min-w-0 break-words text-end font-medium text-sm @2xl/main:text-start">
         <bdi>{children}</bdi>
       </dd>
     </div>
   );
 }
 
-export function StockCardHeader({ card, unit }: { card: StockCard; unit: QuantityUnit }) {
-  const { t, i18n } = useTranslation();
+function HeaderFrame({ product, children }: { product: ReactNode; children: ReactNode }) {
   const heading = useId();
   return (
-    <section aria-labelledby={heading}>
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2 className="break-words" id={heading}>
-              {stockCardProductName(card.orderable)}
-            </h2>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-1 gap-4 @sm/main:grid-cols-2 @3xl/main:grid-cols-4">
-            <Detail label={t('stock-card.product-code')}>{card.orderable.productCode}</Detail>
-            <Detail label={t('stock-card.pack-size')}>
-              {card.orderable.netContent == null
-                ? ''
-                : new Intl.NumberFormat(i18n.language).format(card.orderable.netContent)}
-            </Detail>
-            <Detail label={t('stock-card.facility')}>{card.facility.name}</Detail>
-            <Detail label={t('stock-card.program')}>{card.program.name}</Detail>
-            <Detail label={t('stock-card.stock-on-hand')}>
-              <span className="tabular-nums" dir="ltr">
-                {cardQuantity(card.stockOnHand, card.orderable.netContent, unit, i18n.language)}
-              </span>
-            </Detail>
-            {card.lot && (
-              <>
-                <Detail label={t('stock-card.lot-number')}>{card.lot.lotCode}</Detail>
-                <Detail label={t('stock-card.expiry-date')}>
-                  {card.lot.expirationDate
-                    ? formatDateValue(card.lot.expirationDate, i18n.language)
-                    : ''}
-                </Detail>
-              </>
-            )}
-          </dl>
-        </CardContent>
-      </Card>
+    <section
+      aria-labelledby={heading}
+      className="flex flex-col overflow-hidden rounded-xl border bg-card @2xl/main:flex-row"
+    >
+      <h2
+        className="flex items-center bg-muted px-4 py-3 font-semibold text-sm @2xl/main:max-w-64"
+        id={heading}
+      >
+        {product}
+      </h2>
+      <div className="flex flex-1 items-center px-4 py-1 @2xl/main:py-3">{children}</div>
     </section>
+  );
+}
+
+export function StockCardHeader({ card, unit }: { card: StockCard; unit: QuantityUnit }) {
+  const { t, i18n } = useTranslation();
+  const packSize = card.orderable.netContent;
+  return (
+    <HeaderFrame product={<bdi>{stockCardProductName(card.orderable)}</bdi>}>
+      <dl className="flex w-full flex-col divide-y @2xl/main:flex-row @2xl/main:flex-wrap @2xl/main:gap-x-8 @2xl/main:gap-y-3 @2xl/main:divide-y-0">
+        <Detail label={t('stock-card.product-code')}>{orEmpty(card.orderable.productCode)}</Detail>
+        <Detail label={t('stock-card.pack-size')}>
+          {packSize == null
+            ? orEmpty(packSize)
+            : new Intl.NumberFormat(i18n.language).format(packSize)}
+        </Detail>
+        <Detail label={t('stock-card.facility')}>{orEmpty(card.facility.name)}</Detail>
+        <Detail label={t('stock-card.program')}>{orEmpty(card.program.name)}</Detail>
+        <Detail label={t('stock-card.stock-on-hand')}>
+          <span className="tabular-nums" dir="ltr">
+            {orEmpty(cardQuantity(card.stockOnHand, packSize, unit, i18n.language))}
+          </span>
+        </Detail>
+        {card.lot && (
+          <>
+            <Detail label={t('stock-card.lot-number')}>{orEmpty(card.lot.lotCode)}</Detail>
+            <Detail label={t('stock-card.expiry-date')}>
+              {card.lot.expirationDate
+                ? formatDateValue(card.lot.expirationDate, i18n.language)
+                : orEmpty(card.lot.expirationDate)}
+            </Detail>
+          </>
+        )}
+      </dl>
+    </HeaderFrame>
   );
 }
 
 export function StockCardHeaderSkeleton() {
   return (
     <div aria-busy>
-      <Card>
-        <CardHeader>
-          <div className="h-5 w-72 max-w-full">
+      <HeaderFrame
+        product={
+          <div className="h-4 w-32">
             <Skeleton fill />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 @sm/main:grid-cols-2 @3xl/main:grid-cols-4">
-            {['code', 'pack', 'facility', 'program', 'balance', 'lot', 'expiry'].map((id) => (
-              <div className="flex flex-col gap-2" key={id}>
-                <div className="h-3 w-20">
-                  <Skeleton fill />
-                </div>
-                <div className="h-5 w-3/4">
-                  <Skeleton fill />
-                </div>
+        }
+      >
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+          {['code', 'pack', 'facility', 'program', 'balance', 'lot', 'expiry'].map((id) => (
+            <div className="flex flex-col gap-2" key={id}>
+              <div className="h-3 w-16">
+                <Skeleton fill />
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="h-5 w-20">
+                <Skeleton fill />
+              </div>
+            </div>
+          ))}
+        </div>
+      </HeaderFrame>
     </div>
   );
 }
