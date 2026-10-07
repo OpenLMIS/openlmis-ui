@@ -131,6 +131,7 @@ export function StockCardLines({ card, search, onSearchChange, unit, layout }: L
         COLUMNS.map(([id, key]) =>
           columnHelper.display({
             id,
+            meta: { className: id === 'adjustment' ? 'w-28' : undefined },
             header: () => (
               <div className="whitespace-normal break-words">
                 <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
@@ -190,7 +191,8 @@ export function StockCardLines({ card, search, onSearchChange, unit, layout }: L
     />
   );
   const footer = lines.length > 0 && <DataTablePagination table={table} />;
-  if (layout === 'table') return <DataTable table={table} empty={empty} footer={footer} />;
+  if (layout === 'table')
+    return <DataTable table={table} empty={empty} footer={footer} density="default" />;
   return (
     <DataTableCard>
       {rows.length ? (
@@ -237,6 +239,7 @@ export function StockCardLinesSkeleton({
         COLUMNS.map(([id, key]) =>
           columnHelper.display({
             id,
+            meta: { className: id === 'adjustment' ? 'w-28' : undefined },
             header: () => (
               <div className="whitespace-normal break-words">
                 <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
@@ -249,7 +252,8 @@ export function StockCardLinesSkeleton({
   );
   const table = useTable({ features: dataTableFeatures, columns, data: [], enableSorting: false });
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
-  if (layout === 'table') return <DataTableSkeleton table={table} rowCount={rowCount} />;
+  if (layout === 'table')
+    return <DataTableSkeleton table={table} rowCount={rowCount} density="default" />;
   return (
     <div aria-busy>
       <DataTableCard>
