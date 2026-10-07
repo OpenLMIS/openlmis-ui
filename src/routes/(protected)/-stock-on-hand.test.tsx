@@ -294,7 +294,7 @@ describe('stock on hand page', () => {
     const print = await screen.findByRole('button', { name: 'stock-on-hand.print' });
     await waitFor(() => expect(print).toBeEnabled());
     await user.click(
-      within(screen.getByRole('group', { name: 'quantity-unit.label' })).getByRole('button', {
+      within(screen.getByRole('radiogroup', { name: 'quantity-unit.label' })).getByRole('radio', {
         name: 'quantity-unit.packs',
       }),
     );
@@ -370,7 +370,7 @@ describe('stock on hand page', () => {
 
     await screen.findAllByText('Levonorgestrel');
     await user.click(
-      within(screen.getByRole('group', { name: 'quantity-unit.label' })).getByRole('button', {
+      within(screen.getByRole('radiogroup', { name: 'quantity-unit.label' })).getByRole('radio', {
         name: 'quantity-unit.packs',
       }),
     );

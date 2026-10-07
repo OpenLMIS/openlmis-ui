@@ -58,7 +58,9 @@ export function StockOnHandToolbar({
         </Label>
       </div>
       <div className="flex flex-wrap items-center gap-2 @2xl/main:ms-auto">
-        {onUnitChange && <QuantityUnitToggle onUnitChange={onUnitChange} unit={unit} />}
+        {onUnitChange && (
+          <QuantityUnitToggle disabled={disabled} onUnitChange={onUnitChange} unit={unit} />
+        )}
         {print}
       </div>
     </DataTableToolbar>

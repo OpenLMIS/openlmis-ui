@@ -62,6 +62,16 @@ describe('facilityProgramOptions', () => {
     expect(facilityProgramOptions({ ...sources, homeFacilityId: 'unknown' }).home).toBeNull();
   });
 
+  it('counts a grant at an unknown home as supervised, as legacy does', () => {
+    const unknownHome = facilityProgramOptions({
+      ...sources,
+      homeFacilityId: 'gone',
+      grants: [{ facilityId: 'gone', programId: 'pc' }],
+    });
+
+    expect(unknownHome.supervisedPrograms.map((program) => program.id)).toEqual(['pc']);
+  });
+
   it('sorts a program without a name by its code', () => {
     const options = facilityProgramOptions({
       ...sources,

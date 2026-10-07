@@ -55,7 +55,7 @@ export function facilityProgramOptions({
       ? programs.filter((program) => grantedAt(program.id, (id) => id === home.id)).sort(byLabel)
       : [],
     supervisedPrograms: programs
-      .filter((program) => grantedAt(program.id, (id) => id !== homeFacilityId))
+      .filter((program) => grantedAt(program.id, (id) => id !== home?.id))
       .sort(byLabel),
     facilitiesFor: (programId) => {
       const cached = facilitiesForProgram.get(programId);

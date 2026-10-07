@@ -1,36 +1,34 @@
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { QuantityUnit } from '@/lib/quantity';
 
 type QuantityUnitToggleProps = {
   unit: QuantityUnit;
   onUnitChange: (unit: QuantityUnit) => void;
+  disabled?: boolean;
 };
 
-export function QuantityUnitToggle({ unit, onUnitChange }: QuantityUnitToggleProps) {
+const UNITS = ['PACKS', 'DOSES'] as const;
+
+export function QuantityUnitToggle({ unit, onUnitChange, disabled }: QuantityUnitToggleProps) {
   const { t } = useTranslation();
-  const units = [
-    { value: 'PACKS', label: t('quantity-unit.packs') },
-    { value: 'DOSES', label: t('quantity-unit.doses') },
-  ] as const;
+  const labels = { PACKS: t('quantity-unit.packs'), DOSES: t('quantity-unit.doses') };
 
   return (
-    <fieldset
-      aria-label={t('quantity-unit.label')}
-      className="flex min-w-0 gap-0.5 rounded-lg border bg-background p-0.5"
-    >
-      {units.map(({ value, label }) => (
-        <Button
-          aria-pressed={unit === value}
-          key={value}
-          onClick={() => onUnitChange(value)}
-          size="sm"
-          type="button"
-          variant={unit === value ? 'secondary' : 'ghost'}
-        >
-          {label}
-        </Button>
-      ))}
-    </fieldset>
+    <div>
+      <RadioGroup
+        aria-label={t('quantity-unit.label')}
+        disabled={disabled}
+        onValueChange={(value) => onUnitChange(value as QuantityUnit)}
+        value={unit}
+        variant="segmented"
+      >
+        {UNITS.map((value) => (
+          <RadioGroupItem key={value} value={value} variant="segmented">
+            {labels[value]}
+          </RadioGroupItem>
+        ))}
+      </RadioGroup>
+    </div>
   );
 }

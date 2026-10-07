@@ -81,7 +81,7 @@ function TableRow({
       data-slot="table-row"
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
-        surface === "muted" && "bg-muted/30 font-medium",
+        surface === "muted" && "bg-muted/30 font-medium has-aria-expanded:bg-muted/30",
         className
       )}
       {...props}
