@@ -13,7 +13,7 @@ import {
   WorkspaceHeading,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { rightsOptions } from '@/features/auth/api/queries';
+import { permissionsOptions, rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -52,7 +52,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     queryClient.prefetchQuery(systemNotificationsOptions());
 
     // What to load depends on the user's rights, so the page waits for those, as for any permission check.
-    const access = toAccess(await queryClient.ensureQueryData(rightsOptions(userId)));
+    const access = toAccess((await queryClient.ensureQueryData(permissionsOptions(userId))).rights);
     if (access.approve) queryClient.prefetchQuery(approvalsOptions());
     if (access.convert) queryClient.prefetchQuery(convertCountOptions());
     if (access.orders) queryClient.prefetchQuery(openOrdersCountOptions());

@@ -2,6 +2,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { fetchOrderables } from '@/features/reference-data/api/api';
 import {
+  lotsByIdsOptions,
+  minimalFacilitiesOptions,
   orderablesByIdsOptions,
   orderablesByTradeItemsOptions,
   orderablesSearchOptions,
@@ -47,5 +49,14 @@ describe('orderablesSearchOptions', () => {
     );
     await new QueryClient().fetchQuery(options);
     expect(fetchOrderables).toHaveBeenCalledWith({ name: 'acid', code: 'C1' });
+  });
+});
+
+describe('lookups by id', () => {
+  it('keep products and lots as long as the other lookups', () => {
+    const lookup = minimalFacilitiesOptions().staleTime;
+
+    expect(orderablesByIdsOptions(['o1']).staleTime).toBe(lookup);
+    expect(lotsByIdsOptions(['l1']).staleTime).toBe(lookup);
   });
 });

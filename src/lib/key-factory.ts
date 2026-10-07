@@ -25,6 +25,7 @@ export const queryKeys = {
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
   serviceAccounts: createQueryKeys('serviceAccounts'),
+  stockCardSummaries: createQueryKeys('stockCardSummaries'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
   validDestinations: createQueryKeys('validDestinations'),
@@ -33,3 +34,10 @@ export const queryKeys = {
 } as const;
 
 export const userRightsKey = (userId: string) => [...queryKeys.auth.all, 'rights', userId] as const;
+
+export const userRecordKey = (userId: string) =>
+  [...queryKeys.users.all, 'record', userId] as const;
+
+/** Without a user, every user's programs, as a program save refreshes them. */
+export const userProgramsKey = (userId?: string) =>
+  [...queryKeys.users.all, 'programs', ...(userId ? [userId] : [])] as const;

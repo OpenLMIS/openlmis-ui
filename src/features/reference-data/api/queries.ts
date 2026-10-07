@@ -6,6 +6,7 @@ import {
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
+  fetchLotsByIds,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
   fetchOrderables,
@@ -16,9 +17,11 @@ import {
   fetchReasons,
   fetchRoles,
   fetchSupervisoryNodes,
+  fetchUserPrograms,
+  fetchUserRecord,
   type OrderableSearch,
 } from '@/features/reference-data/api/api';
-import { queryKeys } from '@/lib/key-factory';
+import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -130,10 +133,33 @@ export const orderablesByIdsOptions = (ids: readonly string[]) =>
   queryOptions({
     queryKey: queryKeys.orderables.list({ ids: ids.toSorted() }),
     queryFn: () => fetchOrderablesByIds(ids),
+    staleTime: LOOKUP_STALE_TIME,
   });
 
 export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =>
   queryOptions({
     queryKey: queryKeys.orderables.list({ tradeItemIds: tradeItemIds.toSorted() }),
     queryFn: () => fetchOrderablesByTradeItems(tradeItemIds),
+  });
+
+export const lotsByIdsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: queryKeys.lots.list({ ids: ids.toSorted() }),
+    queryFn: () => fetchLotsByIds(ids),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+/** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
+export const userRecordOptions = (id: string) =>
+  queryOptions({
+    queryKey: userRecordKey(id),
+    queryFn: () => fetchUserRecord(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const userProgramsOptions = (id: string) =>
+  queryOptions({
+    queryKey: userProgramsKey(id),
+    queryFn: () => fetchUserPrograms(id),
+    staleTime: LOOKUP_STALE_TIME,
   });

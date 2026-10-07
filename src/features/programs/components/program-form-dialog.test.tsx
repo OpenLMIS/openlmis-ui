@@ -6,6 +6,7 @@ import { createProgram, fetchProgram } from '@/features/programs/api/api';
 import { ProgramFormDialog } from '@/features/programs/components/program-form-dialog';
 import { fetchPrograms } from '@/features/reference-data/api/api';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { userProgramsKey } from '@/lib/key-factory';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
@@ -35,6 +36,7 @@ function renderAdd(cached?: (typeof malaria)[]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   if (cached) queryClient.setQueryData(programsOptions().queryKey, cached);
   renderPage(<ProgramFormDialog onClose={vi.fn()} target="new" />, { queryClient });
+  return queryClient;
 }
 
 async function fillAndCreate(code: string) {
@@ -80,6 +82,18 @@ describe('ProgramFormDialog', () => {
 
     await waitFor(() => expect(create).toHaveBeenCalled());
     expect(screen.queryByText('programs.form.code-taken')).not.toBeInTheDocument();
+  });
+
+  it("refreshes every user's programs after a save, so pickers show the new name", async () => {
+    create.mockResolvedValueOnce(malaria);
+    const queryClient = renderAdd();
+    queryClient.setQueryData(userProgramsKey('u1'), [malaria]);
+
+    await fillAndCreate('PRG009');
+
+    await waitFor(() =>
+      expect(queryClient.getQueryState(userProgramsKey('u1'))?.isInvalidated).toBe(true),
+    );
   });
 
   it('shows a code the server found in use on the code field', async () => {

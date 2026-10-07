@@ -4,9 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { rightsOptions } from '@/features/auth/api/queries';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import * as mobile from '@/hooks/use-mobile';
+import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/lib/feature-flags', async (importOriginal) => {
@@ -23,7 +24,7 @@ vi.mock('@/lib/feature-flags', async (importOriginal) => {
 function renderSidebar(rights: string[], { path = '/', defaultOpen = true } = {}) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
-  queryClient.setQueryData(rightsOptions('u1').queryKey, new Set(rights));
+  queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
   renderPage(
     <TooltipProvider>
       <SidebarProvider defaultOpen={defaultOpen}>

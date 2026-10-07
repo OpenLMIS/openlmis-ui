@@ -4,6 +4,7 @@ import type {
   FacilityType,
   GeographicLevel,
   GeographicZone,
+  LotSummary,
   MinimalFacility,
   Orderable,
   OrderableDisplayCategory,
@@ -15,6 +16,7 @@ import type {
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
+import type { UserRecord } from '@/lib/user-types';
 
 /** Every facility in one request; the endpoint is meant for pickers and has no paging worth using. */
 export async function fetchMinimalFacilities(): Promise<MinimalFacility[]> {
@@ -118,14 +120,53 @@ export async function fetchOrderables({
   return data;
 }
 
-/** The given products in one request; no ids would list every product, so none is sent. */
+const BY_IDS_BATCH = 100;
+
+/** The records with the given ids, at most 100 ids a request and every page of each; none is sent for no ids, which would list them all. */
+async function fetchByIds<T extends { id: string }>(path: string, ids: readonly string[]) {
+  const unique = [...new Set(ids)];
+  const found: T[] = [];
+  for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
+    const batch = unique.slice(start, start + BY_IDS_BATCH);
+    for (let page = 0; ; page += 1) {
+      const { data } = await client.get<Page<T>>(path, {
+        params: { id: batch, page, size: BY_IDS_BATCH },
+        paramsSerializer: { indexes: null },
+      });
+      found.push(...data.content);
+      if (page + 1 >= data.totalPages) break;
+    }
+  }
+  return found;
+}
+
+const versionOf = (orderable: Orderable) => orderable.meta?.versionNumber ?? 0;
+
+function latestVersions(orderables: readonly Orderable[]) {
+  const latest = new Map<string, Orderable>();
+  for (const orderable of orderables) {
+    const kept = latest.get(orderable.id);
+    if (!kept || versionOf(orderable) > versionOf(kept)) latest.set(orderable.id, orderable);
+  }
+  return [...latest.values()];
+}
+
 export async function fetchOrderablesByIds(ids: readonly string[]): Promise<Orderable[]> {
-  if (ids.length === 0) return [];
-  const { data } = await client.get<Page<Orderable>>('/orderables', {
-    params: { id: ids },
-    paramsSerializer: { indexes: null },
-  });
-  return data.content;
+  return latestVersions(await fetchByIds<Orderable>('/orderables', ids));
+}
+
+export function fetchLotsByIds(ids: readonly string[]): Promise<LotSummary[]> {
+  return fetchByIds<LotSummary>('/lots', ids);
+}
+
+export async function fetchUserRecord(id: string): Promise<UserRecord> {
+  const { data } = await client.get<UserRecord>(`/users/${id}`);
+  return data;
+}
+
+export async function fetchUserPrograms(id: string): Promise<Program[]> {
+  const { data } = await client.get<Program[]>(`/users/${id}/programs`);
+  return data;
 }
 
 const TRADE_ITEM_PAGE_SIZE = 100;
@@ -137,7 +178,7 @@ export async function fetchOrderablesByTradeItems(
   tradeItemIds: readonly string[],
 ): Promise<Orderable[]> {
   const wanted = new Set(tradeItemIds.map((id) => id.toLowerCase()));
-  const latest = new Map<string, Orderable>();
+  const found: Orderable[] = [];
   for (let page = 0; wanted.size > 0; page += 1) {
     const { data } = await client.get<Page<Orderable>>('/orderables', {
       params: { tradeItemId: tradeItemIds, page, size: TRADE_ITEM_PAGE_SIZE },
@@ -146,12 +187,8 @@ export async function fetchOrderablesByTradeItems(
     const matching = data.content.filter((orderable) => wanted.has(tradeItemOf(orderable) ?? ''));
     // Trade items no product points to are answered with every product, not none.
     if (matching.length === 0) break;
-    for (const orderable of matching) {
-      const kept = latest.get(orderable.id);
-      const version = orderable.meta?.versionNumber ?? 0;
-      if (!kept || version > (kept.meta?.versionNumber ?? 0)) latest.set(orderable.id, orderable);
-    }
+    found.push(...matching);
     if (page + 1 >= data.totalPages) break;
   }
-  return [...latest.values()];
+  return latestVersions(found);
 }
