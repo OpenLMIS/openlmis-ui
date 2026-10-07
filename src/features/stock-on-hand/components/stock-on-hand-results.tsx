@@ -563,7 +563,7 @@ function SkeletonBar({ width = 'w-3/4', height = 'h-4' }: { width?: string; heig
 function ToggleSkeleton() {
   return (
     <span className="flex size-7 shrink-0 items-center justify-center text-muted-foreground">
-      <ChevronDownIcon />
+      <ChevronDownIcon className="size-4" />
     </span>
   );
 }
