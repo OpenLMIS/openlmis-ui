@@ -3,7 +3,7 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // Splits vendor packages into separate cached chunks so browsers don't re-download them when only app code changes.
 const vendorChunks: Record<string, string[]> = {
@@ -71,6 +71,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     test: {
+      exclude: [...configDefaults.exclude, '**/.screenshots/**'],
       environment: 'happy-dom',
       globals: true,
       setupFiles: ['./src/tests/setup.ts'],

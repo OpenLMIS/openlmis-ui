@@ -1,13 +1,12 @@
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
+import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
-import { serverMessage } from '@/components/dialog-parts';
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
+import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -32,7 +31,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
@@ -41,7 +40,7 @@ import {
   stockCardSummariesOptions,
 } from '@/features/stock-on-hand/api/queries';
 import {
-  type ResultsLayout,
+  STOCK_HIDEABLE_COLUMNS,
   StockOnHandResults,
   StockOnHandResultsSkeleton,
 } from '@/features/stock-on-hand/components/stock-on-hand-results';
@@ -52,8 +51,10 @@ import {
   toSummariesQuery,
 } from '@/features/stock-on-hand/lib/search';
 import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
+import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
@@ -75,12 +76,7 @@ const RIGHT = RIGHTS.stockCardsView;
 
 const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
 
-const TABLE_MIN_WIDTH = 768;
-
 const noop = () => {};
-
-const isServerError = (error: unknown) =>
-  isAxiosError(error) && (error.response?.status ?? 0) >= 500;
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/stock-on-hand')({
   validateSearch: stockOnHandSearchSchema,
@@ -122,18 +118,40 @@ function StockOnHandHeader() {
   );
 }
 
-function useResultsLayout() {
+const columnChoicesSchema = z.record(z.string(), z.boolean());
+
+type ColumnView = ReturnType<typeof useColumnVisibility>;
+
+function useColumnView() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  const layout: ResultsLayout = width === undefined || width >= TABLE_MIN_WIDTH ? 'table' : 'cards';
-  return [measure, layout] as const;
+  const columnView = useColumnVisibility(
+    STOCK_HIDEABLE_COLUMNS,
+    useStoredState('stock-on-hand.column-visibility', columnChoicesSchema, {}),
+    width,
+  );
+  return [measure, columnView] as const;
+}
+
+function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <DataTableViewOptions
+        columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+        onReset={columnView.onReset}
+        onVisibilityChange={columnView.onVisibilityChange}
+        visibility={columnView.visibility}
+      />
+    </div>
+  );
 }
 
 function StockOnHandListSkeleton({
   search,
-  layout,
+  columnView,
 }: {
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  columnView: ColumnView;
 }) {
   const { t } = useTranslation();
   const { unit, canSwitch } = useQuantityUnit();
@@ -157,37 +175,40 @@ function StockOnHandListSkeleton({
           }
           search={search}
           unit={unit}
+          view={<ColumnsMenu columnView={columnView} />}
         />
       </fieldset>
-      <StockOnHandResultsSkeleton layout={layout} search={search} />
+      <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
     </div>
   );
 }
 
 function StockOnHandPageSkeleton({
   search,
-  layout,
+  columnView,
 }: {
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  columnView: ColumnView;
 }) {
   return (
     <>
       <FacilityProgramSelectorSkeleton />
-      {isCompleteSelection(search) && <StockOnHandListSkeleton layout={layout} search={search} />}
+      {isCompleteSelection(search) && (
+        <StockOnHandListSkeleton columnView={columnView} search={search} />
+      )}
     </>
   );
 }
 
 function StockOnHandPending() {
   const search = Route.useSearch();
-  const [measure, layout] = useResultsLayout();
+  const [measure, columnView] = useColumnView();
   return (
     <Workspace>
       <StockOnHandHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-          <StockOnHandPageSkeleton layout={layout} search={search} />
+          <StockOnHandPageSkeleton columnView={columnView} search={search} />
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -206,7 +227,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
   const { updateSearch } = useSearchNavigation<StockOnHandSearch>(NO_DIALOGS);
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
-  const [measureContent, layout] = useResultsLayout();
+  const [measureContent, columnView] = useColumnView();
 
   return (
     <Workspace>
@@ -222,12 +243,12 @@ function StockOnHandContent({ userId }: { userId: string }) {
                 title={t('facility-program.load-error-title')}
               />
             )}
-            pendingFallback={<StockOnHandPageSkeleton layout={layout} search={search} />}
+            pendingFallback={<StockOnHandPageSkeleton columnView={columnView} search={search} />}
             resetKey={userId}
           >
             <StockOnHandBody
               grants={grants}
-              layout={layout}
+              columnView={columnView}
               onSearchChange={updateSearch}
               search={search}
               userId={userId}
@@ -243,11 +264,17 @@ type StockOnHandBodyProps = {
   userId: string;
   grants: readonly ProgramGrant[];
   search: StockOnHandSearch;
-  layout: ResultsLayout;
+  columnView: ColumnView;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
-function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: StockOnHandBodyProps) {
+function StockOnHandBody({
+  userId,
+  grants,
+  search,
+  columnView,
+  onSearchChange,
+}: StockOnHandBodyProps) {
   const queryClient = useQueryClient();
   const options = useFacilityProgramOptions(userId, grants);
   const applied = useMemo(
@@ -284,7 +311,7 @@ function StockOnHandBody({ userId, grants, search, layout, onSearchChange }: Sto
       />
       <StockOnHandOutcome
         applied={applied}
-        layout={layout}
+        columnView={columnView}
         onSearchChange={onSearchChange}
         options={options}
         pending={pending}
@@ -306,7 +333,7 @@ type StockOnHandOutcomeProps = Omit<StockOnHandBodyProps, 'grants'> & {
 function StockOnHandOutcome({
   userId,
   search,
-  layout,
+  columnView,
   onSearchChange,
   options,
   applied,
@@ -346,7 +373,7 @@ function StockOnHandOutcome({
       facility={options
         .facilitiesFor(valid.programId)
         .find((facility) => facility.id === valid.facilityId)}
-      layout={layout}
+      columnView={columnView}
       onSearchChange={onSearchChange}
       program={programs.find((program) => program.id === valid.programId)}
       search={search}
@@ -364,7 +391,7 @@ type StockOnHandListProps = {
   selection: CompleteSelection;
   facility: NamedRecord | undefined;
   program: NamedRecord | undefined;
-  layout: ResultsLayout;
+  columnView: ColumnView;
   onSearchChange: SearchChange<StockOnHandSearch>;
 };
 
@@ -374,7 +401,7 @@ function StockOnHandList({
   selection,
   facility,
   program,
-  layout,
+  columnView,
   onSearchChange,
 }: StockOnHandListProps) {
   const { t } = useTranslation();
@@ -390,8 +417,9 @@ function StockOnHandList({
       <StockOnHandToolbar
         onFilterChange={(patch) => onSearchChange(patch, true)}
         onUnitChange={canSwitch ? setUnit : undefined}
+        view={<ColumnsMenu columnView={columnView} />}
         print={
-          <PrintButton
+          <StockOnHandPrintButton
             facility={facility}
             program={program}
             query={query}
@@ -412,14 +440,16 @@ function StockOnHandList({
             title={t('stock-on-hand.error-title')}
           />
         )}
-        pendingFallback={<StockOnHandResultsSkeleton layout={layout} search={search} />}
+        pendingFallback={
+          <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
+        }
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
           collapsedKey={collapsedKey}
           facilityId={selection.facilityId}
           key={collapsedKey}
-          layout={layout}
+          columns={columnView.visibility}
           onSearchChange={onSearchChange}
           programId={selection.programId}
           search={search}
@@ -442,59 +472,44 @@ type PrintButtonProps = {
   query: StockCardSummariesQuery;
 };
 
-type PrintRequest = {
-  requestedBy: string;
-  facility: NamedRecord | undefined;
-  program: NamedRecord | undefined;
-};
-
-const stillSignedIn = (userId: string) => useLoginData.getState().referenceDataUserId === userId;
-
-function PrintButton({ userId, selection, facility, program, unit, query }: PrintButtonProps) {
-  const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
+function StockOnHandPrintButton({
+  userId,
+  selection,
+  facility,
+  program,
+  unit,
+  query,
+}: PrintButtonProps) {
+  const { t } = useTranslation();
   const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
-  const print = useMutation({
-    mutationFn: async (_request: PrintRequest) => {
-      const permissions = await queryClient.fetchQuery(permissionsOptions(userId));
-      if (!hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)) {
-        throw new ForbiddenError(RIGHT);
-      }
-      return fetchStockOnHandReport({
+  const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
+  const print = usePrintReport({
+    userId,
+    right: RIGHT,
+    facilityId: selection.facilityId,
+    programId: selection.programId,
+    request: (lang) =>
+      fetchStockOnHandReport({
         programId: selection.programId,
         facilityId: selection.facilityId,
         showInDoses: unit === 'DOSES',
-        lang: i18n.resolvedLanguage ?? i18n.language,
-      });
-    },
-    onSuccess: (report, { requestedBy, facility, program }) => {
-      if (!stillSignedIn(requestedBy)) return;
-      const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
-      downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`);
-      toast.success(t('stock-on-hand.printed-title'), {
-        description: t('stock-on-hand.printed', {
-          facility: label(facility),
-          program: label(program),
-        }),
-      });
-    },
-    onError: (error, { requestedBy }) => {
-      if (!stillSignedIn(requestedBy)) return;
-      toast.error(t('stock-on-hand.print-error-title'), {
-        description:
-          error instanceof ForbiddenError
-            ? t('stock-on-hand.print-refused')
-            : (!isServerError(error) && serverMessage(error)) || t('stock-on-hand.print-error'),
-      });
-    },
+        lang,
+      }),
+    onReport: () => ({
+      deliver: (report) => downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`),
+      close: noop,
+    }),
+    successTitle: t('stock-on-hand.printed-title'),
+    successDescription: t('stock-on-hand.printed', {
+      facility: label(facility),
+      program: label(program),
+    }),
+    errorTitle: t('stock-on-hand.print-error-title'),
+    errorDescription: t('stock-on-hand.print-error'),
+    refusedDescription: t('stock-on-hand.print-refused'),
   });
-
   return (
-    <Button
-      disabled={!page || page.totalElements === 0 || print.isPending}
-      onClick={() => print.mutate({ requestedBy: userId, facility, program })}
-      type="button"
-    >
+    <Button disabled={!page || page.totalElements === 0 || print.isPending} onClick={print.print}>
       {print.isPending ? (
         <Spinner data-icon="inline-start" />
       ) : (

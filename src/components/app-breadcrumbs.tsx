@@ -18,6 +18,7 @@ declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
     /** The last crumb: a page below a nav entry, e.g. a user's roles, or a page off the nav. */
     crumbKey?: ParseKeys;
+    crumbParentSearch?: (search: Record<string, unknown>) => Record<string, unknown>;
   }
 }
 
@@ -26,8 +27,12 @@ export function AppBreadcrumbs() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const canOpen = useCanOpen();
-  const crumbKey = useMatches({ select: (matches) => matches.at(-1)?.staticData.crumbKey });
-  const trail = getBreadcrumbTrail(pathname, crumbKey);
+  const match = useMatches({ select: (matches) => matches.at(-1) });
+  const trail = getBreadcrumbTrail(pathname, match?.staticData.crumbKey);
+  const parentIndex = trail.findLastIndex(
+    (item, index) => index < trail.length - 1 && item.to && item.to !== '#' && canOpen(item.to),
+  );
+  const parentSearch = match?.staticData.crumbParentSearch?.(match.search);
 
   if (trail.length === 0) return null;
 
@@ -44,7 +49,13 @@ export function AppBreadcrumbs() {
               {index === trail.length - 1 ? (
                 <BreadcrumbPage>{t(item.titleKey)}</BreadcrumbPage>
               ) : item.to && item.to !== '#' && canOpen(item.to) ? (
-                <BreadcrumbLink render={<Link to={item.to} />}>{t(item.titleKey)}</BreadcrumbLink>
+                <BreadcrumbLink
+                  render={
+                    <Link to={item.to} search={index === parentIndex ? parentSearch : undefined} />
+                  }
+                >
+                  {t(item.titleKey)}
+                </BreadcrumbLink>
               ) : (
                 <span>{t(item.titleKey)}</span>
               )}

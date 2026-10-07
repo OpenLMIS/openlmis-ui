@@ -40,6 +40,7 @@ import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } fro
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
+import { Route as protectedProtectedStockManagementStockOnHandStockCardIdRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId'
 import { Route as protectedProtectedAdministrationProductsIdIndexRouteImport } from './routes/(protected)/_protected.administration.products_.$id.index'
 import { Route as protectedProtectedAdministrationProductsIdFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.products_.$id.facility-types'
 import { Route as protectedProtectedAdministrationProductsIdGeneralRouteImport } from './routes/(protected)/_protected.administration.products_.$id.general'
@@ -226,6 +227,12 @@ const protectedProtectedAdministrationReasonsNewRoute =
     path: '/administration/reasons/new',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedStockManagementStockOnHandStockCardIdRoute =
+  protectedProtectedStockManagementStockOnHandStockCardIdRouteImport.update({
+    id: '/stock-management/stock-on-hand_/$stockCardId',
+    path: '/stock-management/stock-on-hand/$stockCardId',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationProductsIdIndexRoute =
   protectedProtectedAdministrationProductsIdIndexRouteImport.update({
     id: '/',
@@ -294,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -329,6 +337,7 @@ export interface FileRoutesByTo {
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -369,6 +378,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/(protected)/_protected/administration/products_/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/(protected)/_protected/administration/products_/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/(protected)/_protected/administration/products_/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -409,6 +419,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/stock-management/stock-on-hand/$stockCardId'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/kit-unpack-list'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/administration/facilities/new'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/stock-management/stock-on-hand/$stockCardId'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/kit-unpack-list'
@@ -483,6 +495,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id'
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
+    | '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId'
     | '/(protected)/_protected/administration/products_/$id/facility-types'
     | '/(protected)/_protected/administration/products_/$id/general'
     | '/(protected)/_protected/administration/products_/$id/kit-unpack-list'
@@ -718,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationReasonsNewRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId': {
+      id: '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId'
+      path: '/stock-management/stock-on-hand/$stockCardId'
+      fullPath: '/stock-management/stock-on-hand/$stockCardId'
+      preLoaderRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/administration/products_/$id/': {
       id: '/(protected)/_protected/administration/products_/$id/'
       path: '/'
@@ -849,6 +869,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
+  protectedProtectedStockManagementStockOnHandStockCardIdRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 
@@ -890,6 +911,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsIdRoute,
   protectedProtectedAdministrationReasonsNewRoute:
     protectedProtectedAdministrationReasonsNewRoute,
+  protectedProtectedStockManagementStockOnHandStockCardIdRoute:
+    protectedProtectedStockManagementStockOnHandStockCardIdRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
     protectedProtectedAdministrationUsersIdRolesRoute,
 }

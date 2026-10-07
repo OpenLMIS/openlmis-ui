@@ -157,13 +157,16 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
         {(field) => (
           <field.ComboboxField
             clearLabel={t('facility-program.clear-facility')}
-            description={programId ? undefined : t('facility-program.facility-after-program')}
             disabled={!programId}
             emptyMessage={t('facility-program.no-facilities')}
             items={facilityItems}
             label={t('facility-program.facility')}
             limit={-1}
-            placeholder={t('facility-program.facility-placeholder')}
+            placeholder={
+              programId
+                ? t('facility-program.facility-placeholder')
+                : t('facility-program.facility-after-program')
+            }
             required
           />
         )}

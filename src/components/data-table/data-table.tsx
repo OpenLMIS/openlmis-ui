@@ -57,6 +57,9 @@ export type DataTableInstance<TData extends RowData> = ReactTable<DataTableFeatu
 
 type DataTableProps<TData extends RowData> = {
   table: DataTableInstance<TData>;
+  density?: 'default' | 'comfortable';
+  /** `auto` sizes each column to its content instead of keeping widths steady across pages. */
+  layout?: 'fixed' | 'auto';
   /** Rendered across the whole body when there are no rows. */
   empty?: ReactNode;
   /** Dims the rows while the next page is loading in the background. */
@@ -70,6 +73,8 @@ export function DataTable<TData extends RowData>({
   empty,
   isStale = false,
   footer,
+  density = 'comfortable',
+  layout = 'fixed',
 }: DataTableProps<TData>) {
   const rows = table.getRowModel().rows;
   const columns = table.getVisibleLeafColumns();
@@ -77,8 +82,7 @@ export function DataTable<TData extends RowData>({
   return (
     <DataTableCard>
       <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
-        {/* Fixed widths keep the columns still from page to page. */}
-        <Table density="comfortable" layout="fixed">
+        <Table density={density} layout={layout}>
           <DataTableHeader table={table} />
           <TableBody>
             {rows.length > 0 ? (
@@ -197,11 +201,15 @@ type DataTableSkeletonProps<TData extends RowData> = {
   /** A table built from the real columns with no rows, so the header and widths match exactly. */
   table: DataTableInstance<TData>;
   rowCount: number;
+  density?: 'default' | 'comfortable';
+  layout?: 'fixed' | 'auto';
 };
 
 export function DataTableSkeleton<TData extends RowData>({
   table,
   rowCount,
+  density = 'comfortable',
+  layout = 'fixed',
 }: DataTableSkeletonProps<TData>) {
   const columns = table.getVisibleLeafColumns();
   const rows = Array.from({ length: rowCount }, (_, index) => index);
@@ -209,7 +217,7 @@ export function DataTableSkeleton<TData extends RowData>({
   return (
     <div aria-busy>
       <DataTableCard>
-        <Table density="comfortable" layout="fixed">
+        <Table density={density} layout={layout}>
           <DataTableHeader table={table} />
           <TableBody>
             {rows.map((row) => (
@@ -241,8 +249,10 @@ function SkeletonBox() {
 
 function SkeletonBar() {
   return (
-    <div className="h-4 w-3/4">
-      <Skeleton fill />
+    <div className="flex h-5 items-center">
+      <div className="h-4 w-3/4">
+        <Skeleton fill />
+      </div>
     </div>
   );
 }

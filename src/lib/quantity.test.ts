@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { cardQuantity, productQuantity } from '@/lib/quantity';
 
 describe('cardQuantity', () => {
+  it('formats doses and both pack quantities in the requested language', () => {
+    expect(cardQuantity(1234, 5, 'DOSES', 'fr')).toBe('1\u202f234');
+    expect(cardQuantity(1234, 5, 'DOSES', 'ar-EG')).toBe('١٬٢٣٤');
+    expect(cardQuantity(14, 5, 'PACKS', 'ar-EG')).toBe('٢ ( +٤ )');
+    expect(cardQuantity(-11, 10, 'PACKS', 'fr')).toBe('-1 ( -1 )');
+    expect(cardQuantity(2, null, 'PACKS', 'ar-EG')).toBe('٠');
+    expect(cardQuantity(null, 5, 'DOSES', 'fr')).toBeNull();
+  });
+
+  it('normalizes negative zero packs before localizing', () => {
+    expect(cardQuantity(-3, 10, 'PACKS', 'en')).toBe('0 ( -3 )');
+    expect(cardQuantity(-3, 10, 'PACKS', 'fr')).toBe('0 ( -3 )');
+    expect(cardQuantity(-10, 10, 'PACKS', 'en')).toBe('-1 ( +0 )');
+  });
+
   it('shows doses as they are', () => {
     expect(cardQuantity(150, 16, 'DOSES')).toBe('150');
     expect(cardQuantity(-3, 16, 'DOSES')).toBe('-3');
@@ -43,6 +58,11 @@ describe('productQuantity', () => {
 
   it('keeps legacy floor rounding for a negative total', () => {
     expect(productQuantity(-11, [-11], 10, 'PACKS')).toBe('-2 ( +-1 )');
+  });
+
+  it('formats the numbers in the language given, as the card does', () => {
+    expect(productQuantity(2549, [2549], 10, 'DOSES', 'en')).toBe('2,549');
+    expect(productQuantity(25_495, [25_495], 10, 'PACKS', 'en')).toBe('2,549 ( +5 )');
   });
 
   it('shows no packs without a pack size', () => {
