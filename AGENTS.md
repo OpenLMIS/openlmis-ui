@@ -409,6 +409,7 @@ Settings, goes into the shared header's `WorkspaceActionsSlot` through `Workspac
 so a page gets Home / Section / Page for free once its nav entry points at its route.
 A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
 its own last crumb from the route's `staticData.crumbKey`; the parents link back.
+A route's `staticData.crumbParentSearch(search)` carries its list search into the last linked crumb, so a reload or shared detail link keeps the return filters.
 A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
 `useAccountLinks()` in `src/components/nav-access.ts` lists Account (Profile) and Settings
 (`/settings`), each behind its right, for the avatar menu, command palette and sidebar.
