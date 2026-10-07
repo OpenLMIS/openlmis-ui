@@ -155,7 +155,11 @@ function StockCardPage() {
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {canSwitch && <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />}
+            {canSwitch && (
+              <div className="flex-1 @md/main:flex-none">
+                <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
+              </div>
+            )}
             <StockCardColumns columnView={columnView} />
           </div>
           <StockCardLines
@@ -253,7 +257,7 @@ function StockCardPending() {
           <StockCardHeaderSkeleton />
           <div className="flex justify-end gap-2">
             {canSwitch && (
-              <div className="h-8 w-36">
+              <div className="h-8 flex-1 @md/main:w-36 @md/main:flex-none">
                 <Skeleton fill />
               </div>
             )}

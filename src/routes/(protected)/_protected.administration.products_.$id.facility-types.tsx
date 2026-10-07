@@ -91,7 +91,7 @@ function FacilityTypesTab() {
           />
         </div>
         {canEditApprovals && (
-          <div className="w-full @2xl/main:w-auto">
+          <div className="flex-1 @2xl/main:flex-none">
             <Button onClick={() => openDialog({ approval: 'new' })} width="full">
               <PlusIcon data-icon="inline-start" />
               {t('products.approvals.add')}
