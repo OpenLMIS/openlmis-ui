@@ -168,7 +168,7 @@ function StockOnHandListSkeleton({
           onFilterChange={noop}
           onUnitChange={canSwitch ? noop : undefined}
           print={
-            <Button type="button">
+            <Button type="button" width="full">
               <PrinterIcon data-icon="inline-start" />
               {t('stock-on-hand.print')}
             </Button>
@@ -509,7 +509,11 @@ function StockOnHandPrintButton({
     refusedDescription: t('stock-on-hand.print-refused'),
   });
   return (
-    <Button disabled={!page || page.totalElements === 0 || print.isPending} onClick={print.print}>
+    <Button
+      disabled={!page || page.totalElements === 0 || print.isPending}
+      onClick={print.print}
+      width="full"
+    >
       {print.isPending ? (
         <Spinner data-icon="inline-start" />
       ) : (

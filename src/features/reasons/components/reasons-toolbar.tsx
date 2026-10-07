@@ -34,7 +34,7 @@ export function ReasonsToolbar({ search, onFilterChange, columnView, onAdd }: Re
           visibility={columnView.visibility}
         />
       </div>
-      <div className="w-full @2xl/main:w-auto">
+      <div className="flex-1 @2xl/main:flex-none">
         <Button onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('reasons.add')}

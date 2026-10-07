@@ -94,7 +94,7 @@ function ProgramsTab() {
           />
         </div>
         {canEditProduct && (
-          <div className="w-full @2xl/main:w-auto">
+          <div className="flex-1 @2xl/main:flex-none">
             <Button onClick={() => openDialog({ program: 'new' })} width="full">
               <PlusIcon data-icon="inline-start" />
               {t('products.programs.add')}
