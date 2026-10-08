@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
+import {
+  formatDateTimeValue,
+  formatDateValue,
+  parseDateValue,
+  toDateValue,
+} from '@/components/form/date-value';
 
 describe('parseDateValue', () => {
   it('reads a yyyy-MM-dd date as that day, at midnight where the user is', () => {
@@ -40,5 +45,19 @@ describe('formatDateValue', () => {
 
   it('shows nothing for no date', () => {
     expect(formatDateValue('', 'en-US')).toBe('');
+  });
+});
+
+describe('formatDateTimeValue', () => {
+  it.each([
+    ['en-US', 'Oct 8, 2026, 2:35 PM'],
+    ['fr', '8 oct. 2026, 14:35'],
+  ])('formats the date and time in %s', (locale, expected) => {
+    expect(formatDateTimeValue('2026-10-08T14:35:00', locale)).toBe(expected);
+  });
+
+  it('shows nothing for an absent or invalid timestamp', () => {
+    expect(formatDateTimeValue('', 'en')).toBe('');
+    expect(formatDateTimeValue('invalid', 'en')).toBe('');
   });
 });

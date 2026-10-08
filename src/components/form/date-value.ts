@@ -19,3 +19,10 @@ export function formatDateValue(value: string, locale: string): string {
   const date = parseDateValue(value);
   return date ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date) : '';
 }
+
+export function formatDateTimeValue(value: string, locale: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
