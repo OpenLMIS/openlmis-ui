@@ -14,7 +14,7 @@ describe('facilitiesSearchSchema', () => {
       facilitiesSearchSchema.parse({ page: 2, size: 20, sort: 'code', dir: 'desc', zoneId }),
     ).toEqual({ page: 2, size: 20, sort: 'code', dir: 'desc', zoneId });
     expect(
-      facilitiesSearchSchema.parse({ page: 0, size: 7, sort: 'geographicZone', zoneId: 'x' }),
+      facilitiesSearchSchema.parse({ page: 0, size: 1001, sort: 'geographicZone', zoneId: 'x' }),
     ).toEqual({});
   });
 

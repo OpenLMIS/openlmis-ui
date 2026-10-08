@@ -22,7 +22,7 @@ describe('productsSearchSchema', () => {
   });
 
   it('falls back on a bad page, page size or dialog', () => {
-    expect(productsSearchSchema.parse({ page: 0, size: 7, product: 'o1' })).toEqual({});
+    expect(productsSearchSchema.parse({ page: 0, size: 1001, product: 'o1' })).toEqual({});
     expect(productsSearchSchema.parse({ page: 3, size: 20, product: 'new' })).toEqual({
       page: 3,
       size: 20,

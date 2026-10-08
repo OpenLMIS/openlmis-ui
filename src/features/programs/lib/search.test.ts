@@ -9,7 +9,9 @@ describe('programsSearchSchema', () => {
       sort: 'code',
       dir: 'desc',
     });
-    expect(programsSearchSchema.parse({ page: 0, size: 7, sort: 'skipAuthorization' })).toEqual({});
+    expect(programsSearchSchema.parse({ page: 0, size: 1001, sort: 'skipAuthorization' })).toEqual(
+      {},
+    );
   });
 
   it('opens the dialog for a new program or a program id', () => {

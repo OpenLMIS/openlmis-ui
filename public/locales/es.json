@@ -17,6 +17,7 @@
   "data-table.last-page": "Última página",
   "data-table.next-page": "Página siguiente",
   "data-table.no-matches": "Sin coincidencias",
+  "data-table.page": "Página {page}",
   "data-table.previous-page": "Página anterior",
   "data-table.range": "{from, number}-{to, number} / {total, number}",
   "data-table.reset-columns": "Restablecer columnas",
