@@ -1,10 +1,7 @@
 import type { LotSummary } from '@/features/reference-data/lib/types';
+import type { StockReason } from '@/lib/stock-labels';
 
-export type CardReason = {
-  name: string;
-  reasonType: string;
-  reasonCategory: string;
-};
+export type CardReason = StockReason;
 
 export type StockCardLine = {
   id: string;

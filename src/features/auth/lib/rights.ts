@@ -21,5 +21,6 @@ export const RIGHTS = {
   stockCardLineItemReasonsManage: 'STOCK_CARD_LINE_ITEM_REASONS_MANAGE',
   lotsManage: 'LOTS_MANAGE',
   stockCardsView: 'STOCK_CARDS_VIEW',
+  stockEventsCancel: 'STOCK_EVENTS_CANCEL',
   stockAdjust: 'STOCK_ADJUST',
 } as const;

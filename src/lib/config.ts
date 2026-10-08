@@ -104,6 +104,10 @@ export const NAV_GROUPS: NavGroup[] = [
             titleKey: 'nav.stock-management.stock-on-hand',
             to: '/stock-management/stock-on-hand',
           },
+          {
+            titleKey: 'nav.stock-management.transaction-history',
+            to: '/stock-management/transaction-history',
+          },
         ],
       },
       {

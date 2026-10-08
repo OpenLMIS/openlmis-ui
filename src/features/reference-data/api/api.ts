@@ -196,6 +196,21 @@ export async function fetchOrderablesByTradeItems(
   return latestVersions(found);
 }
 
+const TIME_ZONE_KEY = 'openlmis-ui.time-zone';
+
+export const storedTimeZone = () => localStorage.getItem(TIME_ZONE_KEY);
+
+export async function fetchDeploymentTimeZone(): Promise<string> {
+  const { data } = await client.get<{ timeZoneId?: string | null }>('/localeSettings', {
+    baseURL: '/',
+    anonymous: true,
+    timeout: 10_000,
+  });
+  if (!data.timeZoneId) throw new Error('No time zone in the locale settings');
+  localStorage.setItem(TIME_ZONE_KEY, data.timeZoneId);
+  return data.timeZoneId;
+}
+
 export async function fetchValidReasons(
   params: ValidReasonsFilter,
 ): Promise<ValidReasonAssignment[]> {

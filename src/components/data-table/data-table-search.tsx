@@ -15,6 +15,7 @@ type DataTableSearchProps = {
   resetKey?: string | number;
   /** Accessible name, when the placeholder alone does not say what is searched. */
   label?: string;
+  id?: string;
 };
 
 export function DataTableSearch({
@@ -23,6 +24,7 @@ export function DataTableSearch({
   placeholder,
   resetKey,
   label,
+  id,
 }: DataTableSearchProps) {
   const labels = useDataTableLabels();
   const { draft, commit, inputProps } = useDebouncedInput(value, onValueChange, { resetKey });
@@ -35,7 +37,8 @@ export function DataTableSearch({
           <SearchIcon />
         </InputGroupAddon>
         <InputGroupInput
-          aria-label={label ?? text}
+          aria-label={id ? undefined : (label ?? text)}
+          id={id}
           placeholder={text}
           type="text"
           {...inputProps}

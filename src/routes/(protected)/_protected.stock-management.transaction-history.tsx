@@ -1,7 +1,7 @@
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { CalendarX2Icon, ClipboardListIcon, HistoryIcon, ShieldAlertIcon } from 'lucide-react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
@@ -20,7 +20,6 @@ import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
 import {
   Workspace,
   WorkspaceContent,
@@ -34,28 +33,22 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import {
-  prefetchStockOnHand,
-  stockCardSummariesOptions,
-} from '@/features/stock-on-hand/api/queries';
+  EVENT_HIDEABLE_COLUMNS,
+  TransactionHistoryResults,
+  TransactionHistoryResultsSkeleton,
+} from '@/features/stock-events/components/transaction-history-results';
+import { TransactionHistoryToolbar } from '@/features/stock-events/components/transaction-history-toolbar';
 import {
-  STOCK_HIDEABLE_COLUMNS,
-  StockOnHandResults,
-  StockOnHandResultsSkeleton,
-} from '@/features/stock-on-hand/components/stock-on-hand-results';
-import { StockOnHandToolbar } from '@/features/stock-on-hand/components/stock-on-hand-toolbar';
-import {
-  type StockOnHandSearch,
-  stockOnHandSearchSchema,
-  toSummariesQuery,
-} from '@/features/stock-on-hand/lib/search';
-import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
-import { usePrintReport } from '@/hooks/use-print-report';
-import { useQuantityUnit } from '@/hooks/use-quantity-unit';
+  invalidDateRange,
+  type TransactionHistorySearch,
+  toEventsQuery,
+  transactionHistorySearchSchema,
+} from '@/features/stock-events/lib/search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
   type FacilityProgramOptions,
@@ -67,26 +60,26 @@ import {
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
-import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.stockCardsView;
 
-const NO_DIALOGS = {} satisfies Partial<StockOnHandSearch>;
+const NO_DIALOGS = {} satisfies Partial<TransactionHistorySearch>;
 
 const noop = () => {};
 
-export const Route = createFileRoute('/(protected)/_protected/stock-management/stock-on-hand')({
-  validateSearch: stockOnHandSearchSchema,
-  // The inactive box only filters the page shown, so it never reloads.
-  loaderDeps: ({ search: { includeInactive: _includeInactive, ...search } }) => ({ search }),
+export const Route = createFileRoute(
+  '/(protected)/_protected/stock-management/transaction-history',
+)({
+  validateSearch: transactionHistorySearchSchema,
+  loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const selection = {
       mode: search.mode,
       programId: search.programId,
@@ -94,25 +87,26 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
     };
     if (
       isCompleteSelection(selection) &&
+      !invalidDateRange(search) &&
       hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)
     ) {
-      prefetchStockOnHand(queryClient, toSummariesQuery(search, selection));
+      queryClient.prefetchQuery(stockEventsOptions(toEventsQuery(search, selection)));
     }
   },
-  pendingComponent: StockOnHandPending,
-  component: StockOnHandPage,
+  pendingComponent: TransactionHistoryPending,
+  component: TransactionHistoryPage,
 });
 
-function StockOnHandHeader() {
+function TransactionHistoryHeader() {
   const { t } = useTranslation();
   return (
     <WorkspaceHeader>
       <WorkspaceHeading>
         <WorkspaceIcon>
-          <WarehouseIcon />
+          <HistoryIcon />
         </WorkspaceIcon>
-        <WorkspaceTitle>{t('stock-on-hand.title')}</WorkspaceTitle>
-        <WorkspaceDescription>{t('stock-on-hand.page-description')}</WorkspaceDescription>
+        <WorkspaceTitle>{t('transaction-history.title')}</WorkspaceTitle>
+        <WorkspaceDescription>{t('transaction-history.page-description')}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
   );
@@ -125,8 +119,8 @@ type ColumnView = ReturnType<typeof useColumnVisibility>;
 function useColumnView() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
-    STOCK_HIDEABLE_COLUMNS,
-    useStoredState('stock-on-hand.column-visibility', columnChoicesSchema, {}),
+    EVENT_HIDEABLE_COLUMNS,
+    useStoredState('transaction-history.column-visibility', columnChoicesSchema, {}),
     width,
   );
   return [measure, columnView] as const;
@@ -137,7 +131,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   return (
     <div>
       <DataTableViewOptions
-        columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+        columns={EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
         visibility={columnView.visibility}
@@ -146,15 +140,13 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   );
 }
 
-function StockOnHandListSkeleton({
+function TransactionHistoryListSkeleton({
   search,
   columnView,
 }: {
-  search: StockOnHandSearch;
+  search: TransactionHistorySearch;
   columnView: ColumnView;
 }) {
-  const { t } = useTranslation();
-  const { unit, canSwitch } = useQuantityUnit();
   return (
     <div aria-busy className="flex flex-col gap-4">
       <div className="flex h-6 items-center">
@@ -163,75 +155,66 @@ function StockOnHandListSkeleton({
         </div>
       </div>
       <fieldset className="min-w-0" disabled>
-        <StockOnHandToolbar
+        <TransactionHistoryToolbar
           disabled
           onFilterChange={noop}
-          onUnitChange={canSwitch ? noop : undefined}
-          print={
-            <Button type="button" width="full">
-              <PrinterIcon data-icon="inline-start" />
-              {t('stock-on-hand.print')}
-            </Button>
-          }
           search={search}
-          unit={unit}
           view={<ColumnsMenu columnView={columnView} />}
         />
       </fieldset>
-      <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
+      <TransactionHistoryResultsSkeleton columns={columnView.visibility} search={search} />
     </div>
   );
 }
 
-function StockOnHandPageSkeleton({
+function TransactionHistoryPageSkeleton({
   search,
   columnView,
 }: {
-  search: StockOnHandSearch;
+  search: TransactionHistorySearch;
   columnView: ColumnView;
 }) {
   return (
     <>
       <FacilityProgramSelectorSkeleton />
       {isCompleteSelection(search) && (
-        <StockOnHandListSkeleton columnView={columnView} search={search} />
+        <TransactionHistoryListSkeleton columnView={columnView} search={search} />
       )}
     </>
   );
 }
 
-function StockOnHandPending() {
+function TransactionHistoryPending() {
   const search = Route.useSearch();
   const [measure, columnView] = useColumnView();
   return (
     <Workspace>
-      <StockOnHandHeader />
+      <TransactionHistoryHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-          <StockOnHandPageSkeleton columnView={columnView} search={search} />
+          <TransactionHistoryPageSkeleton columnView={columnView} search={search} />
         </div>
       </WorkspaceContent>
     </Workspace>
   );
 }
 
-function StockOnHandPage() {
+function TransactionHistoryPage() {
   const userId = useLoginData((state) => state.referenceDataUserId);
-  // Signing out clears the cache before leaving, so the page must not load rights for no one.
-  return userId ? <StockOnHandContent userId={userId} /> : null;
+  return userId ? <TransactionHistoryContent userId={userId} /> : null;
 }
 
-function StockOnHandContent({ userId }: { userId: string }) {
+function TransactionHistoryContent({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  const { updateSearch } = useSearchNavigation<StockOnHandSearch>(NO_DIALOGS);
+  const { updateSearch } = useSearchNavigation<TransactionHistorySearch>(NO_DIALOGS);
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
   const [measureContent, columnView] = useColumnView();
 
   return (
     <Workspace>
-      <StockOnHandHeader />
+      <TransactionHistoryHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
           <QueryBoundary
@@ -243,12 +226,14 @@ function StockOnHandContent({ userId }: { userId: string }) {
                 title={t('facility-program.load-error-title')}
               />
             )}
-            pendingFallback={<StockOnHandPageSkeleton columnView={columnView} search={search} />}
+            pendingFallback={
+              <TransactionHistoryPageSkeleton columnView={columnView} search={search} />
+            }
             resetKey={userId}
           >
-            <StockOnHandBody
-              grants={grants}
+            <TransactionHistoryBody
               columnView={columnView}
+              grants={grants}
               onSearchChange={updateSearch}
               search={search}
               userId={userId}
@@ -260,21 +245,21 @@ function StockOnHandContent({ userId }: { userId: string }) {
   );
 }
 
-type StockOnHandBodyProps = {
+type TransactionHistoryBodyProps = {
   userId: string;
   grants: readonly ProgramGrant[];
-  search: StockOnHandSearch;
+  search: TransactionHistorySearch;
   columnView: ColumnView;
-  onSearchChange: SearchChange<StockOnHandSearch>;
+  onSearchChange: SearchChange<TransactionHistorySearch>;
 };
 
-function StockOnHandBody({
+function TransactionHistoryBody({
   userId,
   grants,
   search,
   columnView,
   onSearchChange,
-}: StockOnHandBodyProps) {
+}: TransactionHistoryBodyProps) {
   const queryClient = useQueryClient();
   const options = useFacilityProgramOptions(userId, grants);
   const applied = useMemo(
@@ -282,7 +267,6 @@ function StockOnHandBody({
     [search.mode, search.programId, search.facilityId],
   );
   const valid = validSelection(applied, options);
-  // Back, a link or a finished Search brings a new selection, which the picker starts over from.
   const [draft, setDraft] = useState<FacilityProgramSelection | null>(null);
   const [draftOver, setDraftOver] = useState(applied);
   if (!sameSelection(draftOver, applied)) {
@@ -294,7 +278,7 @@ function StockOnHandBody({
   const onSearch = useCallback(
     (selection: CompleteSelection) => {
       if (sameSelection(selection, valid ?? applied)) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.stockCardSummaries.all });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.stockEvents.all });
       }
       onSearchChange({ ...selection, page: undefined });
     },
@@ -309,29 +293,54 @@ function StockOnHandBody({
         onSearch={onSearch}
         options={options}
       />
-      <StockOnHandOutcome
+      <TransactionHistoryOutcome
         applied={applied}
         columnView={columnView}
         onSearchChange={onSearchChange}
         options={options}
         pending={pending}
         search={search}
-        userId={userId}
         valid={valid}
       />
     </>
   );
 }
 
-type StockOnHandOutcomeProps = Omit<StockOnHandBodyProps, 'grants'> & {
+type TransactionHistoryOutcomeProps = Omit<TransactionHistoryBodyProps, 'grants' | 'userId'> & {
   options: FacilityProgramOptions;
   applied: FacilityProgramSelection;
   valid: CompleteSelection | null;
   pending: boolean;
 };
 
-function StockOnHandOutcome({
-  userId,
+function OutcomeMessage({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <DataTableCard>
+      <DataTableEmpty action={action} description={description} icon={icon} title={title} />
+    </DataTableCard>
+  );
+}
+
+function WithFilters({ filters, children }: { filters: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {filters}
+      {children}
+    </div>
+  );
+}
+
+function TransactionHistoryOutcome({
   search,
   columnView,
   onSearchChange,
@@ -339,187 +348,131 @@ function StockOnHandOutcome({
   applied,
   valid,
   pending,
-}: StockOnHandOutcomeProps) {
+}: TransactionHistoryOutcomeProps) {
   const { t } = useTranslation();
+  const filters = (
+    <TransactionHistoryToolbar
+      onFilterChange={(patch) => onSearchChange(patch, true)}
+      search={search}
+    />
+  );
 
   if (!valid) {
     const refused = isCompleteSelection(applied);
     return (
-      <DataTableCard>
-        <DataTableEmpty
+      <WithFilters filters={filters}>
+        <OutcomeMessage
           description={t(
-            refused ? 'stock-on-hand.refused-description' : 'stock-on-hand.pick-description',
+            refused
+              ? 'transaction-history.refused-description'
+              : 'transaction-history.pick-description',
           )}
           icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
-          title={t(refused ? 'stock-on-hand.refused-title' : 'stock-on-hand.pick-title')}
+          title={t(
+            refused ? 'transaction-history.refused-title' : 'transaction-history.pick-title',
+          )}
         />
-      </DataTableCard>
+      </WithFilters>
     );
   }
   if (pending) {
     return (
-      <DataTableCard>
-        <DataTableEmpty
-          description={t('stock-on-hand.search-pending-description')}
+      <WithFilters filters={filters}>
+        <OutcomeMessage
+          description={t('transaction-history.search-pending-description')}
           icon={<ClipboardListIcon />}
-          title={t('stock-on-hand.search-pending-title')}
+          title={t('transaction-history.search-pending-title')}
         />
-      </DataTableCard>
+      </WithFilters>
     );
   }
   const programs = valid.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
   return (
-    <StockOnHandList
+    <TransactionHistoryList
+      columnView={columnView}
       facility={options
         .facilitiesFor(valid.programId)
         .find((facility) => facility.id === valid.facilityId)}
-      columnView={columnView}
       onSearchChange={onSearchChange}
       program={programs.find((program) => program.id === valid.programId)}
       search={search}
       selection={valid}
-      userId={userId}
     />
   );
 }
 
 const label = (record: NamedRecord | undefined) => (record ? recordLabel(record) : '');
 
-type StockOnHandListProps = {
-  userId: string;
-  search: StockOnHandSearch;
+type TransactionHistoryListProps = {
+  search: TransactionHistorySearch;
   selection: CompleteSelection;
   facility: NamedRecord | undefined;
   program: NamedRecord | undefined;
   columnView: ColumnView;
-  onSearchChange: SearchChange<StockOnHandSearch>;
+  onSearchChange: SearchChange<TransactionHistorySearch>;
 };
 
-function StockOnHandList({
-  userId,
+function TransactionHistoryList({
   search,
   selection,
   facility,
   program,
   columnView,
   onSearchChange,
-}: StockOnHandListProps) {
+}: TransactionHistoryListProps) {
   const { t } = useTranslation();
-  const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const query = toSummariesQuery(search, selection);
-  const collapsedKey = `stock-on-hand.collapsed:${userId}:${selection.facilityId}:${selection.programId}`;
+  const query = toEventsQuery(search, selection);
 
   return (
     <div className="flex flex-col gap-4">
       <h2 className="font-semibold text-base">
-        {t('stock-on-hand.applied', { facility: label(facility), program: label(program) })}
+        {t('transaction-history.applied', { facility: label(facility), program: label(program) })}
       </h2>
-      <StockOnHandToolbar
+      <TransactionHistoryToolbar
         onFilterChange={(patch) => onSearchChange(patch, true)}
-        onUnitChange={canSwitch ? setUnit : undefined}
-        view={<ColumnsMenu columnView={columnView} />}
-        print={
-          <StockOnHandPrintButton
-            facility={facility}
-            program={program}
-            query={query}
-            selection={selection}
-            unit={unit}
-            userId={userId}
-          />
-        }
         search={search}
-        unit={unit}
+        view={<ColumnsMenu columnView={columnView} />}
       />
-      <QueryBoundary
-        errorComponent={({ error, reset }) => (
-          <ListError
-            description={t('stock-on-hand.error-description')}
-            error={error}
-            reset={reset}
-            title={t('stock-on-hand.error-title')}
-          />
-        )}
-        pendingFallback={
-          <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
-        }
-        resetKey={JSON.stringify(query)}
-      >
-        <StockOnHandResults
-          collapsedKey={collapsedKey}
-          facilityId={selection.facilityId}
-          key={collapsedKey}
-          columns={columnView.visibility}
-          onSearchChange={onSearchChange}
-          programId={selection.programId}
-          search={search}
-          unit={unit}
+      {invalidDateRange(search) ? (
+        <OutcomeMessage
+          action={
+            <Button
+              onClick={() =>
+                onSearchChange({ startDate: undefined, endDate: undefined, page: undefined })
+              }
+              variant="outline"
+            >
+              {t('transaction-history.clear-dates')}
+            </Button>
+          }
+          description={t('transaction-history.date-range-description')}
+          icon={<CalendarX2Icon />}
+          title={t('transaction-history.date-range-title')}
         />
-      </QueryBoundary>
-    </div>
-  );
-}
-
-const fileCode = (record: NamedRecord | undefined) =>
-  (record?.code ?? '').replace(/[^A-Za-z0-9_-]+/g, '-');
-
-type PrintButtonProps = {
-  userId: string;
-  selection: CompleteSelection;
-  facility: NamedRecord | undefined;
-  program: NamedRecord | undefined;
-  unit: QuantityUnit;
-  query: StockCardSummariesQuery;
-};
-
-function StockOnHandPrintButton({
-  userId,
-  selection,
-  facility,
-  program,
-  unit,
-  query,
-}: PrintButtonProps) {
-  const { t } = useTranslation();
-  const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
-  const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
-  const print = usePrintReport({
-    userId,
-    right: RIGHT,
-    facilityId: selection.facilityId,
-    programId: selection.programId,
-    request: (lang) =>
-      fetchStockOnHandReport({
-        programId: selection.programId,
-        facilityId: selection.facilityId,
-        showInDoses: unit === 'DOSES',
-        lang,
-      }),
-    onReport: () => ({
-      deliver: (report) => downloadFile(report, `stock-on-hand${codes ? `-${codes}` : ''}.pdf`),
-      close: noop,
-    }),
-    successTitle: t('stock-on-hand.printed-title'),
-    successDescription: t('stock-on-hand.printed', {
-      facility: label(facility),
-      program: label(program),
-    }),
-    errorTitle: t('stock-on-hand.print-error-title'),
-    errorDescription: t('stock-on-hand.print-error'),
-    refusedDescription: t('stock-on-hand.print-refused'),
-  });
-  return (
-    <Button
-      disabled={!page || page.totalElements === 0 || print.isPending}
-      onClick={print.print}
-      width="full"
-    >
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
       ) : (
-        <PrinterIcon data-icon="inline-start" />
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <ListError
+              description={t('transaction-history.error-description')}
+              error={error}
+              reset={reset}
+              title={t('transaction-history.error-title')}
+            />
+          )}
+          pendingFallback={
+            <TransactionHistoryResultsSkeleton columns={columnView.visibility} search={search} />
+          }
+          resetKey={JSON.stringify(query)}
+        >
+          <TransactionHistoryResults
+            columns={columnView.visibility}
+            facilityId={selection.facilityId}
+            onSearchChange={onSearchChange}
+            programId={selection.programId}
+            search={search}
+          />
+        </QueryBoundary>
       )}
-      {t('stock-on-hand.print')}
-    </Button>
+    </div>
   );
 }

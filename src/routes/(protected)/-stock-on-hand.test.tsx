@@ -274,6 +274,30 @@ describe('stock on hand page', () => {
     expect(fetchLotsByIds).toHaveBeenCalledWith(['l1']);
   });
 
+  it('opens a supervised home-only program link as my facility and lists stock', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([`STOCK_CARDS_VIEW|${HOME}|${FP}`]);
+    vi.mocked(fetchUserPrograms).mockResolvedValue([
+      { id: FP, code: 'PRG001', name: 'Family Planning', active: true },
+    ]);
+    renderRoute(appliedPath(HOME, FP, 'supervised'));
+
+    expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+    expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveValue(
+      'Family Planning',
+    );
+    expect(screen.queryByText('stock-on-hand.refused-title')).not.toBeInTheDocument();
+    expect(fetchStockCardSummaries).toHaveBeenCalledWith({
+      facilityId: HOME,
+      programId: FP,
+      nonEmptyOnly: true,
+      page: 0,
+      size: 10,
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    await waitFor(() => expect(fetchStockCardSummaries).toHaveBeenCalledTimes(2));
+  });
+
   it('refuses a link to a facility and program the right is not granted for, asking for no stock', async () => {
     renderRoute(appliedPath(BALAKA, FP, 'supervised'));
 

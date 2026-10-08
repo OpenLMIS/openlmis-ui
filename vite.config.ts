@@ -18,13 +18,12 @@ export default defineConfig(({ mode }) => {
   const prefix = (env.VITE_BASE_PATH ?? '').replace(/^\/+|\/+$/g, '');
   const base = prefix ? `/${prefix}/` : '/';
 
-  const proxy = {
-    '/api': {
-      target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
-      changeOrigin: true,
-      secure: false,
-    },
+  const backend = {
+    target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+    changeOrigin: true,
+    secure: false,
   };
+  const proxy = { '/api': backend, '/localeSettings': backend };
 
   return {
     base,

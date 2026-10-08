@@ -15,6 +15,7 @@ export const queryKeys = {
   geographicLevels: createQueryKeys('geographicLevels'),
   geographicZones: createQueryKeys('geographicZones'),
   home: createQueryKeys('home'),
+  localeSettings: createQueryKeys('localeSettings'),
   lots: createQueryKeys('lots'),
   orderableDisplayCategories: createQueryKeys('orderableDisplayCategories'),
   orderables: createQueryKeys('orderables'),

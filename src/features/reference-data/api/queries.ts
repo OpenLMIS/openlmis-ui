@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
@@ -22,6 +23,7 @@ import {
   fetchUserRecord,
   fetchValidReasons,
   type OrderableSearch,
+  storedTimeZone,
 } from '@/features/reference-data/api/api';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
@@ -165,6 +167,26 @@ export const userProgramsOptions = (id: string) =>
     queryKey: userProgramsKey(id),
     queryFn: () => fetchUserPrograms(id),
     staleTime: LOOKUP_STALE_TIME,
+  });
+
+type DeploymentTimeZone = { zone: string; read: boolean };
+
+export const deploymentTimeZoneOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.localeSettings.all,
+    queryFn: async (): Promise<DeploymentTimeZone> => {
+      try {
+        return { zone: await fetchDeploymentTimeZone(), read: true };
+      } catch {
+        return { zone: storedTimeZone() ?? 'UTC', read: false };
+      }
+    },
+    initialData: () => {
+      const zone = storedTimeZone();
+      return zone ? { zone, read: false } : undefined;
+    },
+    initialDataUpdatedAt: 0,
+    staleTime: (query) => (query.state.data?.read ? Number.POSITIVE_INFINITY : 0),
   });
 
 export const validReasonsOptions = (filter: ValidReasonsFilter) =>

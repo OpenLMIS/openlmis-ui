@@ -182,4 +182,15 @@ describe('DataTableSearch', () => {
 
     expect(input).toHaveValue(' ');
   });
+
+  it('takes an id, so a visible label can name it', () => {
+    render(
+      <>
+        <label htmlFor="document-number">Document Number</label>
+        <DataTableSearch id="document-number" onValueChange={vi.fn()} value="HC01" />
+      </>,
+    );
+
+    expect(screen.getByRole('textbox', { name: 'Document Number' })).toHaveValue('HC01');
+  });
 });

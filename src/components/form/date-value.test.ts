@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
+import {
+  formatDateValue,
+  formatTimestamp,
+  parseDateValue,
+  toDateValue,
+} from '@/components/form/date-value';
 
 describe('parseDateValue', () => {
   it('reads a yyyy-MM-dd date as that day, at midnight where the user is', () => {
@@ -40,5 +45,37 @@ describe('formatDateValue', () => {
 
   it('shows nothing for no date', () => {
     expect(formatDateValue('', 'en-US')).toBe('');
+  });
+});
+
+describe('formatTimestamp', () => {
+  it.each([
+    ['en-US', 'Oct 8, 2026, 2:35:07 PM'],
+    ['fr', '8 oct. 2026, 14:35:07'],
+  ])('formats the date and time with seconds in %s', (locale, expected) => {
+    expect(formatTimestamp('2026-10-08T14:35:07Z', locale, { time: true, timeZone: 'UTC' })).toBe(
+      expected,
+    );
+  });
+
+  it('shows the day in the given time zone, not the browser one', () => {
+    expect(formatTimestamp('2026-10-08T23:30:00Z', 'en-US', { timeZone: 'UTC' })).toBe(
+      'Oct 8, 2026',
+    );
+    expect(formatTimestamp('2026-10-08T23:30:00Z', 'en-US', { timeZone: 'Europe/Warsaw' })).toBe(
+      'Oct 9, 2026',
+    );
+  });
+
+  it('shows nothing for an absent or invalid timestamp', () => {
+    expect(formatTimestamp(null, 'en')).toBe('');
+    expect(formatTimestamp('', 'en')).toBe('');
+    expect(formatTimestamp('invalid', 'en')).toBe('');
+  });
+
+  it('falls back to the browser time zone for an unknown one', () => {
+    expect(formatTimestamp('2026-10-08T12:00:00Z', 'en-US', { timeZone: 'Mars/Base' })).toBe(
+      'Oct 8, 2026',
+    );
   });
 });

@@ -304,7 +304,7 @@ overlaps with a logical `-ms-2` instead of `-space-x-2`; and `combobox.tsx`'s `C
 
 ### Integrations
 
-`src/integrations/` contains singleton setup for Axios (with proxy to `/api` → `localhost:8080`), TanStack Query client, TanStack Router instance, and i18next configuration.
+`src/integrations/` contains singleton setup for Axios (with proxy to `/api` and `/localeSettings` → `localhost:8080`), TanStack Query client, TanStack Router instance, and i18next configuration.
 
 ### UI components
 
@@ -437,7 +437,7 @@ Server-paged lists follow the Users page (`src/routes/(protected)/_protected.adm
 Copy its shape rather than inventing a new one.
 
 **The URL owns the state.** Page, size, sort and every filter are search params, validated
-by a zod schema built from `tableSearchSchema()` and `textFilterSchema` in
+by a zod schema built from `tableSearchSchema()`, `textFilterSchema` and `dateFilterSchema` in
 `src/lib/table-search.ts`. Invalid params fall back to their default and defaults stay
 out of the URL, so links are short and shareable. The loader prefetches from
 `loaderDeps`, deferred as usual.
@@ -518,7 +518,8 @@ for everything that tells it apart, not only its name. While anything is selecte
 URL. Valid Destinations is the example: its bulk delete awaits every request, reports the ones
 that failed and then moves focus to the list, since the bar and the rows it came from are gone.
 
-A filter on a short fixed list, such as status, is a `DataTableSelectFilter`; on a long one,
+A filter on a short fixed list, such as status, is a `DataTableSelectFilter`, with an `allLabel`
+where legacy lists an "All" choice; on a long one,
 such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
 with an option's `description` muted after its label.
 
@@ -630,7 +631,12 @@ field mounts and again when it is opened after a failed load, so no other page c
 libraries; a required date reads out the provider's `requiredLabel` with its name. Outside a
 form, the same picker is `DatePicker`, which `DateField` wraps. Show a date anywhere else, such
 as a table cell, with `formatDateValue` (`src/components/form/date-value.ts`) in the page's
-language, so it reads as it does in the picker. A `ComboboxField` item takes a `description`, shown
+language, so it reads as it does in the picker. A timestamp, such as when a stock event was
+recorded, goes through `formatTimestamp` in the deployment's time zone from
+`useDeploymentTimeZone()` (`src/hooks/`), which suspends on `deploymentTimeZoneOptions` from
+reference-data, read from legacy's public `/localeSettings` and kept for when it cannot be read, so
+both UIs show the same time whatever the viewer's clock says. A loader that shows timestamps starts
+that query too. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
@@ -678,7 +684,9 @@ legacy does: home programs, then supervised programs granted away from home, the
 facilities, home included. The route passes the grants of the right it needs, so the picker imports
 no auth. The URL keeps `mode`, `programId` and `facilityId` only once Search is pressed; the picker's
 changes before that are a draft, and the page hides results that no longer match it. A link whose
-selection the picker would not offer (`validSelection`) is refused. The loader asks for stock only for a
+selection the picker would not offer (`validSelection`) is refused, and the picker leaves what it does
+not offer blank rather than picking something else under the refusal. A Supervised link to a program
+the user holds at home opens as My Facility, as legacy lists it. The loader asks for stock only for a
 pair the user's grants include, and without waiting for the picker's lookups, so the two load side by side.
 A required list with one option has it picked, as legacy does.
 
@@ -702,7 +710,8 @@ user, so it reloads your rights, Profile and Home only when the user is you.
 `requireRight(queryClient, RIGHTS.x)`, or `requirePermissions` for the grants too, from `src/features/auth/lib/access.ts`, alongside the
 data it must have, and a missing right throws a `ForbiddenError`. The default error component
 shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
-`errorComponent` renders `ErrorFallback` with its own `title` and `description`, which checks
+`errorComponent` renders `ErrorFallback` with its own `title` and `description`, and a `back` that
+replaces Back Home where a list is the better way back, which checks
 `isForbidden(error)` first, and so does a `QueryBoundary` whose data the server may refuse,
 showing `NoAccess`. Inside a feature, which has no auth imports, such a boundary checks
 `isRefused(error)` from `src/lib/http.ts` and shows a short message in place, not the
@@ -711,7 +720,9 @@ full-page panel. Add the page to `NAV_RIGHTS` in
 it. The Users routes are the example. A page legacy opens with either of two rights passes
 both, as a list, to `requireRight` and to `NAV_RIGHTS`; any one opens it. An action inside the
 page that needs one of them reads the set `requireRight` resolves with and hides itself, also
-when its dialog is opened by its URL, as Add Product does on Products.
+when its dialog is opened by its URL, as Add Product does on Products. A page that blocks on a
+record and its grant, such as the Stock Card or a stock event, reloads through `useReloadForUser`
+(`src/hooks/use-reload-for-user.ts`) when the signed-in user changes.
 
 **Unsaved work asks before it is lost.** A page with a draft calls `useDiscardGuard` from
 `src/hooks/use-discard-guard.ts`, which blocks router navigation to another page and, for
@@ -797,8 +808,8 @@ The server slides a token's expiry with every call, so `expiresAt` (from `expire
 only the earliest it could end. Nothing signs a user out on it; the `401` decides. One
 user's token is the same in both UIs, so our logout signs them out of the legacy UI too.
 
-Nothing talks to the API directly in development - the Vite dev server proxies `/api` to
-`VITE_API_PROXY_TARGET`, keeping the browser same-origin.
+Nothing talks to the API directly in development - the Vite dev server proxies `/api` and
+`/localeSettings` to `VITE_API_PROXY_TARGET`, keeping the browser same-origin.
 
 Both UIs share an origin, so `syncLegacySession()` keeps the two sessions in step. The
 legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,

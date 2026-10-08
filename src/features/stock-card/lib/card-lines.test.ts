@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  documentNumbers,
-  namedWithFreeText,
-  reasonLabel,
-  stockCardProductName,
-  toCardLines,
-} from '@/features/stock-card/lib/card-lines';
+import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import type { StockCardLine } from '@/features/stock-card/lib/types';
 
 const line = (id: string, overrides: Partial<StockCardLine> = {}): StockCardLine => ({
@@ -67,61 +61,5 @@ describe('toCardLines', () => {
     });
     expect(toCardLines([inventory, ordinary])).toMatchObject([ordinary, inventory]);
     expect(toCardLines([])).toEqual([]);
-  });
-});
-
-describe('stock card labels', () => {
-  it('names sources and destinations only when an object exists', () => {
-    expect(namedWithFreeText(null, 'Elsewhere')).toBe('');
-    expect(namedWithFreeText({ name: 'Clinic' })).toBe('Clinic');
-    expect(namedWithFreeText({ name: 'Clinic' }, 'Ward 1')).toBe('Clinic: Ward 1');
-  });
-
-  it('uses free text before the physical inventory label and leaves no reason blank', () => {
-    expect(reasonLabel(line('a'), 'Physical Inventory')).toBe('');
-    expect(reasonLabel(line('a', { reason: reason('Loss') }), 'Physical Inventory')).toBe('Loss');
-    const inventory = line('a', { reason: reason('Overstock', 'CREDIT', 'PHYSICAL_INVENTORY') });
-    expect(reasonLabel(inventory, 'Physical Inventory')).toBe('Physical Inventory');
-    expect(reasonLabel({ ...inventory, reasonFreeText: 'Counted' }, 'Physical Inventory')).toBe(
-      'Overstock: Counted',
-    );
-  });
-
-  it('shows documents only with their origin or reversal relationship and falls back to No Number', () => {
-    expect(documentNumbers(line('a', { documentNumber: 'Hidden' }), 'No Number')).toEqual({
-      document: '',
-      reversing: '',
-      reversedBy: '',
-    });
-    expect(
-      documentNumbers(
-        line('a', {
-          eventOrigin: 'STOCK_EVENT',
-          documentNumber: 'DOC-1',
-          reversedEventId: 'event1',
-          reversedEventDocumentNumber: 'DOC-2',
-          cancellationEventId: 'event2',
-          cancellationEventDocumentNumber: 'DOC-3',
-        }),
-        'No Number',
-      ),
-    ).toEqual({ document: 'DOC-1', reversing: 'DOC-2', reversedBy: 'DOC-3' });
-    expect(
-      documentNumbers(
-        line('a', {
-          eventOrigin: 'STOCK_EVENT',
-          reversedEventId: 'event1',
-          cancellationEventId: 'event2',
-        }),
-        'No Number',
-      ),
-    ).toEqual({ document: 'No Number', reversing: 'No Number', reversedBy: 'No Number' });
-  });
-
-  it('adds the display unit only when supplied', () => {
-    expect(
-      stockCardProductName({ fullProductName: 'Vaccine', dispensable: { displayUnit: 'each' } }),
-    ).toBe('Vaccine - each');
-    expect(stockCardProductName({ fullProductName: 'Vaccine' })).toBe('Vaccine');
   });
 });

@@ -85,7 +85,7 @@ describe('FacilityProgramSelector', () => {
       }),
     );
 
-    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveValue(
       'Family Planning',
     );
     await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
@@ -100,6 +100,95 @@ describe('FacilityProgramSelector', () => {
     await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
 
     expect(await screen.findByText('facility-program.program-required')).toBeInTheDocument();
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('searches every program by name and keeps the choice as a draft until Search', async () => {
+    const user = userEvent.setup();
+    const programs = Array.from({ length: 60 }, (_, index) =>
+      named(`p${index}`, `Program ${String(index).padStart(2, '0')}`),
+    );
+    const { onSearch, onDraftChange } = renderSelector(
+      {},
+      facilityProgramOptions({
+        homeFacilityId: 'home',
+        programs,
+        facilities: [named('home', 'Comfort Health Clinic')],
+        grants: programs.map((program) => ({ facilityId: 'home', programId: program.id })),
+      }),
+    );
+    const program = screen.getByRole('combobox', { name: /facility-program.program/ });
+    expect(program).toHaveAttribute('placeholder', 'facility-program.program-placeholder');
+    await user.click(program);
+    expect(await screen.findAllByRole('option')).toHaveLength(60);
+    await user.type(program, '59');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Program 59',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Program 59' }));
+
+    expect(onDraftChange).toHaveBeenLastCalledWith({
+      mode: 'my',
+      programId: 'p59',
+      facilityId: 'home',
+    });
+    expect(onSearch).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    expect(onSearch).toHaveBeenCalledWith({ mode: 'my', programId: 'p59', facilityId: 'home' });
+  });
+
+  it('clears the only home program by name and requires it again on Search', async () => {
+    const user = userEvent.setup();
+    const { onSearch, onDraftChange } = renderSelector(
+      {},
+      facilityProgramOptions({
+        homeFacilityId: 'home',
+        programs: [named('fp', 'Family Planning')],
+        facilities: [named('home', 'Comfort Health Clinic')],
+        grants: [{ facilityId: 'home', programId: 'fp' }],
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'facility-program.clear-program' }));
+
+    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveValue('');
+    expect(onDraftChange).toHaveBeenLastCalledWith({ mode: 'my', facilityId: 'home' });
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    expect(await screen.findByText('facility-program.program-required')).toBeInTheDocument();
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('clears a supervised program and its facility without committing a search', async () => {
+    const user = userEvent.setup();
+    const { onSearch, onDraftChange } = renderSelector({
+      mode: 'supervised',
+      programId: 'em',
+      facilityId: 'bal',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'facility-program.clear-program' }));
+
+    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /facility-program.facility/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /facility-program.facility/ })).toBeDisabled();
+    expect(onDraftChange).toHaveBeenLastCalledWith({ mode: 'supervised' });
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('clears a supervised facility by name and requires it again on Search', async () => {
+    const user = userEvent.setup();
+    const { onSearch, onDraftChange } = renderSelector({
+      mode: 'supervised',
+      programId: 'em',
+      facilityId: 'bal',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'facility-program.clear-facility' }));
+
+    expect(screen.getByRole('combobox', { name: /facility-program.facility/ })).toHaveValue('');
+    expect(onDraftChange).toHaveBeenLastCalledWith({ mode: 'supervised', programId: 'em' });
+    await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    expect(await screen.findByText('facility-program.facility-required')).toBeInTheDocument();
     expect(onSearch).not.toHaveBeenCalled();
   });
 

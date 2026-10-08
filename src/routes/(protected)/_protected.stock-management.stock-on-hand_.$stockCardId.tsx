@@ -1,8 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -45,16 +44,18 @@ import {
   StockCardLinesSkeleton,
 } from '@/features/stock-card/components/stock-card-lines';
 import { cardPagingSchema } from '@/features/stock-card/lib/search';
-import type { StockCard } from '@/features/stock-card/lib/types';
+import type { StockCard, StockCardLine } from '@/features/stock-card/lib/types';
 import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
+import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { isNotFound } from '@/lib/http';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
+import { withShownReversals } from '@/lib/stock-labels';
 
 const RIGHT = RIGHTS.stockCardsView;
 const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
@@ -62,10 +63,18 @@ const NO_DIALOGS = {};
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-function useCardLayout() {
+const NO_LINES: readonly StockCardLine[] = [];
+
+function useCardLayout(lines: readonly StockCardLine[] = NO_LINES) {
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const reversing = lines.some((line) => line.reversedEventId);
+  const reversedBy = lines.some((line) => line.cancellationEventId);
+  const columns = useMemo(
+    () => withShownReversals(STOCK_CARD_HIDEABLE_COLUMNS, { reversing, reversedBy }),
+    [reversing, reversedBy],
+  );
   const columnView = useColumnVisibility(
-    STOCK_CARD_HIDEABLE_COLUMNS,
+    columns,
     useStoredState('stock-card.column-visibility', columnChoicesSchema, {}),
     width,
   );
@@ -107,31 +116,21 @@ export const Route = createFileRoute(
   errorComponent: StockCardError,
 });
 
-function useReloadForUser(loadedUserId: string | undefined | null) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { stockCardId } = Route.useParams();
-  const userId = useLoginData((state) => state.referenceDataUserId);
-  const previousUser = useRef(userId);
-  useEffect(() => {
-    const changed = previousUser.current !== userId;
-    previousUser.current = userId;
-    if (userId && (changed || loadedUserId !== userId)) {
-      queryClient.removeQueries({ queryKey: stockCardOptions(stockCardId).queryKey });
-      void router.invalidate();
-    }
-  }, [userId, loadedUserId, queryClient, router, stockCardId]);
-  return userId;
-}
-
 function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
   const search = Route.useSearch();
+  const eventSearch = useMemo(
+    () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
+    [search.mode, search.programId, search.facilityId],
+  );
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView } = useCardLayout();
-  const userId = useReloadForUser(data?.userId);
+  const { measure, columnView } = useCardLayout(data?.card.lineItems);
+  const userId = useReloadForUser(
+    data?.userId,
+    stockCardOptions(Route.useParams().stockCardId).queryKey,
+  );
   if (!data || data.userId !== userId) return null;
   return (
     <Workspace>
@@ -168,6 +167,7 @@ function StockCardPage() {
             onSearchChange={updateSearch}
             unit={unit}
             columnVisibility={columnView.visibility}
+            eventSearch={eventSearch}
           />
         </div>
       </WorkspaceContent>
@@ -229,7 +229,10 @@ function StockCardPrint({
 
 function StockCardPending() {
   const { canSwitch } = useQuantityUnit();
-  useReloadForUser(useLoginData((state) => state.referenceDataUserId));
+  useReloadForUser(
+    useLoginData((state) => state.referenceDataUserId),
+    stockCardOptions(Route.useParams().stockCardId).queryKey,
+  );
   const search = Route.useSearch();
   const { measure, columnView } = useCardLayout();
   return (
@@ -275,7 +278,10 @@ function StockCardPending() {
 function StockCardError(props: ErrorComponentProps) {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  useReloadForUser(useLoginData((state) => state.referenceDataUserId));
+  useReloadForUser(
+    useLoginData((state) => state.referenceDataUserId),
+    stockCardOptions(Route.useParams().stockCardId).queryKey,
+  );
   if (
     !isNotFound(props.error) &&
     !(isAxiosError(props.error) && props.error.response?.status === 400)

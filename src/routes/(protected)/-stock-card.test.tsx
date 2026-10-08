@@ -333,6 +333,37 @@ describe('stock card display and paging', () => {
     ]);
   });
 
+  it('shows the document links on a laptop, and each reversal column the card has values for', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 960,
+    } as DOMRect);
+    vi.mocked(fetchStockCard).mockResolvedValue({
+      ...card,
+      lineItems: [
+        {
+          id: 'line1',
+          occurredDate: '2026-01-01',
+          quantity: 23,
+          stockOnHand: 23,
+          eventOrigin: 'ISSUE',
+          originEventId: 'event0',
+          documentNumber: 'DOC-1',
+          cancellationEventId: 'event2',
+          cancellationEventDocumentNumber: 'DOC-3',
+        },
+      ],
+    });
+    renderRoute();
+    const table = await screen.findByRole('table');
+    await within(table).findByText('DOC-1');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent);
+    expect(headers).toContain('stock-card.document-number');
+    expect(headers).toContain('stock-card.reversed-by');
+    expect(headers).not.toContain('stock-card.reversing');
+  });
+
   it('brings a hidden column back from the View menu', async () => {
     const user = userEvent.setup();
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -346,6 +377,48 @@ describe('stock card display and paging', () => {
     expect(
       within(screen.getByRole('table')).getByRole('columnheader', { name: 'stock-card.signature' }),
     ).toBeInTheDocument();
+  });
+
+  it('links each document to its event, keeping the facility and program for the way back', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 1400,
+    } as DOMRect);
+    localStorage.setItem(
+      'stock-card.column-visibility',
+      JSON.stringify({ reversing: true, reversedBy: true }),
+    );
+    vi.mocked(fetchStockCard).mockResolvedValue({
+      ...card,
+      lineItems: [
+        {
+          id: 'line1',
+          occurredDate: '2026-01-01',
+          quantity: 23,
+          stockOnHand: 23,
+          eventOrigin: 'ISSUE',
+          originEventId: 'event0',
+          documentNumber: 'DOC-1',
+          reversedEventId: 'event1',
+          cancellationEventId: 'event2',
+          cancellationEventDocumentNumber: 'DOC-3',
+        },
+      ],
+    });
+    renderRoute(path(`?mode=my&programId=${FP}&facilityId=${HOME}&productCode=C1&cardPage=1`));
+
+    const back = `?mode=my&programId=${FP}&facilityId=${HOME}`;
+    expect(await screen.findByRole('link', { name: 'DOC-1' })).toHaveAttribute(
+      'href',
+      `/stock-management/transaction-history/event0${back}`,
+    );
+    expect(screen.getByRole('link', { name: 'stock-card.view-reversing' })).toHaveAttribute(
+      'href',
+      `/stock-management/transaction-history/event1${back}`,
+    );
+    expect(screen.getByRole('link', { name: 'DOC-3' })).toHaveAttribute(
+      'href',
+      `/stock-management/transaction-history/event2${back}`,
+    );
   });
 
   it('shows a dash in an empty cell', async () => {

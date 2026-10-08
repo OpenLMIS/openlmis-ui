@@ -1,6 +1,7 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { Link, useRouter } from '@tanstack/react-router';
 import { AlertTriangleIcon, ChevronLeft, RotateCcwIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NoAccessPage } from '@/components/no-access-page';
 import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
@@ -14,9 +15,13 @@ import {
 } from '@/components/ui/empty';
 import { isForbidden } from '@/features/auth/lib/access';
 
-type ErrorFallbackProps = ErrorComponentProps & { title?: string; description?: string };
+type ErrorFallbackProps = ErrorComponentProps & {
+  title?: string;
+  description?: string;
+  back?: ReactNode;
+};
 
-export function ErrorFallback({ error, reset, title, description }: ErrorFallbackProps) {
+export function ErrorFallback({ error, reset, title, description, back }: ErrorFallbackProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const retry = () => {
@@ -59,16 +64,18 @@ export function ErrorFallback({ error, reset, title, description }: ErrorFallbac
           <RotateCcwIcon />
           {t('error.try-again')}
         </Button>
-        <Button
-          render={(props) => (
-            <Link {...props} to="/">
-              <ChevronLeft className="rtl:rotate-180" />
-              {t('not-found.back-home')}
-            </Link>
-          )}
-          nativeButton={false}
-          size="sm"
-        />
+        {back ?? (
+          <Button
+            render={(props) => (
+              <Link {...props} to="/">
+                <ChevronLeft className="rtl:rotate-180" />
+                {t('not-found.back-home')}
+              </Link>
+            )}
+            nativeButton={false}
+            size="sm"
+          />
+        )}
       </div>
     </Empty>
   );
