@@ -12,6 +12,7 @@ type DataTableSearchProps = {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
+  resetKey?: string | number;
   /** Accessible name, when the placeholder alone does not say what is searched. */
   label?: string;
 };
@@ -20,10 +21,11 @@ export function DataTableSearch({
   value,
   onValueChange,
   placeholder,
+  resetKey,
   label,
 }: DataTableSearchProps) {
   const labels = useDataTableLabels();
-  const { draft, commit, inputProps } = useDebouncedInput(value, onValueChange);
+  const { draft, commit, inputProps } = useDebouncedInput(value, onValueChange, { resetKey });
   const text = placeholder ?? labels.search;
 
   return (

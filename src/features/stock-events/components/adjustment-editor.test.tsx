@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
+import fr from '@/../public/locales/fr.json';
+import { formatDateValue } from '@/components/form/date-value';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchTradeItemByGtin, fetchValidReasons } from '@/features/reference-data/api/api';
@@ -47,9 +49,14 @@ vi.mock('@/features/reference-data/api/api', () => ({
 }));
 const i18n = createInstance();
 beforeAll(() =>
-  i18n.use(ICU).init({ lng: 'en', resources: { en: { translation: en } }, keySeparator: false }),
+  i18n.use(ICU).init({
+    lng: 'en',
+    resources: { en: { translation: en }, fr: { translation: fr } },
+    keySeparator: false,
+  }),
 );
-beforeEach(() => {
+beforeEach(async () => {
+  await i18n.changeLanguage('en');
   vi.clearAllMocks();
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
   vi.stubGlobal(
@@ -100,8 +107,12 @@ function setup(canViewStock = true, configure?: (client: QueryClient) => void) {
   );
   configure?.(queryClient);
   const onSubmitted = vi.fn();
+  let navigateSearch!: (search: AdjustmentSearch) => void;
+  let latestSearch: AdjustmentSearch;
   function Page() {
     const [search, setSearch] = useState<AdjustmentSearch>({});
+    navigateSearch = setSearch;
+    latestSearch = search;
     return (
       <I18nextProvider i18n={i18n}>
         <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
@@ -128,7 +139,13 @@ function setup(canViewStock = true, configure?: (client: QueryClient) => void) {
     );
   }
   renderPage(<Page />, { queryClient });
-  return { user: userEvent.setup(), onSubmitted, queryClient };
+  return {
+    user: userEvent.setup(),
+    onSubmitted,
+    queryClient,
+    navigateSearch: (next: AdjustmentSearch) => navigateSearch(next),
+    getSearch: () => latestSearch,
+  };
 }
 async function add(user: ReturnType<typeof userEvent.setup>, lot = 'LOT') {
   const product = await screen.findByRole('combobox', { name: 'Product' });
@@ -155,6 +172,89 @@ async function validLine(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('AdjustmentEditor', () => {
+  it('reveals a cached hidden line when scanning makes its quantity match the keyword', async () => {
+    const { user } = setup();
+    await add(user);
+    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' }), '11');
+    await add(user, 'OTHER');
+    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin OTHER' }), '27');
+    await filter(user, '27');
+    expect(screen.queryByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toBeNull();
+    const keywords = screen.getByRole('textbox', { name: 'Keywords' });
+    await act(async () => keywords.focus());
+    await act(async () => {
+      await scan(
+        { ok: true, gtin: '00012345678905', lotCode: 'LOT', warnings: [], unparsed: {} },
+        new AbortController().signal,
+      );
+    });
+    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('27');
+    expect(keywords).toHaveFocus();
+  });
+
+  it('cancels pending typing when Back restores the same keyword on page one', async () => {
+    const { user, navigateSearch, getSearch } = setup();
+    await add(user);
+    act(() => {
+      for (let index = 0; index < 10; index++)
+        fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      navigateSearch({ keyword: 'Aspirin', page: 2 });
+    });
+    const keywords = screen.getByRole('textbox', { name: 'Keywords' });
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(keywords, { target: { value: 'No Lot Defined' } });
+      act(() => navigateSearch({ keyword: 'Aspirin' }));
+      act(() => vi.advanceTimersByTime(650));
+      expect(getSearch()).toEqual({ keyword: 'Aspirin' });
+      expect(keywords).toHaveValue('Aspirin');
+      expect(screen.getAllByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveLength(10);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(['en', 'fr'] as const)(
+    'refreshes cached no-lot matches for a %s keyword on language changes',
+    async (language) => {
+      const { user } = setup(true, (client) =>
+        client.setQueryData(
+          eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+          [card, { ...other, lot: null }],
+        ),
+      );
+      await add(user, 'No Lot Defined');
+      await filter(user, i18n.getFixedT(language)('stock-events.no-lot-defined'));
+      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
+        language === 'en' ? 1 : 0,
+      );
+      await act(async () => {
+        await i18n.changeLanguage('fr');
+      });
+      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
+        language === 'fr' ? 1 : 0,
+      );
+    },
+  );
+
+  it.each(['en', 'fr'] as const)(
+    'refreshes cached displayed-date matches for a %s keyword on language changes',
+    async (language) => {
+      const { user } = setup();
+      await add(user);
+      await filter(user, formatDateValue('2019-01-30', language));
+      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
+        language === 'en' ? 1 : 0,
+      );
+      await act(async () => {
+        await i18n.changeLanguage('fr');
+      });
+      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
+        language === 'fr' ? 1 : 0,
+      );
+    },
+  );
+
   it('keeps a quantity match visible while replacing 27 with 28', async () => {
     const { user } = setup();
     await add(user);

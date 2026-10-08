@@ -165,9 +165,15 @@ export function AdjustmentEditor({
   const guard = useDiscardGuard(lines.length > 0, { allowLeave: () => leaving.current });
   const keyword = search.keyword ?? '';
   const lineKeys = JSON.stringify(lines.map((line) => line.key));
-  const [filter, setFilter] = useState({ keyword: '', lineKeys: '', matches: new Set<string>() });
+  const language = i18n.language;
+  const [filter, setFilter] = useState({
+    keyword: '',
+    lineKeys: '',
+    language: '',
+    matches: new Set<string>(),
+  });
   let matches = filter.matches;
-  if (keyword !== filter.keyword || lineKeys !== filter.lineKeys) {
+  if (keyword !== filter.keyword || lineKeys !== filter.lineKeys || language !== filter.language) {
     matches = new Set(
       filterAdjustmentLines(
         lines,
@@ -177,7 +183,7 @@ export function AdjustmentEditor({
         t('stock-events.no-lot-defined'),
       ).map((line) => line.key),
     );
-    setFilter({ keyword, lineKeys, matches });
+    setFilter({ keyword, lineKeys, language, matches });
   }
   const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
   const mutation = useMutation({
@@ -327,13 +333,7 @@ export function AdjustmentEditor({
     const countedKey = action.type === 'count' ? action.lineKey : next[0].key;
     if (action.type === 'add') lastAdded.current = next[0];
     form.setFieldValue('lines', next);
-    const visible = filterAdjustmentLines(
-      next,
-      search.keyword ?? '',
-      reasons,
-      (value) => formatDateValue(value, i18n.language),
-      t('stock-events.no-lot-defined'),
-    );
+    const visible = next.filter((line) => matches.has(line.key));
     const hidden = !visible.some((line) => line.key === countedKey);
     const index = (hidden ? next : visible).findIndex((line) => line.key === countedKey);
     onSearchChange(
@@ -388,6 +388,7 @@ export function AdjustmentEditor({
                 <fieldset className="w-full @xl/main:w-72" disabled={pending}>
                   <DataTableSearch
                     value={keyword}
+                    resetKey={`${search.page ?? 1}/${search.size ?? 10}`}
                     placeholder={t('stock-events.keywords')}
                     onValueChange={(value) =>
                       onSearchChange({ keyword: value.trim() || undefined, page: undefined }, true)
