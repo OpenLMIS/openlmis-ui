@@ -18,6 +18,7 @@ import { stockEventLinesOptions } from '@/features/stock-events/api/queries';
 import {
   changeDetailPaging,
   type DetailPagingSearch,
+  detailPagingSchema,
   detailTableSearch,
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
@@ -51,7 +52,7 @@ const COLUMNS = [
 
 export const STOCK_EVENT_HIDEABLE_COLUMNS = [
   { id: 'lot', labelKey: 'stock-event.lot-code', hideBelow: 760 },
-  { id: 'expiry', labelKey: 'stock-event.expiry-date', hideBelow: 1100 },
+  { id: 'expiry', labelKey: 'stock-event.expiry-date', hideBelow: 900 },
   { id: 'source', labelKey: 'stock-event.source', hideBelow: 900 },
   { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 900 },
   { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 600 },
@@ -126,8 +127,7 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
             params={{ eventId: link.eventId }}
             search={(previous) => ({
               ...transactionHistorySearchSchema.parse(previous),
-              detailPage: undefined,
-              detailSize: undefined,
+              detailSize: detailPagingSchema.parse(previous).detailSize,
             })}
             to="/stock-management/transaction-history/$eventId"
           >

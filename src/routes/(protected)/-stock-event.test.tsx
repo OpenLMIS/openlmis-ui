@@ -192,19 +192,30 @@ describe('stock event detail', () => {
     expect(screen.getAllByText(EMPTY_VALUE).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('keeps where stock came from and went to on a laptop, dropping the expiry date first', async () => {
+  it('shows every legacy column on a laptop', async () => {
     vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({
       width: 960,
     } as DOMRect);
     renderRoute();
     const table = await screen.findByRole('table');
-    const headers = within(table)
-      .getAllByRole('columnheader')
-      .map((cell) => cell.textContent);
-    expect(headers).toContain('stock-event.source');
-    expect(headers).toContain('stock-event.destination');
-    expect(headers).toContain('stock-event.reason');
-    expect(headers).not.toContain('stock-event.expiry-date');
+    await within(table).findByText('Vaccine (C1)');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      'stock-event.product',
+      'stock-event.lot-code',
+      'stock-event.expiry-date',
+      'stock-event.source',
+      'stock-event.destination',
+      'stock-event.line-date',
+      'stock-event.quantity',
+      'stock-event.reason',
+      'stock-event.stock-on-hand',
+      'stock-event.reversing',
+      'stock-event.reversed-by',
+    ]);
   });
 
   it('shows line columns in legacy order and labels with free text', async () => {
@@ -389,7 +400,7 @@ describe('stock event detail', () => {
     expect(fetchStockEvent).toHaveBeenCalledTimes(2);
   });
 
-  it('preserves list search and resets detail paging in reversal links', async () => {
+  it('preserves list search and page size and resets the detail page in reversal links', async () => {
     localStorage.setItem(
       'stock-event.column-visibility',
       JSON.stringify({ reversing: true, reversedBy: true }),
@@ -408,6 +419,7 @@ describe('stock event detail', () => {
         page: '7',
         type: 'issue',
         documentNumber: 'DOC',
+        detailSize: '20',
       });
     }
   });
