@@ -20,9 +20,26 @@ export function formatDateValue(value: string, locale: string): string {
   return date ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date) : '';
 }
 
-export function formatDateTimeValue(value: string, locale: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+const knownTimeZone = (timeZone: string | undefined) => {
+  if (!timeZone) return undefined;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone });
+    return timeZone;
+  } catch {
+    return undefined;
+  }
+};
+
+export function formatTimestamp(
+  value: string | null | undefined,
+  locale: string,
+  { time = false, timeZone }: { time?: boolean; timeZone?: string | undefined } = {},
+): string {
+  const date = value ? new Date(value) : undefined;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    ...(time && { timeStyle: 'medium' }),
+    timeZone: knownTimeZone(timeZone),
+  }).format(date);
 }

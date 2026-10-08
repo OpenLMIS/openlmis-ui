@@ -30,6 +30,9 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchMinimalFacilities: vi.fn(),
 }));
 vi.mock('@/features/stock-events/api/api', () => ({ fetchStockEvents: vi.fn() }));
+vi.mock('@/hooks/use-deployment-time-zone', () => ({
+  useDeploymentTimeZone: () => 'Pacific/Auckland',
+}));
 
 const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';
@@ -46,7 +49,7 @@ const event = (overrides: Partial<StockEventSummary> = {}): StockEventSummary =>
   type: 'ISSUE',
   signature: 'Tester',
   occurredDate: '2026-10-07',
-  processedDate: '2026-10-07T10:15:00Z',
+  processedDate: '2026-10-07T12:15:00Z',
   entriesCount: 2,
   userId: USER,
   username: 'administrator',
@@ -176,7 +179,7 @@ describe('transaction history page', () => {
       'transaction-history.actions',
     ]);
     expect(first && within(first).getByText('transaction-history.type-issue')).toBeInTheDocument();
-    expect(first && within(first).getByText('Oct 7, 2026')).toBeInTheDocument();
+    expect(first && within(first).getByText('Oct 8, 2026')).toBeInTheDocument();
     expect(first && within(first).getByText('administrator')).toBeInTheDocument();
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
     expect(

@@ -10,7 +10,7 @@ import {
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatDateTimeValue } from '@/components/form/date-value';
+import { formatTimestamp } from '@/components/form/date-value';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -34,6 +34,9 @@ const deliver = vi.fn();
 vi.mock('@/lib/open-report', () => ({ openReport: vi.fn(() => ({ deliver, close: vi.fn() })) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/hooks/use-deployment-time-zone', () => ({
+  useDeploymentTimeZone: () => 'Pacific/Auckland',
+}));
 
 const USER = 'user1';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';
@@ -116,7 +119,7 @@ function renderRoute(location = path(), queryClient = appQueryClient()) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return { router, queryClient, unmount: view.unmount };
+  return { router, queryClient, unmount: view.unmount, container: view.container };
 }
 
 beforeEach(() => {
@@ -154,16 +157,26 @@ describe('stock event detail', () => {
         'stock-event.signature',
       ]);
       expect(
-        within(header).getByText(`stock-event.type-${type.toLowerCase()}`),
+        within(header).getByText(`transaction-history.type-${type.toLowerCase()}`),
       ).toBeInTheDocument();
       expect(
-        within(header).getByText(formatDateTimeValue(event.processedDate ?? '', 'en')),
+        within(header).getByText(
+          formatTimestamp(event.processedDate, 'en', { time: true, timeZone: 'Pacific/Auckland' }),
+        ),
       ).toBeInTheDocument();
       expect(within(header).getByText('recorder')).toBeInTheDocument();
       expect(within(header).getByText('Signed')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /reverse/i })).not.toBeInTheDocument();
     },
   );
+
+  it('announces no empty Document Number heading while the event loads', async () => {
+    vi.mocked(fetchStockEvent).mockReturnValue(new Promise(() => {}));
+    const { container } = renderRoute();
+
+    await waitFor(() => expect(container.querySelector('[aria-busy="true"]')).not.toBeNull());
+    expect(screen.queryByRole('heading', { name: /stock-event.document-number/ })).toBeNull();
+  });
 
   it('omits the document strip and renders placeholders for old events', async () => {
     vi.mocked(fetchStockEvent).mockResolvedValue({

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  formatDateTimeValue,
   formatDateValue,
+  formatTimestamp,
   parseDateValue,
   toDateValue,
 } from '@/components/form/date-value';
@@ -48,16 +48,34 @@ describe('formatDateValue', () => {
   });
 });
 
-describe('formatDateTimeValue', () => {
+describe('formatTimestamp', () => {
   it.each([
-    ['en-US', 'Oct 8, 2026, 2:35 PM'],
-    ['fr', '8 oct. 2026, 14:35'],
-  ])('formats the date and time in %s', (locale, expected) => {
-    expect(formatDateTimeValue('2026-10-08T14:35:00', locale)).toBe(expected);
+    ['en-US', 'Oct 8, 2026, 2:35:07 PM'],
+    ['fr', '8 oct. 2026, 14:35:07'],
+  ])('formats the date and time with seconds in %s', (locale, expected) => {
+    expect(formatTimestamp('2026-10-08T14:35:07Z', locale, { time: true, timeZone: 'UTC' })).toBe(
+      expected,
+    );
+  });
+
+  it('shows the day in the given time zone, not the browser one', () => {
+    expect(formatTimestamp('2026-10-08T23:30:00Z', 'en-US', { timeZone: 'UTC' })).toBe(
+      'Oct 8, 2026',
+    );
+    expect(formatTimestamp('2026-10-08T23:30:00Z', 'en-US', { timeZone: 'Europe/Warsaw' })).toBe(
+      'Oct 9, 2026',
+    );
   });
 
   it('shows nothing for an absent or invalid timestamp', () => {
-    expect(formatDateTimeValue('', 'en')).toBe('');
-    expect(formatDateTimeValue('invalid', 'en')).toBe('');
+    expect(formatTimestamp(null, 'en')).toBe('');
+    expect(formatTimestamp('', 'en')).toBe('');
+    expect(formatTimestamp('invalid', 'en')).toBe('');
+  });
+
+  it('falls back to the browser time zone for an unknown one', () => {
+    expect(formatTimestamp('2026-10-08T12:00:00Z', 'en-US', { timeZone: 'Mars/Base' })).toBe(
+      'Oct 8, 2026',
+    );
   });
 });

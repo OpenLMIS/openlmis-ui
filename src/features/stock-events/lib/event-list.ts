@@ -8,9 +8,3 @@ const TYPE_KEYS = {
 
 export const eventTypeKey = (type: StockEventType | EventTypeFilter | null | undefined) =>
   type ? TYPE_KEYS[type.toLowerCase() as EventTypeFilter] : undefined;
-
-export function formatEventDay(value: string | null | undefined, locale: string) {
-  const date = value ? new Date(value) : undefined;
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date);
-}

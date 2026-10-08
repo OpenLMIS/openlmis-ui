@@ -13,9 +13,10 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { formatTimestamp } from '@/components/form/date-value';
 import { Button } from '@/components/ui/button';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
-import { eventTypeKey, formatEventDay } from '@/features/stock-events/lib/event-list';
+import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {
   CLEARED_EVENT_FILTERS,
   hasEventFilters,
@@ -23,6 +24,7 @@ import {
   toEventsQuery,
 } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
+import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { orEmpty } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -57,8 +59,15 @@ function Wrapped({ children }: { children: string | number | null | undefined })
   );
 }
 
+function useEventDay() {
+  const { i18n } = useTranslation();
+  const timeZone = useDeploymentTimeZone();
+  return (value: string | null | undefined) => formatTimestamp(value, i18n.language, { timeZone });
+}
+
 function EventCell({ id, event }: { id: CellId; event: StockEventSummary }) {
   const { t, i18n } = useTranslation();
+  const eventDay = useEventDay();
   switch (id) {
     case 'documentNumber':
       return (
@@ -73,7 +82,7 @@ function EventCell({ id, event }: { id: CellId; event: StockEventSummary }) {
     case 'date':
       return (
         <span className="whitespace-nowrap">
-          <bdi>{orEmpty(formatEventDay(event.processedDate, i18n.language))}</bdi>
+          <bdi>{orEmpty(eventDay(event.processedDate))}</bdi>
         </span>
       );
     case 'entriesCount':
@@ -96,8 +105,9 @@ function ViewEvent({
   event: StockEventSummary;
   search: TransactionHistorySearch;
 }) {
-  const { t, i18n } = useTranslation();
-  const document = event.documentNumber || formatEventDay(event.processedDate, i18n.language);
+  const { t } = useTranslation();
+  const eventDay = useEventDay();
+  const document = event.documentNumber || eventDay(event.processedDate);
   return (
     <Button
       aria-label={t('transaction-history.view-event', { document })}
