@@ -293,12 +293,12 @@ function StockOnHandBody({
 
   const onSearch = useCallback(
     (selection: CompleteSelection) => {
-      if (sameSelection(selection, applied)) {
+      if (sameSelection(selection, valid ?? applied)) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.stockCardSummaries.all });
       }
       onSearchChange({ ...selection, page: undefined });
     },
-    [applied, onSearchChange, queryClient],
+    [applied, valid, onSearchChange, queryClient],
   );
 
   return (

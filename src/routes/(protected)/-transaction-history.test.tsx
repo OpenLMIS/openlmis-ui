@@ -323,6 +323,8 @@ describe('transaction history page', () => {
       page: 0,
       size: 20,
     });
+    await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    await waitFor(() => expect(fetchStockEvents).toHaveBeenCalledTimes(2));
   });
 
   it('refuses a link to a facility and program the user may not see', async () => {

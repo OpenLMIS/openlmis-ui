@@ -294,6 +294,8 @@ describe('stock on hand page', () => {
       page: 0,
       size: 10,
     });
+    await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
+    await waitFor(() => expect(fetchStockCardSummaries).toHaveBeenCalledTimes(2));
   });
 
   it('refuses a link to a facility and program the right is not granted for, asking for no stock', async () => {
