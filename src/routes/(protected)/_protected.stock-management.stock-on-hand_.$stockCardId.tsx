@@ -1,6 +1,7 @@
 import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -110,6 +111,10 @@ function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
   const search = Route.useSearch();
+  const eventSearch = useMemo(
+    () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
+    [search.mode, search.programId, search.facilityId],
+  );
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const { measure, columnView } = useCardLayout();
@@ -153,6 +158,7 @@ function StockCardPage() {
             onSearchChange={updateSearch}
             unit={unit}
             columnVisibility={columnView.visibility}
+            eventSearch={eventSearch}
           />
         </div>
       </WorkspaceContent>

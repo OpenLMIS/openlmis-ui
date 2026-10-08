@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -20,8 +21,9 @@ import {
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
 import { orEmpty } from '@/lib/empty-value';
+import type { FacilityProgramSelection } from '@/lib/facility-program-selection';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
-import { eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
+import { type EventLink, eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
 import {
   type SearchChange,
   type TableSearch,
@@ -64,16 +66,36 @@ function Wrapped({ children }: { children: string | null | undefined }) {
   );
 }
 
+type EventSearch = FacilityProgramSelection;
+
+function EventCell({ link, search }: { link: EventLink | null; search: EventSearch }) {
+  if (!link?.eventId) return <Wrapped>{link?.label}</Wrapped>;
+  return (
+    <span className="block max-w-60 whitespace-normal break-normal">
+      <Link
+        className="font-medium text-primary underline-offset-4 hover:underline"
+        params={{ eventId: link.eventId }}
+        search={search}
+        to="/stock-management/transaction-history/$eventId"
+      >
+        <bdi>{link.label}</bdi>
+      </Link>
+    </span>
+  );
+}
+
 function LineCell({
   id,
   line,
   netContent,
   unit,
+  eventSearch,
 }: {
   id: CellId;
   line: CardLineRow;
   netContent: number | null | undefined;
   unit: QuantityUnit;
+  eventSearch: EventSearch;
 }) {
   const { t, i18n } = useTranslation();
   switch (id) {
@@ -106,18 +128,36 @@ function LineCell({
     case 'signature':
       return <Wrapped>{line.signature}</Wrapped>;
     case 'document':
-      // TODO: FM-76 link to event detail
-      return <Wrapped>{eventLinks(line, t('stock-card.no-number')).document?.label}</Wrapped>;
+      return (
+        <EventCell
+          link={eventLinks(line, t('stock-card.no-number')).document}
+          search={eventSearch}
+        />
+      );
     case 'reversing':
-      // TODO: FM-76 link to event detail
-      return <Wrapped>{eventLinks(line, t('stock-card.no-number')).reversing?.label}</Wrapped>;
+      return (
+        <EventCell
+          link={eventLinks(line, t('stock-card.no-number')).reversing}
+          search={eventSearch}
+        />
+      );
     case 'reversedBy':
-      // TODO: FM-76 link to event detail
-      return <Wrapped>{eventLinks(line, t('stock-card.no-number')).reversedBy?.label}</Wrapped>;
+      return (
+        <EventCell
+          link={eventLinks(line, t('stock-card.no-number')).reversedBy}
+          search={eventSearch}
+        />
+      );
   }
 }
 
-function useLineColumns(netContent?: number | null, unit: QuantityUnit = 'DOSES') {
+const NO_EVENT_SEARCH: EventSearch = {};
+
+function useLineColumns(
+  netContent?: number | null,
+  unit: QuantityUnit = 'DOSES',
+  eventSearch: EventSearch = NO_EVENT_SEARCH,
+) {
   const { t } = useTranslation();
   return useMemo(
     () =>
@@ -127,12 +167,18 @@ function useLineColumns(netContent?: number | null, unit: QuantityUnit = 'DOSES'
             id,
             header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
             cell: ({ row }) => (
-              <LineCell id={id} line={row.original} netContent={netContent} unit={unit} />
+              <LineCell
+                eventSearch={eventSearch}
+                id={id}
+                line={row.original}
+                netContent={netContent}
+                unit={unit}
+              />
             ),
           }),
         ),
       ),
-    [t, netContent, unit],
+    [t, netContent, unit, eventSearch],
   );
 }
 
@@ -142,6 +188,7 @@ type LinesProps = {
   onSearchChange: SearchChange<CardPagingSearch>;
   unit: QuantityUnit;
   columnVisibility: ColumnVisibilityState;
+  eventSearch: FacilityProgramSelection;
 };
 
 export function StockCardLines({
@@ -150,10 +197,11 @@ export function StockCardLines({
   onSearchChange,
   unit,
   columnVisibility,
+  eventSearch,
 }: LinesProps) {
   const { t } = useTranslation();
   const lines = useMemo(() => toCardLines(card.lineItems), [card.lineItems]);
-  const columns = useLineColumns(card.orderable.netContent, unit);
+  const columns = useLineColumns(card.orderable.netContent, unit, eventSearch);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
     (update, replace) => {
       onSearchChange((previous) => changeCardPaging(previous, update), replace);
