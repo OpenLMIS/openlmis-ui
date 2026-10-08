@@ -34,8 +34,8 @@ const deliver = vi.fn();
 vi.mock('@/lib/open-report', () => ({ openReport: vi.fn(() => ({ deliver, close: vi.fn() })) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
-vi.mock('@/hooks/use-deployment-time-zone', () => ({
-  useDeploymentTimeZone: () => 'Pacific/Auckland',
+vi.mock('@/features/reference-data/api/api', () => ({
+  fetchDeploymentTimeZone: vi.fn(async () => 'Pacific/Auckland'),
 }));
 
 const USER = 'user1';

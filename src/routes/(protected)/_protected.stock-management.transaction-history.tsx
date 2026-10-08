@@ -33,6 +33,7 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import {
   EVENT_HIDEABLE_COLUMNS,
@@ -78,6 +79,7 @@ export const Route = createFileRoute(
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const selection = {
       mode: search.mode,
       programId: search.programId,

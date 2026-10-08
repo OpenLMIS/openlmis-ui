@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { HistoryIcon, SearchXIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -61,15 +61,26 @@ function Wrapped({ children }: { children: string | number | null | undefined })
   );
 }
 
-function useEventDay() {
+type EventDay = (value: string | null | undefined) => string;
+
+function useEventDay(timeZone: string | undefined): EventDay {
   const { i18n } = useTranslation();
-  const timeZone = useDeploymentTimeZone();
-  return (value: string | null | undefined) => formatTimestamp(value, i18n.language, { timeZone });
+  return useCallback(
+    (value) => formatTimestamp(value, i18n.language, { timeZone }),
+    [i18n.language, timeZone],
+  );
 }
 
-function EventCell({ id, event }: { id: CellId; event: StockEventSummary }) {
+function EventCell({
+  id,
+  event,
+  eventDay,
+}: {
+  id: CellId;
+  event: StockEventSummary;
+  eventDay: EventDay;
+}) {
   const { t, i18n } = useTranslation();
-  const eventDay = useEventDay();
   switch (id) {
     case 'documentNumber':
       return (
@@ -103,12 +114,13 @@ function EventCell({ id, event }: { id: CellId; event: StockEventSummary }) {
 function ViewEvent({
   event,
   search,
+  eventDay,
 }: {
   event: StockEventSummary;
   search: TransactionHistorySearch;
+  eventDay: EventDay;
 }) {
   const { t } = useTranslation();
-  const eventDay = useEventDay();
   const document = event.documentNumber || eventDay(event.processedDate);
   return (
     <Button
@@ -128,7 +140,7 @@ function ViewEvent({
   );
 }
 
-function useEventColumns(search: TransactionHistorySearch) {
+function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay) {
   const { t } = useTranslation();
   return useMemo(
     () =>
@@ -137,7 +149,7 @@ function useEventColumns(search: TransactionHistorySearch) {
           columnHelper.display({
             id,
             header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
-            cell: ({ row }) => <EventCell event={row.original} id={id} />,
+            cell: ({ row }) => <EventCell event={row.original} eventDay={eventDay} id={id} />,
           }),
         ),
         columnHelper.display({
@@ -145,10 +157,10 @@ function useEventColumns(search: TransactionHistorySearch) {
           header: () => (
             <DataTableHeaderLabel>{t('transaction-history.actions')}</DataTableHeaderLabel>
           ),
-          cell: ({ row }) => <ViewEvent event={row.original} search={search} />,
+          cell: ({ row }) => <ViewEvent event={row.original} eventDay={eventDay} search={search} />,
         }),
       ]),
-    [t, search],
+    [t, search, eventDay],
   );
 }
 
@@ -166,11 +178,13 @@ function useEventsTable({
   search,
   columns,
   onSearchChange,
+  timeZone,
 }: Pick<ResultsProps, 'search' | 'columns' | 'onSearchChange'> & {
   data: StockEventSummary[];
   rowCount: number;
+  timeZone?: string;
 }) {
-  const columnDefs = useEventColumns(search);
+  const columnDefs = useEventColumns(search, useEventDay(timeZone));
   const searchState = useTableSearchState({ search, defaultSort: NO_SORT, onSearchChange });
   return useTable({
     features: dataTableFeatures,
@@ -204,6 +218,7 @@ export function TransactionHistoryResults({
     search: deferredSearch,
     columns,
     onSearchChange,
+    timeZone: useDeploymentTimeZone(),
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 

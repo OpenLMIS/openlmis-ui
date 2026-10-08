@@ -25,14 +25,12 @@ import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchDeploymentTimeZone: vi.fn(async () => 'Pacific/Auckland'),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
   fetchMinimalFacilities: vi.fn(),
 }));
 vi.mock('@/features/stock-events/api/api', () => ({ fetchStockEvents: vi.fn() }));
-vi.mock('@/hooks/use-deployment-time-zone', () => ({
-  useDeploymentTimeZone: () => 'Pacific/Auckland',
-}));
 
 const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';

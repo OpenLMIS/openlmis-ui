@@ -34,6 +34,7 @@ import {
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import { stockEventLinesOptions, stockEventOptions } from '@/features/stock-events/api/queries';
 import { EventHeader, EventHeaderSkeleton } from '@/features/stock-events/components/event-header';
@@ -105,6 +106,7 @@ export const Route = createFileRoute(
         sameEvent && !state?.error && !state?.isInvalidated
           ? queryClient.ensureQueryData(options)
           : queryClient.fetchQuery({ ...options, staleTime: 0 }),
+        queryClient.ensureQueryData(deploymentTimeZoneOptions()),
       ]).catch((error: unknown) => {
         if (userChanged()) return undefined;
         throw error;

@@ -192,3 +192,19 @@ export async function fetchOrderablesByTradeItems(
   }
   return latestVersions(found);
 }
+
+const TIME_ZONE_KEY = 'openlmis-ui.time-zone';
+
+export async function fetchDeploymentTimeZone(): Promise<string> {
+  try {
+    const { data } = await client.get<{ timeZoneId?: string | null }>('/localeSettings', {
+      baseURL: '/',
+      anonymous: true,
+    });
+    if (data.timeZoneId) {
+      localStorage.setItem(TIME_ZONE_KEY, data.timeZoneId);
+      return data.timeZoneId;
+    }
+  } catch {}
+  return localStorage.getItem(TIME_ZONE_KEY) ?? 'UTC';
+}

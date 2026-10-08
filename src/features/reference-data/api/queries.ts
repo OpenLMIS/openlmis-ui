@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
@@ -162,4 +163,11 @@ export const userProgramsOptions = (id: string) =>
     queryKey: userProgramsKey(id),
     queryFn: () => fetchUserPrograms(id),
     staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const deploymentTimeZoneOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.localeSettings.all,
+    queryFn: fetchDeploymentTimeZone,
+    staleTime: Number.POSITIVE_INFINITY,
   });
