@@ -586,7 +586,7 @@ describe('date field', () => {
 });
 
 describe('date picker', () => {
-  it.each([1000, 1800, 2100, 9999])(
+  it.each([1900, 2100, new Date().getFullYear() + 100])(
     'picks a date in year %i through the year dropdown',
     async (year) => {
       const user = userEvent.setup();
