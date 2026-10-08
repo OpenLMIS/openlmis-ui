@@ -24,8 +24,12 @@ const errorKey = (key: ParseKeys) => key;
 
 const selectionSchema = z.object({
   mode: z.enum(['my', 'supervised']),
-  programId: z.string().min(1, errorKey('facility-program.program-required')),
-  facilityId: z.string().min(1, errorKey('facility-program.facility-required')),
+  programId: z
+    .string({ error: errorKey('facility-program.program-required') })
+    .min(1, errorKey('facility-program.program-required')),
+  facilityId: z
+    .string({ error: errorKey('facility-program.facility-required') })
+    .min(1, errorKey('facility-program.facility-required')),
 });
 
 function toValues(selection: FacilityProgramSelection): CompleteSelection {
@@ -44,13 +48,11 @@ const fromValues = (values: CompleteSelection): FacilityProgramSelection => ({
 
 type FacilityProgramSelectorProps = {
   options: FacilityProgramOptions;
-  /** The selection last searched for, from the URL; the picker starts from it and returns to it when it changes. */
   applied: FacilityProgramSelection;
   onSearch: (selection: CompleteSelection) => void;
   onDraftChange: (draft: FacilityProgramSelection) => void;
 };
 
-/** Legacy's facility and program picker: my facility or one supervised, then a program the right is granted for there. */
 export const FacilityProgramSelector = memo(function FacilityProgramSelector({
   options,
   applied,
@@ -67,7 +69,6 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     listeners: { onChange: ({ formApi }) => onDraftChange(fromValues(formApi.state.values)) },
     onSubmit: ({ value, formApi }) => {
       onSearch(value);
-      // A new search starts fresh, so the next change marks nothing missing until Search.
       formApi.reset(value);
     },
     onSubmitInvalid: () =>
@@ -78,7 +79,6 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
   const mode = useStore(form.store, (state) => state.values.mode);
   const programId = useStore(form.store, (state) => state.values.programId);
 
-  // Back, Forward or a link brings another selection; the picker follows it.
   const { mode: startMode, programId: startProgram, facilityId: startFacility } = start;
   useEffect(() => {
     const next = { mode: startMode, programId: startProgram, facilityId: startFacility };
@@ -118,7 +118,15 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     >
       {(field) =>
         programItems.length > 0 ? (
-          <field.SelectField items={programItems} label={t('facility-program.program')} required />
+          <field.ComboboxField
+            clearLabel={t('facility-program.clear-program')}
+            emptyMessage={t('facility-program.no-programs')}
+            items={programItems}
+            label={t('facility-program.program')}
+            limit={-1}
+            placeholder={t('facility-program.program-placeholder')}
+            required
+          />
         ) : (
           <NoOptions
             label={t('facility-program.program')}
