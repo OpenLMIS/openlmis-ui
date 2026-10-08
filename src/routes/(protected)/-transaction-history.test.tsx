@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -21,7 +21,7 @@ import { fetchStockEvents } from '@/features/stock-events/api/api';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history';
-import { httpError } from '@/tests/http-error';
+import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -305,5 +305,45 @@ describe('transaction history page', () => {
 
     await user.click(await screen.findByRole('button', { name: /try again/i }));
     expect(await screen.findByText('FM71-ISS-1')).toBeInTheDocument();
+  });
+
+  it('says the transactions need a connection when the request gets no answer', async () => {
+    vi.mocked(fetchStockEvents).mockRejectedValue(networkError());
+    renderRoute(appliedPath());
+
+    expect(await screen.findByText('offline.notice-title')).toBeInTheDocument();
+  });
+
+  it('opens a filtered page 2 again from its link, as after a reload', async () => {
+    vi.mocked(fetchStockEvents).mockResolvedValue({ ...page([event()], 15), number: 1 });
+    renderRoute(appliedPath('&type=receive&page=2'));
+
+    expect(await screen.findByText('FM71-ISS-1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+    expect(fetchStockEvents).toHaveBeenCalledWith({
+      facilityId: HOME,
+      programId: FP,
+      type: 'receive',
+      page: 1,
+      size: 10,
+    });
+  });
+
+  it('asks for no events for a user who changed while their rights loaded', async () => {
+    let releaseRights = () => {};
+    vi.mocked(fetchPermissionStrings).mockReturnValueOnce(
+      new Promise((resolve) => {
+        releaseRights = () => resolve(grants);
+      }),
+    );
+    renderRoute(appliedPath());
+
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith(USER));
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+    act(() => useLoginData.setState({ referenceDataUserId: 'someone-else' }));
+    await act(async () => releaseRights());
+
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('someone-else'));
+    expect(fetchStockEvents).not.toHaveBeenCalled();
   });
 });
