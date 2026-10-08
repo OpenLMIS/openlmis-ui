@@ -64,8 +64,11 @@ export function WorkspaceTitle({ children }: WorkspaceProps) {
 }
 
 export function WorkspaceDescription({ children }: WorkspaceProps) {
-  // One line at most, so every header keeps the same height; longer text is cut with an ellipsis.
-  return <p className="min-w-0 truncate text-muted-foreground text-sm">{children}</p>;
+  return (
+    <p className="min-w-0 break-words text-muted-foreground text-sm @2xl/main:truncate">
+      {children}
+    </p>
+  );
 }
 
 // Under a stacked header the actions share the full width; beside it they take their own.

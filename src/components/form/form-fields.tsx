@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form';
 import {
   CalendarIcon,
   EyeIcon,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   type ComponentProps,
+  Fragment,
   type ReactNode,
   useCallback,
   useEffect,
@@ -19,6 +21,7 @@ import {
 import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
 import { useAboutLabel, useDateMessages, useFormatError } from '@/components/form/form-messages';
+import { type QuantityValue, updateQuantityValue } from '@/components/form/quantity-value';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { addTag, type TagRefusal, tagSuggestions } from '@/components/form/tags';
 import { Button } from '@/components/ui/button';
@@ -97,10 +100,15 @@ type FieldFrameProps = FieldProps & {
 };
 
 /** The field's errors as display text, whether there are any, and what the control is described by. */
-function useFieldErrors(description?: ReactNode, extraDescribedBy?: string, badge?: ReactNode) {
+function useFieldErrors(
+  description?: ReactNode,
+  extraDescribedBy?: string,
+  badge?: ReactNode,
+  nestedErrors: readonly unknown[] = [],
+) {
   const field = useFieldContext<unknown>();
   const formatError = useFormatError();
-  const errors = field.state.meta.errors.map((error: unknown) => ({
+  const errors = [...field.state.meta.errors, ...nestedErrors].map((error: unknown) => ({
     message:
       typeof error === 'string'
         ? formatError(error)
@@ -309,6 +317,100 @@ export function TextField({
 
 export function NumberField(props: FieldProps) {
   return <TextField {...props} autoComplete="off" dir="ltr" inputMode="numeric" />;
+}
+
+type QuantityFieldProps = FieldProps & {
+  unit: 'DOSES' | 'PACKS';
+  netContent?: number | null;
+  packsLabel: string;
+  dosesLabel: string;
+};
+
+export function QuantityField({
+  label,
+  layout,
+  description,
+  required,
+  disabled,
+  unit,
+  netContent,
+  packsLabel,
+  dosesLabel,
+}: QuantityFieldProps) {
+  const field = useFieldContext<QuantityValue>();
+  const dosesErrors = useStore(
+    field.form.store,
+    (state) => state.fieldMeta[`${field.name}.doses`]?.errors,
+  );
+  const packsErrors = useStore(
+    field.form.store,
+    (state) => state.fieldMeta[`${field.name}.packs`]?.errors,
+  );
+  const remainderErrors = useStore(
+    field.form.store,
+    (state) => state.fieldMeta[`${field.name}.remainder`]?.errors,
+  );
+  const state = useFieldErrors(
+    description,
+    undefined,
+    undefined,
+    [dosesErrors, packsErrors, remainderErrors].flat().filter(Boolean),
+  );
+  const labelId = `${field.name}-label`;
+  const parts: (keyof QuantityValue)[] = unit === 'DOSES' ? ['doses'] : ['packs', 'remainder'];
+
+  return (
+    <FieldFrame
+      description={description}
+      disabled={disabled}
+      label={label}
+      layout={layout}
+      required={required}
+      state={state}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {parts.map((part, index) => {
+          const partId = `${field.name}-${part}-label`;
+          return (
+            <Fragment key={part}>
+              {unit === 'PACKS' && index === 1 && <span aria-hidden="true">+</span>}
+              <div className="min-w-0 flex-1">
+                {unit === 'PACKS' && (
+                  <HiddenFromView>
+                    <label htmlFor={index === 0 ? field.name : `${field.name}-${part}`} id={partId}>
+                      {part === 'packs' ? packsLabel : dosesLabel}
+                    </label>
+                  </HiddenFromView>
+                )}
+                <Input
+                  aria-describedby={state.describedBy}
+                  aria-invalid={state.isInvalid}
+                  aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
+                  aria-required={required}
+                  autoComplete="off"
+                  dir="ltr"
+                  disabled={disabled}
+                  id={index === 0 ? field.name : `${field.name}-${part}`}
+                  inputMode="numeric"
+                  placeholder={
+                    unit === 'PACKS' ? (part === 'packs' ? packsLabel : dosesLabel) : undefined
+                  }
+                  name={`${field.name}.${part}`}
+                  onBlur={field.handleBlur}
+                  onChange={(event) =>
+                    field.handleChange(
+                      updateQuantityValue(field.state.value, part, event.target.value, netContent),
+                    )
+                  }
+                  value={field.state.value[part]}
+                />
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
+    </FieldFrame>
+  );
 }
 
 export function DecimalField(props: FieldProps) {
@@ -1179,6 +1281,8 @@ export function TagsField({
 type DateFieldProps = FieldProps & {
   placeholder: string;
   clearLabel?: string;
+  earliest?: string;
+  latest?: string;
 };
 
 type CalendarComponent = typeof import('@/components/ui/calendar').Calendar;
@@ -1203,6 +1307,8 @@ export function DateField({
   disabled,
   placeholder,
   clearLabel,
+  earliest,
+  latest,
 }: DateFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -1218,6 +1324,8 @@ export function DateField({
     >
       <DatePicker
         clearLabel={clearLabel}
+        earliest={earliest}
+        latest={latest}
         describedBy={state.describedBy}
         disabled={disabled}
         id={field.name}

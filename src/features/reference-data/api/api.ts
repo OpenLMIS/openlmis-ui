@@ -13,6 +13,9 @@ import type {
   Reason,
   Role,
   SupervisoryNode,
+  TradeItem,
+  ValidReasonAssignment,
+  ValidReasonsFilter,
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
@@ -191,4 +194,16 @@ export async function fetchOrderablesByTradeItems(
     if (page + 1 >= data.totalPages) break;
   }
   return latestVersions(found);
+}
+
+export async function fetchValidReasons(
+  params: ValidReasonsFilter,
+): Promise<ValidReasonAssignment[]> {
+  const { data } = await client.get<ValidReasonAssignment[]>('/validReasons', { params });
+  return data;
+}
+
+export async function fetchTradeItemByGtin(gtin: string): Promise<TradeItem | null> {
+  const { data } = await client.get<Page<TradeItem>>('/tradeItems', { params: { gtin } });
+  return data.content[0] ?? null;
 }

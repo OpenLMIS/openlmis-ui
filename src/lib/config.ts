@@ -99,7 +99,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.stock-management.issue', to: '#' },
           { titleKey: 'nav.stock-management.receive', to: '#' },
           { titleKey: 'nav.stock-management.physical-inventory', to: '#' },
-          { titleKey: 'nav.stock-management.adjustments', to: '#' },
+          { titleKey: 'nav.stock-management.adjustments', to: '/stock-management/adjustments' },
           {
             titleKey: 'nav.stock-management.stock-on-hand',
             to: '/stock-management/stock-on-hand',

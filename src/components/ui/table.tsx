@@ -7,7 +7,7 @@ function Table({
   layout = "auto",
   ...props
 }: React.ComponentProps<"table"> & {
-  density?: "default" | "comfortable"
+  density?: "default" | "comfortable" | "compact"
   layout?: "auto" | "fixed"
 }) {
   return (
@@ -21,6 +21,7 @@ function Table({
           "w-full caption-bottom text-sm",
           density === "comfortable" &&
             "[&_td]:h-12 [&_td]:px-4 [&_td]:py-1.5 [&_th]:h-10 [&_th]:px-4",
+          density === "compact" && "[&_td]:px-1 [&_th]:px-1",
           layout === "fixed" && "table-fixed [&_td]:truncate",
           className
         )}
