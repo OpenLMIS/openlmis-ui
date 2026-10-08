@@ -44,6 +44,7 @@ import {
 } from '@/features/stock-events/components/event-lines';
 import { canReverseEvent } from '@/features/stock-events/lib/event-access';
 import {
+  type DetailPagingSearch,
   detailPagingSchema,
   detailTableSearch,
   transactionHistorySearchSchema,
@@ -61,15 +62,21 @@ import type { QuantityUnit } from '@/lib/quantity';
 import { toPaginationState } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.stockCardsView;
+let shownEventId: string | undefined;
 const stockEventSearchSchema = transactionHistorySearchSchema.extend(detailPagingSchema.shape);
 const NO_DIALOGS = {};
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-function useEventLayout() {
+const REVERSAL_COLUMNS: readonly string[] = ['reversing', 'reversedBy'];
+const WITH_REVERSALS = STOCK_EVENT_HIDEABLE_COLUMNS.map((column) =>
+  REVERSAL_COLUMNS.includes(column.id) ? { ...column, defaultHidden: false } : column,
+);
+
+function useEventLayout(hasReversals = false) {
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
-    STOCK_EVENT_HIDEABLE_COLUMNS,
+    hasReversals ? WITH_REVERSALS : STOCK_EVENT_HIDEABLE_COLUMNS,
     useStoredState('stock-event.column-visibility', columnChoicesSchema, {}),
     width,
   );
@@ -90,11 +97,12 @@ export const Route = createFileRoute(
     const userId = useLoginData.getState().referenceDataUserId;
     const options = stockEventOptions(params.eventId);
     const state = queryClient.getQueryState(options.queryKey);
+    const sameEvent = cause === 'stay' && shownEventId === params.eventId;
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [permissions, event] =
       (await Promise.all([
         requirePermissions(queryClient, RIGHT),
-        cause === 'stay' && !state?.error && !state?.isInvalidated
+        sameEvent && !state?.error && !state?.isInvalidated
           ? queryClient.ensureQueryData(options)
           : queryClient.fetchQuery({ ...options, staleTime: 0 }),
       ]).catch((error: unknown) => {
@@ -109,6 +117,7 @@ export const Route = createFileRoute(
     queryClient.prefetchQuery(
       stockEventLinesOptions(event.id, { page: pageIndex, size: pageSize }),
     );
+    shownEventId = event.id;
     return {
       event,
       userId,
@@ -126,7 +135,7 @@ function StockEventPage() {
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView } = useEventLayout();
+  const { measure, columnView } = useEventLayout(useHasReversals(search));
   const userId = useReloadForUser(
     data?.userId,
     stockEventOptions(Route.useParams().eventId).queryKey,
@@ -176,6 +185,15 @@ function StockEventPage() {
       </WorkspaceContent>
     </Workspace>
   );
+}
+
+function useHasReversals(search: DetailPagingSearch) {
+  const { pageIndex, pageSize } = toPaginationState(detailTableSearch(search));
+  const { data } = useQuery({
+    ...stockEventLinesOptions(Route.useParams().eventId, { page: pageIndex, size: pageSize }),
+    enabled: false,
+  });
+  return Boolean(data?.content.some((line) => line.reversedEventId || line.cancellationEventId));
 }
 
 function StockEventColumns({ columnView }: { columnView: ReturnType<typeof useColumnVisibility> }) {

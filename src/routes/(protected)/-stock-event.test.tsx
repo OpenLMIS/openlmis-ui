@@ -224,12 +224,28 @@ describe('stock event detail', () => {
       'stock-event.quantity',
       'stock-event.reason',
       'stock-event.stock-on-hand',
+      'stock-event.reversing',
+      'stock-event.reversed-by',
     ]);
     expect(within(table).getByText('Vaccine - each (C1)')).toBeInTheDocument();
     expect(within(table).getByText('Warehouse: North')).toBeInTheDocument();
     expect(within(table).getByText('Clinic: South')).toBeInTheDocument();
     expect(within(table).getByText('stock-event.physical-inventory')).toBeInTheDocument();
     expect(within(table).getByText('Jan 31, 2027')).toBeInTheDocument();
+  });
+
+  it('leaves the reversal columns out until a line on the page has a reversal', async () => {
+    vi.mocked(fetchStockEventLines).mockResolvedValue(
+      linesPage([{ ...line, reversedEventId: null, cancellationEventId: null }]),
+    );
+    renderRoute();
+    const table = await screen.findByRole('table');
+    await within(table).findByText('Vaccine - each (C1)');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent);
+    expect(headers).not.toContain('stock-event.reversing');
+    expect(headers).not.toContain('stock-event.reversed-by');
   });
 
   it('shows No Lot Defined, empty expiry, and a reason with free text', async () => {
@@ -453,6 +469,27 @@ describe('stock event detail', () => {
     renderRoute(path(), queryClient);
     await screen.findByText('FRESH-DOC');
     expect(fetchStockEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads each event fresh when moving between events and back', async () => {
+    vi.mocked(fetchStockEvent).mockImplementation(async (id) => ({
+      ...event,
+      id,
+      documentNumber: id === 'event1' ? 'DOC-1' : 'DOC-2',
+    }));
+    const { router } = renderRoute();
+    await screen.findByText('DOC-1');
+    await act(() =>
+      router.navigate({
+        to: '/stock-management/transaction-history/$eventId',
+        params: { eventId: 'event2' },
+      }),
+    );
+    await screen.findByText('DOC-2');
+    vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, documentNumber: 'DOC-1-NEW' });
+    await act(() => router.history.back());
+    await screen.findByText('DOC-1-NEW');
+    expect(fetchStockEvent).toHaveBeenCalledTimes(3);
   });
 
   it('does not reveal a late event after a user change', async () => {
