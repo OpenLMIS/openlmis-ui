@@ -1240,6 +1240,7 @@
   "transaction-history.actions": "Actions",
   "transaction-history.active-filters": "{count, plural, one {# active filter} other {# active filters}}",
   "transaction-history.applied": "{facility} · {program}",
+  "transaction-history.clear-dates": "Clear Dates",
   "transaction-history.clear-filters": "Clear Filters",
   "transaction-history.date": "Date",
   "transaction-history.date-range-description": "The end date is before the start date. Pick an end date on or after the start date.",

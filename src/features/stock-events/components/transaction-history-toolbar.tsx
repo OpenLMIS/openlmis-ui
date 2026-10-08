@@ -91,6 +91,7 @@ export function TransactionHistoryToolbar({
               />
               <DataTableSearch
                 label={t('transaction-history.search-document-number')}
+                labelWhenFilled
                 onValueChange={(value) => change({ documentNumber: value || undefined })}
                 placeholder={t('transaction-history.search-document-number')}
                 value={search.documentNumber ?? ''}

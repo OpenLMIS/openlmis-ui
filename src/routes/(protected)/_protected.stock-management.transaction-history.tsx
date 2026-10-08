@@ -18,6 +18,7 @@ import {
 import { ListError } from '@/components/list-error';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -314,14 +315,16 @@ function OutcomeMessage({
   icon,
   title,
   description,
+  action,
 }: {
   icon: ReactNode;
   title: string;
   description: string;
+  action?: ReactNode;
 }) {
   return (
     <DataTableCard>
-      <DataTableEmpty description={description} icon={icon} title={title} />
+      <DataTableEmpty action={action} description={description} icon={icon} title={title} />
     </DataTableCard>
   );
 }
@@ -409,6 +412,16 @@ function TransactionHistoryList({
       />
       {invalidDateRange(search) ? (
         <OutcomeMessage
+          action={
+            <Button
+              onClick={() =>
+                onSearchChange({ startDate: undefined, endDate: undefined, page: undefined })
+              }
+              variant="outline"
+            >
+              {t('transaction-history.clear-dates')}
+            </Button>
+          }
           description={t('transaction-history.date-range-description')}
           icon={<CalendarX2Icon />}
           title={t('transaction-history.date-range-title')}

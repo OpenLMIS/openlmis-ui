@@ -224,6 +224,25 @@ describe('transaction history page', () => {
     expect(fetchStockEvents).not.toHaveBeenCalled();
   });
 
+  it('clears the dates from the refused range and lists the events', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute(
+      appliedPath('&type=issue&startDate=2026-10-10&endDate=2026-10-01'),
+    );
+
+    await user.click(
+      await screen.findByRole('button', { name: 'transaction-history.clear-dates' }),
+    );
+
+    expect(await screen.findByText('FM71-ISS-1')).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({
+      mode: 'my',
+      programId: FP,
+      facilityId: HOME,
+      type: 'issue',
+    });
+  });
+
   it('tells no events apart from no matches, and clears the filters', async () => {
     const user = userEvent.setup();
     vi.mocked(fetchStockEvents).mockResolvedValue(page([]));

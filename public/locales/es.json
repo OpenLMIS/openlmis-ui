@@ -1240,6 +1240,7 @@
   "transaction-history.actions": "Acciones",
   "transaction-history.active-filters": "{count, plural, one {# filtro activo} other {# filtros activos}}",
   "transaction-history.applied": "{facility} · {program}",
+  "transaction-history.clear-dates": "Borrar fechas",
   "transaction-history.clear-filters": "Borrar filtros",
   "transaction-history.date": "Fecha",
   "transaction-history.date-range-description": "La fecha de fin es anterior a la fecha de inicio. Elija una fecha de fin igual o posterior a la de inicio.",

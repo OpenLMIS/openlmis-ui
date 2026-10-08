@@ -141,4 +141,28 @@ describe('DataTableSearch', () => {
 
     expect(input).toHaveValue(' ');
   });
+
+  it('keeps the label in view once text is typed, when asked to', () => {
+    const { rerender } = render(
+      <DataTableSearch
+        label="Document Number"
+        labelWhenFilled
+        onValueChange={vi.fn()}
+        placeholder="Document Number"
+        value=""
+      />,
+    );
+    expect(screen.queryByText('Document Number:')).not.toBeInTheDocument();
+
+    rerender(
+      <DataTableSearch
+        label="Document Number"
+        labelWhenFilled
+        onValueChange={vi.fn()}
+        placeholder="Document Number"
+        value="HC01"
+      />,
+    );
+    expect(screen.getByText('Document Number:')).toBeInTheDocument();
+  });
 });

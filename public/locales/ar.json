@@ -1240,6 +1240,7 @@
   "transaction-history.actions": "الإجراءات",
   "transaction-history.active-filters": "{count, plural, zero {لا توجد عوامل تصفية نشطة} one {عامل تصفية نشط واحد} two {عاملا تصفية نشطان} few {# عوامل تصفية نشطة} many {# عامل تصفية نشطًا} other {# عامل تصفية نشط}}",
   "transaction-history.applied": "{facility} · {program}",
+  "transaction-history.clear-dates": "مسح التواريخ",
   "transaction-history.clear-filters": "مسح عوامل التصفية",
   "transaction-history.date": "التاريخ",
   "transaction-history.date-range-description": "تاريخ الانتهاء يسبق تاريخ البدء. اختر تاريخ انتهاء في تاريخ البدء أو بعده.",

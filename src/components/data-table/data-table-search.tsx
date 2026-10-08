@@ -6,6 +6,7 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
+  InputGroupText,
 } from '@/components/ui/input-group';
 
 type DataTableSearchProps = {
@@ -14,6 +15,8 @@ type DataTableSearchProps = {
   placeholder?: string;
   /** Accessible name, when the placeholder alone does not say what is searched. */
   label?: string;
+  /** Shows the label before the typed text, as the select filters do, where no field label names the box. */
+  labelWhenFilled?: boolean;
 };
 
 export function DataTableSearch({
@@ -21,6 +24,7 @@ export function DataTableSearch({
   onValueChange,
   placeholder,
   label,
+  labelWhenFilled = false,
 }: DataTableSearchProps) {
   const labels = useDataTableLabels();
   const { draft, commit, inputProps } = useDebouncedInput(value, onValueChange);
@@ -31,6 +35,7 @@ export function DataTableSearch({
       <InputGroup>
         <InputGroupAddon>
           <SearchIcon />
+          {labelWhenFilled && draft && <InputGroupText>{`${label ?? text}:`}</InputGroupText>}
         </InputGroupAddon>
         <InputGroupInput
           aria-label={label ?? text}
