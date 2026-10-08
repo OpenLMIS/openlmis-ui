@@ -330,6 +330,22 @@ function StockEventError(props: ErrorComponentProps) {
     useLoginData((state) => state.referenceDataUserId),
     stockEventOptions(Route.useParams().eventId).queryKey,
   );
+  const back = (
+    <Button
+      nativeButton={false}
+      render={
+        <Link
+          search={transactionHistorySearchSchema.parse(search)}
+          to="/stock-management/transaction-history"
+        />
+      }
+      size="sm"
+      variant="outline"
+    >
+      <ChevronLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
+      {t('stock-event.back')}
+    </Button>
+  );
   if (
     !isNotFound(props.error) &&
     !(isAxiosError(props.error) && props.error.response?.status === 400)
@@ -337,21 +353,7 @@ function StockEventError(props: ErrorComponentProps) {
     return (
       <ErrorFallback
         {...props}
-        back={
-          <Button
-            nativeButton={false}
-            render={
-              <Link
-                search={transactionHistorySearchSchema.parse(search)}
-                to="/stock-management/transaction-history"
-              />
-            }
-            size="sm"
-          >
-            <ChevronLeftIcon className="rtl:rotate-180" />
-            {t('stock-event.back')}
-          </Button>
-        }
+        back={back}
         description={t('stock-event.error-description')}
         title={t('stock-event.error-title')}
       />
@@ -370,20 +372,7 @@ function StockEventError(props: ErrorComponentProps) {
             </EmptyTitle>
             <EmptyDescription>{t('stock-event.not-found-description')}</EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={
-                <Link
-                  to="/stock-management/transaction-history"
-                  search={transactionHistorySearchSchema.parse(search)}
-                />
-              }
-            >
-              {t('stock-event.back')}
-            </Button>
-          </EmptyContent>
+          <EmptyContent>{back} </EmptyContent>
         </Empty>
       </WorkspaceContent>
     </Workspace>
