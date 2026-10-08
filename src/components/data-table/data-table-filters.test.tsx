@@ -45,6 +45,42 @@ const zones = [
   { value: 'z3', label: 'Chibuto', description: 'District' },
 ];
 
+describe('DataTableSelectFilter with an option for no filter', () => {
+  it('shows that option as the choice while nothing narrows the rows, with nothing to clear', () => {
+    render(
+      <DataTableSelectFilter
+        allLabel="All"
+        label="Type"
+        onValueChange={vi.fn()}
+        options={options}
+        value=""
+      />,
+    );
+
+    expect(screen.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Type:All');
+    expect(screen.queryByRole('button', { name: 'Clear Type' })).not.toBeInTheDocument();
+  });
+
+  it('reports no filter when that option is picked', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <DataTableSelectFilter
+        allLabel="All"
+        label="Type"
+        onValueChange={onValueChange}
+        options={options}
+        value="active"
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
+    await user.click(await screen.findByRole('option', { name: 'All' }));
+
+    expect(onValueChange).toHaveBeenCalledWith('');
+  });
+});
+
 describe('DataTableComboboxFilter', () => {
   it('narrows the options to what is typed and passes on the picked value', async () => {
     const user = userEvent.setup();

@@ -30,7 +30,10 @@ type DataTableSelectFilterProps = {
   value: string;
   onValueChange: (value: string) => void;
   options: DataTableSelectFilterOption[];
+  allLabel?: string;
 };
+
+const ALL = '\u0000all';
 
 /** A toolbar dropdown that narrows the rows to one value, with a button to clear it. */
 export function DataTableSelectFilter({
@@ -38,19 +41,22 @@ export function DataTableSelectFilter({
   value,
   onValueChange,
   options,
+  allLabel,
 }: DataTableSelectFilterProps) {
   const labels = useDataTableLabels();
+  const items = allLabel ? [{ value: ALL, label: allLabel }, ...options] : options;
+  const shown = value || (allLabel ? ALL : null);
 
   return (
     <div className="relative">
       <Select
-        items={options}
-        onValueChange={(next) => onValueChange(next ?? '')}
-        value={value || null}
+        items={items}
+        onValueChange={(next) => onValueChange(next && next !== ALL ? next : '')}
+        value={shown}
       >
         <SelectTrigger aria-label={label} width="full">
           <span className="flex min-w-0 items-center gap-1 pe-8">
-            {value ? (
+            {shown ? (
               <>
                 <span className="shrink-0 text-muted-foreground">{label}:</span>
                 <span className="min-w-0 truncate">
@@ -63,7 +69,7 @@ export function DataTableSelectFilter({
           </span>
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
-          {options.map((option) => (
+          {items.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>

@@ -37,14 +37,10 @@ export function TransactionHistoryToolbar({
   const documentNumberId = useId();
   const change = (patch: Partial<TransactionHistorySearch>) =>
     onFilterChange({ ...patch, page: undefined });
-  const typeOptions = [
-    { value: '', label: t('transaction-history.type-all') },
-    ...EVENT_TYPES.map((type) => ({
-      value: type,
-      label: t(eventTypeKey(type) ?? 'transaction-history.type'),
-    })),
-  ];
-
+  const typeOptions = EVENT_TYPES.map((type) => ({
+    value: type,
+    label: t(eventTypeKey(type) ?? 'transaction-history.type'),
+  }));
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="basis-full @md/main:me-auto @md/main:basis-auto">
@@ -68,6 +64,7 @@ export function TransactionHistoryToolbar({
           <PopoverContent align="start" aria-label={t('transaction-history.filter')} side="top">
             <div className="flex flex-col gap-3">
               <DataTableSelectFilter
+                allLabel={t('transaction-history.type-all')}
                 label={t('transaction-history.type')}
                 onValueChange={(type) => change({ type: isEventType(type) ? type : undefined })}
                 options={typeOptions}
