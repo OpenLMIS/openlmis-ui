@@ -44,7 +44,6 @@ export const textFilterSchema = z
   .optional()
   .catch(undefined);
 
-/** Optional `yyyy-MM-dd` filter; anything that is not a real calendar date drops out. */
 export const dateFilterSchema = z
   .string()
   .refine((value) => parseDateValue(value) !== undefined)

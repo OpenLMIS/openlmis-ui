@@ -433,7 +433,7 @@ Server-paged lists follow the Users page (`src/routes/(protected)/_protected.adm
 Copy its shape rather than inventing a new one.
 
 **The URL owns the state.** Page, size, sort and every filter are search params, validated
-by a zod schema built from `tableSearchSchema()` and `textFilterSchema` in
+by a zod schema built from `tableSearchSchema()`, `textFilterSchema` and `dateFilterSchema` in
 `src/lib/table-search.ts`. Invalid params fall back to their default and defaults stay
 out of the URL, so links are short and shareable. The loader prefetches from
 `loaderDeps`, deferred as usual.
@@ -623,7 +623,10 @@ field mounts and again when it is opened after a failed load, so no other page c
 libraries; a required date reads out the provider's `requiredLabel` with its name. Outside a
 form, the same picker is `DatePicker`, which `DateField` wraps. Show a date anywhere else, such
 as a table cell, with `formatDateValue` (`src/components/form/date-value.ts`) in the page's
-language, so it reads as it does in the picker. A `ComboboxField` item takes a `description`, shown
+language, so it reads as it does in the picker. A timestamp, such as when a stock event was
+recorded, goes through `formatTimestamp` in the deployment's time zone from
+`useDeploymentTimeZone()` (`src/hooks/`), which reads legacy's public `/localeSettings`, so both UIs
+show the same time whatever the viewer's clock says. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
@@ -664,7 +667,8 @@ legacy does: home programs, then supervised programs granted away from home, the
 facilities, home included. The route passes the grants of the right it needs, so the picker imports
 no auth. The URL keeps `mode`, `programId` and `facilityId` only once Search is pressed; the picker's
 changes before that are a draft, and the page hides results that no longer match it. A link whose
-selection the picker would not offer (`validSelection`) is refused. The loader asks for stock only for a
+selection the picker would not offer (`validSelection`) is refused, and the picker leaves what it does
+not offer blank rather than picking something else under the refusal. The loader asks for stock only for a
 pair the user's grants include, and without waiting for the picker's lookups, so the two load side by side.
 A required list with one option has it picked, as legacy does.
 
@@ -697,7 +701,9 @@ full-page panel. Add the page to `NAV_RIGHTS` in
 it. The Users routes are the example. A page legacy opens with either of two rights passes
 both, as a list, to `requireRight` and to `NAV_RIGHTS`; any one opens it. An action inside the
 page that needs one of them reads the set `requireRight` resolves with and hides itself, also
-when its dialog is opened by its URL, as Add Product does on Products.
+when its dialog is opened by its URL, as Add Product does on Products. A page that blocks on a
+record and its grant, such as the Stock Card or a stock event, reloads through `useReloadForUser`
+(`src/hooks/use-reload-for-user.ts`) when the signed-in user changes.
 
 **Unsaved work asks before it is lost.** A page with a draft calls `useDiscardGuard` from
 `src/hooks/use-discard-guard.ts`, which blocks router navigation to another page and, for

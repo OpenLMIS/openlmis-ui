@@ -38,7 +38,6 @@ export const CLEARED_EVENT_FILTERS = {
 export const hasEventFilters = (search: EventFilters) =>
   Boolean(search.type || search.startDate || search.endDate || search.documentNumber);
 
-/** `yyyy-MM-dd` values compare as text. */
 export const invalidDateRange = ({ startDate, endDate }: EventFilters) =>
   Boolean(startDate && endDate && endDate < startDate);
 

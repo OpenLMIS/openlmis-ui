@@ -3,7 +3,6 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { useLoginData } from '@/features/auth/store/login-data';
 
-/** Reloads a blocking page when the signed-in user changes or differs from the one it loaded for. */
 export function useReloadForUser(loadedUserId: string | undefined | null, queryKey: QueryKey) {
   const router = useRouter();
   const queryClient = useQueryClient();

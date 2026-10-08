@@ -15,7 +15,6 @@ type DataTableSearchProps = {
   placeholder?: string;
   /** Accessible name, when the placeholder alone does not say what is searched. */
   label?: string;
-  /** Shows the label before the typed text, as the select filters do, where no field label names the box. */
   labelWhenFilled?: boolean;
 };
 
