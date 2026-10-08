@@ -215,6 +215,24 @@ describe('transaction history page', () => {
     expect(filter).toHaveTextContent('4');
   });
 
+  it('offers All before the types, as legacy, and All clears the type', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute(appliedPath('&type=issue'));
+
+    await user.click(await screen.findByRole('button', { name: /transaction-history.filter/ }));
+    await user.click(await screen.findByRole('combobox', { name: 'transaction-history.type' }));
+    const options = await screen.findAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'transaction-history.type-all',
+      'transaction-history.type-issue',
+      'transaction-history.type-receive',
+      'transaction-history.type-adjustment',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'transaction-history.type-all' }));
+
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('type'));
+  });
+
   it('refuses an end date before the start date without asking the server', async () => {
     renderRoute(appliedPath('&startDate=2026-10-10&endDate=2026-10-01'));
 

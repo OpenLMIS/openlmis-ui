@@ -37,10 +37,13 @@ export function TransactionHistoryToolbar({
   const documentNumberId = useId();
   const change = (patch: Partial<TransactionHistorySearch>) =>
     onFilterChange({ ...patch, page: undefined });
-  const typeOptions = EVENT_TYPES.map((type) => ({
-    value: type,
-    label: t(eventTypeKey(type) ?? 'transaction-history.type'),
-  }));
+  const typeOptions = [
+    { value: '', label: t('transaction-history.type-all') },
+    ...EVENT_TYPES.map((type) => ({
+      value: type,
+      label: t(eventTypeKey(type) ?? 'transaction-history.type'),
+    })),
+  ];
 
   return (
     <div className="flex flex-wrap items-center gap-2">

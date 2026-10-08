@@ -1270,6 +1270,7 @@
   "transaction-history.title": "سجل المعاملات",
   "transaction-history.type": "النوع",
   "transaction-history.type-adjustment": "تعديل",
+  "transaction-history.type-all": "الكل",
   "transaction-history.type-issue": "صرف",
   "transaction-history.type-receive": "استلام",
   "transaction-history.view": "عرض",

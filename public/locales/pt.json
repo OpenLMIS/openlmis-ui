@@ -1270,6 +1270,7 @@
   "transaction-history.title": "Histórico De Transações",
   "transaction-history.type": "Tipo",
   "transaction-history.type-adjustment": "Ajuste",
+  "transaction-history.type-all": "Todos",
   "transaction-history.type-issue": "Saída",
   "transaction-history.type-receive": "Receção",
   "transaction-history.view": "Ver",
