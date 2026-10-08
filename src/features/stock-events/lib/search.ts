@@ -48,7 +48,6 @@ export function toEventsQuery(
   { facilityId, programId }: { facilityId: string; programId: string },
 ): StockEventsQuery {
   const { pageIndex, pageSize } = toPaginationState(search, EVENTS_PAGE_SIZE);
-  const documentNumber = search.documentNumber?.trim();
   return {
     facilityId,
     programId,
@@ -57,7 +56,7 @@ export function toEventsQuery(
     ...(search.type && { type: search.type }),
     ...(search.startDate && { startDate: search.startDate }),
     ...(search.endDate && { endDate: search.endDate }),
-    ...(documentNumber && { documentNumber }),
+    ...(search.documentNumber && { documentNumber: search.documentNumber }),
   };
 }
 

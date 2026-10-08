@@ -60,7 +60,7 @@ describe('transaction history search', () => {
     expect(hasEventFilters({ documentNumber: 'A' })).toBe(true);
   });
 
-  it('sends the filters as legacy does, with a zero-based page', () => {
+  it('sends the filters as legacy does, the document number as typed, with a zero-based page', () => {
     expect(toEventsQuery({}, selection)).toEqual({ ...selection, page: 0, size: 20 });
     expect(
       toEventsQuery(
@@ -79,7 +79,7 @@ describe('transaction history search', () => {
       type: 'adjustment',
       startDate: '2026-01-01',
       endDate: '2026-01-31',
-      documentNumber: 'DOC-1',
+      documentNumber: ' DOC-1 ',
       page: 2,
       size: 20,
     });
