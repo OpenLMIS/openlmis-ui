@@ -58,3 +58,17 @@ export function eventLinks(
       : null,
   };
 }
+
+type ShownReversals = { reversing: boolean; reversedBy: boolean };
+
+export function withShownReversals<T extends { id: string; labelKey: string }>(
+  columns: readonly T[],
+  shown: ShownReversals,
+) {
+  return columns.map((column) =>
+    (column.id === 'reversing' && shown.reversing) ||
+    (column.id === 'reversedBy' && shown.reversedBy)
+      ? { id: column.id, labelKey: column.labelKey, hideBelow: 900 }
+      : column,
+  );
+}

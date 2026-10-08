@@ -151,7 +151,7 @@ export function useTableSearchState<TSearch extends TableSearch>({
       tableSearchState({
         search: { page, size, sort, dir },
         defaultSort,
-        ...(defaultPageSize !== undefined && { defaultPageSize }),
+        defaultPageSize,
         onSearchChange,
       }),
     [page, size, sort, dir, defaultSort, defaultPageSize, onSearchChange],

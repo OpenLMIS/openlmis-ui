@@ -55,6 +55,7 @@ import { isNotFound } from '@/lib/http';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
+import { withShownReversals } from '@/lib/stock-labels';
 
 const RIGHT = RIGHTS.stockCardsView;
 const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
@@ -69,12 +70,7 @@ function useCardLayout(lines: readonly StockCardLine[] = NO_LINES) {
   const reversing = lines.some((line) => line.reversedEventId);
   const reversedBy = lines.some((line) => line.cancellationEventId);
   const columns = useMemo(
-    () =>
-      STOCK_CARD_HIDEABLE_COLUMNS.map((column) =>
-        (column.id === 'reversing' && reversing) || (column.id === 'reversedBy' && reversedBy)
-          ? { id: column.id, labelKey: column.labelKey, hideBelow: 900 }
-          : column,
-      ),
+    () => withShownReversals(STOCK_CARD_HIDEABLE_COLUMNS, { reversing, reversedBy }),
     [reversing, reversedBy],
   );
   const columnView = useColumnVisibility(

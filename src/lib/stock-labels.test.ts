@@ -5,6 +5,7 @@ import {
   reasonLabel,
   type StockReason,
   stockProductName,
+  withShownReversals,
 } from '@/lib/stock-labels';
 
 const reason = (
@@ -85,5 +86,21 @@ describe('eventLinks', () => {
       reversing: { label: 'View', eventId: 'event1' },
       reversedBy: { label: 'View', eventId: 'event2' },
     });
+  });
+});
+
+describe('withShownReversals', () => {
+  const columns = [
+    { id: 'reason', labelKey: 'reason', hideBelow: 640 },
+    { id: 'reversing', labelKey: 'reversing', defaultHidden: true },
+    { id: 'reversedBy', labelKey: 'reversedBy', defaultHidden: true },
+  ];
+
+  it('shows each reversal column that has a value, on a laptop', () => {
+    expect(withShownReversals(columns, { reversing: false, reversedBy: true })).toEqual([
+      { id: 'reason', labelKey: 'reason', hideBelow: 640 },
+      { id: 'reversing', labelKey: 'reversing', defaultHidden: true },
+      { id: 'reversedBy', labelKey: 'reversedBy', hideBelow: 900 },
+    ]);
   });
 });

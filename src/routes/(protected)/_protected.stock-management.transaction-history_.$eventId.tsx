@@ -61,6 +61,7 @@ import { isNotFound } from '@/lib/http';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
+import { withShownReversals } from '@/lib/stock-labels';
 import { toPaginationState } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.stockCardsView;
@@ -72,19 +73,11 @@ const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 type ShownReversals = { reversing: boolean; reversedBy: boolean };
 const NO_REVERSALS: ShownReversals = { reversing: false, reversedBy: false };
-const REVERSAL_HIDE_BELOW = 900;
 
 function useEventLayout(reversals: ShownReversals = NO_REVERSALS) {
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const columns = useMemo(
-    () =>
-      STOCK_EVENT_HIDEABLE_COLUMNS.map((column) =>
-        column.id === 'reversing' || column.id === 'reversedBy'
-          ? reversals[column.id]
-            ? { id: column.id, labelKey: column.labelKey, hideBelow: REVERSAL_HIDE_BELOW }
-            : column
-          : column,
-      ),
+    () => withShownReversals(STOCK_EVENT_HIDEABLE_COLUMNS, reversals),
     [reversals],
   );
   const columnView = useColumnVisibility(
