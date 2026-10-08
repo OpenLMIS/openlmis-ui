@@ -27,6 +27,7 @@ export const queryKeys = {
   serviceAccounts: createQueryKeys('serviceAccounts'),
   stockCards: createQueryKeys('stockCards'),
   stockCardSummaries: createQueryKeys('stockCardSummaries'),
+  stockEvents: createQueryKeys('stockEvents'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   users: createQueryKeys('users'),
   validDestinations: createQueryKeys('validDestinations'),

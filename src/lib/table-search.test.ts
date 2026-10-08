@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  dateFilterSchema,
   fromPaginationState,
   fromSortingState,
   type TableSearch,
@@ -86,6 +87,15 @@ describe('textFilterSchema', () => {
   it('reads a number or a boolean the router parsed from the URL back as the text typed', () => {
     expect(textFilterSchema.parse(1133)).toBe('1133');
     expect(textFilterSchema.parse(true)).toBe('true');
+  });
+});
+
+describe('dateFilterSchema', () => {
+  it('keeps a real calendar date and drops anything else', () => {
+    expect(dateFilterSchema.parse('2026-02-28')).toBe('2026-02-28');
+    expect(dateFilterSchema.parse('2026-02-30')).toBeUndefined();
+    expect(dateFilterSchema.parse('28/02/2026')).toBeUndefined();
+    expect(dateFilterSchema.parse(20260228)).toBeUndefined();
   });
 });
 

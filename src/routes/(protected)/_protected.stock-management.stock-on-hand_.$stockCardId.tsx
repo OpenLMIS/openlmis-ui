@@ -1,8 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -49,6 +47,7 @@ import type { StockCard } from '@/features/stock-card/lib/types';
 import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
+import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { isNotFound } from '@/lib/http';
@@ -107,23 +106,6 @@ export const Route = createFileRoute(
   errorComponent: StockCardError,
 });
 
-function useReloadForUser(loadedUserId: string | undefined | null) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { stockCardId } = Route.useParams();
-  const userId = useLoginData((state) => state.referenceDataUserId);
-  const previousUser = useRef(userId);
-  useEffect(() => {
-    const changed = previousUser.current !== userId;
-    previousUser.current = userId;
-    if (userId && (changed || loadedUserId !== userId)) {
-      queryClient.removeQueries({ queryKey: stockCardOptions(stockCardId).queryKey });
-      void router.invalidate();
-    }
-  }, [userId, loadedUserId, queryClient, router, stockCardId]);
-  return userId;
-}
-
 function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
@@ -131,7 +113,10 @@ function StockCardPage() {
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const { measure, columnView } = useCardLayout();
-  const userId = useReloadForUser(data?.userId);
+  const userId = useReloadForUser(
+    data?.userId,
+    stockCardOptions(Route.useParams().stockCardId).queryKey,
+  );
   if (!data || data.userId !== userId) return null;
   return (
     <Workspace>
@@ -229,7 +214,10 @@ function StockCardPrint({
 
 function StockCardPending() {
   const { canSwitch } = useQuantityUnit();
-  useReloadForUser(useLoginData((state) => state.referenceDataUserId));
+  useReloadForUser(
+    useLoginData((state) => state.referenceDataUserId),
+    stockCardOptions(Route.useParams().stockCardId).queryKey,
+  );
   const search = Route.useSearch();
   const { measure, columnView } = useCardLayout();
   return (
@@ -275,7 +263,10 @@ function StockCardPending() {
 function StockCardError(props: ErrorComponentProps) {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  useReloadForUser(useLoginData((state) => state.referenceDataUserId));
+  useReloadForUser(
+    useLoginData((state) => state.referenceDataUserId),
+    stockCardOptions(Route.useParams().stockCardId).queryKey,
+  );
   if (
     !isNotFound(props.error) &&
     !(isAxiosError(props.error) && props.error.response?.status === 400)

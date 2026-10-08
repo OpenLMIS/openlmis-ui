@@ -7,6 +7,7 @@ import {
 import { useMemo } from 'react';
 import { z } from 'zod';
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/components/data-table/data-table-pagination';
+import { parseDateValue } from '@/components/form/date-value';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -40,6 +41,13 @@ export function tableSearchSchema<const TSortField extends string>(
 export const textFilterSchema = z
   .union([z.string(), z.number().transform(String), z.boolean().transform(String)])
   .transform((value) => (value.trim() ? value : undefined))
+  .optional()
+  .catch(undefined);
+
+/** Optional `yyyy-MM-dd` filter; anything that is not a real calendar date drops out. */
+export const dateFilterSchema = z
+  .string()
+  .refine((value) => parseDateValue(value) !== undefined)
   .optional()
   .catch(undefined);
 

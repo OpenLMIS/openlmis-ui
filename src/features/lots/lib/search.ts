@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { parseDateValue } from '@/components/form/date-value';
 import type { LotsQuery } from '@/features/lots/lib/types';
-import { tableSearchSchema, toPaginationState } from '@/lib/table-search';
+import { dateFilterSchema, tableSearchSchema, toPaginationState } from '@/lib/table-search';
 
 export const LOT_HIDEABLE_COLUMNS = [
   { id: 'productCode', labelKey: 'lots.product-code', hideBelow: '3xl' },
@@ -12,18 +11,12 @@ export const LOT_HIDEABLE_COLUMNS = [
 
 const idSchema = z.guid().optional().catch(undefined);
 
-const dateSchema = z
-  .string()
-  .refine((value) => parseDateValue(value) !== undefined)
-  .optional()
-  .catch(undefined);
-
 export const lotsSearchSchema = tableSearchSchema(['lotCode'])
   .omit({ sort: true, dir: true })
   .extend({
     product: idSchema,
-    expiryFrom: dateSchema,
-    expiryTo: dateSchema,
+    expiryFrom: dateFilterSchema,
+    expiryTo: dateFilterSchema,
     lot: idSchema,
   });
 
