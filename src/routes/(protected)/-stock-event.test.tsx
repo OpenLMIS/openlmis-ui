@@ -179,6 +179,21 @@ describe('stock event detail', () => {
     expect(screen.getAllByText(EMPTY_VALUE).length).toBeGreaterThanOrEqual(2);
   });
 
+  it('keeps where stock came from and went to on a laptop, dropping the expiry date first', async () => {
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({
+      width: 960,
+    } as DOMRect);
+    renderRoute();
+    const table = await screen.findByRole('table');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent);
+    expect(headers).toContain('stock-event.source');
+    expect(headers).toContain('stock-event.destination');
+    expect(headers).toContain('stock-event.reason');
+    expect(headers).not.toContain('stock-event.expiry-date');
+  });
+
   it('shows line columns in legacy order and labels with free text', async () => {
     renderRoute();
     const table = await screen.findByRole('table');

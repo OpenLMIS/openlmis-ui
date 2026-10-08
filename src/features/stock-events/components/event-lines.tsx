@@ -50,12 +50,12 @@ const COLUMNS = [
 ] as const;
 
 export const STOCK_EVENT_HIDEABLE_COLUMNS = [
-  { id: 'lot', labelKey: 'stock-event.lot-code', hideBelow: 700 },
-  { id: 'expiry', labelKey: 'stock-event.expiry-date', hideBelow: 1000 },
-  { id: 'source', labelKey: 'stock-event.source', hideBelow: 1150 },
-  { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 1150 },
+  { id: 'lot', labelKey: 'stock-event.lot-code', hideBelow: 760 },
+  { id: 'expiry', labelKey: 'stock-event.expiry-date', hideBelow: 1100 },
+  { id: 'source', labelKey: 'stock-event.source', hideBelow: 900 },
+  { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 900 },
   { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 600 },
-  { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 850 },
+  { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 640 },
   { id: 'balance', labelKey: 'stock-event.stock-on-hand', hideBelow: 450 },
   { id: 'reversing', labelKey: 'stock-event.reversing', defaultHidden: true },
   { id: 'reversedBy', labelKey: 'stock-event.reversed-by', defaultHidden: true },
