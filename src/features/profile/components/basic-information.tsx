@@ -56,6 +56,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
       const saved = await queryClient
         .fetchQuery({ ...profileOptions(user.id), staleTime: 0 })
         .catch(() => undefined);
+      if (!save.isCurrent()) return;
       void queryClient.invalidateQueries({ queryKey: pendingEmailOptions(user.id).queryKey });
       onSaved();
       if (error) return;

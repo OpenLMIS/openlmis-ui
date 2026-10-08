@@ -20,7 +20,15 @@ export function useSessionMutation<
   const [scope] = useState(getSessionScope);
   const onMutate = options.onMutate;
   const current = () => scope === getSessionScope();
-  return useMutation<TData, TError, TVariables, TContext>({
+  const completion =
+    <TArgs extends unknown[]>(callback: ((...args: TArgs) => unknown) | undefined) =>
+    async (...args: TArgs) => {
+      if (!current()) return;
+      const result = await callback?.(...args);
+      assertSessionScope(scope);
+      return result;
+    };
+  const mutation = useMutation<TData, TError, TVariables, TContext>({
     ...options,
     mutationFn: async (...args) => {
       assertSessionScope(scope);
@@ -36,8 +44,9 @@ export function useSessionMutation<
           return result;
         }
       : undefined,
-    onSuccess: (...args) => (current() ? options.onSuccess?.(...args) : undefined),
-    onError: (...args) => (current() ? options.onError?.(...args) : undefined),
-    onSettled: (...args) => (current() ? options.onSettled?.(...args) : undefined),
+    onSuccess: completion(options.onSuccess),
+    onError: completion(options.onError),
+    onSettled: completion(options.onSettled),
   });
+  return { ...mutation, isCurrent: current };
 }

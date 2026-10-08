@@ -112,6 +112,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
       const saved = await queryClient
         .fetchQuery({ ...options, staleTime: 0 })
         .catch(() => undefined);
+      if (!save.isCurrent()) return;
       if (error) return;
       // The form starts again from what the server now holds; if it cannot be read, from what it took.
       const next = saved ?? toSubscriptions(rows);

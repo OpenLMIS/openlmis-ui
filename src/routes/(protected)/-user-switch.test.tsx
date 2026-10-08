@@ -11,7 +11,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useLoginData } from '@/features/auth/store/login-data';
+import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
 
@@ -97,6 +97,37 @@ describe('protected session identity', () => {
     await waitFor(() => expect(screen.getByLabelText('Draft')).toHaveValue('saved'));
     expect(loader).toHaveBeenCalledTimes(2);
   });
+
+  it.each(['token-first', 'id-first'])(
+    'drops the draft after a legacy %s user switch',
+    async (order) => {
+      localStorage.setItem('openlmis.ACCESS_TOKEN', ada.accessToken);
+      localStorage.setItem('openlmis.USER_ID', ada.referenceDataUserId);
+      localStorage.setItem('openlmis.USERNAME', ada.username);
+      useLoginData.getState().setLoginData(ada, 'legacy');
+      await openDraft();
+      loader.mockResolvedValue('saved');
+      const changes =
+        order === 'token-first'
+          ? [
+              ['ACCESS_TOKEN', alan.accessToken],
+              ['USER_ID', alan.referenceDataUserId],
+            ]
+          : [
+              ['USER_ID', alan.referenceDataUserId],
+              ['ACCESS_TOKEN', alan.accessToken],
+            ];
+      for (const [key, value] of changes) {
+        await act(async () => {
+          localStorage.setItem(`openlmis.${key}`, value);
+          await syncOtherTab(`openlmis.${key}`);
+        });
+      }
+      expect(useLoginData.getState().referenceDataUserId).toBe(alan.referenceDataUserId);
+      expect(useLoginData.getState().expired).toBe(false);
+      await waitFor(() => expect(screen.getByLabelText('Draft')).toHaveValue('saved'));
+    },
+  );
 
   it('keeps the draft through expiry and same-user reauthentication', async () => {
     await openDraft();

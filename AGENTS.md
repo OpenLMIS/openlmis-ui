@@ -798,7 +798,12 @@ The store records a `sessionSource` (`own` or `legacy`). Only a `legacy`-sourced
 follows the legacy UI, so a user who signed into the new UI directly is unaffected by
 what the old one does. When legacy's session disappears, ours expires rather than clears:
 legacy wipes its keys the same way on a sign-out and on a refused token, and expiring keeps
-the page and its unsaved work behind the dialog. A change of user is followed at once. Our own logout calls `clearLegacySession()`, since the token is
+the page and its unsaved work behind the dialog. A changed token without a changed user id
+is ambiguous because legacy writes the keys separately: keep the previous token and expire
+until the identity changes or the user signs in through our dialog. A user id change always
+advances identity, even with the same token. If the id arrives first, expire under the new
+identity until its new token arrives; keep the token's original user id in `legacyTokenUserId`
+so neither write order releases requests under mismatched credentials. Our own logout calls `clearLegacySession()`, since the token is
 shared and killing it server-side while leaving the keys behind would only render a dead
 session. Preferences such as `openlmis.current_locale` are left alone.
 
@@ -824,7 +829,10 @@ discard guard. Session expiry and same-user token renewal keep drafts and loader
 
 Routed writes use `useSessionMutation` from `src/hooks/use-session-mutation.ts`, including
 writes in dialogs. It captures the mounting identity, checks it before and after work, and
-suppresses stale completion callbacks. Features import this shared hook, never auth.
+suppresses stale completion callbacks and checks identity again after they settle. An async
+completion must call the mutation's `isCurrent()` after every await, including caught refetch
+failures, before writing fallback data, resetting a form or calling another callback. Features
+import this shared hook, never auth.
 Authentication operations keep ordinary `useMutation`, since they change the session.
 The HTTP client captures the identity at request creation and checks it before sending,
 after waiting for reauthentication, and on responses. A stale successful read therefore

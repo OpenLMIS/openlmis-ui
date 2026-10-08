@@ -53,6 +53,34 @@ describe('useSessionMutation', () => {
     expect(onSettled).not.toHaveBeenCalled();
   });
 
+  it('does not run a per-call completion after an async settlement crosses identities', async () => {
+    let release = () => {};
+    const started = vi.fn();
+    const onSuccess = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useSessionMutation({
+          mutationFn: async () => 'saved',
+          onSettled: async () => {
+            started();
+            await new Promise<void>((resolve) => {
+              release = resolve;
+            });
+          },
+        }),
+      { wrapper },
+    );
+    const saving = result.current.mutateAsync(undefined, { onSuccess }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await waitFor(() => expect(started).toHaveBeenCalledOnce());
+    act(() => useLoginData.getState().setLoginData(alan));
+    release();
+    expect(await saving).toBeInstanceOf(SessionEndedError);
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it('keeps same-user saves valid through reauthentication', async () => {
     const send = vi.fn(async () => 'saved');
     const { result } = renderHook(() => useSessionMutation({ mutationFn: send }), { wrapper });
