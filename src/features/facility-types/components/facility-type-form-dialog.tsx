@@ -1,11 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -48,6 +42,7 @@ import { facilityTypesOptions } from '@/features/reference-data/api/queries';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -130,7 +125,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
     [types, refused, type?.id],
   );
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(type?.id ?? 'new'),
     mutationFn: (values: FacilityTypeFormValues) => {
       const body = toFacilityTypeBody(values, type);

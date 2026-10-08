@@ -8,6 +8,7 @@ import {
 } from '@/features/users/lib/user-form';
 import { client } from '@/integrations/axios';
 import { getIfExists } from '@/lib/http';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 import type { RoleAssignment, User, UserContactDetails, UserRecord } from '@/lib/user-types';
 
@@ -88,12 +89,16 @@ export async function fetchUserDetails(id: string): Promise<UserDetails> {
 
 /** Creates the user, then its contact details and sign-in account; undoes the user if either fails. */
 export async function createUser(values: UserFormValues): Promise<UserRecord> {
+  const scope = getSessionScope();
   const { data: user } = await client.put<UserRecord>('/users', toUserRecord(values));
 
   try {
+    assertSessionScope(scope);
     await client.put(`/userContactDetails/${user.id}`, toContactDetails(user.id, values));
+    assertSessionScope(scope);
     await client.post('/users/auth', toAuthUser(user.id, values));
   } catch (error) {
+    assertSessionScope(scope);
     // Without this a retry would fail on the username the half-created user still holds.
     await client.delete(`/users/${user.id}`).catch(() => undefined);
     throw error;

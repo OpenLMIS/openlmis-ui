@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellOffIcon, Loader2Icon, MailXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +35,7 @@ import {
 } from '@/features/profile/lib/digest';
 import type { DigestConfiguration, DigestSubscription } from '@/features/profile/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 
 const FORM_ID = 'notification-settings-form';
 
@@ -99,7 +100,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
     [configurations, subscriptions],
   );
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationFn: (rows: DigestRow[]) => saveSubscriptions(userId, toSubscriptions(rows)),
     onSuccess: () => {
       toast.success(t('profile.notifications.saved-title'), {

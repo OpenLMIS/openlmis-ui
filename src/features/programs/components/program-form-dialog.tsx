@@ -1,11 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +42,7 @@ import { programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys, userProgramsKey } from '@/lib/key-factory';
 
@@ -166,7 +161,7 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
     [programs, refused, program],
   );
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(program?.id ?? 'new'),
     mutationFn: (values: ProgramFormValues) => {
       const body = toProgramBody(values, program);

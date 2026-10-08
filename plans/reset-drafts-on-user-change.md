@@ -15,7 +15,8 @@ under another user's session.
 - Add protected-layout tests for draft reset, loader rights rechecks and same-user renewal.
 - Add HTTP and mutation regression tests for queued writes and delayed record reads.
 - Check Edit User Roles, product General and Facility editor through the shared boundary.
-- Update `_protected.tsx`, shared session identity/mutation helpers and HTTP interceptors.
+- Update `_protected.tsx`, `session-scope.ts`, `use-session-mutation.ts` and HTTP interceptors.
+- Use scoped mutations for routed writes; check identity before User and Service Account rollbacks.
 - Keep features free of auth imports. Document the behaviour in AGENTS.md.
 
 ## Decisions

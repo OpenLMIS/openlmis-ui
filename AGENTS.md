@@ -816,6 +816,23 @@ clears the whole cache whenever the store's user changes, on sign-out, on sign-i
 someone else, and when the session follows the legacy UI. Query keys therefore need no
 user id, except for per-user data such as rights.
 
+Protected route data and drafts also belong to that identity. `_protected.tsx` hides and
+remounts the routed subtree when the user changes, waiting for `router.invalidate()` to
+rerun loaders and recheck rights and facility/program scope. This external change drops
+unsaved work without a discard prompt. Deliberate navigation and sign-out still use the
+discard guard. Session expiry and same-user token renewal keep drafts and loader data.
+
+Routed writes use `useSessionMutation` from `src/hooks/use-session-mutation.ts`, including
+writes in dialogs. It captures the mounting identity, checks it before and after work, and
+suppresses stale completion callbacks. Features import this shared hook, never auth.
+Authentication operations keep ordinary `useMutation`, since they change the session.
+The HTTP client captures the identity at request creation and checks it before sending,
+after waiting for reauthentication, and on responses. A stale successful read therefore
+cannot continue a multi-step save as another user. A rollback that writes after catching
+an error also captures `getSessionScope()` and calls `assertSessionScope()` before cleanup.
+An already-sent write may finish on
+the server under its original token, but its result cannot update the next user's page.
+
 ## Environment Variables
 
 `.env.example` is the source of truth and README.md has the annotated table. Two that

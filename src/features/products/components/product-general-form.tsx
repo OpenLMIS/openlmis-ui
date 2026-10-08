@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +26,7 @@ import {
 import type { ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
 const FORM_ID = 'product-general-form';
@@ -47,7 +48,7 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
   );
   const leaving = useRef(false);
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: productSaveKey(product.id),
     mutationFn: (values: ProductFormValues) =>
       saveProductChange(product.id, (latest) => toProductUpdateBody(values, latest)),

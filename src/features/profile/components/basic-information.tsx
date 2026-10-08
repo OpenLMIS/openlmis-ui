@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, MailIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -26,6 +26,7 @@ import {
 import type { Profile } from '@/features/profile/lib/types';
 import { facilityOptions } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 
 const FORM_ID = 'profile-form';
 
@@ -41,7 +42,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   const { user, contact } = profile;
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationFn: (values: ProfileFormValues) => saveProfile(profile, values),
     onSuccess: (_, values) => {
       toast.success(t('profile.saved-title'), {
@@ -266,7 +267,7 @@ function FacilityName({ id }: { id: string }) {
 function PendingEmail({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const { data: email } = useQuery(pendingEmailOptions(userId));
-  const resend = useMutation({
+  const resend = useSessionMutation({
     mutationFn: () => resendVerification(userId),
     onSuccess: () => {
       toast.success(t('profile.email.resent-title'), {

@@ -1,9 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { saveProductChange } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProductGeneralForm } from '@/features/products/components/product-general-form';
@@ -11,6 +12,7 @@ import type { ProductDetail } from '@/features/products/lib/types';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/products/api/api', () => ({
   saveProductChange: vi.fn(),
 }));
@@ -62,6 +64,22 @@ beforeEach(() => {
 });
 
 describe('ProductGeneralForm', () => {
+  it('refuses the previous user General draft after a session switch', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'token' });
+    renderForm();
+    await screen.findByLabelText(/products.form.name/);
+    act(() =>
+      useLoginData
+        .getState()
+        .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
+    );
+    await rename('Old user draft');
+    expect(await screen.findByText('products.form.save-error-title')).toBeInTheDocument();
+    expect(saveProductChange).not.toHaveBeenCalled();
+  });
+
   it('saves the whole product with the change, keeps the new version and goes back', async () => {
     const saved = { ...product, fullProductName: 'Levora Plus' };
     update.mockResolvedValueOnce(saved);

@@ -1,9 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { appConfigurationOptions } from '@/features/system-settings/api/queries';
 import { PartialSaveError } from '@/features/system-settings/lib/partial-save-error';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { rememberAppConfiguration } from '@/lib/app-configuration';
 import { isConflict } from '@/lib/http';
 
@@ -64,7 +65,7 @@ export function useConfigurationSave<Values, Variables>({
     setBase(next);
   };
 
-  const mutation = useMutation({
+  const mutation = useSessionMutation({
     mutationFn: (variables: Variables) => save(base, variables),
     onSuccess: (next, variables) => {
       settle(next);

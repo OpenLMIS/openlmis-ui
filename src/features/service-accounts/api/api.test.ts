@@ -1,5 +1,7 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionEndedError } from '@/features/auth/lib/session';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   createServiceAccount,
   deleteServiceAccount,
@@ -46,6 +48,28 @@ describe('fetchServiceAccounts', () => {
 });
 
 describe('createServiceAccount', () => {
+  it('never cleans up an old user key under another user session', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'token' });
+    post.mockResolvedValueOnce({ data: key });
+    remove.mockResolvedValueOnce({});
+    let refuse = () => {};
+    post.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        refuse = () => reject(failed(500));
+      }),
+    );
+    const saving = createServiceAccount();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' });
+    refuse();
+    await expect(saving).rejects.toBeInstanceOf(SessionEndedError);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it('creates the key, then its service account', async () => {
     post.mockResolvedValueOnce({ data: key }).mockResolvedValueOnce({ data: key });
 

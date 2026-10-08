@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useIsMutating, useMutation } from '@tanstack/react-query';
+import { useIsMutating } from '@tanstack/react-query';
 import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
@@ -20,6 +20,7 @@ import { PasswordRequirements } from '@/components/password-requirements';
 import { FieldGroup } from '@/components/ui/field';
 import { changePassword } from '@/features/profile/api/api';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { newPasswordSchema } from '@/lib/password-form';
 import { passwordErrorKey } from '@/lib/password-rules';
@@ -57,7 +58,7 @@ function ChangePasswordForm({
 }: Pick<ChangePasswordDialogProps, 'user' | 'onChanged'>) {
   const { t } = useTranslation();
   const requirementsId = useId();
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: passwordKey,
     mutationFn: (password: string) => changePassword(user.username, password),
     onSuccess: onChanged,

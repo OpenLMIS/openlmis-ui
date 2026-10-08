@@ -39,6 +39,41 @@ afterEach(() => {
 });
 
 describe('client', () => {
+  it('does not send a queued write after a synchronous user switch', async () => {
+    const { sent } = serve('alan-token');
+    const request = client.put('/users', { draft: 'ada' });
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual([]);
+  });
+
+  it('rejects a stale successful read before a save can continue as another user', async () => {
+    let release = () => {};
+    const sent: string[] = [];
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    client.defaults.adapter = async (config) => {
+      sent.push(`${config.url} ${config.headers.Authorization}`);
+      if (config.url === '/latest') await hold;
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
+    const saving = client.get('/latest').then(() => client.put('/users', { draft: 'ada' }));
+    await flush();
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    release();
+    await expect(saving).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual(['/latest Bearer old-token']);
+  });
+
   it('sends the current token', async () => {
     const { sent } = serve('old-token');
 

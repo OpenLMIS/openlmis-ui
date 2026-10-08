@@ -1,10 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, UsersIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +37,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 
 type AddAssignmentDialogProps = {
   api: AssignmentsApi;
@@ -91,7 +87,7 @@ function AddAssignmentForm({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(api),
     mutationFn: (values: AssignmentFormValues) => api.create(toAssignmentBody(values)),
     onSuccess: ({ assignment, created }) => {

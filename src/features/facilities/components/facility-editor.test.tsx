@@ -1,9 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   FACILITY_EDITOR_LOOKUPS,
   FacilityEditor,
@@ -17,6 +18,7 @@ import {
 import type { Facility } from '@/features/reference-data/lib/types';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/reference-data/api/api', () => {
   const pending = () => new Promise<never>(() => {});
   return {
@@ -38,7 +40,7 @@ const row = (id: string, name: string) => ({
 });
 
 function seededClient() {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   const { types, zones, operators, programs } = FACILITY_EDITOR_LOOKUPS;
   queryClient.setQueryData(types.queryKey, [
     {
@@ -107,6 +109,23 @@ const duplicateCode = () =>
   });
 
 describe('FacilityEditor', () => {
+  it('refuses the previous user facility draft after a session switch', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'token' });
+    const save = vi.fn(async () => ({ id: 'new' }) as Facility);
+    renderPage(<Editor initialValues={filled} save={save} />, { queryClient: seededClient() });
+    await screen.findByLabelText(/facilities.form.name/);
+    act(() =>
+      useLoginData
+        .getState()
+        .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Create' }));
+    expect(await screen.findByText('facilities.form.save-error-title')).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('keeps what was typed on one tab while the other is open', async () => {
     const user = userEvent.setup();
     renderPage(<Editor save={vi.fn()} />, { queryClient: seededClient() });
