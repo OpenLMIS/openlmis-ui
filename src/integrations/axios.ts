@@ -36,9 +36,12 @@ const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined)
 // While the session is expired a request waits for the user to sign in again rather than fail.
 client.interceptors.request.use(async (config) => {
   const { accessToken, expired, referenceDataUserId } = useLoginData.getState();
-  if (config.session !== false && !config.anonymous)
-    assertSessionScope(config.sessionScope ?? getSessionScope());
   config.sentFor ??= referenceDataUserId;
+  if (config.session !== false && !config.anonymous) {
+    config.sessionScope ??= getSessionScope();
+    assertSessionScope(config.sessionScope);
+    if (config.sentFor !== referenceDataUserId) throw new SessionEndedError();
+  }
   if (config.headers.Authorization || config.anonymous) return config;
 
   const token =

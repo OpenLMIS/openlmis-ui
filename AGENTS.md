@@ -803,9 +803,11 @@ is ambiguous because legacy writes the keys separately: keep the previous token 
 until the identity changes or the user signs in through our dialog. A user id change always
 advances identity, even with the same token. If the id arrives first, expire under the new
 identity until its new token arrives; keep the token's original user id in `legacyTokenUserId`
-so neither write order releases requests under mismatched credentials. Our own logout calls `clearLegacySession()`, since the token is
-shared and killing it server-side while leaving the keys behind would only render a dead
-session. Preferences such as `openlmis.current_locale` are left alone.
+so neither write order releases requests under mismatched credentials. Username changes also
+follow the borrowed session, including a username written after its token and id, so the
+session-expired dialog always uses the latest legacy username. Our own logout calls
+`clearLegacySession()`, since the token is shared and killing it server-side while leaving
+the keys behind would only render a dead session. Preferences such as `openlmis.current_locale` are left alone.
 
 Login deliberately carries one way: signing in here does not sign the user into the legacy
 UI, and we write no `openlmis.*` keys. Legacy keeps working normally, it just asks for a
@@ -836,10 +838,13 @@ import this shared hook, never auth.
 Authentication operations keep ordinary `useMutation`, since they change the session.
 The HTTP client captures the identity at request creation and checks it before sending,
 after waiting for reauthentication, and on responses. A stale successful read therefore
-cannot continue a multi-step save as another user. A rollback that writes after catching
-an error also captures `getSessionScope()` and calls `assertSessionScope()` before cleanup.
-An already-sent write may finish on
-the server under its original token, but its result cannot update the next user's page.
+cannot continue a multi-step save as another user. Multi-request operations capture
+`getSessionScope()` and check it before each request, including between batches. `settleFew` checks before and after each task and rejects on
+`SessionEndedError` or a scope change, clearing its queue instead of counting a per-item
+failure. Ordinary item failures still allow the rest of the batch to finish. The HTTP client
+also refuses a request whose `sentFor` names a previous user before sending it.
+A rollback that writes after catching an error also captures `getSessionScope()` and calls
+`assertSessionScope()` before cleanup. An already-sent write may finish on the server under its original token, but its result cannot update the next user's page.
 
 ## Environment Variables
 

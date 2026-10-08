@@ -94,6 +94,7 @@ export function syncLegacySession(): boolean {
     sessionSource,
     expired,
     legacyTokenUserId,
+    username,
   } = useLoginData.getState();
   const legacy = readLegacySession();
 
@@ -130,9 +131,11 @@ export function syncLegacySession(): boolean {
     return true;
   }
 
-  if (!tokenChanged) return false;
+  const usernameChanged = legacy.username !== username;
+  if (usernameChanged) useLoginData.setState({ username: legacy.username });
+  if (!tokenChanged) return usernameChanged;
   useLoginData.getState().expireSession();
-  return !expired;
+  return usernameChanged || !expired;
 }
 
 /** Follows a change another tab made to the shared storage; resolves `true` if it signed this tab out. */

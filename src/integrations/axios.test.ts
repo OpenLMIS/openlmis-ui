@@ -39,6 +39,18 @@ afterEach(() => {
 });
 
 describe('client', () => {
+  it('refuses a request retained for a different user before sending it', async () => {
+    const { sent } = serve('old-token');
+
+    await expect(
+      client.delete('/validDestinations/old-draft', {
+        sentFor: 'previous-user-id',
+      }),
+    ).rejects.toBeInstanceOf(SessionEndedError);
+
+    expect(sent).toEqual([]);
+  });
+
   it('does not send a queued write after a synchronous user switch', async () => {
     const { sent } = serve('alan-token');
     const request = client.put('/users', { draft: 'ada' });
