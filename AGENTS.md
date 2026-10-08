@@ -478,7 +478,9 @@ list page therefore follows the content width, never viewport breakpoints like `
   menu, so the menu always shows what is on screen.
 - Column widths and the toolbar use container queries on `Workspace`'s
   `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:w-72`.
-- The pagination follows the table card's own `@container/table`.
+- The pagination follows the table card's own `@container/table`. It offers the current page and
+  up to three on each side, as legacy does, keeping only the current one on a narrow table, and a
+  link may carry any page size from 1 to 100.
 
 A table stays a table at every width, never stacked cards: lower-priority columns hide as the
 room shrinks (`hideBelow` also takes a width in px for a table wider than the container sizes,

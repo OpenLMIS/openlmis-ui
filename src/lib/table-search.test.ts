@@ -27,7 +27,15 @@ describe('tableSearchSchema', () => {
   });
 
   it('drops invalid params instead of failing the route', () => {
-    expect(schema.parse({ page: 0, size: 7, sort: 'password', dir: 'up' })).toEqual({});
+    expect(schema.parse({ page: 0, size: 0, sort: 'password', dir: 'up' })).toEqual({});
+  });
+
+  it.each([1, 7, 25, 100])('keeps a whole page size of %i from a link', (size) => {
+    expect(schema.parse({ size })).toEqual({ size });
+  });
+
+  it.each([0, -1, 1.5, 101, Infinity, '25', null])('drops an invalid page size of %s', (size) => {
+    expect(schema.parse({ size }).size).toBeUndefined();
   });
 });
 

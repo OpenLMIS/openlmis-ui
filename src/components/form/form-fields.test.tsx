@@ -586,6 +586,32 @@ describe('date field', () => {
 });
 
 describe('date picker', () => {
+  it.each([1900, 2100, new Date().getFullYear() + 100])(
+    'picks a date in year %i through the year dropdown',
+    async (year) => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(
+        <DatePicker
+          id="expiry"
+          label="Expiry"
+          onValueChange={onValueChange}
+          placeholder="Expiry"
+          value="2026-01-15"
+        />,
+      );
+
+      const calendar = await openCalendar(user, /^Expiry/);
+      const years = await within(calendar).findByRole('combobox', { name: 'Choose the Year' });
+      await user.selectOptions(years, String(year));
+      await user.click(
+        within(calendar).getByRole('button', { name: new RegExp(`January 16th, ${year}`) }),
+      );
+
+      expect(onValueChange).toHaveBeenCalledWith(`${year}-01-16`);
+    },
+  );
+
   it('is named by its label, then by its date once one is picked', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();

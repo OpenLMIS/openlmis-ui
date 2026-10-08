@@ -17,6 +17,7 @@
   "data-table.last-page": "الصفحة الأخيرة",
   "data-table.next-page": "الصفحة التالية",
   "data-table.no-matches": "لا توجد نتائج مطابقة",
+  "data-table.page": "الصفحة {page}",
   "data-table.previous-page": "الصفحة السابقة",
   "data-table.range": "{from, number}-{to, number} من {total, number}",
   "data-table.reset-columns": "إعادة تعيين الأعمدة",

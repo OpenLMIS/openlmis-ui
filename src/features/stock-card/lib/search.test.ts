@@ -12,7 +12,7 @@ describe('card paging search', () => {
       cardPage: 3,
       cardSize: 20,
     });
-    expect(cardPagingSchema.parse({ cardPage: -1, cardSize: 7 })).toEqual({
+    expect(cardPagingSchema.parse({ cardPage: -1, cardSize: 1001 })).toEqual({
       cardPage: undefined,
       cardSize: undefined,
     });

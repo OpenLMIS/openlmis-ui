@@ -1293,7 +1293,7 @@ type LoadedCalendar = {
 };
 
 const FIRST_MONTH = new Date(1900, 0);
-const lastMonth = () => new Date(new Date().getFullYear() + 20, 11);
+const lastMonth = () => new Date(new Date().getFullYear() + 100, 11);
 
 /** Narrow, since a day column is too small for the full name in many languages. */
 const weekdayName = (date: Date, locale: string) =>

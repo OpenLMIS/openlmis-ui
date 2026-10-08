@@ -9,9 +9,9 @@ describe('facilityTypesSearchSchema', () => {
     expect(
       facilityTypesSearchSchema.parse({ page: 2, size: 20, sort: 'code', dir: 'desc' }),
     ).toEqual({ page: 2, size: 20, sort: 'code', dir: 'desc' });
-    expect(facilityTypesSearchSchema.parse({ page: 0, size: 7, sort: 'bogus', dir: 'up' })).toEqual(
-      {},
-    );
+    expect(
+      facilityTypesSearchSchema.parse({ page: 0, size: 1001, sort: 'bogus', dir: 'up' }),
+    ).toEqual({});
   });
 
   it('opens the dialog for a new type or a type id', () => {

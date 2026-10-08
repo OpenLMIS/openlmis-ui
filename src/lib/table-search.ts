@@ -6,7 +6,6 @@ import {
 } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { z } from 'zod';
-import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/components/data-table/data-table-pagination';
 import { parseDateValue } from '@/components/form/date-value';
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -27,11 +26,7 @@ export function tableSearchSchema<const TSortField extends string>(
 ) {
   return z.object({
     page: z.number().int().min(1).optional().catch(undefined),
-    size: z
-      .number()
-      .refine((size) => DEFAULT_PAGE_SIZE_OPTIONS.includes(size))
-      .optional()
-      .catch(undefined),
+    size: z.number().int().min(1).max(100).optional().catch(undefined),
     sort: z.enum(sortFields).optional().catch(undefined),
     dir: z.enum(['asc', 'desc']).optional().catch(undefined),
   });

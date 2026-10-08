@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -35,6 +37,15 @@ export function DataTablePagination<TData extends RowData>({
   const labels = useDataTableLabels();
   const pageSizeId = useId();
   const { pageIndex, pageSize } = table.state.pagination;
+  const pageCount = Math.max(1, table.getPageCount());
+  const pages = Array.from({ length: 7 }, (_, offset) => pageIndex - 3 + offset).filter(
+    (page) => page >= 0 && page < pageCount,
+  );
+  const pageSizeItems = DEFAULT_PAGE_SIZE_OPTIONS.includes(pageSize)
+    ? PAGE_SIZE_ITEMS
+    : [...PAGE_SIZE_ITEMS, { value: pageSize, label: String(pageSize) }].sort(
+        (a, b) => a.value - b.value,
+      );
   const total = table.getRowCount();
   const from = total === 0 ? 0 : pageIndex * pageSize + 1;
   const to = Math.min((pageIndex + 1) * pageSize, total);
@@ -57,7 +68,38 @@ export function DataTablePagination<TData extends RowData>({
     <PaginationLayout
       controls={
         <div className="flex items-center gap-1">
-          {controls.map(({ label, icon: Icon, enabled, go }) => (
+          {controls.slice(0, 2).map(({ label, icon: Icon, enabled, go }) => (
+            <Button
+              aria-label={label}
+              disabled={!enabled}
+              key={label}
+              onClick={() => go()}
+              size="icon-sm"
+              variant="outline"
+            >
+              <Icon className="rtl:rotate-180" />
+            </Button>
+          ))}
+          {pages.map((page) => (
+            <div
+              className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}
+              key={page}
+            >
+              <Button
+                aria-current={page === pageIndex ? 'page' : undefined}
+                aria-label={labels.page(page + 1)}
+                disabled={disabled}
+                onClick={() => {
+                  if (page !== pageIndex) table.setPageIndex(page);
+                }}
+                size="sm"
+                variant={page === pageIndex ? 'default' : 'outline'}
+              >
+                {page + 1}
+              </Button>
+            </div>
+          ))}
+          {controls.slice(2).map(({ label, icon: Icon, enabled, go }) => (
             <Button
               aria-label={label}
               disabled={!enabled}
@@ -73,7 +115,6 @@ export function DataTablePagination<TData extends RowData>({
       }
       pageSize={
         <div className="flex items-center gap-2">
-          {/* Screen readers still get the label when the table is too narrow to show it. */}
           <label
             className="sr-only text-muted-foreground @md/table:not-sr-only"
             htmlFor={pageSizeId}
@@ -82,7 +123,7 @@ export function DataTablePagination<TData extends RowData>({
           </label>
           <Select
             disabled={disabled}
-            items={PAGE_SIZE_ITEMS}
+            items={pageSizeItems}
             onValueChange={(value) => {
               if (value !== null) table.setPageSize(value);
             }}
@@ -92,17 +133,18 @@ export function DataTablePagination<TData extends RowData>({
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              {PAGE_SIZE_ITEMS.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {pageSizeItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
       }
       range={
-        // Read aloud but hidden in a narrow table.
         <p
           aria-live="polite"
           className="sr-only whitespace-nowrap text-muted-foreground tabular-nums @md/table:not-sr-only"
@@ -114,11 +156,10 @@ export function DataTablePagination<TData extends RowData>({
   );
 }
 
-/** Placeholder with the pagination's own layout, so the footer keeps its height while loading. */
 export function DataTablePaginationSkeleton() {
   return (
     <PaginationLayout
-      controls={<SkeletonBlock className="h-7 w-32" />}
+      controls={<SkeletonBlock className="h-7 w-40 @md/table:w-96" />}
       pageSize={<SkeletonBlock className="h-7 w-16 @md/table:w-36" />}
       range={
         <div className="hidden @md/table:block">
@@ -145,9 +186,9 @@ type PaginationLayoutProps = {
 
 function PaginationLayout({ pageSize, range, controls }: PaginationLayoutProps) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
       {pageSize}
-      <div className="flex items-center gap-3">
+      <div className="ms-auto flex flex-wrap items-center justify-end gap-3">
         {range}
         {controls}
       </div>
