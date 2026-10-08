@@ -456,8 +456,39 @@ describe('stock event detail', () => {
     expect(screen.getByText('Vaccine - each (C1)')).toBeInTheDocument();
     expect(screen.getByRole('table').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('DOC-1')).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'stock-event.reversed-by' }),
+    ).toBeInTheDocument();
     await act(async () => release());
     await screen.findByText('Other Product - each (C1)');
+  });
+
+  it('shows only the reversal column the page has values for', async () => {
+    vi.mocked(fetchStockEventLines).mockResolvedValue(
+      linesPage([{ ...line, reversedEventId: null }]),
+    );
+    renderRoute();
+    const table = await screen.findByRole('table');
+    await within(table).findByText('Vaccine - each (C1)');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent);
+    expect(headers).toContain('stock-event.reversed-by');
+    expect(headers).not.toContain('stock-event.reversing');
+  });
+
+  it('drops the reversal columns on a phone, keeping stock on hand', async () => {
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    renderRoute();
+    const table = await screen.findByRole('table');
+    await within(table).findByText('Vaccine - each (C1)');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['stock-event.product', 'stock-event.quantity']);
   });
 
   it('fetches the header fresh on each entry even when cached', async () => {
@@ -490,6 +521,25 @@ describe('stock event detail', () => {
     await act(() => router.history.back());
     await screen.findByText('DOC-1-NEW');
     expect(fetchStockEvent).toHaveBeenCalledTimes(3);
+  });
+
+  it('reads an event fresh on the way back from one that failed to load', async () => {
+    vi.mocked(fetchStockEvent).mockImplementation(async (id) => {
+      if (id === 'missing') throw httpError(404);
+      return { ...event, id };
+    });
+    const { router } = renderRoute();
+    await screen.findByText('DOC-1');
+    await act(() =>
+      router.navigate({
+        to: '/stock-management/transaction-history/$eventId',
+        params: { eventId: 'missing' },
+      }),
+    );
+    await screen.findByText('stock-event.not-found-title');
+    vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, documentNumber: 'DOC-1-NEW' });
+    await act(() => router.history.back());
+    await screen.findByText('DOC-1-NEW');
   });
 
   it('does not reveal a late event after a user change', async () => {

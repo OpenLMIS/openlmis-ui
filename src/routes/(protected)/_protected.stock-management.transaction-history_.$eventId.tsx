@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -69,15 +70,25 @@ const NO_DIALOGS = {};
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-const REVERSAL_COLUMNS: readonly string[] = ['reversing', 'reversedBy'];
-const WITH_REVERSALS = STOCK_EVENT_HIDEABLE_COLUMNS.map((column) =>
-  REVERSAL_COLUMNS.includes(column.id) ? { ...column, defaultHidden: false } : column,
-);
+type ShownReversals = { reversing: boolean; reversedBy: boolean };
+const NO_REVERSALS: ShownReversals = { reversing: false, reversedBy: false };
+const REVERSAL_HIDE_BELOW = 900;
 
-function useEventLayout(hasReversals = false) {
+function useEventLayout(reversals: ShownReversals = NO_REVERSALS) {
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const columns = useMemo(
+    () =>
+      STOCK_EVENT_HIDEABLE_COLUMNS.map((column) =>
+        column.id === 'reversing' || column.id === 'reversedBy'
+          ? reversals[column.id]
+            ? { id: column.id, labelKey: column.labelKey, hideBelow: REVERSAL_HIDE_BELOW }
+            : column
+          : column,
+      ),
+    [reversals],
+  );
   const columnView = useColumnVisibility(
-    hasReversals ? WITH_REVERSALS : STOCK_EVENT_HIDEABLE_COLUMNS,
+    columns,
     useStoredState('stock-event.column-visibility', columnChoicesSchema, {}),
     width,
   );
@@ -99,6 +110,7 @@ export const Route = createFileRoute(
     const options = stockEventOptions(params.eventId);
     const state = queryClient.getQueryState(options.queryKey);
     const sameEvent = cause === 'stay' && shownEventId === params.eventId;
+    shownEventId = undefined;
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [permissions, event] =
       (await Promise.all([
@@ -137,7 +149,7 @@ function StockEventPage() {
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView } = useEventLayout(useHasReversals(search));
+  const { measure, columnView } = useEventLayout(useShownReversals(search));
   const userId = useReloadForUser(
     data?.userId,
     stockEventOptions(Route.useParams().eventId).queryKey,
@@ -189,13 +201,15 @@ function StockEventPage() {
   );
 }
 
-function useHasReversals(search: DetailPagingSearch) {
-  const { pageIndex, pageSize } = toPaginationState(detailTableSearch(search));
+function useShownReversals(search: DetailPagingSearch) {
+  const { pageIndex, pageSize } = toPaginationState(detailTableSearch(useDeferredValue(search)));
   const { data } = useQuery({
     ...stockEventLinesOptions(Route.useParams().eventId, { page: pageIndex, size: pageSize }),
     enabled: false,
   });
-  return Boolean(data?.content.some((line) => line.reversedEventId || line.cancellationEventId));
+  const reversing = Boolean(data?.content.some((line) => line.reversedEventId));
+  const reversedBy = Boolean(data?.content.some((line) => line.cancellationEventId));
+  return useMemo(() => ({ reversing, reversedBy }), [reversing, reversedBy]);
 }
 
 function StockEventColumns({ columnView }: { columnView: ReturnType<typeof useColumnVisibility> }) {
