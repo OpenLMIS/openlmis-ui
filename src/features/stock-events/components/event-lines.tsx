@@ -24,7 +24,7 @@ import {
 import type { StockEventLine } from '@/features/stock-events/lib/types';
 import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
-import { eventLinks, namedWithFreeText, reasonLabel, stockProductName } from '@/lib/stock-labels';
+import { eventLinks, namedWithFreeText } from '@/lib/stock-labels';
 import {
   type SearchChange,
   type TableSearch,
@@ -75,7 +75,7 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
   switch (id) {
     case 'product':
       return (
-        <Wrapped>{`${stockProductName(line.orderable)} (${line.orderable.productCode})`}</Wrapped>
+        <Wrapped>{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</Wrapped>
       );
     case 'lot':
       return <Wrapped>{line.lot ? orEmpty(line.lot.lotCode) : t('stock-event.no-lot')}</Wrapped>;
@@ -100,7 +100,7 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
         <Wrapped>{orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}</Wrapped>
       );
     case 'reason':
-      return <Wrapped>{orEmpty(reasonLabel(line, t('stock-event.physical-inventory')))}</Wrapped>;
+      return <Wrapped>{orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}</Wrapped>;
     case 'quantity':
     case 'balance':
       return (
@@ -117,7 +117,7 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
       );
     case 'reversing':
     case 'reversedBy': {
-      const link = eventLinks(line, t('stock-event.no-number'))[id];
+      const link = eventLinks(line, { noNumber: '', view: t('stock-event.view-event') })[id];
       if (!link?.eventId) return <Wrapped>{orEmpty(link?.label)}</Wrapped>;
       return (
         <span className="whitespace-nowrap">

@@ -380,7 +380,7 @@ describe('stock card display and paging', () => {
       'href',
       `/stock-management/transaction-history/event0${back}`,
     );
-    expect(screen.getByRole('link', { name: 'stock-card.no-number' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'stock-card.view-event' })).toHaveAttribute(
       'href',
       `/stock-management/transaction-history/event1${back}`,
     );

@@ -227,10 +227,10 @@ describe('stock event detail', () => {
       'stock-event.reversing',
       'stock-event.reversed-by',
     ]);
-    expect(within(table).getByText('Vaccine - each (C1)')).toBeInTheDocument();
+    expect(within(table).getByText('Vaccine (C1)')).toBeInTheDocument();
     expect(within(table).getByText('Warehouse: North')).toBeInTheDocument();
     expect(within(table).getByText('Clinic: South')).toBeInTheDocument();
-    expect(within(table).getByText('stock-event.physical-inventory')).toBeInTheDocument();
+    expect(within(table).getByText('Count')).toBeInTheDocument();
     expect(within(table).getByText('Jan 31, 2027')).toBeInTheDocument();
   });
 
@@ -240,7 +240,7 @@ describe('stock event detail', () => {
     );
     renderRoute();
     const table = await screen.findByRole('table');
-    await within(table).findByText('Vaccine - each (C1)');
+    await within(table).findByText('Vaccine (C1)');
     const headers = within(table)
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent);
@@ -318,7 +318,7 @@ describe('stock event detail', () => {
     expect(screen.getByText('DOC-1')).toBeInTheDocument();
     vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage());
     await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
-    await screen.findByText('Vaccine - each (C1)');
+    await screen.findByText('Vaccine (C1)');
   });
 
   it('prints using the selected unit and language and opens the report', async () => {
@@ -396,7 +396,7 @@ describe('stock event detail', () => {
     );
     vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([line], 50));
     renderRoute(path('?detailPage=3&detailSize=20&page=7&type=issue&documentNumber=DOC'));
-    const reversing = await screen.findByRole('link', { name: 'stock-event.no-number' });
+    const reversing = await screen.findByRole('link', { name: 'stock-event.view-event' });
     const reversedBy = screen.getByRole('link', { name: 'REV-1' });
     for (const [link, target] of [
       [reversing, 'original'],
@@ -438,7 +438,7 @@ describe('stock event detail', () => {
   it('keeps current rows dimmed during deferred line paging', async () => {
     vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([line], 25));
     const { router } = renderRoute();
-    await screen.findByText('Vaccine - each (C1)');
+    await screen.findByText('Vaccine (C1)');
     let release = () => {};
     vi.mocked(fetchStockEventLines).mockReturnValueOnce(
       new Promise((resolve) => {
@@ -453,14 +453,14 @@ describe('stock event detail', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Next Page' }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ detailPage: 2 }));
-    expect(screen.getByText('Vaccine - each (C1)')).toBeInTheDocument();
+    expect(screen.getByText('Vaccine (C1)')).toBeInTheDocument();
     expect(screen.getByRole('table').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('DOC-1')).toBeInTheDocument();
     expect(
       screen.getByRole('columnheader', { name: 'stock-event.reversed-by' }),
     ).toBeInTheDocument();
     await act(async () => release());
-    await screen.findByText('Other Product - each (C1)');
+    await screen.findByText('Other Product (C1)');
   });
 
   it('shows only the reversal column the page has values for', async () => {
@@ -469,7 +469,7 @@ describe('stock event detail', () => {
     );
     renderRoute();
     const table = await screen.findByRole('table');
-    await within(table).findByText('Vaccine - each (C1)');
+    await within(table).findByText('Vaccine (C1)');
     const headers = within(table)
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent);
@@ -483,7 +483,7 @@ describe('stock event detail', () => {
     } as DOMRect);
     renderRoute();
     const table = await screen.findByRole('table');
-    await within(table).findByText('Vaccine - each (C1)');
+    await within(table).findByText('Vaccine (C1)');
     expect(
       within(table)
         .getAllByRole('columnheader')

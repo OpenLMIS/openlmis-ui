@@ -42,9 +42,11 @@ describe('stock labels', () => {
   });
 });
 
+const LABELS = { noNumber: 'No Number', view: 'View' };
+
 describe('eventLinks', () => {
   it('links nothing without an origin or a reversal', () => {
-    expect(eventLinks({ documentNumber: 'Hidden', originEventId: 'event0' }, 'No Number')).toEqual({
+    expect(eventLinks({ documentNumber: 'Hidden', originEventId: 'event0' }, LABELS)).toEqual({
       document: null,
       reversing: null,
       reversedBy: null,
@@ -63,7 +65,7 @@ describe('eventLinks', () => {
           cancellationEventId: 'event2',
           cancellationEventDocumentNumber: 'DOC-3',
         },
-        'No Number',
+        LABELS,
       ),
     ).toEqual({
       document: { label: 'DOC-1', eventId: 'event0' },
@@ -72,16 +74,16 @@ describe('eventLinks', () => {
     });
   });
 
-  it('falls back to No Number and keeps a document without an event as text', () => {
+  it('falls back to View for a reversal and No Number for a document, as text without an event', () => {
     expect(
       eventLinks(
         { eventOrigin: 'ISSUE', reversedEventId: 'event1', cancellationEventId: 'event2' },
-        'No Number',
+        LABELS,
       ),
     ).toEqual({
       document: { label: 'No Number' },
-      reversing: { label: 'No Number', eventId: 'event1' },
-      reversedBy: { label: 'No Number', eventId: 'event2' },
+      reversing: { label: 'View', eventId: 'event1' },
+      reversedBy: { label: 'View', eventId: 'event2' },
     });
   });
 });

@@ -130,21 +130,36 @@ function LineCell({
     case 'document':
       return (
         <EventCell
-          link={eventLinks(line, t('stock-card.no-number')).document}
+          link={
+            eventLinks(line, {
+              noNumber: t('stock-card.no-number'),
+              view: t('stock-card.view-event'),
+            }).document
+          }
           search={eventSearch}
         />
       );
     case 'reversing':
       return (
         <EventCell
-          link={eventLinks(line, t('stock-card.no-number')).reversing}
+          link={
+            eventLinks(line, {
+              noNumber: t('stock-card.no-number'),
+              view: t('stock-card.view-event'),
+            }).reversing
+          }
           search={eventSearch}
         />
       );
     case 'reversedBy':
       return (
         <EventCell
-          link={eventLinks(line, t('stock-card.no-number')).reversedBy}
+          link={
+            eventLinks(line, {
+              noNumber: t('stock-card.no-number'),
+              view: t('stock-card.view-event'),
+            }).reversedBy
+          }
           search={eventSearch}
         />
       );

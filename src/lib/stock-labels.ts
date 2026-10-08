@@ -44,14 +44,17 @@ type EventReferences = {
 const link = (label: string, eventId: string | null | undefined): EventLink =>
   eventId ? { label, eventId } : { label };
 
-export function eventLinks(line: EventReferences, noNumber: string) {
+export function eventLinks(
+  line: EventReferences,
+  { noNumber, view }: { noNumber: string; view: string },
+) {
   return {
     document: line.eventOrigin ? link(line.documentNumber || noNumber, line.originEventId) : null,
     reversing: line.reversedEventId
-      ? link(line.reversedEventDocumentNumber || noNumber, line.reversedEventId)
+      ? link(line.reversedEventDocumentNumber || view, line.reversedEventId)
       : null,
     reversedBy: line.cancellationEventId
-      ? link(line.cancellationEventDocumentNumber || noNumber, line.cancellationEventId)
+      ? link(line.cancellationEventDocumentNumber || view, line.cancellationEventId)
       : null,
   };
 }
