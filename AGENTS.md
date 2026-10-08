@@ -670,7 +670,8 @@ facilities, home included. The route passes the grants of the right it needs, so
 no auth. The URL keeps `mode`, `programId` and `facilityId` only once Search is pressed; the picker's
 changes before that are a draft, and the page hides results that no longer match it. A link whose
 selection the picker would not offer (`validSelection`) is refused, and the picker leaves what it does
-not offer blank rather than picking something else under the refusal. The loader asks for stock only for a
+not offer blank rather than picking something else under the refusal. A Supervised link to a program
+the user holds at home opens as My Facility, as legacy lists it. The loader asks for stock only for a
 pair the user's grants include, and without waiting for the picker's lookups, so the two load side by side.
 A required list with one option has it picked, as legacy does.
 
