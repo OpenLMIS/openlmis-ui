@@ -18,8 +18,10 @@ import {
   fetchFacility,
   fetchUserPrograms,
   fetchUserRecord,
+  fetchValidReasons,
 } from '@/features/reference-data/api/api';
 import type { Facility } from '@/features/reference-data/lib/types';
+import { fetchEventStockCards } from '@/features/stock-events/api/api';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
 
@@ -28,6 +30,12 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
+  fetchValidReasons: vi.fn(),
+}));
+
+vi.mock('@/features/stock-events/api/api', () => ({
+  fetchEventStockCards: vi.fn(),
+  submitStockEvent: vi.fn(),
 }));
 
 const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
@@ -95,6 +103,15 @@ function renderRoute(path = PICKER) {
 }
 
 beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.mocked(fetchEventStockCards).mockResolvedValue([]);
+  vi.mocked(fetchValidReasons).mockResolvedValue([]);
   useLoginData.setState({ referenceDataUserId: USER });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
@@ -193,6 +210,24 @@ describe('adjustments program picker', () => {
 });
 
 describe('adjustment editor access', () => {
+  it('explains missing scoped stock view access without loading stock cards', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([...grants, `STOCK_CARDS_VIEW|away|${FP}`]);
+    renderRoute(`${PICKER}/${FP}`);
+    expect(await screen.findByText('stock-events.no-stock-view-description')).toBeInTheDocument();
+    expect(fetchEventStockCards).not.toHaveBeenCalled();
+    expect(fetchValidReasons).not.toHaveBeenCalled();
+  });
+  it('prefetches stock and reasons for the granted home facility and program', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      ...grants,
+      `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+    ]);
+    renderRoute(`${PICKER}/${FP}`);
+    await screen.findByRole('heading', { name: 'stock-adjustment.editor-title' });
+    expect(fetchEventStockCards).toHaveBeenCalledWith({ facilityId: HOME, programId: FP });
+    expect(fetchValidReasons).toHaveBeenCalledWith({ program: FP, facilityType: 'type' });
+  });
+
   it.each([
     ['an unscoped right', ['STOCK_ADJUST']],
     ['a grant at another facility', [`STOCK_ADJUST|away|${FP}`]],

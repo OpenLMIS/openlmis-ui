@@ -18,7 +18,14 @@ import {
   facilityOptions,
   userProgramsOptions,
   userRecordOptions,
+  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
+import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  AdjustmentEditor,
+  type AdjustmentSearch,
+} from '@/features/stock-events/components/adjustment-editor';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
@@ -56,7 +63,14 @@ export const Route = createFileRoute(
       throw new ForbiddenError(RIGHTS.stockAdjust);
     }
     queryClient.prefetchQuery(userProgramsOptions(userId));
-    return { homeFacility, program, permissions };
+    const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
+    if (canViewStock) {
+      queryClient.prefetchQuery(eventStockCardsOptions({ facilityId: homeId, programId }));
+      queryClient.prefetchQuery(
+        validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
+      );
+    }
+    return { homeFacility, program, canViewStock };
   },
   pendingComponent: AdjustmentPending,
   component: AdjustmentPage,
@@ -64,9 +78,28 @@ export const Route = createFileRoute(
 
 function AdjustmentPage() {
   const { t } = useTranslation();
-  const { homeFacility, program } = Route.useLoaderData();
+  const { homeFacility, program, canViewStock } = Route.useLoaderData();
+  const search = Route.useSearch();
+  const { updateSearch } = useSearchNavigation<AdjustmentSearch>({});
+  const navigate = Route.useNavigate();
+  const username = useLoginData((state) => state.username) ?? '';
   return (
-    <Workspace>
+    <AdjustmentEditor
+      key={`${homeFacility.id}/${program.id}`}
+      facilityId={homeFacility.id}
+      facilityTypeId={homeFacility.type.id}
+      programId={program.id}
+      username={username}
+      canViewStock={canViewStock}
+      search={search}
+      onSearchChange={updateSearch}
+      onSubmitted={() =>
+        navigate({
+          to: '/stock-management/stock-on-hand',
+          search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+        })
+      }
+    >
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceIcon>
@@ -82,8 +115,7 @@ function AdjustmentPage() {
           <WorkspaceDescription>{t('stock-adjustment.editor-description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
-      <WorkspaceContent>{null}</WorkspaceContent>
-    </Workspace>
+    </AdjustmentEditor>
   );
 }
 
