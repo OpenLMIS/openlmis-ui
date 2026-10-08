@@ -44,7 +44,7 @@ import {
   StockCardLinesSkeleton,
 } from '@/features/stock-card/components/stock-card-lines';
 import { cardPagingSchema } from '@/features/stock-card/lib/search';
-import type { StockCard } from '@/features/stock-card/lib/types';
+import type { StockCard, StockCardLine } from '@/features/stock-card/lib/types';
 import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -62,10 +62,23 @@ const NO_DIALOGS = {};
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-function useCardLayout() {
+const NO_LINES: readonly StockCardLine[] = [];
+
+function useCardLayout(lines: readonly StockCardLine[] = NO_LINES) {
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const reversing = lines.some((line) => line.reversedEventId);
+  const reversedBy = lines.some((line) => line.cancellationEventId);
+  const columns = useMemo(
+    () =>
+      STOCK_CARD_HIDEABLE_COLUMNS.map((column) =>
+        (column.id === 'reversing' && reversing) || (column.id === 'reversedBy' && reversedBy)
+          ? { id: column.id, labelKey: column.labelKey, hideBelow: 900 }
+          : column,
+      ),
+    [reversing, reversedBy],
+  );
   const columnView = useColumnVisibility(
-    STOCK_CARD_HIDEABLE_COLUMNS,
+    columns,
     useStoredState('stock-card.column-visibility', columnChoicesSchema, {}),
     width,
   );
@@ -117,7 +130,7 @@ function StockCardPage() {
   );
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView } = useCardLayout();
+  const { measure, columnView } = useCardLayout(data?.card.lineItems);
   const userId = useReloadForUser(
     data?.userId,
     stockCardOptions(Route.useParams().stockCardId).queryKey,

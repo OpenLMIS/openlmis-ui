@@ -333,6 +333,37 @@ describe('stock card display and paging', () => {
     ]);
   });
 
+  it('shows the document links on a laptop, and each reversal column the card has values for', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 960,
+    } as DOMRect);
+    vi.mocked(fetchStockCard).mockResolvedValue({
+      ...card,
+      lineItems: [
+        {
+          id: 'line1',
+          occurredDate: '2026-01-01',
+          quantity: 23,
+          stockOnHand: 23,
+          eventOrigin: 'ISSUE',
+          originEventId: 'event0',
+          documentNumber: 'DOC-1',
+          cancellationEventId: 'event2',
+          cancellationEventDocumentNumber: 'DOC-3',
+        },
+      ],
+    });
+    renderRoute();
+    const table = await screen.findByRole('table');
+    await within(table).findByText('DOC-1');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent);
+    expect(headers).toContain('stock-card.document-number');
+    expect(headers).toContain('stock-card.reversed-by');
+    expect(headers).not.toContain('stock-card.reversing');
+  });
+
   it('brings a hidden column back from the View menu', async () => {
     const user = userEvent.setup();
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({

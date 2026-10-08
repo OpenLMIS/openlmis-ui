@@ -52,7 +52,7 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
   { id: 'receiveFrom', labelKey: 'stock-card.receive-from', hideBelow: 844 },
   { id: 'issueTo', labelKey: 'stock-card.issue-to', hideBelow: 844 },
   { id: 'signature', labelKey: 'stock-card.signature', defaultHidden: true },
-  { id: 'document', labelKey: 'stock-card.document-number', hideBelow: 1004 },
+  { id: 'document', labelKey: 'stock-card.document-number', hideBelow: 900 },
   { id: 'reversing', labelKey: 'stock-card.reversing', defaultHidden: true },
   { id: 'reversedBy', labelKey: 'stock-card.reversed-by', defaultHidden: true },
 ] as const;
