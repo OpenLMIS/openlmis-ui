@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
+import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
@@ -39,7 +40,6 @@ import {
   EVENT_HIDEABLE_COLUMNS,
   EventLineTable,
 } from '@/features/stock-events/components/event-line-table';
-import { LineFilterPopover } from '@/features/stock-events/components/line-filter-popover';
 import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
@@ -163,17 +163,23 @@ export function AdjustmentEditor({
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
   const guard = useDiscardGuard(lines.length > 0, { allowLeave: () => leaving.current });
-  const filtered = useMemo(
-    () =>
+  const keyword = search.keyword ?? '';
+  const lineKeys = JSON.stringify(lines.map((line) => line.key));
+  const [filter, setFilter] = useState({ keyword: '', lineKeys: '', matches: new Set<string>() });
+  let matches = filter.matches;
+  if (keyword !== filter.keyword || lineKeys !== filter.lineKeys) {
+    matches = new Set(
       filterAdjustmentLines(
         lines,
-        search.keyword ?? '',
+        keyword,
         reasons,
         (value) => formatDateValue(value, i18n.language),
         t('stock-events.no-lot-defined'),
-      ),
-    [lines, search.keyword, reasons, i18n.language, t],
-  );
+      ).map((line) => line.key),
+    );
+    setFilter({ keyword, lineKeys, matches });
+  }
+  const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
   const mutation = useMutation({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
@@ -362,44 +368,49 @@ export function AdjustmentEditor({
                 if (lines.length && reasonsQuery.data && !pending) void form.handleSubmit();
               }}
             >
-              <DataTableToolbar>
-                <LineFilterPopover
-                  keyword={search.keyword ?? ''}
-                  disabled={pending}
-                  onSearch={(keyword) =>
-                    onSearchChange({ keyword: keyword || undefined, page: undefined }, true)
-                  }
-                />
-                {canViewStock && (
-                  <QueryBoundary
-                    resetKey={`${facilityId}/${programId}`}
-                    pendingFallback={<ProductLotPickerSkeleton />}
-                    errorComponent={StockCardsError}
-                  >
-                    <ProductLotPicker
-                      facilityId={facilityId}
-                      programId={programId}
-                      disabled={pending}
-                      onAdd={add}
-                    />
-                  </QueryBoundary>
-                )}
-                {quantityUnit.canSwitch && (
-                  <QuantityUnitToggle
-                    unit={quantityUnit.unit}
-                    onUnitChange={quantityUnit.setUnit}
+              {canViewStock && (
+                <QueryBoundary
+                  resetKey={`${facilityId}/${programId}`}
+                  pendingFallback={<ProductLotPickerSkeleton />}
+                  errorComponent={StockCardsError}
+                >
+                  <ProductLotPicker
+                    facilityId={facilityId}
+                    programId={programId}
                     disabled={pending}
+                    onAdd={add}
+                  >
+                    {scanning && <ScanStatus {...scanStatus} />}
+                  </ProductLotPicker>
+                </QueryBoundary>
+              )}
+              <DataTableToolbar>
+                <fieldset className="w-full @xl/main:w-72" disabled={pending}>
+                  <DataTableSearch
+                    value={keyword}
+                    placeholder={t('stock-events.keywords')}
+                    onValueChange={(value) =>
+                      onSearchChange({ keyword: value.trim() || undefined, page: undefined }, true)
+                    }
                   />
-                )}
-                <div className="w-full @xl/main:w-auto">
-                  <DataTableViewOptions
-                    {...columns}
-                    columns={EVENT_HIDEABLE_COLUMNS.filter(
-                      (column) => column.id !== 'total' || quantityUnit.unit === 'PACKS',
-                    ).map((column) => ({ id: column.id, label: t(column.labelKey) }))}
-                  />
+                </fieldset>
+                <div className="flex w-full flex-wrap items-center justify-end gap-2 @xl/main:ms-auto @xl/main:w-auto">
+                  {quantityUnit.canSwitch && (
+                    <QuantityUnitToggle
+                      unit={quantityUnit.unit}
+                      onUnitChange={quantityUnit.setUnit}
+                      disabled={pending}
+                    />
+                  )}
+                  <div className="shrink-0">
+                    <DataTableViewOptions
+                      {...columns}
+                      columns={EVENT_HIDEABLE_COLUMNS.filter(
+                        (column) => column.id !== 'total' || quantityUnit.unit === 'PACKS',
+                      ).map((column) => ({ id: column.id, label: t(column.labelKey) }))}
+                    />
+                  </div>
                 </div>
-                {scanning && canViewStock && <ScanStatus {...scanStatus} />}
               </DataTableToolbar>
               {!canViewStock ? (
                 <DataTableEmpty

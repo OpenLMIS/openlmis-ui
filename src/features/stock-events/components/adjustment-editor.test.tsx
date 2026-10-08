@@ -9,9 +9,9 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchTradeItemByGtin } from '@/features/reference-data/api/api';
+import { fetchTradeItemByGtin, fetchValidReasons } from '@/features/reference-data/api/api';
 import { validReasonsOptions } from '@/features/reference-data/api/queries';
-import { submitStockEvent } from '@/features/stock-events/api/api';
+import { fetchEventStockCards, submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import {
   AdjustmentEditor,
@@ -43,6 +43,7 @@ vi.mock('@/hooks/use-barcode-scan', () => ({
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchTradeItemByGtin: vi.fn(async () => ({ id: 'trade' })),
+  fetchValidReasons: vi.fn(),
 }));
 const i18n = createInstance();
 beforeAll(() =>
@@ -85,7 +86,7 @@ const reason = {
   isFreeTextAllowed: true,
   tags: [],
 };
-function setup(canViewStock = true) {
+function setup(canViewStock = true, configure?: (client: QueryClient) => void) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
   });
@@ -97,6 +98,7 @@ function setup(canViewStock = true) {
     validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
     [{ id: 'assignment', reason, hidden: false }],
   );
+  configure?.(queryClient);
   const onSubmitted = vi.fn();
   function Page() {
     const [search, setSearch] = useState<AdjustmentSearch>({});
@@ -141,11 +143,10 @@ async function pickReason(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('option', { name: 'Lost' }));
 }
 async function filter(user: ReturnType<typeof userEvent.setup>, keyword: string) {
-  await user.click(await screen.findByRole('button', { name: /^Filter/ }));
   const input = await screen.findByRole('textbox', { name: 'Keywords' });
   await user.clear(input);
   await user.type(input, keyword);
-  await user.click(screen.getByRole('button', { name: 'Search' }));
+  await user.keyboard('{Enter}');
 }
 async function validLine(user: ReturnType<typeof userEvent.setup>) {
   await add(user);
@@ -154,6 +155,60 @@ async function validLine(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('AdjustmentEditor', () => {
+  it('keeps a quantity match visible while replacing 27 with 28', async () => {
+    const { user } = setup();
+    await add(user);
+    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' }), '27');
+    await filter(user, '27');
+    const quantity = screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' });
+    await user.clear(quantity);
+    await user.type(quantity, '28');
+    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('28');
+    await filter(user, '28');
+    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('28');
+    await filter(user, '27');
+    expect(await screen.findByText('No Matching Products')).toBeInTheDocument();
+  });
+  it('shows Keywords directly and clears the search without submitting', async () => {
+    const { user } = setup();
+    await add(user);
+    const keywords = screen.getByRole('textbox', { name: 'Keywords' });
+    await user.type(keywords, 'missing');
+    expect(await screen.findByText('No Matching Products')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear Search' }));
+    expect(keywords).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  it.each(['products', 'reasons'] as const)(
+    'retries a failed %s request in the content',
+    async (source) => {
+      const fetch = source === 'products' ? fetchEventStockCards : fetchValidReasons;
+      vi.mocked(fetch).mockRejectedValueOnce(httpError(500));
+      if (source === 'products')
+        vi.mocked(fetchEventStockCards).mockResolvedValueOnce([card, other]);
+      else
+        vi.mocked(fetchValidReasons).mockResolvedValueOnce([
+          { id: 'assignment', reason, hidden: false },
+        ]);
+      const { user } = setup(true, (client) =>
+        client.removeQueries({
+          queryKey:
+            source === 'products'
+              ? eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey
+              : validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
+        }),
+      );
+      const retry = await screen.findByRole('button', { name: 'Try Again' });
+      expect(retry.closest('.flex-wrap')).toBeNull();
+      await user.click(retry);
+      await screen.findByRole('combobox', { name: 'Product' });
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument(),
+      );
+      expect(fetch).toHaveBeenCalledTimes(2);
+    },
+  );
   it('blocks Confirm if the session owner changes before the route renders', async () => {
     const { user } = setup();
     await validLine(user);
@@ -397,7 +452,7 @@ describe('AdjustmentEditor', () => {
   it('adds a scanned product, counts its next scan and reveals it without changing focus', async () => {
     const { user } = setup();
     await filter(user, 'missing');
-    const focus = screen.getByRole('button', { name: /^Filter/ });
+    const focus = screen.getByRole('textbox', { name: 'Keywords' });
     await act(async () => focus.focus());
     const signal = new AbortController().signal;
     const parsed = {

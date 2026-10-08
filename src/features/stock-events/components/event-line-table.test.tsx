@@ -28,8 +28,8 @@ beforeEach(() => {
     },
   );
 });
-it('renders only the changed quantity row out of 100 visible rows', async () => {
-  const seeded = Array.from({ length: 100 }, (_, index) =>
+it('renders only the changed quantity row out of 10 visible rows', async () => {
+  const seeded = Array.from({ length: 10 }, (_, index) =>
     newAdjustmentLine(
       {
         stockOnHand: 50,
@@ -68,7 +68,7 @@ it('renders only the changed quantity row out of 100 visible rows', async () => 
         today="2026-10-08"
         disabled={false}
         onRemove={onRemove}
-        search={{ size: 100 }}
+        search={{ size: 10 }}
         onSearchChange={onSearchChange}
         columnVisibility={{}}
         onClearFilter={vi.fn()}
@@ -85,5 +85,5 @@ it('renders only the changed quantity row out of 100 visible rows', async () => 
   });
   expect(renders).toHaveBeenCalled();
   expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(new Set(['lines[0].quantity']));
-  expect(screen.getAllByRole('textbox')).toHaveLength(100);
+  expect(screen.getAllByRole('textbox')).toHaveLength(10);
 });

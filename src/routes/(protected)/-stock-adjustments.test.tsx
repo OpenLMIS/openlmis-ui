@@ -224,6 +224,10 @@ describe('adjustment editor access', () => {
     renderRoute(`${PICKER}/${FP}`);
     await user.click(await screen.findByRole('combobox', { name: 'stock-events.product' }));
     await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
+    await user.click(screen.getByRole('combobox', { name: 'stock-events.lot-code' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'stock-events.product-has-no-lots' }),
+    );
     await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
     const quantity = document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement;
     expect(quantity).toBeInTheDocument();
