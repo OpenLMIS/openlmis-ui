@@ -188,7 +188,7 @@ describe('transaction history page', () => {
       facilityId: HOME,
       programId: FP,
       page: 0,
-      size: 10,
+      size: 20,
     });
   });
 
@@ -208,7 +208,7 @@ describe('transaction history page', () => {
         endDate: '2026-10-31',
         documentNumber: 'FM71',
         page: 1,
-        size: 10,
+        size: 20,
       }),
     );
     const filter = await screen.findByRole('button', { name: /transaction-history.filter/ });
@@ -313,7 +313,7 @@ describe('transaction history page', () => {
   });
 
   it('opens a filtered page 2 again from its link, as after a reload', async () => {
-    vi.mocked(fetchStockEvents).mockResolvedValue({ ...page([event()], 15), number: 1 });
+    vi.mocked(fetchStockEvents).mockResolvedValue({ ...page([event()], 25), number: 1 });
     renderRoute(appliedPath('&type=receive&page=2'));
 
     expect(await screen.findByText('FM71-ISS-1')).toBeInTheDocument();
@@ -323,7 +323,7 @@ describe('transaction history page', () => {
       programId: FP,
       type: 'receive',
       page: 1,
-      size: 10,
+      size: 20,
     });
   });
 

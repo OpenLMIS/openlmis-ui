@@ -61,7 +61,7 @@ describe('transaction history search', () => {
   });
 
   it('sends the filters as legacy does, with a zero-based page', () => {
-    expect(toEventsQuery({}, selection)).toEqual({ ...selection, page: 0, size: 10 });
+    expect(toEventsQuery({}, selection)).toEqual({ ...selection, page: 0, size: 20 });
     expect(
       toEventsQuery(
         {

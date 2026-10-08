@@ -19,6 +19,7 @@ import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {
   CLEARED_EVENT_FILTERS,
+  EVENTS_PAGE_SIZE,
   hasEventFilters,
   type TransactionHistorySearch,
   toEventsQuery,
@@ -185,7 +186,12 @@ function useEventsTable({
   timeZone?: string;
 }) {
   const columnDefs = useEventColumns(search, useEventDay(timeZone));
-  const searchState = useTableSearchState({ search, defaultSort: NO_SORT, onSearchChange });
+  const searchState = useTableSearchState({
+    search,
+    defaultSort: NO_SORT,
+    defaultPageSize: EVENTS_PAGE_SIZE,
+    onSearchChange,
+  });
   return useTable({
     features: dataTableFeatures,
     columns: columnDefs,
@@ -274,7 +280,7 @@ export function TransactionHistoryResultsSkeleton({
     <DataTableSkeleton
       density="default"
       layout="auto"
-      rowCount={toPaginationState(search).pageSize}
+      rowCount={toPaginationState(search, EVENTS_PAGE_SIZE).pageSize}
       table={table}
     />
   );

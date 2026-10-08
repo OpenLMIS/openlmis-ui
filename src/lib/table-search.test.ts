@@ -90,6 +90,32 @@ describe('textFilterSchema', () => {
   });
 });
 
+describe('a list with its own default page size', () => {
+  it('reads and writes the page size against that default', () => {
+    expect(toPaginationState({}, 20)).toEqual({ pageIndex: 0, pageSize: 20 });
+    expect(
+      fromPaginationState({ pageIndex: 0, pageSize: 20 }, { pageIndex: 0, pageSize: 10 }, 20),
+    ).toEqual({ page: undefined, size: 10 });
+    expect(
+      fromPaginationState({ pageIndex: 0, pageSize: 10 }, { pageIndex: 0, pageSize: 20 }, 20),
+    ).toEqual({ page: undefined, size: undefined });
+  });
+
+  it('pages a table state built with that default', () => {
+    const onSearchChange = vi.fn();
+    const { state, onPaginationChange } = tableSearchState<TableSearch>({
+      search: {},
+      defaultSort: { id: 'date', desc: true },
+      defaultPageSize: 20,
+      onSearchChange,
+    });
+    expect(state.pagination).toEqual({ pageIndex: 0, pageSize: 20 });
+
+    onPaginationChange({ pageIndex: 1, pageSize: 20 });
+    expect(onSearchChange.mock.calls[0]?.[0]({})).toEqual({ page: 2, size: undefined });
+  });
+});
+
 describe('dateFilterSchema', () => {
   it('keeps a real calendar date and drops anything else', () => {
     expect(dateFilterSchema.parse('2026-02-28')).toBe('2026-02-28');

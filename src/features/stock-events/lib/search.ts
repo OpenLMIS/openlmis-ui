@@ -12,6 +12,8 @@ import {
 
 const paging = tableSearchSchema(['date']).omit({ sort: true, dir: true });
 
+export const EVENTS_PAGE_SIZE = 20;
+
 export const transactionHistorySearchSchema = paging.extend({
   ...facilityProgramSearchSchema.shape,
   type: z.enum(EVENT_TYPES).optional().catch(undefined),
@@ -45,7 +47,7 @@ export function toEventsQuery(
   search: EventFilters & TableSearch,
   { facilityId, programId }: { facilityId: string; programId: string },
 ): StockEventsQuery {
-  const { pageIndex, pageSize } = toPaginationState(search);
+  const { pageIndex, pageSize } = toPaginationState(search, EVENTS_PAGE_SIZE);
   const documentNumber = search.documentNumber?.trim();
   return {
     facilityId,

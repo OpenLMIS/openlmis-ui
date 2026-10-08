@@ -50,8 +50,11 @@ export const dateFilterSchema = z
   .optional()
   .catch(undefined);
 
-export function toPaginationState(search: TableSearch): PaginationState {
-  return { pageIndex: (search.page ?? 1) - 1, pageSize: search.size ?? DEFAULT_PAGE_SIZE };
+export function toPaginationState(
+  search: TableSearch,
+  defaultPageSize = DEFAULT_PAGE_SIZE,
+): PaginationState {
+  return { pageIndex: (search.page ?? 1) - 1, pageSize: search.size ?? defaultPageSize };
 }
 
 export function toSortingState(search: TableSearch, defaultSort: DefaultSort): SortingState {
@@ -63,12 +66,13 @@ export function toSortingState(search: TableSearch, defaultSort: DefaultSort): S
 export function fromPaginationState(
   previous: PaginationState,
   next: PaginationState,
+  defaultPageSize = DEFAULT_PAGE_SIZE,
 ): Pick<TableSearch, 'page' | 'size'> {
   // A new page size starts over, since the old page number points at different rows.
   const pageIndex = next.pageSize === previous.pageSize ? next.pageIndex : 0;
   return {
     page: pageIndex > 0 ? pageIndex + 1 : undefined,
-    size: next.pageSize === DEFAULT_PAGE_SIZE ? undefined : next.pageSize,
+    size: next.pageSize === defaultPageSize ? undefined : next.pageSize,
   };
 }
 
@@ -101,6 +105,7 @@ export type SearchChange<TSearch> = (
 type TableSearchStateOptions<TSearch extends TableSearch> = {
   search: TableSearch;
   defaultSort: DefaultSort;
+  defaultPageSize?: number;
   onSearchChange: (update: SearchUpdate<TSearch>) => void;
 };
 
@@ -108,6 +113,7 @@ type TableSearchStateOptions<TSearch extends TableSearch> = {
 export function tableSearchState<TSearch extends TableSearch>({
   search,
   defaultSort,
+  defaultPageSize = DEFAULT_PAGE_SIZE,
   onSearchChange,
 }: TableSearchStateOptions<TSearch>) {
   // Sort ids are column ids, which the page's search schema validates on the way back in.
@@ -116,13 +122,13 @@ export function tableSearchState<TSearch extends TableSearch>({
 
   return {
     state: {
-      pagination: toPaginationState(search),
+      pagination: toPaginationState(search, defaultPageSize),
       sorting: toSortingState(search, defaultSort),
     },
     onPaginationChange: (updater: Updater<PaginationState>) =>
       update((previous) => {
-        const current = toPaginationState(previous);
-        return fromPaginationState(current, functionalUpdate(updater, current));
+        const current = toPaginationState(previous, defaultPageSize);
+        return fromPaginationState(current, functionalUpdate(updater, current), defaultPageSize);
       }),
     onSortingChange: (updater: Updater<SortingState>) =>
       update((previous) => {
@@ -136,12 +142,19 @@ export function tableSearchState<TSearch extends TableSearch>({
 export function useTableSearchState<TSearch extends TableSearch>({
   search,
   defaultSort,
+  defaultPageSize,
   onSearchChange,
 }: TableSearchStateOptions<TSearch>) {
   const { page, size, sort, dir } = search;
   const state = useMemo(
-    () => tableSearchState({ search: { page, size, sort, dir }, defaultSort, onSearchChange }),
-    [page, size, sort, dir, defaultSort, onSearchChange],
+    () =>
+      tableSearchState({
+        search: { page, size, sort, dir },
+        defaultSort,
+        ...(defaultPageSize !== undefined && { defaultPageSize }),
+        onSearchChange,
+      }),
+    [page, size, sort, dir, defaultSort, defaultPageSize, onSearchChange],
   );
   return state;
 }
