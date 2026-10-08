@@ -320,7 +320,7 @@ describe('transaction history page', () => {
       facilityId: HOME,
       programId: FP,
       page: 0,
-      size: 10,
+      size: 20,
     });
   });
 
