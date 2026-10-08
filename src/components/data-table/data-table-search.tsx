@@ -6,7 +6,6 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-  InputGroupText,
 } from '@/components/ui/input-group';
 
 type DataTableSearchProps = {
@@ -15,7 +14,7 @@ type DataTableSearchProps = {
   placeholder?: string;
   /** Accessible name, when the placeholder alone does not say what is searched. */
   label?: string;
-  labelWhenFilled?: boolean;
+  id?: string;
 };
 
 export function DataTableSearch({
@@ -23,7 +22,7 @@ export function DataTableSearch({
   onValueChange,
   placeholder,
   label,
-  labelWhenFilled = false,
+  id,
 }: DataTableSearchProps) {
   const labels = useDataTableLabels();
   const { draft, commit, inputProps } = useDebouncedInput(value, onValueChange);
@@ -34,10 +33,10 @@ export function DataTableSearch({
       <InputGroup>
         <InputGroupAddon>
           <SearchIcon />
-          {labelWhenFilled && draft && <InputGroupText>{`${label ?? text}:`}</InputGroupText>}
         </InputGroupAddon>
         <InputGroupInput
-          aria-label={label ?? text}
+          aria-label={id ? undefined : (label ?? text)}
+          id={id}
           placeholder={text}
           type="text"
           {...inputProps}

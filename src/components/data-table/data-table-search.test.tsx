@@ -142,27 +142,14 @@ describe('DataTableSearch', () => {
     expect(input).toHaveValue(' ');
   });
 
-  it('keeps the label in view once text is typed, when asked to', () => {
-    const { rerender } = render(
-      <DataTableSearch
-        label="Document Number"
-        labelWhenFilled
-        onValueChange={vi.fn()}
-        placeholder="Document Number"
-        value=""
-      />,
+  it('takes an id, so a visible label can name it', () => {
+    render(
+      <>
+        <label htmlFor="document-number">Document Number</label>
+        <DataTableSearch id="document-number" onValueChange={vi.fn()} value="HC01" />
+      </>,
     );
-    expect(screen.queryByText('Document Number:')).not.toBeInTheDocument();
 
-    rerender(
-      <DataTableSearch
-        label="Document Number"
-        labelWhenFilled
-        onValueChange={vi.fn()}
-        placeholder="Document Number"
-        value="HC01"
-      />,
-    );
-    expect(screen.getByText('Document Number:')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Document Number' })).toHaveValue('HC01');
   });
 });
