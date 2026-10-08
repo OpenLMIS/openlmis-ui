@@ -71,6 +71,37 @@ function otherTabSaves(state: Partial<LoginDataStore>) {
 }
 
 describe('syncOtherTab', () => {
+  it.each([
+    ['ACCESS_TOKEN', 'USER_ID', 'USERNAME'],
+    ['ACCESS_TOKEN', 'USERNAME', 'USER_ID'],
+    ['USER_ID', 'ACCESS_TOKEN', 'USERNAME'],
+    ['USER_ID', 'USERNAME', 'ACCESS_TOKEN'],
+    ['USERNAME', 'ACCESS_TOKEN', 'USER_ID'],
+    ['USERNAME', 'USER_ID', 'ACCESS_TOKEN'],
+  ])('adopts the legacy username when writes arrive as %s, %s, %s', async (...order) => {
+    const current = {
+      ACCESS_TOKEN: ada.accessToken,
+      USER_ID: ada.referenceDataUserId,
+      USERNAME: ada.username,
+    };
+    const next = { ACCESS_TOKEN: 'alan-token', USER_ID: 'alan-id', USERNAME: 'alan' };
+    for (const [key, value] of Object.entries(current))
+      localStorage.setItem(`openlmis.${key}`, value);
+    useLoginData.getState().setLoginData(ada, 'legacy');
+
+    for (const key of order) {
+      localStorage.setItem(`openlmis.${key}`, next[key as keyof typeof next]);
+      await syncOtherTab(`openlmis.${key}`);
+    }
+
+    expect(useLoginData.getState()).toMatchObject({
+      referenceDataUserId: 'alan-id',
+      accessToken: 'alan-token',
+      username: 'alan',
+      expired: false,
+    });
+  });
+
   it('signs this tab out when another one signs out', async () => {
     useLoginData.getState().setLoginData(ada);
     otherTabSaves({

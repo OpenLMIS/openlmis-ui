@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { deleteAssignments } from '@/components/valid-assignments/delete-assignments';
 import type { Picked } from '@/components/valid-assignments/selection';
 import type { AssignmentsApi } from '@/components/valid-assignments/types';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 
 type DeleteAssignmentsDialogProps = {
   api: AssignmentsApi;
@@ -41,7 +42,7 @@ export function DeleteAssignmentsDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const count = shown?.size ?? 0;
 
-  const remove = useMutation({
+  const remove = useSessionMutation({
     mutationFn: (ids: string[]) => deleteAssignments(api.remove, ids),
     onSuccess: ({ deleted, failed }) => {
       onDeleted(deleted);

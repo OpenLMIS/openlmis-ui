@@ -15,7 +15,7 @@ import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionExpiredDialog } from '@/components/session-expired-dialog';
 import * as authApi from '@/features/auth/api/api';
-import { useLoginData } from '@/features/auth/store/login-data';
+import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { httpError } from '@/tests/http-error';
 
@@ -78,6 +78,44 @@ beforeAll(async () => {
 });
 
 describe('SessionExpiredDialog', () => {
+  it.each([
+    ['ACCESS_TOKEN', 'USER_ID', 'USERNAME'],
+    ['ACCESS_TOKEN', 'USERNAME', 'USER_ID'],
+    ['USER_ID', 'ACCESS_TOKEN', 'USERNAME'],
+    ['USER_ID', 'USERNAME', 'ACCESS_TOKEN'],
+    ['USERNAME', 'ACCESS_TOKEN', 'USER_ID'],
+    ['USERNAME', 'USER_ID', 'ACCESS_TOKEN'],
+  ])('submits the adopted username after legacy writes %s, %s, %s', async (...order) => {
+    const current = {
+      ACCESS_TOKEN: ada.accessToken,
+      USER_ID: ada.referenceDataUserId,
+      USERNAME: ada.username,
+    };
+    const next = { ACCESS_TOKEN: 'alan-token', USER_ID: 'alan-id', USERNAME: 'alan' };
+    for (const [key, value] of Object.entries(current))
+      localStorage.setItem(`openlmis.${key}`, value);
+    useLoginData.getState().setLoginData(ada, 'legacy');
+    vi.mocked(authApi.login).mockRejectedValue(httpError(400));
+    await renderAt('/users');
+
+    for (const key of order) {
+      await act(async () => {
+        localStorage.setItem(`openlmis.${key}`, next[key as keyof typeof next]);
+        await syncOtherTab(`openlmis.${key}`);
+      });
+    }
+    act(() => useLoginData.getState().expireSession());
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.querySelector('input[autocomplete="username"]')).toHaveValue('alan');
+    await userEvent.type(within(dialog).getByLabelText('login.password'), 'secret');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'session.sign-in' }));
+
+    await waitFor(() =>
+      expect(authApi.login).toHaveBeenCalledWith({ username: 'alan', password: 'secret' }),
+    );
+  });
+
   it('stays closed while the session is live', async () => {
     await renderAt('/users');
 

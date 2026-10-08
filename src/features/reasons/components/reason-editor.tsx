@@ -1,7 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import {
   type QueryClient,
-  useMutation,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
@@ -100,6 +99,7 @@ import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { FacilityType, Program, Reason } from '@/features/reference-data/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
 const LOOKUPS = {
@@ -211,7 +211,7 @@ export function ReasonEditor({
   const page = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
 
-  const mutation = useMutation({
+  const mutation = useSessionMutation({
     mutationFn: (values: ReasonFormValues) =>
       saveReason({
         id: stored.reason?.id,

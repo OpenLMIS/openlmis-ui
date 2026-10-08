@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { KeyRoundIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,7 @@ import {
 } from '@/features/service-accounts/api/api';
 import { CopyKeyButton } from '@/features/service-accounts/components/copy-key-button';
 import type { ServiceAccount } from '@/features/service-accounts/lib/types';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
 type ServiceAccountDialogsProps = {
@@ -46,7 +47,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
   const [created, setCreated] = useState<ServiceAccount>();
   const { close, dialogProps } = useDialogTarget(open || undefined, onClose);
 
-  const add = useMutation({
+  const add = useSessionMutation({
     mutationFn: createServiceAccount,
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.serviceAccounts.all });
@@ -145,7 +146,7 @@ function DeleteServiceAccountDialog({
   const { shown, close, dialogProps } = useDialogTarget(token, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  const remove = useMutation({
+  const remove = useSessionMutation({
     mutationFn: deleteServiceAccount,
     onSuccess: (_, deleted) => {
       toast.success(t('service-accounts.deleted-title'), {

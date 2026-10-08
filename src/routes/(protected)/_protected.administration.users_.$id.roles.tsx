@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
   CatchBoundary,
   createFileRoute,
@@ -57,6 +57,7 @@ import type { UserDetails } from '@/features/users/lib/types';
 import { useRoleDraft } from '@/features/users/lib/use-role-draft';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { fullName } from '@/lib/text';
@@ -130,7 +131,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
     [navigate, listSearch],
   );
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
     onSuccess: (saved, sent) => {
       queryClient.setQueryData(userDetailsOptions(user.id).queryKey, (previous) =>

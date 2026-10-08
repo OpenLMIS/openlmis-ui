@@ -14,6 +14,7 @@ import {
 } from '@/features/reasons/lib/reason-form';
 import type { ReasonBody, ValidReason } from '@/features/reasons/lib/types';
 import type { Reason } from '@/features/reference-data/lib/types';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { settleFew } from '@/lib/settle-few';
 
 const isAlreadyGone = (error: unknown) =>
@@ -27,14 +28,15 @@ type SaveReasonInput = {
   pairs: PairDraft[];
 };
 
-/** Removes pairs before adding any, as the server answers a pair it still has with the old one. */
 export async function saveReason({ id, body, savedPairs, pairs }: SaveReasonInput): Promise<{
   reason: Reason;
   pairs: ValidReason[];
   failed: PairRef[];
   error?: unknown;
 }> {
+  const scope = getSessionScope();
   const reason = id ? await updateReason(id, body) : await createReason(body);
+  assertSessionScope(scope);
   const { remove, add } = diffPairs(savedPairs, pairs);
 
   const removed = await settleFew(remove, (valid) =>
@@ -46,6 +48,7 @@ export async function saveReason({ id, body, savedPairs, pairs }: SaveReasonInpu
       },
     ),
   );
+  assertSessionScope(scope);
   const notRemoved = removed.failed.map(toPairDraft);
   const stuck = new Set(notRemoved.map(pairKey));
   const added = await settleFew(
@@ -58,7 +61,7 @@ export async function saveReason({ id, body, savedPairs, pairs }: SaveReasonInpu
         reason: { id: reason.id },
       }),
   );
-  // An existing pair comes back unchanged, so a Show it kept is not saved.
+  assertSessionScope(scope);
   const mismatched = added.done.filter((valid) => {
     const draft = add.find((pair) => pairKey(pair) === pairKey(toPairDraft(valid)));
     return draft?.show === valid.hidden;

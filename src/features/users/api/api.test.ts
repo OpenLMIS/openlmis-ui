@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionEndedError } from '@/features/auth/lib/session';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   createUser,
   fetchUserDetails,
@@ -113,6 +115,28 @@ describe('findMatchingUserIds', () => {
 const newUser = { ...EMPTY_USER_FORM, username: ' ada ', firstName: 'Ada', lastName: 'Lovelace' };
 
 describe('createUser', () => {
+  it('never cleans up an old user draft under another session', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'token' });
+    put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
+    remove.mockResolvedValueOnce({});
+    let refuse = () => {};
+    put.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        refuse = () => reject(new Error('failed'));
+      }),
+    );
+    const saving = createUser(newUser);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' });
+    refuse();
+    await expect(saving).rejects.toBeInstanceOf(SessionEndedError);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it('creates the user, then its contact details and sign-in account', async () => {
     put.mockResolvedValueOnce({ data: { ...ada, roleAssignments: [] } });
     put.mockResolvedValueOnce({ data: {} });

@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ import {
   toCreateProductBody,
 } from '@/features/products/lib/product-form';
 import { productName } from '@/features/reference-data/lib/product-name';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
 const SAVE_KEY = [...queryKeys.orderables.all, 'create'] as const;
@@ -55,7 +56,7 @@ function AddProductForm({ onCreated }: Pick<AddProductDialogProps, 'onCreated'>)
   const [refusedCodes, setRefusedCodes] = useState<string[]>([]);
   const schema = useMemo(() => productFormSchema(refusedCodes), [refusedCodes]);
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: SAVE_KEY,
     mutationFn: (values: ProductFormValues) => createProduct(toCreateProductBody(values)),
     onSuccess: (product) => {

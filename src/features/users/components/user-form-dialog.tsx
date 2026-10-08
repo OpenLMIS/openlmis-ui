@@ -1,11 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -52,6 +46,7 @@ import {
   type UserFormValues,
   userFormSchema,
 } from '@/features/users/lib/user-form';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useAppName } from '@/lib/app-configuration';
 import { queryKeys } from '@/lib/key-factory';
 import { invalidateUserQueries } from '@/lib/user-queries';
@@ -130,7 +125,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const savedEmail = details?.contact?.emailDetails?.email ?? '';
   const mismatch = details && statusMismatch(details);
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(details?.user.id ?? 'new'),
     mutationFn: async (values: UserFormValues) => {
       if (details) {

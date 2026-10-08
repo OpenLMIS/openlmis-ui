@@ -1,10 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -46,6 +41,7 @@ import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useOpening } from '@/hooks/use-opening';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { decimalMark } from '@/lib/decimal';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
@@ -170,7 +166,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
     program: programItems.find((item) => item.value === values.programId)?.label ?? '',
   });
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(product.id),
     mutationFn: (values: ApprovalFormValues) => {
       const stock = toApprovalStock(values);

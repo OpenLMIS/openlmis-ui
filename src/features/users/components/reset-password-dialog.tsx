@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useIsMutating, useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { useIsMutating, useSuspenseQuery } from '@tanstack/react-query';
 import { type ReactNode, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -35,6 +35,7 @@ import {
   passwordFormSchema,
   resetEmail,
 } from '@/features/users/lib/password-form';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { passwordErrorKey } from '@/lib/password-rules';
 
@@ -93,7 +94,7 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const schema = useMemo(() => passwordFormSchema(details.user), [details.user]);
   const email = resetEmail(details.contact?.emailDetails?.email);
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: passwordKey(id),
     mutationFn: async ({ method, password }: PasswordFormValues) => {
       if (method === 'email' && email) await sendPasswordResetEmail(email);
