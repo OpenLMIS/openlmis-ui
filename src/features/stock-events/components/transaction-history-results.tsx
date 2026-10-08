@@ -61,7 +61,11 @@ function EventCell({ id, event }: { id: CellId; event: StockEventSummary }) {
   const { t, i18n } = useTranslation();
   switch (id) {
     case 'documentNumber':
-      return <Wrapped>{event.documentNumber}</Wrapped>;
+      return (
+        <span className="whitespace-nowrap">
+          <bdi>{orEmpty(event.documentNumber)}</bdi>
+        </span>
+      );
     case 'type': {
       const key = eventTypeKey(event.type);
       return <Wrapped>{key && t(key)}</Wrapped>;
