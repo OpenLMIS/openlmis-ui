@@ -1,4 +1,4 @@
-import type { LotSummary } from '@/features/reference-data/lib/types';
+import type { LotSummary, Orderable } from '@/features/reference-data/lib/types';
 import type { StockReason } from '@/lib/stock-labels';
 
 export const EVENT_TYPES = ['issue', 'receive', 'adjustment'] as const;
@@ -59,3 +59,30 @@ export type StockEventsQuery = {
 };
 
 export type PageQuery = { page: number; size: number };
+
+export type EventStockCard = {
+  id?: string;
+  stockOnHand: number;
+  orderable: Omit<Orderable, 'description'> & { description?: string | null };
+  lot: LotSummary | null;
+};
+
+export type EventStockCardsFilter = { programId: string; facilityId: string };
+
+export type StockEventLineItem = {
+  orderableId: string;
+  lotId?: string | null;
+  quantity: number;
+  occurredDate: string;
+  reasonId?: string | null;
+  reasonFreeText?: string | null;
+  extraData?: { vvmStatus?: 'STAGE_1' | 'STAGE_2' };
+};
+
+export type StockEvent = {
+  programId: string;
+  facilityId: string;
+  signature?: string;
+  eventOrigin: 'ADJUSTMENT' | 'ISSUE' | 'RECEIVE' | 'KIT_UNPACK';
+  lineItems: StockEventLineItem[];
+};

@@ -1,6 +1,7 @@
 import type { ServiceAccount, ServiceAccountsQuery } from '@/features/service-accounts/lib/types';
 import { client } from '@/integrations/axios';
 import { isNotFound } from '@/lib/http';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 export async function fetchServiceAccounts(query: ServiceAccountsQuery) {
@@ -18,10 +19,13 @@ export class KeyLeftBehindError extends Error {
 
 /** The key lives in the auth service and its account in reference data; a key left without one is deleted. */
 export async function createServiceAccount(): Promise<ServiceAccount> {
+  const scope = getSessionScope();
   const { data: key } = await client.post<ServiceAccount>('/apiKeys');
   try {
+    assertSessionScope(scope);
     await client.post('/serviceAccounts', { token: key.token });
   } catch (error) {
+    assertSessionScope(scope);
     const removed = await client.delete(`/apiKeys/${key.token}`).then(
       () => true,
       () => false,

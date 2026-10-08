@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,7 @@ import type { Approval, ProductDetail } from '@/features/products/lib/types';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 
 type RemoveApprovalDialogProps = {
   product: ProductDetail;
@@ -41,7 +42,7 @@ export function RemoveApprovalDialog({
   const { shown, close, dialogProps } = useDialogTarget(approvalId, onClose);
   const approvals = useQuery(productApprovalsOptions(product.id));
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const remove = useMutation({
+  const remove = useSessionMutation({
     mutationFn: (removed: Approval) => removeApproval(removed.id),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: productApprovalsOptions(product.id).queryKey }),

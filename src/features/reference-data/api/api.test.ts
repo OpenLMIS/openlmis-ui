@@ -12,8 +12,10 @@ import {
   fetchOrderablesByTradeItems,
   fetchOrganizations,
   fetchReasons,
+  fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
+  fetchValidReasons,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
 
@@ -350,5 +352,30 @@ describe('fetchOrderablesByTradeItems', () => {
   it('asks for nothing when there are no trade items', async () => {
     await expect(fetchOrderablesByTradeItems([])).resolves.toEqual([]);
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchValidReasons', () => {
+  it('requests every assignment for this program and facility type', async () => {
+    const assignment = { hidden: false, reason: { id: 'r1' } };
+    get.mockResolvedValueOnce({ data: [assignment] });
+    await expect(fetchValidReasons({ program: 'p1', facilityType: 'ft1' })).resolves.toEqual([
+      assignment,
+    ]);
+    expect(get).toHaveBeenCalledWith('/validReasons', {
+      params: { program: 'p1', facilityType: 'ft1' },
+    });
+  });
+});
+
+describe('fetchTradeItemByGtin', () => {
+  it('returns the first matched trade item', async () => {
+    get.mockResolvedValueOnce(page([{ id: 't1' }, { id: 't2' }]));
+    await expect(fetchTradeItemByGtin('01234567890128')).resolves.toEqual({ id: 't1' });
+    expect(get).toHaveBeenCalledWith('/tradeItems', { params: { gtin: '01234567890128' } });
+  });
+  it('returns null when there is no matching trade item', async () => {
+    get.mockResolvedValueOnce(page([]));
+    await expect(fetchTradeItemByGtin('01234567890128')).resolves.toBeNull();
   });
 });

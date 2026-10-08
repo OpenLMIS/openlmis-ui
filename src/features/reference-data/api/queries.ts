@@ -18,11 +18,14 @@ import {
   fetchReasons,
   fetchRoles,
   fetchSupervisoryNodes,
+  fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
+  fetchValidReasons,
   type OrderableSearch,
   storedTimeZone,
 } from '@/features/reference-data/api/api';
+import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
@@ -184,4 +187,18 @@ export const deploymentTimeZoneOptions = () =>
     },
     initialDataUpdatedAt: 0,
     staleTime: (query) => (query.state.data?.read ? Number.POSITIVE_INFINITY : 0),
+  });
+
+export const validReasonsOptions = (filter: ValidReasonsFilter) =>
+  queryOptions({
+    queryKey: queryKeys.validReasons.list(filter),
+    queryFn: () => fetchValidReasons(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const tradeItemByGtinOptions = (gtin: string) =>
+  queryOptions({
+    queryKey: queryKeys.tradeItems.list({ gtin }),
+    queryFn: () => fetchTradeItemByGtin(gtin),
+    staleTime: LOOKUP_STALE_TIME,
   });

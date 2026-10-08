@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { type QueryClient, useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { type QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -79,6 +79,7 @@ import {
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 
 export const FACILITY_EDITOR_LOOKUPS = {
   types: facilityTypesOptions({ active: true }),
@@ -165,7 +166,7 @@ export function FacilityEditor({
   const tabs = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
 
-  const mutation = useMutation({
+  const mutation = useSessionMutation({
     mutationFn: save,
     onSuccess: (facility) => {
       leaving.current = true;

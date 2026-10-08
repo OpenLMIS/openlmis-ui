@@ -1,5 +1,8 @@
 import type {
+  EventStockCard,
+  EventStockCardsFilter,
   PageQuery,
+  StockEvent,
   StockEventLine,
   StockEventSummary,
   StockEventsQuery,
@@ -7,6 +10,26 @@ import type {
 import { client } from '@/integrations/axios';
 import { fetchReport } from '@/lib/fetch-report';
 import type { Page } from '@/lib/types';
+
+export async function fetchEventStockCards({
+  programId,
+  facilityId,
+}: EventStockCardsFilter): Promise<EventStockCard[]> {
+  const cards: EventStockCard[] = [];
+  for (let page = 0; ; page += 1) {
+    const { data } = await client.get<Page<EventStockCard>>('/stockCardSummaries', {
+      params: { program: programId, facility: facilityId, page, size: 100 },
+    });
+    cards.push(...data.content);
+    if (page + 1 >= data.totalPages) break;
+  }
+  return cards;
+}
+
+export async function submitStockEvent(body: StockEvent): Promise<string> {
+  const { data } = await client.post<string>('/stockEvents', body);
+  return data;
+}
 
 export async function fetchStockEvents(query: StockEventsQuery) {
   const { data } = await client.get<Page<StockEventSummary>>('/stockEvents', { params: query });

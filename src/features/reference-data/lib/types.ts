@@ -136,6 +136,7 @@ export type Orderable = {
   /** How many dispensing units make a pack. */
   netContent?: number | null;
   identifiers?: Record<string, string>;
+  extraData?: { useVVM?: string } | null;
   meta?: { versionNumber?: number; [key: string]: unknown };
 };
 
@@ -145,3 +146,15 @@ export type LotSummary = {
   lotCode: string;
   expirationDate: string | null;
 };
+
+export type ValidReasonAssignment = {
+  id?: string;
+  program?: { id: string };
+  facilityType?: { id: string };
+  hidden: boolean;
+  reason: Reason;
+};
+
+export type ValidReasonsFilter = { program: string; facilityType: string };
+
+export type TradeItem = { id: string; gtin?: string | null };

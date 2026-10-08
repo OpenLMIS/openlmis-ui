@@ -122,6 +122,8 @@ Each feature is self-contained under `src/features/<name>/`:
 - `lib/types.ts` - Feature-specific types
 
 Shared code lives in `src/lib/` (utils, types, constants, config, key-factory).
+Stock event screens live together in `src/features/stock-events/`, sharing their editor pieces
+inside that feature.
 
 **A feature never imports another feature**, with one exception below. When two
 features need the same thing, it moves to a shared folder, or the route composes them and
@@ -273,7 +275,7 @@ Two ways out when a page needs a different treatment:
    `PopoverContent width/padding`,
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
+   `Table density` (`default`, `comfortable`, `compact`)/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
    `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
@@ -383,9 +385,11 @@ hand-rolling padding:
 </Workspace>
 ```
 
-Every part takes only `children` - no boolean props, no `renderX` callbacks. A page
-without an icon, a description or actions just leaves those parts out. The one variant is
-`width="narrow"` on `Workspace` and `WorkspaceFooter`, for a page of settings like Profile.
+Every part takes only `children` - no boolean props, no `renderX` callbacks. Every page has a
+`WorkspaceDescription`, one plain sentence on what the page is for, so headers stay consistent; a
+page without an icon or actions leaves those parts out. The one variant is
+`width="narrow"` on `Workspace` and `WorkspaceFooter`, for a page of settings like Profile or a short table such as
+the stock program pickers.
 
 Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
 outrank the toolbar controls below them. When the header stacks on a narrow page, they share
@@ -597,14 +601,16 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `NumberField`, `DecimalField`, `TextareaField`, `PasswordField`, `SwitchField`,
-`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `TagsField`, `SelectField`, `ImageField`, `DateField`). Two
+`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `TagsField`, `SelectField`, `ImageField`, `DateField`, `QuantityField`). Two
 forms that share their fields, such as Add Product and the product's General tab, define them once
 with `withForm`, from the same `form.tsx`. A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
 `src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
 `toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
 `max: Number.MAX_SAFE_INTEGER`, a lower bound passes `min` with its own message, and an optional whole
-number passes `optional` and reads with `toOptionalWholeNumber`. A number with decimals, such as a price, is a
+number passes `optional` and reads with `toOptionalWholeNumber`. `QuantityField` keeps typed
+doses, packs and remainder text in a `QuantityValue` draft; unit switches keep it, and submission
+sends doses. A number with decimals, such as a price, is a
 `DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal` and shown with
 `toNumberText(value, decimalMark(language))`; it takes a dot or the language's comma, and refuses a comma
 before exactly three digits as a possible thousands separator, so `toNumberText` shows such a value
@@ -618,7 +624,8 @@ the box takes the highlighted suggestion or the typed text, a comma adds the typ
 `SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
 saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
 file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's
-language, holding `yyyy-MM-dd` or an empty string, with a `clearLabel` when it is optional. The
+language, holding `yyyy-MM-dd` or an empty string, with a `clearLabel` when it is optional.
+`earliest` and `latest` bound the calendar; the schema also checks the date. The
 calendar and its language (`loadDateLocale` from `FormMessagesProvider`) are fetched once a date
 field mounts and again when it is opened after a failed load, so no other page carries the date
 libraries; a required date reads out the provider's `requiredLabel` with its name. Outside a
@@ -659,6 +666,13 @@ resolves them through `FormMessagesProvider`.
 **Every toast has a title and a description**: a short title in Title Case (`users.roles.saved-title`,
 "Roles Saved") and a sentence of detail as `description`, which is cut at two lines. The
 shared `Toaster` adds a translated close button, so a call never passes one.
+
+## Barcode scanning
+
+Behind `GS1_SCANNING`, screens compose `useBarcodeScan` and `ScanStatus`. The GS1 parser and
+stock resolver live in `src/lib/`. Pause scanning while a dialog is open; check cancellation before applying pending
+results and abort work on unmount. Each screen supplies its own lot policy to the resolver.
+
 
 ## Facility and program picker
 
@@ -809,9 +823,16 @@ The store records a `sessionSource` (`own` or `legacy`). Only a `legacy`-sourced
 follows the legacy UI, so a user who signed into the new UI directly is unaffected by
 what the old one does. When legacy's session disappears, ours expires rather than clears:
 legacy wipes its keys the same way on a sign-out and on a refused token, and expiring keeps
-the page and its unsaved work behind the dialog. A change of user is followed at once. Our own logout calls `clearLegacySession()`, since the token is
-shared and killing it server-side while leaving the keys behind would only render a dead
-session. Preferences such as `openlmis.current_locale` are left alone.
+the page and its unsaved work behind the dialog. A changed token without a changed user id
+is ambiguous because legacy writes the keys separately: keep the previous token and expire
+until the identity changes or the user signs in through our dialog. A user id change always
+advances identity, even with the same token. If the id arrives first, expire under the new
+identity until its new token arrives; keep the token's original user id in `legacyTokenUserId`
+so neither write order releases requests under mismatched credentials. Username changes also
+follow the borrowed session, including a username written after its token and id, so the
+session-expired dialog always uses the latest legacy username. Our own logout calls
+`clearLegacySession()`, since the token is shared and killing it server-side while leaving
+the keys behind would only render a dead session. Preferences such as `openlmis.current_locale` are left alone.
 
 Login deliberately carries one way: signing in here does not sign the user into the legacy
 UI, and we write no `openlmis.*` keys. Legacy keeps working normally, it just asks for a
@@ -826,6 +847,29 @@ Cached query data belongs to whoever fetched it: `src/integrations/tanstack-quer
 clears the whole cache whenever the store's user changes, on sign-out, on sign-in as
 someone else, and when the session follows the legacy UI. Query keys therefore need no
 user id, except for per-user data such as rights.
+
+Protected route data and drafts also belong to that identity. `_protected.tsx` hides and
+remounts the routed subtree when the user changes, waiting for `router.invalidate()` to
+rerun loaders and recheck rights and facility/program scope. This external change drops
+unsaved work without a discard prompt. Deliberate navigation and sign-out still use the
+discard guard. Session expiry and same-user token renewal keep drafts and loader data.
+
+Routed writes use `useSessionMutation` from `src/hooks/use-session-mutation.ts`, including
+writes in dialogs. It captures the mounting identity, checks it before and after work, and
+suppresses stale completion callbacks and checks identity again after they settle. An async
+completion must call the mutation's `isCurrent()` after every await, including caught refetch
+failures, before writing fallback data, resetting a form or calling another callback. Features
+import this shared hook, never auth.
+Authentication operations keep ordinary `useMutation`, since they change the session.
+The HTTP client captures the identity at request creation and checks it before sending,
+after waiting for reauthentication, and on responses. A stale successful read therefore
+cannot continue a multi-step save as another user. Multi-request operations capture
+`getSessionScope()` and check it before each request, including between batches. `settleFew` checks before and after each task and rejects on
+`SessionEndedError` or a scope change, clearing its queue instead of counting a per-item
+failure. Ordinary item failures still allow the rest of the batch to finish. The HTTP client
+also refuses a request whose `sentFor` names a previous user before sending it.
+A rollback that writes after catching an error also captures `getSessionScope()` and calls
+`assertSessionScope()` before cleanup. An already-sent write may finish on the server under its original token, but its result cannot update the next user's page.
 
 ## Environment Variables
 

@@ -106,15 +106,15 @@ describe('syncLegacySession', () => {
     expect(useLoginData.getState().expired).toBe(true);
   });
 
-  it('follows the legacy UI to a different user', () => {
+  it('holds a changed legacy token until its identity is confirmed', () => {
     signInLegacy('first-token', 'administrator');
     syncLegacySession();
 
     signInLegacy('second-token', 'someone-else');
 
     expect(syncLegacySession()).toBe(true);
-    expect(useLoginData.getState().accessToken).toBe('second-token');
-    expect(useLoginData.getState().username).toBe('someone-else');
+    expect(useLoginData.getState().accessToken).toBe('first-token');
+    expect(useLoginData.getState().expired).toBe(true);
   });
 
   it('leaves a session we established ourselves alone', () => {
@@ -141,7 +141,7 @@ describe('syncLegacySession', () => {
     expect(useLoginData.getState().isAuthenticated).toBe(true);
   });
 
-  it('picks up a new legacy token for the same user without ending the session', async () => {
+  it('keeps the same-user draft scope while requiring an unambiguous sign in', async () => {
     signInLegacy('first-token');
     syncLegacySession();
     useLoginData.getState().expireSession();
@@ -149,7 +149,14 @@ describe('syncLegacySession', () => {
 
     signInLegacy('second-token');
 
-    expect(syncLegacySession()).toBe(true);
+    expect(syncLegacySession()).toBe(false);
+    expect(useLoginData.getState().accessToken).toBe('first-token');
+    expect(useLoginData.getState().expired).toBe(true);
+    useLoginData.getState().setLoginData({
+      accessToken: 'second-token',
+      referenceDataUserId: 'legacy-user-id',
+      username: 'administrator',
+    });
     await expect(waiting).resolves.toBe('second-token');
   });
 

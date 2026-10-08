@@ -1,11 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -45,6 +39,7 @@ import type { Lot } from '@/features/lots/lib/types';
 import { orderablesByTradeItemsOptions } from '@/features/reference-data/api/queries';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useOpening } from '@/hooks/use-opening';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -124,7 +119,7 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
   const [refused, setRefused] = useState<string[]>([]);
   const schema = useMemo(() => lotFormSchema(refused), [refused]);
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(lot.id),
     mutationFn: (values: LotFormValues) => updateLot(toLotBody(values, lot)),
     onSuccess: (saved) => {

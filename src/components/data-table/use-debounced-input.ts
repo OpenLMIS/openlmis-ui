@@ -7,15 +7,14 @@ import {
   useState,
 } from 'react';
 
-/** Draft for a text input that reports after a pause and otherwise follows the upstream value. */
 export function useDebouncedInput(
   value: string,
   onValueChange: (value: string) => void,
-  delay = 300,
+  { delay = 300, resetKey }: { delay?: number; resetKey?: string | number } = {},
 ) {
   const [draft, setDraft] = useState(value);
-  const [syncedValue, setSyncedValue] = useState(value);
-  const [isTyping, setIsTyping] = useState(false);
+  const [synced, setSynced] = useState({ value, resetKey });
+  const emittedValue = useRef<string | undefined>(undefined);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pending = useRef<string | undefined>(undefined);
   const latestOnValueChange = useRef(onValueChange);
@@ -24,25 +23,30 @@ export function useDebouncedInput(
     latestOnValueChange.current = onValueChange;
   });
 
-  // Upstream wins unless the user is mid-typing; an echo that only trims the draft keeps it.
-  if (value !== syncedValue) {
-    setSyncedValue(value);
-    if (!isTyping && value !== draft.trim()) setDraft(value);
+  if (value !== synced.value || resetKey !== synced.resetKey) {
+    setSynced({ value, resetKey });
+    if (value.trim() !== emittedValue.current?.trim()) setDraft(value);
   }
 
-  // Leaving the page drops unsent typing; sending it would navigate from a page already gone.
+  useLayoutEffect(() => {
+    if (synced.value.trim() !== emittedValue.current?.trim()) {
+      clearTimeout(timer.current);
+      pending.current = undefined;
+    }
+    emittedValue.current = undefined;
+  }, [synced]);
+
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const emit = (next: string) => {
     clearTimeout(timer.current);
     pending.current = undefined;
-    setIsTyping(false);
+    emittedValue.current = next;
     latestOnValueChange.current(next);
   };
 
   const change = (next: string) => {
     setDraft(next);
-    setIsTyping(true);
     pending.current = next;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => emit(next), delay);
@@ -53,7 +57,6 @@ export function useDebouncedInput(
     emit(next);
   };
 
-  // Leaving the field, e.g. to press Clear Filters, sends what was typed first so nothing arrives after it.
   const flush = () => {
     if (pending.current !== undefined) emit(pending.current);
   };

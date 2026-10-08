@@ -57,19 +57,60 @@ describe('DataTableSearch', () => {
     expect(screen.getByRole('textbox', { name: 'Search' })).toHaveValue('');
   });
 
-  it('keeps typing that arrived while its own last value was on the way back', () => {
+  it('cancels pending typing when an external value arrives', () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <DataTableSearch onValueChange={onValueChange} placeholder="Search" value="admin" />,
+    );
+    const input = screen.getByRole('textbox', { name: 'Search' });
+    fireEvent.change(input, { target: { value: 'pending' } });
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="saved" />);
+    act(() => vi.advanceTimersByTime(650));
+    fireEvent.blur(input);
+    expect(input).toHaveValue('saved');
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('cancels pending typing when navigation keeps the same keyword', () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <DataTableSearch
+        onValueChange={onValueChange}
+        placeholder="Search"
+        value="admin"
+        resetKey={2}
+      />,
+    );
+    const input = screen.getByRole('textbox', { name: 'Search' });
+    fireEvent.change(input, { target: { value: 'pending' } });
+    rerender(
+      <DataTableSearch
+        onValueChange={onValueChange}
+        placeholder="Search"
+        value="admin"
+        resetKey={1}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(650));
+    expect(input).toHaveValue('admin');
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it.each(['ad', 'ad '])('keeps typing while its own value %j is on the way back', (sent) => {
     const onValueChange = vi.fn();
     const { rerender } = render(
       <DataTableSearch onValueChange={onValueChange} placeholder="Search" value="" />,
     );
     const input = screen.getByRole('textbox', { name: 'Search' });
 
-    fireEvent.change(input, { target: { value: 'ad' } });
+    fireEvent.change(input, { target: { value: sent } });
     act(() => vi.advanceTimersByTime(300));
     fireEvent.change(input, { target: { value: 'adm' } });
-    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value="ad" />);
+    rerender(<DataTableSearch onValueChange={onValueChange} placeholder="Search" value={sent} />);
 
     expect(input).toHaveValue('adm');
+    act(() => vi.advanceTimersByTime(300));
+    expect(onValueChange).toHaveBeenLastCalledWith('adm');
   });
 
   it('keeps a trailing space when its own value comes back trimmed', () => {

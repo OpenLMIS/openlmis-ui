@@ -1,10 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +58,7 @@ import {
   toRoleFormValues,
 } from '@/features/roles/lib/role-form';
 import { withSavedRole } from '@/features/roles/lib/roles-list';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -159,7 +155,7 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
   const dropped = otherTypeRights(role);
   const rightLabel = useRightLabel();
 
-  const save = useMutation({
+  const save = useSessionMutation({
     mutationKey: saveKey(role?.id ?? 'new'),
     mutationFn: async (values: RoleFormValues) => {
       const rights = await queryClient.ensureQueryData(rightsByTypeOptions(values.type));

@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
-import { useLoginData } from '@/features/auth/store/login-data';
+import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
 
 const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'old-token' };
@@ -39,6 +39,90 @@ afterEach(() => {
 });
 
 describe('client', () => {
+  it('refuses a request retained for a different user before sending it', async () => {
+    const { sent } = serve('old-token');
+
+    await expect(
+      client.delete('/validDestinations/old-draft', {
+        sentFor: 'previous-user-id',
+      }),
+    ).rejects.toBeInstanceOf(SessionEndedError);
+
+    expect(sent).toEqual([]);
+  });
+
+  it('does not send a queued write after a synchronous user switch', async () => {
+    const { sent } = serve('alan-token');
+    const request = client.put('/users', { draft: 'ada' });
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual([]);
+  });
+
+  it('rejects a stale successful read before a save can continue as another user', async () => {
+    let release = () => {};
+    const sent: string[] = [];
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    client.defaults.adapter = async (config) => {
+      sent.push(`${config.url} ${config.headers.Authorization}`);
+      if (config.url === '/latest') await hold;
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
+    const saving = client.get('/latest').then(() => client.put('/users', { draft: 'ada' }));
+    await flush();
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    release();
+    await expect(saving).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual(['/latest Bearer old-token']);
+  });
+
+  it.each(['token-first', 'id-first'])(
+    'holds legacy credentials during a %s user switch',
+    async (order) => {
+      localStorage.setItem('openlmis.ACCESS_TOKEN', ada.accessToken);
+      localStorage.setItem('openlmis.USER_ID', ada.referenceDataUserId);
+      localStorage.setItem('openlmis.USERNAME', ada.username);
+      useLoginData.getState().setLoginData(ada, 'legacy');
+      const { sent } = serve('alan-token');
+      const changes =
+        order === 'token-first'
+          ? [
+              ['ACCESS_TOKEN', 'alan-token'],
+              ['USER_ID', 'alan-id'],
+            ]
+          : [
+              ['USER_ID', 'alan-id'],
+              ['ACCESS_TOKEN', 'alan-token'],
+            ];
+      const [first, second] = changes;
+      const request = client.put('/users', { draft: 'ada' }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      localStorage.setItem(`openlmis.${first[0]}`, first[1]);
+      await syncOtherTab(`openlmis.${first[0]}`);
+      await flush();
+      const intermediate = { ...useLoginData.getState() };
+      localStorage.setItem(`openlmis.${second[0]}`, second[1]);
+      localStorage.setItem('openlmis.USERNAME', 'alan');
+      await syncOtherTab(`openlmis.${second[0]}`);
+      useLoginData.getState().clearLoginData();
+      expect(await request).toBeInstanceOf(SessionEndedError);
+      expect(intermediate.expired).toBe(true);
+      expect(sent).toEqual([]);
+    },
+  );
+
   it('sends the current token', async () => {
     const { sent } = serve('old-token');
 
