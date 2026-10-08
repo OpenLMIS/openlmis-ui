@@ -271,6 +271,27 @@ describe('transaction history page', () => {
     });
   });
 
+  it('opens a supervised home-only program link as my facility and lists events', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([`STOCK_CARDS_VIEW|${HOME}|${FP}`]);
+    vi.mocked(fetchUserPrograms).mockResolvedValue([
+      { id: FP, code: 'PRG001', name: 'Family Planning', active: true },
+    ]);
+    renderRoute(appliedPath().replace('mode=my', 'mode=supervised'));
+
+    expect(await screen.findByText('FM71-ISS-1')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toHaveValue(
+      'Family Planning',
+    );
+    expect(screen.queryByText('transaction-history.refused-title')).not.toBeInTheDocument();
+    expect(fetchStockEvents).toHaveBeenCalledWith({
+      facilityId: HOME,
+      programId: FP,
+      page: 0,
+      size: 10,
+    });
+  });
+
   it('refuses a link to a facility and program the user may not see', async () => {
     renderRoute(appliedPath('', BALAKA, FP));
 
