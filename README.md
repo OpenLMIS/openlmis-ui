@@ -18,8 +18,8 @@ pnpm install
 pnpm dev
 ```
 
-The dev server proxies `/api` to the OpenLMIS instance named by `VITE_API_PROXY_TARGET`,
-so the browser stays same-origin and there is no CORS to configure.
+The dev server proxies `/api` and `/localeSettings` to the OpenLMIS instance named by
+`VITE_API_PROXY_TARGET`, so the browser stays same-origin and there is no CORS to configure.
 
 ## Environment variables
 
@@ -28,7 +28,7 @@ Copy `.env.example` to `.env` and adjust. All are read at build time by Vite.
 | Variable | Default | Description |
 |---|---|---|
 | `VITE_API_BASE_URL` | `/api` | Axios base URL. Keep it relative so the proxy decides the target |
-| `VITE_API_PROXY_TARGET` | `http://localhost:8080` | OpenLMIS instance the dev server forwards `/api` to |
+| `VITE_API_PROXY_TARGET` | `http://localhost:8080` | OpenLMIS instance the dev server forwards `/api` and `/localeSettings` to |
 | `VITE_FE_PORT` | Vite default | Dev server port |
 | `VITE_AUTH_SERVER_CLIENT_ID` | - | OAuth client id for the password grant |
 | `VITE_AUTH_SERVER_CLIENT_SECRET` | - | OAuth client secret for the password grant |

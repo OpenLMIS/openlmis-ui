@@ -1273,7 +1273,7 @@
   "transaction-history.type-issue": "Issue",
   "transaction-history.type-receive": "Receive",
   "transaction-history.view": "View",
-  "transaction-history.view-event": "View transaction {document}",
+  "transaction-history.view-event": "View Transaction {document}",
   "update.reload": "Reload",
   "update.title": "Update Available",
   "users.actions": "Actions",

@@ -30,6 +30,11 @@ the legacy UI.
 | `resources/v2` | `location ~ /v2/?$` |
 | `resources/v2/<all>` | `location ~ /v2/.+/?$` |
 
+Besides `/api`, the new UI reads one more path the stack already serves for the legacy UI:
+`/localeSettings` at the root, for the time zone event times are shown in. It needs no
+registration, but a custom proxy in front of the stack must pass it through as well, or times
+fall back to the last one read, then to UTC.
+
 ## The prefix is a build input
 
 It is compiled into asset URLs, so it cannot be changed at runtime.

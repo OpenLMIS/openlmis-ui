@@ -302,7 +302,7 @@ overlaps with a logical `-ms-2` instead of `-space-x-2`; and `combobox.tsx`'s `C
 
 ### Integrations
 
-`src/integrations/` contains singleton setup for Axios (with proxy to `/api` → `localhost:8080`), TanStack Query client, TanStack Router instance, and i18next configuration.
+`src/integrations/` contains singleton setup for Axios (with proxy to `/api` and `/localeSettings` → `localhost:8080`), TanStack Query client, TanStack Router instance, and i18next configuration.
 
 ### UI components
 
@@ -625,8 +625,10 @@ form, the same picker is `DatePicker`, which `DateField` wraps. Show a date anyw
 as a table cell, with `formatDateValue` (`src/components/form/date-value.ts`) in the page's
 language, so it reads as it does in the picker. A timestamp, such as when a stock event was
 recorded, goes through `formatTimestamp` in the deployment's time zone from
-`useDeploymentTimeZone()` (`src/hooks/`), which reads legacy's public `/localeSettings`, so both UIs
-show the same time whatever the viewer's clock says. A `ComboboxField` item takes a `description`, shown
+`useDeploymentTimeZone()` (`src/hooks/`), which suspends on `deploymentTimeZoneOptions` from
+reference-data, read from legacy's public `/localeSettings` and kept for when it cannot be read, so
+both UIs show the same time whatever the viewer's clock says. A loader that shows timestamps starts
+that query too. A `ComboboxField` item takes a `description`, shown
 muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
 page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
 the start and the value at the end, and `SettingsItem` for a value that is only shown;
@@ -789,8 +791,8 @@ The server slides a token's expiry with every call, so `expiresAt` (from `expire
 only the earliest it could end. Nothing signs a user out on it; the `401` decides. One
 user's token is the same in both UIs, so our logout signs them out of the legacy UI too.
 
-Nothing talks to the API directly in development - the Vite dev server proxies `/api` to
-`VITE_API_PROXY_TARGET`, keeping the browser same-origin.
+Nothing talks to the API directly in development - the Vite dev server proxies `/api` and
+`/localeSettings` to `VITE_API_PROXY_TARGET`, keeping the browser same-origin.
 
 Both UIs share an origin, so `syncLegacySession()` keeps the two sessions in step. The
 legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,
