@@ -95,10 +95,19 @@ export function initialSelection(
   options: FacilityProgramOptions,
 ): FacilityProgramSelection {
   const mode = applied.mode ?? (options.home ? 'my' : 'supervised');
+  const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
+  const programId = programs.some((program) => program.id === applied.programId)
+    ? applied.programId
+    : undefined;
+  const facilityId =
+    programId &&
+    options.facilitiesFor(programId).some((facility) => facility.id === applied.facilityId)
+      ? applied.facilityId
+      : undefined;
   const start =
     mode === 'my'
-      ? { mode, programId: applied.programId, facilityId: options.home?.id }
-      : { mode, programId: applied.programId, facilityId: applied.facilityId };
+      ? { mode, programId, facilityId: options.home?.id }
+      : { mode, programId, facilityId };
   return withOnlyOptions(start, options);
 }
 

@@ -122,6 +122,22 @@ describe('initialSelection', () => {
     });
   });
 
+  it('leaves out a program or facility from a link that the picker does not offer', () => {
+    const onlyAlpha = facilityProgramOptions({
+      ...sources,
+      grants: [{ facilityId: HOME, programId: 'pa' }],
+    });
+
+    expect(initialSelection({ mode: 'my', programId: 'pz', facilityId: HOME }, onlyAlpha)).toEqual({
+      mode: 'my',
+      programId: 'pa',
+      facilityId: HOME,
+    });
+    expect(
+      initialSelection({ mode: 'supervised', programId: 'pb', facilityId: 'unknown' }, options),
+    ).toEqual({ mode: 'supervised', programId: 'pb' });
+  });
+
   it('keeps the selection the link holds, and picks no program from several', () => {
     const applied = { mode: 'supervised', programId: 'pc', facilityId: 'fa' } as const;
 
