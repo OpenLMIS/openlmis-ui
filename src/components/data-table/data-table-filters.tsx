@@ -48,7 +48,7 @@ export function DataTableSelectFilter({
         onValueChange={(next) => onValueChange(next ?? '')}
         value={value || null}
       >
-        <SelectTrigger width="full">
+        <SelectTrigger aria-label={label} width="full">
           <span className="flex min-w-0 items-center gap-1 pe-8">
             {value ? (
               <>

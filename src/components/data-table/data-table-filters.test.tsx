@@ -17,7 +17,7 @@ describe('DataTableSelectFilter', () => {
       <DataTableSelectFilter label="Status" onValueChange={vi.fn()} options={options} value="" />,
     );
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Status');
+    expect(screen.getByRole('combobox', { name: 'Status' })).toHaveTextContent('Status');
     expect(screen.queryByRole('button', { name: 'Clear Status' })).not.toBeInTheDocument();
   });
 
