@@ -108,6 +108,28 @@ describe('initialSelection', () => {
     });
   });
 
+  it('restores a supervised home-only program link as my facility', () => {
+    const onlyAlpha = facilityProgramOptions({
+      ...sources,
+      grants: [{ facilityId: HOME, programId: 'pa' }],
+    });
+
+    expect(
+      initialSelection({ mode: 'supervised', programId: 'pa', facilityId: HOME }, onlyAlpha),
+    ).toEqual({ mode: 'my', programId: 'pa', facilityId: HOME });
+  });
+
+  it('picks nothing for a refused supervised home program, even with one other option', () => {
+    const onlyGamma = facilityProgramOptions({
+      ...sources,
+      grants: [{ facilityId: 'fa', programId: 'pc' }],
+    });
+
+    expect(
+      initialSelection({ mode: 'supervised', programId: 'pa', facilityId: HOME }, onlyGamma),
+    ).toEqual({ mode: 'supervised' });
+  });
+
   it('picks the only supervised program and its only facility, as legacy does', () => {
     const onlyGamma = facilityProgramOptions({
       ...sources,
@@ -250,9 +272,21 @@ describe('validSelection', () => {
     ).not.toBeNull();
   });
 
-  it('refuses a supervised program only granted at home, as legacy never offers it', () => {
+  it('resolves a supervised home-only program link to my facility', () => {
     expect(
       validSelection({ mode: 'supervised', programId: 'pa', facilityId: HOME }, options),
+    ).toEqual({ mode: 'my', programId: 'pa', facilityId: HOME });
+  });
+
+  it('refuses a supervised home pair without a home grant', () => {
+    expect(
+      validSelection({ mode: 'supervised', programId: 'pc', facilityId: HOME }, options),
+    ).toBeNull();
+  });
+
+  it('refuses a home-only program at another facility', () => {
+    expect(
+      validSelection({ mode: 'supervised', programId: 'pa', facilityId: 'fa' }, options),
     ).toBeNull();
   });
 

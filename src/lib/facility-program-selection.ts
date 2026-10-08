@@ -32,7 +32,6 @@ export const recordLabel = (record: NamedRecord) => record.name || record.code;
 
 const byLabel = (a: NamedRecord, b: NamedRecord) => recordLabel(a).localeCompare(recordLabel(b));
 
-/** Legacy's picker: home programs first, then supervised programs granted away from home, then that program's facilities, home included. */
 export function facilityProgramOptions({
   homeFacilityId,
   programs,
@@ -73,7 +72,6 @@ export function facilityProgramOptions({
 const onlyId = (records: readonly NamedRecord[]) =>
   records.length === 1 ? records[0]?.id : undefined;
 
-/** Legacy picks a required select's only option, so a user with one program or facility is not asked. */
 function withOnlyOptions(
   selection: FacilityProgramSelection,
   options: FacilityProgramOptions,
@@ -94,6 +92,8 @@ export function initialSelection(
   applied: FacilityProgramSelection,
   options: FacilityProgramOptions,
 ): FacilityProgramSelection {
+  const valid = validSelection(applied, options);
+  if (valid) return valid;
   const mode = applied.mode ?? (options.home ? 'my' : 'supervised');
   const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
   const programId = programs.some((program) => program.id === applied.programId)
@@ -149,7 +149,6 @@ export function isCompleteSelection(
   return Boolean(selection.mode && selection.programId && selection.facilityId);
 }
 
-/** The selection when the picker would offer it, `null` when not, so a changed link is refused rather than followed. */
 export function validSelection(
   selection: FacilityProgramSelection,
   options: FacilityProgramOptions,
@@ -158,6 +157,14 @@ export function validSelection(
   const { mode, programId, facilityId } = selection;
   const hasId = (records: readonly NamedRecord[], id: string) =>
     records.some((record) => record.id === id);
+  if (
+    mode === 'supervised' &&
+    facilityId === options.home?.id &&
+    hasId(options.myPrograms, programId) &&
+    !hasId(options.supervisedPrograms, programId)
+  ) {
+    return { mode: 'my', programId, facilityId };
+  }
   const offered =
     mode === 'my'
       ? facilityId === options.home?.id && hasId(options.myPrograms, programId)
