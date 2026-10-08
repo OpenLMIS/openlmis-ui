@@ -195,16 +195,15 @@ export async function fetchOrderablesByTradeItems(
 
 const TIME_ZONE_KEY = 'openlmis-ui.time-zone';
 
+export const storedTimeZone = () => localStorage.getItem(TIME_ZONE_KEY);
+
 export async function fetchDeploymentTimeZone(): Promise<string> {
-  try {
-    const { data } = await client.get<{ timeZoneId?: string | null }>('/localeSettings', {
-      baseURL: '/',
-      anonymous: true,
-    });
-    if (data.timeZoneId) {
-      localStorage.setItem(TIME_ZONE_KEY, data.timeZoneId);
-      return data.timeZoneId;
-    }
-  } catch {}
-  return localStorage.getItem(TIME_ZONE_KEY) ?? 'UTC';
+  const { data } = await client.get<{ timeZoneId?: string | null }>('/localeSettings', {
+    baseURL: '/',
+    anonymous: true,
+    timeout: 10_000,
+  });
+  if (!data.timeZoneId) throw new Error('No time zone in the locale settings');
+  localStorage.setItem(TIME_ZONE_KEY, data.timeZoneId);
+  return data.timeZoneId;
 }

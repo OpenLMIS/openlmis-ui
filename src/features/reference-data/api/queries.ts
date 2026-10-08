@@ -21,6 +21,7 @@ import {
   fetchUserPrograms,
   fetchUserRecord,
   type OrderableSearch,
+  storedTimeZone,
 } from '@/features/reference-data/api/api';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
 
@@ -165,9 +166,22 @@ export const userProgramsOptions = (id: string) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
+type DeploymentTimeZone = { zone: string; read: boolean };
+
 export const deploymentTimeZoneOptions = () =>
   queryOptions({
     queryKey: queryKeys.localeSettings.all,
-    queryFn: fetchDeploymentTimeZone,
-    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async (): Promise<DeploymentTimeZone> => {
+      try {
+        return { zone: await fetchDeploymentTimeZone(), read: true };
+      } catch {
+        return { zone: storedTimeZone() ?? 'UTC', read: false };
+      }
+    },
+    initialData: () => {
+      const zone = storedTimeZone();
+      return zone ? { zone, read: false } : undefined;
+    },
+    initialDataUpdatedAt: 0,
+    staleTime: (query) => (query.state.data?.read ? Number.POSITIVE_INFINITY : 0),
   });
