@@ -1147,7 +1147,7 @@
   "stock-events.unknown-outcome-description": "Check the stock card before submitting again. The server may already have recorded this adjustment.",
   "stock-events.unknown-outcome-title": "Submission Outcome Unknown",
   "stock-events.vvm-invalid": "Choose Stage 1 or Stage 2",
-  "stock-events.vvm-none": "No Stage Selected",
+  "stock-events.vvm-none": "None",
   "stock-events.vvm-not-allowed": "This product does not use VVM",
   "stock-events.vvm-status": "VVM Status",
   "stock-on-hand.actions": "Actions",

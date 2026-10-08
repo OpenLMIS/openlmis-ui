@@ -57,7 +57,7 @@ export type DataTableInstance<TData extends RowData> = ReactTable<DataTableFeatu
 
 type DataTableProps<TData extends RowData> = {
   table: DataTableInstance<TData>;
-  density?: 'default' | 'comfortable';
+  density?: 'default' | 'comfortable' | 'compact';
   /** `auto` sizes each column to its content instead of keeping widths steady across pages. */
   layout?: 'fixed' | 'auto';
   /** Rendered across the whole body when there are no rows. */
@@ -201,7 +201,7 @@ type DataTableSkeletonProps<TData extends RowData> = {
   /** A table built from the real columns with no rows, so the header and widths match exactly. */
   table: DataTableInstance<TData>;
   rowCount: number;
-  density?: 'default' | 'comfortable';
+  density?: 'default' | 'comfortable' | 'compact';
   layout?: 'fixed' | 'auto';
 };
 

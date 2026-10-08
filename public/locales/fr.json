@@ -1147,7 +1147,7 @@
   "stock-events.unknown-outcome-description": "Vérifiez la fiche de stock avant de renvoyer. Le serveur a peut-être déjà enregistré cet ajustement.",
   "stock-events.unknown-outcome-title": "Résultat de l’envoi inconnu",
   "stock-events.vvm-invalid": "Choisissez le stade 1 ou le stade 2",
-  "stock-events.vvm-none": "Aucun stade sélectionné",
+  "stock-events.vvm-none": "Aucun",
   "stock-events.vvm-not-allowed": "Ce produit n’utilise pas de VVM",
   "stock-events.vvm-status": "État VVM",
   "stock-on-hand.actions": "Actions",

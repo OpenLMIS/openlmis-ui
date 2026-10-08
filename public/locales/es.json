@@ -1147,7 +1147,7 @@
   "stock-events.unknown-outcome-description": "Compruebe la ficha de existencias antes de volver a enviar. Es posible que el servidor ya haya registrado este ajuste.",
   "stock-events.unknown-outcome-title": "Resultado del envío desconocido",
   "stock-events.vvm-invalid": "Seleccione Etapa 1 o Etapa 2",
-  "stock-events.vvm-none": "Ninguna etapa seleccionada",
+  "stock-events.vvm-none": "Ninguno",
   "stock-events.vvm-not-allowed": "Este producto no utiliza VVM",
   "stock-events.vvm-status": "Estado VVM",
   "stock-on-hand.actions": "Acciones",

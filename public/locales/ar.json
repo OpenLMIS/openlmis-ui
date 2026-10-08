@@ -1147,7 +1147,7 @@
   "stock-events.unknown-outcome-description": "تحقق من بطاقة المخزون قبل الإرسال مرة أخرى. قد يكون الخادم قد سجل هذا التعديل بالفعل.",
   "stock-events.unknown-outcome-title": "نتيجة الإرسال غير معروفة",
   "stock-events.vvm-invalid": "اختر المرحلة 1 أو المرحلة 2",
-  "stock-events.vvm-none": "لم يتم اختيار مرحلة",
+  "stock-events.vvm-none": "لا شيء",
   "stock-events.vvm-not-allowed": "هذا المنتج لا يستخدم مؤشر قارورة اللقاح",
   "stock-events.vvm-status": "حالة مؤشر قارورة اللقاح",
   "stock-on-hand.actions": "الإجراءات",

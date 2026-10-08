@@ -273,7 +273,7 @@ Two ways out when a page needs a different treatment:
    `PopoverContent width/padding`,
    `SidebarHeader bordered/layout`,
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density`/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
+   `Table density` (`default`, `comfortable`, `compact`)/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
    `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
    `Field spacing`, `FieldLabel weight`,
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).

@@ -154,6 +154,9 @@ describe('AdjustmentEditor', () => {
     const { user } = setup();
     await add(user);
     await pickReason(user);
+    expect(screen.getByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }).tagName).toBe(
+      'INPUT',
+    );
     await user.type(
       screen.getByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }),
       'Broken',

@@ -48,10 +48,10 @@ const COLUMNS = [
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
 export const EVENT_HIDEABLE_COLUMNS = [
-  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1000 },
-  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1000 },
-  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1100 },
-  { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1100 },
+  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1500 },
+  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1400 },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1250 },
+  { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1150 },
 ] as const;
 const helper = createColumnHelper<DataTableFeatures, AdjustmentLine>();
 const NO_SORT = { id: 'product', desc: false };
@@ -79,7 +79,7 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className="block w-40 whitespace-normal break-words font-medium">
+        <span className="block min-w-28 max-w-40 whitespace-normal break-words font-medium">
           <bdi>
             {name}
             {line.orderable.dispensable?.displayUnit &&
@@ -117,7 +117,7 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
       );
     case 'reason':
       return (
-        <div className="w-44">
+        <div className="w-28">
           <form.AppField
             name={`lines[${index}].reasonId`}
             listeners={{
@@ -142,10 +142,10 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
       );
     case 'comments':
       return reason?.isFreeTextAllowed ? (
-        <div className="w-44">
+        <div className="w-32">
           <form.AppField name={`lines[${index}].reasonFreeText`}>
             {(field) => (
-              <field.TextareaField
+              <field.TextField
                 disabled={disabled}
                 dir="auto"
                 label={label('stock-events.reason-comments')}
@@ -157,7 +157,7 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
       ) : null;
     case 'quantity':
       return (
-        <div className="w-40">
+        <div className={unit === 'PACKS' ? 'w-28' : 'w-20'}>
           <form.AppField name={`lines[${index}].quantity`}>
             {(field) => (
               <field.QuantityField
@@ -191,7 +191,7 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
       );
     case 'vvm':
       return line.useVVM ? (
-        <div className="w-32">
+        <div className="w-24">
           <form.AppField name={`lines[${index}].vvmStatus`}>
             {(field) => (
               <field.SelectField
@@ -210,7 +210,7 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
       ) : null;
     case 'date':
       return (
-        <div className="w-40">
+        <div className="w-32">
           <form.AppField name={`lines[${index}].occurredDate`}>
             {(field) => (
               <field.DateField
@@ -344,7 +344,7 @@ export function EventLineTable({
   return (
     <DataTable
       table={table}
-      density="default"
+      density="compact"
       layout="auto"
       empty={empty}
       footer={lines.length > 0 && <DataTablePagination table={table} disabled={disabled} />}
