@@ -12,12 +12,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
-import {
-  documentNumbers,
-  namedWithFreeText,
-  reasonLabel,
-  toCardLines,
-} from '@/features/stock-card/lib/card-lines';
+import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,
   cardTableSearch,
@@ -26,6 +21,7 @@ import {
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
 import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
+import { eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
 import {
   type SearchChange,
   type TableSearch,
@@ -111,13 +107,13 @@ function LineCell({
       return <Wrapped>{line.signature}</Wrapped>;
     case 'document':
       // TODO: FM-76 link to event detail
-      return <Wrapped>{documentNumbers(line, t('stock-card.no-number')).document}</Wrapped>;
+      return <Wrapped>{eventLinks(line, t('stock-card.no-number')).document?.label}</Wrapped>;
     case 'reversing':
       // TODO: FM-76 link to event detail
-      return <Wrapped>{documentNumbers(line, t('stock-card.no-number')).reversing}</Wrapped>;
+      return <Wrapped>{eventLinks(line, t('stock-card.no-number')).reversing?.label}</Wrapped>;
     case 'reversedBy':
       // TODO: FM-76 link to event detail
-      return <Wrapped>{documentNumbers(line, t('stock-card.no-number')).reversedBy}</Wrapped>;
+      return <Wrapped>{eventLinks(line, t('stock-card.no-number')).reversedBy?.label}</Wrapped>;
   }
 }
 
