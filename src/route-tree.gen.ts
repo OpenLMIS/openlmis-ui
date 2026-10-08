@@ -35,12 +35,14 @@ import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(p
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
 import { Route as protectedProtectedStockManagementStockOnHandRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand'
+import { Route as protectedProtectedStockManagementTransactionHistoryRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history'
 import { Route as protectedProtectedAdministrationFacilitiesIdRouteImport } from './routes/(protected)/_protected.administration.facilities_.$id'
 import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } from './routes/(protected)/_protected.administration.facilities_.new'
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
 import { Route as protectedProtectedStockManagementStockOnHandStockCardIdRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId'
+import { Route as protectedProtectedStockManagementTransactionHistoryEventIdRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history_.$eventId'
 import { Route as protectedProtectedAdministrationProductsIdIndexRouteImport } from './routes/(protected)/_protected.administration.products_.$id.index'
 import { Route as protectedProtectedAdministrationProductsIdFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.products_.$id.facility-types'
 import { Route as protectedProtectedAdministrationProductsIdGeneralRouteImport } from './routes/(protected)/_protected.administration.products_.$id.general'
@@ -197,6 +199,12 @@ const protectedProtectedStockManagementStockOnHandRoute =
     path: '/stock-management/stock-on-hand',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedStockManagementTransactionHistoryRoute =
+  protectedProtectedStockManagementTransactionHistoryRouteImport.update({
+    id: '/stock-management/transaction-history',
+    path: '/stock-management/transaction-history',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationFacilitiesIdRoute =
   protectedProtectedAdministrationFacilitiesIdRouteImport.update({
     id: '/administration/facilities_/$id',
@@ -231,6 +239,12 @@ const protectedProtectedStockManagementStockOnHandStockCardIdRoute =
   protectedProtectedStockManagementStockOnHandStockCardIdRouteImport.update({
     id: '/stock-management/stock-on-hand_/$stockCardId',
     path: '/stock-management/stock-on-hand/$stockCardId',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedStockManagementTransactionHistoryEventIdRoute =
+  protectedProtectedStockManagementTransactionHistoryEventIdRouteImport.update({
+    id: '/stock-management/transaction-history_/$eventId',
+    path: '/stock-management/transaction-history/$eventId',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationProductsIdIndexRoute =
@@ -294,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
+  '/stock-management/transaction-history': typeof protectedProtectedStockManagementTransactionHistoryRoute
   '/profile/': typeof protectedProtectedProfileIndexRoute
   '/settings/': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
@@ -302,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
+  '/stock-management/transaction-history/$eventId': typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -331,6 +347,7 @@ export interface FileRoutesByTo {
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
+  '/stock-management/transaction-history': typeof protectedProtectedStockManagementTransactionHistoryRoute
   '/profile': typeof protectedProtectedProfileIndexRoute
   '/settings': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
@@ -338,6 +355,7 @@ export interface FileRoutesByTo {
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
+  '/stock-management/transaction-history/$eventId': typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
   '/administration/products/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/administration/products/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -371,6 +389,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/(protected)/_protected/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
+  '/(protected)/_protected/stock-management/transaction-history': typeof protectedProtectedStockManagementTransactionHistoryRoute
   '/(protected)/_protected/profile/': typeof protectedProtectedProfileIndexRoute
   '/(protected)/_protected/settings/': typeof protectedProtectedSettingsIndexRoute
   '/(protected)/_protected/administration/facilities_/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
@@ -379,6 +398,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
+  '/(protected)/_protected/stock-management/transaction-history_/$eventId': typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
   '/(protected)/_protected/administration/products_/$id/facility-types': typeof protectedProtectedAdministrationProductsIdFacilityTypesRoute
   '/(protected)/_protected/administration/products_/$id/general': typeof protectedProtectedAdministrationProductsIdGeneralRoute
   '/(protected)/_protected/administration/products_/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
@@ -412,6 +432,7 @@ export interface FileRouteTypes {
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/stock-on-hand'
+    | '/stock-management/transaction-history'
     | '/profile/'
     | '/settings/'
     | '/administration/facilities/$id'
@@ -420,6 +441,7 @@ export interface FileRouteTypes {
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
     | '/stock-management/stock-on-hand/$stockCardId'
+    | '/stock-management/transaction-history/$eventId'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/kit-unpack-list'
@@ -449,6 +471,7 @@ export interface FileRouteTypes {
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/stock-on-hand'
+    | '/stock-management/transaction-history'
     | '/profile'
     | '/settings'
     | '/administration/facilities/$id'
@@ -456,6 +479,7 @@ export interface FileRouteTypes {
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
     | '/stock-management/stock-on-hand/$stockCardId'
+    | '/stock-management/transaction-history/$eventId'
     | '/administration/products/$id/facility-types'
     | '/administration/products/$id/general'
     | '/administration/products/$id/kit-unpack-list'
@@ -488,6 +512,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings/feature-flags'
     | '/(protected)/_protected/settings/theme'
     | '/(protected)/_protected/stock-management/stock-on-hand'
+    | '/(protected)/_protected/stock-management/transaction-history'
     | '/(protected)/_protected/profile/'
     | '/(protected)/_protected/settings/'
     | '/(protected)/_protected/administration/facilities_/$id'
@@ -496,6 +521,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
     | '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId'
+    | '/(protected)/_protected/stock-management/transaction-history_/$eventId'
     | '/(protected)/_protected/administration/products_/$id/facility-types'
     | '/(protected)/_protected/administration/products_/$id/general'
     | '/(protected)/_protected/administration/products_/$id/kit-unpack-list'
@@ -696,6 +722,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedStockManagementStockOnHandRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/stock-management/transaction-history': {
+      id: '/(protected)/_protected/stock-management/transaction-history'
+      path: '/stock-management/transaction-history'
+      fullPath: '/stock-management/transaction-history'
+      preLoaderRoute: typeof protectedProtectedStockManagementTransactionHistoryRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/administration/facilities_/$id': {
       id: '/(protected)/_protected/administration/facilities_/$id'
       path: '/administration/facilities/$id'
@@ -736,6 +769,13 @@ declare module '@tanstack/react-router' {
       path: '/stock-management/stock-on-hand/$stockCardId'
       fullPath: '/stock-management/stock-on-hand/$stockCardId'
       preLoaderRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/stock-management/transaction-history_/$eventId': {
+      id: '/(protected)/_protected/stock-management/transaction-history_/$eventId'
+      path: '/stock-management/transaction-history/$eventId'
+      fullPath: '/stock-management/transaction-history/$eventId'
+      preLoaderRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/products_/$id/': {
@@ -864,12 +904,14 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedStockManagementStockOnHandRoute: typeof protectedProtectedStockManagementStockOnHandRoute
+  protectedProtectedStockManagementTransactionHistoryRoute: typeof protectedProtectedStockManagementTransactionHistoryRoute
   protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
   protectedProtectedStockManagementStockOnHandStockCardIdRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
+  protectedProtectedStockManagementTransactionHistoryEventIdRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
 }
 
@@ -901,6 +943,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidSourcesRoute,
   protectedProtectedStockManagementStockOnHandRoute:
     protectedProtectedStockManagementStockOnHandRoute,
+  protectedProtectedStockManagementTransactionHistoryRoute:
+    protectedProtectedStockManagementTransactionHistoryRoute,
   protectedProtectedAdministrationFacilitiesIdRoute:
     protectedProtectedAdministrationFacilitiesIdRoute,
   protectedProtectedAdministrationFacilitiesNewRoute:
@@ -913,6 +957,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsNewRoute,
   protectedProtectedStockManagementStockOnHandStockCardIdRoute:
     protectedProtectedStockManagementStockOnHandStockCardIdRoute,
+  protectedProtectedStockManagementTransactionHistoryEventIdRoute:
+    protectedProtectedStockManagementTransactionHistoryEventIdRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
     protectedProtectedAdministrationUsersIdRolesRoute,
 }
