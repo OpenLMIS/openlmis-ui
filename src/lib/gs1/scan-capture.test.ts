@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   createScanCaptureState,
   reduceScanCapture,
-  type ScanCaptureConfig,
   type ScanCaptureEffect,
   type ScanCaptureKeyEvent,
 } from '@/lib/gs1/scan-capture';
@@ -10,7 +9,7 @@ import {
 const PAYLOAD = ']d20105890123456786';
 const SUPPRESS = { type: 'suppress' };
 
-function capture(config?: Partial<ScanCaptureConfig>, initialValue: string | null = 'PRE') {
+function capture(initialValue: string | null = 'PRE') {
   let state = createScanCaptureState();
   let now = 1000;
   let snapshot: string | null = null;
@@ -41,7 +40,7 @@ function capture(config?: Partial<ScanCaptureConfig>, initialValue: string | nul
       timeStamp: now,
       ...overrides,
     };
-    const result = reduceScanCapture(state, event, config);
+    const result = reduceScanCapture(state, event);
     state = result.state;
     apply(result.effects);
     if (
@@ -63,7 +62,7 @@ function capture(config?: Partial<ScanCaptureConfig>, initialValue: string | nul
 
   function timeout(gap = 300) {
     now += gap;
-    const result = reduceScanCapture(state, { type: 'timeout', timeStamp: now }, config);
+    const result = reduceScanCapture(state, { type: 'timeout', timeStamp: now });
     state = result.state;
     apply(result.effects);
     return result.effects;
@@ -83,6 +82,27 @@ function capture(config?: Partial<ScanCaptureConfig>, initialValue: string | nul
 }
 
 describe('reduceScanCapture', () => {
+  it.each([
+    'Backspace',
+    'Delete',
+    'ArrowLeft',
+    'ArrowRight',
+    'ArrowUp',
+    'ArrowDown',
+    'Home',
+    'End',
+  ])('resolves pending typing before %s without swallowing the edit', (key) => {
+    const scan = capture('');
+    scan.type('123');
+    expect(scan.key(key)).not.toContainEqual(SUPPRESS);
+    expect(scan.field.value).toBe('123');
+    if (key === 'Backspace') scan.field.value = scan.field.value?.slice(0, -1) ?? null;
+    else scan.field.value = '12';
+    expect(scan.timeout()).toEqual([]);
+    expect(scan.field.value).toBe('12');
+    expect(scan.state.buffer).toBe('');
+  });
+
   it.each(['Enter', 'Tab'])('emits a fast scan on %s and restores leaked input', (suffix) => {
     const scan = capture();
     scan.type(PAYLOAD);
@@ -320,35 +340,11 @@ describe('reduceScanCapture', () => {
   });
 
   it('emits with nothing restorable focused', () => {
-    const scan = capture(undefined, null);
+    const scan = capture(null);
     scan.type(PAYLOAD);
     scan.key('Enter');
     expect(scan.payloads).toEqual([PAYLOAD]);
     expect(scan.field.value).toBeNull();
-  });
-
-  it('can disable restoring scan leaks while still replaying typing', () => {
-    const scan = capture({ restoreLeakedInput: false });
-    scan.type(PAYLOAD);
-    expect(scan.key('Enter')).not.toContainEqual({ type: 'restore-field' });
-    expect(scan.field.value).toBe('PRE]d');
-    scan.type('123');
-    scan.key('Enter');
-    expect(scan.field.value).toBe('PRE]d123');
-  });
-
-  it('supports configurable timing, length, suppression and terminators', () => {
-    const scan = capture({
-      burstThreshold: 60,
-      minPayloadLength: 3,
-      suppressAfter: 2,
-      terminators: ['F9'],
-      idleTimeout: 500,
-      suffixWindow: 200,
-    });
-    scan.type('123', 50);
-    expect(scan.key('F9')).toContainEqual(SUPPRESS);
-    expect(scan.payloads).toEqual(['123']);
   });
 
   it('supports timestamp zero without reading a wall clock or losing the initial snapshot', () => {

@@ -1,6 +1,6 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardPenLineIcon, EllipsisIcon, Trash2Icon } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -58,6 +58,7 @@ const NO_SORT = { id: 'product', desc: false };
 
 type CellProps = {
   id: CellId;
+  index: number;
   line: AdjustmentLine;
   form: AdjustmentForm;
   reasons: readonly Reason[];
@@ -66,9 +67,18 @@ type CellProps = {
   disabled: boolean;
   onRemove: (key: string) => void;
 };
-function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: CellProps) {
+const LineCell = memo(function LineCell({
+  id,
+  index,
+  line,
+  form,
+  reasons,
+  unit,
+  today,
+  disabled,
+  onRemove,
+}: CellProps) {
   const { t, i18n } = useTranslation();
-  const index = form.state.values.lines.findIndex((item) => item.key === line.key);
   const name = line.orderable.fullProductName || line.orderable.productCode;
   const row = `${name} ${line.lot?.lotCode ?? t('stock-events.no-lot-defined')}`;
   const label = (key: (typeof COLUMNS)[number][1]) =>
@@ -253,9 +263,9 @@ function LineCell({ id, line, form, reasons, unit, today, disabled, onRemove }: 
         </DropdownMenu>
       );
   }
-}
+});
 
-type Props = Omit<CellProps, 'id' | 'line'> & {
+type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
   lines: AdjustmentLine[];
   search: AdjustmentSearch;
   onSearchChange: SearchChange<AdjustmentSearch>;
@@ -286,6 +296,7 @@ export function EventLineTable({
             cell: ({ row }) => (
               <LineCell
                 id={id}
+                index={form.state.values.lines.findIndex((item) => item.key === row.original.key)}
                 line={row.original}
                 form={form}
                 reasons={reasons}

@@ -50,6 +50,15 @@ const filter = (keyword: string) =>
   filterAdjustmentLines([row, other], keyword, reasons, formatDate);
 
 describe('filterAdjustmentLines', () => {
+  it.each(['No Lot Defined', 'لم يتم تحديد دفعة'])(
+    'matches the displayed null-lot label %s',
+    (label) => {
+      expect(filterAdjustmentLines([row, other], label, reasons, formatDate, label)).toEqual([
+        other,
+      ]);
+    },
+  );
+
   it.each([
     ' c1 ',
     'aCeTyL',

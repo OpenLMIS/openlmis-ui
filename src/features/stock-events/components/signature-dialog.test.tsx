@@ -32,7 +32,7 @@ describe('SignatureDialog', () => {
   it('accepts an empty signature and names the submitting user', async () => {
     const onConfirm = vi.fn();
     render(dialog(false, onConfirm));
-    expect(screen.getByText('Submitted by ada')).toBeInTheDocument();
+    expect(screen.getByText('Submitted By ada')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(''));
   });

@@ -1,6 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Profiler } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
@@ -48,6 +49,19 @@ function QuantityForm({ unit, onSubmit }: { unit: Unit; onSubmit: (value: unknow
 }
 
 describe('QuantityField form wiring', () => {
+  it('shows unit placeholders and a visible plus in Packs mode', () => {
+    render(<QuantityForm onSubmit={vi.fn()} unit="PACKS" />);
+    expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Packs' })).toHaveAttribute(
+      'placeholder',
+      'Packs',
+    );
+    expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Doses' })).toHaveAttribute(
+      'placeholder',
+      'Doses',
+    );
+    expect(screen.getByText('+')).toBeVisible();
+  });
+
   it('switches units without changing doses and names both pack inputs for their row', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
@@ -90,4 +104,50 @@ describe('QuantityField form wiring', () => {
     rerender(view('PACKS'));
     expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Packs' })).toHaveValue('1.5');
   });
+});
+
+it('does not commit QuantityFields for an unrelated field change', () => {
+  const updates = vi.fn();
+  const rows = Array.from({ length: 100 }, (_, index) => ({
+    id: `row-${index}`,
+    quantity: quantityValue('32', 16),
+  }));
+  function Fixture() {
+    const form = useAppForm({
+      defaultValues: {
+        note: '',
+        lines: rows,
+      },
+    });
+    return (
+      <>
+        <form.AppField name="note">{(field) => <field.TextField label="Note" />}</form.AppField>
+        {rows.map((row, index) => (
+          <Profiler
+            key={row.id}
+            id={String(index)}
+            onRender={(_, phase) => {
+              if (phase === 'update') updates(index);
+            }}
+          >
+            <form.AppField name={`lines[${index}].quantity`}>
+              {(field) => (
+                <field.QuantityField
+                  label={`Row ${index}`}
+                  dosesLabel="Doses"
+                  packsLabel="Packs"
+                  netContent={16}
+                  unit="DOSES"
+                />
+              )}
+            </form.AppField>
+          </Profiler>
+        ))}
+      </>
+    );
+  }
+  render(<Fixture />);
+  updates.mockClear();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), { target: { value: 'a' } });
+  expect(updates).not.toHaveBeenCalled();
 });

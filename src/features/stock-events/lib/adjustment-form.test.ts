@@ -52,8 +52,8 @@ describe('newAdjustmentLine', () => {
     const first = newAdjustmentLine(card, undefined, today);
     const second = newAdjustmentLine(card, undefined, today);
     expect(first.key).not.toBe(second.key);
+    expect(first).not.toHaveProperty('card');
     expect(first).toMatchObject({
-      card,
       orderable: card.orderable,
       lot: card.lot,
       stockOnHand: 50,
@@ -95,6 +95,23 @@ describe('newAdjustmentLine', () => {
 });
 
 describe('adjustmentLinesSchema', () => {
+  it.each([
+    ['', 'stock-events.required'],
+    ['0', 'stock-events.positive-number'],
+    ['-1', 'stock-events.positive-number'],
+    ['1.5', 'stock-events.positive-number'],
+    ['2147483648', 'stock-events.number-too-large'],
+    ['٣', undefined],
+    ['۳', undefined],
+    ['1', undefined],
+    ['50', undefined],
+    ['51', 'stock-events.quantity-greater-than-stock-on-hand'],
+  ])('preserves quantity validation paths and messages for %s', (doses, message) => {
+    expect(issues([line({ quantity: quantityValue(doses) })])).toEqual(
+      message ? [['lines.0.quantity.doses', message]] : undefined,
+    );
+  });
+
   it('places required issues on the individual cells of every row', () => {
     const empty = line({ reasonId: '', quantity: quantityValue(), occurredDate: '' });
     expect(issues([line(), empty])).toEqual([

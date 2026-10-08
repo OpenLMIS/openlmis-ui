@@ -19,9 +19,6 @@ export type Gs1Symbology = 'GS1_DATA_MATRIX' | 'GS1_128' | 'GS1_DATABAR' | 'GS1_
 
 export type Gs1ParseOptions = {
   currentYear?: number;
-  requireSymbologyIdentifier?: boolean;
-  groupSeparatorSubstitutes?: readonly string[];
-  validateGtinCheckDigit?: boolean;
 };
 
 export type Gs1Success = {
@@ -101,13 +98,7 @@ function parseExpiry(raw: string, currentYear: number) {
 export function parseGs1(raw: string, options: Gs1ParseOptions = {}): Gs1Result {
   if (!raw) return failure('EMPTY_INPUT');
   const symbology = SYMBOLOGIES[raw.slice(0, 3)];
-  if (!symbology && options.requireSymbologyIdentifier) {
-    return failure('MISSING_SYMBOLOGY_IDENTIFIER');
-  }
-  let payload = symbology ? raw.slice(3) : raw;
-  for (const substitute of options.groupSeparatorSubstitutes ?? []) {
-    payload = payload.split(substitute).join(GS);
-  }
+  const payload = symbology ? raw.slice(3) : raw;
 
   const values: Partial<Record<ParsedField, string>> = {};
   const unparsed: Record<string, string> = {};
@@ -155,7 +146,7 @@ export function parseGs1(raw: string, options: Gs1ParseOptions = {}): Gs1Result 
   }
   if (values.gtin === undefined) return failure('MISSING_GTIN');
   if (!/^\d{14}$/.test(values.gtin)) return failure('INVALID_GTIN');
-  if (options.validateGtinCheckDigit !== false && !validCheckDigit(values.gtin)) {
+  if (!validCheckDigit(values.gtin)) {
     return failure('INVALID_GTIN_CHECK_DIGIT');
   }
   if (values.lotCode !== undefined && !CHARACTER_SET_82.test(values.lotCode)) {

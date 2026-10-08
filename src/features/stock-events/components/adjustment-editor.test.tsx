@@ -8,6 +8,8 @@ import { I18nextProvider } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { FormMessagesProvider } from '@/components/form/form-messages';
+import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchTradeItemByGtin } from '@/features/reference-data/api/api';
 import { validReasonsOptions } from '@/features/reference-data/api/queries';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
@@ -48,6 +50,7 @@ beforeAll(() =>
 );
 beforeEach(() => {
   vi.clearAllMocks();
+  useLoginData.setState({ referenceDataUserId: 'ada-id' });
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -106,6 +109,7 @@ function setup(canViewStock = true) {
             facilityTypeId="type"
             programId="program"
             username="ada"
+            isCurrentUser={() => useLoginData.getState().referenceDataUserId === 'ada-id'}
             search={search}
             onSearchChange={(update) =>
               setSearch((old) => ({
@@ -150,6 +154,107 @@ async function validLine(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('AdjustmentEditor', () => {
+  it('blocks Confirm if the session owner changes before the route renders', async () => {
+    const { user } = setup();
+    await validLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByRole('dialog');
+    act(() => useLoginData.setState({ referenceDataUserId: 'other-user' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(submitStockEvent).not.toHaveBeenCalled();
+  });
+  it('keeps the draft through same-user session expiry and reauthentication', async () => {
+    const { user } = setup();
+    await validLine(user);
+    act(() => useLoginData.setState({ expired: true }));
+    act(() =>
+      useLoginData
+        .getState()
+        .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'new-token' }),
+    );
+    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('17');
+  });
+
+  it('restores focus to Product after clearing the last line', async () => {
+    const { user } = setup();
+    await add(user);
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Clear' }),
+    );
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toHaveFocus());
+  });
+  it.each(['manual', 'scan'])(
+    'retains last-added defaults after removal for %s additions',
+    async (method) => {
+      const { user } = setup();
+      await add(user);
+      await pickReason(user);
+      await user.type(
+        screen.getByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }),
+        'Broken',
+      );
+      await user.click(screen.getByRole('button', { name: /^Date, Aspirin/ }));
+      await user.click(await screen.findByRole('button', { name: /October 1st, 2026/ }));
+      const date = screen.getByRole('button', { name: /^Date, Aspirin/ }).textContent;
+      await user.click(screen.getByRole('button', { name: /^Actions, Aspirin/ }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+      if (method === 'manual') await user.click(screen.getByRole('button', { name: 'Add' }));
+      else
+        await act(async () => {
+          await scan(
+            { ok: true, gtin: '00012345678905', lotCode: 'LOT', warnings: [], unparsed: {} },
+            new AbortController().signal,
+          );
+        });
+      expect(
+        await screen.findByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }),
+      ).toHaveValue('Broken');
+      expect(screen.getByRole('combobox', { name: /^Reason, Aspirin/ })).toHaveTextContent('Lost');
+      expect(screen.getByRole('button', { name: /^Date, Aspirin/ })).toHaveTextContent(date ?? '');
+    },
+  );
+  it('drops a scan lookup that finishes while signing', async () => {
+    const { user } = setup();
+    await validLine(user);
+    const quantity = screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' });
+    let resolve!: (value: { id: string }) => void;
+    vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    let operation: ReturnType<typeof scan>;
+    await act(async () => {
+      operation = scan(
+        { ok: true, gtin: '00012345678905', lotCode: 'LOT', warnings: [], unparsed: {} },
+        new AbortController().signal,
+      );
+    });
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByRole('dialog');
+    await act(async () => {
+      resolve({ id: 'trade' });
+      await operation;
+    });
+    expect(quantity).toHaveValue('17');
+  });
+  it('revalidates current lines at Confirm and shows inline errors without posting', async () => {
+    const { user } = setup();
+    await validLine(user);
+    const quantity = screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' });
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByRole('dialog');
+    act(() => fireEvent.change(quantity, { target: { value: '65' } }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(submitStockEvent).not.toHaveBeenCalled();
+    expect(quantity).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      await screen.findByText(en['stock-events.quantity-greater-than-stock-on-hand']),
+    ).toBeInTheDocument();
+  });
+
   it('copies reason, comments and date into another line, then removes it with focus on the remaining action', async () => {
     const { user } = setup();
     await add(user);

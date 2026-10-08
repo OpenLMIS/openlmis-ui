@@ -15,13 +15,20 @@ type ClearLinesDialogProps = {
   count: number;
   onOpenChange: (open: boolean) => void;
   onClear: () => void;
+  restoreFocus?: () => HTMLElement | null | undefined;
 };
 
-export function ClearLinesDialog({ open, count, onOpenChange, onClear }: ClearLinesDialogProps) {
+export function ClearLinesDialog({
+  open,
+  count,
+  onOpenChange,
+  onClear,
+  restoreFocus,
+}: ClearLinesDialogProps) {
   const { t } = useTranslation();
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
-      <AlertDialogContent>
+      <AlertDialogContent finalFocus={restoreFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('stock-events.clear-title')}</AlertDialogTitle>
           <AlertDialogDescription>

@@ -3,11 +3,10 @@ import { parseDateValue } from '@/components/form/date-value';
 import { type QuantityValue, quantityValue } from '@/components/form/quantity-value';
 import type { Reason } from '@/features/reference-data/lib/types';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
-import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
+import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
   key: z.string(),
-  card: z.custom<EventStockCard>(),
   orderable: z.custom<EventStockCard['orderable']>(),
   lot: z.custom<EventStockCard['lot']>(),
   stockOnHand: z.number(),
@@ -31,7 +30,6 @@ export function newAdjustmentLine(
 ): AdjustmentLine {
   return {
     key: crypto.randomUUID(),
-    card,
     orderable: card.orderable,
     lot: card.lot,
     stockOnHand: card.stockOnHand,
@@ -57,13 +55,20 @@ export function adjustmentLinesSchema({ reasons, today }: AdjustmentSchemaOption
     const reason = byId.get(line.reasonId);
     if (!reason) issue(['reasonId'], 'stock-events.required');
 
-    const text = toLatinDigits(line.quantity.doses.trim());
-    if (!text) issue(['quantity', 'doses'], 'stock-events.required');
-    else if (!/^[0-9]+$/.test(text) || Number(text) < 1) {
-      issue(['quantity', 'doses'], 'stock-events.positive-number');
-    } else if (Number(text) > 2_147_483_647) {
-      issue(['quantity', 'doses'], 'stock-events.number-too-large');
-    } else if (reason?.reasonType === 'DEBIT' && Number(text) > line.stockOnHand) {
+    const quantity = wholeNumberText(
+      {
+        required: 'stock-events.required',
+        invalid: 'stock-events.positive-number',
+        tooLarge: 'stock-events.number-too-large',
+      },
+      { min: { value: 1, tooSmall: 'stock-events.positive-number' } },
+    ).safeParse(line.quantity.doses);
+    if (!quantity.success) {
+      for (const error of quantity.error.issues) issue(['quantity', 'doses'], error.message);
+    } else if (
+      reason?.reasonType === 'DEBIT' &&
+      toWholeNumber(line.quantity.doses) > line.stockOnHand
+    ) {
       issue(['quantity', 'doses'], 'stock-events.quantity-greater-than-stock-on-hand');
     }
 

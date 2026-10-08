@@ -78,6 +78,7 @@ type Props = {
   facilityTypeId: string;
   programId: string;
   username: string;
+  isCurrentUser: () => boolean;
   canViewStock: boolean;
   search: AdjustmentSearch;
   onSearchChange: SearchChange<AdjustmentSearch>;
@@ -93,6 +94,7 @@ export function AdjustmentEditor({
   facilityTypeId,
   programId,
   username,
+  isCurrentUser,
   canViewStock,
   search,
   onSearchChange,
@@ -115,6 +117,9 @@ export function AdjustmentEditor({
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
+  const signing = useRef(false);
+  signing.current = signatureOpen;
+  const lastAdded = useRef<ReturnType<typeof newAdjustmentLine> | undefined>(undefined);
   const leaving = useRef(false);
   const posting = useRef(false);
   const region = useRef<HTMLDivElement>(null);
@@ -134,34 +139,40 @@ export function AdjustmentEditor({
     onValid: () => {
       if (form.state.values.lines.length) setSignatureOpen(true);
     },
-    onInvalid: () => {
-      const issue = adjustmentLinesSchema({ reasons, today }).safeParse(form.state.values).error
-        ?.issues[0];
-      if (!issue) return;
-      const index = Number(issue.path[1]);
-      const field = String(issue.path[2]);
-      setFocusField({ name: `lines[${index}].${field}`, page: pageOf(index, search.size ?? 10) });
-      onSearchChange(
-        {
-          keyword: undefined,
-          page:
-            pageOf(index, search.size ?? 10) === 1 ? undefined : pageOf(index, search.size ?? 10),
-        },
-        true,
-      );
-      toast.error(t('stock-adjustment.invalid-title'), {
-        description: t('stock-adjustment.invalid-description'),
-      });
-    },
+    onInvalid: () => showInvalid(),
   });
+  const showInvalid = () => {
+    const issue = adjustmentLinesSchema({ reasons, today }).safeParse(form.state.values).error
+      ?.issues[0];
+    if (!issue) return;
+    const index = Number(issue.path[1]);
+    const field = String(issue.path[2]);
+    setFocusField({ name: `lines[${index}].${field}`, page: pageOf(index, search.size ?? 10) });
+    onSearchChange(
+      {
+        keyword: undefined,
+        page: pageOf(index, search.size ?? 10) === 1 ? undefined : pageOf(index, search.size ?? 10),
+      },
+      true,
+    );
+    toast.error(t('stock-adjustment.invalid-title'), {
+      description: t('stock-adjustment.invalid-description'),
+    });
+  };
   const lines = useStore(form.store, (state) => state.values.lines);
+  const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
+  if (latestAdded) lastAdded.current = latestAdded;
   const guard = useDiscardGuard(lines.length > 0, { allowLeave: () => leaving.current });
   const filtered = useMemo(
     () =>
-      filterAdjustmentLines(lines, search.keyword ?? '', reasons, (value) =>
-        formatDateValue(value, i18n.language),
+      filterAdjustmentLines(
+        lines,
+        search.keyword ?? '',
+        reasons,
+        (value) => formatDateValue(value, i18n.language),
+        t('stock-events.no-lot-defined'),
       ),
-    [lines, search.keyword, reasons, i18n.language],
+    [lines, search.keyword, reasons, i18n.language, t],
   );
   const mutation = useMutation({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
@@ -178,10 +189,9 @@ export function AdjustmentEditor({
     }
   }, [focusField, search.keyword, search.page]);
   const add = (card: EventStockCard) => {
-    form.setFieldValue('lines', (current) => [
-      newAdjustmentLine(card, current[0], today),
-      ...current,
-    ]);
+    const next = newAdjustmentLine(card, lastAdded.current, today);
+    lastAdded.current = next;
+    form.setFieldValue('lines', (current) => [next, ...current]);
     clearFilter();
   };
   const remove = useCallback(
@@ -204,7 +214,13 @@ export function AdjustmentEditor({
     [form],
   );
   const confirmSubmit = async (signature: string) => {
-    if (posting.current) return;
+    if (posting.current || !isCurrentUser()) return;
+    if (!adjustmentLinesSchema({ reasons, today }).safeParse(form.state.values).success) {
+      setSignatureOpen(false);
+      await form.validate('submit');
+      showInvalid();
+      return;
+    }
     posting.current = true;
     setFailure(null);
     try {
@@ -250,14 +266,14 @@ export function AdjustmentEditor({
     signal: AbortSignal,
   ): Promise<ScanMessage | undefined> => {
     if (!parsed.ok) return scanMessage(parsed.error);
-    if (signal.aborted) return;
+    if (signal.aborted || signing.current || !isCurrentUser()) return;
     let tradeItem: TradeItem | null;
     try {
       tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
     } catch {
       return signal.aborted ? undefined : scanMessage('gtinLookupFailed');
     }
-    if (signal.aborted) return;
+    if (signal.aborted || signing.current || !isCurrentUser()) return;
     if (!tradeItem) return scanMessage('gtinNotRegistered', { gtin: parsed.gtin });
     const cards = queryClient.getQueryData(
       eventStockCardsOptions({ facilityId, programId }).queryKey,
@@ -291,18 +307,26 @@ export function AdjustmentEditor({
             },
           });
         });
-        if (signal.aborted) return;
+        if (signal.aborted || signing.current || !isCurrentUser()) return;
         if (!accepted) return { key: 'scan.not-resolved' };
         acceptedExpiries.current.add(mismatch);
       }
       action = resolution.next;
     }
-    if (signal.aborted) return;
-    const next = applyScanCount(form.state.values.lines, action, { today });
+    if (signal.aborted || signing.current || !isCurrentUser()) return;
+    const next = applyScanCount(form.state.values.lines, action, {
+      today,
+      previousLine: lastAdded.current,
+    });
     const countedKey = action.type === 'count' ? action.lineKey : next[0].key;
+    if (action.type === 'add') lastAdded.current = next[0];
     form.setFieldValue('lines', next);
-    const visible = filterAdjustmentLines(next, search.keyword ?? '', reasons, (value) =>
-      formatDateValue(value, i18n.language),
+    const visible = filterAdjustmentLines(
+      next,
+      search.keyword ?? '',
+      reasons,
+      (value) => formatDateValue(value, i18n.language),
+      t('stock-events.no-lot-defined'),
     );
     const hidden = !visible.some((line) => line.key === countedKey);
     const index = (hidden ? next : visible).findIndex((line) => line.key === countedKey);
@@ -314,7 +338,10 @@ export function AdjustmentEditor({
       true,
     );
   };
-  const scanStatus = useBarcodeScan({ enabled: scanning && canViewStock && !pending, onScan });
+  const scanStatus = useBarcodeScan({
+    enabled: scanning && canViewStock && !pending && !signatureOpen,
+    onScan,
+  });
   const visibility = {
     ...columns.visibility,
     total: quantityUnit.unit === 'PACKS' && columns.visibility.total !== false,
@@ -443,6 +470,7 @@ export function AdjustmentEditor({
       <ClearLinesDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
+        restoreFocus={() => region.current?.querySelector<HTMLInputElement>('[role="combobox"]')}
         count={filtered.length}
         onClear={() => {
           const keys = new Set(filtered.map((line) => line.key));

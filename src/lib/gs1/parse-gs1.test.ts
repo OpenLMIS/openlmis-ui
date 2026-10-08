@@ -243,34 +243,4 @@ describe('parseGs1', () => {
     if (serial.ok) expect(serial.serial).toBeUndefined();
     if (expiry.ok) expect(expiry.expiry).toBeUndefined();
   });
-
-  it('requires a recognized prefix only when configured', () => {
-    expect(parseGs1(PRODUCT, { requireSymbologyIdentifier: true })).toEqual({
-      ok: false,
-      error: 'MISSING_SYMBOLOGY_IDENTIFIER',
-    });
-    expect(parseGs1(`]d2${PRODUCT}`, { requireSymbologyIdentifier: true })).toMatchObject({
-      ok: true,
-      gtin: GTIN,
-    });
-  });
-
-  it.each(['~', '^]'])('accepts the configured GS substitute %s', (substitute) => {
-    expect(
-      parseGs1(`${PRODUCT}10ABC123${substitute}21SER456`, {
-        groupSeparatorSubstitutes: [substitute],
-      }),
-    ).toMatchObject({ ok: true, lotCode: 'ABC123', serial: 'SER456' });
-  });
-
-  it('allows disabling check-digit validation without allowing non-digits', () => {
-    expect(parseGs1('0105890123456787', { validateGtinCheckDigit: false })).toMatchObject({
-      ok: true,
-      gtin: '05890123456787',
-    });
-    expect(parseGs1('010589012345678A', { validateGtinCheckDigit: false })).toEqual({
-      ok: false,
-      error: 'INVALID_GTIN',
-    });
-  });
 });

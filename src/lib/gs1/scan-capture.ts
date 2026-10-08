@@ -12,19 +12,6 @@ export type ScanCaptureKeyEvent = {
 
 export type ScanCaptureEvent = ScanCaptureKeyEvent | { type: 'timeout'; timeStamp: number };
 
-export type ScanCaptureConfig = {
-  burstThreshold: number;
-  minPayloadLength: number;
-  suppressAfter: number;
-  terminators: readonly string[];
-  idleTimeout: number;
-  suffixWindow: number;
-  separatorKeyCode: number;
-  separatorCtrlCodes: readonly string[];
-  separatorCtrlKeys: readonly string[];
-  restoreLeakedInput: boolean;
-};
-
 export type ScanCaptureState = {
   buffer: string;
   lastKeyTime: number | null;
@@ -45,7 +32,7 @@ export type ScanCaptureEffect =
 
 export type ScanCaptureResult = { state: ScanCaptureState; effects: ScanCaptureEffect[] };
 
-export const SCAN_CAPTURE_DEFAULTS: Readonly<ScanCaptureConfig> = {
+const SCAN_CAPTURE_DEFAULTS = {
   burstThreshold: 40,
   minPayloadLength: 8,
   suppressAfter: 3,
@@ -55,7 +42,6 @@ export const SCAN_CAPTURE_DEFAULTS: Readonly<ScanCaptureConfig> = {
   separatorKeyCode: 29,
   separatorCtrlCodes: ['BracketRight'],
   separatorCtrlKeys: [']'],
-  restoreLeakedInput: true,
 };
 
 export function createScanCaptureState(): ScanCaptureState {
@@ -69,7 +55,7 @@ export function createScanCaptureState(): ScanCaptureState {
   };
 }
 
-function readCharacter(event: ScanCaptureKeyEvent, config: ScanCaptureConfig) {
+function readCharacter(event: ScanCaptureKeyEvent, config: typeof SCAN_CAPTURE_DEFAULTS) {
   if (
     event.keyCode === config.separatorKeyCode ||
     (event.ctrlKey &&
@@ -84,8 +70,8 @@ function replay(state: ScanCaptureState, effects: ScanCaptureEffect[]) {
   if (state.suppressing) effects.push({ type: 'replay', text: state.buffer });
 }
 
-function restore(config: ScanCaptureConfig, effects: ScanCaptureEffect[]) {
-  if (config.restoreLeakedInput) effects.push({ type: 'restore-field' });
+function restore(effects: ScanCaptureEffect[]) {
+  effects.push({ type: 'restore-field' });
 }
 
 function resetBurst(state: ScanCaptureState, effects: ScanCaptureEffect[]) {
@@ -99,12 +85,12 @@ function resetBurst(state: ScanCaptureState, effects: ScanCaptureEffect[]) {
 
 function abandonBurst(
   state: ScanCaptureState,
-  config: ScanCaptureConfig,
+  config: typeof SCAN_CAPTURE_DEFAULTS,
   effects: ScanCaptureEffect[],
 ) {
   const looksLikeScan = state.buffer.length >= config.minPayloadLength;
   const lastKeyTime = state.lastKeyTime;
-  if (looksLikeScan) restore(config, effects);
+  if (looksLikeScan) restore(effects);
   else replay(state, effects);
   resetBurst(state, effects);
   state.lateTerminatorFrom = looksLikeScan ? lastKeyTime : null;
@@ -113,9 +99,8 @@ function abandonBurst(
 export function reduceScanCapture(
   previous: ScanCaptureState,
   event: ScanCaptureEvent,
-  options: Partial<ScanCaptureConfig> = {},
 ): ScanCaptureResult {
-  const config = { ...SCAN_CAPTURE_DEFAULTS, ...options };
+  const config = SCAN_CAPTURE_DEFAULTS;
   const state = { ...previous };
   const effects: ScanCaptureEffect[] = [];
   const result = { state, effects };
@@ -163,13 +148,29 @@ export function reduceScanCapture(
     }
     const payload = state.buffer;
     effects.push({ type: 'suppress' });
-    restore(config, effects);
+    restore(effects);
     resetBurst(state, effects);
     state.scanEndedAt = event.timeStamp;
     effects.push({ type: 'emit', payload });
     return result;
   }
-  if (!collectable) return result;
+  if (!collectable) {
+    if (
+      [
+        'Backspace',
+        'Delete',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+      ].includes(event.key)
+    ) {
+      abandonBurst(state, config, effects);
+    }
+    return result;
+  }
 
   if (state.lastKeyTime === null || event.timeStamp - state.lastKeyTime > config.burstThreshold) {
     abandonBurst(state, config, effects);

@@ -35,7 +35,8 @@ describe('applyScanCount', () => {
     const result = applyScanCount([draft], { type: 'add', card }, { today });
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
-      card,
+      orderable: card.orderable,
+      lot: card.lot,
       quantity: quantityValue('20', 20),
       reasonId: 'lost',
       reasonFreeText: 'Broken',

@@ -8,6 +8,7 @@ export function filterAdjustmentLines(
   keyword: string,
   reasons: readonly Pick<Reason, 'id' | 'name'>[],
   formatDate: LineDateFormatter,
+  noLotLabel = '',
 ): AdjustmentLine[] {
   const query = keyword.trim().toLowerCase();
   if (!query) return [...lines];
@@ -23,7 +24,7 @@ export function filterAdjustmentLines(
       reasonNames.get(line.reasonId),
       line.reasonFreeText,
       line.quantity.doses,
-      lot?.lotCode,
+      lot?.lotCode ?? noLotLabel,
       lot?.expirationDate ? formatDate(lot.expirationDate) : '',
       line.occurredDate ? formatDate(line.occurredDate) : '',
     ];

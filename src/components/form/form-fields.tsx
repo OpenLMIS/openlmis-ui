@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   type ComponentProps,
+  Fragment,
   type ReactNode,
   useCallback,
   useEffect,
@@ -321,8 +322,8 @@ export function NumberField(props: FieldProps) {
 type QuantityFieldProps = FieldProps & {
   unit: 'DOSES' | 'PACKS';
   netContent?: number | null;
-  packsLabel: ReactNode;
-  dosesLabel: ReactNode;
+  packsLabel: string;
+  dosesLabel: string;
 };
 
 export function QuantityField({
@@ -337,14 +338,23 @@ export function QuantityField({
   dosesLabel,
 }: QuantityFieldProps) {
   const field = useFieldContext<QuantityValue>();
-  const nestedErrors = useStore(field.form.store, (state) =>
-    ['doses', 'packs', 'remainder'].map((part) => state.fieldMeta[`${field.name}.${part}`]?.errors),
+  const dosesErrors = useStore(
+    field.form.store,
+    (state) => state.fieldMeta[`${field.name}.doses`]?.errors,
+  );
+  const packsErrors = useStore(
+    field.form.store,
+    (state) => state.fieldMeta[`${field.name}.packs`]?.errors,
+  );
+  const remainderErrors = useStore(
+    field.form.store,
+    (state) => state.fieldMeta[`${field.name}.remainder`]?.errors,
   );
   const state = useFieldErrors(
     description,
     undefined,
     undefined,
-    nestedErrors.flat().filter(Boolean),
+    [dosesErrors, packsErrors, remainderErrors].flat().filter(Boolean),
   );
   const labelId = `${field.name}-label`;
   const parts: (keyof QuantityValue)[] = unit === 'DOSES' ? ['doses'] : ['packs', 'remainder'];
@@ -358,38 +368,44 @@ export function QuantityField({
       required={required}
       state={state}
     >
-      <div className="flex min-w-0 gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {parts.map((part, index) => {
           const partId = `${field.name}-${part}-label`;
           return (
-            <div className="min-w-0 flex-1" key={part}>
-              {unit === 'PACKS' && (
-                <HiddenFromView>
-                  <label htmlFor={index === 0 ? field.name : `${field.name}-${part}`} id={partId}>
-                    {part === 'packs' ? packsLabel : dosesLabel}
-                  </label>
-                </HiddenFromView>
-              )}
-              <Input
-                aria-describedby={state.describedBy}
-                aria-invalid={state.isInvalid}
-                aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
-                aria-required={required}
-                autoComplete="off"
-                dir="ltr"
-                disabled={disabled}
-                id={index === 0 ? field.name : `${field.name}-${part}`}
-                inputMode="numeric"
-                name={`${field.name}.${part}`}
-                onBlur={field.handleBlur}
-                onChange={(event) =>
-                  field.handleChange(
-                    updateQuantityValue(field.state.value, part, event.target.value, netContent),
-                  )
-                }
-                value={field.state.value[part]}
-              />
-            </div>
+            <Fragment key={part}>
+              {unit === 'PACKS' && index === 1 && <span aria-hidden="true">+</span>}
+              <div className="min-w-0 flex-1">
+                {unit === 'PACKS' && (
+                  <HiddenFromView>
+                    <label htmlFor={index === 0 ? field.name : `${field.name}-${part}`} id={partId}>
+                      {part === 'packs' ? packsLabel : dosesLabel}
+                    </label>
+                  </HiddenFromView>
+                )}
+                <Input
+                  aria-describedby={state.describedBy}
+                  aria-invalid={state.isInvalid}
+                  aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
+                  aria-required={required}
+                  autoComplete="off"
+                  dir="ltr"
+                  disabled={disabled}
+                  id={index === 0 ? field.name : `${field.name}-${part}`}
+                  inputMode="numeric"
+                  placeholder={
+                    unit === 'PACKS' ? (part === 'packs' ? packsLabel : dosesLabel) : undefined
+                  }
+                  name={`${field.name}.${part}`}
+                  onBlur={field.handleBlur}
+                  onChange={(event) =>
+                    field.handleChange(
+                      updateQuantityValue(field.state.value, part, event.target.value, netContent),
+                    )
+                  }
+                  value={field.state.value[part]}
+                />
+              </div>
+            </Fragment>
           );
         })}
       </div>

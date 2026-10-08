@@ -1,5 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { ClipboardPenLineIcon } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -70,7 +71,7 @@ export const Route = createFileRoute(
         validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
       );
     }
-    return { homeFacility, program, canViewStock };
+    return { userId, homeFacility, program, canViewStock };
   },
   pendingComponent: AdjustmentPending,
   component: AdjustmentPage,
@@ -78,14 +79,23 @@ export const Route = createFileRoute(
 
 function AdjustmentPage() {
   const { t } = useTranslation();
-  const { homeFacility, program, canViewStock } = Route.useLoaderData();
+  const { userId, homeFacility, program, canViewStock } = Route.useLoaderData();
+  const currentUserId = useLoginData((state) => state.referenceDataUserId);
+  const router = useRouter();
+  useEffect(() => {
+    if (currentUserId !== userId) {
+      void router.invalidate({ filter: (match) => match.routeId === Route.id });
+    }
+  }, [currentUserId, userId, router]);
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<AdjustmentSearch>({});
   const navigate = Route.useNavigate();
   const username = useLoginData((state) => state.username) ?? '';
+  if (currentUserId !== userId) return <AdjustmentPending />;
   return (
     <AdjustmentEditor
-      key={`${homeFacility.id}/${program.id}`}
+      key={`${userId}/${homeFacility.id}/${program.id}`}
+      isCurrentUser={() => useLoginData.getState().referenceDataUserId === userId}
       facilityId={homeFacility.id}
       facilityTypeId={homeFacility.type.id}
       programId={program.id}

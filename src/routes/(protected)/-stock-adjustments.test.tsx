@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -210,6 +210,52 @@ describe('adjustments program picker', () => {
 });
 
 describe('adjustment editor access', () => {
+  it('removes old lines while new rights are pending and loads a fresh draft for the same facility', async () => {
+    const rights = [...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`];
+    vi.mocked(fetchPermissionStrings).mockResolvedValue(rights);
+    vi.mocked(fetchEventStockCards).mockResolvedValue([
+      {
+        stockOnHand: 50,
+        orderable: { id: 'product', productCode: 'C1', fullProductName: 'Aspirin', netContent: 16 },
+        lot: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderRoute(`${PICKER}/${FP}`);
+    await user.click(await screen.findByRole('combobox', { name: 'stock-events.product' }));
+    await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
+    await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+    const quantity = document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement;
+    expect(quantity).toBeInTheDocument();
+    await user.type(quantity, '65');
+    let finish!: (permissions: string[]) => void;
+    vi.mocked(fetchPermissionStrings).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
+    expect(quantity).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'stock-events.submit' })).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('other'));
+    await act(async () => finish(rights));
+    await screen.findByRole('heading', { name: 'stock-adjustment.editor-title' });
+    expect(document.querySelector('[name="lines[0].quantity.doses"]')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
+  });
+
+  it('drops the old loader scope and rechecks rights after a user change', async () => {
+    renderRoute(`${PICKER}/${FP}`);
+    await screen.findByRole('heading', { name: 'stock-adjustment.editor-title' });
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+    act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
+    expect(
+      screen.queryByRole('heading', { name: 'stock-adjustment.editor-title' }),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('other'));
+  });
+
   it('explains missing scoped stock view access without loading stock cards', async () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([...grants, `STOCK_CARDS_VIEW|away|${FP}`]);
     renderRoute(`${PICKER}/${FP}`);
