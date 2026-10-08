@@ -71,7 +71,7 @@ type EventSearch = FacilityProgramSelection;
 function EventCell({ link, search }: { link: EventLink | null; search: EventSearch }) {
   if (!link?.eventId) return <Wrapped>{link?.label}</Wrapped>;
   return (
-    <span className="block max-w-60 whitespace-normal break-normal">
+    <span className="whitespace-nowrap">
       <Link
         className="font-medium text-primary underline-offset-4 hover:underline"
         params={{ eventId: link.eventId }}

@@ -118,25 +118,22 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
     case 'reversing':
     case 'reversedBy': {
       const link = eventLinks(line, t('stock-event.no-number'))[id];
+      if (!link?.eventId) return <Wrapped>{orEmpty(link?.label)}</Wrapped>;
       return (
-        <Wrapped>
-          {link?.eventId ? (
-            <Link
-              to="/stock-management/transaction-history/$eventId"
-              params={{ eventId: link.eventId }}
-              search={(previous) => ({
-                ...transactionHistorySearchSchema.parse(previous),
-                detailPage: undefined,
-                detailSize: undefined,
-              })}
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              {link.label}
-            </Link>
-          ) : (
-            orEmpty(link?.label)
-          )}
-        </Wrapped>
+        <span className="whitespace-nowrap">
+          <Link
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            params={{ eventId: link.eventId }}
+            search={(previous) => ({
+              ...transactionHistorySearchSchema.parse(previous),
+              detailPage: undefined,
+              detailSize: undefined,
+            })}
+            to="/stock-management/transaction-history/$eventId"
+          >
+            <bdi>{link.label}</bdi>
+          </Link>
+        </span>
       );
     }
   }
