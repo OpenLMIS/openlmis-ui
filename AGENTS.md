@@ -514,7 +514,8 @@ for everything that tells it apart, not only its name. While anything is selecte
 URL. Valid Destinations is the example: its bulk delete awaits every request, reports the ones
 that failed and then moves focus to the list, since the bar and the rows it came from are gone.
 
-A filter on a short fixed list, such as status, is a `DataTableSelectFilter`; on a long one,
+A filter on a short fixed list, such as status, is a `DataTableSelectFilter`, with an `allLabel`
+where legacy lists an "All" choice; on a long one,
 such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
 with an option's `description` muted after its label.
 
@@ -695,7 +696,8 @@ user, so it reloads your rights, Profile and Home only when the user is you.
 `requireRight(queryClient, RIGHTS.x)`, or `requirePermissions` for the grants too, from `src/features/auth/lib/access.ts`, alongside the
 data it must have, and a missing right throws a `ForbiddenError`. The default error component
 shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
-`errorComponent` renders `ErrorFallback` with its own `title` and `description`, which checks
+`errorComponent` renders `ErrorFallback` with its own `title` and `description`, and a `back` that
+replaces Back Home where a list is the better way back, which checks
 `isForbidden(error)` first, and so does a `QueryBoundary` whose data the server may refuse,
 showing `NoAccess`. Inside a feature, which has no auth imports, such a boundary checks
 `isRefused(error)` from `src/lib/http.ts` and shows a short message in place, not the
