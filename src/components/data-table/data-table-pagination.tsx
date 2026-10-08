@@ -5,7 +5,7 @@ import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
 } from 'lucide-react';
-import { Fragment, type ReactNode, useId } from 'react';
+import { type ReactNode, useId } from 'react';
 import type { DataTableInstance } from '@/components/data-table/data-table';
 import { useDataTableLabels } from '@/components/data-table/data-table-labels';
 import { Button } from '@/components/ui/button';
@@ -38,9 +38,9 @@ export function DataTablePagination<TData extends RowData>({
   const pageSizeId = useId();
   const { pageIndex, pageSize } = table.state.pagination;
   const pageCount = Math.max(1, table.getPageCount());
-  const pages = [...new Set([0, pageIndex - 1, pageIndex, pageIndex + 1, pageCount - 1])]
-    .filter((page) => page >= 0 && page < pageCount)
-    .sort((a, b) => a - b);
+  const pages = Array.from({ length: 7 }, (_, offset) => pageIndex - 3 + offset).filter(
+    (page) => page >= 0 && page < pageCount,
+  );
   const pageSizeItems = DEFAULT_PAGE_SIZE_OPTIONS.includes(pageSize)
     ? PAGE_SIZE_ITEMS
     : [...PAGE_SIZE_ITEMS, { value: pageSize, label: String(pageSize) }].sort(
@@ -80,29 +80,24 @@ export function DataTablePagination<TData extends RowData>({
               <Icon className="rtl:rotate-180" />
             </Button>
           ))}
-          {pages.map((page, index) => (
-            <Fragment key={page}>
-              {index > 0 && page - (pages[index - 1] ?? page) > 1 && (
-                <span
-                  aria-hidden="true"
-                  className="hidden w-5 text-center text-muted-foreground @md/table:block"
-                >
-                  …
-                </span>
-              )}
-              <div className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}>
-                <Button
-                  aria-current={page === pageIndex ? 'page' : undefined}
-                  aria-label={labels.page(page + 1)}
-                  disabled={disabled || page === pageIndex}
-                  onClick={() => table.setPageIndex(page)}
-                  size="sm"
-                  variant={page === pageIndex ? 'default' : 'outline'}
-                >
-                  {page + 1}
-                </Button>
-              </div>
-            </Fragment>
+          {pages.map((page) => (
+            <div
+              className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}
+              key={page}
+            >
+              <Button
+                aria-current={page === pageIndex ? 'page' : undefined}
+                aria-label={labels.page(page + 1)}
+                disabled={disabled}
+                onClick={() => {
+                  if (page !== pageIndex) table.setPageIndex(page);
+                }}
+                size="sm"
+                variant={page === pageIndex ? 'default' : 'outline'}
+              >
+                {page + 1}
+              </Button>
+            </div>
           ))}
           {controls.slice(2).map(({ label, icon: Icon, enabled, go }) => (
             <Button

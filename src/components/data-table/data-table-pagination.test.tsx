@@ -59,9 +59,7 @@ describe('DataTablePagination', () => {
     expect(screen.getByText('1-5 / 5')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous Page' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next Page' })).toBeDisabled();
-    for (const button of screen.getAllByRole('button', { name: /^Page \d+$/ })) {
-      expect(button).toBeDisabled();
-    }
+    expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('turns every page control off while disabled', () => {
@@ -111,17 +109,16 @@ describe('DataTablePagination', () => {
   });
 
   it.each([
-    { pageIndex: 0, rowCount: 0, pages: [1], gaps: 0 },
-    { pageIndex: 0, rowCount: 10, pages: [1], gaps: 0 },
-    { pageIndex: 1, rowCount: 40, pages: [1, 2, 3, 4], gaps: 0 },
-    { pageIndex: 0, rowCount: 230, pages: [1, 2, 23], gaps: 1 },
-    { pageIndex: 2, rowCount: 230, pages: [1, 2, 3, 4, 23], gaps: 1 },
-    { pageIndex: 4, rowCount: 230, pages: [1, 4, 5, 6, 23], gaps: 2 },
-    { pageIndex: 21, rowCount: 230, pages: [1, 21, 22, 23], gaps: 1 },
-    { pageIndex: 22, rowCount: 230, pages: [1, 22, 23], gaps: 1 },
+    { pageIndex: 0, rowCount: 0, pages: [1] },
+    { pageIndex: 0, rowCount: 10, pages: [1] },
+    { pageIndex: 1, rowCount: 40, pages: [1, 2, 3, 4] },
+    { pageIndex: 0, rowCount: 230, pages: [1, 2, 3, 4] },
+    { pageIndex: 2, rowCount: 230, pages: [1, 2, 3, 4, 5, 6] },
+    { pageIndex: 10, rowCount: 230, pages: [8, 9, 10, 11, 12, 13, 14] },
+    { pageIndex: 22, rowCount: 230, pages: [20, 21, 22, 23] },
   ])(
-    'shows page numbers and gaps at page index $pageIndex of $rowCount rows',
-    ({ pageIndex, rowCount, pages, gaps }) => {
+    'shows the current page and up to three on each side, as legacy, at page index $pageIndex of $rowCount rows',
+    ({ pageIndex, rowCount, pages }) => {
       render(
         <Harness
           onPaginationChange={vi.fn()}
@@ -133,7 +130,6 @@ describe('DataTablePagination', () => {
       expect(
         screen.getAllByRole('button', { name: /^Page \d+$/ }).map((button) => button.textContent),
       ).toEqual(pages.map(String));
-      expect(screen.queryAllByText('…')).toHaveLength(gaps);
       expect(screen.getByRole('button', { name: `Page ${pageIndex + 1}` })).toHaveAttribute(
         'aria-current',
         'page',
@@ -148,13 +144,13 @@ describe('DataTablePagination', () => {
       <Harness onPaginationChange={onPaginationChange} pagination={pagination} rowCount={230} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Page 23' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Page 8' }));
 
     const updater = onPaginationChange.mock.calls[0]?.[0];
-    expect(updater(pagination)).toEqual({ pageIndex: 22, pageSize: 10 });
+    expect(updater(pagination)).toEqual({ pageIndex: 7, pageSize: 10 });
   });
 
-  it('keeps the current page non-actionable', () => {
+  it('keeps the current page in full colour and focusable, doing nothing when pressed', () => {
     const onPaginationChange = vi.fn();
     render(
       <Harness
@@ -165,7 +161,7 @@ describe('DataTablePagination', () => {
     );
 
     const current = screen.getByRole('button', { name: 'Page 5' });
-    expect(current).toBeDisabled();
+    expect(current).toBeEnabled();
     fireEvent.click(current);
     expect(onPaginationChange).not.toHaveBeenCalled();
   });
@@ -188,7 +184,7 @@ describe('DataTablePagination', () => {
     expect(screen.getByRole('button', { name: 'Página 3' })).toBeEnabled();
   });
 
-  it.each([1, 25, 1000])(
+  it.each([1, 25, 75])(
     'shows a linked page size of %i and offers the standard sizes',
     async (pageSize) => {
       const user = userEvent.setup();

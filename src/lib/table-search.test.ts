@@ -30,11 +30,11 @@ describe('tableSearchSchema', () => {
     expect(schema.parse({ page: 0, size: 0, sort: 'password', dir: 'up' })).toEqual({});
   });
 
-  it.each([1, 7, 25, 1000])('keeps a whole page size of %i from a link', (size) => {
+  it.each([1, 7, 25, 100])('keeps a whole page size of %i from a link', (size) => {
     expect(schema.parse({ size })).toEqual({ size });
   });
 
-  it.each([0, -1, 1.5, 1001, Infinity, '25', null])('drops an invalid page size of %s', (size) => {
+  it.each([0, -1, 1.5, 101, Infinity, '25', null])('drops an invalid page size of %s', (size) => {
     expect(schema.parse({ size }).size).toBeUndefined();
   });
 });

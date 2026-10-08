@@ -26,7 +26,7 @@ export function tableSearchSchema<const TSortField extends string>(
 ) {
   return z.object({
     page: z.number().int().min(1).optional().catch(undefined),
-    size: z.number().int().min(1).max(1000).optional().catch(undefined),
+    size: z.number().int().min(1).max(100).optional().catch(undefined),
     sort: z.enum(sortFields).optional().catch(undefined),
     dir: z.enum(['asc', 'desc']).optional().catch(undefined),
   });
