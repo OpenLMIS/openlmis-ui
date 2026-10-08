@@ -1,5 +1,5 @@
 import { useStore } from '@tanstack/react-form';
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -58,6 +58,7 @@ import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
+import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
@@ -78,7 +79,6 @@ type Props = {
   facilityTypeId: string;
   programId: string;
   username: string;
-  isCurrentUser: () => boolean;
   canViewStock: boolean;
   search: AdjustmentSearch;
   onSearchChange: SearchChange<AdjustmentSearch>;
@@ -94,7 +94,6 @@ export function AdjustmentEditor({
   facilityTypeId,
   programId,
   username,
-  isCurrentUser,
   canViewStock,
   search,
   onSearchChange,
@@ -186,7 +185,7 @@ export function AdjustmentEditor({
     setFilter({ keyword, lineKeys, language, matches });
   }
   const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
-  const mutation = useMutation({
+  const mutation = useSessionMutation({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
   });
@@ -226,10 +225,11 @@ export function AdjustmentEditor({
     [form],
   );
   const confirmSubmit = async (signature: string) => {
-    if (posting.current || !isCurrentUser()) return;
+    if (posting.current) return;
     if (!adjustmentLinesSchema({ reasons, today }).safeParse(form.state.values).success) {
       setSignatureOpen(false);
       await form.validate('submit');
+      if (!mutation.isCurrent()) return;
       showInvalid();
       return;
     }
@@ -240,6 +240,7 @@ export function AdjustmentEditor({
         adjustmentPayload({ facilityId, programId, signature, lines: form.state.values.lines }),
       );
     } catch (error) {
+      if (!mutation.isCurrent()) return;
       const unknown = isAxiosError(error) && !error.response;
       const description = unknown
         ? t('stock-events.unknown-outcome-description')
@@ -253,6 +254,7 @@ export function AdjustmentEditor({
       posting.current = false;
       return;
     }
+    if (!mutation.isCurrent()) return;
     setSignatureOpen(false);
     leaving.current = true;
     toast.success(t('stock-adjustment.submitted-title'), {
@@ -278,14 +280,16 @@ export function AdjustmentEditor({
     signal: AbortSignal,
   ): Promise<ScanMessage | undefined> => {
     if (!parsed.ok) return scanMessage(parsed.error);
-    if (signal.aborted || signing.current || !isCurrentUser()) return;
+    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
     let tradeItem: TradeItem | null;
     try {
       tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
     } catch {
-      return signal.aborted ? undefined : scanMessage('gtinLookupFailed');
+      return signal.aborted || signing.current || !mutation.isCurrent()
+        ? undefined
+        : scanMessage('gtinLookupFailed');
     }
-    if (signal.aborted || signing.current || !isCurrentUser()) return;
+    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
     if (!tradeItem) return scanMessage('gtinNotRegistered', { gtin: parsed.gtin });
     const cards = queryClient.getQueryData(
       eventStockCardsOptions({ facilityId, programId }).queryKey,
@@ -319,13 +323,13 @@ export function AdjustmentEditor({
             },
           });
         });
-        if (signal.aborted || signing.current || !isCurrentUser()) return;
+        if (signal.aborted || signing.current || !mutation.isCurrent()) return;
         if (!accepted) return { key: 'scan.not-resolved' };
         acceptedExpiries.current.add(mismatch);
       }
       action = resolution.next;
     }
-    if (signal.aborted || signing.current || !isCurrentUser()) return;
+    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
     const next = applyScanCount(form.state.values.lines, action, {
       today,
       previousLine: lastAdded.current,

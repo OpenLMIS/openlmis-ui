@@ -5,6 +5,7 @@ import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
 import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { toast } from 'sonner';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import fr from '@/../public/locales/fr.json';
@@ -23,6 +24,8 @@ import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/features/stock-events/api/api', () => ({
   submitStockEvent: vi.fn(),
@@ -122,7 +125,6 @@ function setup(canViewStock = true, configure?: (client: QueryClient) => void) {
             facilityTypeId="type"
             programId="program"
             username="ada"
-            isCurrentUser={() => useLoginData.getState().referenceDataUserId === 'ada-id'}
             search={search}
             onSearchChange={(update) =>
               setSearch((old) => ({
@@ -317,6 +319,69 @@ describe('AdjustmentEditor', () => {
     act(() => useLoginData.setState({ referenceDataUserId: 'other-user' }));
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(submitStockEvent).not.toHaveBeenCalled();
+  });
+  it('blocks a retained Confirm after switching away and back to the draft owner', async () => {
+    const { user } = setup();
+    await validLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByRole('dialog');
+    act(() => {
+      useLoginData.setState({ referenceDataUserId: 'other-user' });
+      useLoginData.setState({ referenceDataUserId: 'ada-id' });
+    });
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(submitStockEvent).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+  it.each(['success', 'failure'])(
+    'ignores a submit %s that finishes after switching user',
+    async (outcome) => {
+      let finish!: () => void;
+      vi.mocked(submitStockEvent).mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = () => (outcome === 'success' ? resolve('event') : reject(httpError(400)));
+          }),
+      );
+      const { user, onSubmitted, queryClient } = setup();
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+      await validLine(user);
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+      expect(submitStockEvent).toHaveBeenCalledOnce();
+      act(() => useLoginData.setState({ referenceDataUserId: 'other-user' }));
+      await act(async () => finish());
+      expect(onSubmitted).not.toHaveBeenCalled();
+      expect(invalidate).not.toHaveBeenCalled();
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
+    },
+  );
+  it('drops a scan lookup across a switch away and back to the draft owner', async () => {
+    const { user } = setup();
+    await validLine(user);
+    let finish!: (value: { id: string }) => void;
+    vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    let operation: ReturnType<typeof scan>;
+    await act(async () => {
+      operation = scan(
+        { ok: true, gtin: '00012345678905', lotCode: 'LOT', warnings: [], unparsed: {} },
+        new AbortController().signal,
+      );
+    });
+    act(() => {
+      useLoginData.setState({ referenceDataUserId: 'other-user' });
+      useLoginData.setState({ referenceDataUserId: 'ada-id' });
+    });
+    await act(async () => {
+      finish({ id: 'trade' });
+      await operation;
+    });
+    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('17');
   });
   it('keeps the draft through same-user session expiry and reauthentication', async () => {
     const { user } = setup();

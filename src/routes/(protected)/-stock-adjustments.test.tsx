@@ -22,8 +22,16 @@ import {
 } from '@/features/reference-data/api/api';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { fetchEventStockCards } from '@/features/stock-events/api/api';
+import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
+
+vi.mock('@/components/app-shell', () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => children,
+}));
+vi.mock('@/components/app-shell-skeleton', () => ({
+  AppShellSkeleton: () => <p>Checking access</p>,
+}));
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -70,6 +78,10 @@ function renderRoute(path = PICKER) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+  layout.update({
+    beforeLoad: ProtectedRoute.options.beforeLoad,
+    component: ProtectedRoute.options.component,
+  } as never);
   const picker = createRoute({
     getParentRoute: () => layout,
     path: 'stock-management/adjustments',
@@ -112,7 +124,11 @@ beforeEach(() => {
   );
   vi.mocked(fetchEventStockCards).mockResolvedValue([]);
   vi.mocked(fetchValidReasons).mockResolvedValue([]);
-  useLoginData.setState({ referenceDataUserId: USER });
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: USER,
+    username: 'administrator',
+    accessToken: 'token',
+  });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
     id: USER,
