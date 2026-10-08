@@ -269,7 +269,6 @@ describe('transaction history page', () => {
     await screen.findByText('FM71-ISS-1');
     expect(headers()).toEqual([
       'transaction-history.document-number',
-      'transaction-history.type',
       'transaction-history.date',
       'transaction-history.actions',
     ]);
