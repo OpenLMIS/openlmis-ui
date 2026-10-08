@@ -423,7 +423,7 @@ describe('stock event detail', () => {
     );
     vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([line], 50));
     renderRoute(path('?detailPage=3&detailSize=20&page=7&type=issue&documentNumber=DOC'));
-    const reversing = await screen.findByRole('link', { name: 'stock-event.view-event' });
+    const reversing = await screen.findByRole('link', { name: 'stock-event.view-reversing' });
     const reversedBy = screen.getByRole('link', { name: 'REV-1' });
     for (const [link, target] of [
       [reversing, 'original'],

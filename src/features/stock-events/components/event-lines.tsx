@@ -118,11 +118,21 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
       );
     case 'reversing':
     case 'reversedBy': {
-      const link = eventLinks(line, { noNumber: '', view: t('stock-event.view-event') })[id];
+      const view = t('stock-event.view-event');
+      const link = eventLinks(line, { noNumber: '', view })[id];
       if (!link?.eventId) return <Wrapped>{orEmpty(link?.label)}</Wrapped>;
       return (
         <span className="whitespace-nowrap">
           <Link
+            aria-label={
+              link.label === view
+                ? t(
+                    id === 'reversing'
+                      ? 'stock-event.view-reversing'
+                      : 'stock-event.view-reversed-by',
+                  )
+                : undefined
+            }
             className="font-medium text-primary underline-offset-4 hover:underline"
             params={{ eventId: link.eventId }}
             search={(previous) => ({

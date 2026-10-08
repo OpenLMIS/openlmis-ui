@@ -68,11 +68,20 @@ function Wrapped({ children }: { children: string | null | undefined }) {
 
 type EventSearch = FacilityProgramSelection;
 
-function EventCell({ link, search }: { link: EventLink | null; search: EventSearch }) {
+function EventCell({
+  link,
+  search,
+  name,
+}: {
+  link: EventLink | null;
+  search: EventSearch;
+  name?: string | undefined;
+}) {
   if (!link?.eventId) return <Wrapped>{link?.label}</Wrapped>;
   return (
     <span className="whitespace-nowrap">
       <Link
+        aria-label={name}
         className="font-medium text-primary underline-offset-4 hover:underline"
         params={{ eventId: link.eventId }}
         search={search}
@@ -128,41 +137,23 @@ function LineCell({
     case 'signature':
       return <Wrapped>{line.signature}</Wrapped>;
     case 'document':
-      return (
-        <EventCell
-          link={
-            eventLinks(line, {
-              noNumber: t('stock-card.no-number'),
-              view: t('stock-card.view-event'),
-            }).document
-          }
-          search={eventSearch}
-        />
-      );
     case 'reversing':
+    case 'reversedBy': {
+      const view = t('stock-card.view-event');
+      const link = eventLinks(line, { noNumber: t('stock-card.no-number'), view })[id];
+      const named = id !== 'document' && link?.label === view;
       return (
         <EventCell
-          link={
-            eventLinks(line, {
-              noNumber: t('stock-card.no-number'),
-              view: t('stock-card.view-event'),
-            }).reversing
+          link={link}
+          name={
+            named
+              ? t(id === 'reversing' ? 'stock-card.view-reversing' : 'stock-card.view-reversed-by')
+              : undefined
           }
           search={eventSearch}
         />
       );
-    case 'reversedBy':
-      return (
-        <EventCell
-          link={
-            eventLinks(line, {
-              noNumber: t('stock-card.no-number'),
-              view: t('stock-card.view-event'),
-            }).reversedBy
-          }
-          search={eventSearch}
-        />
-      );
+    }
   }
 }
 
