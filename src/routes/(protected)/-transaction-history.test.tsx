@@ -162,6 +162,20 @@ describe('transaction history page', () => {
     expect(fetchStockEvents).not.toHaveBeenCalled();
   });
 
+  it('lets the filters be set before a search, as legacy does, still asking for nothing', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute('/stock-management/transaction-history');
+
+    await user.click(await screen.findByRole('button', { name: /transaction-history.filter/ }));
+    await user.type(
+      screen.getByRole('textbox', { name: 'transaction-history.search-document-number' }),
+      'HC01{Enter}',
+    );
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ documentNumber: 'HC01' }));
+    expect(fetchStockEvents).not.toHaveBeenCalled();
+  });
+
   it('lists the events in the server order with the legacy columns', async () => {
     widthOf(1200);
     renderRoute(appliedPath());

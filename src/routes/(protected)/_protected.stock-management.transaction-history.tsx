@@ -331,6 +331,15 @@ function OutcomeMessage({
   );
 }
 
+function WithFilters({ filters, children }: { filters: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {filters}
+      {children}
+    </div>
+  );
+}
+
 function TransactionHistoryOutcome({
   search,
   columnView,
@@ -341,28 +350,40 @@ function TransactionHistoryOutcome({
   pending,
 }: TransactionHistoryOutcomeProps) {
   const { t } = useTranslation();
+  const filters = (
+    <TransactionHistoryToolbar
+      onFilterChange={(patch) => onSearchChange(patch, true)}
+      search={search}
+    />
+  );
 
   if (!valid) {
     const refused = isCompleteSelection(applied);
     return (
-      <OutcomeMessage
-        description={t(
-          refused
-            ? 'transaction-history.refused-description'
-            : 'transaction-history.pick-description',
-        )}
-        icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
-        title={t(refused ? 'transaction-history.refused-title' : 'transaction-history.pick-title')}
-      />
+      <WithFilters filters={filters}>
+        <OutcomeMessage
+          description={t(
+            refused
+              ? 'transaction-history.refused-description'
+              : 'transaction-history.pick-description',
+          )}
+          icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
+          title={t(
+            refused ? 'transaction-history.refused-title' : 'transaction-history.pick-title',
+          )}
+        />
+      </WithFilters>
     );
   }
   if (pending) {
     return (
-      <OutcomeMessage
-        description={t('transaction-history.search-pending-description')}
-        icon={<ClipboardListIcon />}
-        title={t('transaction-history.search-pending-title')}
-      />
+      <WithFilters filters={filters}>
+        <OutcomeMessage
+          description={t('transaction-history.search-pending-description')}
+          icon={<ClipboardListIcon />}
+          title={t('transaction-history.search-pending-title')}
+        />
+      </WithFilters>
     );
   }
   const programs = valid.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
