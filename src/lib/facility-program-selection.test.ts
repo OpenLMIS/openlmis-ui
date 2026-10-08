@@ -122,7 +122,7 @@ describe('initialSelection', () => {
     });
   });
 
-  it('leaves out a program or facility from a link that the picker does not offer', () => {
+  it('leaves out, and picks nothing for, a program or facility a link holds that is not offered', () => {
     const onlyAlpha = facilityProgramOptions({
       ...sources,
       grants: [{ facilityId: HOME, programId: 'pa' }],
@@ -130,7 +130,6 @@ describe('initialSelection', () => {
 
     expect(initialSelection({ mode: 'my', programId: 'pz', facilityId: HOME }, onlyAlpha)).toEqual({
       mode: 'my',
-      programId: 'pa',
       facilityId: HOME,
     });
     expect(

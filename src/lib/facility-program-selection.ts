@@ -108,7 +108,9 @@ export function initialSelection(
     mode === 'my'
       ? { mode, programId, facilityId: options.home?.id }
       : { mode, programId, facilityId };
-  return withOnlyOptions(start, options);
+  const refused =
+    applied.programId !== programId || (mode === 'supervised' && applied.facilityId !== facilityId);
+  return refused ? start : withOnlyOptions(start, options);
 }
 
 export function changeMode(
