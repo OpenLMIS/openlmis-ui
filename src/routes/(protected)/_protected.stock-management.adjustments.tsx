@@ -75,7 +75,7 @@ function AdjustmentsHeader({ userId }: { userId?: string }) {
 function AdjustmentsPage() {
   const { userId } = Route.useLoaderData();
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <AdjustmentsHeader userId={userId} />
       <WorkspaceContent>
         <QueryBoundary
@@ -154,7 +154,7 @@ function ProgramsError({ error, reset }: ErrorComponentProps) {
 
 function AdjustmentsPending() {
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <AdjustmentsHeader />
       <WorkspaceContent>
         <StockProgramPickerSkeleton />
