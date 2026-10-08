@@ -92,7 +92,7 @@ describe('detail paging search', () => {
       detailPage: 2,
       detailSize: 50,
     });
-    expect(detailPagingSchema.parse({ detailPage: 0, detailSize: 7 })).toEqual({
+    expect(detailPagingSchema.parse({ detailPage: 0, detailSize: 101 })).toEqual({
       detailPage: undefined,
       detailSize: undefined,
     });
