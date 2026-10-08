@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
-import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { ChevronLeftIcon, ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -337,8 +337,23 @@ function StockEventError(props: ErrorComponentProps) {
     return (
       <ErrorFallback
         {...props}
-        title={t('stock-event.error-title')}
+        back={
+          <Button
+            nativeButton={false}
+            render={
+              <Link
+                search={transactionHistorySearchSchema.parse(search)}
+                to="/stock-management/transaction-history"
+              />
+            }
+            size="sm"
+          >
+            <ChevronLeftIcon className="rtl:rotate-180" />
+            {t('stock-event.back')}
+          </Button>
+        }
         description={t('stock-event.error-description')}
+        title={t('stock-event.error-title')}
       />
     );
   }

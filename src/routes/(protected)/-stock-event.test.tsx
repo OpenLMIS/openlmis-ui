@@ -349,6 +349,21 @@ describe('stock event detail', () => {
     expect(deliver).toHaveBeenCalledWith(pdf);
   });
 
+  it('offers the way back to the filtered list when the event fails to load', async () => {
+    vi.mocked(fetchStockEvent).mockRejectedValue(httpError(500));
+    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&type=issue&page=7`));
+    await screen.findByRole('heading', { name: 'stock-event.error-title' });
+    const back = screen.getByRole('button', { name: 'stock-event.back' });
+    const url = new URL((back as HTMLAnchorElement).href);
+    expect(url.pathname).toBe('/stock-management/transaction-history');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      facilityId: HOME,
+      programId: FP,
+      type: 'issue',
+      page: '7',
+    });
+  });
+
   it.each([400, 404])('shows Not Found with the return list search for %s', async (status) => {
     vi.mocked(fetchStockEvent).mockRejectedValue(httpError(status));
     renderRoute(path(`?facilityId=${HOME}&programId=${FP}&type=issue&page=7&detailPage=2`));
