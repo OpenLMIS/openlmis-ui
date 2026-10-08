@@ -337,7 +337,7 @@ describe('adjustment editor access', () => {
   });
 
   it('drops invalid paging and blank keywords to their defaults', async () => {
-    const { router } = renderRoute(`${PICKER}/${FP}?page=-1&size=17&keyword=%20`);
+    const { router } = renderRoute(`${PICKER}/${FP}?page=-1&size=101&keyword=%20`);
 
     await screen.findByRole('heading', { name: 'stock-adjustment.editor-title' });
     const search = router.state.matches.at(-1)?.search;
