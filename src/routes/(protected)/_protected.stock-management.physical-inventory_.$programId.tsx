@@ -1,0 +1,152 @@
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { ClipboardListIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { DataTableEmpty } from '@/components/data-table/data-table';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Workspace,
+  WorkspaceContent,
+  WorkspaceDescription,
+  WorkspaceHeader,
+  WorkspaceHeading,
+  WorkspaceIcon,
+  WorkspaceTitle,
+} from '@/components/workspace';
+import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { RIGHTS } from '@/features/auth/lib/rights';
+import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  facilityOptions,
+  userRecordOptions,
+  validReasonsOptions,
+} from '@/features/reference-data/api/queries';
+import {
+  eligibleInventoryProductsOptions,
+  inventoryStockLinesOptions,
+  physicalInventoryDraftOptions,
+} from '@/features/stock-events/api/physical-inventory-queries';
+import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
+import {
+  type InventorySearch,
+  inventorySearchSchema,
+} from '@/features/stock-events/lib/physical-inventory-search';
+import { useReloadForUser } from '@/hooks/use-reload-for-user';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { recordLabel } from '@/lib/facility-program-selection';
+import { queryKeys } from '@/lib/key-factory';
+import { hasProgramGrant } from '@/lib/permissions';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+
+export const Route = createFileRoute(
+  '/(protected)/_protected/stock-management/physical-inventory_/$programId',
+)({
+  validateSearch: inventorySearchSchema,
+  preload: false,
+  staticData: { crumbKey: 'physical-inventory.editor-crumb' },
+  loader: async ({ context: { queryClient }, params: { programId }, cause }) => {
+    const session = getSessionScope();
+    const userId = useLoginData.getState().referenceDataUserId;
+    const permissions = await requirePermissions(queryClient, RIGHTS.stockInventoriesEdit);
+    assertSessionScope(session);
+    if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+    const user = await queryClient.ensureQueryData(userRecordOptions(userId));
+    assertSessionScope(session);
+    const homeId = user.homeFacilityId;
+    if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
+      throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+    const homeFacility = await queryClient.ensureQueryData(facilityOptions(homeId));
+    assertSessionScope(session);
+    const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
+    if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+    const selection = { facilityId: homeId, programId };
+    const options = physicalInventoryDraftOptions(selection);
+    const draft =
+      cause === 'stay'
+        ? await queryClient.ensureQueryData(options)
+        : await queryClient.fetchQuery({ ...options, staleTime: 0 });
+    assertSessionScope(session);
+    const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
+    if (draft && canViewStock) {
+      queryClient.prefetchQuery(inventoryStockLinesOptions(draft));
+      queryClient.prefetchQuery(eligibleInventoryProductsOptions(selection));
+      queryClient.prefetchQuery(
+        validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
+      );
+    }
+    return { userId, homeFacility, program, draft, canViewStock };
+  },
+  pendingComponent: InventoryPending,
+  component: InventoryPage,
+});
+
+function InventoryPage() {
+  const { t } = useTranslation();
+  const { userId, homeFacility, program, draft, canViewStock } = Route.useLoaderData();
+  const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
+  const search = Route.useSearch();
+  const { updateSearch } = useSearchNavigation<InventorySearch>({});
+  if (currentUser !== userId) return <InventoryPending />;
+  return (
+    <Workspace>
+      <WorkspaceHeader>
+        <WorkspaceHeading>
+          <WorkspaceIcon>
+            <ClipboardListIcon />
+          </WorkspaceIcon>
+          <WorkspaceTitle>
+            {t('physical-inventory.editor-title', {
+              code: homeFacility.code,
+              facility: recordLabel(homeFacility),
+              program: recordLabel(program),
+            })}
+          </WorkspaceTitle>
+          <WorkspaceDescription>{t('physical-inventory.editor-description')}</WorkspaceDescription>
+        </WorkspaceHeading>
+      </WorkspaceHeader>
+      <WorkspaceContent>
+        {draft ? (
+          canViewStock ? (
+            <PhysicalInventoryEditor
+              key={draft.id}
+              draft={draft}
+              search={search}
+              onSearchChange={updateSearch}
+            />
+          ) : (
+            <DataTableEmpty
+              title={t('physical-inventory.no-stock-view-title')}
+              description={t('physical-inventory.no-stock-view-description')}
+            />
+          )
+        ) : (
+          <DataTableEmpty
+            title={t('physical-inventory.no-draft-title')}
+            description={t('physical-inventory.no-draft-description')}
+            action={
+              <Button
+                nativeButton={false}
+                render={<Link to="/stock-management/physical-inventory" />}
+              >
+                {t('physical-inventory.back')}
+              </Button>
+            }
+          />
+        )}
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+function InventoryPending() {
+  return (
+    <Workspace>
+      <WorkspaceHeader>
+        <div className="h-6 w-96 max-w-full">
+          <Skeleton fill />
+        </div>
+      </WorkspaceHeader>
+      <WorkspaceContent>{null}</WorkspaceContent>
+    </Workspace>
+  );
+}

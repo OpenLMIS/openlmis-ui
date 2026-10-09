@@ -76,10 +76,11 @@ export function filterInventoryLines(
   return lines.filter((line) => {
     if (!includeInactive && !line.active && line.stockOnHand === 0) return false;
     const { orderable, lot } = line;
+    const name = orderable.fullProductName || orderable.productCode;
+    const unit = orderable.dispensable?.displayUnit;
     const fields = [
       orderable.productCode,
-      orderable.fullProductName,
-      orderable.dispensable?.displayUnit,
+      unit ? `${name} - ${unit}` : name,
       line.stockOnHand === null ? '' : String(line.stockOnHand),
       line.quantity.doses,
       lot?.lotCode ?? line.newLot?.lotCode ?? (hasLot ? noLotLabel : ''),

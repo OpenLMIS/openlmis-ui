@@ -70,7 +70,7 @@ describe('inventory display', () => {
     quantity: quantityValue('9', 10),
     lot: { id: 'l', lotCode: 'Batch', expirationDate: '2026-01-02' },
   };
-  it.each([' c1 ', 'aspirin', 'strip', '5', '9', 'batch', '02/01/2026'])(
+  it.each([' c1 ', 'aspirin', 'aspirin - strip', 'strip', '5', '9', 'batch', '02/01/2026'])(
     'searches legacy fields: %s',
     (keyword) => {
       expect(filterInventoryLines([counted], { keyword }, () => '02/01/2026')).toEqual([counted]);
