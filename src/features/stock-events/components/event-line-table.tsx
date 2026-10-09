@@ -19,13 +19,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
-import type { AdjustmentSearch } from '@/features/stock-events/components/adjustment-editor';
-import type { AdjustmentForm } from '@/features/stock-events/hooks/use-adjustment-form';
+import type { EventSearch } from '@/features/stock-events/components/event-editor';
+import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
 import {
-  type AdjustmentLine,
-  changeAdjustmentReason,
-} from '@/features/stock-events/lib/adjustment-form';
+  changeEventDestination,
+  changeEventReason,
+  type EventLine,
+} from '@/features/stock-events/lib/event-form';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -38,6 +41,8 @@ const COLUMNS = [
   ['lotCode', 'stock-events.lot-code'],
   ['expiry', 'stock-events.expiry-date'],
   ['stockOnHand', 'stock-events.stock-on-hand'],
+  ['destination', 'stock-events.issue-to'],
+  ['destinationComments', 'stock-events.destination-comments'],
   ['reason', 'stock-events.reason'],
   ['comments', 'stock-events.reason-comments'],
   ['quantity', 'stock-events.quantity'],
@@ -53,26 +58,56 @@ export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1250 },
   { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1150 },
 ] as const;
-const helper = createColumnHelper<DataTableFeatures, AdjustmentLine>();
+const ISSUE_HIDEABLE_COLUMNS = [
+  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1691.859375 },
+  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1579.1875 },
+  { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1503.15625 },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1386.125 },
+] as const;
+export function eventHideableColumns(
+  kind: ConfiguredEventKind,
+  { hasLots = true, unit = 'PACKS' }: { hasLots?: boolean; unit?: QuantityUnit } = {},
+) {
+  if (EVENT_KINDS[kind].counterparty !== 'destination') return EVENT_HIDEABLE_COLUMNS;
+  return ISSUE_HIDEABLE_COLUMNS.map((column) => {
+    const includesTotal = column.id !== 'expiry';
+    const lotWidth = !hasLots ? 73.90625 : 0;
+    const expiryWidth = !hasLots ? 108.453125 : 0;
+    const totalWidth = unit === 'DOSES' && includesTotal ? 117.03125 : 0;
+    const quantityWidth = unit === 'DOSES' ? 28 : 0;
+    return {
+      ...column,
+      hideBelow: Math.ceil(column.hideBelow - lotWidth - expiryWidth - totalWidth - quantityWidth),
+    };
+  });
+}
+const NO_DESTINATIONS: readonly ValidAssignment[] = [];
+const helper = createColumnHelper<DataTableFeatures, EventLine>();
 const NO_SORT = { id: 'product', desc: false };
 
 type CellProps = {
+  kind: ConfiguredEventKind;
+  reasonRequired: boolean;
   id: CellId;
   index: number;
-  line: AdjustmentLine;
-  form: AdjustmentForm;
+  line: EventLine;
+  form: EventForm;
   reasons: readonly Reason[];
+  destinations?: readonly ValidAssignment[];
   unit: QuantityUnit;
   today: string;
   disabled: boolean;
   onRemove: (key: string) => void;
 };
 const LineCell = memo(function LineCell({
+  kind,
+  reasonRequired,
   id,
   index,
   line,
   form,
   reasons,
+  destinations = NO_DESTINATIONS,
   unit,
   today,
   disabled,
@@ -89,7 +124,13 @@ const LineCell = memo(function LineCell({
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className="block min-w-28 max-w-40 whitespace-normal break-words font-medium">
+        <span
+          className={
+            kind === 'issue'
+              ? 'block min-w-20 max-w-28 whitespace-normal break-words font-medium'
+              : 'block min-w-28 max-w-40 whitespace-normal break-words font-medium'
+          }
+        >
           <bdi>
             {name}
             {line.orderable.dispensable?.displayUnit &&
@@ -125,14 +166,71 @@ const LineCell = memo(function LineCell({
           {cardQuantity(line.stockOnHand, line.netContent, unit, i18n.language)}
         </span>
       );
+    case 'destination':
+      return (
+        <div className="w-54 whitespace-normal @3xl/main:w-49 break-words">
+          <form.AppField
+            name={`lines[${index}].destination`}
+            listeners={{
+              onChange: ({ value }) => {
+                const next = changeEventDestination(line, value ?? '');
+                if (value == null) form.setFieldValue(`lines[${index}].destination`, '');
+                if (next !== line)
+                  form.setFieldValue(
+                    `lines[${index}].destinationComments`,
+                    next.destinationComments,
+                  );
+              },
+            }}
+          >
+            {(field) => (
+              <field.ComboboxField
+                disabled={disabled}
+                required
+                limit={destinations.length}
+                items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
+                label={label('stock-events.issue-to')}
+                layout="inline"
+                emptyMessage={t('stock-events.issue-to-empty')}
+                clearLabel={t('stock-events.field-of', {
+                  field: t('stock-events.issue-to-clear'),
+                  row,
+                })}
+              />
+            )}
+          </form.AppField>
+        </div>
+      );
+    case 'destinationComments':
+      return destinations.find((item) => item.id === line.destination)?.isFreeTextAllowed ? (
+        <div className="w-37 whitespace-normal @3xl/main:w-32 break-words">
+          <form.AppField name={`lines[${index}].destinationComments`}>
+            {(field) => (
+              <field.TextField
+                disabled={disabled}
+                dir="auto"
+                label={label('stock-events.destination-comments')}
+                layout="inline"
+                maxLength={255}
+              />
+            )}
+          </form.AppField>
+        </div>
+      ) : null;
     case 'reason':
       return (
-        <div className="w-28">
+        <div
+          className={
+            kind === 'issue'
+              ? 'w-38 whitespace-normal break-words'
+              : 'w-40 whitespace-normal break-words'
+          }
+        >
           <form.AppField
             name={`lines[${index}].reasonId`}
             listeners={{
               onChange: ({ value }) => {
-                const next = changeAdjustmentReason(line, value);
+                const next = changeEventReason(line, value);
                 if (next !== line)
                   form.setFieldValue(`lines[${index}].reasonFreeText`, next.reasonFreeText);
               },
@@ -141,10 +239,15 @@ const LineCell = memo(function LineCell({
             {(field) => (
               <field.SelectField
                 disabled={disabled}
-                items={reasons.map((item) => ({ value: item.id, label: item.name }))}
+                items={[
+                  ...(!reasonRequired
+                    ? [{ value: '', label: t('stock-events.select-option') }]
+                    : []),
+                  ...reasons.map((item) => ({ value: item.id, label: item.name })),
+                ]}
                 label={label('stock-events.reason')}
                 layout="inline"
-                required
+                required={reasonRequired}
               />
             )}
           </form.AppField>
@@ -152,7 +255,13 @@ const LineCell = memo(function LineCell({
       );
     case 'comments':
       return reason?.isFreeTextAllowed ? (
-        <div className="w-32">
+        <div
+          className={
+            kind === 'issue'
+              ? 'w-37 whitespace-normal @3xl/main:w-32 break-words'
+              : 'w-32 whitespace-normal break-words'
+          }
+        >
           <form.AppField name={`lines[${index}].reasonFreeText`}>
             {(field) => (
               <field.TextField
@@ -167,7 +276,15 @@ const LineCell = memo(function LineCell({
       ) : null;
     case 'quantity':
       return (
-        <div className={unit === 'PACKS' ? 'w-28' : 'w-20'}>
+        <div
+          className={
+            unit === 'PACKS'
+              ? kind === 'issue'
+                ? 'w-27 whitespace-normal break-words'
+                : 'w-28 whitespace-normal break-words'
+              : 'w-20 whitespace-normal break-words'
+          }
+        >
           <form.AppField name={`lines[${index}].quantity`}>
             {(field) => (
               <field.QuantityField
@@ -201,7 +318,7 @@ const LineCell = memo(function LineCell({
       );
     case 'vvm':
       return line.useVVM ? (
-        <div className="w-24">
+        <div className="w-24 whitespace-normal break-words">
           <form.AppField name={`lines[${index}].vvmStatus`}>
             {(field) => (
               <field.SelectField
@@ -220,7 +337,13 @@ const LineCell = memo(function LineCell({
       ) : null;
     case 'date':
       return (
-        <div className="w-32">
+        <div
+          className={
+            kind === 'issue'
+              ? 'w-31 whitespace-normal break-words'
+              : 'w-32 whitespace-normal break-words'
+          }
+        >
           <form.AppField name={`lines[${index}].occurredDate`}>
             {(field) => (
               <field.DateField
@@ -266,16 +389,19 @@ const LineCell = memo(function LineCell({
 });
 
 type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
-  lines: AdjustmentLine[];
-  search: AdjustmentSearch;
-  onSearchChange: SearchChange<AdjustmentSearch>;
+  lines: EventLine[];
+  search: EventSearch;
+  onSearchChange: SearchChange<EventSearch>;
   columnVisibility: ColumnVisibilityState;
   onClearFilter: () => void;
 };
 export function EventLineTable({
+  kind,
+  reasonRequired,
   form,
   lines,
   reasons,
+  destinations = NO_DESTINATIONS,
   unit,
   today,
   disabled,
@@ -286,20 +412,28 @@ export function EventLineTable({
   onClearFilter,
 }: Props) {
   const { t } = useTranslation();
+  const config = EVENT_KINDS[kind];
   const columns = useMemo(
     () =>
       helper.columns(
-        COLUMNS.map(([id, key]) =>
+        COLUMNS.filter(
+          ([id]) =>
+            EVENT_KINDS[kind].counterparty === 'destination' ||
+            (id !== 'destination' && id !== 'destinationComments'),
+        ).map(([id, key]) =>
           helper.display({
             id,
             header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
             cell: ({ row }) => (
               <LineCell
+                kind={kind}
+                reasonRequired={reasonRequired}
                 id={id}
                 index={form.state.values.lines.findIndex((item) => item.key === row.original.key)}
                 line={row.original}
                 form={form}
                 reasons={reasons}
+                destinations={destinations}
                 unit={unit}
                 today={today}
                 disabled={disabled}
@@ -309,7 +443,7 @@ export function EventLineTable({
           }),
         ),
       ),
-    [form, reasons, unit, today, disabled, onRemove, t],
+    [kind, reasonRequired, form, reasons, destinations, unit, today, disabled, onRemove, t],
   );
   const size = search.size ?? 10;
   const requestedPage = search.page ?? 1;
@@ -339,9 +473,9 @@ export function EventLineTable({
   const empty = (
     <DataTableEmpty
       icon={<ClipboardPenLineIcon />}
-      title={t(hasLines ? 'stock-events.no-matches-title' : 'stock-adjustment.empty-title')}
+      title={t(hasLines ? 'stock-events.no-matches-title' : config.copy.emptyTitle)}
       description={t(
-        hasLines ? 'stock-events.no-matches-description' : 'stock-adjustment.empty-description',
+        hasLines ? 'stock-events.no-matches-description' : config.copy.emptyDescription,
       )}
       action={
         hasLines && (

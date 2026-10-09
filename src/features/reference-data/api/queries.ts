@@ -21,9 +21,11 @@ import {
   fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
+  fetchValidAssignments,
   fetchValidReasons,
   type OrderableSearch,
   storedTimeZone,
+  type ValidAssignmentsFilter,
 } from '@/features/reference-data/api/api';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
@@ -200,5 +202,12 @@ export const tradeItemByGtinOptions = (gtin: string) =>
   queryOptions({
     queryKey: queryKeys.tradeItems.list({ gtin }),
     queryFn: () => fetchTradeItemByGtin(gtin),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.validDestinations.all, 'lookup', filter] as const,
+    queryFn: () => fetchValidAssignments('validDestinations', filter),
     staleTime: LOOKUP_STALE_TIME,
   });

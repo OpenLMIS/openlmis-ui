@@ -59,3 +59,13 @@ export function eventLotOptions(cards: readonly EventStockCard[]): EventLotOptio
   }
   return sorted;
 }
+
+export type EventCardFilter = (cards: readonly EventStockCard[]) => readonly EventStockCard[];
+export const allEventCards: EventCardFilter = (cards) => cards;
+
+export function issuableCards(cards: readonly EventStockCard[], today: string): EventStockCard[] {
+  return cards.filter(
+    (card) =>
+      card.stockOnHand !== 0 && (!card.lot?.expirationDate || card.lot.expirationDate >= today),
+  );
+}

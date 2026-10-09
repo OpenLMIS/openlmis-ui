@@ -1037,7 +1037,7 @@ export function ComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                <span className="min-w-0 truncate" dir="auto">
+                <span className="min-w-0 whitespace-normal break-words" dir="auto">
                   {item.label}
                 </span>
                 {item.description && (

@@ -7,6 +7,7 @@ import {
   orderablesByIdsOptions,
   orderablesByTradeItemsOptions,
   orderablesSearchOptions,
+  validDestinationsOptions,
 } from '@/features/reference-data/api/queries';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -59,4 +60,15 @@ describe('lookups by id', () => {
     expect(orderablesByIdsOptions(['o1']).staleTime).toBe(lookup);
     expect(lotsByIdsOptions(['l1']).staleTime).toBe(lookup);
   });
+});
+
+it('keeps destination lookups under the admin invalidation key without colliding with lists', async () => {
+  const filter = { programId: 'p1', facilityId: 'f1' };
+  const options = validDestinationsOptions(filter);
+  expect(options.queryKey).toEqual([...queryKeys.validDestinations.all, 'lookup', filter]);
+  expect(options.staleTime).toBe(minimalFacilitiesOptions().staleTime);
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(options.queryKey, []);
+  await queryClient.invalidateQueries({ queryKey: queryKeys.validDestinations.all });
+  expect(queryClient.getQueryState(options.queryKey)?.isInvalidated).toBe(true);
 });

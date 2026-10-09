@@ -70,6 +70,8 @@ export type EventStockCard = {
 export type EventStockCardsFilter = { programId: string; facilityId: string };
 
 export type StockEventLineItem = {
+  destinationId?: string;
+  destinationFreeText?: string;
   orderableId: string;
   lotId?: string | null;
   quantity: number;
