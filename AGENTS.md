@@ -1,67 +1,59 @@
 # AGENTS.md
 
-Working reference for anyone writing code in this repository, human or agent.
+Working reference for humans and agents writing OpenLMIS UI code. The React frontend runs
+beside the legacy AngularJS UI under a URL prefix.
 
-OpenLMIS UI is the web frontend for OpenLMIS. It runs beside the legacy AngularJS UI under
-a URL prefix rather than replacing it in one step.
+Keep each document focused on its audience:
 
-Four places, four audiences. Keep them apart rather than repeating:
-
-- **AGENTS.md**, this file: how to write code here. Conventions, patterns, constraints.
-- **README.md**: setup, environment variables, scripts, project layout.
-- **[docs/](docs/README.md)**: written for humans using, supporting or deploying the
-  system. Plain language, no conventions, no internals unless a reader needs them.
-- **plans/**: one `plans/<KEY>.md` per Jira ticket, written by the `plan-implementation`
-  skill before any code and committed with that ticket's PR. A plain summary for the team,
-  then an agent brief with every API call mapped, and the UI/UX calls. Keep it true: when
-  the build departs from the plan, update the plan in the same PR.
+- **AGENTS.md**: coding conventions, patterns and constraints.
+- **README.md**: setup, environment variables, scripts and project layout.
+- **[docs/](docs/README.md)**: guidance for users, support and deployment. Use plain language;
+  include internals only when readers need them. Keep coding guidance here.
+- **plans/**: one `plans/<KEY>.md` per Jira ticket, written with `plan-implementation` before
+  code and committed with the PR. Include a team summary, mapped API calls and UI/UX decisions.
+  Update the plan in the same PR whenever implementation departs from it.
 
 ## Commands
 
+See [README.md](README.md#scripts) for all scripts. Use pnpm only.
+
 ```bash
-pnpm dev              # Start Vite dev server with HMR
-pnpm build            # TypeScript type-check + production build (tsc -b && vite build)
-pnpm preview          # Preview production build locally
-pnpm check            # Biome lint + format + organize imports (all-in-one)
-pnpm lint             # Biome linter only
-pnpm lint:ds          # shadcn/lint design-system rules via Oxlint
-pnpm format           # Biome formatter only
-pnpm test             # Vitest in watch mode
-pnpm test:run         # Vitest single run (CI mode)
+pnpm dev              # Vite dev server
+pnpm build            # Type-check + production build (tsc -b && vite build)
+pnpm check            # Biome lint, format and organize imports
+pnpm lint:ds          # shadcn/lint via Oxlint
+pnpm test:run         # Vitest single run
+pnpm vitest run src/hooks/use-mobile.test.ts   # Single file
+pnpm sort-messages    # Sort translation keys
 ```
 
-Run a single test file: `pnpm vitest run src/hooks/use-mobile.test.ts`
-
-Sort translation keys: `pnpm sort-messages`
-
-Pre-commit hooks (lefthook) automatically run `biome check --write --staged` and `tsc --noEmit`.
+Lefthook runs staged Biome fixes, translation sorting and `tsc --noEmit` before commits;
+Biome, design-system lint, typecheck and the full test suite before pushes.
 
 ## Architecture
 
-**Stack**: React 19, TypeScript 7, Vite 8 (Rolldown), Tailwind CSS v4, shadcn/ui, TanStack Router + Query, TanStack Form + Zod, Axios, i18next.
+**Stack**: React 19, TypeScript 7, Vite 8 (Rolldown), Tailwind CSS v4, shadcn/ui,
+TanStack Router + Query, TanStack Form + Zod, Axios, i18next.
 
 ### File-based routing (TanStack Router)
 
-Routes live in `src/routes/`. The route tree is auto-generated (`src/route-tree.gen.ts` - never edit manually). Route groups use parentheses `(protected)` for shared layouts without URL segments. Layout routes use underscore prefix `_protected.tsx`.
+Routes live in `src/routes/`. Never edit generated `src/route-tree.gen.ts`.
+Parenthesized groups such as `(protected)` add no URL segment; underscore-prefixed routes
+such as `_protected.tsx` provide layouts.
 
 ### App shell
 
-The protected layout is an icon-collapsible sidebar (`Ctrl/Cmd+B`) plus a top bar, adapted
-from the `@7ovr/app-shell-1` block. `NAV_GROUPS` in `src/lib/config.ts` is the single
-source for both the sidebar menu and the `Ctrl/Cmd+K` command palette. Entries with
-`to: '#'` are pages not migrated yet: `LIVE_NAV_GROUPS` leaves them, and any section with
-no live page, out of the sidebar and the palette until they point at a real route. Both then
-show only the pages the user's rights reach, through `useNavGroups()` in
-`src/components/nav-access.ts`.
+The protected layout has an icon-collapsible sidebar (`Ctrl/Cmd+B`) and top bar, adapted
+from `@7ovr/app-shell-1`. `NAV_GROUPS` in `src/lib/config.ts` drives both the sidebar and
+command palette (`Ctrl/Cmd+K`). `LIVE_NAV_GROUPS` excludes unmigrated `to: '#'` entries and
+sections with no live pages. `useNavGroups()` in `src/components/nav-access.ts` then filters
+both by the user's rights.
 
 ### Data fetching pattern
 
-Query options live in `src/features/*/api/queries.ts` and use the key factory from
-`src/lib/key-factory.ts`. The loader starts the request; how it starts decides whether
-navigation waits.
-
-**Default to deferred.** `prefetchQuery` without `await` warms the cache while the route
-transitions, so navigation is instant and only the data-dependent subtree suspends:
+Define query options in `src/features/*/api/queries.ts` using `src/lib/key-factory.ts`.
+**Default to deferred loading**: call `prefetchQuery` without `await` in the loader and put
+only the data-dependent subtree inside `QueryBoundary`:
 
 ```tsx
 export const Route = createFileRoute('/(protected)/_protected/facilities')({
@@ -87,105 +79,85 @@ function FacilitiesPage() {
     </Workspace>
   );
 }
-
-function FacilitiesTable() {
-  const { data } = useSuspenseQuery(facilitiesListOptions());
-  // ...
-}
 ```
 
-**Block only when the route cannot render without the data** - a detail page that must 404
-on a missing record, or a permission check. Then `return` the promise so the router awaits
-it, and let the route's `pendingComponent` cover the wait:
+`FacilitiesTable` reads `useSuspenseQuery(facilitiesListOptions())`.
+
+**Block only when rendering requires the result**, such as a detail-page 404 or permission
+check. Return `ensureQueryData` and provide the route's `pendingComponent`:
 
 ```tsx
 loader: ({ context: { queryClient }, params }) =>
   queryClient.ensureQueryData(facilityDetailOptions(params.facilityId)),
 ```
 
-Three rules that follow from this:
-
-- `prefetchQuery` is the fire-and-forget call, not `ensureQueryData`. It swallows errors
-  internally, so an unawaited rejection cannot become an unhandled promise rejection.
-- Never `await` a `prefetchQuery` - that blocks navigation and gives up the whole benefit.
-- `useSuspenseQuery` throws on error instead of returning an error state, so a suspended
-  subtree needs a `QueryBoundary` (`src/components/query-boundary.tsx`) above it, which is
-  `Suspense` plus a `CatchBoundary` that also resets the query. Without one the error escapes
-  to the route's `errorComponent` and replaces the entire page.
+- Never await `prefetchQuery`; it would block navigation. Use it for fire-and-forget work
+  because it handles rejected requests internally; unawaited `ensureQueryData` does not.
+- Put `QueryBoundary` (`src/components/query-boundary.tsx`) above suspended subtrees.
+  It combines `Suspense`, `CatchBoundary` and query reset. `useSuspenseQuery` throws errors;
+  without this boundary they replace the whole page through the route's `errorComponent`.
 
 ### Feature-based modules
 
-Each feature is self-contained under `src/features/<name>/`:
-- `api/api.ts` - HTTP calls using the shared Axios client (`src/integrations/axios.ts`)
-- `api/queries.ts` - TanStack Query options (queryFn + queryKey)
-- `components/` - Presentational components
-- `lib/types.ts` - Feature-specific types
+Features live in `src/features/<name>/`:
 
-Shared code lives in `src/lib/` (utils, types, constants, config, key-factory).
-Stock event screens live together in `src/features/stock-events/`, sharing their editor pieces
-inside that feature.
+| Path | Responsibility |
+|---|---|
+| `api/api.ts` | HTTP calls through `src/integrations/axios.ts` |
+| `api/queries.ts` | Query options: query function and key |
+| `components/` | Presentational components |
+| `lib/types.ts` | Feature types |
 
-**A feature never imports another feature**, with one exception below. When two
-features need the same thing, it moves to a shared folder, or the route composes them and
-passes data down as props. `src/routes/` may import any feature, since composing them is
-its job.
+Shared utilities, types, constants, config and query keys belong in `src/lib/`. Stock event
+screens share editor pieces within `src/features/stock-events/`.
 
-**`src/features/reference-data/` is the exception: every feature may import it.** It holds
-the OpenLMIS reference data many screens look up (facilities, facility types, programs,
-supervisory nodes, roles and products), named after the backend's `referencedata` service, plus
-stock management's organizations, which Valid Destinations and Valid Sources both pick from, and its
-reasons, which the stock screens offer. It has the
-usual `api/` and `lib/` layout and imports no other feature itself, so the exception never
-turns into a cycle. Keep it to lookups; a screen that manages reference data, such as a
-facilities list, is a feature of its own. When that screen's list is the lookup's own
-endpoint, as for Roles and Reasons, it reads the lookup query and widens its type rather than
-fetching the same list twice. Products are looked up by search, by ids or by trade items
-(`orderablesSearchOptions`, `orderablesByIdsOptions`, `orderablesByTradeItemsOptions`), all
-keyed under `queryKeys.orderables.list` so a product save refreshes them; the trade item lookup
-keeps the latest version of each product, since the server sends every version. Lookups by ids
-(`fetchOrderablesByIds`, `fetchLotsByIds`) send at most 100 ids a request and read every page, so
-a long page of stock never builds an oversized address. The signed-in user's own record and programs
-are `userRecordOptions` and `userProgramsOptions`, keyed apart from the Users page's richer detail.
+**Features never import other features except `reference-data`.** Move shared code to a
+shared folder, or compose features in `src/routes/` and pass data as props. Routes may import
+any feature.
+
+`src/features/reference-data/` contains lookups for facilities, facility types, programs,
+supervisory nodes, roles, products, stock organizations and reasons. It imports no other
+feature. Keep management screens in their own features. When their list uses a lookup's
+endpoint, reuse that query and widen its type, as Roles and Reasons do.
+
+- Product lookups: `orderablesSearchOptions`, `orderablesByIdsOptions` and
+  `orderablesByTradeItemsOptions`, all under `queryKeys.orderables.list` so saves refresh them.
+  Trade-item lookups keep only each product's latest version from the server's version list.
+- `fetchOrderablesByIds` and `fetchLotsByIds` send at most 100 ids per request and read every
+  page, avoiding oversized URLs.
+- `userRecordOptions` and `userProgramsOptions` read the signed-in user's record and programs;
+  keep their keys separate from the Users page's richer detail.
 
 ### Internationalization (i18next)
 
-Translations are **static assets** in `public/locales/<lang>.json`, fetched at runtime by
-`i18next-http-backend` rather than bundled. A deployment can correct a string or drop in a
-language without rebuilding the app. `src/index.tsx` awaits `initI18n()` before the first
-render so nothing ever paints raw keys.
+Catalogs are runtime-fetched static assets in `public/locales/<lang>.json` using
+`i18next-http-backend`. Deployments can correct strings without rebuilding.
+`src/index.tsx` awaits `initI18n()` before rendering, so raw keys never paint.
 
-They are **flat key-value pairs** - always flat, never nested (e.g. `"users.title": "Users"`, not `{ users: { title: "Users" } }`). `keySeparator` and `nsSeparator` are both `false` in the i18next config to enforce this. ICU MessageFormat is enabled for plurals/selects. Supported languages are defined in `src/lib/config.ts`. Type safety via module augmentation in `src/types/i18next.d.ts`, which type-imports `public/locales/en.json` - `t()` autocompletes keys and `tsc` catches typos. Keys must be sorted alphabetically (`pnpm sort-messages`), enforced by pre-commit hook.
-
-Adding a language takes three steps: the catalog in `public/locales/`, an entry in
-`SUPPORTED_LANGUAGES` with its `dir`, **and** its calendar language in `DATE_LOCALES`
-(`src/lib/date-locale.ts`), which `tsc` checks. A file on its own is never picked up.
-
-When `en.json` changes, use the `sync-translations` skill to propagate changes to other language files (removes stale keys, translates missing ones, preserves existing translations).
-
-Zod validation messages hold **translation keys**, not translated strings (see
-`src/features/auth/lib/types.ts`), and the key is resolved with `t()` at render. A form
-keeps whatever a field last validated to, so a message translated at validation time would
-stay in the old language after a language switch.
+- Use flat keys, such as `"users.title": "Users"`, never nested objects. Both `keySeparator`
+  and `nsSeparator` are `false`. Use ICU MessageFormat for plurals/selects.
+- `src/types/i18next.d.ts` type-imports `public/locales/en.json` for key checking. Keep keys
+  alphabetically sorted with `pnpm sort-messages`, enforced before commits.
+- A new language needs its catalog, a `SUPPORTED_LANGUAGES` entry with `dir` in
+  `src/lib/config.ts`, and a `DATE_LOCALES` entry in `src/lib/date-locale.ts` (type-checked).
+- When `en.json` changes, use `sync-translations` to remove stale keys, translate missing
+  keys and preserve existing translations across catalogs.
+- Store translation keys in Zod messages (`src/features/auth/lib/types.ts`). Resolve them
+  with `t()` during render so existing errors follow language changes.
 
 ### Right-to-left support (RTL)
 
-**Arabic ships as a supported language, so every screen renders in both directions. Write
-direction-agnostic markup by default - there is no "fix RTL later" pass.**
+**Every screen must work in both directions.** Arabic ships with the app.
+`components.json` has `"rtl": true`, so `shadcn add` generates logical classes.
 
-`components.json` has `"rtl": true`, so `shadcn add` emits logical classes. Existing
-components were converted with `pnpm shadcn migrate rtl`.
-
-Direction is derived from the language, never chosen separately.
-`SUPPORTED_LANGUAGES` in `src/lib/config.ts` declares a `dir` per language and
-`getTextDirection()` resolves it (region subtags fall through, so `ar-EG` is `rtl`).
-`TextDirectionProvider` (`src/components/text-direction.tsx`) wraps the app in
-`src/index.tsx`: it sets `<html lang>`/`<html dir>` in a layout effect so the first frame is
-never painted LTR, and feeds the same value to Base UI's `DirectionProvider` so portalled
-popovers, menus and tooltips flip too.
+Direction follows language, never a separate setting. `SUPPORTED_LANGUAGES` declares `dir`;
+`getTextDirection()` handles region fallbacks (`ar-EG` is RTL). `TextDirectionProvider` in
+`src/components/text-direction.tsx`, mounted by `src/index.tsx`, sets HTML `lang`/`dir` in a
+layout effect before paint and supplies Base UI's `DirectionProvider`, including portals.
 
 #### Rules for writing components
 
-**Never use a physical direction utility.** Use the logical equivalent:
+**Use logical direction utilities**, with the physical-side exceptions below:
 
 | Instead of | Use |
 |---|---|
@@ -198,182 +170,145 @@ popovers, menus and tooltips flip too.
 | `space-x-*` | `gap-*` on a flex/grid parent |
 | `slide-in-from-left/right` | `slide-in-from-start/end` |
 
-**Names and codes filled into a message keep their own order.** In a right-to-left language,
-`IsolatingICU` (`src/lib/isolate-values.ts`, used by `src/integrations/i18n.ts`) wraps each plain
-`{value}` in Unicode isolation marks, so "2 in 1 Dandruff" or `0363-0755` never reorders inside an
-Arabic sentence. Select, plural, number and date values are left as they are. Pass the raw value
-to `t()`; never isolate it by hand.
-
-**Flip directional icons with `rtl:rotate-180`.** Anything that points along the reading
-axis: `ChevronLeft`/`ChevronRight`, `ArrowLeft`/`ArrowRight`, `LogOutIcon`, `PanelLeftIcon`.
-Do **not** flip icons whose meaning is not reading-order: `RotateCcwIcon` (undo),
-`SearchIcon`, `TrendingUpIcon` and other chart marks.
-
-**`side` props come in two flavours.** Base UI's floating components (`TooltipContent`,
-`DropdownMenuContent`, popovers) take logical sides - use `"inline-start"`/`"inline-end"`
-so they follow `DirectionProvider`, not `"left"`/`"right"`.
-
-Classes keyed off a physical `data-[side=left]`/`data-[side=right]` value (the slide-in
-animations in `select.tsx` and `dropdown-menu.tsx`) stay physical too, since the value they
-match is physical.
-
-`Sidebar` and `Sheet` are the exception: their `side` is physical, so every rule keyed off
-`data-[side=...]` has to stay physical too. A `side="right"` sidebar borders on its left in
-either direction. `AppSidebar` picks the side from `useDirection()` instead. If a future
-`shadcn migrate rtl` logicalizes `group-data-[side=left]:border-r`, the offcanvas rail
-offsets, or the sheet's `data-[side=right]:border-l` and enter/exit translates, revert that
-hunk - the migration gets these wrong and the border lands on the viewport edge.
+- Pass raw values to `t()`; never isolate them manually. `IsolatingICU` in
+  `src/lib/isolate-values.ts`, used by `src/integrations/i18n.ts`, isolates plain `{value}`
+  interpolations so names/codes retain their order in Arabic. Select, plural, number and
+  date values are unchanged.
+- Flip reading-axis icons with `rtl:rotate-180`: chevrons, arrows, `LogOutIcon`, `PanelLeftIcon`.
+  Do not flip undo, search or chart icons (`RotateCcwIcon`, `SearchIcon`, `TrendingUpIcon`).
+- Base UI floating components (tooltips, dropdowns, popovers) use logical `side` values:
+  `"inline-start"` / `"inline-end"`.
+- Classes matching physical `data-[side=left/right]` values stay physical, including select
+  and dropdown slide animations.
+- `Sidebar` and `Sheet` have physical `side` props; their borders, rail offsets and enter/exit
+  translates must stay physical too. `AppSidebar` chooses its side with `useDirection()`.
+  Revert migrations that logicalize `group-data-[side=left]:border-r`, offcanvas rail offsets
+  or the sheet's `data-[side=right]:border-l` and translates.
 
 #### Checking a change
 
-`pnpm dev`, switch the language to العربية, and walk the screen you touched. Look for
-padding or borders on the wrong edge, arrows pointing the wrong way, and popovers or
-tooltips sliding in from the wrong side.
+Run `pnpm dev`, switch to العربية and walk the changed screen. Check padding, borders,
+directional icons and portalled popovers/tooltips.
 
 ### Deployment and the base path
 
-The app is deployed beside the legacy AngularJS UI under a URL prefix (`/v2`),
-routed by Consul KV rather than any nginx config. See
-[docs/deployment/deployment.md](docs/deployment/deployment.md) for the full picture.
+The app runs beside legacy under `/v2`, routed by Consul KV. See the
+[deployment guide](docs/deployment/deployment.md).
 
-Two rules follow from the prefix:
-
-**Never hardcode an absolute path to a `public/` asset.** Vite rewrites
-`index.html` but not string literals in TS/TSX, so `src="/olmis.png"` ships
-unchanged and 404s under a prefix. Use `` `${import.meta.env.BASE_URL}olmis.png` ``.
-`BASE_URL` always ends in a slash.
-
-**`VITE_BASE_PATH` is a build input, not runtime config**, because it is compiled
-into asset URLs. It feeds Vite's `base`, and everything else derives from
-`import.meta.env.BASE_URL`: the router's `basepath`, i18next's `loadPath`, assets.
-Anything new that builds a URL should read `BASE_URL` too, never assume `/`.
+- Never hardcode an absolute path to a `public/` asset. Use
+  `` `${import.meta.env.BASE_URL}olmis.png` ``; `BASE_URL` ends in `/`. Vite rewrites HTML
+  assets but leaves TS/TSX string literals unchanged.
+- `VITE_BASE_PATH` is a build input, compiled into asset URLs. Router `basepath`, i18next
+  `loadPath`, assets and new app URLs must derive from `import.meta.env.BASE_URL`, never
+  assume `/`. The shared API remains at `/api`; see Environment Variables.
 
 ### Design-system linting (shadcn/lint)
 
-`@shadcn/lint` checks Tailwind usage against the design system: restyling shadcn
-components via `className`, raw colors, arbitrary values, unknown classes. It is an
-ESLint/Oxlint JS plugin and **cannot run under Biome** - Biome's plugin system accepts
-GritQL only, so it cannot load a JS plugin (see shadcn-ui/lint#14). Oxlint is therefore
-installed purely as the host for this one plugin.
+Oxlint hosts `@shadcn/lint`, which checks restyling, raw colors, arbitrary values and unknown
+classes. It is a JS plugin and cannot run under Biome. `.oxlintrc.json` disables other Oxlint
+categories; Biome owns general linting and formatting. **All six shadcn rules stay at `error`,
+gate CI and must have zero findings.**
 
-`.oxlintrc.json` turns every Oxlint category off, so Oxlint reports shadcn rules and
-nothing else and never overlaps Biome. Biome stays the linter and formatter of record.
+**Never pass `className` to shadcn components**, including spacing and layout. `no-restyle`
+has no allowlist. Add a variant in `src/components/ui/`, or put layout classes on a plain
+wrapper. Skeleton sizes always belong to the surrounding layout. Existing variant props
+are defined in the typed components; reuse them before adding another. `TabsList wrap="column"`
+fits odd tab counts; `wrap="md"` fits short labels.
 
-All six rules are `error` and gate CI. The codebase is at zero findings, so keep it
-there rather than downgrading a rule to `warn`.
+`src/components/ui/` defines the variants and is excluded from design-system and Biome
+linting. Editing these generated files is expected here.
 
-`no-restyle` runs with no allowlist: a shadcn component accepts **no** `className` from
-the outside. Not colour, not typography, not spacing, and not layout or margin either.
+**Preset changes and `shadcn add` overwrite customizations.** Run `pnpm tsc --noEmit` and
+reapply missing variants to the new files. Preserve `DialogCloseLabelProvider` in
+`dialog.tsx`, supplied by the root route with translated close-button text. Also check these
+edits, which have no prop for TypeScript to detect:
 
-Two ways out when a page needs a different treatment:
-
-1. Add a variant prop to the component in `src/components/ui/` and pass it. Existing
-   examples: `Button padding/width/align` (incl. `width="shrink"`) + the `xl` size, `CardHeader spacing/align`,
-   `CardTitle size`, `CardFooter align`, `Separator spacing`, `Skeleton shape/fill`,
-   `Spinner tone/size`, `Empty height`, `EmptyMedia size`, `EmptyTitle size`,
-   `EmptyDescription size`, `DropdownMenuContent width`, `DropdownMenuLabel gap/layout`,
-   `PopoverContent width/padding`,
-   `SidebarHeader bordered/layout`,
-   `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
-   `Table density` (`default`, `comfortable`, `compact`)/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
-   `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-   `Field spacing`, `FieldLabel weight`,
-   `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
-2. Put the layout classes on a plain wrapper element around the component. This is the
-   right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
-   for `Skeleton`, whose size always belongs to the surrounding layout.
-
-`src/components/ui/` is ignored by the linter - those files define the variants the
-rules enforce. This is the one place where editing generated shadcn files is expected.
-
-**Switching presets or re-running `shadcn add` overwrites these files and silently drops
-every variant listed above.** `pnpm tsc --noEmit` is what catches it: the call sites keep
-passing props the regenerated component no longer accepts. Re-apply the variants to the
-new files rather than reverting the preset. `dialog.tsx` also exports `DialogCloseLabelProvider`,
-which the root route fills with the translated "Close" for every dialog's close buttons. Eight edits
-carry no prop, so `tsc` cannot catch them: `checkbox.tsx` shows a minus in the checked colours while `indeterminate`, for a header
-that selects part of a page, and dims on `data-disabled`, which Base UI sets instead of `:disabled`; `calendar.tsx`'s `CalendarDayButton` passes its `ref` to the `Button`, so keyboard focus
-follows the highlighted day; `select.tsx` defaults `alignItemWithTrigger` to `false`, so a list opens below its input;
-`button.tsx` dims `data-disabled` as well as `:disabled`, so a `focusableWhenDisabled` button
-looks disabled; `sonner.tsx`'s `Toaster` reads
-`useResolvedAppearance()` from `src/lib/appearance.ts`, not next-themes, which is not installed;
-`chart.tsx` lays the chart's SVG out left to right, so axis labels grow into their gutter in
-Arabic, and formats tooltip numbers in the page's language; `avatar.tsx`'s `AvatarGroup`
-overlaps with a logical `-ms-2` instead of `-space-x-2`; and `combobox.tsx`'s `ComboboxChip` is
-`max-w-full min-w-0`, so a long tag truncates instead of widening the page.
+| File | Required customization |
+|---|---|
+| `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
+| `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
+| `select.tsx` | Default `alignItemWithTrigger` to `false` |
+| `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
+| `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
+| `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
+| `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
+| `combobox.tsx` | Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 
 ### Integrations
 
-`src/integrations/` contains singleton setup for Axios (with proxy to `/api` and `/localeSettings` → `localhost:8080`), TanStack Query client, TanStack Router instance, and i18next configuration.
+`src/integrations/` owns Axios, TanStack Query/Router and i18next singletons. Dev requests to
+`/api` and `/localeSettings` use the Vite proxy (`localhost:8080` unless configured).
 
 ### UI components
 
-shadcn/ui components are generated in `src/components/ui/` and excluded from Biome linting. Use `pnpm dlx shadcn@latest add <component>` to add new ones; with `"rtl": true` in `components.json` the CLI emits logical classes already, so check the generated file only for the exceptions listed under RTL. The `cn` helper comes from the `cn` package and is re-exported from `src/lib/utils.ts`.
+Generate shadcn components in `src/components/ui/` with
+`pnpm dlx shadcn@latest add <component>`. Check RTL exceptions and customizations above.
+`cn` comes from the `cn` package, re-exported by `src/lib/utils.ts`.
 
 ### pnpm settings
 
-pnpm is pinned via `packageManager` in `package.json`. Settings that used to live under the `pnpm` key in `package.json` (such as `allowBuilds`, formerly `onlyBuiltDependencies`) belong in `pnpm-workspace.yaml`, which pnpm 12 reads instead. pnpm 12 errors on unrecognized keys there rather than ignoring them.
+pnpm is pinned by `packageManager` in `package.json`. Put settings such as `allowBuilds`
+(formerly `onlyBuiltDependencies`) in `pnpm-workspace.yaml`, not a `pnpm` key in
+`package.json`. pnpm 12 rejects unrecognized workspace settings.
 
 ## Code Conventions
 
-- **pnpm** - always use pnpm, not npm
-- **kebab-case filenames** - enforced by Biome (e.g., `user-card.tsx`). Route files are the exception: TanStack Router's `$param` and `users_` (no nesting) syntax
-- **`type` over `interface`** - enforced by Biome
-- **`@/*` path aliases** - always use for imports (maps to `src/*`)
-- **Logical CSS properties only** - `ms`/`me`/`ps`/`pe`/`start`/`end`/`text-start`, never
-  `ml`/`mr`/`pl`/`pr`/`left`/`right`/`text-left`. The app renders RTL in Arabic.
-- **Tests colocated** with source files (e.g., `use-mobile.test.ts` next to `use-mobile.ts`)
-- **Tests first, never after** - write the failing unit test, then the code that makes it
-  pass. A bug fix starts with a test that reproduces the bug. Test our logic, not shadcn or
-  Base UI behaviour
-- **One timeout for the suite** - `vite.config.ts` sets the test timeout and
-  `src/tests/setup.ts` the wait for `findBy*` and `waitFor`, both sized for a loaded machine.
-  Never pass a timeout to a test or a query, and wait with Testing Library's `waitFor`, not
-  `vi.waitFor`, which keeps its own 1 s. A test that seeds the cache and reads it through
-  `useSuspenseQuery` sets `staleTime: Infinity`, or a slow mount refetches it
-- **Biome formatting**: 2-space indent, single quotes, trailing commas, 100 char line width
-- **No Co-Authored-By lines** in commits or PRs
-- **No em dashes** anywhere in the project - not in code, comments, UI copy, translations, docs, commits, or PRs. Use a plain hyphen or rephrase.
-- **Docs are for humans** - `docs/` is written for people using, supporting or
-  deploying the system, not for agents. Plain language, concise, easy to follow.
-  Guidance for whoever writes code belongs here in AGENTS.md instead.
-- **Docs are markdown** - write `.md` under `docs/`, one directory per topic
-  (`docs/dual-boot/dual-boot.md`), and add a row to `docs/README.md`. Never generate a
-  PDF as the source of a document.
-- **Comments only when really necessary** - max 1 line, and never any ticket or issue attributions. Prefer clear naming over explanation.
+- **pnpm only**; never npm.
+- **Kebab-case filenames**, enforced by Biome. Routes retain TanStack's `$param` and `users_`
+  (no nesting) syntax.
+- **`type` over `interface`**, enforced by Biome.
+- **`@/*` imports**, mapping to `src/*`.
+- **Logical CSS only**, subject to the physical-side exceptions in RTL above.
+- **Colocated tests**, such as `use-mobile.test.ts` beside `use-mobile.ts`.
+- **Tests earn their place**: protect a meaningful, plausible regression in our code that
+  existing tests or static checks do not adequately cover. Choose the cheapest useful
+  boundary: pure logic for domain rules, focused interactions for workflows. No test per
+  component/function, routine label/default snapshots, mock-return echoes or tests of stock
+  shadcn, Base UI, React or other packages. Trust dependencies; test our decisions and
+  integration. Use [test-audit](.agents/skills/test-audit/SKILL.md) for suite audits or disputed
+  test value.
+- **Tests first when warranted**: write a meaningful failing test before implementation.
+  Start bug fixes with a reproducer; reuse adequate coverage instead of adding duplicates.
+- **One suite timeout**: `vite.config.ts` sets test timeouts; `src/tests/setup.ts` sets
+  `findBy*`/`waitFor` waits for loaded machines. Never pass per-test/query timeouts. Use
+  Testing Library's `waitFor`, not `vi.waitFor` (its own 1 s timeout). Cache-seeded
+  `useSuspenseQuery` tests set `staleTime: Infinity` to prevent mount refetches.
+- **Biome format**: 2 spaces, single quotes, trailing commas, 100-character lines.
+- **No Co-Authored-By lines** in commits or PRs.
+- **No em dashes** in code, comments, UI copy, translations, docs, commits or PRs.
+  Use a plain hyphen or rephrase.
+- **Human docs**: `.md` files under `docs/<topic>/`, indexed in `docs/README.md`. Never use a
+  PDF as the source. Coding guidance belongs here.
+- **Necessary comments only**: maximum one line, no ticket/issue attributions. Prefer clear
+  naming.
 
 ## Pull Request Format
 
-Keep PR descriptions short and scannable. No walls of text.
+Keep descriptions short:
 
-1. **Ticket link** at the top, on its own line.
-2. **`## Changes`** - bullet points only. One line per change, concise and easy to
-   understand. No paragraphs, no narration of the process.
+1. Ticket link at the top, on its own line.
+2. `## Changes` with concise, one-line bullets only. No paragraphs or process narration.
 
-No Screenshots section: an agent cannot attach images to a PR. Omit a section entirely when it
-does not apply rather than writing "N/A".
+No Screenshots section. Omit inapplicable sections; never write "N/A".
 
 ```markdown
 https://tracker.example.com/BROWSE/ABC-123
 
 ## Changes
 
-- Add `surface` variant to `Card` so consumers stop overriding `bg-card`
-- Replace arbitrary text sizes with a `text-2xs` theme token
+- Add `surface` to `Card` so consumers stop overriding `bg-card`
+- Replace arbitrary text sizes with the `text-2xs` token
 ```
 
 ## Page layout
 
-Pages inside the app shell compose `src/components/workspace.tsx` rather than
-hand-rolling padding:
+App-shell pages compose `src/components/workspace.tsx`:
 
 ```tsx
 <Workspace>
   <WorkspaceHeader>
     <WorkspaceHeading>
-      <WorkspaceIcon>
-        <ClipboardListIcon />
-      </WorkspaceIcon>
+      <WorkspaceIcon><ClipboardListIcon /></WorkspaceIcon>
       <WorkspaceTitle>{t('requisitions.title')}</WorkspaceTitle>
       <WorkspaceDescription>{t('requisitions.description')}</WorkspaceDescription>
     </WorkspaceHeading>
@@ -385,600 +320,461 @@ hand-rolling padding:
 </Workspace>
 ```
 
-Every part takes only `children` - no boolean props, no `renderX` callbacks. Every page has a
-`WorkspaceDescription`, one plain sentence on what the page is for, so headers stay consistent; a
-page without an icon or actions leaves those parts out. The one variant is
-`width="narrow"` on `Workspace` and `WorkspaceFooter`, for a page of settings like Profile or a short table such as
-the stock program pickers.
+- Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
+  one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
+  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables.
+- Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
+  stretches on narrow headers. Loading skeletons render one block per button.
+- Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
+  sibling, aligned with the page. Cancel sits at the start, Save at the end, both `size="lg"`.
+  Both return to the originating list with page/sort/filters supplied by the opening link
+  in history state. Settings opened
+  without a list stay put: Cancel restores saved values; Save keeps the page open.
+- Shared tab headers live in the layout through `WorkspaceTabs` inside `WorkspaceSlots`.
+  Use `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`): `narrow` by default,
+  `width="default"` for full-width editors. Tab switches must not remount the header.
+  Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
+- Toasts appear below the header at the top end corner, tinted by kind.
 
-Buttons in `WorkspaceActions` are the page's calls to action and use `size="lg"`, so they
-outrank the toolbar controls below them. When the header stacks on a narrow page, they share
-its full width; each button is a direct child, so a loading skeleton renders one block per
-button to stretch the same way.
+`Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
-A page that edits a draft and saves it at once, like Edit User Roles, renders
-`WorkspaceFooter` right after `Workspace`, as its sibling: a muted bar across the content area
-that sticks to the bottom of the window, with Cancel at the start and Save at the end, both
-`size="lg"` and lined up with the page. Save and Cancel return to the list the page was
-opened from, with its page, sort and filters, which the opening link passes in history
-state. A settings page opened from no list, like Profile, keeps the user there: Cancel puts
-the saved values back and Save stays. Pages that share a header across tabs, like Profile,
-render it once in the layout route through `WorkspaceTabs` inside `WorkspaceSlots`, and put
-the footer in with `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`), `narrow` by
-default and `width="default"` under a full-width page such as product edit, so a tab switch
-never remounts the header. A tab's own header button, such as Reset To Defaults on System
-Settings, goes into the shared header's `WorkspaceActionsSlot` through `WorkspaceActionsPortal`. Toasts appear at the top end corner, just below the header, tinted by their kind.
+- A live nav route gets Home / Section / Page; descendants add `staticData.crumbKey`, with
+  linked parents. `staticData.crumbParentSearch(search)` carries list search into the last
+  linked crumb, retaining filters on reload/shared links.
+- A non-nav page with `crumbKey` gets Home / its crumb. Home and non-nav pages without a
+  crumb have no breadcrumbs.
+- `useAccountLinks()` (`src/components/nav-access.ts`) supplies rights-filtered Profile and
+  `/settings` links to the avatar menu, palette and sidebar, immediately below sidebar Home.
+- Workspace parts/breadcrumbs accept no `className`; add a variant for a different treatment.
 
-`Workspace` renders the breadcrumbs itself, derived from `NAV_GROUPS` by `getNavTrail()`,
-so a page gets Home / Section / Page for free once its nav entry points at its route.
-A page below a nav entry, such as a user's roles below Users, gets that entry's trail with
-its own last crumb from the route's `staticData.crumbKey`; the parents link back.
-A route's `staticData.crumbParentSearch(search)` carries its list search into the last linked
-crumb, so a reload or shared detail link keeps the return filters.
-A page outside the nav with a `crumbKey`, such as Profile, gets Home / its crumb.
-`useAccountLinks()` in `src/components/nav-access.ts` lists Account (Profile) and Settings
-(`/settings`), each behind its right, for the avatar menu, command palette and sidebar.
-The sidebar inserts these links immediately below Home, using its usual link rendering.
-Breadcrumbs are hidden on Home and on pages outside the nav without one. None of them accept a
-`className`, which is what keeps padding and heading scale identical across pages; if a
-page needs a different treatment, add a variant to the component rather than overriding
-at the call site.
-
-Signed-out pages (Sign In, Forgot Password, Reset Password) sit outside the app shell and
-compose `src/components/auth-card.tsx` instead: `AuthPage` with the page's title, then
-`AuthHeader` holding an `AuthTitle` (the page's heading) and a `CardDescription`, then
-`CardContent` holding an `AuthForm` with its fields, an `AuthSubmit` and any `AuthLink`. A card
-that replaces the form the user was in, such as a confirmation, passes `focus` to its
-`AuthTitle`, so keyboard and screen-reader users land on it.
+Signed-out pages compose `src/components/auth-card.tsx`: `AuthPage` with the page title;
+`AuthHeader` with `AuthTitle` and `CardDescription`; `CardContent` with `AuthForm`, fields,
+`AuthSubmit` and optional `AuthLink`. When a confirmation replaces a form, pass `focus` to
+`AuthTitle` for keyboard and screen-reader focus.
 
 ## List pages
 
-Server-paged lists follow the Users page (`src/routes/(protected)/_protected.administration.users.tsx`).
-Copy its shape rather than inventing a new one.
+Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-paged lists.
 
-**The URL owns the state.** Page, size, sort and every filter are search params, validated
-by a zod schema built from `tableSearchSchema()`, `textFilterSchema` and `dateFilterSchema` in
-`src/lib/table-search.ts`. Invalid params fall back to their default and defaults stay
-out of the URL, so links are short and shareable. The loader prefetches from
-`loaderDeps`, deferred as usual.
+**URL and requests:**
 
-**The server does the work.** `useTable` runs with `manualPagination` and `manualSorting`
-and gets `rowCount` from the response. `useTableSearchState()` wires its pagination and
-sorting to the URL. Every change is computed from the latest search, not the rendered
-one, so quick repeated clicks never build on a stale page. A new sort, filter or page
-size returns to page 1.
+- Page, size, sort and filters are search params validated with `tableSearchSchema()`,
+  `textFilterSchema` and `dateFilterSchema` from `src/lib/table-search.ts`. Invalid values
+  fall back to defaults; defaults stay out of the URL. Prefetch from `loaderDeps`.
+- Use `useTable` with `manualPagination`, `manualSorting` and the server's `rowCount`.
+  `useTableSearchState()` connects to the URL. Compute changes from the latest search,
+  never the rendered copy. Sort/filter/size changes return to page 1.
+- If the endpoint cannot page/sort, fetch all records once and filter/sort/page locally
+  under the same URL state. Clamp pages past the end; no suspension on later pages.
+  Roles (`GET /roles`) and Programs (`GET /programs`) are examples.
+- **Support backend services on master.** Never depend on branch-only endpoints/parameters.
+  Preserve legacy API limits: `GET /orderables` has separate code/name filters, so offer
+  Search By Code and Search By Name.
+- Keep the toolbar outside `QueryBoundary`. Rows read `useDeferredValue(search)`;
+  first load shows `DataTableSkeleton`, later requests keep dimmed existing rows until ready.
+  Filter typing replaces history; paging/sorting add entries for Back navigation.
 
-**When the endpoint cannot page or sort**, as `GET /roles`, the list loads every record once
-and filters, sorts and pages it in the browser behind the same URL state, clamping a page past
-the end; with no request per page, nothing suspends after the first load. Roles and Programs
-(`GET /programs`) are the examples.
+**Responsive tables:**
 
-**Every screen works against the backend services as they are on master**, since the new UI is
-deployed on its own beside the legacy backend. Never rely on an endpoint or parameter that only a
-backend branch has: where legacy's API is limited, as `GET /orderables` takes `code` and `name`
-as separate filters with no search across both, the screen keeps legacy's shape, here Search By
-Code and Search By Name.
+- Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
+  with `hideBelow` (container size or pixels) or `defaultHidden`; see `USER_HIDEABLE_COLUMNS`.
+  Combine `useElementWidth()`, `useColumnVisibility()` and `useStoredState`. User choices
+  override defaults; Reset Columns clears them. Share visibility across table, skeleton and
+  View menu.
+- Column widths (`meta.className`) and toolbar use `Workspace`'s `@container/main`, such as
+  `@xl/main:w-2/5` and `@2xl/main:w-72`. Pagination uses the card's `@container/table`: current
+  page plus up to three on each side, only current on narrow tables. Links accept sizes 1-100.
+- Keep tables at every width, never stacked cards. Hide lower-priority columns and allow
+  sideways scrolling on phones. Keep headers on one line.
+- Missing values use `orEmpty`/`EMPTY_VALUE` (`src/lib/empty-value.ts`). Inapplicable cells,
+  such as a product row's lot, stay blank.
+- Identifying/actions columns stay visible and out of View. Other columns, including status,
+  may hide. Row actions use an end-of-row "..." menu at every width.
+- Put Create at the toolbar's end, after View.
 
-**Only the rows suspend.** The toolbar sits outside the `QueryBoundary`
-(`src/components/query-boundary.tsx`), so the search box never unmounts mid-typing. The
-table reads the query through `useDeferredValue(search)`: the first load shows
-`DataTableSkeleton`, and later pages keep the current rows on screen, dimmed, until the
-next ones arrive. Filter typing uses `replace` on navigation; paging and sorting add
-history entries so Back steps through them.
+**Filters and states:**
 
-**Lay out by the room the page has, not the window.** The sidebar takes up to 16rem, so
-the same window can leave very different room for the table. Everything responsive on a
-list page therefore follows the content width, never viewport breakpoints like `md:`:
+- Short fixed lists use `DataTableSelectFilter`, with `allLabel` when legacy offers All.
+  Long lists use searchable `DataTableComboboxFilter`; optional `description` follows labels
+  in muted text.
+- Server-search filters pass `onSearch` and display `options` as given. Fetch only on first
+  opening; retain the picked option, using its own lookup for linked selections. `status`
+  announces listed/matching counts and that typing finds more. Products on Lots is the example.
+- Date filters use `DatePicker`; pair `earliest`/`latest` for from/to bounds.
+- Cover rows, loading skeleton, empty and error with retry. Distinguish no records from
+  no filter matches; the latter has Clear Filters.
 
-- Column defaults: the page lists its columns with a `hideBelow` container size for the
-  lower-priority ones (see `USER_HIDEABLE_COLUMNS`), measures its content with
-  `useElementWidth()`, and `useColumnVisibility()` combines that with the user's View menu
-  choices, stored with `useStoredState`. A choice wins over the default; Reset Columns
-  clears the choices. One visibility state drives the table, its skeleton and the View
-  menu, so the menu always shows what is on screen.
-- Column widths and the toolbar use container queries on `Workspace`'s
-  `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:w-72`.
-- The pagination follows the table card's own `@container/table`. It offers the current page and
-  up to three on each side, as legacy does, keeping only the current one on a narrow table, and a
-  link may carry any page size from 1 to 100.
+**Selection and reports:**
 
-A table stays a table at every width, never stacked cards: lower-priority columns hide as the
-room shrinks (`hideBelow` also takes a width in px for a table wider than the container sizes,
-and `defaultHidden` starts a column hidden at every width), and on a phone the table scrolls
-sideways. Column headers are always one line. A value the record lacks shows `EMPTY_VALUE`
-through `orEmpty` (`src/lib/empty-value.ts`), so the placeholder changes in one place; a cell
-that does not apply to its row, such as a product row's lot, stays blank.
-Keep the identifying column and actions always on by leaving them out of the View menu;
-everything else, status included, can drop on a narrow page and come back from it. Row actions live in a "..." menu
-at the end of the row at every width, so the actions column stays narrow.
-`meta.className` sets column widths with Tailwind width classes, which keeps them steady from
-page to page.
-
-**The create action ends the toolbar**, after the View menu, rather than sitting in the
-page header, so everything that acts on the list is in one row.
-
-**A filter over a list too long to load searches the server.** `DataTableComboboxFilter` takes
-`onSearch`, then lists its `options` as given, and the page asks for matches only once the filter
-is first opened, so loading the list loads none; the picked value stays among the options, named
-by its own lookup when it came from a link. Its `status`, a line above the options that screen
-readers announce, says how many are listed of how many match and that typing finds the rest.
-Products on Lots is the example. A date filter is a `DatePicker`, with `earliest` and `latest`
-tying a from and to pair together.
-
-**Every list has four states:** rows, loading skeleton, empty, and error with retry. Use
-two different empty states: no records at all, and no matches for the filters with a
-Clear Filters action.
-
-**Rows the user acts on together are selected with a checkbox column**, `selectionColumn()`
-from `src/components/data-table/data-table-selection.tsx`: the header picks the page, and a
-selection is kept across pages by id, with each row's name, so a confirm can count and name
-rows not on screen. A filter change clears it and closes an open confirm, and rows still
-showing from the last filter can neither change it nor open a delete (`useFilterScoped`), so
-an action never reaches rows the user cannot see. Each row's box is named
-for everything that tells it apart, not only its name. While anything is selected,
-`DataTableSelectionBar` after the table shows the count, Clear and the actions. It is not in the
-URL. Valid Destinations is the example: its bulk delete awaits every request, reports the ones
-that failed and then moves focus to the list, since the bar and the rows it came from are gone.
-
-A filter on a short fixed list, such as status, is a `DataTableSelectFilter`, with an `allLabel`
-where legacy lists an "All" choice; on a long one,
-such as Facilities' 200-odd geographic zones, a `DataTableComboboxFilter` the user types into,
-with an option's `description` muted after its label.
-
-PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for the permission check,
-user-change guards and toasts; the page renders its own Button and supplies `onReport`, which
-starts delivery in the click handler. Stock Card uses `openReport` to open a waiting tab
-synchronously and downloads if it is blocked or closed. Stock On Hand uses `downloadFile`.
-Both PDF endpoints use `fetchReport` (`src/lib/fetch-report.ts`) for blob responses and JSON
-error decoding.
+- Use `selectionColumn()` (`src/components/data-table/data-table-selection.tsx`); the header
+  picks the page. Preserve selection across pages by id and name for confirmations.
+- Filter changes clear selection and close confirmations. `useFilterScoped` prevents stale
+  visible rows from changing selection or opening deletion. Name each checkbox with every
+  distinguishing row detail.
+- Render `DataTableSelectionBar` after the table with count, Clear and actions. Selection
+  stays out of the URL. Bulk delete awaits every request, reports failures and focuses the
+  list after rows/bar disappear; see Valid Destinations.
+- PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for permission checks,
+  user-change guards and toasts. Render the page's Button; `onReport` starts delivery in its
+  click handler. Stock Card's `openReport` opens a waiting tab synchronously and downloads if
+  blocked/closed; Stock On Hand uses `downloadFile`. Use `fetchReport`
+  (`src/lib/fetch-report.ts`) for blobs and JSON error decoding.
 
 ### The data-table components
 
-`src/components/data-table/` is written to move into the SolDevelo shadcn registry
-unchanged, so it follows the registry's rules rather than this app's:
+`src/components/data-table/` must move unchanged into the SolDevelo shadcn registry:
 
-- It imports only stock shadcn primitives from `@/components/ui/`, `@/lib/utils`,
-  `@tanstack/react-table`, `lucide-react`, and its sibling files, and nothing from
-  `src/hooks`, other `src/lib` modules, `src/features` or i18next. It avoids app variants
-  such as `Button tone`; the exceptions are `SelectTrigger width`, `Table density` and
-  `layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
-  `ComboboxInput width`/`clearLabel` and `Skeleton fill`, which become plain `className`s in the registry, where layout
-  classes are allowed. `selectionColumn` also needs the app's `checkbox.tsx` edit to draw a
-  partly selected page as a minus; it ships with that edit.
-- Text comes from `DataTableLabelsProvider`, which defaults to English.
-  `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
-- `DataTable` and `DataTableSkeleton` share column metadata and accept `density`, defaulting
-  to `comfortable`; use `default` for compact tables whose columns need more room. They also
-  accept `layout`, `fixed` by default; `auto` sizes each column to its content, as the bin card does.
-- Table state and the URL are app glue and stay in `src/lib/table-search.ts`.
+- Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
+  `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
+- Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
+  `Table density/layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `ComboboxInput width/clearLabel`, `Skeleton fill`. These become plain `className`s in the
+  registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
+- Text comes from `DataTableLabelsProvider` (English defaults); the shell's
+  `TranslatedDataTableLabels` supplies `data-table.*` translations.
+- `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
+  default, `default` for compact tables needing room; `layout="fixed"` by default, `auto`
+  for content-sized columns such as bin cards.
+- URL/table state stays in `src/lib/table-search.ts` as app glue.
 
-`@tanstack/react-table` is v9. Build tables with `useTable` and `dataTableFeatures`,
-not the v8 `useReactTable`. The installed package ships version-matched guides under
-`node_modules/@tanstack/react-table/skills/`.
+TanStack Table is **v9**: use `useTable` and `dataTableFeatures`, never v8 `useReactTable`.
+Version-matched guides live in `node_modules/@tanstack/react-table/skills/`.
 
 ## Forms and dialogs
 
-**A dialog for a short form, a page for a task.** Add and edit screens of a handful of
-fields with one save open in a dialog over the list. Anything with its own structure,
-such as tabs, tables of child records or several steps, gets a page. Users is the
-example: Add/Edit User is a dialog, Edit User Roles is a page. A record whose add already has
-child records, as a facility's programs, adds on a page too, with one save for the record and
-its children: Add Facility (`src/features/facilities/components/facility-editor.tsx`) keeps
-one draft above its tabs, the tab in `?tab=`, and opens the tab with the first error on save.
-A child row, such as a facility's program, is added from a `FormDialog` opened by an Add button
-above its table, never from a row of fields inline, and no field spans the page: in the
-two-column field grid each one, a description or tags included, takes a single column.
-Each field that picks from a lookup loads behind its own `QueryBoundary`, so the page never
-waits for one, and the footer's save button submits the fields' `<form>` through its `form`
-attribute, so Enter saves. Edit Facility is the same editor given the stored record as
-`saved`, read fresh in its loader, since its save sends the whole record back; like every page
-that reads its record fresh for that reason, Edit Reason too, its route sets `preload: false`, or
-a hover would open it on the copy read then.
+**Choose the container:**
 
-**Save sends the form at once**, with no "Do you want to save?" step, even where legacy
-asks one: the dialog's Create or Save is already the deliberate act. A confirm stays only
-where a save reaches other records, as Roles asks before changing a role users hold.
+- Use a dialog for a few fields and one save; a page for tabs, child tables or multiple steps.
+  Add/Edit User is a dialog; Edit User Roles and facility editors are pages.
+- Facility editors keep one draft above tabs, use `?tab=`, and open the first invalid tab on
+  save. Add children through an Add button above their table opening `FormDialog`, never
+  inline fields. Every field, including descriptions/tags, occupies one column of the
+  two-column grid. Lookup fields each get a `QueryBoundary`. Footer Save targets the form's
+  `form` attribute so Enter submits.
+- Save immediately without an extra confirmation, even if legacy asks. Confirm only when
+  the save affects other records, such as changing a role held by users.
+- Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
+  steps back, or replaces for a directly linked dialog. Use
+  `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
 
-**The URL owns the open dialog**, like the rest of the list state: `?user=new` or
-`?user=<id>`. Opening adds a history entry so Back closes it; closing steps back over it,
-or replaces it when the page was opened with the dialog from a link. A page gets this, and
-its search updater, from `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` in
-`src/hooks/use-search-navigation.ts` rather than writing its own.
+**Whole-record saves require fresh reads:**
 
-A dialog whose save sends the whole record back reads that record fresh each time it opens, or
-a cached copy could undo another admin's change: its detail query key carries a number the
-dialog takes once per opening, so every opening fetches, and the loader does not prefetch it.
-Programs and Facility Types are the examples, taking that number from `useOpening()`
-(`src/hooks/use-opening.ts`); Roles and Users still use one cached detail.
-A record that is gone shows `DialogNotFound`, any other load failure `DialogLoadError`, both
-from `src/components/dialog-parts.tsx`, and a switch's skeleton is `SwitchSkeleton`.
+- Edit Facility passes fresh `saved` data to `src/features/facilities/components/facility-editor.tsx`.
+  Pages reading fresh records for whole-record saves, including Edit Reason, set
+  `preload: false` to prevent hover-cache reuse.
+- Dialogs fetch fresh on each opening: add a per-opening number from `useOpening()`
+  (`src/hooks/use-opening.ts`) to the detail key, and do not prefetch it in the loader.
+  Programs and Facility Types do this; Roles and Users retain one cached detail.
+- Whole-record tabbed editors, such as Product Edit, use `fetchQuery` with `staleTime: 0`
+  on loader `cause: 'enter'`, cached data on `stay` (tab switches), and `preload: false`.
+  Each save rereads the record and applies only its own change (`saveProductChange`).
+- Missing records show `DialogNotFound`; other load failures show `DialogLoadError`, both
+  from `src/components/dialog-parts.tsx`. Switch placeholders use `SwitchSkeleton`.
 
-A page whose tabs save the record whole, like product edit, reads it fresh on every opening: its
-loader uses `fetchQuery` with `staleTime: 0` on `cause: 'enter'` and the cached copy on `stay`, as a
-tab switch is, and the route sets `preload: false`, since a preloaded match opens at once on the
-cache while the fresh read runs behind. Each save then reads the record again and applies only its
-own change to it (`saveProductChange`), so a tab left open never sends back an old copy.
-
-Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialogForm`,
+Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
-`FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
-(`TextField`, `NumberField`, `DecimalField`, `TextareaField`, `PasswordField`, `SwitchField`,
-`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `TagsField`, `SelectField`, `ImageField`, `DateField`, `QuantityField`). Two
-forms that share their fields, such as Add Product and the product's General tab, define them once
-with `withForm`, from the same `form.tsx`. A whole number is a
-`NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
-`src/lib/whole-number.ts`, which also takes Arabic and Persian digits; read the value with
-`toWholeNumber`. It fits a Java `int` by default; a `long` on the server passes
-`max: Number.MAX_SAFE_INTEGER`, a lower bound passes `min` with its own message, and an optional whole
-number passes `optional` and reads with `toOptionalWholeNumber`. `QuantityField` keeps typed
-doses, packs and remainder text in a `QuantityValue` draft; unit switches keep it, and submission
-sends doses. A number with decimals, such as a price, is a
-`DecimalField` with `decimalText` from `src/lib/decimal.ts`, read with `toDecimal` and shown with
-`toNumberText(value, decimalMark(language))`; it takes a dot or the language's comma, and refuses a comma
-before exactly three digits as a possible thousands separator, so `toNumberText` shows such a value
-with a dot; `maxDecimals` caps
-the decimals. A yes/no setting is a `SwitchField`,
-one compact row with the label and an info button for its description at the start and the
-switch at the end, not a checkbox; picking several of a list is a
-`MultiComboboxField` with chips, not a column of checkboxes; free text such as a reason's tags is a `TagsField`, where Enter, Tab or leaving
-the box takes the highlighted suggestion or the typed text, a comma adds the typed text, and
-`minLength`/`maxLength` refuse a tag with a message; one of a short fixed list is a
-`SelectField`; an uploaded image, such as a logo, is an `ImageField` row, holding `undefined` to keep the
-saved one, `null` to remove it or the picked `File`; it validates on `onChange`, so a refused
-file is flagged as soon as it is picked. A date is a `DateField`: a calendar in the page's
-language, holding `yyyy-MM-dd` or an empty string, with a `clearLabel` when it is optional.
-`earliest` and `latest` bound the calendar; the schema also checks the date. The
-calendar and its language (`loadDateLocale` from `FormMessagesProvider`) are fetched once a date
-field mounts and again when it is opened after a failed load, so no other page carries the date
-libraries; a required date reads out the provider's `requiredLabel` with its name. Outside a
-form, the same picker is `DatePicker`, which `DateField` wraps. Show a date anywhere else, such
-as a table cell, with `formatDateValue` (`src/components/form/date-value.ts`) in the page's
-language, so it reads as it does in the picker. A timestamp, such as when a stock event was
-recorded, goes through `formatTimestamp` in the deployment's time zone from
-`useDeploymentTimeZone()` (`src/hooks/`), which suspends on `deploymentTimeZoneOptions` from
-reference-data, read from legacy's public `/localeSettings` and kept for when it cannot be read, so
-both UIs show the same time whatever the viewer's clock says. A loader that shows timestamps starts
-that query too. A `ComboboxField` item takes a `description`, shown
-muted after its label, such as a zone's level. Every field takes a `layout`: `stacked` by default; `row` for a settings
-page, inside a `SettingsList` (`src/components/form/settings-list.tsx`) with the label at
-the start and the value at the end, and `SettingsItem` for a value that is only shown;
-`inline` in a table cell, where the column header names it and the label and description
-are for screen readers only, so name each one after its row too. Validate with a zod schema on `onDynamic` with
-`revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`, so errors wait for
-the first submit and then follow each correction.
+`FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`. Use `useAppForm` fields from
+`src/components/form/form.tsx`; define shared field sets once with its `withForm`.
 
-Both folders follow the data-table's registry rules: stock shadcn primitives,
-`@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
-exceptions are `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-`Field spacing`, `FieldLabel weight`,
-`ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
-`SelectTrigger width`, `Button align/width` and `PopoverContent width/padding`. In a row,
-`SwitchField` and `SelectField` take an `action` in the label's row, such as a flag's info button
-and Reset; `TextField` takes a `badge` there. Stacked, a `PasswordField` takes an `action` at the
-end of its label's line, such as Forgot Password?, reached after the input with Tab, and two of
-them that show and hide as one, a password and its confirmation, share `visible` and
-`onVisibleChange`. A select's list
-opens below its input, never over it: `alignItemWithTrigger` is `false`.
-`RadioGroupField` takes `variant="tile"` for a grid of small options such as colours,
-`variant="segmented"` for two or three short options in a compact row, such as the facility
-picker's mode, and `columns="row"` to put a few cards side by side once the page has room.
-Validation messages are translation keys; `TranslatedFormMessages` in the app shell
-resolves them through `FormMessagesProvider`.
+**Field contracts:**
 
-**Every toast has a title and a description**: a short title in Title Case (`users.roles.saved-title`,
-"Roles Saved") and a sentence of detail as `description`, which is cut at two lines. The
-shared `Toaster` adds a translated close button, so a call never passes one.
+| Field | Contract |
+|---|---|
+| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords |
+| `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses |
+| `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
+| `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
+| `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
+| `TagsField` | Enter/Tab/blur takes the highlighted suggestion or typed text; comma adds typed text; `minLength`/`maxLength` failures show a message |
+| `SelectField` | One choice from a short fixed list; opens below input (`alignItemWithTrigger: false`) |
+| `ComboboxField` | Searchable choices; item `description` appears muted after label |
+| `ImageField` | `undefined` keeps saved image, `null` removes it, `File` replaces it; validate `onChange` immediately |
+| `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
+| `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
+
+- Whole numbers default to Java `int` bounds. Server `long` fields pass
+  `max: Number.MAX_SAFE_INTEGER`; lower bounds pass `min` and their message. Optional values
+  pass `optional` and read with `toOptionalWholeNumber`.
+- Decimals accept a dot or the language's comma. Reject comma before exactly three digits
+  as ambiguous with thousands separators; `toNumberText` uses a dot for those values.
+  Set `maxDecimals` to cap precision.
+- Dates use `earliest`/`latest` calendar bounds and schema validation too. Lazy-load the
+  calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount; retry
+  failed loads when opened. Required dates announce the provider's `requiredLabel` with
+  their name. Outside forms use `DatePicker`, which `DateField` wraps; display dates with
+  localized `formatDateValue` (`src/components/form/date-value.ts`).
+- Timestamps use `formatTimestamp` with `useDeploymentTimeZone()` (`src/hooks/`). It suspends
+  on reference-data's `deploymentTimeZoneOptions`, reading public `/localeSettings` and
+  retaining it on failure, so both UIs use deployment time rather than the viewer's clock.
+  Loaders showing timestamps start this query too.
+- Field `layout` is `stacked` by default. Settings use `row` inside `SettingsList`
+  (`src/components/form/settings-list.tsx`), label at start/value at end; read-only values
+  use `SettingsItem`. Table fields use `inline` with screen-reader-only labels/descriptions;
+  include row identity as well as the column name.
+- Validate Zod schemas on `onDynamic` with
+  `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`: first submit, then
+  every correction. `TranslatedFormMessages` in the shell supplies `FormMessagesProvider`
+  with the translation-key messages described under Internationalization.
+- Row `SwitchField`/`SelectField` accept a label-row `action`; `TextField` accepts `badge`.
+  Stacked `PasswordField` puts `action` at the label's end but after the input in tab order.
+  Password/confirmation pairs share `visible` and `onVisibleChange`.
+
+Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
+`@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
+features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
+`DialogTitle size`, `Field spacing`, `FieldLabel weight`, `ComboboxInput width/clearLabel`,
+`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width`, `Button align/width`,
+`PopoverContent width/padding`.
+
+**Every toast has a short Title Case title and a detail sentence as `description`**, displayed
+at most two lines. `Toaster` supplies the translated close button; callers never pass one.
 
 ## Barcode scanning
 
-Behind `GS1_SCANNING`, screens compose `useBarcodeScan` and `ScanStatus`. The GS1 parser and
-stock resolver live in `src/lib/`. Pause scanning while a dialog is open; check cancellation before applying pending
-results and abort work on unmount. Each screen supplies its own lot policy to the resolver.
-
+Behind `GS1_SCANNING`, compose `useBarcodeScan` and `ScanStatus`. The GS1 parser and stock
+resolver live in `src/lib/`. Pause while dialogs are open, check cancellation before applying
+pending results, and abort on unmount. Each screen supplies its own lot policy.
 
 ## Facility and program picker
 
-Screens about one facility and program, such as Stock On Hand, start with
-`FacilityProgramSelector` (`src/components/facility-program-selector/`), legacy's My Facility or
-Supervised Facility picker. `facilityProgramOptions` in `src/lib/facility-program-selection.ts` builds
-its options from the user's home facility and programs, every facility and the page's grants, as
-legacy does: home programs, then supervised programs granted away from home, then that program's
-facilities, home included. The route passes the grants of the right it needs, so the picker imports
-no auth. The URL keeps `mode`, `programId` and `facilityId` only once Search is pressed; the picker's
-changes before that are a draft, and the page hides results that no longer match it. A link whose
-selection the picker would not offer (`validSelection`) is refused, and the picker leaves what it does
-not offer blank rather than picking something else under the refusal. A Supervised link to a program
-the user holds at home opens as My Facility, as legacy lists it. The loader asks for stock only for a
-pair the user's grants include, and without waiting for the picker's lookups, so the two load side by side.
-A required list with one option has it picked, as legacy does.
+Facility/program screens use `FacilityProgramSelector` (`src/components/facility-program-selector/`).
+`facilityProgramOptions` (`src/lib/facility-program-selection.ts`) builds options from the
+home facility, user programs, all facilities and page grants, following legacy:
+
+- My Facility offers home programs; Supervised offers programs granted away from home,
+  then those programs' facilities, home included. Routes pass the required right's grants;
+  the picker imports no auth.
+- Keep edits as a draft until Search writes `mode`, `programId` and `facilityId` to the URL.
+  Hide results that no longer match the draft.
+- Refuse linked selections the picker cannot offer (`validSelection`); leave unavailable
+  choices blank, never silently substitute. Supervised links to a home program open as
+  My Facility. Auto-pick a required list's sole option.
+- Load stock only for a granted pair, without awaiting picker lookups; load both in parallel.
 
 ## Rights and dashboards
 
-**A screen shows only what the user's rights allow.** `permissionsOptions(userId)` in
-`src/features/auth/api/queries.ts` loads the user's permission strings once per session,
-parsed into right names and `RIGHT|facility|program` grants (`src/lib/permissions.ts`), and
-`RIGHTS` names the ones this app checks. A route that depends on them awaits
-`ensureQueryData(permissionsOptions(...))` in its loader and reads `.rights`, since that is a
-permission check, then prefetches only the parts the user may see and passes plain flags down.
-`rightsOptions` is the same query with `select` for the names, for components only:
-`fetchQuery` and `ensureQueryData` ignore `select`. Features stay free of auth imports; the
-Home route is the example. A page about one facility and program checks the exact grant with
-`hasProgramGrant`; holding the right elsewhere, or unscoped, never counts. A save that
-may change a user, such as Edit User or Edit User Roles, calls `invalidateUserQueries(queryClient,
-userId)` from `src/lib/user-queries.ts`. The cache holds per-user data only for the signed-in
-user, so it reloads your rights, Profile and Home only when the user is you.
+**Render only what rights allow:**
 
-**A page that needs one right checks it before it loads.** Its loader awaits
-`requireRight(queryClient, RIGHTS.x)`, or `requirePermissions` for the grants too, from `src/features/auth/lib/access.ts`, alongside the
-data it must have, and a missing right throws a `ForbiddenError`. The default error component
-shows `NoAccessPage` for it, and for a `403` from the server; a route with its own
-`errorComponent` renders `ErrorFallback` with its own `title` and `description`, and a `back` that
-replaces Back Home where a list is the better way back, which checks
-`isForbidden(error)` first, and so does a `QueryBoundary` whose data the server may refuse,
-showing `NoAccess`. Inside a feature, which has no auth imports, such a boundary checks
-`isRefused(error)` from `src/lib/http.ts` and shows a short message in place, not the
-full-page panel. Add the page to `NAV_RIGHTS` in
-`src/components/nav-access.ts` too, so the sidebar, the palette and the breadcrumbs never offer
-it. The Users routes are the example. A page legacy opens with either of two rights passes
-both, as a list, to `requireRight` and to `NAV_RIGHTS`; any one opens it. An action inside the
-page that needs one of them reads the set `requireRight` resolves with and hides itself, also
-when its dialog is opened by its URL, as Add Product does on Products. A page that blocks on a
-record and its grant, such as the Stock Card or a stock event, reloads through `useReloadForUser`
-(`src/hooks/use-reload-for-user.ts`) when the signed-in user changes.
+- `permissionsOptions(userId)` (`src/features/auth/api/queries.ts`) loads permission strings
+  once per session, parsed by `src/lib/permissions.ts` into names and `RIGHT|facility|program`
+  grants. `RIGHTS` names the app's checks.
+- Loaders await `ensureQueryData(permissionsOptions(...))` and read `.rights`; prefetch only
+  allowed data and pass plain flags to features. `rightsOptions` uses `select` for components
+  only: `fetchQuery`/`ensureQueryData` ignore `select`. Features never import auth; see Home.
+- Facility/program pages check exact grants with `hasProgramGrant`. Unscoped rights or
+  grants elsewhere never count.
+- User-changing saves call `invalidateUserQueries(queryClient, userId)`
+  (`src/lib/user-queries.ts`). Per-user caches hold only the signed-in user's data; rights,
+  Profile and Home refresh only when saving that user.
+- Before loading protected pages, await `requireRight(queryClient, RIGHTS.x)` or
+  `requirePermissions` for grants (`src/features/auth/lib/access.ts`), alongside required data.
+  Missing rights throw `ForbiddenError`. Add matching `NAV_RIGHTS` entries in
+  `src/components/nav-access.ts` for sidebar, palette and breadcrumb filtering.
+- For legacy's either-right pages, pass both rights to `requireRight` and `NAV_RIGHTS`.
+  Gate individual actions with the resolved rights set, including directly linked dialogs.
+- Record-and-grant pages (Stock Card, stock events) use `useReloadForUser`
+  (`src/hooks/use-reload-for-user.ts`) after identity changes.
 
-**Unsaved work asks before it is lost.** A page with a draft calls `useDiscardGuard` from
-`src/hooks/use-discard-guard.ts`, which blocks router navigation to another page and, for
-leaving the router cannot see, such as signing out, registers `useLeaveGuard`; the sign-out
-calls `whenLeaveAllowed`, and so does anything else that signs the user out, such as a
-password change, before it acts. Both open the shared "Discard Unsaved Changes?" dialog,
-`src/components/discard-changes-dialog.tsx`, fed by the hook. A reload or a closed tab gets the
-browser's own prompt, which is the only one a page is allowed there.
+**Access errors:** the default route error shows `NoAccessPage` for forbidden errors/server
+`403`. Custom route errors use `ErrorFallback` with title/description and optional `back`
+(replacing Back Home for list returns); it checks `isForbidden(error)` first. Refusable
+`QueryBoundary` content shows `NoAccess`. Feature boundaries use `isRefused(error)`
+(`src/lib/http.ts`) and a short in-place message, without importing auth.
 
-**Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`
-ramp: one hue from the active theme preset, light to dark, checked for even steps and contrast in both modes, used
-in order for anything with an order (pipeline stages). Status meaning (good to critical)
-uses `success`, `warning` and `destructive` with an icon and a label, never colour alone.
+**Unsaved work:** draft pages use `useDiscardGuard` (`src/hooks/use-discard-guard.ts`) for
+router navigation. It registers `useLeaveGuard` for exits outside the router; sign-out,
+password changes and other deliberate sign-outs call `whenLeaveAllowed` before acting.
+Both use `src/components/discard-changes-dialog.tsx`. Reload/tab close uses only the
+browser's native prompt. External identity changes follow Authentication below.
+
+**Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,
+one hue light-to-dark, checked for even steps/contrast in both modes. Use the ramp in order
+for ordered data. Status uses `success`, `warning`, `destructive` plus icon and label;
+never color alone.
 
 ## App configuration
 
-**Branding, theme and feature flags come from the server**, `GET /api/appConfiguration`,
-loaded in `src/lib/app-configuration.ts` before the first render and cached in localStorage for
-the next boot. A slow or missing server falls back to the cache, then to the built-in defaults.
-The Settings page is behind the `SYSTEM_SETTINGS` flag, off by default since the released backend
-has no endpoint. It is `deploymentOnly`: read from `config.json` alone and left out of
-`ADMIN_FLAG_KEYS`, the list on Settings' own Feature Flags tab, so an administrator can never turn
-Settings off from inside it. `pnpm dev` sees it off unless `public/config.json` turns it on.
-`startApplyingAppConfiguration()` in `src/lib/apply-app-configuration.ts` keeps the page title,
-favicon, preset tokens and light or dark class in step with the store.
+- Load branding, theme and flags from `GET /api/appConfiguration` before first render
+  (`src/lib/app-configuration.ts`). Cache in localStorage; slow/missing servers fall back to
+  cache, then defaults. `startApplyingAppConfiguration()` (`src/lib/apply-app-configuration.ts`)
+  synchronizes title, favicon, preset tokens and light/dark class.
+- `SYSTEM_SETTINGS` is off by default while the released backend lacks the endpoint.
+  It is `deploymentOnly`, read solely from `config.json`, excluded from `ADMIN_FLAG_KEYS`
+  so admins cannot disable Settings there. Dev also needs `public/config.json` to enable it.
+- Deployment-name messages use `{appName}` and `useAppName()`, never hardcoded "OpenLMIS".
+  References to the platform, such as "Powered by OpenLMIS", keep that name.
+- Appearance uses `src/lib/appearance.ts`, never next-themes. Store user choice under `theme`;
+  without a choice use the admin default. Read through `useResolvedAppearance()`.
+- Settings tabs save with `useConfigurationSave`
+  (`src/features/system-settings/hooks/use-configuration-save.ts`), retaining the draft's
+  starting version. Refetches under edits cause conflicts instead of silent overwrites;
+  preserve server-stored portions of multi-step saves.
+- Read flags through `useFlag(key)` or `getFlag(key)` outside React. Precedence:
+  administrator, deployment `config.json`, code default. `getDeploymentFlags()` has no
+  `import.meta.env` fallback; dev gets defaults/admin values unless config supplies flags.
 
-**Never hardcode "OpenLMIS" in copy that names the deployment.** Messages take `{appName}`
-and pass `useAppName()`, so a renamed deployment reads its own name everywhere. Text about the
-platform itself, such as "Powered by OpenLMIS" or what a service account can call, keeps it.
-
-**Light or dark goes through `src/lib/appearance.ts`**, which replaces next-themes. It keeps
-the user's choice under the `theme` key; no choice follows the administrator's default
-appearance. Read it with `useResolvedAppearance()`.
-
-**A settings tab saves through `useConfigurationSave`**
-(`src/features/system-settings/hooks/use-configuration-save.ts`). It keeps the version the draft
-started from, so a refetch under unsaved changes turns the save into a conflict rather than a
-silent overwrite, and it keeps whatever part of a several-step save the server already stored.
-
-**A feature flag reads through `useFlag(key)`, or `getFlag(key)` outside React.** The
-administrator's value wins, then the deployment's `config.json`, then the code default.
-`getDeploymentFlags()` has no `import.meta.env` fallback, so `pnpm dev` sees only the defaults
-and the admin values. Adding a flag takes:
-
-1. An entry in `FEATURE_FLAGS` (`src/lib/feature-flags.ts`) with its type, default and
-   message keys, and those keys in every locale.
-2. A line in `docker/config.json.template`, its `export` and `envsubst` name in
-   `docker/entrypoint.sh`, and the variable in `docker-compose.yml`.
+To add a flag, add its type/default/message keys to `FEATURE_FLAGS` (`src/lib/feature-flags.ts`)
+and every locale; add its template entry in `docker/config.json.template`, export and
+`envsubst` name in `docker/entrypoint.sh`, and variable in `docker-compose.yml`.
 
 ## Authentication
 
-`/login` exchanges credentials for a token at `POST /api/oauth/token?grant_type=password`.
-The auth service authenticates the *client* over HTTP Basic first, so the request also
-carries `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)`.
+Login sends `POST /api/oauth/token?grant_type=password`. The service authenticates the client
+first with `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)`, resolved
+through runtime config. The persisted zustand store (`src/features/auth/store/login-data.ts`)
+supplies bearer tokens
+to Axios and identity to router guards. `_protected.tsx` redirects anonymous users to
+`/login?redirect=<page>`; login returns authenticated users through `safeRedirect()`
+(`src/lib/redirect.ts`) or `/home`.
 
-The token lives in a persisted zustand store (`src/features/auth/store/login-data.ts`),
-which is read outside React by the axios request interceptor (attaches the bearer token)
-and by the router guards (`_protected.tsx` redirects anonymous users to
-`/login?redirect=<page>`; `/login` sends authenticated ones to that page, through
-`safeRedirect()` in `src/lib/redirect.ts`, or to `/home`).
+### Expiry and requests
 
-**A `401` never leaves the page.** The response interceptor in `src/integrations/axios.ts`
-marks the session `expired` (the user and the refused token stay, so the legacy UI still
-holding that token is never mistaken for a new one), and `SessionExpiredDialog`,
-mounted at the root, asks the same user for their password. Every refused request, and
-every new one while expired, waits in `waitForSession()` (`src/features/auth/lib/session.ts`)
-and is sent once more with the new token, so pages finish loading and a pressed Save goes
-through. Sign Out from the dialog, or another user signing in, fails the waiting requests
-with a `SessionEndedError`, and so does a refusal of a request sent for a user who is no
-longer the one signed in (`sentFor`), so nothing is ever resent as someone else. A `401` for a token that has since been replaced is resent, not
-treated as a new expiry. Signing in and out pass `session: false`, so their own refusals
-never open the dialog, and a request that brings its own `Authorization` (the login's Basic
-header) keeps it. Forgot Password and Reset Password pass `anonymous: true`: no token at all,
-since the auth service refuses any bearer on those endpoints, and no waiting for a session.
-The session dialog stays off the signed-out pages `isSignInPage()` lists. Queries never retry a `401` or `403`.
+- **A `401` keeps the page and drafts.** Axios marks the session `expired`, preserving user
+  and refused token so legacy's old token cannot look new. Root `SessionExpiredDialog`
+  asks the same user for a password.
+- Refused requests and new requests while expired await `waitForSession()`
+  (`src/features/auth/lib/session.ts`), then replay once with the new token.
+- Sign-out, another user signing in, or a refusal for an obsolete `sentFor` identity fails
+  waits with `SessionEndedError`. Never resend as another user. A `401` for an already
+  replaced token replays without treating it as a new expiry.
+- Login/logout pass `session: false`, so their refusals do not open the dialog. Preserve
+  explicit `Authorization`, including login's Basic header. Forgot/Reset Password use
+  `anonymous: true`: no bearer and no session wait. Hide the dialog on `isSignInPage()` routes.
+- Queries never retry `401`/`403`. Server expiry slides on calls: `expiresAt` from `expires_in`
+  is only the earliest expiry, never a sign-out timer. Let `401` decide.
+- Deliberate sign-outs use `useOfflineSignOut()` (`src/components/offline-sign-out.tsx`)
+  before `whenLeaveAllowed`; offline re-login needs the server, so ask first. A failed
+  server connection counts as offline even when the browser claims online.
 
-Anything that signs the user out on purpose goes through `useOfflineSignOut()`
-(`src/components/offline-sign-out.tsx`) before `whenLeaveAllowed`: offline, it asks first,
-since signing in again needs the server. The dialog also counts a sign-in that could not
-reach the server as offline, whatever the browser's online flag says.
+### Shared-origin sessions
 
-The server slides a token's expiry with every call, so `expiresAt` (from `expires_in`) is
-only the earliest it could end. Nothing signs a user out on it; the `401` decides. One
-user's token is the same in both UIs, so our logout signs them out of the legacy UI too.
+`syncLegacySession()` runs on boot/storage events for `openlmis.ACCESS_TOKEN`,
+`openlmis.USER_ID` and `openlmis.USERNAME`. `syncOtherTab()` handles our persisted store's
+storage events across `/v2` tabs. A live session restores itself when legacy wipes the
+origin's localStorage on a `401`.
 
-Nothing talks to the API directly in development - the Vite dev server proxies `/api` and
-`/localeSettings` to `VITE_API_PROXY_TARGET`, keeping the browser same-origin.
+- Track `sessionSource` (`own`/`legacy`). Only borrowed legacy sessions follow legacy changes.
+  Direct logins remain independent.
+- Missing legacy keys expire borrowed sessions, preserving drafts; legacy clears keys on
+  both sign-out and refused tokens.
+- Token changes without id changes are ambiguous because keys are written separately:
+  retain the previous token and expire until identity changes or dialog login succeeds.
+- Id changes always advance identity, even with the same token. If id arrives first,
+  expire under it until its token arrives. Retain the token's original id in
+  `legacyTokenUserId`; neither write order may release requests with mismatched credentials.
+- Borrowed usernames follow late writes too, so reauthentication uses the latest username.
+- Tokens are shared between UIs, so our logout also signs out legacy and calls
+  `clearLegacySession()`. Leave preferences such as `openlmis.current_locale` untouched.
+- Login is one-way: never publish our token or any `openlmis.*` keys. Legacy needs its own
+  login; publishing the token leaves its rights-guarded routes inaccessible. See the
+  [deployment guide](docs/deployment/deployment.md) for evidence and SSO requirements.
+- Access auth through the store, never direct localStorage reads.
 
-Both UIs share an origin, so `syncLegacySession()` keeps the two sessions in step. The
-legacy keys carry an `openlmis.` prefix: `openlmis.ACCESS_TOKEN`, `openlmis.USER_ID`,
-`openlmis.USERNAME`. It runs on boot and on the `storage` event, so signing in or out of
-the legacy UI reaches a `/v2` tab that is already open. `syncOtherTab()` handles the same
-event for our own store, so a sign-out or a sign-in again in one `/v2` tab reaches the
-others. The legacy UI wipes the whole origin's localStorage on every `401`; a live session
-of ours saves itself again rather than reading that as a sign-out.
+### Identity isolation
 
-The store records a `sessionSource` (`own` or `legacy`). Only a `legacy`-sourced session
-follows the legacy UI, so a user who signed into the new UI directly is unaffected by
-what the old one does. When legacy's session disappears, ours expires rather than clears:
-legacy wipes its keys the same way on a sign-out and on a refused token, and expiring keeps
-the page and its unsaved work behind the dialog. A changed token without a changed user id
-is ambiguous because legacy writes the keys separately: keep the previous token and expire
-until the identity changes or the user signs in through our dialog. A user id change always
-advances identity, even with the same token. If the id arrives first, expire under the new
-identity until its new token arrives; keep the token's original user id in `legacyTokenUserId`
-so neither write order releases requests under mismatched credentials. Username changes also
-follow the borrowed session, including a username written after its token and id, so the
-session-expired dialog always uses the latest legacy username. Our own logout calls
-`clearLegacySession()`, since the token is shared and killing it server-side while leaving
-the keys behind would only render a dead session. Preferences such as `openlmis.current_locale` are left alone.
-
-Login deliberately carries one way: signing in here does not sign the user into the legacy
-UI, and we write no `openlmis.*` keys. Legacy keeps working normally, it just asks for a
-login once. Do not "fix" this by publishing our token, which leaves legacy unable to enter
-any rights-guarded route. [docs/deployment/deployment.md](docs/deployment/deployment.md) records the evidence and
-what a real single sign-on would cost.
-
-Anything touching auth state should go through the store rather than reading localStorage
-directly, or these two views of the session drift apart again.
-
-Cached query data belongs to whoever fetched it: `src/integrations/tanstack-query.ts`
-clears the whole cache whenever the store's user changes, on sign-out, on sign-in as
-someone else, and when the session follows the legacy UI. Query keys therefore need no
-user id, except for per-user data such as rights.
-
-Protected route data and drafts also belong to that identity. `_protected.tsx` hides and
-remounts the routed subtree when the user changes, waiting for `router.invalidate()` to
-rerun loaders and recheck rights and facility/program scope. This external change drops
-unsaved work without a discard prompt. Deliberate navigation and sign-out still use the
-discard guard. Session expiry and same-user token renewal keep drafts and loader data.
-
-Routed writes use `useSessionMutation` from `src/hooks/use-session-mutation.ts`, including
-writes in dialogs. It captures the mounting identity, checks it before and after work, and
-suppresses stale completion callbacks and checks identity again after they settle. An async
-completion must call the mutation's `isCurrent()` after every await, including caught refetch
-failures, before writing fallback data, resetting a form or calling another callback. Features
-import this shared hook, never auth.
-Authentication operations keep ordinary `useMutation`, since they change the session.
-The HTTP client captures the identity at request creation and checks it before sending,
-after waiting for reauthentication, and on responses. A stale successful read therefore
-cannot continue a multi-step save as another user. Multi-request operations capture
-`getSessionScope()` and check it before each request, including between batches. `settleFew` checks before and after each task and rejects on
-`SessionEndedError` or a scope change, clearing its queue instead of counting a per-item
-failure. Ordinary item failures still allow the rest of the batch to finish. The HTTP client
-also refuses a request whose `sentFor` names a previous user before sending it.
-A rollback that writes after catching an error also captures `getSessionScope()` and calls
-`assertSessionScope()` before cleanup. An already-sent write may finish on the server under its original token, but its result cannot update the next user's page.
+- `src/integrations/tanstack-query.ts` clears all queries when the user changes, including
+  sign-out, another login and legacy identity changes. Keys need no user id except actual
+  per-user data such as rights.
+- `_protected.tsx` hides/remounts routed content on identity changes, awaiting
+  `router.invalidate()` to rerun loaders/rights/facility-program checks. External changes
+  drop drafts without prompting. Deliberate navigation/sign-out uses discard guards;
+  expiry and same-user renewal preserve drafts and loader data.
+- Routed writes, including dialogs, use `useSessionMutation` (`src/hooks/use-session-mutation.ts`).
+  It captures mounting identity, checks before/after work, suppresses stale callbacks and
+  checks again when callbacks settle. After **every await**, including caught refetch failures,
+  async completions call `isCurrent()` before fallback cache writes, form resets or callbacks.
+  Features import this shared hook, never auth. Auth operations use ordinary `useMutation`.
+- HTTP captures identity at request creation and checks before sending, after session waits
+  and on responses. Reject obsolete `sentFor` before sending; stale successful reads must
+  not continue multi-step saves as another user.
+- Multi-request operations capture `getSessionScope()` and check before each request/batch.
+  `settleFew` checks before/after each task and rejects on `SessionEndedError` or scope changes,
+  clearing its queue. Ordinary item failures allow remaining tasks to finish.
+- Error-path rollbacks also capture scope and call `assertSessionScope()` before cleanup.
+  Already-sent writes may finish server-side with the original token; their results must
+  never update the next user's page.
 
 ## Environment Variables
 
-`.env.example` is the source of truth and README.md has the annotated table. Two that
-affect how code is written:
+See `.env.example` and [README.md](README.md#environment-variables).
 
-- `VITE_API_BASE_URL` stays root-absolute (`/api`). The API is shared with the legacy UI
-  and is not behind the base path.
-- `VITE_BASE_PATH` is a build input, not runtime config. See the base path rules above.
-
-Anything that varies per environment cannot go through `import.meta.env`, because Vite
-resolves it at build time and one image serves every environment. Add it to
-`src/lib/runtime-config.ts`, which reads `config.json` written by the container at start
-and falls back to `import.meta.env` for `pnpm dev`. The OAuth client works this way.
+- Keep `VITE_API_BASE_URL` root-absolute (`/api`), shared with legacy outside the app prefix.
+- `VITE_BASE_PATH` is compiled at build time; follow the base-path rules above.
+- Per-environment settings use `src/lib/runtime-config.ts`, reading `config.json` written
+  at container startup so one image works everywhere. OAuth credentials fall back to
+  `import.meta.env` for dev; feature flags deliberately do not. Never rely on build-time
+  `import.meta.env` for deployment-varying runtime settings.
 
 ## Skills
 
-Skills live in `.agents/` and `.claude/`; external ones are pinned in `skills-lock.json`.
+Skills live in `.agents/` and `.claude/`; `skills-lock.json` pins external skills.
+Read the applicable skill before using it.
 
-| Skill | Source | Use for |
-|---|---|---|
-| `sync-translations` | local | Syncing `public/locales/*` with `en.json` after changing keys |
-| `plan-implementation` | local | Researching a Jira ticket against legacy and writing `plans/<KEY>.md` before any code |
-| `review-pr` | local | Reviewing a PR diff in parallel (correctness, simplify, conventions, React/shadcn, legacy UI parity), then getting it ready to merge |
-| `ticket-review` | local | Checking a shipped Story, Task, Subtask or Bug against its acceptance criteria, then commenting and moving it to Done (never Epics) |
-| `shadcn` | `shadcn/ui` | Adding, debugging, styling and composing shadcn components |
-| `frontend-design` | `anthropics/skills` | Building new UI with real design quality |
-| `vercel-composition-patterns` | `vercel-labs/agent-skills` | Compound components, render props, provider design |
-| `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance review and refactors |
-| `skill-creator` | `anthropics/skills` | Authoring or improving a skill |
+| Skill | Use for |
+|---|---|
+| `plan-implementation` | Research legacy/ticket and write `plans/<KEY>.md` before code |
+| `review-pr` | Parallel correctness, simplification, conventions, React/shadcn and legacy review; fix verified findings |
+| `ticket-review` | Verify shipped acceptance criteria, comment and mark Done; never Epics |
+| `sync-translations` | Sync all catalogs after `en.json` changes |
+| `test-audit` | Audit test value, redundancy and feedback cost |
+| `shadcn` | Add, debug, style and compose shadcn components |
+| `frontend-design` | Design and build new UI |
+| `vercel-composition-patterns` | Compound components, render props and providers |
+| `vercel-react-best-practices` | React performance review/refactors |
+| `skill-creator` | Create or improve skills |
 
 ## Offline
 
-The [offline plan](docs/offline-plan/offline-plan.md) is the design and the order of work. The
-foundation is in place; stock screens first ship an online milestone, followed by the
-offline data and drafts pass. A stock ticket with offline criteria stays open until those
-criteria are met.
+Follow the [offline plan](docs/offline-plan/offline-plan.md). The foundation exists; stock
+screens ship online first, then offline data/drafts. Tickets with offline criteria stay open
+until those criteria are met.
 
-**The service worker keeps the app's files, nothing else.** `vite-plugin-pwa` in
-`vite.config.ts` precaches the build (`**/*.{js,css,html,png,svg,woff2}`) at scope `BASE_URL`
-and, network first, `config.json` and `locales/*.json`, so a deployment can still correct a
-string or the OAuth client without a rebuild. Never add a runtime route for `/api` or any
-other data: offline data belongs in Dexie. Its caches are named `openlmis-ui-*`, since the
-legacy UI's worker at `/` shares the origin. `clientsClaim` lets it control the first visit.
+### Service worker
 
-**`src/lib/service-worker.ts` owns the worker; nothing else registers it.**
-`registerServiceWorker()` runs once from `src/index.tsx`, only in a production build. It:
+- `vite-plugin-pwa` in `vite.config.ts` precaches `**/*.{js,css,html,png,svg,woff2}` at
+  `BASE_URL` scope. Runtime-cache only `config.json` and `locales/*.json`, network-first,
+  so deployments can correct strings/OAuth config without rebuilding.
+- Never cache `/api` or other data in the worker; use Dexie. Cache names are `openlmis-ui-*`
+  to coexist with legacy's root worker. `clientsClaim` controls the first visit.
+- Only `registerServiceWorker()` in `src/lib/service-worker.ts` registers it, once from
+  `src/index.tsx` in production. Once it controls the page, fetch config and every
+  `SUPPORTED_LANGUAGES` catalog for offline use. Check updates hourly and notify all tabs
+  through `useUpdateReady()`.
+- `applyUpdate()` activates/reloads only this tab on takeover, or reloads if another tab
+  already activated the worker. Never use `virtual:pwa-register` hooks; they register per
+  mount and reload all tabs.
+- Dev never registers it. Verify with `VITE_BASE_PATH=/v2 pnpm build` then
+  `VITE_BASE_PATH=/v2 pnpm preview`; preview proxies `/api` too. Copy `config.json` into `dist/`
+  first, or preview serves HTML for it.
 
-- fetches `config.json` and every `SUPPORTED_LANGUAGES` catalog once our worker controls the
-  page, so all of them work offline after one visit;
-- checks for a new version every hour;
-- tells every tab through `useUpdateReady()`.
+### Connection failures and notices
 
-`applyUpdate()` loads a new version in this tab only: it activates a waiting worker and reloads
-once it takes control, or just reloads when another tab already activated it. Never use the
-plugin's `virtual:pwa-register` hooks, which register on every mount and reload every tab.
+- Queries use `networkMode: 'always'` to fail immediately offline. `seedOnline()` seeds boot
+  state; TanStack otherwise only hears online/offline events. Use `src/lib/online.ts`:
+  `useOnline()`, `isOnline()`, `useOnReconnect()`, `useBackOnline()`. Never read
+  `navigator.onLine` directly.
+- No-response failures (`isOfflineError`) show "Connect To Download This Data" through
+  `useOfflineFailure(error, retry)`, which retries on reconnect. Use `OfflineNotice` through
+  `ErrorFallback` for pages/blocking loaders; `ListError` for server-paged boundaries (also
+  No Access); `LoadError` inside features without auth imports; `DialogLoadError` or Home's
+  `WidgetError`, passing the error. New retry views use the same hook.
+- Custom route errors render `ErrorFallback` with title/description. Its retry calls
+  `router.invalidate()` before `reset()` to rerun failed loaders. `reportCaughtError`
+  (`src/lib/report-error.ts`), passed to `createRoot`, suppresses offline errors and logs other
+  caught errors with component stacks.
+- `SidebarNotices` above footer buttons shows You're Offline (warning, no close), You're Back
+  Online (success, 4 s), and Update Available (info, Reload). Collapsed rail: tooltip icons,
+  only Reload clickable. `OfflineDot` marks the header menu when the sidebar is closed.
+- Visual notices are notes, never live regions. Header `StatusAnnouncer` is the single
+  always-mounted `role="status"` so announcements survive sidebar visibility changes.
+- Reload uses `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Run `allowUnload()` just
+  before reload to avoid a second browser prompt; the guard stays active if reload never comes.
 
-`pnpm dev` never registers the worker. Check it with
-`VITE_BASE_PATH=/v2 pnpm build && VITE_BASE_PATH=/v2 pnpm preview`, which proxies `/api` like
-`pnpm dev`. Copy a `config.json` into `dist/` first, as the container writes one, or preview
-answers it with `index.html`.
+### Local data
 
-**Offline, a request fails at once.** The query client runs with `networkMode: 'always'`, and
-`seedOnline()` tells it at boot whether the browser is online, since TanStack Query only hears
-the `online`/`offline` events. `src/lib/online.ts` is the one source of that state:
-
-- `useOnline()` and `isOnline()`;
-- `useOnReconnect()`;
-- `useBackOnline()`.
-
-Never read `navigator.onLine` directly.
-
-**A failure a connection would fix shows "Connect To Download This Data".** That means
-`isOfflineError(error)`: the request got no answer at all. Views ask
-`useOfflineFailure(error, retry)`, which also runs `retry` once the connection is back:
-
-- `OfflineNotice` for a page, which `ErrorFallback` shows, so a blocking loader such as
-  `requireRight` is covered too, and so is a route's own `errorComponent` that renders
-  `ErrorFallback` with its `title` and `description`;
-- `ListError` for a server-paged list's boundary, which also handles No Access;
-- `LoadError` for a boundary inside a feature, which has no auth imports;
-- `DialogLoadError` and the Home `WidgetError`, given the `error`.
-
-A new error view with a Try Again uses `useOfflineFailure` the same way. `ErrorFallback`'s
-retry calls `router.invalidate()` before `reset()`, since a failed loader is what put the page
-there and a reset alone would not run it again. `reportCaughtError` (`src/lib/report-error.ts`),
-passed to `createRoot`, leaves those offline failures out of the console and logs every other
-caught error with its component stack.
-
-**Status goes above the sidebar's footer buttons.** `SidebarNotices` shows:
-
-- "You're Offline": warning, no close;
-- "You're Back Online": success, 4 s;
-- "Update Available": info, with Reload.
-
-On the collapsed rail each is its icon with a tooltip, and only Reload is a button.
-`OfflineDot` marks the header's menu button while the sidebar is closed. The visual notices are
-notes, not live regions: `StatusAnnouncer` in the header is the one always-mounted
-`role="status"`, so a screen reader hears each change even with the sidebar out of view.
-
-Reload goes through `whenLeaveAllowed`, then `applyUpdate(allowUnload)`: `allowUnload()` runs
-just before the reload, so the discard guard does not raise the browser's own prompt on top,
-and stays off if the reload never comes.
-
-**Local data goes in Dexie, one database per deployment and user.** `getLocalDb()` in
-`src/integrations/local-db.ts` opens `openlmis-ui:<deployment>:<userId>` for the signed-in user
-and closes it when the user changes or signs out; it never deletes. A screen declares its own
-tables with a new `version()`. Offline reads must finish with data, an unavailable result or a
-handled error; local absence is not a server 404. Tests get IndexedDB from `fake-indexeddb`,
-and `src/tests/setup.ts` puts the app back online after every test.
+Use Dexie with one database per deployment/user. `getLocalDb()` (`src/integrations/local-db.ts`)
+opens `openlmis-ui:<deployment>:<userId>` for the signed-in user, closes on identity change or
+sign-out, and never deletes it. Screens add tables with a new `version()`. Offline reads
+return data, unavailable or a handled error; local absence is never a server 404. Tests use
+`fake-indexeddb`; `src/tests/setup.ts` restores online state after each test.
