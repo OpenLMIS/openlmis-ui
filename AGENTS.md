@@ -127,6 +127,11 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
   page, avoiding oversized URLs.
 - `userRecordOptions` and `userProgramsOptions` read the signed-in user's record and programs;
   keep their keys separate from the Users page's richer detail.
+- `validDestinationsOptions` reads every page through `fetchValidAssignments`, under
+  `queryKeys.validDestinations.all` so admin saves refresh it; Receive's valid sources reuse
+  the fetcher. `reasonsOf` keeps visible reasons of one category and, optionally, one type.
+- Stock event screens read legacy's v2 stock list and resolve its cards' products and lots
+  through the id lookups above.
 
 ### Internationalization (i18next)
 
