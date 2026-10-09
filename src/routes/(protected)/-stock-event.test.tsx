@@ -594,7 +594,7 @@ describe('stock event detail', () => {
     expect(fetchStockEventLines).not.toHaveBeenCalled();
   });
 
-  it('returns canReverse from the loader without showing a Reverse action', async () => {
+  it('shows Reverse when the loader allows cancellation', async () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([
       ...grants,
       `STOCK_EVENTS_CANCEL|${HOME}|${FP}`,
@@ -602,7 +602,33 @@ describe('stock event detail', () => {
     const { router } = renderRoute();
     await screen.findByText('DOC-1');
     expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ canReverse: true });
-    expect(screen.queryByRole('button', { name: /reverse/i })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'stock-event-reverse.reverse' }),
+    ).toBeInTheDocument();
+  });
+
+  it('disables Reverse when the event has no lines', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      ...grants,
+      `STOCK_EVENTS_CANCEL|${HOME}|${FP}`,
+    ]);
+    vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([], 0));
+    renderRoute();
+    const reverse = await screen.findByRole('button', { name: 'stock-event-reverse.reverse' });
+    expect(reverse).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('hides Reverse for a non-reversible event even with the cancel right', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      ...grants,
+      `STOCK_EVENTS_CANCEL|${HOME}|${FP}`,
+    ]);
+    vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, reversible: false });
+    renderRoute();
+    await screen.findByText('DOC-1');
+    expect(
+      screen.queryByRole('button', { name: 'stock-event-reverse.reverse' }),
+    ).not.toBeInTheDocument();
   });
 
   it('returns validated list search from the breadcrumb callback', () => {

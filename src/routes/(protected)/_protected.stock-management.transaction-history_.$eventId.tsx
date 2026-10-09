@@ -159,7 +159,13 @@ function StockEventPage() {
           <WorkspaceDescription>{t('stock-event.description')}</WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
-          <StockEventPrint event={data.event} userId={data.userId} unit={unit} search={search} />
+          <StockEventActions
+            canReverse={data.canReverse}
+            event={data.event}
+            userId={data.userId}
+            unit={unit}
+            search={search}
+          />
         </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
@@ -222,12 +228,14 @@ function StockEventColumns({ columnView }: { columnView: ReturnType<typeof useCo
   );
 }
 
-function StockEventPrint({
+function StockEventActions({
+  canReverse,
   event,
   userId,
   unit,
   search,
 }: {
+  canReverse: boolean;
   event: StockEventSummary;
   userId: string;
   unit: QuantityUnit;
@@ -253,18 +261,36 @@ function StockEventPrint({
     refusedDescription: t('stock-event.print-refused'),
   });
   return (
-    <Button
-      size="lg"
-      disabled={print.isPending || !lines.data?.totalElements || !!lines.error}
-      onClick={print.print}
-    >
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <PrinterIcon data-icon="inline-start" />
+    <>
+      {canReverse && (
+        <Button
+          size="lg"
+          disabled={!lines.data?.totalElements || !!lines.error}
+          nativeButton={false}
+          render={
+            <Link
+              to="/stock-management/transaction-history/$eventId/reverse"
+              params={{ eventId: event.id }}
+              search={search}
+            />
+          }
+        >
+          {t('stock-event-reverse.reverse')}
+        </Button>
       )}
-      {t('stock-event.print')}
-    </Button>
+      <Button
+        size="lg"
+        disabled={print.isPending || !lines.data?.totalElements || !!lines.error}
+        onClick={print.print}
+      >
+        {print.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <PrinterIcon data-icon="inline-start" />
+        )}
+        {t('stock-event.print')}
+      </Button>
+    </>
   );
 }
 
