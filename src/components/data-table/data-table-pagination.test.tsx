@@ -211,7 +211,7 @@ describe('DataTablePagination', () => {
 });
 
 describe('invalid pages', () => {
-  it('marks invalid page buttons with an icon and the supplied accessible label', () => {
+  it('turns invalid page buttons red without an icon and names them with the supplied label', () => {
     render(
       <DataTableLabelsProvider labels={{ invalidPage: 'Contém linhas inválidas' }}>
         <Harness
@@ -223,24 +223,28 @@ describe('invalid pages', () => {
       </DataTableLabelsProvider>,
     );
     const invalid = screen.getByRole('button', { name: 'Page 2: Contém linhas inválidas' });
-    expect(invalid.querySelector('svg')).toBeInTheDocument();
-    expect(invalid.querySelector('.text-destructive')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Page 1' }).querySelector('svg')).toBeNull();
+    expect(invalid.querySelector('svg')).toBeNull();
+    expect(invalid).toHaveClass('text-destructive');
+    const valid = screen.getByRole('button', { name: 'Page 3' });
+    expect(valid).not.toHaveClass('text-destructive');
+    expect(screen.getByRole('button', { name: 'Page 1' })).not.toHaveClass('bg-destructive');
   });
-});
 
-it('keeps the invalid indicator and name on the current page using its foreground', () => {
-  const invalid = vi.fn(() => true);
-  render(
-    <Harness
-      onPaginationChange={vi.fn()}
-      pagination={{ pageIndex: 0, pageSize: 10 }}
-      rowCount={30}
-      isPageInvalid={invalid}
-    />,
-  );
-  const currentPage = screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' });
-  expect(currentPage).toHaveAccessibleName('Page 1: Contains Invalid Rows');
-  expect(currentPage.querySelector('svg')).toBeInTheDocument();
-  expect(currentPage.querySelector('.text-destructive')).toBeNull();
+  it('fills the current invalid page solid red so it stands apart from other invalid pages', () => {
+    render(
+      <Harness
+        onPaginationChange={vi.fn()}
+        pagination={{ pageIndex: 0, pageSize: 10 }}
+        rowCount={30}
+        isPageInvalid={() => true}
+      />,
+    );
+    const currentPage = screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' });
+    expect(currentPage).toHaveAttribute('aria-current', 'page');
+    expect(currentPage.querySelector('svg')).toBeNull();
+    expect(currentPage).toHaveClass('bg-destructive');
+    expect(screen.getByRole('button', { name: 'Page 2: Contains Invalid Rows' })).not.toHaveClass(
+      'bg-destructive',
+    );
+  });
 });

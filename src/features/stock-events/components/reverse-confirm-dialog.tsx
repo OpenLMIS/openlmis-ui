@@ -35,7 +35,7 @@ export function ReverseConfirmDialog({
 }) {
   const { t } = useTranslation();
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="xl">
+    <FormDialog open={open} onOpenChange={onOpenChange} size="2xl">
       <FormDialogHeader>
         <FormDialogTitle>{t('stock-event-reverse.confirm-title')}</FormDialogTitle>
         <FormDialogDescription>

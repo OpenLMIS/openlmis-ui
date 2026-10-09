@@ -4,7 +4,6 @@ import {
   ChevronRightIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon,
-  CircleAlertIcon,
 } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import type { DataTableInstance } from '@/components/data-table/data-table';
@@ -85,13 +84,11 @@ export function DataTablePagination<TData extends RowData>({
           ))}
           {pages.map((page) => {
             const invalid = isPageInvalid?.(page);
+            const current = page === pageIndex;
             return (
-              <div
-                className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}
-                key={page}
-              >
+              <div className={cn('tabular-nums', !current && 'hidden @md/table:block')} key={page}>
                 <Button
-                  aria-current={page === pageIndex ? 'page' : undefined}
+                  aria-current={current ? 'page' : undefined}
                   aria-label={
                     invalid
                       ? `${labels.page(page + 1)}: ${labels.invalidPage}`
@@ -102,14 +99,17 @@ export function DataTablePagination<TData extends RowData>({
                     if (page !== pageIndex) table.setPageIndex(page);
                   }}
                   size="sm"
-                  variant={page === pageIndex ? 'default' : 'outline'}
+                  variant={
+                    invalid
+                      ? current
+                        ? 'destructive-solid'
+                        : 'destructive-outline'
+                      : current
+                        ? 'default'
+                        : 'outline'
+                  }
                 >
                   {page + 1}
-                  {invalid && (
-                    <span className={page === pageIndex ? undefined : 'text-destructive'}>
-                      <CircleAlertIcon aria-hidden data-icon="inline-end" />
-                    </span>
-                  )}
                 </Button>
               </div>
             );

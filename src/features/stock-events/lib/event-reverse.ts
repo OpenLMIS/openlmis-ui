@@ -133,6 +133,26 @@ export function validateReverse(
   return { valid: !message, ...(message && { message }), marks };
 }
 
+export function liveReverseMarks(
+  marks: Record<string, ReverseRowMarks>,
+  draft: ReverseDraft,
+  balances: Record<string, number>,
+): Record<string, ReverseRowMarks> {
+  let changed = false;
+  const live: Record<string, ReverseRowMarks> = {};
+  for (const [id, mark] of Object.entries(marks)) {
+    const row = draft.lines[id];
+    const kept: ReverseRowMarks = {
+      ...(mark.reason && row && !row.reasonId && { reason: mark.reason }),
+      ...(mark.stock && row && balances[id] < 0 && { stock: mark.stock }),
+      ...(mark.comments && row && row.comments.length > 255 && { comments: mark.comments }),
+    };
+    if (Object.keys(kept).length !== Object.keys(mark).length) changed = true;
+    if (Object.keys(kept).length) live[id] = kept;
+  }
+  return changed ? live : marks;
+}
+
 export function reversePayload(rows: readonly ReverseRow[], signature: string): StockEventCancel {
   return {
     signature,

@@ -213,7 +213,9 @@ gate CI and must have zero findings.**
 has no allowlist. Add a variant in `src/components/ui/`, or put layout classes on a plain
 wrapper. Skeleton sizes always belong to the surrounding layout. Existing variant props
 are defined in the typed components; reuse them before adding another. `TabsList wrap="column"`
-fits odd tab counts; `wrap="md"` fits short labels.
+fits odd tab counts; `wrap="md"` fits short labels. `Button variant="destructive-solid"` and
+`"destructive-outline"` mark the current and other invalid pages in the pager.
+`DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns.
 
 `src/components/ui/` defines the variants and is excluded from design-system and Biome
 linting. Editing these generated files is expected here.
@@ -387,7 +389,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Column widths (`meta.className`) and toolbar use `Workspace`'s `@container/main`, such as
   `@xl/main:w-2/5` and `@2xl/main:w-72`. Pagination uses the card's `@container/table`: current
   page plus up to three on each side, only current on narrow tables. Links accept sizes 1-100.
-  `isPageInvalid` marks pages holding invalid rows, named by the `invalidPage` label.
+  `isPageInvalid` turns pages holding invalid rows red, with no icon: solid for the current
+  page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
+  rows clears each mark as soon as its cause is fixed, so the pager follows live.
 - Keep tables at every width, never stacked cards. Hide lower-priority columns and allow
   sideways scrolling on phones. Keep headers on one line; every table header uses
   `DataTableHeaderLabel`'s style, including loading skeletons.
@@ -433,7 +437,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
-  `ComboboxInput width/clearLabel`, `Skeleton fill`. These become plain `className`s in the
+  `ComboboxInput width/clearLabel`, `Skeleton fill`, `Button variant="destructive-solid"` and
+  `"destructive-outline"`. These become plain `className`s in the
   registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
@@ -501,7 +506,9 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 
 - Inline fields use `Field surface="background"` for opaque controls on selected or hovered rows.
   `SelectField` and `TextareaField` accept `hideErrors` to keep error descriptions screen-reader-only.
-  Textareas use `resize-none` and grow with their content.
+  Textareas use `resize-none` and grow with their content. Inline `SelectField size="sm"` and
+  `Textarea size="inline"` are both 28px; where they appear on tick, as on Reverse, wrap the
+  cell in a fixed width rendered on every row, so ticking never shifts the table.
 - Whole numbers default to Java `int` bounds. Server `long` fields pass
   `max: Number.MAX_SAFE_INTEGER`; lower bounds pass `min` and their message. Optional values
   pass `optional` and read with `toOptionalWholeNumber`.

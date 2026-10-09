@@ -31,7 +31,7 @@ export function ReverseSummaryDialog({
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      size="xl"
+      size="2xl"
     >
       <FormDialogHeader>
         <FormDialogTitle>{t('stock-event-reverse.summary-title')}</FormDialogTitle>

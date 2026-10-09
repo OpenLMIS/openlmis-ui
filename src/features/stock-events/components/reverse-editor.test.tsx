@@ -46,7 +46,11 @@ const reason: StockEventLineReason = {
   tags: ['cancelMovement'],
   isFreeTextAllowed: true,
 };
-function editor(overrides: Partial<StockEventLine> = {}, seedCurrent = true) {
+function editor(
+  overrides: Partial<StockEventLine> = {},
+  seedCurrent = true,
+  { more = [], reversePage }: { more?: Partial<StockEventLine>[]; reversePage?: number } = {},
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -62,6 +66,8 @@ function editor(overrides: Partial<StockEventLine> = {}, seedCurrent = true) {
       ...overrides,
     },
   ];
+  for (const [index, extra] of more.entries())
+    lines.push({ ...lines[0], stockEventLineItemId: `line-${index + 2}`, ...extra });
   client.setQueryData(stockEventAllLinesOptions('event').queryKey, lines);
   client.setQueryDefaults(stockEventAllLinesOptions('event').queryKey, { staleTime: Infinity });
   client.setQueryData(reasonsOptions().queryKey, [
@@ -89,7 +95,7 @@ function editor(overrides: Partial<StockEventLine> = {}, seedCurrent = true) {
           reversible: true,
         }}
         username="user"
-        search={{ reversePage: undefined, reverseSize: undefined }}
+        search={{ reversePage, reverseSize: undefined }}
         onSearchChange={vi.fn()}
         onSubmitted={vi.fn()}
         cancel={<button type="button">Cancel</button>}
@@ -163,7 +169,7 @@ it('marks the reason without visible field text and focuses it after Close', asy
   await pick();
   expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
 });
-it('keeps the hidden stock mark after reason changes until the next Submit', async () => {
+it('keeps the hidden stock mark after reason changes while stock stays negative', async () => {
   const client = editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
   await tick();
   await pick('Cancelled receipt');
@@ -177,16 +183,93 @@ it('keeps the hidden stock mark after reason changes until the next Submit', asy
   await waitFor(() => expect(balance).toHaveFocus());
   await pick('Other receipt reason');
   expect(balance).toHaveAttribute('aria-invalid', 'true');
-  client.setQueryData(
-    eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
-      .queryKey,
-    { 'o/': 80 },
-  );
+  act(() => {
+    client.setQueryData(
+      eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
+        .queryKey,
+      { 'o/': 80 },
+    );
+  });
+  await waitFor(() => expect(balance).toHaveAttribute('aria-invalid', 'false'));
+  expect(balance).not.toHaveClass('text-destructive');
+});
+const receipt = { destination: null, source: { name: 'Depot' }, quantity: 20 };
+async function tickRow(index: number) {
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
   );
+  await userEvent.click(screen.getAllByRole('checkbox')[index]);
+}
+async function pickRow(index: number, name: string) {
+  await userEvent.click(screen.getAllByRole('combobox', { name: 'stock-events.field-of' })[index]);
+  await userEvent.click(screen.getByRole('option', { name }));
+}
+it('clears the stock mark and the red page once unticking an earlier line lifts the stock', async () => {
+  editor(receipt, true, { more: [receipt] });
+  await tickRow(0);
+  await tickRow(1);
+  await pickRow(0, 'Cancelled receipt');
+  await pickRow(1, 'Cancelled receipt');
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-event-reverse.negative-stock');
+  await closeAlert();
+  const balance = document.getElementById('balance-line-2');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
   expect(balance).toHaveAttribute('aria-invalid', 'false');
+  expect(screen.queryByText('stock-event-reverse.negative-stock')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Page 1' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await pickRow(0, 'Cancelled receipt');
+  expect(balance).toHaveAttribute('aria-invalid', 'false');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+});
+it('returns a red page to normal once its row gets a reason', async () => {
+  editor({}, true, { more: Array.from({ length: 10 }, () => ({})), reversePage: 2 });
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(screen.getByRole('button', { name: 'Page 2: Contains Invalid Rows' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  await pick();
+  expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+});
+it('clears the comments mark once the comment fits 255 characters', async () => {
+  editor();
+  await tick();
+  await pick();
+  const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(comments).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+  fireEvent.change(comments, { target: { value: 'x'.repeat(255) } });
+  await waitFor(() => expect(comments).not.toHaveAttribute('aria-invalid', 'true'));
+  expect(screen.getByRole('button', { name: 'Page 1' })).toBeInTheDocument();
+});
+it('clears every mark of a row when it is unticked', async () => {
+  editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  expect(screen.getByRole('button', { name: 'Page 1' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).not.toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(document.getElementById('balance-line')).toHaveAttribute('aria-invalid', 'false');
 });
 it.each([
   new Error('No response'),

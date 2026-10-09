@@ -69,6 +69,7 @@ import {
   canReverseLine,
   currentStockOnHand,
   lineErrorMessage,
+  liveReverseMarks,
   newStockOnHand,
   type ReverseDraft,
   type ReverseRowMarks,
@@ -205,6 +206,8 @@ export function ReverseEditor({
     .filter((row) => ticked.has(row.id))
     .map((row) => ({ ...row, ...draft.lines[row.id] }));
   const balances = useMemo(() => newStockOnHand(lines, ticked, current), [lines, ticked, current]);
+  const liveMarks = liveReverseMarks(marks, draft, balances);
+  if (liveMarks !== marks) setMarks(liveMarks);
   const mutation = useSessionMutation({
     mutationFn: (body: StockEventCancel) => cancelStockEvent(event.id, body),
     retry: false,
@@ -231,9 +234,9 @@ export function ReverseEditor({
       setFocusField(null);
     }
   }, [focusField, page]);
-  const clearReasonMark = useCallback(
-    (id: string) =>
-      form.setFieldMeta(`lines.${id}.reasonId`, (meta) => ({ ...meta, errorMap: {} })),
+  const clearFieldMark = useCallback(
+    (id: string, field: 'reasonId' | 'comments') =>
+      form.setFieldMeta(`lines.${id}.${field}`, (meta) => ({ ...meta, errorMap: {} })),
     [form],
   );
   const selectRows = (selection: RowSelectionState) => {
@@ -242,12 +245,12 @@ export function ReverseEditor({
     for (const row of rows) {
       if (selection[row.id] && canReverseLine(row.line))
         next[row.id] = draft.lines[row.id] ?? { reasonId: '', comments: '' };
-      if (!selection[row.id]) clearReasonMark(row.id);
+      if (!selection[row.id]) {
+        clearFieldMark(row.id, 'reasonId');
+        clearFieldMark(row.id, 'comments');
+      }
     }
     form.setFieldValue('lines', next);
-    setMarks((previous) =>
-      Object.fromEntries(Object.entries(previous).filter(([id]) => selection[id])),
-    );
     setErrors((previous) =>
       Object.fromEntries(Object.entries(previous).filter(([id]) => selection[id])),
     );
@@ -464,7 +467,7 @@ export function ReverseEditor({
                     value={{
                       form,
                       draft,
-                      marks,
+                      marks: liveMarks,
                       errors,
                       reasons,
                       current,
@@ -472,9 +475,8 @@ export function ReverseEditor({
                       pending,
                       fetching: stock.isFetching,
                       unit: quantityUnit.unit,
-                      clearReasonMark,
+                      clearFieldMark,
                       setValidationMessage,
-                      setMarks,
                       setErrors,
                     }}
                   >
@@ -498,7 +500,8 @@ export function ReverseEditor({
                                 .slice(index * size, (index + 1) * size)
                                 .some(
                                   (row) =>
-                                    Object.keys(marks[row.id] ?? {}).length > 0 || !!errors[row.id],
+                                    Object.keys(liveMarks[row.id] ?? {}).length > 0 ||
+                                    !!errors[row.id],
                                 )
                             }
                           />
@@ -622,9 +625,8 @@ type ReverseCellState = {
   pending: boolean;
   fetching: boolean;
   unit: QuantityUnit;
-  clearReasonMark: (id: string) => void;
+  clearFieldMark: (id: string, field: 'reasonId' | 'comments') => void;
   setValidationMessage: Dispatch<SetStateAction<string | null>>;
-  setMarks: Dispatch<SetStateAction<Record<string, ReverseRowMarks>>>;
   setErrors: Dispatch<SetStateAction<Record<string, StockEventCancelLineError>>>;
 };
 const ReverseCells = createContext<ReverseCellState | null>(null);
@@ -701,86 +703,91 @@ function ReverseReasonCell(props: CellProps) {
     pending,
     form,
     reasons,
-    clearReasonMark,
+    clearFieldMark,
     setValidationMessage,
-    setMarks,
     setErrors,
   } = useReverseCell(props);
 
-  return rowDraft ? (
-    <div className="min-w-0">
-      <form.AppField
-        name={`lines.${rowId}.reasonId`}
-        validators={{ onMount: () => mark?.reason }}
-        listeners={{
-          onChange: ({ value }) => {
-            setValidationMessage(null);
-            const picked = reasons.find((item) => item.id === value);
-            if (!picked) return;
-            form.setFieldValue('lines', (previous) => ({
-              ...previous,
-              [rowId]: {
-                reasonId: picked.id,
-                comments: picked.isFreeTextAllowed ? previous[rowId].comments : '',
-              },
-            }));
-            clearReasonMark(rowId);
-            setMarks((previous) => {
-              const { reason: _removed, ...kept } = previous[rowId] ?? {};
-              return { ...previous, [rowId]: kept };
-            });
-            setErrors((previous) => {
-              const { [rowId]: _removed, ...kept } = previous;
-              return kept;
-            });
-          },
-        }}
-      >
-        {(field) => (
-          <field.SelectField
-            disabled={pending}
-            items={cancellationReasons(line, reasons).map((item) => ({
-              value: item.id,
-              label: item.name,
-            }))}
-            label={label}
-            layout="inline"
-            hideErrors
-            placeholder={t('stock-event-reverse.select-option')}
-            required
-          />
-        )}
-      </form.AppField>
+  return (
+    <div className="grid min-h-7 w-56 items-center">
+      {rowDraft && (
+        <form.AppField
+          name={`lines.${rowId}.reasonId`}
+          validators={{ onMount: () => mark?.reason }}
+          listeners={{
+            onChange: ({ value }) => {
+              setValidationMessage(null);
+              const picked = reasons.find((item) => item.id === value);
+              if (!picked) return;
+              form.setFieldValue('lines', (previous) => ({
+                ...previous,
+                [rowId]: {
+                  reasonId: picked.id,
+                  comments: picked.isFreeTextAllowed ? previous[rowId].comments : '',
+                },
+              }));
+              clearFieldMark(rowId, 'reasonId');
+              if (!picked.isFreeTextAllowed) clearFieldMark(rowId, 'comments');
+              setErrors((previous) => {
+                const { [rowId]: _removed, ...kept } = previous;
+                return kept;
+              });
+            },
+          }}
+        >
+          {(field) => (
+            <field.SelectField
+              disabled={pending}
+              items={cancellationReasons(line, reasons).map((item) => ({
+                value: item.id,
+                label: item.name,
+              }))}
+              label={label}
+              layout="inline"
+              hideErrors
+              placeholder={t('stock-event-reverse.select-option')}
+              required
+              size="sm"
+            />
+          )}
+        </form.AppField>
+      )}
     </div>
-  ) : null;
+  );
 }
 
 function ReverseCommentsCell(props: CellProps) {
-  const { rowId, rowDraft, mark, reason, label, pending, form } = useReverseCell(props);
+  const { rowId, rowDraft, mark, reason, label, pending, form, clearFieldMark } =
+    useReverseCell(props);
+  const tooLong = ({ value }: { value: string }) =>
+    value.length > 255 ? mark?.comments : undefined;
 
-  return rowDraft && reason?.isFreeTextAllowed ? (
-    <div className="min-w-0">
-      <form.AppField
-        name={`lines.${rowId}.comments`}
-        validators={{
-          onMount: () => mark?.comments,
-          onChange: () => mark?.comments,
-          onBlur: () => mark?.comments,
-        }}
-      >
-        {(field) => (
-          <field.TextareaField
-            label={label}
-            layout="inline"
-            hideErrors
-            maxLength={255}
-            dir="auto"
-            disabled={pending}
-          />
-        )}
-      </form.AppField>
+  return (
+    <div className="grid min-h-7 w-48 items-center">
+      {rowDraft && reason?.isFreeTextAllowed && (
+        <form.AppField
+          name={`lines.${rowId}.comments`}
+          validators={{ onMount: tooLong, onChange: tooLong, onBlur: tooLong }}
+          listeners={{
+            onChange: ({ value }) => {
+              if (value.length <= 255) clearFieldMark(rowId, 'comments');
+            },
+          }}
+        >
+          {(field) => (
+            <field.TextareaField
+              label={label}
+              layout="inline"
+              hideErrors
+              maxLength={255}
+              dir="auto"
+              disabled={pending}
+            />
+          )}
+        </form.AppField>
+      )}
     </div>
-  ) : null;
+  );
 }
 
 function ReverseBalanceCell(props: CellProps) {

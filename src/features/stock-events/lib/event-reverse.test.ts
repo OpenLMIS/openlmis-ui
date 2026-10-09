@@ -3,6 +3,7 @@ import {
   cancellationReasons,
   canReverseLine,
   lineErrorMessage,
+  liveReverseMarks,
   newStockOnHand,
   reversalReasonType,
   reversePayload,
@@ -187,6 +188,47 @@ describe('reverse validation', () => {
         {},
       ).valid,
     ).toBe(true);
+  });
+});
+
+describe('live reverse marks', () => {
+  const marks = {
+    a: {
+      reason: 'stock-events.required',
+      stock: 'stock-event-reverse.negative-stock',
+      comments: 'stock-events.comments-too-long',
+    },
+  } as const;
+  it('keeps the same marks while every cause remains', () => {
+    const draft = { lines: { a: { reasonId: '', comments: 'x'.repeat(256) } } };
+    expect(liveReverseMarks(marks, draft, { a: -1 })).toBe(marks);
+  });
+  it('drops each mark once its cause is gone', () => {
+    expect(
+      liveReverseMarks(
+        marks,
+        { lines: { a: { reasonId: 'r', comments: 'x'.repeat(256) } } },
+        {
+          a: 0,
+        },
+      ),
+    ).toEqual({ a: { comments: 'stock-events.comments-too-long' } });
+    expect(
+      liveReverseMarks(
+        marks,
+        { lines: { a: { reasonId: 'r', comments: 'x'.repeat(255) } } },
+        {
+          a: -1,
+        },
+      ),
+    ).toEqual({ a: { stock: 'stock-event-reverse.negative-stock' } });
+  });
+  it('drops every mark of an unticked row', () => {
+    expect(liveReverseMarks(marks, { lines: {} }, {})).toEqual({});
+  });
+  it('never adds a mark the last Submit did not set', () => {
+    const draft = { lines: { a: { reasonId: '', comments: 'x'.repeat(256) } } };
+    expect(liveReverseMarks({}, draft, { a: -5 })).toEqual({});
   });
 });
 

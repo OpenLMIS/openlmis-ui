@@ -925,6 +925,7 @@ type SelectFieldProps = FieldProps &
   Pick<FieldFrameProps, 'action' | 'hideErrors'> & {
     placeholder?: string;
     items: readonly SelectFieldItem[];
+    size?: 'sm' | 'default';
   };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */
@@ -937,6 +938,7 @@ export function SelectField({
   hideErrors,
   items,
   action,
+  size,
   placeholder,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
@@ -970,6 +972,7 @@ export function SelectField({
           aria-required={required}
           id={field.name}
           onBlur={field.handleBlur}
+          size={size}
           width="full"
         >
           <SelectValue placeholder={placeholder} />
