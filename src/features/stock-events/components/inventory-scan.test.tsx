@@ -31,7 +31,7 @@ it('counts against the latest edit when a GTIN lookup finishes', async () => {
     <QueryClientProvider client={client}>
       <InventoryScan
         eligible={[stock]}
-        lines={[addedInventoryLine(stock, quantityValue(count))]}
+        getLines={() => [addedInventoryLine(stock, quantityValue(count))]}
         canManageLots={false}
         paused={false}
         onCount={onCount}
@@ -65,7 +65,6 @@ it('counts two queued scans before React renders the first count', async () => {
     <QueryClientProvider client={client}>
       <InventoryScan
         eligible={[stock]}
-        lines={current}
         getLines={() => current}
         canManageLots={false}
         paused={false}

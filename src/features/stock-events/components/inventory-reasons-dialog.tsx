@@ -17,13 +17,16 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
+import { productName } from '@/features/reference-data/lib/product-name';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { unaccounted } from '@/features/stock-events/lib/physical-inventory-form';
+import { adjustmentTotal, unaccounted } from '@/features/stock-events/lib/physical-inventory-form';
+import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
+import { inventoryLotCode } from '@/features/stock-events/lib/physical-inventory-lines';
 import type {
   InventoryAdjustment,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
-import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
+import type { QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const positive = wholeNumberText(
@@ -101,8 +104,8 @@ export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate 
       .reverse();
   const difference = unaccounted({ ...line, stockAdjustments: values() });
   const display = (value: number | null) =>
-    cardQuantity(value, line.orderable.netContent, unit, i18n.language);
-  const product = line.orderable.fullProductName || line.orderable.productCode;
+    inventoryFormats(i18n.language).quantity(value, line.orderable.netContent, unit);
+  const product = productName(line.orderable);
   const apply = () => {
     onUpdate(values());
     setConfirm(false);
@@ -126,29 +129,43 @@ export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate 
           </FormDialogHeader>
           <FormDialogBody>
             <div className="flex flex-col gap-4">
-              <FieldGroup>
-                <addForm.AppField name="reasonId">
-                  {(field) => (
-                    <field.SelectField
-                      label={t('stock-events.reason')}
-                      required
-                      items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
-                    />
-                  )}
-                </addForm.AppField>
-                <addForm.AppField name="quantity">
-                  {(field) => (
-                    <field.QuantityField
-                      label={t('stock-events.quantity')}
-                      unit={unit}
-                      netContent={line.orderable.netContent}
-                      dosesLabel={t('quantity-unit.doses')}
-                      packsLabel={t('quantity-unit.packs')}
-                      required
-                    />
-                  )}
-                </addForm.AppField>
-              </FieldGroup>
+              <fieldset
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    event.target instanceof HTMLInputElement &&
+                    !event.defaultPrevented
+                  ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void addForm.handleSubmit();
+                  }
+                }}
+              >
+                <FieldGroup>
+                  <addForm.AppField name="reasonId">
+                    {(field) => (
+                      <field.SelectField
+                        label={t('stock-events.reason')}
+                        required
+                        items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
+                      />
+                    )}
+                  </addForm.AppField>
+                  <addForm.AppField name="quantity">
+                    {(field) => (
+                      <field.QuantityField
+                        label={t('stock-events.quantity')}
+                        unit={unit}
+                        netContent={line.orderable.netContent}
+                        dosesLabel={t('quantity-unit.doses')}
+                        packsLabel={t('quantity-unit.packs')}
+                        required
+                      />
+                    )}
+                  </addForm.AppField>
+                </FieldGroup>
+              </fieldset>
               <Button type="button" onClick={() => void addForm.handleSubmit()}>
                 {t('stock-events.add')}
               </Button>
@@ -171,6 +188,10 @@ export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate 
                   <Button
                     type="button"
                     variant="outline"
+                    aria-label={t('stock-events.field-of', {
+                      field: t('stock-events.remove'),
+                      row: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
+                    })}
                     onClick={() =>
                       form.setFieldValue('adjustments', (current) =>
                         current.filter((_, i) => i !== index),
@@ -188,16 +209,7 @@ export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate 
                 </dd>
                 <dt>{t('physical-inventory.total')}</dt>
                 <dd>
-                  <bdi>
-                    {display(
-                      values().reduce(
-                        (sum, item) =>
-                          sum +
-                          (item.reason.reasonType === 'DEBIT' ? -item.quantity : item.quantity),
-                        0,
-                      ),
-                    )}
-                  </bdi>
+                  <bdi>{display(adjustmentTotal(values()))}</bdi>
                 </dd>
               </dl>
             </div>

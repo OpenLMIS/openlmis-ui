@@ -30,6 +30,21 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
+vi.mock('@/components/data-table/responsive-columns', async (original) => ({
+  ...(await original<typeof import('@/components/data-table/responsive-columns')>()),
+  useElementWidth: () => [undefined, 1100],
+}));
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    i18n: { language: 'en' },
+    t: (key: string, options?: { field?: string }) =>
+      key === 'stock-events.field-of' &&
+      options?.field &&
+      options.field !== 'physical-inventory.current-stock'
+        ? `${key}:${options.field}`
+        : key,
+  }),
+}));
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   readInventoryLocal: vi.fn(),
   clearInventoryLocal: vi.fn(),
@@ -99,6 +114,11 @@ function setup(search = { size: 1, page: 1 }) {
       <WorkspaceSlots>
         <PhysicalInventoryEditor
           draft={draft}
+          right="STOCK_INVENTORIES_EDIT"
+          userId="user"
+          username="user"
+          onDeleted={vi.fn()}
+          onSubmitted={vi.fn()}
           search={{ ...next, keyword: next.keyword, includeInactive: undefined }}
           onSearchChange={change}
           facilityTypeId="type"
@@ -114,10 +134,14 @@ it('edits counts, updates difference and retains a count across pages and filter
   const user = userEvent.setup();
   const view = setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  expect(screen.getByRole('button', { name: 'physical-inventory.add-reasons' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'stock-events.field-of:physical-inventory.reasons' }),
+  ).toBeDisabled();
   await user.type(input, '7');
   expect(within(screen.getByRole('table')).getByText('2')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'physical-inventory.add-reasons' })).toBeEnabled();
+  expect(
+    screen.getByRole('button', { name: 'stock-events.field-of:physical-inventory.reasons' }),
+  ).toBeEnabled();
   view.rerender(view.tree({ size: 1, page: 2 }));
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue(''),
@@ -198,7 +222,9 @@ it('confirms deactivation before making the request', async () => {
     { ...stock[0], stockOnHand: 0 },
   ]);
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
+  await user.click(
+    screen.getByRole('button', { name: 'stock-events.field-of:stock-events.actions' }),
+  );
   await user.click(screen.getByRole('menuitem', { name: 'physical-inventory.deactivate' }));
   expect(deactivateInventoryStockCard).not.toHaveBeenCalled();
   const dialog = screen.getByRole('dialog');
@@ -230,7 +256,9 @@ it('writes removal of the last locally added line so it cannot return on reopen'
   const view = setup();
   view.client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [...stock, local]);
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
+  await user.click(
+    screen.getByRole('button', { name: 'stock-events.field-of:stock-events.actions' }),
+  );
   await user.click(screen.getByRole('menuitem', { name: 'physical-inventory.delete-row' }));
   await waitFor(() =>
     expect(writeInventoryLocal).toHaveBeenLastCalledWith(
@@ -279,7 +307,9 @@ it('validates hidden lines and moves to the first invalid product without postin
       'true',
     ),
   );
-  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus();
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus(),
+  );
 });
 it('keeps the local copy after a rejected Save', async () => {
   vi.mocked(savePhysicalInventory).mockRejectedValue(new Error('refused'));
@@ -327,7 +357,7 @@ it('never resends a Submit whose outcome is unknown and retains the copy', async
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
   );
-  await screen.findByText('stock-events.unknown-outcome-description');
+  await screen.findByText('physical-inventory.unknown-outcome-description');
   expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
   expect(submitPhysicalInventory).toHaveBeenCalledTimes(1);
   expect(clearInventoryLocal).not.toHaveBeenCalled();
@@ -359,7 +389,7 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
   });
   const user = userEvent.setup();
   setup();
-  await screen.findByRole('button', { name: 'NEW' });
+  await screen.findByRole('button', { name: 'stock-events.field-of:physical-inventory.edit-lot' });
   await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
@@ -367,7 +397,9 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
   await waitFor(() => expect(createPhysicalInventoryLot).toHaveBeenCalled());
   await waitFor(() => expect(savePhysicalInventory).toHaveBeenCalled());
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'NEW' })).not.toBeInTheDocument(),
+    expect(
+      screen.queryByRole('button', { name: 'stock-events.field-of:physical-inventory.edit-lot' }),
+    ).not.toBeInTheDocument(),
   );
   expect(writeInventoryLocal).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -383,7 +415,9 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
       ]),
     }),
   );
-  await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
+  await user.click(
+    screen.getByRole('button', { name: 'stock-events.field-of:stock-events.actions' }),
+  );
   expect(
     screen.getByRole('menuitem', { name: 'physical-inventory.delete-row' }),
   ).toBeInTheDocument();
@@ -468,4 +502,69 @@ it('opens the first invalid product page after applying the inactive filter', as
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   expect(view.change).toHaveBeenCalledWith(expect.objectContaining({ page: undefined }), true);
+});
+
+it('accepts only digits in Current Stock, including Arabic and Persian digits', async () => {
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '-5.1x٢۳');
+  expect(input).toHaveValue('5123');
+});
+
+it('describes reason errors on the row count input and renders their message in the grid', async () => {
+  const local = {
+    ...buildInventoryLines(stock, [])[0],
+    quantity: quantityValue('5'),
+    stockAdjustments: [{ reason: { id: 'r', reasonType: 'CREDIT' }, quantity: 0 }],
+  };
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [local],
+    modified: true,
+    savedAt: 1,
+  });
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  const description = document.getElementById(input.getAttribute('aria-describedby') ?? '');
+  expect(description).toHaveTextContent('physical-inventory.invalid-description');
+});
+
+it('moves focus to the next count when removing a just-added row', async () => {
+  const local = {
+    ...buildInventoryLines(stock, [])[0],
+    key: 'C|none',
+    orderable: { ...stock[0].orderable, id: 'C', productCode: '0', fullProductName: 'New Product' },
+    stockCardId: null,
+    stockOnHand: null,
+    justAdded: true,
+    isAdded: true,
+    quantity: quantityValue('0'),
+  };
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [local],
+    modified: true,
+    savedAt: 1,
+  });
+  const user = userEvent.setup();
+  const view = setup({ size: 20, page: 1 });
+  view.client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [...stock, local]);
+  await waitFor(() =>
+    expect(screen.getAllByRole('textbox', { name: 'stock-events.field-of' })).toHaveLength(3),
+  );
+  const inputs = screen.getAllByRole('textbox', { name: 'stock-events.field-of' });
+  const row = inputs[0].closest('tr') as HTMLElement;
+  await user.click(
+    within(row).getByRole('button', { name: 'stock-events.field-of:stock-events.actions' }),
+  );
+  await user.click(screen.getByRole('menuitem', { name: 'physical-inventory.delete-row' }));
+  await waitFor(() => expect(inputs[1]).toHaveFocus());
 });

@@ -33,6 +33,7 @@ import {
   inventorySubmitPayload,
   validateInventory,
 } from '@/features/stock-events/lib/physical-inventory-form';
+import { inventoryLocalCopy } from '@/features/stock-events/lib/physical-inventory-lines';
 import {
   clearInventoryLocal,
   writeInventoryLocal,
@@ -58,6 +59,8 @@ type Action =
   | { type: 'submit'; occurredDate: string; signature: string };
 type Props = {
   draft: PhysicalInventoryDraft;
+  baseline: readonly InventoryLine[];
+  right: string;
   lines: readonly InventoryLine[];
   displayed: readonly InventoryLine[];
   userId: string;
@@ -73,11 +76,43 @@ type Props = {
   onDeleted: () => void | Promise<void>;
   onSubmitted: () => void | Promise<void>;
 };
+const ACTION_KEYS = {
+  save: {
+    errorTitle: 'physical-inventory.save-error-title',
+    errorDescription: 'physical-inventory.save-error-description',
+    successTitle: 'physical-inventory.saved-title',
+    successDescription: 'physical-inventory.saved-description',
+    localClearError: 'physical-inventory.save-local-clear-error',
+  },
+  delete: {
+    errorTitle: 'physical-inventory.delete-error-title',
+    errorDescription: 'physical-inventory.delete-error-description',
+    successTitle: 'physical-inventory.deleted-title',
+    successDescription: 'physical-inventory.deleted-description',
+    localClearError: 'physical-inventory.delete-local-clear-error',
+  },
+  submit: {
+    errorTitle: 'physical-inventory.submit-error-title',
+    errorDescription: 'physical-inventory.submit-error-description',
+    successTitle: 'physical-inventory.submitted-title',
+    successDescription: 'physical-inventory.submitted-description',
+    localClearError: 'physical-inventory.submit-local-clear-error',
+  },
+} as const;
 export function InventoryActions(props: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
   const [unknown, setUnknown] = useState(false);
+  const [confirmType, setConfirmType] = useState<'save' | 'delete'>('save');
+  const openConfirm = (type: 'save' | 'delete') => {
+    setConfirmType(type);
+    setDialog(type);
+  };
+  const closePrint = () => {
+    setDialog(null);
+    void props.onSubmitted();
+  };
   useEffect(() => props.onDialogChange(dialog !== null), [dialog, props.onDialogChange]);
   const posting = useRef(false);
   const finished = useRef(false);
@@ -95,8 +130,7 @@ export function InventoryActions(props: Props) {
         eligibleInventoryProductsOptions(props.draft),
       );
       assertSessionScope(scope);
-      const allowed = new Set(eligible.map((line) => line.orderable.id));
-      const lines = props.lines.filter((line) => allowed.has(line.orderable.id));
+      const lines = props.lines;
       if (action.type === 'submit' && validateInventory(lines, props.displayed).kind !== 'valid')
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
@@ -105,14 +139,7 @@ export function InventoryActions(props: Props) {
         async (next) => {
           assertSessionScope(scope);
           props.onLots(next);
-          await writeInventoryLocal({
-            draftId: props.draft.id,
-            programId: props.draft.programId,
-            facilityId: props.draft.facilityId,
-            lines: next,
-            modified: true,
-            savedAt: Date.now(),
-          });
+          await writeInventoryLocal(inventoryLocalCopy(props.draft, next, props.baseline));
           assertSessionScope(scope);
         },
       );
@@ -137,7 +164,7 @@ export function InventoryActions(props: Props) {
     userId: props.userId,
     facilityId: props.draft.facilityId,
     programId: props.draft.programId,
-    right: 'STOCK_INVENTORIES_EDIT',
+    right: props.right,
     request: (lang) => fetchPhysicalInventoryReport(props.draft.id, props.showInDoses, lang),
     onReport: () =>
       openReport(`physical_inventory_${props.draft.id}.pdf`, t('physical-inventory.print-loading')),
@@ -169,15 +196,7 @@ export function InventoryActions(props: Props) {
       next = await mutation.mutateAsync(action);
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      let description =
-        serverMessage(error) ??
-        t(
-          action.type === 'delete'
-            ? 'physical-inventory.delete-error-description'
-            : action.type === 'save'
-              ? 'physical-inventory.save-error-description'
-              : 'physical-inventory.submit-error-description',
-        );
+      let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
       if (error instanceof InventoryLotError)
         description =
           error.reason === 'duplicate'
@@ -190,17 +209,13 @@ export function InventoryActions(props: Props) {
                 });
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
-        description = t('stock-events.unknown-outcome-description');
+        description = t('physical-inventory.unknown-outcome-description');
       }
       toast.error(
         t(
           error instanceof UnknownSubmit
             ? 'stock-events.unknown-outcome-title'
-            : action.type === 'save'
-              ? 'physical-inventory.save-error-title'
-              : action.type === 'delete'
-                ? 'physical-inventory.delete-error-title'
-                : 'physical-inventory.submit-error-title',
+            : ACTION_KEYS[action.type].errorTitle,
         ),
         { description },
       );
@@ -215,8 +230,8 @@ export function InventoryActions(props: Props) {
       await clearInventoryLocal(props.draft.id);
     } catch {
       if (mutation.isCurrent())
-        toast.error(t('physical-inventory.not-saved-local'), {
-          description: t('physical-inventory.save-error-description'),
+        toast.error(t('physical-inventory.local-clear-error-title'), {
+          description: t(ACTION_KEYS[action.type].localClearError),
         });
     }
     if (!mutation.isCurrent()) return;
@@ -231,33 +246,19 @@ export function InventoryActions(props: Props) {
           ]
         : [queryKeys.physicalInventories.all];
     for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
-    toast.success(
-      t(
-        action.type === 'save'
-          ? 'physical-inventory.saved-title'
-          : action.type === 'delete'
-            ? 'physical-inventory.deleted-title'
-            : 'physical-inventory.submitted-title',
-      ),
-      {
-        description: t(
-          action.type === 'save'
-            ? 'physical-inventory.saved-description'
-            : action.type === 'delete'
-              ? 'physical-inventory.deleted-description'
-              : 'physical-inventory.submitted-description',
-        ),
-      },
-    );
+    toast.success(t(ACTION_KEYS[action.type].successTitle), {
+      description: t(ACTION_KEYS[action.type].successDescription),
+    });
     if (action.type === 'save') {
       try {
         await queryClient.fetchQuery({
-          ...physicalInventoryDraftOptions(props.draft),
+          ...physicalInventoryDraftOptions({
+            programId: props.draft.programId,
+            facilityId: props.draft.facilityId,
+          }),
           staleTime: 0,
         });
-      } catch {
-        /* The successful save remains the baseline. */
-      }
+      } catch {}
       if (!mutation.isCurrent()) return;
     }
     setDialog(action.type === 'submit' ? 'print' : null);
@@ -271,15 +272,25 @@ export function InventoryActions(props: Props) {
       {unknown && (
         <ErrorAlert
           title={t('stock-events.unknown-outcome-title')}
-          description={t('stock-events.unknown-outcome-description')}
+          description={t('physical-inventory.unknown-outcome-description')}
         />
       )}
       <WorkspaceFooterPortal width="default">
-        <Button size="lg" variant="outline" disabled={disabled} onClick={() => setDialog('delete')}>
+        <Button
+          size="lg"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => openConfirm('delete')}
+        >
           {t('physical-inventory.delete')}
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button size="lg" variant="outline" disabled={disabled} onClick={() => setDialog('save')}>
+          <Button
+            size="lg"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => openConfirm('save')}
+          >
             {t('physical-inventory.save')}
           </Button>
           <Button size="lg" disabled={disabled || unknown} onClick={submit}>
@@ -301,11 +312,13 @@ export function InventoryActions(props: Props) {
         >
           <FormDialogHeader>
             <FormDialogTitle>
-              {t(dialog === 'delete' ? 'physical-inventory.delete' : 'physical-inventory.save')}
+              {t(
+                confirmType === 'delete' ? 'physical-inventory.delete' : 'physical-inventory.save',
+              )}
             </FormDialogTitle>
             <FormDialogDescription>
               {t(
-                dialog === 'delete'
+                confirmType === 'delete'
                   ? 'physical-inventory.delete-confirm'
                   : 'physical-inventory.save-confirm',
               )}
@@ -316,7 +329,9 @@ export function InventoryActions(props: Props) {
               {t('stock-events.cancel')}
             </FormDialogCancel>
             <FormDialogSubmit pending={mutation.isPending}>
-              {t(dialog === 'delete' ? 'physical-inventory.delete' : 'physical-inventory.save')}
+              {t(
+                confirmType === 'delete' ? 'physical-inventory.delete' : 'physical-inventory.save',
+              )}
             </FormDialogSubmit>
           </FormDialogFooter>
         </FormDialogForm>
@@ -332,10 +347,7 @@ export function InventoryActions(props: Props) {
       <FormDialog
         open={dialog === 'print'}
         onOpenChange={(open) => {
-          if (!open) {
-            setDialog(null);
-            void props.onSubmitted();
-          }
+          if (!open) closePrint();
         }}
       >
         <FormDialogHeader>
@@ -343,20 +355,13 @@ export function InventoryActions(props: Props) {
           <FormDialogDescription>{t('physical-inventory.print-description')}</FormDialogDescription>
         </FormDialogHeader>
         <FormDialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setDialog(null);
-              void props.onSubmitted();
-            }}
-          >
+          <Button variant="outline" onClick={closePrint}>
             {t('physical-inventory.no')}
           </Button>
           <Button
             onClick={() => {
               print.print();
-              setDialog(null);
-              void props.onSubmitted();
+              closePrint();
             }}
           >
             {t('physical-inventory.print')}

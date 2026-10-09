@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,9 +25,12 @@ import type { Facility } from '@/features/reference-data/lib/types';
 import {
   fetchEligibleInventoryProducts,
   fetchInventoryStockLines,
+  fetchInventorySummaries,
   fetchPhysicalInventoryDraft,
   startPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
+import { inventoryStockLinesOptions } from '@/features/stock-events/api/physical-inventory-queries';
+import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory_.$programId';
@@ -255,4 +258,58 @@ describe('physical inventory routes', () => {
       screen.getByRole('columnheader', { name: 'physical-inventory.current-stock' }),
     ).toBeInTheDocument();
   });
+});
+
+it('reads fresh stock on every entry and keeps the cached stock on stay', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    ...grants,
+    `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+  ]);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const draft = { id: 'draft', programId: FP, facilityId: HOME, lineItems: [] };
+  const stock = {
+    orderable: { id: 'p', productCode: 'P', fullProductName: 'Product', description: null },
+    lot: null,
+    stockOnHand: 42,
+    stockCardId: 'c',
+    active: true,
+  };
+  queryClient.setQueryData(inventoryStockLinesOptions(draft).queryKey, [
+    { ...stock, stockOnHand: 5 },
+  ]);
+  vi.mocked(fetchInventoryStockLines).mockResolvedValue([stock]);
+  const loader = EditorRoute.options.loader as (args: {
+    context: { queryClient: QueryClient };
+    params: { programId: string };
+    cause: string;
+  }) => Promise<unknown>;
+  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  const lines = queryClient.getQueryData(inventoryStockLinesOptions(draft).queryKey);
+  expect(buildInventoryLines(lines ?? [], [])[0].stockOnHand).toBe(42);
+  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'stay' });
+  expect(fetchInventoryStockLines).toHaveBeenCalledTimes(1);
+  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  expect(fetchInventoryStockLines).toHaveBeenCalledTimes(2);
+  expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
+});
+it('starts the user read alongside permissions and prefetches lookups before a blocking draft completes', async () => {
+  const permissions = Promise.withResolvers<string[]>();
+  const draft = Promise.withResolvers<null>();
+  vi.mocked(fetchPermissionStrings).mockReturnValueOnce(permissions.promise);
+  vi.mocked(fetchPhysicalInventoryDraft).mockReturnValueOnce(draft.promise);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loader = EditorRoute.options.loader as (args: {
+    context: { queryClient: QueryClient };
+    params: { programId: string };
+    cause: string;
+  }) => Promise<unknown>;
+  const loading = loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  await waitFor(() => expect(fetchUserRecord).toHaveBeenCalled());
+  permissions.resolve([...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`]);
+  await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalled());
+  expect(fetchValidReasons).toHaveBeenCalled();
+  draft.resolve(null);
+  await loading;
 });

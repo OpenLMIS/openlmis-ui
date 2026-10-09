@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export type StockProgramRow = {
+type StockProgramRow = {
   id: string;
   label: string;
   status?: ReactNode;
@@ -29,10 +29,11 @@ type StockProgramPickerProps = {
   rows: readonly StockProgramRow[];
   hasHomeFacility: boolean;
   actionLabel: string;
-  linkFor: (row: StockProgramRow) => ReactElement;
   statusLabel?: string;
-  onAction?: (row: StockProgramRow) => void;
-};
+} & (
+  | { linkFor: (row: StockProgramRow) => ReactElement; onAction?: never }
+  | { onAction: (row: StockProgramRow) => void; linkFor?: never }
+);
 
 function ProgramTable({ children, statusLabel }: { children: ReactNode; statusLabel?: string }) {
   const { t } = useTranslation();
@@ -107,7 +108,7 @@ export function StockProgramPicker({
             <div className="flex justify-end">
               <Button
                 nativeButton={Boolean(onAction)}
-                render={onAction ? undefined : linkFor(row)}
+                render={onAction ? undefined : linkFor?.(row)}
                 role={onAction ? undefined : 'link'}
                 disabled={row.disabled}
                 onClick={onAction ? () => onAction(row) : undefined}

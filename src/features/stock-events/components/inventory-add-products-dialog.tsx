@@ -2,7 +2,7 @@ import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { formatDateValue, toDateValue } from '@/components/form/date-value';
+import { toDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
 import {
@@ -27,7 +27,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { productName } from '@/features/reference-data/lib/product-name';
+import { InventoryLotFields } from '@/features/stock-events/components/inventory-lot-fields';
 import { inventoryCountSchema } from '@/features/stock-events/lib/physical-inventory-form';
+import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
+import {
+  inventoryExpiry,
+  inventoryLotCode,
+} from '@/features/stock-events/lib/physical-inventory-lines';
 import {
   addedInventoryLine,
   availableInventoryLots,
@@ -39,6 +46,7 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { orEmpty } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
+import { toLatinDigits } from '@/lib/whole-number';
 
 type Props = {
   error?: unknown;
@@ -194,64 +202,58 @@ function AddProductsForm({
       </FormDialogHeader>
       <FormDialogBody>
         <div className="flex flex-col gap-4">
-          <FieldGroup>
-            <selection.AppField
-              name="productId"
-              listeners={{
-                onChange: () => {
-                  selection.setFieldValue('lotId', '');
-                  selection.setFieldValue('lotCode', '');
-                  selection.setFieldValue('expirationDate', '');
-                },
-              }}
-            >
-              {(field) => (
-                <field.ComboboxField
-                  label={t('stock-events.product')}
-                  clearLabel={t('stock-events.clear')}
-                  emptyMessage={t('stock-events.no-matches-title')}
-                  required
-                  items={products.map((product) => ({
-                    value: product.id,
-                    label: product.fullProductName || product.productCode,
-                  }))}
-                />
+          <fieldset
+            onKeyDown={(event) => {
+              if (
+                event.key === 'Enter' &&
+                event.target instanceof HTMLInputElement &&
+                !event.defaultPrevented
+              ) {
+                event.preventDefault();
+                event.stopPropagation();
+                void selection.handleSubmit();
+              }
+            }}
+          >
+            <FieldGroup>
+              <selection.AppField
+                name="productId"
+                listeners={{
+                  onChange: () => {
+                    selection.setFieldValue('lotId', '');
+                    selection.setFieldValue('lotCode', '');
+                    selection.setFieldValue('expirationDate', '');
+                  },
+                }}
+              >
+                {(field) => (
+                  <field.ComboboxField
+                    label={t('stock-events.product')}
+                    clearLabel={t('stock-events.clear')}
+                    emptyMessage={t('stock-events.no-matches-title')}
+                    required
+                    items={products.map((product) => ({
+                      value: product.id,
+                      label: productName(product),
+                    }))}
+                  />
+                )}
+              </selection.AppField>
+              <selection.AppField name="lotId">
+                {(field) => (
+                  <field.SelectField
+                    label={t('stock-events.lot-code')}
+                    required
+                    disabled={!picked.productId}
+                    items={lotItems}
+                  />
+                )}
+              </selection.AppField>
+              {picked.lotId === NEW && newAllowed && (
+                <InventoryLotFields form={selection} today={today} newLot />
               )}
-            </selection.AppField>
-            <selection.AppField name="lotId">
-              {(field) => (
-                <field.SelectField
-                  label={t('stock-events.lot-code')}
-                  required
-                  disabled={!picked.productId}
-                  items={lotItems}
-                />
-              )}
-            </selection.AppField>
-            {picked.lotId === NEW && newAllowed && (
-              <>
-                <selection.AppField name="lotCode">
-                  {(field) => (
-                    <field.TextField
-                      label={t('physical-inventory.new-lot-code')}
-                      required
-                      dir="auto"
-                    />
-                  )}
-                </selection.AppField>
-                <selection.AppField name="expirationDate">
-                  {(field) => (
-                    <field.DateField
-                      label={t('stock-events.expiry-date')}
-                      placeholder={t('stock-events.expiry-date')}
-                      earliest={today}
-                      clearLabel={t('stock-events.clear')}
-                    />
-                  )}
-                </selection.AppField>
-              </>
-            )}
-          </FieldGroup>
+            </FieldGroup>
+          </fieldset>
           <Button type="button" onClick={() => void selection.handleSubmit()}>
             {t('stock-events.add')}
           </Button>
@@ -278,38 +280,40 @@ function AddProductsForm({
                     <bdi>{line.orderable.productCode}</bdi>
                   </TableCell>
                   <TableCell>
-                    <bdi>{line.orderable.fullProductName || line.orderable.productCode}</bdi>
+                    <bdi>{productName(line.orderable)}</bdi>
                   </TableCell>
                   <TableCell>
                     <bdi>{orEmpty(line.orderable.netContent)}</bdi>
                   </TableCell>
                   <TableCell>
-                    <bdi>
-                      {line.lot?.lotCode ??
-                        line.newLot?.lotCode ??
-                        t('stock-events.no-lot-defined')}
-                    </bdi>
+                    <bdi>{inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}</bdi>
                   </TableCell>
                   <TableCell>
                     <bdi>
                       {orEmpty(
-                        (line.lot?.expirationDate ?? line.newLot?.expirationDate)
-                          ? formatDateValue(
-                              line.lot?.expirationDate ?? line.newLot?.expirationDate ?? '',
-                              i18n.language,
-                            )
+                        inventoryExpiry(line)
+                          ? inventoryFormats(i18n.language).date(inventoryExpiry(line) ?? '')
                           : null,
                       )}
                     </bdi>
                   </TableCell>
                   <TableCell>
-                    <div className={unit === 'PACKS' ? 'w-28' : 'w-20'}>
+                    <fieldset
+                      className={unit === 'PACKS' ? 'w-28' : 'w-20'}
+                      onChangeCapture={(event) => {
+                        if (event.target instanceof HTMLInputElement)
+                          event.target.value = toLatinDigits(event.target.value).replace(
+                            /[^0-9]/g,
+                            '',
+                          );
+                      }}
+                    >
                       <itemsForm.AppField name={`items[${index}].quantity`}>
                         {(field) => (
                           <field.QuantityField
                             label={t('stock-events.field-of', {
                               field: t('physical-inventory.current-stock'),
-                              row: `${line.orderable.fullProductName || line.orderable.productCode} ${line.lot?.lotCode ?? line.newLot?.lotCode ?? t('stock-events.no-lot-defined')}`,
+                              row: `${productName(line.orderable)} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}`,
                             })}
                             layout="inline"
                             required
@@ -320,12 +324,16 @@ function AddProductsForm({
                           />
                         )}
                       </itemsForm.AppField>
-                    </div>
+                    </fieldset>
                   </TableCell>
                   <TableCell>
                     <Button
                       type="button"
                       variant="outline"
+                      aria-label={t('stock-events.field-of', {
+                        field: t('stock-events.remove'),
+                        row: `${productName(line.orderable)} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}`,
+                      })}
                       onClick={() =>
                         itemsForm.setFieldValue('items', (current) =>
                           current.filter((item) => item.key !== line.key),

@@ -5,7 +5,7 @@ import {
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardPenLineIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -227,9 +227,6 @@ function ProgramsTable({
       hasHomeFacility={hasHomeFacility}
       statusLabel={t('physical-inventory.status')}
       actionLabel={t('physical-inventory.start')}
-      linkFor={(row) => (
-        <Link to="/stock-management/physical-inventory/$programId" params={{ programId: row.id }} />
-      )}
       onAction={(row) => {
         const result = drafts[programs.findIndex((program) => program.id === row.id)];
         if (result.isError) {

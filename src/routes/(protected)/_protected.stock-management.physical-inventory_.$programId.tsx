@@ -25,10 +25,10 @@ import {
 import {
   eligibleInventoryProductsOptions,
   inventoryStockLinesOptions,
+  inventorySummariesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
-import { dropObsoleteInventoryCopies } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   type InventorySearch,
   inventorySearchSchema,
@@ -49,10 +49,11 @@ export const Route = createFileRoute(
   loader: async ({ context: { queryClient }, params: { programId }, cause }) => {
     const session = getSessionScope();
     const userId = useLoginData.getState().referenceDataUserId;
-    const permissions = await requirePermissions(queryClient, RIGHTS.stockInventoriesEdit);
-    assertSessionScope(session);
     if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
-    const user = await queryClient.ensureQueryData(userRecordOptions(userId));
+    const [permissions, user] = await Promise.all([
+      requirePermissions(queryClient, RIGHTS.stockInventoriesEdit),
+      queryClient.ensureQueryData(userRecordOptions(userId)),
+    ]);
     assertSessionScope(session);
     const homeId = user.homeFacilityId;
     if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
@@ -62,21 +63,37 @@ export const Route = createFileRoute(
     const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
     if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
     const selection = { facilityId: homeId, programId };
-    const options = physicalInventoryDraftOptions(selection);
-    const draft =
-      cause === 'stay'
-        ? await queryClient.ensureQueryData(options)
-        : await queryClient.fetchQuery({ ...options, staleTime: 0 });
-    assertSessionScope(session);
-    if (cause !== 'stay')
-      void dropObsoleteInventoryCopies(selection, draft?.id).catch(() => undefined);
     const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
-    if (draft && canViewStock) {
-      queryClient.prefetchQuery(inventoryStockLinesOptions(draft));
-      queryClient.prefetchQuery(eligibleInventoryProductsOptions(selection));
+    const summaries: Promise<unknown> =
+      canViewStock && cause === 'enter'
+        ? queryClient.fetchQuery({ ...inventorySummariesOptions(selection), staleTime: 0 })
+        : Promise.resolve();
+    if (canViewStock) {
+      void summaries
+        .then(() =>
+          queryClient.prefetchQuery({
+            ...eligibleInventoryProductsOptions(selection),
+            ...(cause === 'enter' && { staleTime: 0 }),
+          }),
+        )
+        .catch(() => undefined);
       queryClient.prefetchQuery(
         validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
       );
+    }
+    const options = physicalInventoryDraftOptions(selection);
+    const [draft] = await Promise.all([
+      cause === 'enter'
+        ? queryClient.fetchQuery({ ...options, staleTime: 0 })
+        : queryClient.ensureQueryData(options),
+      summaries,
+    ]);
+    assertSessionScope(session);
+    if (draft && canViewStock) {
+      if (cause === 'enter')
+        await queryClient.fetchQuery({ ...inventoryStockLinesOptions(draft), staleTime: 0 });
+      else await queryClient.ensureQueryData(inventoryStockLinesOptions(draft));
+      assertSessionScope(session);
     }
     return {
       userId,
@@ -127,6 +144,7 @@ function InventoryPage() {
               <PhysicalInventoryEditor
                 key={draft.id}
                 draft={draft}
+                right={RIGHTS.stockInventoriesEdit}
                 userId={userId}
                 username={username}
                 onDeleted={() => navigate({ to: '/stock-management/physical-inventory' })}
@@ -144,7 +162,9 @@ function InventoryPage() {
             ) : (
               <DataTableEmpty
                 title={t('physical-inventory.no-stock-view-title')}
-                description={t('physical-inventory.no-stock-view-description')}
+                description={t('physical-inventory.no-stock-view-description', {
+                  right: t('rights.stock-cards-view'),
+                })}
               />
             )
           ) : (

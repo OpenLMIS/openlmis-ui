@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatDateValue } from '@/components/form/date-value';
 import {
   FormDialog,
   FormDialogDescription,
@@ -12,6 +11,8 @@ import {
 import { ScanStatus } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
 import { tradeItemByGtinOptions } from '@/features/reference-data/api/queries';
+import type { TradeItem } from '@/features/reference-data/lib/types';
+import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
 import {
   countInventoryScan,
   type InventoryScanPrompt,
@@ -27,15 +28,13 @@ import { getSessionScope } from '@/lib/session-scope';
 
 export function InventoryScan({
   eligible,
-  lines,
   getLines,
   canManageLots,
   paused,
   onCount,
 }: {
   eligible: readonly InventoryStockLine[];
-  lines: readonly InventoryLine[];
-  getLines?: () => readonly InventoryLine[];
+  getLines: () => readonly InventoryLine[];
   canManageLots: boolean;
   paused: boolean;
   onCount: (line: InventoryLine) => void;
@@ -44,27 +43,20 @@ export function InventoryScan({
   const client = useQueryClient();
   const [scope] = useState(getSessionScope);
   const acceptedExpiries = useRef(new Set<string>());
-  const latest = useRef({ eligible, lines, getLines, paused, onCount });
-  latest.current = { eligible, lines, getLines, paused, onCount };
+  const latest = useRef({ eligible, getLines, paused, onCount });
+  latest.current = { eligible, getLines, paused, onCount };
   const [prompt, setPrompt] = useState<{
     value: InventoryScanPrompt;
     complete: (accepted: boolean) => void;
   } | null>(null);
-  const [mounted] = useState(() => ({ current: true }));
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, [mounted]);
   const status = useBarcodeScan({
     enabled: !paused,
     onScan: async (scan, signal) => {
       if (!scan.ok) return scanMessage(scan.error);
       const current = () =>
-        !signal.aborted && mounted.current && getSessionScope() === scope && !latest.current.paused;
+        !signal.aborted && getSessionScope() === scope && !latest.current.paused;
       if (!current()) return;
-      let tradeItem: import('@/features/reference-data/lib/types').TradeItem | null;
+      let tradeItem: TradeItem | null;
       try {
         tradeItem = await client.fetchQuery(tradeItemByGtinOptions(scan.gtin));
       } catch {
@@ -76,14 +68,14 @@ export function InventoryScan({
         scan,
         tradeItemId: tradeItem.id,
         eligible: latest.current.eligible,
-        lines: latest.current.getLines?.() ?? latest.current.lines,
+        lines: latest.current.getLines(),
         canManageLots,
         acceptedExpiries: acceptedExpiries.current,
         signal,
         confirm: (value) =>
           new Promise<boolean>((resolve) => {
             const abort = () => {
-              if (mounted.current) setPrompt(null);
+              setPrompt(null);
               resolve(false);
             };
             signal.addEventListener('abort', abort, { once: true });
@@ -100,9 +92,7 @@ export function InventoryScan({
       if (!current()) return;
       if (result.type === 'refuse') return result.message;
       if (result.type === 'line') {
-        const existing = (latest.current.getLines?.() ?? latest.current.lines).find(
-          (line) => line.key === result.line.key,
-        );
+        const existing = latest.current.getLines().find((line) => line.key === result.line.key);
         latest.current.onCount(countInventoryScan(existing ?? result.line));
       }
     },
@@ -130,12 +120,12 @@ export function InventoryScan({
                 ? t('physical-inventory.scan-new-lot-description', {
                     lotCode: prompt.value.lotCode,
                     expiryDate: prompt.value.expiryDate
-                      ? formatDateValue(prompt.value.expiryDate, i18n.language)
+                      ? inventoryFormats(i18n.language).date(prompt.value.expiryDate)
                       : t('physical-inventory.no-expiry'),
                   })
                 : t('scan.confirm-expiry-mismatch', {
-                    recordedDate: formatDateValue(prompt.value.recorded, i18n.language),
-                    scannedDate: formatDateValue(prompt.value.scanned, i18n.language),
+                    recordedDate: inventoryFormats(i18n.language).date(prompt.value.recorded),
+                    scannedDate: inventoryFormats(i18n.language).date(prompt.value.scanned),
                   }))}
           </FormDialogDescription>
         </FormDialogHeader>

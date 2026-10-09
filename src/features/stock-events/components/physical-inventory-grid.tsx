@@ -1,9 +1,12 @@
+import { useStore } from '@tanstack/react-form';
 import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { EllipsisIcon } from 'lucide-react';
-import { Fragment } from 'react';
+import { Fragment, memo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { formatDateValue } from '@/components/form/date-value';
+import { DataTableCard } from '@/components/data-table/data-table';
+import { useFieldContext } from '@/components/form/form-context';
+import type { QuantityValue } from '@/components/form/quantity-value';
+import { updateQuantityValue } from '@/components/form/quantity-value';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,6 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -21,16 +26,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { productName } from '@/features/reference-data/lib/product-name';
 import type { PhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
-import { unaccounted } from '@/features/stock-events/lib/physical-inventory-form';
+import {
+  inventoryCountSchema,
+  inventoryLineError,
+  unaccounted,
+} from '@/features/stock-events/lib/physical-inventory-form';
+import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
+import {
+  inventoryExpiry,
+  inventoryLotCode,
+} from '@/features/stock-events/lib/physical-inventory-lines';
 import { canDeactivateInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
 import type {
   InventoryCategoryBand,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { orEmpty } from '@/lib/empty-value';
-import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
-import { toOptionalWholeNumber } from '@/lib/whole-number';
+import type { QuantityUnit } from '@/lib/quantity';
+import { toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
 
 const COLUMNS = [
   ['productCode', 'stock-events.product-code'],
@@ -47,52 +62,72 @@ const COLUMNS = [
 ] as const;
 type ColumnId = (typeof COLUMNS)[number][0];
 export const INVENTORY_HIDEABLE_COLUMNS = [
-  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1100 },
-  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1000 },
-  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 900 },
+  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 900 },
+  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 800 },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 700 },
+  { id: 'stock', labelKey: 'stock-events.stock-on-hand', hideBelow: 600 },
+  { id: 'lot', labelKey: 'stock-events.lot-code', hideBelow: 500 },
+  { id: 'vvm', labelKey: 'stock-events.vvm-status', hideBelow: 600 },
 ] as const;
 const visibleColumns = (visibility: ColumnVisibilityState, showVvm: boolean) =>
   COLUMNS.filter(([id]) => visibility[id] !== false && (id !== 'vvm' || showVvm));
 
-export type InventoryGridEditor = {
+type InventoryGridEditor = {
   form: PhysicalInventoryForm;
   unit: QuantityUnit;
   online: boolean;
-  reasonsReady: boolean;
+  validationAttempted: boolean;
   pending: boolean;
-  errors?: Record<string, string | null>;
   onReasons: (line: InventoryLine) => void;
   onEditLot: (line: InventoryLine) => void;
   onRemove: (line: InventoryLine) => void;
   onDeactivate: (line: InventoryLine) => void;
 };
 type Props = {
-  editor?: InventoryGridEditor;
+  editor: InventoryGridEditor;
   bands: readonly InventoryCategoryBand[];
   visibility: ColumnVisibilityState;
   showVvm: boolean;
+  showActions: boolean;
 };
-export function PhysicalInventoryGrid({ bands, visibility, showVvm, editor }: Props) {
+const COLUMN_WIDTHS: Record<ColumnId, string> = {
+  productCode: 'w-24',
+  product: 'w-24 @4xl/main:w-28',
+  packSize: 'w-16',
+  lot: 'w-20',
+  expiry: 'w-24',
+  stock: 'w-24',
+  count: 'w-24',
+  vvm: 'w-20',
+  reasons: 'w-24',
+  unaccounted: 'w-36',
+  actions: 'w-12',
+};
+export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions, editor }: Props) {
   const { t } = useTranslation();
   const columns = visibleColumns(visibility, showVvm).filter(
-    ([id]) =>
-      id !== 'actions' ||
-      bands.some((band) =>
-        band.groups.some((group) =>
-          group.lines.some(
-            (line) => line.justAdded || (editor && canDeactivateInventoryLine(line, editor.online)),
-          ),
-        ),
-      ),
+    ([id]) => id !== 'actions' || showActions,
   );
   return (
     <DataTableCard>
-      <Table density="comfortable" layout="auto">
+      <Table
+        density="compact"
+        layout="auto"
+        tabIndex={-1}
+        aria-label={t('physical-inventory.editor-crumb')}
+      >
+        <colgroup>
+          {columns.map(([id]) => (
+            <col key={id} className={COLUMN_WIDTHS[id]} />
+          ))}
+        </colgroup>
         <TableHeader surface="muted">
           <TableRow>
             {columns.map(([id, key]) => (
               <TableHead key={id}>
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wide">
+                  {t(key)}
+                </span>
               </TableHead>
             ))}
           </TableRow>
@@ -111,25 +146,24 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, editor }: Pr
                     <TableRow surface="muted">
                       {columns.map(([id]) => (
                         <TableCell key={id}>
-                          <InventoryCell id={id} line={group.lines[0]} summary={group.lines} />
+                          <InventoryCell
+                            id={id}
+                            editor={editor}
+                            line={group.lines[0]}
+                            summary={group.lines}
+                          />
                         </TableCell>
                       ))}
                     </TableRow>
                   ) : null}
                   {group.lines.map((line) => (
-                    <TableRow key={line.key}>
-                      {columns.map(([id]) => (
-                        <TableCell key={id}>
-                          <InventoryCell
-                            id={id}
-                            editor={editor}
-                            line={line}
-                            hideProduct={group.lines.length > 1}
-                            hasLot={group.lines.some((item) => item.lot || item.newLot)}
-                          />
-                        </TableCell>
-                      ))}
-                    </TableRow>
+                    <InventoryRow
+                      key={line.key}
+                      lineKey={line.key}
+                      editor={editor}
+                      columns={columns}
+                      hideProduct={group.lines.length > 1}
+                    />
                   ))}
                 </Fragment>
               ))}
@@ -141,24 +175,64 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, editor }: Pr
   );
 }
 
+const InventoryRow = memo(
+  function InventoryRow({
+    lineKey,
+    editor,
+    columns,
+    hideProduct,
+  }: {
+    lineKey: string;
+    editor: InventoryGridEditor;
+    columns: readonly (typeof COLUMNS)[number][];
+    hideProduct: boolean;
+  }) {
+    const line = useStore(editor.form.store, (state) => state.values.lines[lineKey]);
+    if (!line) return null;
+    return (
+      <TableRow>
+        {columns.map(([id]) => (
+          <TableCell key={id}>
+            <InventoryCell id={id} editor={editor} line={line} hideProduct={hideProduct} />
+          </TableCell>
+        ))}
+      </TableRow>
+    );
+  },
+  (previous, next) =>
+    previous.lineKey === next.lineKey &&
+    previous.editor === next.editor &&
+    previous.hideProduct === next.hideProduct &&
+    previous.columns.map(([id]) => id).join() === next.columns.map(([id]) => id).join(),
+);
+
 function InventoryCell({
   id,
   line,
   summary,
   hideProduct,
-  hasLot,
   editor,
 }: {
-  editor?: InventoryGridEditor;
+  editor: InventoryGridEditor;
   id: ColumnId;
   line: InventoryLine;
   summary?: readonly InventoryLine[];
   hideProduct?: boolean;
-  hasLot?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const format = new Intl.NumberFormat(i18n.language).format;
-  const row = `${line.orderable.fullProductName || line.orderable.productCode} ${line.lot?.lotCode ?? line.newLot?.lotCode ?? t('stock-events.no-lot-defined')}`;
+  const formats = inventoryFormats(i18n.language);
+  const format = formats.number;
+  const errorId = useId();
+  const countResult =
+    id === 'count' && !summary ? inventoryCountSchema.safeParse(line.quantity.doses) : null;
+  const error = !countResult
+    ? null
+    : editor.validationAttempted
+      ? inventoryLineError(line)
+      : line.quantity.doses.trim() && !countResult.success
+        ? countResult.error.issues[0].message
+        : null;
+  const row = `${productName(line.orderable)} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}`;
   const label = (field: string) => t('stock-events.field-of', { field, row });
   const number = (value: number | null | undefined) => (
     <span className="tabular-nums">
@@ -176,9 +250,9 @@ function InventoryCell({
       return hideProduct ? null : <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
       return hideProduct ? null : (
-        <span className="block min-w-28 max-w-48 whitespace-normal break-words font-medium">
+        <span className="block min-w-16 max-w-24 whitespace-normal break-words font-medium">
           <bdi>
-            {line.orderable.fullProductName || line.orderable.productCode}
+            {productName(line.orderable)}
             {line.orderable.dispensable?.displayUnit
               ? ` - ${line.orderable.dispensable.displayUnit}`
               : ''}
@@ -186,74 +260,62 @@ function InventoryCell({
         </span>
       );
     case 'packSize':
-      return hideProduct ? null : number(line.orderable.netContent);
+      return number(line.orderable.netContent);
     case 'lot':
-      if (!summary && line.newLot && editor)
+      if (!summary && line.newLot)
         return (
-          <Button variant="link" type="button" onClick={() => editor.onEditLot(line)}>
-            {line.newLot.lotCode}
+          <Button
+            variant="link"
+            type="button"
+            aria-label={label(t('physical-inventory.edit-lot'))}
+            onClick={() => editor.onEditLot(line)}
+          >
+            <span className="block max-w-20 whitespace-normal break-all">
+              {line.newLot.lotCode}
+            </span>
           </Button>
         );
       return summary ? null : (
-        <bdi>
-          {line.lot?.lotCode ??
-            line.newLot?.lotCode ??
-            t(hasLot ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots')}
-        </bdi>
+        <span className="block max-w-20 whitespace-normal break-all">
+          <bdi>{inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}</bdi>
+        </span>
       );
     case 'expiry':
       return summary ? null : (
         <bdi>
-          {orEmpty(
-            (line.lot?.expirationDate ?? line.newLot?.expirationDate)
-              ? formatDateValue(
-                  line.lot?.expirationDate ?? line.newLot?.expirationDate ?? '',
-                  i18n.language,
-                )
-              : null,
-          )}
+          {orEmpty(inventoryExpiry(line) ? formats.date(inventoryExpiry(line) ?? '') : null)}
         </bdi>
       );
     case 'stock':
       return (
         <bdi dir="ltr">
           {orEmpty(
-            cardQuantity(
+            formats.quantity(
               total((item) => item.stockOnHand),
               line.orderable.netContent,
-              editor?.unit ?? 'DOSES',
-              i18n.language,
+              editor.unit,
             ),
           )}
         </bdi>
       );
     case 'count':
-      if (!summary && editor)
+      if (!summary)
         return (
-          <div data-inventory-key={line.key} className={editor.unit === 'PACKS' ? 'w-28' : 'w-20'}>
-            <editor.form.AppField name={`lines.${line.key}.quantity`}>
-              {(field) => (
-                <field.QuantityField
-                  label={label(t('physical-inventory.current-stock'))}
-                  layout="inline"
-                  unit={editor.unit}
-                  netContent={line.orderable.netContent}
-                  dosesLabel={t('quantity-unit.doses')}
-                  packsLabel={t('quantity-unit.packs')}
-                  disabled={editor.pending}
-                />
-              )}
-            </editor.form.AppField>
-          </div>
+          <InventoryCount
+            editor={editor}
+            line={line}
+            label={label(t('physical-inventory.current-stock'))}
+            error={error || null}
+            errorId={errorId}
+          />
         );
       return (
         <bdi dir="ltr">
           {orEmpty(
-            cardQuantity(
+            formats.quantity(
               total((item) => toOptionalWholeNumber(item.quantity.doses)),
               line.orderable.netContent,
-              editor?.unit ?? 'DOSES',
-              i18n.language,
+              editor.unit,
             ),
           )}
         </bdi>
@@ -262,50 +324,33 @@ function InventoryCell({
       return summary ? null : (
         <div>
           <bdi dir="ltr">
-            {orEmpty(
-              cardQuantity(
-                unaccounted(line),
-                line.orderable.netContent,
-                editor?.unit ?? 'DOSES',
-                i18n.language,
-              ),
-            )}
+            {orEmpty(formats.quantity(unaccounted(line), line.orderable.netContent, editor.unit))}
           </bdi>
-          {editor?.errors?.[line.key] === 'physical-inventory.unaccounted-error' && (
-            <p className="text-destructive text-sm">{t('physical-inventory.unaccounted-error')}</p>
-          )}
         </div>
       );
     case 'reasons':
-      if (!summary && editor)
+      if (!summary)
         return (
           <Button
             type="button"
             variant="outline"
+            size="xs"
+            aria-label={label(t('physical-inventory.reasons'))}
             disabled={editor.pending || !line.quantity.doses.trim()}
             onClick={() => editor.onReasons(line)}
           >
-            {line.stockAdjustments.length === 0
-              ? t('physical-inventory.add-reasons')
-              : line.stockAdjustments.length === 1
-                ? (line.stockAdjustments[0].reason.name ?? line.stockAdjustments[0].reason.id)
-                : t('physical-inventory.reason-count', { count: line.stockAdjustments.length })}
+            <span className="block max-w-20 whitespace-normal break-words">
+              {line.stockAdjustments.length === 0
+                ? t('physical-inventory.add-reasons')
+                : line.stockAdjustments.length === 1
+                  ? (line.stockAdjustments[0].reason.name ?? line.stockAdjustments[0].reason.id)
+                  : t('physical-inventory.reason-count', { count: line.stockAdjustments.length })}
+            </span>
           </Button>
         );
-      return summary ? null : (
-        <span className="block max-w-48 whitespace-normal break-words">
-          {line.stockAdjustments
-            .map((adjustment) => adjustment.reason.name ?? adjustment.reason.id)
-            .join(', ')}
-        </span>
-      );
+      return null;
     case 'actions':
-      if (
-        summary ||
-        !editor ||
-        (!line.justAdded && !canDeactivateInventoryLine(line, editor.online))
-      )
-        return null;
+      if (summary || (!line.justAdded && !canDeactivateInventoryLine(line, true))) return null;
       return (
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -328,7 +373,10 @@ function InventoryCell({
                   {t('physical-inventory.delete-row')}
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={() => editor.onDeactivate(line)}>
+                <DropdownMenuItem
+                  disabled={!editor.online}
+                  onClick={() => editor.onDeactivate(line)}
+                >
                   {t('physical-inventory.deactivate')}
                 </DropdownMenuItem>
               )}
@@ -337,9 +385,9 @@ function InventoryCell({
         </DropdownMenu>
       );
     case 'vvm':
-      if (!summary && editor && line.orderable.extraData?.useVVM === 'true')
+      if (!summary && line.orderable.extraData?.useVVM === 'true')
         return (
-          <div className="w-24">
+          <div className="w-20">
             <editor.form.AppField name={`lines.${line.key}.vvmStatus`}>
               {(field) => (
                 <field.SelectField
@@ -356,32 +404,39 @@ function InventoryCell({
             </editor.form.AppField>
           </div>
         );
-      return summary || line.orderable.extraData?.useVVM !== 'true'
-        ? null
-        : line.vvmStatus === 'STAGE_1'
-          ? t('stock-events.stage-1')
-          : line.vvmStatus === 'STAGE_2'
-            ? t('stock-events.stage-2')
-            : orEmpty(null);
+      return null;
   }
 }
 
 export function PhysicalInventoryGridSkeleton({
   visibility,
+  showVvm = false,
+  showActions = false,
 }: {
   visibility: ColumnVisibilityState;
+  showVvm?: boolean;
+  showActions?: boolean;
 }) {
   const { t } = useTranslation();
-  const columns = visibleColumns(visibility, false);
+  const columns = visibleColumns(visibility, showVvm).filter(
+    ([id]) => id !== 'actions' || showActions,
+  );
   return (
     <div aria-busy>
       <DataTableCard>
-        <Table density="comfortable">
+        <Table density="compact" layout="auto">
+          <colgroup>
+            {columns.map(([id]) => (
+              <col key={id} className={COLUMN_WIDTHS[id]} />
+            ))}
+          </colgroup>
           <TableHeader surface="muted">
             <TableRow>
               {columns.map(([id, key]) => (
                 <TableHead key={id}>
-                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                  <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wide">
+                    {t(key)}
+                  </span>
                 </TableHead>
               ))}
             </TableRow>
@@ -391,7 +446,7 @@ export function PhysicalInventoryGridSkeleton({
               <TableRow key={row}>
                 {columns.map(([id]) => (
                   <TableCell key={id}>
-                    <div className="h-4 w-20">
+                    <div className="h-4 w-full">
                       <Skeleton fill />
                     </div>
                   </TableCell>
@@ -402,5 +457,76 @@ export function PhysicalInventoryGridSkeleton({
         </Table>
       </DataTableCard>
     </div>
+  );
+}
+
+function InventoryQuantityInputs({
+  editor,
+  line,
+  label,
+  error,
+  errorId,
+}: {
+  editor: InventoryGridEditor;
+  line: InventoryLine;
+  label: string;
+  error: string | null;
+  errorId: string;
+}) {
+  const field = useFieldContext<QuantityValue>();
+  const { t } = useTranslation();
+  const parts = editor.unit === 'DOSES' ? (['doses'] as const) : (['packs', 'remainder'] as const);
+  return (
+    <div data-inventory-key={line.key} className="w-20">
+      <Field data-invalid={Boolean(error)} spacing="tight">
+        <FieldLabel>
+          <span className="sr-only">{label}</span>
+        </FieldLabel>
+        <div className="flex gap-1">
+          {parts.map((part) => (
+            <div key={part} className="min-w-0 flex-1">
+              <Input
+                aria-label={
+                  parts.length === 1
+                    ? label
+                    : `${label} ${t(part === 'packs' ? 'quantity-unit.packs' : 'quantity-unit.doses')}`
+                }
+                inputMode="numeric"
+                dir="ltr"
+                value={field.state.value[part]}
+                disabled={editor.pending}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? errorId : undefined}
+                onBlur={field.handleBlur}
+                onChange={(event) =>
+                  field.handleChange(
+                    updateQuantityValue(
+                      field.state.value,
+                      part,
+                      toLatinDigits(event.target.value).replace(/[^0-9]/g, ''),
+                      line.orderable.netContent,
+                    ),
+                  )
+                }
+              />
+            </div>
+          ))}
+        </div>
+        {error && (
+          <p id={errorId} className="whitespace-normal text-destructive text-xs">
+            {t(error as 'stock-events.required')}
+          </p>
+        )}
+      </Field>
+    </div>
+  );
+}
+
+function InventoryCount(props: Parameters<typeof InventoryQuantityInputs>[0]) {
+  const { editor, line } = props;
+  return (
+    <editor.form.AppField name={`lines.${line.key}.quantity`}>
+      {() => <InventoryQuantityInputs {...props} />}
+    </editor.form.AppField>
   );
 }

@@ -52,7 +52,7 @@ it('adds, edits and removes reasons and confirms an unaccounted update', async (
   expect(update).toHaveBeenCalledWith([
     { reason: expect.objectContaining({ id: 'r' }), quantity: 1 },
   ]);
-  await user.click(screen.getByRole('button', { name: 'stock-events.remove' }));
+  await user.click(screen.getByText('stock-events.remove'));
   await waitFor(() =>
     expect(screen.queryByRole('textbox', { name: 'Return' })).not.toBeInTheDocument(),
   );
@@ -72,4 +72,23 @@ it('refuses zero reason quantity', async () => {
   await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
   expect(update).not.toHaveBeenCalled();
   expect(screen.getByRole('textbox', { name: 'Return' })).toHaveAttribute('aria-invalid', 'true');
+});
+
+it('adds a reason with Enter without updating the outer dialog', async () => {
+  const user = userEvent.setup();
+  const update = vi.fn();
+  render(
+    <InventoryReasonsDialog
+      line={line}
+      reasons={[reason]}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onUpdate={update}
+    />,
+  );
+  await user.click(screen.getByRole('combobox'));
+  await user.click(screen.getByRole('option', { name: 'Return' }));
+  await user.type(screen.getByRole('textbox', { name: 'stock-events.quantity' }), '2{Enter}');
+  expect(await screen.findByRole('textbox', { name: 'Return' })).toHaveValue('2');
+  expect(update).not.toHaveBeenCalled();
 });
