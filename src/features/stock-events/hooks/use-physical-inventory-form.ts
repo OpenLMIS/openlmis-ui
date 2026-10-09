@@ -4,7 +4,7 @@ import { useAppForm } from '@/components/form/form';
 import { inventoryCountSchema } from '@/features/stock-events/lib/physical-inventory-form';
 import type { InventoryLine } from '@/features/stock-events/lib/physical-inventory-types';
 
-export function usePhysicalInventoryForm(lines: readonly InventoryLine[]) {
+export function usePhysicalInventoryForm(lines: readonly InventoryLine[], submitted = false) {
   return useAppForm({
     validationLogic: revalidateLogic({ mode: 'change' }),
     validators: {
@@ -12,7 +12,11 @@ export function usePhysicalInventoryForm(lines: readonly InventoryLine[]) {
         .object({ lines: z.record(z.string(), z.custom<InventoryLine>()) })
         .superRefine((value, ctx) => {
           for (const line of Object.values(value.lines)) {
-            if (!line.quantity.doses.trim()) continue;
+            if (
+              !line.quantity.doses.trim() &&
+              (!submitted || (!line.active && line.stockOnHand === 0))
+            )
+              continue;
             const result = inventoryCountSchema.safeParse(line.quantity.doses);
             for (const issue of result.error?.issues ?? [])
               ctx.addIssue({

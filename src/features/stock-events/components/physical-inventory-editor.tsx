@@ -3,7 +3,7 @@ import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from '@tanst
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useId, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -44,9 +44,11 @@ import {
   eligibleInventoryProductsOptions,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { InventoryActions } from '@/features/stock-events/components/inventory-actions';
 import { InventoryAddProductsDialog } from '@/features/stock-events/components/inventory-add-products-dialog';
 import { InventoryEditLotDialog } from '@/features/stock-events/components/inventory-edit-lot-dialog';
 import { InventoryReasonsDialog } from '@/features/stock-events/components/inventory-reasons-dialog';
+import { InventoryScan } from '@/features/stock-events/components/inventory-scan';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
   PhysicalInventoryGrid,
@@ -54,9 +56,11 @@ import {
 } from '@/features/stock-events/components/physical-inventory-grid';
 import { usePhysicalInventoryAutosave } from '@/features/stock-events/hooks/use-physical-inventory-autosave';
 import { usePhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
+import { inventoryLineError } from '@/features/stock-events/lib/physical-inventory-form';
 import {
   buildInventoryLines,
   filterInventoryLines,
+  inventoryGroups,
   inventoryPage,
   inventoryProgress,
 } from '@/features/stock-events/lib/physical-inventory-lines';
@@ -76,6 +80,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { useOnline } from '@/lib/online';
@@ -86,6 +91,10 @@ const NO_SORT = { id: 'product', desc: false };
 const helper = createColumnHelper<DataTableFeatures, InventoryProductGroup>();
 const columns = helper.columns([helper.display({ id: 'product' })]);
 type Props = {
+  userId?: string;
+  username?: string;
+  onDeleted?: () => void | Promise<void>;
+  onSubmitted?: () => void | Promise<void>;
   facilityTypeId: string;
   canManageLots: boolean;
   draft: PhysicalInventoryDraft;
@@ -128,17 +137,19 @@ export function PhysicalInventoryEditor(props: Props) {
           />
           {t('physical-inventory.include-inactive')}
         </label>
-        <div className="ms-auto flex items-center gap-2">
+        <div className="ms-auto flex flex-wrap items-center gap-2">
           {quantityUnit.canSwitch && (
             <QuantityUnitToggle unit={quantityUnit.unit} onUnitChange={quantityUnit.setUnit} />
           )}
-          <DataTableViewOptions
-            columns={INVENTORY_HIDEABLE_COLUMNS.map((column) => ({
-              id: column.id,
-              label: t(column.labelKey),
-            }))}
-            {...view}
-          />
+          <div className="shrink-0">
+            <DataTableViewOptions
+              columns={INVENTORY_HIDEABLE_COLUMNS.map((column) => ({
+                id: column.id,
+                label: t(column.labelKey),
+              }))}
+              {...view}
+            />
+          </div>
         </div>
         <Button onClick={() => setAddOpen(true)}>{t('physical-inventory.add-product')}</Button>
       </DataTableToolbar>
@@ -202,8 +213,13 @@ function InventoryDraftRows({
   onAddClose,
   facilityTypeId,
   canManageLots,
+  userId = '',
+  username = '',
+  onDeleted = () => {},
+  onSubmitted = () => {},
 }: RowsProps & { stock: InventoryStockLine[]; localLines: InventoryLine[]; localFailed: boolean }) {
   const { t, i18n } = useTranslation();
+  const scanning = useFlag('GS1_SCANNING');
   const eligible = useQuery(
     eligibleInventoryProductsOptions({ programId: draft.programId, facilityId: draft.facilityId }),
   );
@@ -211,12 +227,19 @@ function InventoryDraftRows({
     validReasonsOptions({ program: draft.programId, facilityType: facilityTypeId }),
   );
   const reasons = useMemo(() => inventoryReasons(reasonsQuery.data ?? []), [reasonsQuery.data]);
-  const baseline = useMemo(
-    () => buildInventoryLines(stock, draft.lineItems),
-    [stock, draft.lineItems],
-  );
+  const [baseline, setBaseline] = useState(() => buildInventoryLines(stock, draft.lineItems));
+  const [busy, setBusy] = useState(false);
+  const [actionDialog, setActionDialog] = useState(false);
+  const [readFailed, setReadFailed] = useState(localFailed);
+  const [submitted, setSubmitted] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const region = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-  const form = usePhysicalInventoryForm(buildInventoryLines(stock, draft.lineItems, localLines));
+  const [formLines, setFormLines] = useState(() =>
+    buildInventoryLines(stock, draft.lineItems, localLines),
+  );
+  const form = usePhysicalInventoryForm(formLines, validationAttempted);
   const records = useStore(form.store, (state) => state.values.lines);
   const allLines = useMemo(() => Object.values(records), [records]);
   const changed = useMemo(() => {
@@ -229,7 +252,7 @@ function InventoryDraftRows({
   if (!modified && form.state.isDirty) setModified(true);
   const copy = useMemo(
     () =>
-      modified || form.state.isDirty
+      !busy && !submitted && (modified || form.state.isDirty)
         ? {
             draftId: draft.id,
             programId: draft.programId,
@@ -239,11 +262,20 @@ function InventoryDraftRows({
             savedAt: Date.now(),
           }
         : null,
-    [changed, draft.id, draft.programId, draft.facilityId, modified, form.state.isDirty],
+    [
+      changed,
+      draft.id,
+      draft.programId,
+      draft.facilityId,
+      modified,
+      form.state.isDirty,
+      busy,
+      submitted,
+    ],
   );
   const autosave = usePhysicalInventoryAutosave(copy);
-  const status = localFailed && !copy ? 'failed' : autosave.status;
-  const guard = useDiscardGuard(status === 'saving' || status === 'failed');
+  const status = readFailed && !copy ? 'failed' : autosave.status;
+  const guard = useDiscardGuard(!submitted && (status === 'saving' || status === 'failed'));
   const [dialog, setDialog] = useState<{
     type: 'reasons' | 'lot' | 'deactivate';
     key: string;
@@ -317,8 +349,21 @@ function InventoryDraftRows({
   const showVvm = Boolean(
     eligible.data?.some((line) => line.orderable.extraData?.useVVM === 'true'),
   );
+  useEffect(() => {
+    if (validationAttempted) void form.validate('change');
+  }, [validationAttempted, form]);
+  useEffect(() => {
+    if (!focusKey || search !== deferred) return;
+    const element = region.current?.querySelector<HTMLInputElement>(
+      `[data-inventory-key="${CSS.escape(focusKey)}"] input`,
+    );
+    if (element) {
+      element.focus();
+      setFocusKey(null);
+    }
+  }, [focusKey, search, deferred]);
   return (
-    <div className="flex flex-col gap-4" aria-busy={search !== deferred}>
+    <div ref={region} className="flex flex-col gap-4" aria-busy={search !== deferred}>
       <p role="status" className="text-sm text-muted-foreground">
         {t(
           status === 'saving'
@@ -352,7 +397,10 @@ function InventoryDraftRows({
               unit: quantityUnit.unit,
               online,
               reasonsReady: reasonsQuery.isSuccess,
-              pending: mutation.isPending,
+              pending: mutation.isPending || busy || submitted,
+              errors: validationAttempted
+                ? Object.fromEntries(lines.map((line) => [line.key, inventoryLineError(line)]))
+                : {},
               onReasons: (line) => setDialog({ type: 'reasons', key: line.key }),
               onEditLot: (line) => setDialog({ type: 'lot', key: line.key }),
               onDeactivate: (line) => setDialog({ type: 'deactivate', key: line.key }),
@@ -401,6 +449,79 @@ function InventoryDraftRows({
           }
         />
       )}
+      {scanning && eligible.data && (
+        <InventoryScan
+          eligible={eligible.data}
+          lines={lines}
+          canManageLots={canManageLots}
+          paused={busy || submitted || mutation.isPending || addOpen || !!dialog || actionDialog}
+          onCount={(line) => {
+            form.setFieldValue('lines', (current) => ({ ...current, [line.key]: line }));
+            const groups = inventoryGroups(
+              filterInventoryLines(
+                [...lines.filter((item) => item.key !== line.key), line],
+                { includeInactive: search.includeInactive },
+                String,
+              ),
+            );
+            const index = groups.findIndex((group) => group.orderable.id === line.orderable.id);
+            const target = Math.floor(index / (search.size ?? 20)) + 1;
+            onSearchChange({ keyword: undefined, page: target === 1 ? undefined : target }, true);
+          }}
+        />
+      )}
+      <InventoryActions
+        draft={draft}
+        lines={lines}
+        displayed={filtered}
+        userId={userId}
+        username={username}
+        showInDoses={quantityUnit.unit === 'DOSES'}
+        disabled={busy || mutation.isPending || !eligible.data}
+        flush={autosave.flush}
+        onBusy={setBusy}
+        onLots={(next) =>
+          form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
+        }
+        onDialogChange={setActionDialog}
+        onSaved={(next, terminal) => {
+          setSubmitted(terminal);
+          setReadFailed(false);
+          autosave.reset();
+          setFormLines(next);
+          setBaseline(next);
+          setModified(false);
+          form.reset({ lines: Object.fromEntries(next.map((line) => [line.key, line])) });
+        }}
+        onInvalid={(invalid) => {
+          setValidationAttempted(true);
+          const first = invalid[0];
+          const includeInactive =
+            search.includeInactive || (!first.active && first.stockOnHand === 0);
+          const groups = inventoryGroups(filterInventoryLines(lines, { includeInactive }, String));
+          const index = groups.findIndex((group) => group.orderable.id === first.orderable.id);
+          const targetPage = Math.floor(index / (search.size ?? 20)) + 1;
+          setFocusKey(first.key);
+          onSearchChange(
+            {
+              keyword: undefined,
+              ...(includeInactive !== search.includeInactive && includeInactive
+                ? { includeInactive: true }
+                : {}),
+              page: targetPage === 1 ? undefined : targetPage,
+            },
+            true,
+          );
+        }}
+        onDeleted={async () => {
+          setSubmitted(true);
+          await onDeleted();
+        }}
+        onSubmitted={async () => {
+          setSubmitted(true);
+          await onSubmitted();
+        }}
+      />
       {addOpen && (
         <InventoryAddProductsDialog
           eligible={eligible.data}

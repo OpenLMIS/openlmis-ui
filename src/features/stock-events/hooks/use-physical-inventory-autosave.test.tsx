@@ -60,3 +60,15 @@ it('drops queued writes and their completion after a user change', async () => {
   });
   expect(writeInventoryLocal).toHaveBeenCalledTimes(1);
 });
+
+it('can reset a failed indicator after a successful server action', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('full'));
+  const view = renderHook(({ value }) => usePhysicalInventoryAutosave(value), {
+    initialProps: { value: null as InventoryLocalCopy | null },
+  });
+  view.rerender({ value: copy });
+  await waitFor(() => expect(view.result.current.status).toBe('failed'));
+  view.rerender({ value: null });
+  act(() => view.result.current.reset());
+  expect(view.result.current.status).toBe('saved');
+});

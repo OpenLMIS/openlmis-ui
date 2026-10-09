@@ -31,5 +31,9 @@ export function usePhysicalInventoryAutosave(copy: InventoryLocalCopy | null) {
       if (copy) writer.enqueue(copy);
     }
   }, [copy, queued, writer]);
-  return { status: copy !== queued ? ('saving' as const) : status, flush: writer.flush };
+  return {
+    status: copy !== queued ? ('saving' as const) : status,
+    flush: writer.flush,
+    reset: () => setStatus('saved'),
+  };
 }

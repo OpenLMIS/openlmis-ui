@@ -13,6 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { WorkspaceSlots } from '@/components/workspace-tabs';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -96,58 +97,73 @@ function InventoryPage() {
     Route.useLoaderData();
   const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const username = useLoginData((state) => state.username) ?? '';
   const { updateSearch } = useSearchNavigation<InventorySearch>({});
   if (currentUser !== userId) return <InventoryPending />;
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <ClipboardListIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>
-            {t('physical-inventory.editor-title', {
-              code: homeFacility.code,
-              facility: recordLabel(homeFacility),
-              program: recordLabel(program),
-            })}
-          </WorkspaceTitle>
-          <WorkspaceDescription>{t('physical-inventory.editor-description')}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        {draft ? (
-          canViewStock ? (
-            <PhysicalInventoryEditor
-              key={draft.id}
-              draft={draft}
-              facilityTypeId={homeFacility.type.id}
-              canManageLots={canManageLots}
-              search={search}
-              onSearchChange={updateSearch}
-            />
+    <WorkspaceSlots>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <ClipboardListIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>
+              {t('physical-inventory.editor-title', {
+                code: homeFacility.code,
+                facility: recordLabel(homeFacility),
+                program: recordLabel(program),
+              })}
+            </WorkspaceTitle>
+            <WorkspaceDescription>
+              {t('physical-inventory.editor-description')}
+            </WorkspaceDescription>
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          {draft ? (
+            canViewStock ? (
+              <PhysicalInventoryEditor
+                key={draft.id}
+                draft={draft}
+                userId={userId}
+                username={username}
+                onDeleted={() => navigate({ to: '/stock-management/physical-inventory' })}
+                onSubmitted={() =>
+                  navigate({
+                    to: '/stock-management/stock-on-hand',
+                    search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+                  })
+                }
+                facilityTypeId={homeFacility.type.id}
+                canManageLots={canManageLots}
+                search={search}
+                onSearchChange={updateSearch}
+              />
+            ) : (
+              <DataTableEmpty
+                title={t('physical-inventory.no-stock-view-title')}
+                description={t('physical-inventory.no-stock-view-description')}
+              />
+            )
           ) : (
             <DataTableEmpty
-              title={t('physical-inventory.no-stock-view-title')}
-              description={t('physical-inventory.no-stock-view-description')}
+              title={t('physical-inventory.no-draft-title')}
+              description={t('physical-inventory.no-draft-description')}
+              action={
+                <Button
+                  nativeButton={false}
+                  render={<Link to="/stock-management/physical-inventory" />}
+                >
+                  {t('physical-inventory.back')}
+                </Button>
+              }
             />
-          )
-        ) : (
-          <DataTableEmpty
-            title={t('physical-inventory.no-draft-title')}
-            description={t('physical-inventory.no-draft-description')}
-            action={
-              <Button
-                nativeButton={false}
-                render={<Link to="/stock-management/physical-inventory" />}
-              >
-                {t('physical-inventory.back')}
-              </Button>
-            }
-          />
-        )}
-      </WorkspaceContent>
-    </Workspace>
+          )}
+        </WorkspaceContent>
+      </Workspace>
+    </WorkspaceSlots>
   );
 }
 

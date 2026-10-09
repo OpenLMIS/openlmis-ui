@@ -60,6 +60,7 @@ export type InventoryGridEditor = {
   online: boolean;
   reasonsReady: boolean;
   pending: boolean;
+  errors?: Record<string, string | null>;
   onReasons: (line: InventoryLine) => void;
   onEditLot: (line: InventoryLine) => void;
   onRemove: (line: InventoryLine) => void;
@@ -229,7 +230,7 @@ function InventoryCell({
     case 'count':
       if (!summary && editor)
         return (
-          <div className={editor.unit === 'PACKS' ? 'w-28' : 'w-20'}>
+          <div data-inventory-key={line.key} className={editor.unit === 'PACKS' ? 'w-28' : 'w-20'}>
             <editor.form.AppField name={`lines.${line.key}.quantity`}>
               {(field) => (
                 <field.QuantityField
@@ -259,16 +260,21 @@ function InventoryCell({
       );
     case 'unaccounted':
       return summary ? null : (
-        <bdi dir="ltr">
-          {orEmpty(
-            cardQuantity(
-              unaccounted(line),
-              line.orderable.netContent,
-              editor?.unit ?? 'DOSES',
-              i18n.language,
-            ),
+        <div>
+          <bdi dir="ltr">
+            {orEmpty(
+              cardQuantity(
+                unaccounted(line),
+                line.orderable.netContent,
+                editor?.unit ?? 'DOSES',
+                i18n.language,
+              ),
+            )}
+          </bdi>
+          {editor?.errors?.[line.key] === 'physical-inventory.unaccounted-error' && (
+            <p className="text-destructive text-sm">{t('physical-inventory.unaccounted-error')}</p>
           )}
-        </bdi>
+        </div>
       );
     case 'reasons':
       if (!summary && editor)

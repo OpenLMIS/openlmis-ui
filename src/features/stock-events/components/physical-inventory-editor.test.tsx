@@ -1,15 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
+import { WorkspaceSlots } from '@/components/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  createPhysicalInventoryLot,
   deactivateInventoryStockCard,
+  deletePhysicalInventory,
   fetchEligibleInventoryProducts,
   fetchInventoryStockLines,
   fetchInventorySummaries,
+  savePhysicalInventory,
+  submitPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
@@ -18,6 +24,7 @@ import {
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
 import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
 import {
+  clearInventoryLocal,
   readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
@@ -25,6 +32,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   readInventoryLocal: vi.fn(),
+  clearInventoryLocal: vi.fn(),
   writeInventoryLocal: vi.fn(),
 }));
 vi.mock('@/hooks/use-discard-guard', () => ({
@@ -43,10 +51,17 @@ vi.mock('@/hooks/use-quantity-unit', () => ({
 }));
 vi.mock('@/features/stock-events/api/physical-inventory-api', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/api/physical-inventory-api')>()),
+  createPhysicalInventoryLot: vi.fn(),
   deactivateInventoryStockCard: vi.fn(),
+  savePhysicalInventory: vi.fn(),
+  submitPhysicalInventory: vi.fn(),
+  deletePhysicalInventory: vi.fn(),
   fetchInventoryStockLines: vi.fn(),
   fetchEligibleInventoryProducts: vi.fn(),
   fetchInventorySummaries: vi.fn(),
+  fetchPhysicalInventoryDraft: vi
+    .fn()
+    .mockResolvedValue({ id: 'd', programId: 'p', facilityId: 'f', lineItems: [] }),
 }));
 const draft = { id: 'd', programId: 'p', facilityId: 'f', lineItems: [] };
 const stock = ['A', 'B'].map((id) => ({
@@ -65,6 +80,10 @@ beforeEach(() => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
+  vi.mocked(clearInventoryLocal).mockResolvedValue(undefined);
+  vi.mocked(savePhysicalInventory).mockResolvedValue(undefined);
+  vi.mocked(submitPhysicalInventory).mockResolvedValue(undefined);
+  vi.mocked(deletePhysicalInventory).mockResolvedValue(undefined);
   vi.mocked(readInventoryLocal).mockResolvedValue(undefined);
   vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
 });
@@ -77,13 +96,15 @@ function setup(search = { size: 1, page: 1 }) {
   const change = vi.fn();
   const tree = (next: { page: number; size: number; keyword?: string }) => (
     <QueryClientProvider client={client}>
-      <PhysicalInventoryEditor
-        draft={draft}
-        search={{ ...next, keyword: next.keyword, includeInactive: undefined }}
-        onSearchChange={change}
-        facilityTypeId="type"
-        canManageLots
-      />
+      <WorkspaceSlots>
+        <PhysicalInventoryEditor
+          draft={draft}
+          search={{ ...next, keyword: next.keyword, includeInactive: undefined }}
+          onSearchChange={change}
+          facilityTypeId="type"
+          canManageLots
+        />
+      </WorkspaceSlots>
     </QueryClientProvider>
   );
   const view = render(tree(search));
@@ -218,4 +239,233 @@ it('writes removal of the last locally added line so it cannot return on reopen'
       expect.anything(),
     ),
   );
+});
+
+it('always confirms Save, sends hidden members, and clears the local copy only on success', async () => {
+  const user = userEvent.setup();
+  setup();
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('physical-inventory.save-confirm')).toBeInTheDocument();
+  await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.save' }));
+  await waitFor(() =>
+    expect(savePhysicalInventory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lineItems: [
+          expect.objectContaining({ orderableId: 'A', quantity: -1 }),
+          expect.objectContaining({ orderableId: 'B', quantity: -1 }),
+        ],
+      }),
+    ),
+  );
+  await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
+});
+it('validates hidden lines and moves to the first invalid product without posting', async () => {
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 2 });
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(view.change).toHaveBeenCalledWith(
+    expect.objectContaining({ keyword: undefined, page: undefined }),
+    true,
+  );
+  expect(submitPhysicalInventory).not.toHaveBeenCalled();
+  view.rerender(view.tree({ size: 1, page: 1 }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    ),
+  );
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus();
+});
+it('keeps the local copy after a rejected Save', async () => {
+  vi.mocked(savePhysicalInventory).mockRejectedValue(new Error('refused'));
+  const user = userEvent.setup();
+  setup();
+  await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '5');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(savePhysicalInventory).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
+});
+it('requires Delete confirmation and clears the device copy after deletion', async () => {
+  const user = userEvent.setup();
+  setup();
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
+  expect(deletePhysicalInventory).not.toHaveBeenCalled();
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
+  );
+  await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
+  expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
+});
+it('never resends a Submit whose outcome is unknown and retains the copy', async () => {
+  vi.mocked(submitPhysicalInventory).mockRejectedValue(new AxiosError('network'));
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    programId: 'p',
+    facilityId: 'f',
+    modified: true,
+    savedAt: 1,
+    lines: buildInventoryLines(stock, []).map((line) => ({
+      ...line,
+      quantity: quantityValue('5'),
+    })),
+  });
+  const user = userEvent.setup();
+  setup();
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+  );
+  await screen.findByText('stock-events.unknown-outcome-description');
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
+  expect(submitPhysicalInventory).toHaveBeenCalledTimes(1);
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
+});
+
+it('keeps Delete on an added row after Save replaces its editable lot with the server id', async () => {
+  const local = {
+    ...buildInventoryLines(stock, [])[0],
+    key: 'A|new:new',
+    stockCardId: null,
+    stockOnHand: null,
+    isAdded: true,
+    justAdded: true,
+    quantity: quantityValue('0'),
+    newLot: { clientId: 'new', lotCode: 'NEW', expirationDate: null, tradeItemId: 't' },
+  };
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    programId: 'p',
+    facilityId: 'f',
+    modified: true,
+    savedAt: 1,
+    lines: [local],
+  });
+  vi.mocked(createPhysicalInventoryLot).mockResolvedValue({
+    id: 'created',
+    lotCode: 'NEW',
+    expirationDate: null,
+  });
+  const user = userEvent.setup();
+  setup();
+  await screen.findByRole('button', { name: 'NEW' });
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(createPhysicalInventoryLot).toHaveBeenCalled());
+  await waitFor(() => expect(savePhysicalInventory).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'NEW' })).not.toBeInTheDocument(),
+  );
+  expect(writeInventoryLocal).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lines: expect.arrayContaining([
+        expect.objectContaining({ key: 'A|created', justAdded: true, newLot: undefined }),
+      ]),
+    }),
+  );
+  expect(savePhysicalInventory).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lineItems: expect.arrayContaining([
+        expect.objectContaining({ lotId: 'created', quantity: 0 }),
+      ]),
+    }),
+  );
+  await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
+  expect(
+    screen.getByRole('menuitem', { name: 'physical-inventory.delete-row' }),
+  ).toBeInTheDocument();
+});
+it('keeps the local copy after a refused Submit and offers another deliberate attempt', async () => {
+  vi.mocked(submitPhysicalInventory).mockRejectedValue(
+    new AxiosError('refused', undefined, undefined, undefined, {
+      status: 400,
+      data: { message: 'Refused' },
+    } as never),
+  );
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    programId: 'p',
+    facilityId: 'f',
+    modified: true,
+    savedAt: 1,
+    lines: buildInventoryLines(stock, []).map((line) => ({
+      ...line,
+      quantity: quantityValue('5'),
+    })),
+  });
+  const user = userEvent.setup();
+  setup();
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled();
+});
+it('submits exactly once, clears the copy, and offers the print choice', async () => {
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    programId: 'p',
+    facilityId: 'f',
+    modified: true,
+    savedAt: 1,
+    lines: buildInventoryLines(stock, []).map((line) => ({
+      ...line,
+      quantity: quantityValue('5'),
+    })),
+  });
+  const user = userEvent.setup();
+  const view = setup();
+  const invalidate = vi.spyOn(view.client, 'invalidateQueries');
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+  );
+  await screen.findByRole('heading', { name: 'physical-inventory.print-title' });
+  expect(submitPhysicalInventory).toHaveBeenCalledTimes(1);
+  expect(submitPhysicalInventory).toHaveBeenCalledWith(
+    expect.objectContaining({
+      resourceId: 'd',
+      lineItems: [
+        expect.objectContaining({ orderableId: 'A', quantity: 5 }),
+        expect.objectContaining({ orderableId: 'B', quantity: 5 }),
+      ],
+    }),
+  );
+  expect(clearInventoryLocal).toHaveBeenCalledWith('d');
+  expect(invalidate).toHaveBeenCalledTimes(4);
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.no' }));
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
+});
+it('opens the first invalid product page after applying the inactive filter', async () => {
+  const user = userEvent.setup();
+  const view = setup();
+  const inactive = {
+    ...stock[0],
+    orderable: { ...stock[0].orderable, id: 'inactive', productCode: '0' },
+    stockOnHand: 0,
+    active: false,
+  };
+  view.client.setQueryData(inventoryStockLinesOptions(draft).queryKey, [inactive, ...stock]);
+  view.client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [inactive, ...stock]);
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(view.change).toHaveBeenCalledWith(expect.objectContaining({ page: undefined }), true);
 });
