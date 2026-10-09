@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableCard } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   DialogLoadError,
   ErrorAlert,
@@ -523,9 +523,15 @@ function PairsFields({ form }: { form: ReasonForm }) {
             <Table density="comfortable">
               <TableHeader surface="muted">
                 <TableRow>
-                  <TableHead>{t('reasons.form.program')}</TableHead>
-                  <TableHead>{t('reasons.form.facility-type')}</TableHead>
-                  <TableHead>{t('reasons.form.show')}</TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>{t('reasons.form.program')}</DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>{t('reasons.form.facility-type')}</DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>{t('reasons.form.show')}</DataTableHeaderLabel>
+                  </TableHead>
                   <TableHead>
                     <span className="sr-only">{t('reasons.form.actions')}</span>
                   </TableHead>
@@ -731,9 +737,15 @@ function PairsSkeleton({ rows }: { rows: number }) {
           <Table density="comfortable">
             <TableHeader surface="muted">
               <TableRow>
-                <TableHead>{t('reasons.form.program')}</TableHead>
-                <TableHead>{t('reasons.form.facility-type')}</TableHead>
-                <TableHead>{t('reasons.form.show')}</TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('reasons.form.program')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('reasons.form.facility-type')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('reasons.form.show')}</DataTableHeaderLabel>
+                </TableHead>
                 <TableHead>
                   <span className="sr-only">{t('reasons.form.actions')}</span>
                 </TableHead>

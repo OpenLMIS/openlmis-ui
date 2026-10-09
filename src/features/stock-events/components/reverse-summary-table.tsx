@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   Table,
   TableBody,
@@ -40,18 +41,34 @@ export function ReverseSummaryTable({
         {unavailable && <TableCaption>{t('stock-event-reverse.summary-unavailable')}</TableCaption>}
         <TableHeader>
           <TableRow>
-            <TableHead>{t('stock-event.product')}</TableHead>
-            <TableHead>{t('stock-event.lot-code')}</TableHead>
-            <TableHead>{t('stock-event.reason')}</TableHead>
-            <TableHead>{t('stock-event.quantity')}</TableHead>
             <TableHead>
-              {t(
-                confirmation
-                  ? 'stock-event-reverse.current-stock-on-hand'
-                  : 'stock-event.stock-on-hand',
-              )}
+              <DataTableHeaderLabel>{t('stock-event.product')}</DataTableHeaderLabel>
             </TableHead>
-            {confirmation && <TableHead>{t('stock-event-reverse.new-stock-on-hand')}</TableHead>}
+            <TableHead>
+              <DataTableHeaderLabel>{t('stock-event.lot-code')}</DataTableHeaderLabel>
+            </TableHead>
+            <TableHead>
+              <DataTableHeaderLabel>{t('stock-event.reason')}</DataTableHeaderLabel>
+            </TableHead>
+            <TableHead>
+              <DataTableHeaderLabel>{t('stock-event.quantity')}</DataTableHeaderLabel>
+            </TableHead>
+            <TableHead>
+              <DataTableHeaderLabel>
+                {t(
+                  confirmation
+                    ? 'stock-event-reverse.current-stock-on-hand'
+                    : 'stock-event.stock-on-hand',
+                )}
+              </DataTableHeaderLabel>
+            </TableHead>
+            {confirmation && (
+              <TableHead>
+                <DataTableHeaderLabel>
+                  {t('stock-event-reverse.new-stock-on-hand')}
+                </DataTableHeaderLabel>
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -10,7 +10,11 @@ import {
   stockEventAllLinesOptions,
 } from '@/features/stock-events/api/queries';
 import { ReverseEditor } from '@/features/stock-events/components/reverse-editor';
-import type { StockEventLine, StockEventLineReason } from '@/features/stock-events/lib/types';
+import type {
+  EventStockOnHand,
+  StockEventLine,
+  StockEventLineReason,
+} from '@/features/stock-events/lib/types';
 
 vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
@@ -42,7 +46,7 @@ const reason: StockEventLineReason = {
   tags: ['cancelMovement'],
   isFreeTextAllowed: true,
 };
-function editor(overrides: Partial<StockEventLine> = {}) {
+function editor(overrides: Partial<StockEventLine> = {}, seedCurrent = true) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -67,11 +71,12 @@ function editor(overrides: Partial<StockEventLine> = {}) {
     { ...reason, id: 'debit', reasonType: 'DEBIT', name: 'Cancelled receipt' },
     { ...reason, id: 'debit-other', reasonType: 'DEBIT', name: 'Other receipt reason' },
   ]);
-  client.setQueryData(
-    eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
-      .queryKey,
-    {},
-  );
+  if (seedCurrent)
+    client.setQueryData(
+      eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
+        .queryKey,
+      {},
+    );
   render(
     <QueryClientProvider client={client}>
       <ReverseEditor
@@ -305,4 +310,56 @@ it('drops comments when the new reason disallows them', async () => {
   expect(screen.queryByRole('textbox', { name: 'stock-events.field-of' })).not.toBeInTheDocument();
   await pick();
   expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('');
+});
+
+it('hides historical stock until the current stock request settles', async () => {
+  let resolveStock!: (stock: EventStockOnHand) => void;
+  vi.mocked(fetchEventStockOnHand).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveStock = resolve;
+    }),
+  );
+  editor({}, false);
+  await waitFor(() => expect(fetchEventStockOnHand).toHaveBeenCalled());
+  const row = screen.getByText('Vaccine').closest('tr');
+  if (!row) throw new Error('Missing product row');
+  const current = within(row).getAllByRole('cell')[9];
+  expect(current.textContent).toBe('');
+  expect(current.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+  expect(within(row).queryByText('30')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
+  await act(async () => resolveStock({ 'o/': 0 }));
+  await waitFor(() => expect(current).toHaveTextContent('0'));
+  expect(current.querySelector('[data-slot="skeleton"]')).not.toBeInTheDocument();
+  await tick();
+  expect(document.getElementById('balance-line')).toHaveTextContent('20');
+});
+
+it('hides selected balances while refreshing current stock', async () => {
+  const client = editor();
+  await tick();
+  let resolveStock!: (stock: EventStockOnHand) => void;
+  vi.mocked(fetchEventStockOnHand).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveStock = resolve;
+    }),
+  );
+  act(() => {
+    void client.invalidateQueries({
+      queryKey: eventStockOnHandOptions({
+        facilityId: 'facility',
+        programId: 'program',
+        orderableIds: ['o'],
+      }).queryKey,
+    });
+  });
+  const balance = document.getElementById('balance-line');
+  if (!balance) throw new Error('Missing balance cell');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled(),
+  );
+  expect(balance.textContent).toBe('');
+  expect(balance.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+  await act(async () => resolveStock({ 'o/': 0 }));
+  await waitFor(() => expect(balance).toHaveTextContent('20'));
 });

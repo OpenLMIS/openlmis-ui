@@ -168,6 +168,9 @@ describe('transaction history page', () => {
     const { router } = renderRoute('/stock-management/transaction-history');
 
     await user.click(await screen.findByRole('button', { name: /transaction-history.filter/ }));
+    expect(
+      screen.queryByText('transaction-history.search-document-number'),
+    ).not.toBeInTheDocument();
     await user.type(
       screen.getByRole('textbox', { name: 'transaction-history.search-document-number' }),
       'HC01{Enter}',

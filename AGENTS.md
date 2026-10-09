@@ -322,7 +322,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 
 - Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
   one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
-  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables.
+  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
+  and `width="wide"` for uncapped tables.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -386,7 +387,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   page plus up to three on each side, only current on narrow tables. Links accept sizes 1-100.
   `isPageInvalid` marks pages holding invalid rows, named by the `invalidPage` label.
 - Keep tables at every width, never stacked cards. Hide lower-priority columns and allow
-  sideways scrolling on phones. Keep headers on one line.
+  sideways scrolling on phones. Keep headers on one line; every table header uses
+  `DataTableHeaderLabel`'s style, including loading skeletons.
 - Missing values use `orEmpty`/`EMPTY_VALUE` (`src/lib/empty-value.ts`). Inapplicable cells,
   such as a product row's lot, stay blank.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
@@ -431,11 +433,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `Table density/layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `Skeleton fill`. These become plain `className`s in the
   registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
-- `DataTableHeaderLabel variant="compact"` drops the uppercase and letter spacing of `default`.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
-  default, `default` for compact tables needing room; `layout="fixed"` by default, `auto`
+  default, `default` for compact tables needing room, `compact` for tighter cell padding;
+  `layout="fixed"` by default, `auto`
   for content-sized columns such as bin cards.
 - URL/table state stays in `src/lib/table-search.ts` as app glue.
 

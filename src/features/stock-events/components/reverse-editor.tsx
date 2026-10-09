@@ -44,6 +44,7 @@ import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
 import { cancelStockEvent, fetchAllStockEventLines } from '@/features/stock-events/api/api';
@@ -349,7 +350,7 @@ export function ReverseEditor({
             meta: {
               className: id === 'product' ? 'w-24' : undefined,
             },
-            header: () => <DataTableHeaderLabel variant="compact">{t(key)}</DataTableHeaderLabel>,
+            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
             cell: ({ row }) => {
               const props = { row, id, keyLabel: key };
               switch (id) {
@@ -401,7 +402,7 @@ export function ReverseEditor({
   };
   return (
     <>
-      <Workspace>
+      <Workspace width="wide">
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measure}>
@@ -509,7 +510,7 @@ export function ReverseEditor({
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width="wide">
         {cancel}
         <Button
           disabled={!reasonsQuery.data || !lines.length || pending || !!summary || stock.isFetching}
@@ -674,7 +675,7 @@ function ReverseReasonCell(props: CellProps) {
   } = useReverseCell(props);
 
   return rowDraft ? (
-    <div className="w-64">
+    <div className="min-w-0">
       <form.AppField
         name={`lines.${rowId}.reasonId`}
         validators={{ onMount: () => mark?.reason }}
@@ -724,7 +725,7 @@ function ReverseCommentsCell(props: CellProps) {
   const { rowId, rowDraft, mark, reason, label, pending, form } = useReverseCell(props);
 
   return rowDraft && reason?.isFreeTextAllowed ? (
-    <div className="w-40">
+    <div className="min-w-0">
       <form.AppField
         name={`lines.${rowId}.comments`}
         validators={{
@@ -748,7 +749,7 @@ function ReverseCommentsCell(props: CellProps) {
 }
 
 function ReverseBalanceCell(props: CellProps) {
-  const { t, rowId, rowDraft, mark, label, quantity, balances } = useReverseCell(props);
+  const { t, rowId, rowDraft, mark, label, quantity, balances, fetching } = useReverseCell(props);
 
   return rowDraft ? (
     <fieldset
@@ -759,7 +760,13 @@ function ReverseBalanceCell(props: CellProps) {
       aria-label={label}
       className="flex flex-col gap-1"
     >
-      {balances[rowId] !== undefined && quantity(balances[rowId])}
+      {fetching ? (
+        <div className="h-4 w-12">
+          <Skeleton fill />
+        </div>
+      ) : (
+        balances[rowId] !== undefined && quantity(balances[rowId])
+      )}
       {mark?.stock && (
         <p id={`stock-error-${rowId}`} className="w-48 whitespace-normal text-sm text-destructive">
           {t(mark.stock)}
@@ -771,13 +778,13 @@ function ReverseBalanceCell(props: CellProps) {
 
 function ReverseReadOnlyCell(props: CellProps) {
   const { t, i18n } = useTranslation();
-  const { line, quantity, current } = useReverseCell(props);
+  const { line, quantity, current, fetching } = useReverseCell(props);
   switch (props.id) {
     case 'code':
       return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className="block w-24 whitespace-normal break-words">
+        <span className="block max-w-24 whitespace-normal break-words">
           <bdi>{line.orderable.fullProductName}</bdi>
         </span>
       );
@@ -795,26 +802,32 @@ function ReverseReadOnlyCell(props: CellProps) {
       );
     case 'source':
       return (
-        <span className="block max-w-24 whitespace-normal">
+        <span className="block min-w-32 max-w-36 whitespace-normal">
           {orEmpty(namedWithFreeText(line.source, line.sourceFreeText))}
         </span>
       );
     case 'destination':
       return (
-        <span className="block max-w-24 whitespace-normal">
+        <span className="block min-w-32 max-w-36 whitespace-normal">
           {orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}
         </span>
       );
     case 'reason':
       return (
-        <span className="block max-w-24 whitespace-normal">
+        <span className="block min-w-32 max-w-36 whitespace-normal">
           {orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}
         </span>
       );
     case 'quantity':
       return quantity(line.quantity);
     case 'current':
-      return quantity(currentStockOnHand(line, current));
+      return fetching ? (
+        <div className="h-4 w-12">
+          <Skeleton fill />
+        </div>
+      ) : (
+        quantity(currentStockOnHand(line, current))
+      );
     case 'reversed':
       return line.cancellationEventId ? (
         line.cancellationEventDocumentNumber ? (

@@ -2,6 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { CircleCheckIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -97,10 +98,18 @@ function ApprovalsGrid({ rows }: { rows: readonly ApprovalRow[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>{t('home.approvals.program')}</TableHead>
-          <TableHead>{t('home.approvals.facility')}</TableHead>
-          <TableHead>{t('home.approvals.period')}</TableHead>
-          <TableHead>{t('home.approvals.waiting-since')}</TableHead>
+          <TableHead>
+            <DataTableHeaderLabel>{t('home.approvals.program')}</DataTableHeaderLabel>
+          </TableHead>
+          <TableHead>
+            <DataTableHeaderLabel>{t('home.approvals.facility')}</DataTableHeaderLabel>
+          </TableHead>
+          <TableHead>
+            <DataTableHeaderLabel>{t('home.approvals.period')}</DataTableHeaderLabel>
+          </TableHead>
+          <TableHead>
+            <DataTableHeaderLabel>{t('home.approvals.waiting-since')}</DataTableHeaderLabel>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

@@ -36,7 +36,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
 
 export type DataTableColumnMeta = {
   /** Width classes, e.g. `w-1/5` or `w-16 xl:w-72`. Columns without any share what is left. */
@@ -125,7 +124,12 @@ function DataTableHeader<TData extends RowData>({ table }: { table: DataTableIns
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
               <TableHead aria-sort={ariaSort(header.column)} key={header.id}>
-                {header.isPlaceholder ? null : <FlexRender header={header} />}
+                {header.isPlaceholder ? null : typeof header.column.columnDef.header ===
+                  'string' ? (
+                  <DataTableHeaderLabel>{header.column.columnDef.header}</DataTableHeaderLabel>
+                ) : (
+                  <FlexRender header={header} />
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -186,20 +190,9 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   );
 }
 
-export function DataTableHeaderLabel({
-  children,
-  variant = 'default',
-}: {
-  children: ReactNode;
-  variant?: 'default' | 'compact';
-}) {
+export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
   return (
-    <span
-      className={cn(
-        'font-medium text-muted-foreground text-xs',
-        variant === 'default' && 'uppercase tracking-label',
-      )}
-    >
+    <span className="font-medium text-muted-foreground text-2xs uppercase tracking-table-label">
       {children}
     </span>
   );

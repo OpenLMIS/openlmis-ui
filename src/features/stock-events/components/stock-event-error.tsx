@@ -1,6 +1,7 @@
 import { type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ChevronLeftIcon, SearchXIcon } from 'lucide-react';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,11 @@ import { Workspace, WorkspaceContent } from '@/components/workspace';
 import { transactionHistorySearchSchema } from '@/features/stock-events/lib/search';
 import { isNotFound } from '@/lib/http';
 
-export function StockEventError({ search, ...props }: ErrorComponentProps & { search: unknown }) {
+export function StockEventError({
+  search,
+  width,
+  ...props
+}: ErrorComponentProps & { search: unknown; width?: ComponentProps<typeof Workspace>['width'] }) {
   const { t } = useTranslation();
   const back = (
     <Button
@@ -38,7 +43,7 @@ export function StockEventError({ search, ...props }: ErrorComponentProps & { se
     !isNotFound(props.error) &&
     !(isAxiosError(props.error) && props.error.response?.status === 400)
   ) {
-    return (
+    const fallback = (
       <ErrorFallback
         {...props}
         back={back}
@@ -46,9 +51,16 @@ export function StockEventError({ search, ...props }: ErrorComponentProps & { se
         title={t('stock-event.error-title')}
       />
     );
+    return width ? (
+      <Workspace width={width}>
+        <WorkspaceContent>{fallback}</WorkspaceContent>
+      </Workspace>
+    ) : (
+      fallback
+    );
   }
   return (
-    <Workspace>
+    <Workspace width={width}>
       <WorkspaceContent>
         <Empty>
           <EmptyHeader>

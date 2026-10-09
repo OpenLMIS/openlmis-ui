@@ -149,7 +149,7 @@ function ReversePage() {
 }
 function ReverseLoading() {
   return (
-    <Workspace>
+    <Workspace width="wide">
       <ReverseHeading />
       <WorkspaceContent>
         <div className="flex flex-col gap-4" aria-busy>
@@ -174,5 +174,5 @@ function ReverseError(props: ErrorComponentProps) {
     useLoginData((state) => state.referenceDataUserId),
     stockEventOptions(Route.useParams().eventId).queryKey,
   );
-  return <StockEventError {...props} search={Route.useSearch()} />;
+  return <StockEventError {...props} search={Route.useSearch()} width="wide" />;
 }
