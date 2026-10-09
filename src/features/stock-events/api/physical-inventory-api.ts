@@ -4,8 +4,14 @@ import {
   fetchOrderableFulfills,
   fetchOrderablesByIds,
 } from '@/features/reference-data/api/api';
+import type { LotSummary } from '@/features/reference-data/lib/types';
 import { buildEligibleProducts } from '@/features/stock-events/lib/eligible-products';
+import type {
+  inventorySavePayload,
+  inventorySubmitPayload,
+} from '@/features/stock-events/lib/physical-inventory-form';
 import { inventoryLineKey } from '@/features/stock-events/lib/physical-inventory-lines';
+import type { InventoryLotBody } from '@/features/stock-events/lib/physical-inventory-lots';
 import type {
   InventoryDraftItem,
   InventoryScope,
@@ -14,6 +20,7 @@ import type {
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { client } from '@/integrations/axios';
+import { fetchReport } from '@/lib/fetch-report';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
@@ -127,4 +134,21 @@ export async function fetchEligibleInventoryProducts(
 
 export async function deactivateInventoryStockCard(stockCardId: string) {
   await client.post(`/stockCards/${stockCardId}/deactivate`);
+}
+
+export async function createPhysicalInventoryLot(body: InventoryLotBody) {
+  const { data } = await client.post<LotSummary>('/lots', body);
+  return data;
+}
+export async function savePhysicalInventory(body: ReturnType<typeof inventorySavePayload>) {
+  await client.put(`/physicalInventories/${body.id}`, body);
+}
+export async function deletePhysicalInventory(id: string) {
+  await client.delete(`/physicalInventories/${id}`);
+}
+export async function submitPhysicalInventory(body: ReturnType<typeof inventorySubmitPayload>) {
+  await client.post('/stockEvents', body);
+}
+export function fetchPhysicalInventoryReport(id: string, showInDoses: boolean, lang: string) {
+  return fetchReport(`/physicalInventories/${id}`, { format: 'pdf', showInDoses, lang });
 }

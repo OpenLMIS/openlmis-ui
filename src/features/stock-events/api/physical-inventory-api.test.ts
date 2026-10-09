@@ -1,14 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchLotsByIds, fetchOrderablesByIds } from '@/features/reference-data/api/api';
 import {
+  createPhysicalInventoryLot,
+  deletePhysicalInventory,
   fetchInventoryStockLines,
   fetchInventorySummaries,
   fetchPhysicalInventoryDraft,
+  fetchPhysicalInventoryReport,
+  savePhysicalInventory,
   startPhysicalInventory,
+  submitPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
 import { client } from '@/integrations/axios';
 
-vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/integrations/axios', () => ({
+  client: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchLotsByIds: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
@@ -82,5 +89,32 @@ describe('physical inventory reads and start', () => {
         stockOnHand: null,
       }),
     ]);
+  });
+});
+
+it('uses legacy save, delete, lot and stock event endpoints', async () => {
+  vi.mocked(client.put).mockResolvedValue({ data: {} });
+  vi.mocked(client.delete).mockResolvedValue({});
+  vi.mocked(client.post).mockResolvedValue({ data: { id: 'created' } });
+  const body = { id: 'draft', ...scope, lineItems: [] };
+  await savePhysicalInventory(body);
+  expect(client.put).toHaveBeenCalledWith('/physicalInventories/draft', body);
+  await deletePhysicalInventory('draft');
+  expect(client.delete).toHaveBeenCalledWith('/physicalInventories/draft');
+  const event = { resourceId: 'draft', ...scope, signature: '', lineItems: [] };
+  await submitPhysicalInventory(event);
+  expect(client.post).toHaveBeenCalledWith('/stockEvents', event);
+  const lot = { lotCode: 'NEW', expirationDate: null, tradeItemId: 't', active: true as const };
+  expect(await createPhysicalInventoryLot(lot)).toEqual({ id: 'created' });
+  expect(client.post).toHaveBeenCalledWith('/lots', lot);
+});
+
+it('prints through a blob request without a token in the URL', async () => {
+  const report = new Blob(['pdf'], { type: 'application/pdf' });
+  vi.mocked(client.get).mockResolvedValue({ data: report });
+  expect(await fetchPhysicalInventoryReport('draft', true, 'ar')).toBe(report);
+  expect(client.get).toHaveBeenCalledWith('/physicalInventories/draft', {
+    params: { format: 'pdf', showInDoses: true, lang: 'ar' },
+    responseType: 'blob',
   });
 });
