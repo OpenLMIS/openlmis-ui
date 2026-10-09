@@ -59,9 +59,9 @@ export async function loadStockEventEditor(
   return { userId, homeFacility, program, canViewStock };
 }
 
-export function StockEventPending() {
+export function StockEventPending({ width = 'default' }: { width?: 'default' | 'wide' }) {
   return (
-    <Workspace>
+    <Workspace width={width}>
       <WorkspaceHeader>
         <div className="h-6 w-96 max-w-full">
           <Skeleton fill />

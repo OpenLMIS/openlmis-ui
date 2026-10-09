@@ -419,7 +419,7 @@ export function EventEditor({
   };
   return (
     <>
-      <Workspace>
+      <Workspace width={kind === 'issue' ? 'wide' : 'default'}>
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
@@ -534,7 +534,7 @@ export function EventEditor({
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width={kind === 'issue' ? 'wide' : 'default'}>
         <Button
           disabled={!filtered.length || pending || submitted}
           onClick={() => setClearOpen(true)}

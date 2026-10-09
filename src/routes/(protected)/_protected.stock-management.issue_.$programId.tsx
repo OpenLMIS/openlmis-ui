@@ -30,7 +30,7 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/i
   staticData: { crumbKey: 'stock-issue.editor-crumb' },
   loader: ({ context: { queryClient }, params: { programId } }) =>
     loadStockEventEditor(queryClient, programId, { destinations: true }),
-  pendingComponent: StockEventPending,
+  pendingComponent: () => <StockEventPending width="wide" />,
   component: IssuePage,
 });
 

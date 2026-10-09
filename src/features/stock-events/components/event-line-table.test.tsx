@@ -245,12 +245,12 @@ it.each(['DOSES', 'PACKS'] as const)('reserves readable Issue controls in %s', a
   renderPage(<Fixture />);
   await waitFor(() => expect(document.getElementById('lines[0].destination')).toBeInTheDocument());
   for (const [id, width] of [
-    ['destination', 'w-64'],
-    ['destinationComments', 'w-44'],
-    ['reasonId', 'w-44'],
-    ['reasonFreeText', 'w-40'],
-    ['occurredDate', 'w-40'],
-    ['quantity', unit === 'PACKS' ? 'w-28' : 'w-20'],
+    ['destination', 'w-54'],
+    ['destinationComments', 'w-37'],
+    ['reasonId', 'w-38'],
+    ['reasonFreeText', 'w-37'],
+    ['occurredDate', 'w-31'],
+    ['quantity', unit === 'PACKS' ? 'w-27' : 'w-20'],
   ]) {
     expect(document.getElementById(`lines[0].${id}`)?.closest(`.${width}`)).not.toBeNull();
   }
