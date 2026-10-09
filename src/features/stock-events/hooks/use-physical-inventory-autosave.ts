@@ -26,9 +26,9 @@ export function usePhysicalInventoryAutosave(copy: InventoryLocalCopy | null) {
     );
   });
   useEffect(() => {
-    if (copy && copy !== queued) {
+    if (copy !== queued) {
       setQueued(copy);
-      writer.enqueue(copy);
+      if (copy) writer.enqueue(copy);
     }
   }, [copy, queued, writer]);
   return { status: copy !== queued ? ('saving' as const) : status, flush: writer.flush };

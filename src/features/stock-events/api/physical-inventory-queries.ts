@@ -10,6 +10,7 @@ import type {
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { queryKeys } from '@/lib/key-factory';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const physicalInventoryDraftOptions = (scope: InventoryScope) =>
   queryOptions({
@@ -17,31 +18,38 @@ export const physicalInventoryDraftOptions = (scope: InventoryScope) =>
     queryFn: () => fetchPhysicalInventoryDraft(scope),
   });
 
-export const inventorySummariesOptions = (scope: InventoryScope) =>
+export const inventorySummariesOptions = ({ programId, facilityId }: InventoryScope) =>
   queryOptions({
-    queryKey: queryKeys.physicalInventories.list({ ...scope, summaries: true }),
-    queryFn: () => fetchInventorySummaries(scope),
+    queryKey: queryKeys.physicalInventories.list({ programId, facilityId, summaries: true }),
+    queryFn: () => fetchInventorySummaries({ programId, facilityId }),
     staleTime: Infinity,
   });
 
 export const inventoryStockLinesOptions = (draft: PhysicalInventoryDraft) =>
   queryOptions({
     queryKey: [...queryKeys.physicalInventories.detail(draft.id), 'stock-lines', draft.lineItems],
-    queryFn: async ({ client }) =>
-      fetchInventoryStockLines(
+    queryFn: async ({ client }) => {
+      const session = getSessionScope();
+      const summaries = await client.fetchQuery(inventorySummariesOptions(draft));
+      assertSessionScope(session);
+      return fetchInventoryStockLines(
         { programId: draft.programId, facilityId: draft.facilityId },
         draft.lineItems,
-        await client.ensureQueryData(inventorySummariesOptions(draft)),
-      ),
+        summaries,
+      );
+    },
   });
 
-export const eligibleInventoryProductsOptions = (scope: InventoryScope) =>
+export const eligibleInventoryProductsOptions = ({ programId, facilityId }: InventoryScope) =>
   queryOptions({
-    queryKey: queryKeys.physicalInventories.list({ ...scope, eligible: true }),
-    queryFn: async ({ client }) =>
-      fetchEligibleInventoryProducts(
-        scope,
-        await client.ensureQueryData(inventorySummariesOptions(scope)),
-      ),
+    queryKey: queryKeys.physicalInventories.list({ programId, facilityId, eligible: true }),
+    queryFn: async ({ client }) => {
+      const session = getSessionScope();
+      const summaries = await client.fetchQuery(
+        inventorySummariesOptions({ programId, facilityId }),
+      );
+      assertSessionScope(session);
+      return fetchEligibleInventoryProducts({ programId, facilityId }, summaries);
+    },
     staleTime: 5 * 60_000,
   });
