@@ -1,4 +1,7 @@
 import { quantityValue } from '@/components/form/quantity-value';
+import { productName } from '@/features/reference-data/lib/product-name';
+import { pageOf } from '@/features/stock-events/lib/line-filter';
+import type { InventoryLocalCopy } from '@/features/stock-events/lib/physical-inventory-local';
 import type {
   InventoryCategoryBand,
   InventoryDraftItem,
@@ -24,7 +27,7 @@ export function buildInventoryLines(
   stock: readonly InventoryStockLine[],
   server: readonly InventoryDraftItem[],
   local: readonly InventoryLine[] = [],
-  eligible?: readonly InventoryStockLine[],
+  removedKeys: readonly string[] = [],
 ): InventoryLine[] {
   const saved = new Map(
     server.map((line) => [inventoryLineKey(line.orderableId, line.lotId), line]),
@@ -59,10 +62,8 @@ export function buildInventoryLines(
       }),
     });
   }
-  const allowed = eligible && new Set(eligible.map((line) => line.orderable.id));
-  return [...lines.values()].filter(
-    (line) => isInventoryMember(line) && (!allowed || allowed.has(line.orderable.id)),
-  );
+  for (const key of removedKeys) lines.delete(key);
+  return [...lines.values()].filter(isInventoryMember);
 }
 
 export function filterInventoryLines(
@@ -75,16 +76,17 @@ export function filterInventoryLines(
   const hasLot = lines.some((line) => line.lot || line.newLot);
   return lines.filter((line) => {
     if (!includeInactive && !line.active && line.stockOnHand === 0) return false;
-    const { orderable, lot } = line;
-    const name = orderable.fullProductName || orderable.productCode;
-    const unit = orderable.dispensable?.displayUnit;
+    if (!query) return true;
+    const { orderable } = line;
     const fields = [
       orderable.productCode,
-      unit ? `${name} - ${unit}` : name,
+      orderable.dispensable?.displayUnit
+        ? `${productName(orderable)} - ${orderable.dispensable.displayUnit}`
+        : productName(orderable),
       line.stockOnHand === null ? '' : String(line.stockOnHand),
       line.quantity.doses,
-      lot?.lotCode ?? line.newLot?.lotCode ?? (hasLot ? noLotLabel : ''),
-      lot?.expirationDate ? formatDate(lot.expirationDate) : '',
+      inventoryLotCode(line) ?? (hasLot ? noLotLabel : ''),
+      inventoryExpiry(line) ? formatDate(inventoryExpiry(line) ?? '') : '',
     ];
     return !query || fields.some((field) => field?.toLowerCase().includes(query));
   });
@@ -101,8 +103,8 @@ export function inventoryGroups(lines: readonly InventoryLine[]): InventoryProdu
   }
   for (const group of groups.values())
     group.lines.sort((a, b) => {
-      const first = a.lot?.lotCode ?? a.newLot?.lotCode;
-      const second = b.lot?.lotCode ?? b.newLot?.lotCode;
+      const first = inventoryLotCode(a);
+      const second = inventoryLotCode(b);
       if (!first) return second ? -1 : 0;
       if (!second) return 1;
       return first.localeCompare(second);
@@ -114,7 +116,7 @@ export function inventoryPage(
   lines: readonly InventoryLine[],
   programId: string,
   page = 1,
-  size = 20,
+  size = INVENTORY_PAGE_SIZE,
 ) {
   const all = inventoryGroups(lines);
   const currentPage = Math.max(1, Math.min(page, Math.ceil(all.length / size)));
@@ -139,4 +141,89 @@ export function inventoryProgress(lines: readonly InventoryLine[]) {
     ).length,
     total: groups.length,
   };
+}
+
+export const INVENTORY_PAGE_SIZE = 20;
+export const inventoryLotCode = (line: InventoryLine) => line.lot?.lotCode ?? line.newLot?.lotCode;
+export const inventoryExpiry = (line: InventoryLine) =>
+  line.lot?.expirationDate ?? line.newLot?.expirationDate;
+export function eligibleInventoryLines(
+  lines: readonly InventoryLine[],
+  eligible?: readonly InventoryStockLine[],
+) {
+  if (!eligible) return [...lines];
+  const allowed = new Set(eligible.map((line) => line.orderable.id));
+  return lines.filter((line) => allowed.has(line.orderable.id));
+}
+export function inventoryPageOf(
+  lines: readonly InventoryLine[],
+  line: InventoryLine,
+  size = INVENTORY_PAGE_SIZE,
+) {
+  return pageOf(
+    inventoryGroups(lines).findIndex((group) => group.orderable.id === line.orderable.id),
+    size,
+  );
+}
+export function inventoryLocalCopy(
+  draft: { id: string; programId: string; facilityId: string },
+  lines: readonly InventoryLine[],
+  baseline?: readonly InventoryLine[],
+): InventoryLocalCopy {
+  const originals = baseline && new Map(baseline.map((line) => [line.key, line]));
+  const keys = new Set(lines.map((line) => line.key));
+  return {
+    draftId: draft.id,
+    programId: draft.programId,
+    facilityId: draft.facilityId,
+    lines: originals
+      ? lines.filter(
+          (line) =>
+            line !== originals.get(line.key) && inventoryLineChanged(line, originals.get(line.key)),
+        )
+      : [...lines],
+    removedKeys: baseline?.filter((line) => !keys.has(line.key)).map((line) => line.key) ?? [],
+    modified: true,
+    savedAt: Date.now(),
+  };
+}
+
+export function inventoryFirstInvalid(
+  lines: readonly InventoryLine[],
+  invalid: readonly InventoryLine[],
+  programId: string,
+  includeInactive: boolean,
+  size = INVENTORY_PAGE_SIZE,
+) {
+  const keys = new Set(invalid.map((line) => line.key));
+  const visible = filterInventoryLines(lines, { includeInactive }, String);
+  const total = inventoryGroups(visible).length;
+  for (let page = 1; page <= Math.ceil(total / size); page++) {
+    const first = inventoryPage(visible, programId, page, size)
+      .bands.flatMap((band) => band.groups.flatMap((group) => group.lines))
+      .find((line) => keys.has(line.key));
+    if (first) return first;
+  }
+}
+
+function inventoryLineChanged(line: InventoryLine, original?: InventoryLine) {
+  if (!original) return true;
+  return (
+    line.quantity.doses !== original.quantity.doses ||
+    line.quantity.packs !== original.quantity.packs ||
+    line.quantity.remainder !== original.quantity.remainder ||
+    line.active !== original.active ||
+    line.vvmStatus !== original.vvmStatus ||
+    line.justAdded !== original.justAdded ||
+    line.isAdded !== original.isAdded ||
+    line.lot?.id !== original.lot?.id ||
+    line.newLot?.lotCode !== original.newLot?.lotCode ||
+    line.newLot?.expirationDate !== original.newLot?.expirationDate ||
+    line.stockAdjustments.length !== original.stockAdjustments.length ||
+    line.stockAdjustments.some(
+      (item, index) =>
+        item.quantity !== original.stockAdjustments[index].quantity ||
+        item.reason.id !== original.stockAdjustments[index].reason.id,
+    )
+  );
 }

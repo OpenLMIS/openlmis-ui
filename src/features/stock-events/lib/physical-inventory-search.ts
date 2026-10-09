@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { INVENTORY_PAGE_SIZE } from '@/features/stock-events/lib/physical-inventory-lines';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
 
 export const inventorySearchSchema = tableSearchSchema(['id'])
@@ -10,7 +11,7 @@ export const inventorySearchSchema = tableSearchSchema(['id'])
   .transform((search) => ({
     ...search,
     page: search.page === 1 ? undefined : search.page,
-    size: search.size === 20 ? undefined : search.size,
+    size: search.size === INVENTORY_PAGE_SIZE ? undefined : search.size,
     includeInactive: search.includeInactive || undefined,
   }));
 export type InventorySearch = z.infer<typeof inventorySearchSchema>;

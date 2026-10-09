@@ -3,8 +3,11 @@ import { quantityValue } from '@/components/form/quantity-value';
 import {
   buildInventoryLines,
   filterInventoryLines,
+  inventoryFirstInvalid,
   inventoryLineKey,
+  inventoryLocalCopy,
   inventoryPage,
+  inventoryPageOf,
   inventoryProgress,
 } from '@/features/stock-events/lib/physical-inventory-lines';
 
@@ -55,7 +58,7 @@ describe('inventory line identities and merge', () => {
         ],
       ),
     ).toHaveLength(1);
-    expect(buildInventoryLines([stock], server, [], [])).toEqual([]);
+    expect(buildInventoryLines([stock], server)).toHaveLength(1);
   });
 });
 
@@ -121,4 +124,44 @@ describe('inventory display', () => {
       inventoryProgress([counted, { ...lines()[0], key: 'zero', quantity: quantityValue('0') }]),
     ).toEqual({ count: 1, total: 1 });
   });
+});
+
+it('keeps a removed server row removed when the device copy is reopened', () => {
+  const original = lines();
+  const draft = { id: 'd', programId: 'program', facilityId: 'f', lineItems: server };
+  const copy = inventoryLocalCopy(draft, [], original);
+  expect(copy.removedKeys).toEqual(['p|none']);
+  expect(buildInventoryLines([stock], server, copy.lines, copy.removedKeys)).toEqual([]);
+});
+it('does not format expiry dates while there is no keyword', () => {
+  const format = () => {
+    throw new Error('Unexpected date formatting');
+  };
+  const dated = { ...lines()[0], lot: { id: 'l', lotCode: 'L', expirationDate: '2026-01-01' } };
+  expect(filterInventoryLines([dated], {}, format)).toEqual([dated]);
+});
+it('finds a line page in category-band order rather than input order', () => {
+  const items = ['B', 'A'].map((id) => ({
+    ...lines()[0],
+    key: id,
+    orderable: { ...product, id, productCode: id },
+  }));
+  expect(inventoryPageOf(items, items[1], 1)).toBe(1);
+});
+
+it('focuses the first invalid line in each page category-band order after clearing Keywords', () => {
+  const items = ['A', 'B', 'C'].map((id, index) => ({
+    ...lines()[0],
+    key: id,
+    orderable: {
+      ...product,
+      id,
+      productCode: id,
+      programs: [
+        { programId: 'program', orderableCategoryDisplayName: index === 1 ? 'Second' : 'First' },
+      ],
+    },
+  }));
+  expect(inventoryFirstInvalid(items, [items[1], items[2]], 'program', false, 3)?.key).toBe('C');
+  expect(inventoryFirstInvalid(items, [items[1], items[2]], 'program', false, 2)?.key).toBe('B');
 });

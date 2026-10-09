@@ -1,5 +1,10 @@
+import { toDateValue } from '@/components/form/date-value';
 import { quantityValue } from '@/components/form/quantity-value';
-import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
+import {
+  buildInventoryLines,
+  inventoryExpiry,
+  inventoryLotCode,
+} from '@/features/stock-events/lib/physical-inventory-lines';
 import { addedInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
 import type {
   InventoryLine,
@@ -13,7 +18,7 @@ import { toOptionalWholeNumber } from '@/lib/whole-number';
 export type InventoryScanPrompt =
   | { type: 'new-lot'; lotCode: string; expiryDate: string | null }
   | { type: 'expiry'; recorded: string; scanned: string };
-export type InventoryScanResult =
+type InventoryScanResult =
   | { type: 'line'; line: InventoryLine }
   | { type: 'refuse'; message: ScanMessage }
   | { type: 'cancelled' };
@@ -37,6 +42,7 @@ export async function resolveInventoryScan({
   signal?: AbortSignal;
 }): Promise<InventoryScanResult> {
   if (signal?.aborted) return { type: 'cancelled' };
+  const expiryDate = scan.expiry instanceof Date ? toDateValue(scan.expiry) : (scan.expiry ?? null);
   const matches = eligible.filter((item) => item.orderable.identifiers?.tradeItem === tradeItemId);
   const ids = new Set(matches.map((item) => item.orderable.id));
   if (!ids.size)
@@ -45,9 +51,7 @@ export async function resolveInventoryScan({
     return { type: 'refuse', message: scanMessage('productAmbiguous', { gtin: scan.gtin }) };
   const sameLot = (lotCode: string | undefined) =>
     scan.lotCode ? lotCode?.toLowerCase() === scan.lotCode.toLowerCase() : !lotCode;
-  let line = lines.find(
-    (item) => ids.has(item.orderable.id) && sameLot(item.lot?.lotCode ?? item.newLot?.lotCode),
-  );
+  let line = lines.find((item) => ids.has(item.orderable.id) && sameLot(inventoryLotCode(item)));
   if (!line) {
     const stock = matches.find((item) => sameLot(item.lot?.lotCode));
     if (stock)
@@ -65,10 +69,6 @@ export async function resolveInventoryScan({
             params: { lotCode: scan.lotCode },
           },
         };
-      const expiryDate =
-        scan.expiry instanceof Date
-          ? scan.expiry.toISOString().slice(0, 10)
-          : (scan.expiry ?? null);
       const accepted = await confirm({ type: 'new-lot', lotCode: scan.lotCode, expiryDate });
       if (signal?.aborted) return { type: 'cancelled' };
       if (!accepted) return { type: 'refuse', message: { key: 'scan.not-resolved' } };
@@ -80,9 +80,8 @@ export async function resolveInventoryScan({
       });
     }
   }
-  const recorded = line.lot?.expirationDate ?? line.newLot?.expirationDate;
-  const scanned =
-    scan.expiry instanceof Date ? scan.expiry.toISOString().slice(0, 10) : scan.expiry;
+  const recorded = inventoryExpiry(line);
+  const scanned = expiryDate;
   const batch = `${tradeItemId}|${line.lot?.id ?? (line.newLot?.lotCode ?? scan.lotCode)?.toLowerCase()}`;
   if (recorded && scanned && recorded !== scanned && !acceptedExpiries.has(batch)) {
     const accepted = await confirm({ type: 'expiry', recorded, scanned });

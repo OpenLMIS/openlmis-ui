@@ -10,15 +10,18 @@ import {
 import { getLocalDb } from '@/integrations/local-db';
 import { getSessionScope } from '@/lib/session-scope';
 
-export function usePhysicalInventoryAutosave(copy: InventoryLocalCopy | null) {
+export function usePhysicalInventoryAutosave(
+  copy: InventoryLocalCopy | (() => InventoryLocalCopy | null) | null,
+) {
   const [status, setStatus] = useState<InventorySaveStatus>('saved');
-  const [queued, setQueued] = useState(copy);
+  const [queued, setQueued] = useState(() => copy);
   const [writer] = useState(() => {
     const scope = getSessionScope();
+    const db = getLocalDb();
     return createInventoryWriter<InventoryLocalCopy>(
       async (value) => {
         if (getSessionScope() !== scope) return;
-        await writeInventoryLocal(value, scope, getLocalDb());
+        await writeInventoryLocal(value, scope, db);
       },
       (next) => {
         if (getSessionScope() === scope) setStatus(next);
@@ -27,8 +30,9 @@ export function usePhysicalInventoryAutosave(copy: InventoryLocalCopy | null) {
   });
   useEffect(() => {
     if (copy !== queued) {
-      setQueued(copy);
-      if (copy) writer.enqueue(copy);
+      setQueued(() => copy);
+      const value = typeof copy === 'function' ? copy() : copy;
+      if (value) writer.enqueue(value);
     }
   }, [copy, queued, writer]);
   return {

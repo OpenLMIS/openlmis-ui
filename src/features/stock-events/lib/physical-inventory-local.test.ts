@@ -2,7 +2,6 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   clearInventoryLocal,
-  dropObsoleteInventoryCopies,
   readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
@@ -44,14 +43,8 @@ it('surfaces storage failure', async () => {
   await expect(writeInventoryLocal(copy)).rejects.toThrow('Full');
 });
 
-it('drops obsolete copies only for this program and facility', async () => {
+it('retains device copies when their server draft no longer exists', async () => {
   await writeInventoryLocal(copy);
-  await writeInventoryLocal({ ...copy, draftId: 'current' });
-  await writeInventoryLocal({ ...copy, draftId: 'other-program', programId: 'other' });
-  await dropObsoleteInventoryCopies({ programId: 'p', facilityId: 'f' }, 'current');
-  expect(await readInventoryLocal('d')).toBeUndefined();
-  expect(await readInventoryLocal('current')).toBeDefined();
-  expect(await readInventoryLocal('other-program')).toBeDefined();
-  await dropObsoleteInventoryCopies({ programId: 'p', facilityId: 'f' });
-  expect(await readInventoryLocal('current')).toBeUndefined();
+  await readInventoryLocal('missing');
+  expect(await readInventoryLocal('d')).toEqual(copy);
 });

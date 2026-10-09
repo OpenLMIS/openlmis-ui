@@ -9,6 +9,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 export type InventoryLocalCopy = InventoryScope & {
   draftId: string;
   lines: InventoryLine[];
+  removedKeys?: string[];
   modified: boolean;
   savedAt: number;
 };
@@ -43,23 +44,5 @@ export async function clearInventoryLocal(draftId: string) {
     assertSessionScope(scope);
     await db.table('physicalInventoryDrafts').delete(draftId);
     assertSessionScope(scope);
-  });
-}
-
-export async function dropObsoleteInventoryCopies(scope: InventoryScope, draftId?: string) {
-  const session = getSessionScope();
-  const db = getLocalDb();
-  await db.transaction('rw', 'physicalInventoryDrafts', async () => {
-    assertSessionScope(session);
-    await db
-      .table<InventoryLocalCopy>('physicalInventoryDrafts')
-      .filter(
-        (copy) =>
-          copy.programId === scope.programId &&
-          copy.facilityId === scope.facilityId &&
-          copy.draftId !== draftId,
-      )
-      .delete();
-    assertSessionScope(session);
   });
 }

@@ -126,3 +126,24 @@ it('does not apply a refused confirmation or an aborted scan', async () => {
   });
   expect(options.confirm).toHaveBeenCalledTimes(1);
 });
+
+it('uses the scanned local calendar day without converting it to UTC', async () => {
+  const expiry = new Date(2027, 5, 15);
+  vi.spyOn(expiry, 'toISOString').mockImplementation(() => {
+    throw new Error('UTC conversion shifts the day');
+  });
+  const confirm = vi.fn().mockResolvedValue(true);
+  const result = await resolveInventoryScan({
+    scan: { gtin: 'g', lotCode: 'New', expiry },
+    tradeItemId: 't',
+    eligible,
+    lines: [],
+    canManageLots: true,
+    acceptedExpiries: new Set(),
+    confirm,
+  });
+  expect(result).toMatchObject({
+    type: 'line',
+    line: { newLot: { expirationDate: '2027-06-15' } },
+  });
+});

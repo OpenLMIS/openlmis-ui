@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isInventoryMember } from '@/features/stock-events/lib/physical-inventory-lines';
 import type {
+  InventoryAdjustment,
   InventoryLine,
   InventoryStockLine,
   PhysicalInventoryDraft,
@@ -23,16 +24,7 @@ export const inventoryReasonSchema = z.object({
 
 export function unaccounted(line: InventoryLine) {
   const count = toOptionalWholeNumber(line.quantity.doses) ?? 0;
-  return (
-    count -
-    (line.stockOnHand ?? 0) -
-    line.stockAdjustments.reduce(
-      (sum, adjustment) =>
-        sum +
-        (adjustment.reason.reasonType === 'DEBIT' ? -adjustment.quantity : adjustment.quantity),
-      0,
-    )
-  );
+  return count - (line.stockOnHand ?? 0) - adjustmentTotal(line.stockAdjustments);
 }
 
 export function inventoryLineError(line: InventoryLine) {
@@ -106,4 +98,11 @@ export function inventorySubmitPayload(
       })),
     })),
   };
+}
+
+export function adjustmentTotal(adjustments: readonly InventoryAdjustment[]) {
+  return adjustments.reduce(
+    (sum, item) => sum + (item.reason.reasonType === 'DEBIT' ? -item.quantity : item.quantity),
+    0,
+  );
 }
