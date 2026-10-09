@@ -105,6 +105,17 @@ it('cannot submit without selecting a row', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   expect(screen.getByText('stock-event-reverse.none-selected')).toBeInTheDocument();
 });
+it.each(['Escape', 'Close'])(
+  'returns focus to Submit after empty selection via %s',
+  async (close) => {
+    editor();
+    const submit = screen.getByRole('button', { name: 'stock-events.submit' });
+    await userEvent.click(submit);
+    if (close === 'Escape') await userEvent.keyboard('{Escape}');
+    else await closeAlert();
+    await waitFor(() => expect(submit).toHaveFocus());
+  },
+);
 it('does not auto-pick a cancellation reason when ticking', async () => {
   editor();
   await waitFor(() =>
@@ -205,6 +216,13 @@ it.each([
   );
   expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
   await closeAlert();
+  await waitFor(() =>
+    expect(
+      error instanceof Error || 'message' in error.response.data
+        ? screen.getByRole('button', { name: 'stock-events.submit' })
+        : screen.getAllByRole('checkbox')[0],
+    ).toHaveFocus(),
+  );
   await pick('Other reason');
 });
 it('marks overlong comments without visible field text and focuses after Close', async () => {

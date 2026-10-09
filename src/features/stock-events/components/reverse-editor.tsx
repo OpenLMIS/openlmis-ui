@@ -184,6 +184,7 @@ export function ReverseEditor({
   const [marks, setMarks] = useState<Record<string, ReverseRowMarks>>({});
   const [errors, setErrors] = useState<Record<string, StockEventCancelLineError>>({});
   const [focusField, setFocusField] = useState<{ id: string; page: number } | null>(null);
+  const submitButton = useRef<HTMLButtonElement>(null);
   const alertTarget = useRef<{ id: string; page: number } | null>(null);
   const leaving = useRef(false);
   const posting = useRef(false);
@@ -356,9 +357,6 @@ export function ReverseEditor({
         COLUMNS.map(([id, key]) =>
           helper.display({
             id,
-            meta: {
-              className: id === 'reverse' ? 'text-center' : 'whitespace-nowrap',
-            },
             header: () => (
               <div className={id === 'reverse' ? 'flex justify-center' : undefined}>
                 <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
@@ -519,6 +517,7 @@ export function ReverseEditor({
         <Button
           disabled={!reasonsQuery.data || !lines.length || pending || !!summary || stock.isFetching}
           form={FORM_ID}
+          ref={submitButton}
           size="lg"
           type="submit"
         >
@@ -542,7 +541,7 @@ export function ReverseEditor({
           onSearchChange({ reversePage: target.page === 1 ? undefined : target.page }, true);
         }}
       >
-        <AlertDialogContent finalFocus={false}>
+        <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
           <AlertDialogHeader>
             <AlertDialogMedia>
               <CircleAlertIcon className="text-destructive" />
@@ -678,7 +677,7 @@ function ReverseCheckboxCell(props: CellProps) {
       {error && (
         <p
           id={`reverse-error-${rowId}`}
-          className="flex min-w-0 max-w-48 items-start gap-1 whitespace-normal break-words text-start text-sm text-destructive"
+          className="flex min-w-0 w-48 items-start gap-1 whitespace-normal break-words text-start text-sm text-destructive"
           role="alert"
         >
           <span className="shrink-0">

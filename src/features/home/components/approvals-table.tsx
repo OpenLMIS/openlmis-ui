@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { CircleCheckIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -95,46 +95,48 @@ function ApprovalsGrid({ rows }: { rows: readonly ApprovalRow[] }) {
   const { t } = useTranslation();
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>
-            <DataTableHeaderLabel>{t('home.approvals.program')}</DataTableHeaderLabel>
-          </TableHead>
-          <TableHead>
-            <DataTableHeaderLabel>{t('home.approvals.facility')}</DataTableHeaderLabel>
-          </TableHead>
-          <TableHead>
-            <DataTableHeaderLabel>{t('home.approvals.period')}</DataTableHeaderLabel>
-          </TableHead>
-          <TableHead>
-            <DataTableHeaderLabel>{t('home.approvals.waiting-since')}</DataTableHeaderLabel>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map(({ requisition, waiting }) => (
-          <TableRow key={requisition.id}>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{requisition.program.name}</span>
-                <EmergencyBadge requisition={requisition} />
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-col">
-                <span>{requisition.facility.name}</span>
-                <span className="text-xs text-muted-foreground">{requisition.facility.code}</span>
-              </div>
-            </TableCell>
-            <TableCell>{requisition.processingPeriod.name}</TableCell>
-            <TableCell>
-              <span className="text-muted-foreground">{waiting}</span>
-            </TableCell>
+    <DataTableCard>
+      <Table>
+        <TableHeader surface="muted">
+          <TableRow>
+            <TableHead>
+              <DataTableHeaderLabel>{t('home.approvals.program')}</DataTableHeaderLabel>
+            </TableHead>
+            <TableHead>
+              <DataTableHeaderLabel>{t('home.approvals.facility')}</DataTableHeaderLabel>
+            </TableHead>
+            <TableHead>
+              <DataTableHeaderLabel>{t('home.approvals.period')}</DataTableHeaderLabel>
+            </TableHead>
+            <TableHead>
+              <DataTableHeaderLabel>{t('home.approvals.waiting-since')}</DataTableHeaderLabel>
+            </TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map(({ requisition, waiting }) => (
+            <TableRow key={requisition.id}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{requisition.program.name}</span>
+                  <EmergencyBadge requisition={requisition} />
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-col">
+                  <span>{requisition.facility.name}</span>
+                  <span className="text-xs text-muted-foreground">{requisition.facility.code}</span>
+                </div>
+              </TableCell>
+              <TableCell>{requisition.processingPeriod.name}</TableCell>
+              <TableCell>
+                <span className="text-muted-foreground">{waiting}</span>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </DataTableCard>
   );
 }
 

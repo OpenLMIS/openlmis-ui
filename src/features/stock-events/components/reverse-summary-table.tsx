@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   Table,
   TableBody,
@@ -36,10 +36,10 @@ export function ReverseSummaryTable({
   const quantity = (value: number | undefined, line: StockEventLine) =>
     tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
   return (
-    <div className="min-w-0 max-w-full overflow-x-auto">
+    <DataTableCard>
       <Table density="default" layout="auto">
         {unavailable && <TableCaption>{t('stock-event-reverse.summary-unavailable')}</TableCaption>}
-        <TableHeader>
+        <TableHeader surface="muted">
           <TableRow>
             <TableHead>
               <DataTableHeaderLabel>{t('stock-event.product')}</DataTableHeaderLabel>
@@ -111,6 +111,6 @@ export function ReverseSummaryTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </DataTableCard>
   );
 }

@@ -79,7 +79,6 @@ function Name({ value, status = 'ready' }: { value: string | undefined; status?:
   const { t } = useTranslation();
   if (value !== undefined) return <span className="truncate">{value}</span>;
   if (status === 'pending') return <Pending />;
-  if (status === 'failed') return null;
   return <span className="text-muted-foreground">{t('users.roles.unknown')}</span>;
 }
 
