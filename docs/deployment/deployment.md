@@ -99,6 +99,9 @@ Optional features are turned on or off in two places:
   `BATCH_APPROVE_SCREEN`, `GS1_SCANNING` and `SHOW_REQUISITION_LESS_ORDER` (`true` or `false`),
   `QUANTITY_UNIT_OPTION` (`PACKS`, `DOSES` or `BOTH`) and `DEFAULT_QUANTITY_UNIT` (`PACKS` or
   `DOSES`). The entrypoint writes them into `config.json`; an unset variable means the default.
+- **`DEFAULT_ISSUE_REASON_ID`** preselects that reason on new Issue lines and makes Reason
+  required when the reason is in the program’s list, like the legacy UI’s build variable.
+  Leave it unset for an optional reason.
 - **`SYSTEM_SETTINGS`** (`true` or `false`, off by default) offers the Settings page. Turn it on only
   where the reference data service stores the new UI's settings; the released versions do not. It
   is read from the environment alone, so it never appears among the flags below.
