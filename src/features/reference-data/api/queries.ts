@@ -8,10 +8,8 @@ import {
   fetchGeographicLevels,
   fetchGeographicZones,
   fetchLotsByIds,
-  fetchLotsByTradeItems,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
-  fetchOrderableFulfills,
   fetchOrderables,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
@@ -202,19 +200,5 @@ export const tradeItemByGtinOptions = (gtin: string) =>
   queryOptions({
     queryKey: queryKeys.tradeItems.list({ gtin }),
     queryFn: () => fetchTradeItemByGtin(gtin),
-    staleTime: LOOKUP_STALE_TIME,
-  });
-
-export const orderableFulfillsOptions = (ids: readonly string[]) =>
-  queryOptions({
-    queryKey: queryKeys.orderables.list({ fulfills: [...new Set(ids)].sort() }),
-    queryFn: () => fetchOrderableFulfills(ids),
-    staleTime: LOOKUP_STALE_TIME,
-  });
-
-export const lotsByTradeItemsOptions = (ids: readonly string[]) =>
-  queryOptions({
-    queryKey: queryKeys.lots.list({ tradeItemIds: [...new Set(ids)].sort() }),
-    queryFn: () => fetchLotsByTradeItems(ids),
     staleTime: LOOKUP_STALE_TIME,
   });

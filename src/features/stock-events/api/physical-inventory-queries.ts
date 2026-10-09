@@ -32,11 +32,7 @@ export const inventoryStockLinesOptions = (draft: PhysicalInventoryDraft) =>
       const session = getSessionScope();
       const summaries = await client.fetchQuery(inventorySummariesOptions(draft));
       assertSessionScope(session);
-      return fetchInventoryStockLines(
-        { programId: draft.programId, facilityId: draft.facilityId },
-        draft.lineItems,
-        summaries,
-      );
+      return fetchInventoryStockLines(draft.lineItems, summaries);
     },
   });
 
@@ -49,7 +45,7 @@ export const eligibleInventoryProductsOptions = ({ programId, facilityId }: Inve
         inventorySummariesOptions({ programId, facilityId }),
       );
       assertSessionScope(session);
-      return fetchEligibleInventoryProducts({ programId, facilityId }, summaries);
+      return fetchEligibleInventoryProducts(summaries);
     },
     staleTime: 5 * 60_000,
   });

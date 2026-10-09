@@ -1,15 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  createLot,
   fetchLotsByTradeItems,
   fetchOrderableFulfills,
   fetchOrderablesByIds,
 } from '@/features/reference-data/api/api';
-import {
-  lotsByTradeItemsOptions,
-  orderableFulfillsOptions,
-} from '@/features/reference-data/api/queries';
 import { client } from '@/integrations/axios';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() } }));
@@ -54,17 +49,5 @@ describe('inventory reference lookups', () => {
       params: { tradeItemId: ['t100'], page: 0, size: 100 },
       paramsSerializer: { indexes: null },
     });
-  });
-  it('creates a lot with the legacy fields and keeps lookup keys independent', async () => {
-    const lot = { lotCode: 'New', expirationDate: null, tradeItemId: 't', active: true as const };
-    vi.mocked(client.post).mockResolvedValue({ data: { id: 'l', ...lot } });
-    expect(await createLot(lot)).toMatchObject({ id: 'l' });
-    expect(client.post).toHaveBeenCalledWith('/lots', lot);
-    expect(lotsByTradeItemsOptions(['t']).queryKey).not.toEqual(
-      orderableFulfillsOptions(['t']).queryKey,
-    );
-    expect(orderableFulfillsOptions(['b', 'a', 'a']).queryKey).toEqual(
-      orderableFulfillsOptions(['a', 'b']).queryKey,
-    );
   });
 });

@@ -3,7 +3,6 @@ import type { LotSummary } from '@/features/reference-data/lib/types';
 import { inventoryLineKey } from '@/features/stock-events/lib/physical-inventory-lines';
 import type { InventoryLine } from '@/features/stock-events/lib/physical-inventory-types';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
-import { settleFew } from '@/lib/settle-few';
 
 export type InventoryLotBody = {
   lotCode: string;
@@ -28,9 +27,10 @@ export async function createInventoryLots(
   const scope = getSessionScope();
   let current = [...lines];
   for (const line of lines.filter((item) => item.newLot && !item.lot?.id)) {
-    const result = await settleFew([line], async (item) => {
-      const pending = item.newLot;
-      if (!pending) return;
+    assertSessionScope(scope);
+    try {
+      const pending = line.newLot;
+      if (!pending) continue;
       const lot = await create({
         lotCode: pending.lotCode,
         expirationDate: pending.expirationDate,
@@ -39,7 +39,7 @@ export async function createInventoryLots(
       });
       assertSessionScope(scope);
       current = current.map((entry) =>
-        entry.key === item.key
+        entry.key === line.key
           ? {
               ...entry,
               lot,
@@ -50,18 +50,18 @@ export async function createInventoryLots(
       );
       await persist(current);
       assertSessionScope(scope);
-    });
-    assertSessionScope(scope);
-    if (result.failed.length) {
-      const key = isAxiosError(result.error) ? result.error.response?.data?.messageKey : '';
+    } catch (error) {
+      assertSessionScope(scope);
+      if (error instanceof Error && error.name === 'SessionEndedError') throw error;
+      const key = isAxiosError(error) ? error.response?.data?.messageKey : '';
       throw new InventoryLotError(
-        result.failed.map((item) => item.newLot?.lotCode ?? ''),
+        [line.newLot?.lotCode ?? ''],
         key?.endsWith('lotCode.mustBeUnique')
           ? 'duplicate'
           : key?.endsWith('tradeItem.required')
             ? 'trade-item'
             : 'other',
-        result.error,
+        error,
       );
     }
   }

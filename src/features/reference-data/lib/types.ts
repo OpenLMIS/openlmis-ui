@@ -169,10 +169,3 @@ export type OrderableFulfills = Record<
   string,
   { canFulfillForMe?: string[]; canBeFulfilledByMe?: string[] }
 >;
-
-export type NewLot = {
-  lotCode: string;
-  expirationDate: string | null;
-  tradeItemId: string;
-  active: true;
-};

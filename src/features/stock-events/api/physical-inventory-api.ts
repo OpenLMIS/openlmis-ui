@@ -5,7 +5,10 @@ import {
   fetchOrderablesByIds,
 } from '@/features/reference-data/api/api';
 import type { LotSummary } from '@/features/reference-data/lib/types';
-import { buildEligibleProducts } from '@/features/stock-events/lib/eligible-products';
+import {
+  buildEligibleProducts,
+  stockLineFromCard,
+} from '@/features/stock-events/lib/eligible-products';
 import type {
   inventorySavePayload,
   inventorySubmitPayload,
@@ -49,12 +52,10 @@ export async function fetchInventorySummaries(scope: InventoryScope): Promise<In
 }
 
 export async function fetchInventoryStockLines(
-  _scope: InventoryScope,
   draft: readonly InventoryDraftItem[],
   summaries: readonly InventorySummary[],
 ): Promise<InventoryStockLine[]> {
   const session = getSessionScope();
-  assertSessionScope(session);
   const cards = summaries.flatMap((summary) => summary.canFulfillForMe);
   const productIds = [
     ...new Set([
@@ -78,17 +79,8 @@ export async function fetchInventoryStockLines(
   const lotMap = new Map(lots.map((lot) => [lot.id, lot]));
   const found = new Map<string, InventoryStockLine>();
   for (const card of cards) {
-    const orderable = productMap.get(card.orderable.id);
-    if (!orderable) throw new Error(`Missing product ${card.orderable.id}`);
-    const lot = card.lot ? lotMap.get(card.lot.id) : null;
-    if (card.lot && !lot) throw new Error(`Missing lot ${card.lot.id}`);
-    found.set(inventoryLineKey(orderable.id, lot?.id), {
-      orderable,
-      lot: lot ?? null,
-      stockOnHand: card.stockOnHand,
-      stockCardId: card.stockCard?.id ?? null,
-      active: card.active,
-    });
+    const line = stockLineFromCard(card, productMap, lotMap);
+    found.set(inventoryLineKey(line.orderable.id, line.lot?.id), line);
   }
   for (const item of draft) {
     const key = inventoryLineKey(item.orderableId, item.lotId);
@@ -103,11 +95,9 @@ export async function fetchInventoryStockLines(
 }
 
 export async function fetchEligibleInventoryProducts(
-  _scope: InventoryScope,
   summaries: readonly InventorySummary[],
 ): Promise<InventoryStockLine[]> {
   const session = getSessionScope();
-  assertSessionScope(session);
   const approvedIds = summaries.map((summary) => summary.orderable.id);
   const fulfills = await fetchOrderableFulfills(approvedIds);
   assertSessionScope(session);

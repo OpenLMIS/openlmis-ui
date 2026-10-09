@@ -8,6 +8,7 @@ import {
 import {
   eligibleInventoryProductsOptions,
   inventoryStockLinesOptions,
+  inventorySummariesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
@@ -25,8 +26,8 @@ it('shares one full summaries request between stock hydration and eligible expan
   ]);
   expect(fetchInventorySummaries).toHaveBeenCalledTimes(1);
   expect(fetchInventorySummaries).toHaveBeenCalledWith(scope);
-  expect(fetchInventoryStockLines).toHaveBeenCalledWith(scope, [], []);
-  expect(fetchEligibleInventoryProducts).toHaveBeenCalledWith(scope, []);
+  expect(fetchInventoryStockLines).toHaveBeenCalledWith([], []);
+  expect(fetchEligibleInventoryProducts).toHaveBeenCalledWith([]);
 });
 it('does not hydrate old summaries after the signed-in user changes', async () => {
   const { useLoginData } = await import('@/features/auth/store/login-data');
@@ -46,4 +47,18 @@ it('does not hydrate old summaries after the signed-in user changes', async () =
   summaries.resolve([]);
   await expect(pending).rejects.toThrow();
   expect(fetchInventoryStockLines).not.toHaveBeenCalled();
+});
+
+it('refreshes summaries and stock on entry but keeps the cache on stay', async () => {
+  vi.clearAllMocks();
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  const draft = { id: 'd', programId: 'p', facilityId: 'f', lineItems: [] };
+  await client.fetchQuery(inventoryStockLinesOptions(draft));
+  await client.fetchQuery({ ...inventorySummariesOptions(draft), staleTime: 0 });
+  await client.fetchQuery({ ...inventoryStockLinesOptions(draft), staleTime: 0 });
+  await client.ensureQueryData(inventoryStockLinesOptions(draft));
+  expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
+  expect(fetchInventoryStockLines).toHaveBeenCalledTimes(2);
+  await client.ensureQueryData(inventoryStockLinesOptions(draft));
+  expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
 });

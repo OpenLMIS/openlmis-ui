@@ -71,7 +71,6 @@ describe('physical inventory reads and start', () => {
     ]);
     const summaries = await fetchInventorySummaries(scope);
     const result = await fetchInventoryStockLines(
-      scope,
       [{ orderableId: 'saved', lotId: 'lot', quantity: 3 }],
       summaries,
     );

@@ -24,17 +24,8 @@ export function buildEligibleProducts(
   const lines = new Map<string, InventoryStockLine>();
   for (const summary of summaries) {
     for (const card of summary.canFulfillForMe) {
-      const orderable = productMap.get(card.orderable.id);
-      if (!orderable) throw new Error(`Missing product ${card.orderable.id}`);
-      const lot = card.lot ? lotMap.get(card.lot.id) : null;
-      if (card.lot && !lot) throw new Error(`Missing lot ${card.lot.id}`);
-      lines.set(inventoryLineKey(orderable.id, lot?.id), {
-        orderable,
-        lot: lot ?? null,
-        stockOnHand: card.stockOnHand,
-        stockCardId: card.stockCard?.id ?? null,
-        active: card.active,
-      });
+      const line = stockLineFromCard(card, productMap, lotMap);
+      lines.set(inventoryLineKey(line.orderable.id, line.lot?.id), line);
     }
     for (const id of [
       ...(fulfills[summary.orderable.id]?.canFulfillForMe ?? []),
@@ -51,4 +42,22 @@ export function buildEligibleProducts(
     }
   }
   return [...lines.values()];
+}
+
+export function stockLineFromCard(
+  card: InventorySummary['canFulfillForMe'][number],
+  products: ReadonlyMap<string, Orderable>,
+  lots: ReadonlyMap<string, LotSummary>,
+): InventoryStockLine {
+  const orderable = products.get(card.orderable.id);
+  if (!orderable) throw new Error(`Missing product ${card.orderable.id}`);
+  const lot = card.lot ? lots.get(card.lot.id) : null;
+  if (card.lot && !lot) throw new Error(`Missing lot ${card.lot.id}`);
+  return {
+    orderable,
+    lot: lot ?? null,
+    stockOnHand: card.stockOnHand,
+    stockCardId: card.stockCard?.id ?? null,
+    active: card.active,
+  };
 }
