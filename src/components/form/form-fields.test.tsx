@@ -725,3 +725,24 @@ describe('reverse inline fields', () => {
     expect(comments).toHaveAttribute('data-size', 'inline');
   });
 });
+
+function EmptyValueSelect() {
+  const form = useAppForm({ defaultValues: { vvm: '' } });
+  return (
+    <form.AppField name="vvm">
+      {(field) => (
+        <field.SelectField
+          label="VVM Status"
+          items={[
+            { value: '', label: 'None' },
+            { value: '1', label: 'Stage 1' },
+          ]}
+        />
+      )}
+    </form.AppField>
+  );
+}
+it('shows the label for a SelectField item with an empty value', () => {
+  render(<EmptyValueSelect />);
+  expect(screen.getByRole('combobox', { name: 'VVM Status' })).toHaveTextContent('None');
+});

@@ -1,9 +1,25 @@
 import { useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { createColumnHelper, type RowSelectionState, useTable } from '@tanstack/react-table';
+import {
+  createColumnHelper,
+  type Row,
+  type RowSelectionState,
+  useTable,
+} from '@tanstack/react-table';
 import { isAxiosError } from 'axios';
 import { CheckIcon, CircleAlertIcon, ClipboardListIcon, Loader2Icon } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -11,6 +27,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -41,7 +58,7 @@ import { SignatureDialog } from '@/features/stock-events/components/signature-di
 import {
   cancellationReasons,
   canReverseLine,
-  changeReverseReason,
+  currentStockOnHand,
   lineErrorMessage,
   newStockOnHand,
   type ReverseDraft,
@@ -57,6 +74,8 @@ import {
 } from '@/features/stock-events/lib/search';
 import type {
   EventStockOnHand,
+  StockEventCancel,
+  StockEventCancelError,
   StockEventCancelLineError,
   StockEventLine,
   StockEventLineReason,
@@ -69,7 +88,7 @@ import { useStoredState } from '@/hooks/use-stored-state';
 import { orEmpty } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { cardQuantity } from '@/lib/quantity';
+import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { namedWithFreeText } from '@/lib/stock-labels';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
 
@@ -89,15 +108,15 @@ const COLUMNS = [
   ['comments', 'stock-event-reverse.cancel-reason-comments'],
   ['balance', 'stock-event-reverse.new-stock-on-hand'],
 ] as const;
-export const REVERSE_HIDEABLE_COLUMNS = [
+const REVERSE_HIDEABLE_COLUMNS = [
   { id: 'code', labelKey: 'stock-events.product-code', hideBelow: 470 },
-  { id: 'lot', labelKey: 'stock-event.lot-code', hideBelow: 530 },
+  { id: 'lot', labelKey: 'stock-event.lot-code' },
   { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 603 },
   { id: 'source', labelKey: 'stock-event.source', hideBelow: 944 },
   { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 944 },
   { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 944 },
   { id: 'current', labelKey: 'stock-event-reverse.current-stock-on-hand', hideBelow: 729 },
-  { id: 'reversed', labelKey: 'stock-event-reverse.reversed', hideBelow: 782 },
+  { id: 'reversed', labelKey: 'stock-event-reverse.reversed' },
   { id: 'comments', labelKey: 'stock-event-reverse.cancel-reason-comments', hideBelow: 896 },
 ] as const;
 type TableRow = { id: string; line: StockEventLine };
@@ -126,7 +145,7 @@ export function ReverseEditor({
   cancel,
   onSubmitted,
 }: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const linesQuery = useQuery({ ...stockEventAllLinesOptions(event.id), enabled: false });
   const reasonsQuery = useQuery({ ...reasonsOptions(), enabled: false });
@@ -139,7 +158,6 @@ export function ReverseEditor({
       programId: event.programId,
       orderableIds,
     }),
-    staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: false,
@@ -165,8 +183,7 @@ export function ReverseEditor({
     useStoredState('stock-event-reverse.columns', choicesSchema, {}),
     width,
   );
-  const [defaultValues] = useState<ReverseDraft>(() => ({ lines: {} }));
-  const form = useAppForm({ defaultValues });
+  const form = useReverseForm();
   const draft = useStore(form.store, (state) => state.values);
   const ticked = useMemo(() => new Set(Object.keys(draft.lines)), [draft.lines]);
   const rows = useMemo(
@@ -177,13 +194,16 @@ export function ReverseEditor({
     .filter((row) => ticked.has(row.id))
     .map((row) => ({ ...row, ...draft.lines[row.id] }));
   const balances = useMemo(() => newStockOnHand(lines, ticked, current), [lines, ticked, current]);
-  const guard = useDiscardGuard(ticked.size > 0 && !summary, { allowLeave: () => leaving.current });
   const mutation = useSessionMutation({
-    mutationFn: (body: Parameters<typeof cancelStockEvent>[1]) => cancelStockEvent(event.id, body),
+    mutationFn: (body: StockEventCancel) => cancelStockEvent(event.id, body),
     retry: false,
   });
   const [readingSummary, setReadingSummary] = useState(false);
   const pending = mutation.isPending || readingSummary;
+  const guard = useDiscardGuard(ticked.size > 0, {
+    allowLeave: () => leaving.current,
+    pending: pending || !!summary,
+  });
   const size = search.reverseSize ?? 10;
   const requestedPage = search.reversePage ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
@@ -196,6 +216,7 @@ export function ReverseEditor({
     const target = document.getElementById(focusField.id);
     if (target) {
       target.focus();
+      target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
       setFocusField(null);
     }
   }, [focusField, page]);
@@ -221,17 +242,22 @@ export function ReverseEditor({
     );
   };
   const submit = () => {
-    if (pending || !lines.length || (orderableIds.length > 0 && stock.isFetching)) return;
+    if (pending || !lines.length || stock.isFetching) return;
     const validation = validateReverse(lines, form.state.values, current);
     setMarks(validation.marks);
     setErrors({});
     setFailure(null);
     setValidationMessage(validation.message ? t(validation.message) : null);
-    for (const row of rows)
+    for (const row of rows) {
       form.setFieldMeta(`lines.${row.id}.reasonId`, (meta) => ({
         ...meta,
         errorMap: { onSubmit: validation.marks[row.id]?.reason },
       }));
+      form.setFieldMeta(`lines.${row.id}.comments`, (meta) => ({
+        ...meta,
+        errorMap: { onSubmit: validation.marks[row.id]?.comments },
+      }));
+    }
     if (validation.valid) {
       setConfirmOpen(true);
       return;
@@ -256,7 +282,6 @@ export function ReverseEditor({
     try {
       const newId = await mutation.mutateAsync(reversePayload(selected, signature));
       if (!mutation.isCurrent()) return;
-      leaving.current = true;
       for (const queryKey of [
         queryKeys.stockEvents.all,
         queryKeys.stockCardSummaries.all,
@@ -280,19 +305,24 @@ export function ReverseEditor({
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const lineErrors: StockEventCancelLineError[] | undefined =
-        isAxiosError(error) && error.response?.status === 400
+        isAxiosError<StockEventCancelError>(error) && error.response?.status === 400
           ? error.response.data?.lineErrors
           : undefined;
       if (lineErrors?.length) {
         const byId: Record<string, StockEventCancelLineError> = {};
+        const lineErrorsById = new Map(lineErrors.map((item) => [item.stockEventLineItemId, item]));
         for (const row of rows) {
-          const rowError = lineErrors.find(
-            (item) => item.stockEventLineItemId === row.line.stockEventLineItemId,
-          );
+          const rowError = lineErrorsById.get(row.line.stockEventLineItemId);
           if (rowError) byId[row.id] = rowError;
         }
         setErrors(byId);
         setFailure(t('stock-event-reverse.line-errors'));
+        const first = rows.find((row) => byId[row.id]);
+        if (first) {
+          const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
+          setFocusField({ id: `reverse-${first.id}`, page: invalidPage });
+          onSearchChange({ reversePage: invalidPage === 1 ? undefined : invalidPage }, true);
+        }
       } else setFailure(serverMessage(error) ?? t('stock-event-reverse.failed-description'));
       setSignatureOpen(false);
       setConfirmOpen(false);
@@ -319,201 +349,26 @@ export function ReverseEditor({
             meta: {
               className: id === 'product' ? 'w-24' : undefined,
             },
-            header: () => (
-              <span className="font-medium text-muted-foreground text-xs">{t(key)}</span>
-            ),
+            header: () => <DataTableHeaderLabel variant="compact">{t(key)}</DataTableHeaderLabel>,
             cell: ({ row }) => {
-              const { line, id: rowId } = row.original;
-              const rowDraft = draft.lines[rowId];
-              const mark = marks[rowId];
-              const reason = reasons.find((item) => item.id === rowDraft?.reasonId);
-              const label = t('stock-events.field-of', {
-                field: t(key),
-                row: `${line.orderable.fullProductName} (${line.orderable.productCode}) ${line.lot?.lotCode ?? t('stock-event.no-lot')} ${formatDateValue(line.occurredDate, i18n.language)}`,
-              });
-              const quantity = (value: number | undefined) => (
-                <span className="whitespace-nowrap tabular-nums" dir="ltr">
-                  {orEmpty(
-                    cardQuantity(
-                      value,
-                      line.orderable.netContent,
-                      quantityUnit.unit,
-                      i18n.language,
-                    ),
-                  )}
-                </span>
-              );
+              const props = { row, id, keyLabel: key };
               switch (id) {
-                case 'reverse': {
-                  const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
-                  return (
-                    <div className="flex flex-col gap-1">
-                      <Checkbox
-                        aria-label={label}
-                        disabled={pending || stock.isFetching || !canReverseLine(line)}
-                        checked={row.getIsSelected()}
-                        onCheckedChange={(checked) => row.toggleSelected(checked)}
-                      />
-                      {error && (
-                        <p className="flex items-start gap-1 text-sm text-destructive" role="alert">
-                          <CircleAlertIcon />
-                          <span>{'key' in error ? t(error.key) : error.message}</span>
-                        </p>
-                      )}
-                    </div>
-                  );
-                }
-                case 'code':
-                  return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
-                case 'product':
-                  return (
-                    <span className="block w-24 whitespace-normal break-words">
-                      <bdi>{line.orderable.fullProductName}</bdi>
-                    </span>
-                  );
-                case 'lot':
-                  return line.lot ? (
-                    <bdi className="whitespace-nowrap">{line.lot.lotCode}</bdi>
-                  ) : (
-                    <span className="block max-w-16 whitespace-normal">
-                      {t('stock-event.no-lot')}
-                    </span>
-                  );
-                case 'date':
-                  return (
-                    <bdi className="whitespace-nowrap">
-                      {orEmpty(formatDateValue(line.occurredDate, i18n.language))}
-                    </bdi>
-                  );
-                case 'source':
-                  return (
-                    <span className="block max-w-24 whitespace-normal">
-                      {orEmpty(namedWithFreeText(line.source, line.sourceFreeText))}
-                    </span>
-                  );
-                case 'destination':
-                  return (
-                    <span className="block max-w-24 whitespace-normal">
-                      {orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}
-                    </span>
-                  );
-                case 'reason':
-                  return (
-                    <span className="block max-w-24 whitespace-normal">
-                      {orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}
-                    </span>
-                  );
-                case 'quantity':
-                  return quantity(line.quantity);
-                case 'current':
-                  return quantity(
-                    current[`${line.orderable.id}/${line.lot?.id ?? ''}`] ?? line.stockOnHand,
-                  );
-                case 'reversed':
-                  return line.cancellationEventId ? (
-                    line.cancellationEventDocumentNumber ? (
-                      <bdi className="whitespace-nowrap">
-                        {line.cancellationEventDocumentNumber}
-                      </bdi>
-                    ) : (
-                      <CheckIcon aria-label={t('stock-event-reverse.reversed')} role="img" />
-                    )
-                  ) : null;
+                case 'reverse':
+                  return <ReverseCheckboxCell {...props} />;
                 case 'cancelReason':
-                  return rowDraft ? (
-                    <div className="w-64">
-                      <form.AppField
-                        name={`lines.${rowId}.reasonId`}
-                        validators={{ onMount: () => mark?.reason }}
-                        listeners={{
-                          onChange: ({ value }) => {
-                            setValidationMessage(null);
-                            const picked = reasons.find((item) => item.id === value);
-                            if (!picked) return;
-                            const next = changeReverseReason(
-                              { line, ...rowDraft, marks: mark, serverError: errors[rowId] },
-                              picked,
-                            );
-                            form.setFieldValue('lines', (previous) => ({
-                              ...previous,
-                              [rowId]: { ...previous[rowId], comments: next.comments },
-                            }));
-                            clearReasonMark(rowId);
-                            setMarks((previous) => ({ ...previous, [rowId]: next.marks ?? {} }));
-                            setErrors((previous) => {
-                              const { [rowId]: _removed, ...kept } = previous;
-                              return kept;
-                            });
-                          },
-                        }}
-                      >
-                        {(field) => (
-                          <field.SelectField
-                            disabled={pending}
-                            items={cancellationReasons(line, reasons).map((item) => ({
-                              value: item.id,
-                              label: item.name,
-                            }))}
-                            label={label}
-                            layout="inline"
-                            placeholder={t('stock-event-reverse.select-option')}
-                            required
-                          />
-                        )}
-                      </form.AppField>
-                    </div>
-                  ) : null;
+                  return <ReverseReasonCell {...props} />;
                 case 'comments':
-                  return rowDraft && reason?.isFreeTextAllowed ? (
-                    <div className="w-40">
-                      <form.AppField name={`lines.${rowId}.comments`}>
-                        {(field) => (
-                          <field.TextareaField
-                            label={label}
-                            layout="inline"
-                            maxLength={255}
-                            dir="auto"
-                            disabled={pending}
-                          />
-                        )}
-                      </form.AppField>
-                      {mark?.comments && (
-                        <p className="text-sm text-destructive">{t(mark.comments)}</p>
-                      )}
-                    </div>
-                  ) : null;
+                  return <ReverseCommentsCell {...props} />;
                 case 'balance':
-                  return rowDraft ? (
-                    <fieldset
-                      id={`balance-${rowId}`}
-                      tabIndex={-1}
-                      aria-label={label}
-                      className="flex flex-col gap-1"
-                    >
-                      {balances[rowId] !== undefined && quantity(balances[rowId])}
-                      {mark?.stock && <p className="text-sm text-destructive">{t(mark.stock)}</p>}
-                    </fieldset>
-                  ) : null;
+                  return <ReverseBalanceCell {...props} />;
+                default:
+                  return <ReverseReadOnlyCell {...props} />;
               }
             },
           }),
         ),
       ),
-    [
-      t,
-      i18n.language,
-      draft.lines,
-      marks,
-      errors,
-      reasons,
-      form,
-      pending,
-      current,
-      balances,
-      quantityUnit.unit,
-      clearReasonMark,
-      stock.isFetching,
-    ],
+    [t],
   );
   const visibleRows = useMemo(() => rows.slice((page - 1) * size, page * size), [rows, page, size]);
   const selection = Object.fromEntries([...ticked].map((id) => [id, true as const]));
@@ -537,6 +392,7 @@ export function ReverseEditor({
   });
   const closeSummary = async () => {
     if (!mutation.isCurrent()) return;
+    leaving.current = true;
     setSummary(null);
     toast.success(t('stock-event-reverse.done-title'), {
       description: t('stock-event-reverse.done-description'),
@@ -601,33 +457,52 @@ export function ReverseEditor({
                 errorComponent={ReverseDataError}
               >
                 <ReverseDataReady eventId={event.id}>
-                  <DataTable
-                    table={table}
-                    density="compact"
-                    layout="auto"
-                    empty={
-                      <DataTableEmpty
-                        icon={<ClipboardListIcon />}
-                        title={t('stock-event-reverse.no-lines')}
-                      />
-                    }
-                    footer={
-                      rows.length > 0 && (
-                        <DataTablePagination
-                          table={table}
-                          disabled={pending}
-                          isPageInvalid={(index) =>
-                            rows
-                              .slice(index * size, (index + 1) * size)
-                              .some(
-                                (row) =>
-                                  Object.keys(marks[row.id] ?? {}).length > 0 || !!errors[row.id],
-                              )
-                          }
+                  <ReverseCells
+                    value={{
+                      form,
+                      draft,
+                      marks,
+                      errors,
+                      reasons,
+                      current,
+                      balances,
+                      pending,
+                      fetching: stock.isFetching,
+                      unit: quantityUnit.unit,
+                      clearReasonMark,
+                      setValidationMessage,
+                      setMarks,
+                      setErrors,
+                    }}
+                  >
+                    <DataTable
+                      table={table}
+                      density="compact"
+                      layout="auto"
+                      empty={
+                        <DataTableEmpty
+                          icon={<ClipboardListIcon />}
+                          title={t('stock-event-reverse.no-lines')}
                         />
-                      )
-                    }
-                  />
+                      }
+                      footer={
+                        rows.length > 0 && (
+                          <DataTablePagination
+                            table={table}
+                            disabled={pending}
+                            isPageInvalid={(index) =>
+                              rows
+                                .slice(index * size, (index + 1) * size)
+                                .some(
+                                  (row) =>
+                                    Object.keys(marks[row.id] ?? {}).length > 0 || !!errors[row.id],
+                                )
+                            }
+                          />
+                        )
+                      }
+                    />
+                  </ReverseCells>
                 </ReverseDataReady>
               </QueryBoundary>
             </form>
@@ -637,14 +512,7 @@ export function ReverseEditor({
       <WorkspaceFooter>
         {cancel}
         <Button
-          disabled={
-            !linesQuery.data ||
-            !reasonsQuery.data ||
-            !lines.length ||
-            pending ||
-            !!summary ||
-            (orderableIds.length > 0 && stock.isFetching)
-          }
+          disabled={!reasonsQuery.data || !lines.length || pending || !!summary || stock.isFetching}
           form={FORM_ID}
           size="lg"
           type="submit"
@@ -704,4 +572,256 @@ function ReverseDataError({ error, reset }: { error: unknown; reset: () => void 
       description={t('stock-event.lines-error-description')}
     />
   );
+}
+
+function useReverseForm() {
+  const [defaultValues] = useState<ReverseDraft>(() => ({ lines: {} }));
+  return useAppForm({ defaultValues });
+}
+
+type ReverseCellState = {
+  form: ReturnType<typeof useReverseForm>;
+  draft: ReverseDraft;
+  marks: Record<string, ReverseRowMarks>;
+  errors: Record<string, StockEventCancelLineError>;
+  reasons: StockEventLineReason[];
+  current: EventStockOnHand;
+  balances: Record<string, number>;
+  pending: boolean;
+  fetching: boolean;
+  unit: QuantityUnit;
+  clearReasonMark: (id: string) => void;
+  setValidationMessage: Dispatch<SetStateAction<string | null>>;
+  setMarks: Dispatch<SetStateAction<Record<string, ReverseRowMarks>>>;
+  setErrors: Dispatch<SetStateAction<Record<string, StockEventCancelLineError>>>;
+};
+const ReverseCells = createContext<ReverseCellState | null>(null);
+type CellProps = {
+  row: Row<DataTableFeatures, TableRow>;
+  id: (typeof COLUMNS)[number][0];
+  keyLabel: (typeof COLUMNS)[number][1];
+};
+
+function useReverseCell({ row, keyLabel: key }: CellProps) {
+  const state = use(ReverseCells);
+  if (!state) throw new Error('Reverse cells require their editor');
+  const { t, i18n } = useTranslation();
+  const { draft, marks, reasons, unit } = state;
+  const { line, id: rowId } = row.original;
+  const rowDraft = draft.lines[rowId];
+  const mark = marks[rowId];
+  const reason = reasons.find((item) => item.id === rowDraft?.reasonId);
+  const label = t('stock-events.field-of', {
+    field: t(key),
+    row: `${line.orderable.fullProductName} (${line.orderable.productCode}) ${line.lot?.lotCode ?? t('stock-event.no-lot')} ${formatDateValue(line.occurredDate, i18n.language)}`,
+  });
+  const quantity = (value: number | undefined) => (
+    <span className="whitespace-nowrap tabular-nums" dir="ltr">
+      {orEmpty(cardQuantity(value, line.orderable.netContent, unit, i18n.language))}
+    </span>
+  );
+
+  return { ...state, t, line, rowId, rowDraft, mark, reason, label, quantity };
+}
+
+function ReverseCheckboxCell(props: CellProps) {
+  const { t, line, rowId, label, errors, pending, fetching } = useReverseCell(props);
+  const { row } = props;
+
+  const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
+  return (
+    <div className="flex flex-col gap-1">
+      <Checkbox
+        id={`reverse-${rowId}`}
+        aria-invalid={!!error}
+        aria-describedby={error ? `reverse-error-${rowId}` : undefined}
+        aria-label={label}
+        disabled={pending || fetching || !canReverseLine(line)}
+        checked={row.getIsSelected()}
+        onCheckedChange={(checked) => row.toggleSelected(checked)}
+      />
+      {error && (
+        <p
+          id={`reverse-error-${rowId}`}
+          className="flex w-48 items-start gap-1 whitespace-normal break-words text-sm text-destructive"
+          role="alert"
+        >
+          <span className="shrink-0">
+            <CircleAlertIcon />
+          </span>
+          <span>{'key' in error ? t(error.key) : error.message}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ReverseReasonCell(props: CellProps) {
+  const {
+    t,
+    line,
+    rowId,
+    rowDraft,
+    mark,
+    label,
+    pending,
+    form,
+    reasons,
+    clearReasonMark,
+    setValidationMessage,
+    setMarks,
+    setErrors,
+  } = useReverseCell(props);
+
+  return rowDraft ? (
+    <div className="w-64">
+      <form.AppField
+        name={`lines.${rowId}.reasonId`}
+        validators={{ onMount: () => mark?.reason }}
+        listeners={{
+          onChange: ({ value }) => {
+            setValidationMessage(null);
+            const picked = reasons.find((item) => item.id === value);
+            if (!picked) return;
+            form.setFieldValue('lines', (previous) => ({
+              ...previous,
+              [rowId]: {
+                reasonId: picked.id,
+                comments: picked.isFreeTextAllowed ? previous[rowId].comments : '',
+              },
+            }));
+            clearReasonMark(rowId);
+            setMarks((previous) => {
+              const { reason: _removed, ...kept } = previous[rowId] ?? {};
+              return { ...previous, [rowId]: kept };
+            });
+            setErrors((previous) => {
+              const { [rowId]: _removed, ...kept } = previous;
+              return kept;
+            });
+          },
+        }}
+      >
+        {(field) => (
+          <field.SelectField
+            disabled={pending}
+            items={cancellationReasons(line, reasons).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
+            label={label}
+            layout="inline"
+            placeholder={t('stock-event-reverse.select-option')}
+            required
+          />
+        )}
+      </form.AppField>
+    </div>
+  ) : null;
+}
+
+function ReverseCommentsCell(props: CellProps) {
+  const { rowId, rowDraft, mark, reason, label, pending, form } = useReverseCell(props);
+
+  return rowDraft && reason?.isFreeTextAllowed ? (
+    <div className="w-40">
+      <form.AppField
+        name={`lines.${rowId}.comments`}
+        validators={{
+          onMount: () => mark?.comments,
+          onChange: () => mark?.comments,
+          onBlur: () => mark?.comments,
+        }}
+      >
+        {(field) => (
+          <field.TextareaField
+            label={label}
+            layout="inline"
+            maxLength={255}
+            dir="auto"
+            disabled={pending}
+          />
+        )}
+      </form.AppField>
+    </div>
+  ) : null;
+}
+
+function ReverseBalanceCell(props: CellProps) {
+  const { t, rowId, rowDraft, mark, label, quantity, balances } = useReverseCell(props);
+
+  return rowDraft ? (
+    <fieldset
+      id={`balance-${rowId}`}
+      tabIndex={-1}
+      aria-invalid={!!mark?.stock}
+      aria-describedby={mark?.stock ? `stock-error-${rowId}` : undefined}
+      aria-label={label}
+      className="flex flex-col gap-1"
+    >
+      {balances[rowId] !== undefined && quantity(balances[rowId])}
+      {mark?.stock && (
+        <p id={`stock-error-${rowId}`} className="w-48 whitespace-normal text-sm text-destructive">
+          {t(mark.stock)}
+        </p>
+      )}
+    </fieldset>
+  ) : null;
+}
+
+function ReverseReadOnlyCell(props: CellProps) {
+  const { t, i18n } = useTranslation();
+  const { line, quantity, current } = useReverseCell(props);
+  switch (props.id) {
+    case 'code':
+      return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
+    case 'product':
+      return (
+        <span className="block w-24 whitespace-normal break-words">
+          <bdi>{line.orderable.fullProductName}</bdi>
+        </span>
+      );
+    case 'lot':
+      return line.lot ? (
+        <bdi className="whitespace-nowrap">{line.lot.lotCode}</bdi>
+      ) : (
+        <span className="block max-w-16 whitespace-normal">{t('stock-event.no-lot')}</span>
+      );
+    case 'date':
+      return (
+        <bdi className="whitespace-nowrap">
+          {orEmpty(formatDateValue(line.occurredDate, i18n.language))}
+        </bdi>
+      );
+    case 'source':
+      return (
+        <span className="block max-w-24 whitespace-normal">
+          {orEmpty(namedWithFreeText(line.source, line.sourceFreeText))}
+        </span>
+      );
+    case 'destination':
+      return (
+        <span className="block max-w-24 whitespace-normal">
+          {orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}
+        </span>
+      );
+    case 'reason':
+      return (
+        <span className="block max-w-24 whitespace-normal">
+          {orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}
+        </span>
+      );
+    case 'quantity':
+      return quantity(line.quantity);
+    case 'current':
+      return quantity(currentStockOnHand(line, current));
+    case 'reversed':
+      return line.cancellationEventId ? (
+        line.cancellationEventDocumentNumber ? (
+          <bdi className="whitespace-nowrap">{line.cancellationEventDocumentNumber}</bdi>
+        ) : (
+          <CheckIcon aria-label={t('stock-event-reverse.reversed')} role="img" />
+        )
+      ) : null;
+  }
 }

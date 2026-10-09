@@ -1,25 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
-import { isAxiosError } from 'axios';
-import { ChevronLeftIcon, ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { ClipboardListIcon, PrinterIcon, Undo2Icon } from 'lucide-react';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
-import { ErrorFallback } from '@/components/error-fallback';
 import { ListError } from '@/components/list-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -44,6 +34,7 @@ import {
   EventLinesSkeleton,
   STOCK_EVENT_HIDEABLE_COLUMNS,
 } from '@/features/stock-events/components/event-lines';
+import { StockEventError } from '@/features/stock-events/components/stock-event-error';
 import { canReverseEvent } from '@/features/stock-events/lib/event-access';
 import {
   type DetailPagingSearch,
@@ -57,7 +48,6 @@ import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { isNotFound } from '@/lib/http';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
@@ -133,7 +123,7 @@ export const Route = createFileRoute(
   },
   component: StockEventPage,
   pendingComponent: StockEventPending,
-  errorComponent: StockEventError,
+  errorComponent: EventError,
 });
 
 function StockEventPage() {
@@ -275,6 +265,7 @@ function StockEventActions({
             />
           }
         >
+          <Undo2Icon data-icon="inline-start" />
           {t('stock-event-reverse.reverse')}
         </Button>
       )}
@@ -342,60 +333,12 @@ function StockEventPending() {
   );
 }
 
-function StockEventError(props: ErrorComponentProps) {
-  const { t } = useTranslation();
-  const search = Route.useSearch();
+function EventError(props: ErrorComponentProps) {
   useReloadForUser(
     useLoginData((state) => state.referenceDataUserId),
     stockEventOptions(Route.useParams().eventId).queryKey,
   );
-  const back = (
-    <Button
-      nativeButton={false}
-      render={
-        <Link
-          search={transactionHistorySearchSchema.parse(search)}
-          to="/stock-management/transaction-history"
-        />
-      }
-      size="sm"
-      variant="outline"
-    >
-      <ChevronLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
-      {t('stock-event.back')}
-    </Button>
-  );
-  if (
-    !isNotFound(props.error) &&
-    !(isAxiosError(props.error) && props.error.response?.status === 400)
-  ) {
-    return (
-      <ErrorFallback
-        {...props}
-        back={back}
-        description={t('stock-event.error-description')}
-        title={t('stock-event.error-title')}
-      />
-    );
-  }
-  return (
-    <Workspace>
-      <WorkspaceContent>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchXIcon />
-            </EmptyMedia>
-            <EmptyTitle>
-              <h1>{t('stock-event.not-found-title')}</h1>
-            </EmptyTitle>
-            <EmptyDescription>{t('stock-event.not-found-description')}</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>{back} </EmptyContent>
-        </Empty>
-      </WorkspaceContent>
-    </Workspace>
-  );
+  return <StockEventError {...props} search={Route.useSearch()} />;
 }
 
 function EventLinesError(props: ErrorComponentProps) {

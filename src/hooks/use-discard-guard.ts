@@ -5,10 +5,14 @@ import { isUnloadAllowed, useLeaveGuard } from '@/hooks/use-leave-guard';
 type DiscardGuardOptions = {
   /** True once the page may be left without asking, e.g. right after a save. */
   allowLeave?: () => boolean;
+  pending?: boolean;
 };
 
 /** While there are unsaved changes, leaving the page or signing out asks first; the dialog's props. */
-export function useDiscardGuard(dirty: boolean, { allowLeave }: DiscardGuardOptions = {}) {
+export function useDiscardGuard(
+  dirty: boolean,
+  { allowLeave, pending = false }: DiscardGuardOptions = {},
+) {
   // Opening a dialog keeps the page, so only a different page, or tab, can lose the draft.
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
@@ -33,9 +37,10 @@ export function useDiscardGuard(dirty: boolean, { allowLeave }: DiscardGuardOpti
     leaveIfAsked,
     /** The props for `DiscardChangesDialog`. */
     dialog: {
-      open: blocker.status === 'blocked' || pendingLeave !== null,
+      open: !pending && (blocker.status === 'blocked' || pendingLeave !== null),
       signingOut: pendingLeave !== null,
       onDiscard: () => {
+        if (pending) return;
         if (!leaveIfAsked()) blocker.proceed?.();
       },
       onKeepEditing: () => {

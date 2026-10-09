@@ -228,3 +228,21 @@ describe('invalid pages', () => {
     expect(screen.getByRole('button', { name: 'Page 1' }).querySelector('svg')).toBeNull();
   });
 });
+
+it('uses the current page foreground for its invalid mark and checks each page once', () => {
+  const invalid = vi.fn(() => true);
+  render(
+    <Harness
+      onPaginationChange={vi.fn()}
+      pagination={{ pageIndex: 0, pageSize: 10 }}
+      rowCount={30}
+      isPageInvalid={invalid}
+    />,
+  );
+  expect(
+    screen
+      .getByRole('button', { name: 'Page 1: Contains Invalid Rows' })
+      .querySelector('.text-destructive'),
+  ).toBeNull();
+  expect(invalid.mock.calls).toHaveLength(3);
+});

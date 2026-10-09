@@ -1,3 +1,4 @@
+import { stockKey } from '@/features/stock-events/lib/event-reverse';
 import type {
   EventStockCard,
   EventStockCardsFilter,
@@ -100,7 +101,7 @@ export async function fetchEventStockOnHand({
       assertSessionScope(scope);
       for (const summary of data.content) {
         for (const entry of summary.canFulfillForMe) {
-          stock[`${entry.orderable.id}/${entry.lot?.id ?? ''}`] = entry.stockOnHand;
+          stock[stockKey(entry.orderable.id, entry.lot?.id)] = entry.stockOnHand;
         }
       }
       if (page + 1 >= data.totalPages) break;

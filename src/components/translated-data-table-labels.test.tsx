@@ -26,7 +26,7 @@ it('translates the invalid page label and follows a language change', async () =
       </TranslatedDataTableLabels>
     </I18nextProvider>,
   );
-  expect(screen.getByText('Contains invalid rows')).toBeInTheDocument();
+  expect(screen.getByText('Contains Invalid Rows')).toBeInTheDocument();
   await act(() => i18n.changeLanguage('ar'));
   expect(screen.getByText('تحتوي على صفوف غير صالحة')).toBeInTheDocument();
 });

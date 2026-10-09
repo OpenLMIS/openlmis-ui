@@ -1,17 +1,7 @@
 import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
-import { isAxiosError } from 'axios';
-import { ChevronLeftIcon, ClipboardListIcon, SearchXIcon } from 'lucide-react';
+import { ClipboardListIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -27,8 +17,9 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions, reasonsOptions } from '@/features/reference-data/api/queries';
 import { stockEventAllLinesOptions, stockEventOptions } from '@/features/stock-events/api/queries';
-import { EventHeader, EventHeaderSkeleton } from '@/features/stock-events/components/event-header';
+import { EventHeaderSkeleton } from '@/features/stock-events/components/event-header';
 import { ReverseEditor } from '@/features/stock-events/components/reverse-editor';
+import { StockEventError } from '@/features/stock-events/components/stock-event-error';
 import {
   detailPagingSchema,
   reversePagingSchema,
@@ -36,7 +27,6 @@ import {
 } from '@/features/stock-events/lib/search';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { isNotFound } from '@/lib/http';
 
 const searchSchema = transactionHistorySearchSchema
   .extend(detailPagingSchema.shape)
@@ -60,6 +50,14 @@ export const Route = createFileRoute(
     const sameEvent = cause === 'stay' && shownEventId === params.eventId;
     shownEventId = undefined;
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
+    if (!sameEvent) {
+      queryClient.removeQueries({
+        queryKey: stockEventAllLinesOptions(params.eventId).queryKey,
+        exact: true,
+      });
+      queryClient.prefetchQuery(stockEventAllLinesOptions(params.eventId));
+      queryClient.prefetchQuery({ ...reasonsOptions(), staleTime: 0 });
+    }
     const [, event] =
       (await Promise.all([
         requireRight(queryClient, RIGHTS.stockEventsCancel),
@@ -72,14 +70,6 @@ export const Route = createFileRoute(
         throw error;
       })) ?? [];
     if (!event || userChanged() || !userId) return;
-    if (!sameEvent) {
-      queryClient.removeQueries({
-        queryKey: stockEventAllLinesOptions(event.id).queryKey,
-        exact: true,
-      });
-      queryClient.prefetchQuery(stockEventAllLinesOptions(event.id));
-      queryClient.prefetchQuery({ ...reasonsOptions(), staleTime: 0 });
-    }
     shownEventId = event.id;
     return { event, userId };
   },
@@ -151,17 +141,13 @@ function ReversePage() {
     </ReverseEditor>
   );
 }
-function ReverseLoading({
-  event,
-}: {
-  event?: NonNullable<ReturnType<typeof Route.useLoaderData>>['event'];
-}) {
+function ReverseLoading() {
   return (
     <Workspace>
       <ReverseHeading />
       <WorkspaceContent>
         <div className="flex flex-col gap-4" aria-busy>
-          {event ? <EventHeader event={event} showSignature={false} /> : <EventHeaderSkeleton />}
+          <EventHeaderSkeleton />
           <div className="h-80">
             <Skeleton fill />
           </div>
@@ -178,57 +164,9 @@ function ReversePending() {
   return <ReverseLoading />;
 }
 function ReverseError(props: ErrorComponentProps) {
-  const { t } = useTranslation();
-  const search = Route.useSearch();
   useReloadForUser(
     useLoginData((state) => state.referenceDataUserId),
     stockEventOptions(Route.useParams().eventId).queryKey,
   );
-  const back = (
-    <Button
-      nativeButton={false}
-      render={
-        <Link
-          search={transactionHistorySearchSchema.parse(search)}
-          to="/stock-management/transaction-history"
-        />
-      }
-      size="sm"
-      variant="outline"
-    >
-      <ChevronLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
-      {t('stock-event.back')}
-    </Button>
-  );
-  if (
-    !isNotFound(props.error) &&
-    !(isAxiosError(props.error) && props.error.response?.status === 400)
-  ) {
-    return (
-      <ErrorFallback
-        {...props}
-        back={back}
-        description={t('stock-event.error-description')}
-        title={t('stock-event.error-title')}
-      />
-    );
-  }
-  return (
-    <Workspace>
-      <WorkspaceContent>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchXIcon />
-            </EmptyMedia>
-            <EmptyTitle>
-              <h1>{t('stock-event.not-found-title')}</h1>
-            </EmptyTitle>
-            <EmptyDescription>{t('stock-event.not-found-description')}</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>{back} </EmptyContent>
-        </Empty>
-      </WorkspaceContent>
-    </Workspace>
-  );
+  return <StockEventError {...props} search={Route.useSearch()} />;
 }

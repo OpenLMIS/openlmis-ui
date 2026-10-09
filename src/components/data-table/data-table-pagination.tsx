@@ -83,34 +83,37 @@ export function DataTablePagination<TData extends RowData>({
               <Icon className="rtl:rotate-180" />
             </Button>
           ))}
-          {pages.map((page) => (
-            <div
-              className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}
-              key={page}
-            >
-              <Button
-                aria-current={page === pageIndex ? 'page' : undefined}
-                aria-label={
-                  isPageInvalid?.(page)
-                    ? `${labels.page(page + 1)}: ${labels.invalidPage}`
-                    : labels.page(page + 1)
-                }
-                disabled={disabled}
-                onClick={() => {
-                  if (page !== pageIndex) table.setPageIndex(page);
-                }}
-                size="sm"
-                variant={page === pageIndex ? 'default' : 'outline'}
+          {pages.map((page) => {
+            const invalid = isPageInvalid?.(page);
+            return (
+              <div
+                className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}
+                key={page}
               >
-                {page + 1}
-                {isPageInvalid?.(page) && (
-                  <span className="text-destructive">
-                    <CircleAlertIcon aria-hidden data-icon="inline-end" />
-                  </span>
-                )}
-              </Button>
-            </div>
-          ))}
+                <Button
+                  aria-current={page === pageIndex ? 'page' : undefined}
+                  aria-label={
+                    invalid
+                      ? `${labels.page(page + 1)}: ${labels.invalidPage}`
+                      : labels.page(page + 1)
+                  }
+                  disabled={disabled}
+                  onClick={() => {
+                    if (page !== pageIndex) table.setPageIndex(page);
+                  }}
+                  size="sm"
+                  variant={page === pageIndex ? 'default' : 'outline'}
+                >
+                  {page + 1}
+                  {invalid && (
+                    <span className={page === pageIndex ? undefined : 'text-destructive'}>
+                      <CircleAlertIcon aria-hidden data-icon="inline-end" />
+                    </span>
+                  )}
+                </Button>
+              </div>
+            );
+          })}
           {controls.slice(2).map(({ label, icon: Icon, enabled, go }) => (
             <Button
               aria-label={label}

@@ -21,6 +21,7 @@ import {
   fetchStockEvent,
 } from '@/features/stock-events/api/api';
 import type { StockEventLine, StockEventSummary } from '@/features/stock-events/lib/types';
+import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history_.$eventId_.reverse';
 import { httpError, networkError } from '@/tests/http-error';
@@ -149,11 +150,11 @@ describe('reverse transaction', () => {
     expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
   });
-  it('requires the cancel right before loading lines', async () => {
+  it('requires the cancel right before rendering the editor', async () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     renderRoute();
     await screen.findByRole('heading', { name: 'no-access.title' });
-    expect(fetchAllStockEventLines).not.toHaveBeenCalled();
+    expect(screen.queryByText('Vaccine')).not.toBeInTheDocument();
   });
   it('opens a non-reversible event with a right anywhere and omits signature', async () => {
     renderRoute();
@@ -366,4 +367,79 @@ describe('reverse transaction', () => {
     await screen.findByText('stock-event-reverse.no-lines');
     expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
   });
+});
+
+it('prefetches lines and reasons while the event is still loading', async () => {
+  vi.mocked(fetchStockEvent).mockReturnValue(new Promise(() => {}));
+  renderRoute();
+  await waitFor(() => expect(fetchAllStockEventLines).toHaveBeenCalledWith('event1'));
+  expect(fetchReasons).toHaveBeenCalled();
+});
+it('keeps Reversed and Lot Code visible at phone content width', async () => {
+  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width: 350 } as DOMRect);
+  vi.mocked(fetchAllStockEventLines).mockResolvedValue([
+    { ...line, cancellationEventId: 'cancelled', cancellationEventDocumentNumber: 'REV-1' },
+  ]);
+  renderRoute();
+  await screen.findByText('Vaccine');
+  expect(screen.getByText('REV-1')).toBeInTheDocument();
+  expect(screen.getByText('LOT-A')).toBeInTheDocument();
+});
+
+it('holds navigation and sign out during cancel POST and still delivers the summary', async () => {
+  let resolveCancel!: (id: string) => void;
+  vi.mocked(cancelStockEvent).mockReturnValue(
+    new Promise((resolve) => {
+      resolveCancel = resolve;
+    }),
+  );
+  const { router } = renderRoute();
+  const dialog = await signing();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
+  await waitFor(() => expect(cancelStockEvent).toHaveBeenCalledOnce());
+  act(
+    () =>
+      void router.navigate({
+        to: '/stock-management/transaction-history/$eventId',
+        params: { eventId: 'event1' },
+      }),
+  );
+  const signOut = vi.fn();
+  act(() => whenLeaveAllowed(signOut));
+  expect(
+    screen.queryByRole('alertdialog', { name: 'discard-changes.title' }),
+  ).not.toBeInTheDocument();
+  expect(router.state.location.pathname).toContain('/reverse');
+  expect(signOut).not.toHaveBeenCalled();
+  await act(async () => resolveCancel('new-event'));
+  const summary = await screen.findByRole('dialog', { name: 'stock-event-reverse.summary-title' });
+  expect(within(summary).getByText('Cancelled issue: Saved comment')).toBeInTheDocument();
+  await userEvent.click(within(summary).getByRole('button', { name: 'stock-event-reverse.close' }));
+  expect(toast.success).toHaveBeenCalledOnce();
+  expect(signOut).toHaveBeenCalledOnce();
+});
+it('opens the first server-error page and focuses its Reverse checkbox', async () => {
+  vi.mocked(fetchAllStockEventLines).mockResolvedValue(
+    Array.from({ length: 11 }, (_, i) => ({
+      ...line,
+      stockEventLineItemId: `line${i}`,
+      orderable: { ...line.orderable, fullProductName: `Product ${i}` },
+    })),
+  );
+  vi.mocked(cancelStockEvent).mockRejectedValue(
+    httpError(400, {
+      lineErrors: [{ stockEventLineItemId: 'line10', message: 'Server line error' }],
+    }),
+  );
+  const { router } = renderRoute('?reversePage=2');
+  await tick();
+  await choose();
+  await act(() => router.navigate({ search: (() => ({})) as never }));
+  await screen.findByText('Product 0');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await screen.findByText('Server line error');
+  expect(router.state.location.search.reversePage).toBe(2);
+  await waitFor(() => expect(screen.getAllByRole('checkbox')[0]).toHaveFocus());
 });

@@ -15,15 +15,17 @@ import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 let guard: ReturnType<typeof useDiscardGuard>;
 
 let leaving = false;
+let saving = false;
 
 function Draft({ dirty }: { dirty: boolean }) {
-  guard = useDiscardGuard(dirty, { allowLeave: () => leaving });
+  guard = useDiscardGuard(dirty, { allowLeave: () => leaving, pending: saving });
   const { open, signingOut } = guard.dialog;
   return <p>{open ? `asking${signingOut ? ' to sign out' : ''}` : 'editing'}</p>;
 }
 
-async function renderAt(dirty: boolean) {
+async function renderAt(dirty: boolean, pending = false) {
   leaving = false;
+  saving = pending;
   const root = createRootRoute({ component: Outlet });
   const routes = ['/profile', '/profile/roles', '/login'].map((path) =>
     createRoute({
@@ -127,4 +129,22 @@ describe('useDiscardGuard', () => {
       router.history.destroy();
     },
   );
+});
+
+it('blocks navigation while saving without offering a discard dialog', async () => {
+  const router = await renderAt(true, true);
+  act(() => void router.navigate({ to: '/profile/roles' }));
+  await act(async () => {});
+  expect(router.state.location.pathname).toBe('/profile');
+  expect(guard.dialog.open).toBe(false);
+  act(() => guard.dialog.onDiscard());
+  expect(router.state.location.pathname).toBe('/profile');
+});
+it('blocks sign out while saving without allowing discard', async () => {
+  await renderAt(true, true);
+  const signOut = vi.fn();
+  act(() => whenLeaveAllowed(signOut));
+  expect(guard.dialog.open).toBe(false);
+  act(() => guard.dialog.onDiscard());
+  expect(signOut).not.toHaveBeenCalled();
 });

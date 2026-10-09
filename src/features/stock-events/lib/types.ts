@@ -106,11 +106,6 @@ export type StockEventCancelLineError = {
   stockEventLineItemId?: string | null;
   messageKey?: string;
   message?: string;
-  blockingTransactions?: {
-    type: StockEventType;
-    occurredDate: string;
-    documentNumber?: string | null;
-  }[];
 };
 
 export type StockEventCancelError = {

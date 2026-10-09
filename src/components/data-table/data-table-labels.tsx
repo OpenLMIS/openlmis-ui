@@ -35,7 +35,7 @@ export const defaultDataTableLabels: DataTableLabels = {
   resetColumns: 'Reset Columns',
   rowsPerPage: 'Rows Per Page',
   page: (page) => `Page ${page}`,
-  invalidPage: 'Contains invalid rows',
+  invalidPage: 'Contains Invalid Rows',
   range: (from, to, total) =>
     `${from.toLocaleString()}-${to.toLocaleString()} / ${total.toLocaleString()}`,
   firstPage: 'First Page',

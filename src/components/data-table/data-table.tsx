@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export type DataTableColumnMeta = {
   /** Width classes, e.g. `w-1/5` or `w-16 xl:w-72`. Columns without any share what is left. */
@@ -185,9 +186,20 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   );
 }
 
-export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
+export function DataTableHeaderLabel({
+  children,
+  variant = 'default',
+}: {
+  children: ReactNode;
+  variant?: 'default' | 'compact';
+}) {
   return (
-    <span className="font-medium text-muted-foreground text-xs uppercase tracking-label">
+    <span
+      className={cn(
+        'font-medium text-muted-foreground text-xs',
+        variant === 'default' && 'uppercase tracking-label',
+      )}
+    >
       {children}
     </span>
   );

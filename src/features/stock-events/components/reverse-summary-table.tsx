@@ -13,7 +13,7 @@ import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { namedWithFreeText } from '@/lib/stock-labels';
 
-export type ReverseSummaryLine = {
+type ReverseSummaryLine = {
   line: StockEventLine;
   reason?: { name: string } | null;
   comments?: string | null;

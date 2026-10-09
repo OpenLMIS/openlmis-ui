@@ -62,6 +62,7 @@ function editor(overrides: Partial<StockEventLine> = {}) {
   client.setQueryDefaults(stockEventAllLinesOptions('event').queryKey, { staleTime: Infinity });
   client.setQueryData(reasonsOptions().queryKey, [
     reason,
+    { ...reason, id: 'no-text', name: 'No Text', isFreeTextAllowed: false },
     { ...reason, id: 'other', name: 'Other reason' },
     { ...reason, id: 'debit', reasonType: 'DEBIT', name: 'Cancelled receipt' },
     { ...reason, id: 'debit-other', reasonType: 'DEBIT', name: 'Other receipt reason' },
@@ -217,4 +218,92 @@ it('dismisses the comments validation alert on reason change', async () => {
 it('shows every reverse column at laptop content width with the sidebar open', () => {
   editor();
   expect(screen.getAllByRole('columnheader')).toHaveLength(14);
+});
+
+it('keeps the same comments textarea focused while typing several characters', async () => {
+  editor();
+  await tick();
+  await pick();
+  const textarea = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  await userEvent.click(textarea);
+  await userEvent.keyboard('hello');
+  expect(textarea).toHaveValue('hello');
+  expect(textarea).toHaveFocus();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toBe(textarea);
+});
+it('keeps keyboard focus when toggling Reverse with Space', async () => {
+  editor();
+  await waitFor(() => expect(screen.getAllByRole('checkbox')[0]).toBeEnabled());
+  const checkbox = screen.getAllByRole('checkbox')[0];
+  checkbox.focus();
+  await userEvent.keyboard(' ');
+  expect(checkbox).toBeChecked();
+  expect(checkbox).toHaveFocus();
+});
+it('returns focus to the same reason trigger after a keyboard selection', async () => {
+  editor();
+  await tick();
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  trigger.focus();
+  await userEvent.keyboard('{ArrowDown}');
+  await screen.findByRole('option', { name: 'Cancelled issue' });
+  await userEvent.keyboard('{Enter}');
+  await waitFor(() => expect(trigger).toHaveFocus());
+  expect(trigger).toHaveTextContent('Cancelled issue');
+});
+it('links comments and stock validation marks to their controls', async () => {
+  editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
+  await tick();
+  await pick('Cancelled receipt');
+  const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  const description = screen
+    .getByRole('textbox', { name: 'stock-events.field-of' })
+    .getAttribute('aria-describedby');
+  expect(document.getElementById(description ?? '')).toHaveTextContent(
+    'stock-events.comments-too-long',
+  );
+  const balance = document.getElementById('balance-line');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  expect(
+    document.getElementById(balance?.getAttribute('aria-describedby') ?? ''),
+  ).toHaveTextContent('stock-event-reverse.negative-stock');
+});
+it('wraps and links a server line error and focuses its Reverse checkbox', async () => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
+    },
+  });
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  const error = await screen.findByText('Line refused');
+  expect(error.closest('[role="alert"]')).toHaveClass('w-48', 'whitespace-normal');
+  const checkbox = screen.getAllByRole('checkbox')[0];
+  expect(
+    document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
+  ).toHaveTextContent('Line refused');
+  await waitFor(() => expect(checkbox).toHaveFocus());
+});
+
+it('drops comments when the new reason disallows them', async () => {
+  editor();
+  await tick();
+  await pick();
+  await userEvent.type(screen.getByRole('textbox', { name: 'stock-events.field-of' }), 'Mistake');
+  await pick('No Text');
+  expect(screen.queryByRole('textbox', { name: 'stock-events.field-of' })).not.toBeInTheDocument();
+  await pick();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('');
 });

@@ -10,7 +10,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { Button } from '@/components/ui/button';
 import { ReverseSummaryTable } from '@/features/stock-events/components/reverse-summary-table';
-import { type ReverseRow, reverseRowId } from '@/features/stock-events/lib/event-reverse';
+import { currentStockOnHand, type ReverseRow } from '@/features/stock-events/lib/event-reverse';
 import type { EventStockOnHand, StockEventLineReason } from '@/features/stock-events/lib/types';
 import type { QuantityUnit } from '@/lib/quantity';
 
@@ -27,7 +27,7 @@ export function ReverseConfirmDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-  rows: (ReverseRow & { id?: string })[];
+  rows: (ReverseRow & { id: string })[];
   reasons: readonly StockEventLineReason[];
   current: EventStockOnHand;
   balances: Record<string, number>;
@@ -46,13 +46,12 @@ export function ReverseConfirmDialog({
         <ReverseSummaryTable
           confirmation
           unit={unit}
-          rows={rows.map((row, index) => ({
+          rows={rows.map((row) => ({
             line: row.line,
             reason: reasons.find((reason) => reason.id === row.reasonId),
             comments: row.comments,
-            current:
-              current[`${row.line.orderable.id}/${row.line.lot?.id ?? ''}`] ?? row.line.stockOnHand,
-            balance: balances[row.id ?? reverseRowId(row.line, index)],
+            current: currentStockOnHand(row.line, current),
+            balance: balances[row.id],
           }))}
         />
       </FormDialogBody>

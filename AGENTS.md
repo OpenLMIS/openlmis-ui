@@ -480,7 +480,8 @@ list page therefore follows the content width, never viewport breakpoints like `
   `@container/main`, e.g. `meta: { className: '@xl/main:w-2/5' }` and `@2xl/main:w-72`.
 - The pagination follows the table card's own `@container/table`. It offers the current page and
   up to three on each side, as legacy does, keeping only the current one on a narrow table, and a
-  link may carry any page size from 1 to 100.
+  link may carry any page size from 1 to 100. `DataTablePagination isPageInvalid` marks pages
+  containing invalid rows, named by the `invalidPage` provider label.
 
 A table stays a table at every width, never stacked cards: lower-priority columns hide as the
 room shrinks (`hideBelow` also takes a width in px for a table wider than the container sizes,
@@ -543,13 +544,16 @@ unchanged, so it follows the registry's rules rather than this app's:
   such as `Button tone`; the exceptions are `SelectTrigger width`, `Table density` and
   `layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width`/`clearLabel` and `Skeleton fill`, which become plain `className`s in the registry, where layout
-  classes are allowed. `selectionColumn` also needs the app's `checkbox.tsx` edit to draw a
+  classes are allowed. `DataTableHeaderLabel variant="compact"` is a registry component variant.
+  `selectionColumn` also needs the app's `checkbox.tsx` edit to draw a
   partly selected page as a minus; it ships with that edit.
 - Text comes from `DataTableLabelsProvider`, which defaults to English.
   `TranslatedDataTableLabels` in the app shell feeds it the `data-table.*` keys.
 - `DataTable` and `DataTableSkeleton` share column metadata and accept `density`, defaulting
   to `comfortable`; use `default` for compact tables whose columns need more room. They also
   accept `layout`, `fixed` by default; `auto` sizes each column to its content, as the bin card does.
+- `DataTableHeaderLabel variant="compact"` keeps the usual header typography without uppercase
+  or extra letter spacing; `default` retains both.
 - Table state and the URL are app glue and stay in `src/lib/table-search.ts`.
 
 `@tanstack/react-table` is v9. Build tables with `useTable` and `dataTableFeatures`,
@@ -603,7 +607,9 @@ Build a form dialog from `src/components/form-dialog/` (`FormDialog`, `FormDialo
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
 `FormDialogFooter`, `FormDialogCancel`, `FormDialogSubmit`) and the fields from `useAppForm` in `src/components/form/form.tsx`
 (`TextField`, `NumberField`, `DecimalField`, `TextareaField`, `PasswordField`, `SwitchField`,
-`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `TagsField`, `SelectField`, `ImageField`, `DateField`, `QuantityField`). Two
+`RadioGroupField`, `ComboboxField`, `MultiComboboxField`, `TagsField`, `SelectField`, `ImageField`, `DateField`, `QuantityField`).
+`SelectField placeholder` supplies the empty-selection text, preserving an explicit empty-value
+item. `TextareaField maxLength` caps comments; `layout="inline"` uses a one-row textarea. Two
 forms that share their fields, such as Add Product and the product's General tab, define them once
 with `withForm`, from the same `form.tsx`. A whole number is a
 `NumberField`, which keeps the text as typed, and its schema is `wholeNumberText` from
@@ -731,7 +737,8 @@ record and its grant, such as the Stock Card or a stock event, reloads through `
 leaving the router cannot see, such as signing out, registers `useLeaveGuard`; the sign-out
 calls `whenLeaveAllowed`, and so does anything else that signs the user out, such as a
 password change, before it acts. Both open the shared "Discard Unsaved Changes?" dialog,
-`src/components/discard-changes-dialog.tsx`, fed by the hook. A reload or a closed tab gets the
+`src/components/discard-changes-dialog.tsx`, fed by the hook. Its `pending` option keeps navigation and sign-out blocked during a save
+without offering Discard. A reload or a closed tab gets the
 browser's own prompt, which is the only one a page is allowed there.
 
 **Charts use Recharts through shadcn's `ChartContainer`** and the `--chart-1`..`--chart-5`

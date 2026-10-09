@@ -6,7 +6,7 @@ import type {
   StockEventLineReason,
 } from '@/features/stock-events/lib/types';
 
-export type ReverseLineDraft = { reasonId: string; comments: string };
+type ReverseLineDraft = { reasonId: string; comments: string };
 export type ReverseDraft = { lines: Record<string, ReverseLineDraft> };
 export type ReverseRowMarks = {
   reason?: 'stock-events.required';
@@ -15,10 +15,8 @@ export type ReverseRowMarks = {
 };
 export type ReverseRow = ReverseLineDraft & {
   line: StockEventLine;
-  marks?: ReverseRowMarks;
-  serverError?: StockEventCancelLineError;
 };
-export type ReverseValidation = {
+type ReverseValidation = {
   valid: boolean;
   message?:
     | 'stock-event-reverse.none-selected'
@@ -66,6 +64,14 @@ export function cancellationReasons(
   );
 }
 
+export function stockKey(orderableId: string, lotId?: string | null): string {
+  return `${orderableId}/${lotId ?? ''}`;
+}
+
+export function currentStockOnHand(line: StockEventLine, current: EventStockOnHand): number {
+  return current[stockKey(line.orderable.id, line.lot?.id)] ?? line.stockOnHand;
+}
+
 export function newStockOnHand(
   lines: readonly StockEventLine[],
   tickedIds: ReadonlySet<string>,
@@ -77,9 +83,8 @@ export function newStockOnHand(
     const id = reverseRowId(line, index);
     const type = reversalReasonType(line);
     if (!tickedIds.has(id) || !type) return;
-    const key = `${line.orderable.id}/${line.lot?.id ?? ''}`;
-    const balance = current[key];
-    const base = typeof balance === 'number' ? balance : line.stockOnHand;
+    const key = stockKey(line.orderable.id, line.lot?.id);
+    const base = currentStockOnHand(line, current);
     const changes = earlierChanges.get(key) ?? [];
     const previous = changes.reduce((stock, change) => stock + change, base);
     const change = type === 'CREDIT' ? line.quantity : -line.quantity;
@@ -126,17 +131,6 @@ export function validateReverse(
         ? 'stock-events.comments-too-long'
         : undefined;
   return { valid: !message, ...(message && { message }), marks };
-}
-
-export function changeReverseReason(row: ReverseRow, reason: StockEventLineReason): ReverseRow {
-  const { serverError: _serverError, marks, ...rest } = row;
-  const { reason: _reasonMark, ...keptMarks } = marks ?? {};
-  return {
-    ...rest,
-    reasonId: reason.id,
-    comments: reason.isFreeTextAllowed ? row.comments : '',
-    ...(marks && { marks: keptMarks }),
-  };
 }
 
 export function reversePayload(rows: readonly ReverseRow[], signature: string): StockEventCancel {

@@ -20,7 +20,7 @@ it('shows the picked reason, comments and current and resulting balances before 
       onOpenChange={vi.fn()}
       onConfirm={confirm}
       unit="DOSES"
-      rows={[{ line, reasonId: 'cancel', comments: 'Mistake' }]}
+      rows={[{ id: 'line', line, reasonId: 'cancel', comments: 'Mistake' }]}
       reasons={[
         {
           id: 'cancel',

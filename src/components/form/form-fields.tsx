@@ -944,7 +944,11 @@ export function SelectField({
         disabled={disabled}
         items={items}
         onValueChange={(value) => value !== null && field.handleChange(value)}
-        value={field.state.value || null}
+        value={
+          field.state.value === '' && !items.some((item) => item.value === '')
+            ? null
+            : field.state.value
+        }
       >
         <SelectTrigger
           aria-describedby={ariaDescribedBy}

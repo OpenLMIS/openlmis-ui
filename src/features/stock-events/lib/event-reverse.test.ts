@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   cancellationReasons,
   canReverseLine,
-  changeReverseReason,
   lineErrorMessage,
   newStockOnHand,
   reversalReasonType,
@@ -188,26 +187,6 @@ describe('reverse validation', () => {
         {},
       ).valid,
     ).toBe(true);
-  });
-  it('changes the reason, clears its mark and server error, and preserves the stock mark', () => {
-    const row = {
-      line: line(),
-      reasonId: '',
-      comments: 'Keep me',
-      marks: {
-        reason: 'stock-events.required' as const,
-        stock: 'stock-event-reverse.negative-stock' as const,
-      },
-      serverError: { message: 'Server refused' },
-    };
-    expect(changeReverseReason(row, reason())).toEqual({
-      line: row.line,
-      reasonId: 'reason',
-      comments: 'Keep me',
-      marks: { stock: 'stock-event-reverse.negative-stock' },
-    });
-    expect(changeReverseReason(row, reason({ isFreeTextAllowed: false })).comments).toBe('');
-    expect(row.comments).toBe('Keep me');
   });
 });
 
