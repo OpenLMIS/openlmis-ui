@@ -45,6 +45,7 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { orEmpty } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
+import { cn } from '@/lib/utils';
 import { toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
 
 const COLUMNS = [
@@ -62,15 +63,18 @@ const COLUMNS = [
 ] as const;
 type ColumnId = (typeof COLUMNS)[number][0];
 export const INVENTORY_HIDEABLE_COLUMNS = [
-  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 900 },
-  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 800 },
-  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 700 },
-  { id: 'stock', labelKey: 'stock-events.stock-on-hand', hideBelow: 600 },
-  { id: 'lot', labelKey: 'stock-events.lot-code', hideBelow: 500 },
-  { id: 'vvm', labelKey: 'stock-events.vvm-status', hideBelow: 600 },
+  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1600 },
+  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1480 },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1360 },
+  { id: 'stock', labelKey: 'stock-events.stock-on-hand', hideBelow: 1200 },
 ] as const;
 const visibleColumns = (visibility: ColumnVisibilityState, showVvm: boolean) =>
-  COLUMNS.filter(([id]) => visibility[id] !== false && (id !== 'vvm' || showVvm));
+  COLUMNS.filter(
+    ([id]) =>
+      (!INVENTORY_HIDEABLE_COLUMNS.some((column) => column.id === id) ||
+        visibility[id] !== false) &&
+      (id !== 'vvm' || showVvm),
+  );
 
 type InventoryGridEditor = {
   form: PhysicalInventoryForm;
@@ -91,16 +95,16 @@ type Props = {
   showActions: boolean;
 };
 const COLUMN_WIDTHS: Record<ColumnId, string> = {
-  productCode: 'w-24',
-  product: 'w-24 @4xl/main:w-28',
-  packSize: 'w-16',
-  lot: 'w-20',
-  expiry: 'w-24',
-  stock: 'w-24',
-  count: 'w-24',
-  vvm: 'w-20',
-  reasons: 'w-24',
-  unaccounted: 'w-36',
+  productCode: 'w-32',
+  product: 'w-56',
+  packSize: 'w-24',
+  lot: 'w-40',
+  expiry: 'w-36',
+  stock: 'w-40',
+  count: 'w-48',
+  vvm: 'w-32',
+  reasons: 'w-40',
+  unaccounted: 'w-48',
   actions: 'w-12',
 };
 export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions, editor }: Props) {
@@ -111,7 +115,7 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions,
   return (
     <DataTableCard>
       <Table
-        density="compact"
+        density="comfortable"
         layout="auto"
         tabIndex={-1}
         aria-label={t('physical-inventory.editor-crumb')}
@@ -125,7 +129,12 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions,
           <TableRow>
             {columns.map(([id, key]) => (
               <TableHead key={id}>
-                <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wide">
+                <span
+                  className={cn(
+                    'block whitespace-nowrap text-2xs font-medium tracking-wide',
+                    COLUMN_WIDTHS[id],
+                  )}
+                >
                   {t(key)}
                 </span>
               </TableHead>
@@ -250,7 +259,7 @@ function InventoryCell({
       return hideProduct ? null : <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
       return hideProduct ? null : (
-        <span className="block min-w-16 max-w-24 whitespace-normal break-words font-medium">
+        <span className="block min-w-56 max-w-64 whitespace-normal break-normal font-medium">
           <bdi>
             {productName(line.orderable)}
             {line.orderable.dispensable?.displayUnit
@@ -270,13 +279,11 @@ function InventoryCell({
             aria-label={label(t('physical-inventory.edit-lot'))}
             onClick={() => editor.onEditLot(line)}
           >
-            <span className="block max-w-20 whitespace-normal break-all">
-              {line.newLot.lotCode}
-            </span>
+            <span className="whitespace-nowrap">{line.newLot.lotCode}</span>
           </Button>
         );
       return summary ? null : (
-        <span className="block max-w-20 whitespace-normal break-all">
+        <span className="whitespace-nowrap">
           <bdi>{inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}</bdi>
         </span>
       );
@@ -334,12 +341,12 @@ function InventoryCell({
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            size="sm"
             aria-label={label(t('physical-inventory.reasons'))}
             disabled={editor.pending || !line.quantity.doses.trim()}
             onClick={() => editor.onReasons(line)}
           >
-            <span className="block max-w-20 whitespace-normal break-words">
+            <span className="whitespace-nowrap">
               {line.stockAdjustments.length === 0
                 ? t('physical-inventory.add-reasons')
                 : line.stockAdjustments.length === 1
@@ -387,7 +394,7 @@ function InventoryCell({
     case 'vvm':
       if (!summary && line.orderable.extraData?.useVVM === 'true')
         return (
-          <div className="w-20">
+          <div className="w-32">
             <editor.form.AppField name={`lines.${line.key}.vvmStatus`}>
               {(field) => (
                 <field.SelectField
@@ -424,7 +431,7 @@ export function PhysicalInventoryGridSkeleton({
   return (
     <div aria-busy>
       <DataTableCard>
-        <Table density="compact" layout="auto">
+        <Table density="comfortable" layout="auto">
           <colgroup>
             {columns.map(([id]) => (
               <col key={id} className={COLUMN_WIDTHS[id]} />
@@ -434,7 +441,12 @@ export function PhysicalInventoryGridSkeleton({
             <TableRow>
               {columns.map(([id, key]) => (
                 <TableHead key={id}>
-                  <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wide">
+                  <span
+                    className={cn(
+                      'block whitespace-nowrap text-2xs font-medium tracking-wide',
+                      COLUMN_WIDTHS[id],
+                    )}
+                  >
                     {t(key)}
                   </span>
                 </TableHead>
@@ -446,7 +458,7 @@ export function PhysicalInventoryGridSkeleton({
               <TableRow key={row}>
                 {columns.map(([id]) => (
                   <TableCell key={id}>
-                    <div className="h-4 w-full">
+                    <div className={`h-4 ${COLUMN_WIDTHS[id]}`}>
                       <Skeleton fill />
                     </div>
                   </TableCell>
@@ -477,14 +489,14 @@ function InventoryQuantityInputs({
   const { t } = useTranslation();
   const parts = editor.unit === 'DOSES' ? (['doses'] as const) : (['packs', 'remainder'] as const);
   return (
-    <div data-inventory-key={line.key} className="w-20">
+    <div data-inventory-key={line.key} className={cn('w-32', editor.unit === 'PACKS' && 'w-56')}>
       <Field data-invalid={Boolean(error)} spacing="tight">
         <FieldLabel>
           <span className="sr-only">{label}</span>
         </FieldLabel>
         <div className="flex gap-1">
           {parts.map((part) => (
-            <div key={part} className="min-w-0 flex-1">
+            <div key={part} className="min-w-24 flex-1">
               <Input
                 aria-label={
                   parts.length === 1

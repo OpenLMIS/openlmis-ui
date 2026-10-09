@@ -2,7 +2,12 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { PhysicalInventoryGrid } from '@/features/stock-events/components/physical-inventory-grid';
+import { resolveColumnVisibility } from '@/components/data-table/responsive-columns';
+import {
+  INVENTORY_HIDEABLE_COLUMNS,
+  PhysicalInventoryGrid,
+  PhysicalInventoryGridSkeleton,
+} from '@/features/stock-events/components/physical-inventory-grid';
 import { usePhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
 import {
   buildInventoryLines,
@@ -136,4 +141,49 @@ it('shows Deactivate offline but keeps it disabled', async () => {
     'aria-disabled',
     'true',
   );
+});
+
+describe('inventory column priorities', () => {
+  it('offers only the four lower-priority columns in View', () => {
+    expect(INVENTORY_HIDEABLE_COLUMNS.map(({ id }) => id)).toEqual([
+      'productCode',
+      'packSize',
+      'expiry',
+      'stock',
+    ]);
+  });
+
+  it.each([
+    [1600, []],
+    [1599, ['productCode']],
+    [1479, ['productCode', 'packSize']],
+    [1359, ['productCode', 'packSize', 'expiry']],
+    [1199, ['productCode', 'packSize', 'expiry', 'stock']],
+    [390, ['productCode', 'packSize', 'expiry', 'stock']],
+  ])('hides optional columns in priority order at %i pixels', (width, hidden) => {
+    const visibility = resolveColumnVisibility(INVENTORY_HIDEABLE_COLUMNS, {}, width);
+    expect(
+      Object.entries(visibility)
+        .filter(([, visible]) => !visible)
+        .map(([id]) => id),
+    ).toEqual(hidden);
+  });
+
+  it('keeps identifying and editing columns despite stale stored choices', () => {
+    const visibility = {
+      product: false,
+      lot: false,
+      count: false,
+      reasons: false,
+      unaccounted: false,
+    };
+    const props = { visibility, showVvm: false };
+    const { unmount } = render(<Grid {...props} bands={inventoryPage(lines, 'program').bands} />);
+    expect(screen.getByText('Batch')).toBeInTheDocument();
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+    const headers = screen.getAllByRole('columnheader').map((head) => head.textContent);
+    unmount();
+    render(<PhysicalInventoryGridSkeleton {...props} />);
+    expect(screen.getAllByRole('columnheader').map((head) => head.textContent)).toEqual(headers);
+  });
 });
