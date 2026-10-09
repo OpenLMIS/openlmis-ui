@@ -50,6 +50,13 @@ export const Route = createFileRoute(
     const sameEvent = cause === 'stay' && shownEventId === params.eventId;
     shownEventId = undefined;
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
+    try {
+      await requireRight(queryClient, RIGHTS.stockEventsCancel);
+    } catch (error) {
+      if (userChanged()) return;
+      throw error;
+    }
+    if (userChanged()) return;
     if (!sameEvent) {
       queryClient.removeQueries({
         queryKey: stockEventAllLinesOptions(params.eventId).queryKey,
@@ -58,9 +65,8 @@ export const Route = createFileRoute(
       queryClient.prefetchQuery(stockEventAllLinesOptions(params.eventId));
       queryClient.prefetchQuery({ ...reasonsOptions(), staleTime: 0 });
     }
-    const [, event] =
+    const [event] =
       (await Promise.all([
-        requireRight(queryClient, RIGHTS.stockEventsCancel),
         sameEvent && !state?.error && !state?.isInvalidated
           ? queryClient.ensureQueryData(options)
           : queryClient.fetchQuery({ ...options, staleTime: 0 }),

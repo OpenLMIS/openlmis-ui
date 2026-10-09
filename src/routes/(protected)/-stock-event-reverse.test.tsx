@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
+  createBrowserHistory,
   createMemoryHistory,
   createRootRouteWithContext,
   createRoute,
@@ -68,7 +69,7 @@ const reason = {
   reasonType: 'CREDIT' as const,
   isFreeTextAllowed: true,
 };
-function renderRoute(extra = '') {
+function renderRoute(extra = '', browserHistory = false) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -90,9 +91,11 @@ function renderRoute(extra = '') {
       group.addChildren([layout.addChildren([page, detail] as never)] as never),
     ] as never),
     context: { queryClient },
-    history: createMemoryHistory({
-      initialEntries: [`/stock-management/transaction-history/event1/reverse${extra}`],
-    }),
+    history: browserHistory
+      ? createBrowserHistory()
+      : createMemoryHistory({
+          initialEntries: [`/stock-management/transaction-history/event1/reverse${extra}`],
+        }),
   } as never) as AnyRouter;
   render(
     <QueryClientProvider client={queryClient}>
@@ -154,7 +157,8 @@ describe('reverse transaction', () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     renderRoute();
     await screen.findByRole('heading', { name: 'no-access.title' });
-    expect(screen.queryByText('Vaccine')).not.toBeInTheDocument();
+    expect(fetchAllStockEventLines).not.toHaveBeenCalled();
+    expect(fetchReasons).not.toHaveBeenCalled();
   });
   it('opens a non-reversible event with a right anywhere and omits signature', async () => {
     renderRoute();
@@ -439,7 +443,101 @@ it('opens the first server-error page and focuses its Reverse checkbox', async (
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  await screen.findByText('Server line error');
+  const error = await screen.findByText('Server line error');
+  const checkbox = screen.getAllByRole('checkbox')[0];
+  expect(
+    document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
+  ).toHaveTextContent('Server line error');
+  expect(error).toBeVisible();
   expect(router.state.location.search.reversePage).toBe(2);
   await waitFor(() => expect(screen.getAllByRole('checkbox')[0]).toHaveFocus());
+});
+
+it('cancels Back during the POST and never asks to discard on summary close', async () => {
+  const reversePath = '/stock-management/transaction-history/event1/reverse';
+  window.history.replaceState(
+    { __TSR_index: 0, __TSR_key: 'detail' },
+    '',
+    '/stock-management/transaction-history/event1',
+  );
+  window.history.pushState({ __TSR_index: 1, __TSR_key: 'reverse' }, '', reversePath);
+  let resolveCancel!: (id: string) => void;
+  vi.mocked(cancelStockEvent).mockReturnValue(
+    new Promise((resolve) => {
+      resolveCancel = resolve;
+    }),
+  );
+  const { router } = renderRoute('', true);
+  const seenDiscard = vi.fn();
+  const observer = new MutationObserver((records) => {
+    for (const record of records)
+      for (const node of record.addedNodes) {
+        if (
+          node instanceof Element &&
+          (node.matches('[role="alertdialog"]') || node.querySelector('[role="alertdialog"]'))
+        )
+          seenDiscard();
+      }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  try {
+    const dialog = await signing();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
+    await waitFor(() => expect(cancelStockEvent).toHaveBeenCalledOnce());
+    act(() => router.history.back());
+    await waitFor(() => expect(window.location.pathname).toBe(reversePath));
+    expect(router.state.location.pathname).toBe(reversePath);
+    await act(async () => resolveCancel('new-event'));
+    const summary = await screen.findByRole('dialog', {
+      name: 'stock-event-reverse.summary-title',
+    });
+    await userEvent.click(
+      within(summary).getByRole('button', { name: 'stock-event-reverse.close' }),
+    );
+    await screen.findByText('Detail destination');
+    expect(seenDiscard).not.toHaveBeenCalled();
+  } finally {
+    observer.disconnect();
+    router.history.destroy();
+    window.history.replaceState(null, '', '/');
+  }
+});
+it('asks again on Cancel after a navigation attempt during a POST that returns 400', async () => {
+  let rejectCancel!: (error: unknown) => void;
+  vi.mocked(cancelStockEvent).mockReturnValue(
+    new Promise((_, reject) => {
+      rejectCancel = reject;
+    }),
+  );
+  const { router } = renderRoute();
+  const dialog = await signing();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
+  act(
+    () =>
+      void router.navigate({
+        to: '/stock-management/transaction-history/$eventId',
+        params: { eventId: 'event1' },
+      }),
+  );
+  await act(async () => rejectCancel(httpError(400, { message: 'Refused' })));
+  await screen.findByText('Refused');
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.cancel' }));
+  await screen.findByRole('alertdialog', { name: 'discard-changes.title' });
+});
+
+it('does not prompt before reload while the saved summary is open', async () => {
+  window.history.replaceState(null, '', '/stock-management/transaction-history/event1/reverse');
+  const { router } = renderRoute('', true);
+  try {
+    const dialog = await signing();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
+    await screen.findByRole('dialog', { name: 'stock-event-reverse.summary-title' });
+    const unload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
+  } finally {
+    router.history.destroy();
+    window.history.replaceState(null, '', '/');
+  }
 });

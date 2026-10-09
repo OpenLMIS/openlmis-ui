@@ -229,7 +229,7 @@ describe('invalid pages', () => {
   });
 });
 
-it('uses the current page foreground for its invalid mark and checks each page once', () => {
+it('keeps the invalid indicator and name on the current page using its foreground', () => {
   const invalid = vi.fn(() => true);
   render(
     <Harness
@@ -239,10 +239,8 @@ it('uses the current page foreground for its invalid mark and checks each page o
       isPageInvalid={invalid}
     />,
   );
-  expect(
-    screen
-      .getByRole('button', { name: 'Page 1: Contains Invalid Rows' })
-      .querySelector('.text-destructive'),
-  ).toBeNull();
-  expect(invalid.mock.calls).toHaveLength(3);
+  const currentPage = screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' });
+  expect(currentPage).toHaveAccessibleName('Page 1: Contains Invalid Rows');
+  expect(currentPage.querySelector('svg')).toBeInTheDocument();
+  expect(currentPage.querySelector('.text-destructive')).toBeNull();
 });

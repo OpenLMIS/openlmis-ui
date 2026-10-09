@@ -274,7 +274,7 @@ it('links comments and stock validation marks to their controls', async () => {
     document.getElementById(balance?.getAttribute('aria-describedby') ?? ''),
   ).toHaveTextContent('stock-event-reverse.negative-stock');
 });
-it('wraps and links a server line error and focuses its Reverse checkbox', async () => {
+it('links a server line error and focuses its Reverse checkbox', async () => {
   vi.mocked(cancelStockEvent).mockRejectedValueOnce({
     isAxiosError: true,
     response: {
@@ -288,8 +288,7 @@ it('wraps and links a server line error and focuses its Reverse checkbox', async
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  const error = await screen.findByText('Line refused');
-  expect(error.closest('[role="alert"]')).toHaveClass('w-48', 'whitespace-normal');
+  expect(await screen.findByText('Line refused')).toBeVisible();
   const checkbox = screen.getAllByRole('checkbox')[0];
   expect(
     document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),

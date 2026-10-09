@@ -200,7 +200,7 @@ export function ReverseEditor({
   });
   const [readingSummary, setReadingSummary] = useState(false);
   const pending = mutation.isPending || readingSummary;
-  const guard = useDiscardGuard(ticked.size > 0, {
+  const guard = useDiscardGuard(ticked.size > 0 && !summary, {
     allowLeave: () => leaving.current,
     pending: pending || !!summary,
   });
