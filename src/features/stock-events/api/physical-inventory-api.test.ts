@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchLotsByIds, fetchOrderablesByIds } from '@/features/reference-data/api/api';
 import {
   fetchInventoryStockLines,
+  fetchInventorySummaries,
   fetchPhysicalInventoryDraft,
   startPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
@@ -61,12 +62,16 @@ describe('physical inventory reads and start', () => {
     vi.mocked(fetchLotsByIds).mockResolvedValue([
       { id: 'lot', lotCode: 'Lot', expirationDate: null },
     ]);
-    const result = await fetchInventoryStockLines(scope, [
-      { orderableId: 'saved', lotId: 'lot', quantity: 3 },
-    ]);
+    const summaries = await fetchInventorySummaries(scope);
+    const result = await fetchInventoryStockLines(
+      scope,
+      [{ orderableId: 'saved', lotId: 'lot', quantity: 3 }],
+      summaries,
+    );
     expect(client.get).toHaveBeenCalledWith('/v2/stockCardSummaries', {
-      params: { ...scope, nonEmptyOnly: true },
+      params: scope,
     });
+    expect(client.get).toHaveBeenCalledTimes(1);
     expect(fetchOrderablesByIds).toHaveBeenCalledWith(['o', 'saved']);
     expect(fetchLotsByIds).toHaveBeenCalledWith(['lot']);
     expect(result).toEqual([

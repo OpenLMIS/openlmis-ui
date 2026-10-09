@@ -50,6 +50,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
 vi.mock('@/features/stock-events/api/physical-inventory-api', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/api/physical-inventory-api')>()),
   fetchInventoryStockLines: vi.fn(),
+  fetchInventorySummaries: vi.fn().mockResolvedValue([]),
   fetchEligibleInventoryProducts: vi.fn(),
   fetchPhysicalInventoryDraft: vi.fn(),
   startPhysicalInventory: vi.fn(),

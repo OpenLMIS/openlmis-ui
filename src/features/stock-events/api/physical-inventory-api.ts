@@ -34,22 +34,19 @@ export async function startPhysicalInventory(
   return { ...data, lineItems: data.lineItems ?? [] };
 }
 
-export async function fetchInventorySummaries(
-  scope: InventoryScope,
-  nonEmptyOnly = false,
-): Promise<InventorySummary[]> {
+export async function fetchInventorySummaries(scope: InventoryScope): Promise<InventorySummary[]> {
   const { data } = await client.get<Page<InventorySummary>>('/v2/stockCardSummaries', {
-    params: { ...scope, ...(nonEmptyOnly && { nonEmptyOnly: true }) },
+    params: scope,
   });
   return data.content;
 }
 
 export async function fetchInventoryStockLines(
-  scope: InventoryScope,
+  _scope: InventoryScope,
   draft: readonly InventoryDraftItem[],
+  summaries: readonly InventorySummary[],
 ): Promise<InventoryStockLine[]> {
   const session = getSessionScope();
-  const summaries = await fetchInventorySummaries(scope, true);
   assertSessionScope(session);
   const cards = summaries.flatMap((summary) => summary.canFulfillForMe);
   const productIds = [
@@ -99,10 +96,10 @@ export async function fetchInventoryStockLines(
 }
 
 export async function fetchEligibleInventoryProducts(
-  scope: InventoryScope,
+  _scope: InventoryScope,
+  summaries: readonly InventorySummary[],
 ): Promise<InventoryStockLine[]> {
   const session = getSessionScope();
-  const summaries = await fetchInventorySummaries(scope);
   assertSessionScope(session);
   const approvedIds = summaries.map((summary) => summary.orderable.id);
   const fulfills = await fetchOrderableFulfills(approvedIds);
