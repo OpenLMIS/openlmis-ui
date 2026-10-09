@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { parseDateValue } from '@/components/form/date-value';
 import { type QuantityValue, quantityValue } from '@/components/form/quantity-value';
+import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
@@ -12,6 +14,8 @@ const lineFields = z.object({
   stockOnHand: z.number(),
   netContent: z.number().nullable().optional(),
   useVVM: z.boolean(),
+  destination: z.string(),
+  destinationComments: z.string(),
   reasonId: z.string(),
   reasonFreeText: z.string(),
   quantity: z.object({ doses: z.string(), packs: z.string(), remainder: z.string() }),
@@ -19,15 +23,27 @@ const lineFields = z.object({
   vvmStatus: z.enum(['', 'STAGE_1', 'STAGE_2'], { error: 'stock-events.vvm-invalid' }),
 });
 
-export type AdjustmentLine = z.infer<typeof lineFields> & { quantity: QuantityValue };
-export type AdjustmentFormValues = { lines: AdjustmentLine[] };
-export type AdjustmentSchemaOptions = { reasons: readonly Reason[]; today: string };
+export type EventLine = z.infer<typeof lineFields> & { quantity: QuantityValue };
+export type EventFormValues = { lines: EventLine[] };
+export type EventSchemaOptions = {
+  kind: ConfiguredEventKind;
+  reasons: readonly Reason[];
+  today: string;
+  assignments?: readonly ValidAssignment[];
+  defaultReasonId?: string;
+};
 
-export function newAdjustmentLine(
+export function newEventLine(
   card: EventStockCard,
-  previousLine: AdjustmentLine | undefined,
+  previousLine: EventLine | undefined,
   today: string,
-): AdjustmentLine {
+  {
+    kind,
+    assignments = [],
+    reasons = [],
+    defaultReasonId,
+  }: Pick<EventSchemaOptions, 'kind'> & Partial<Omit<EventSchemaOptions, 'kind' | 'today'>>,
+): EventLine {
   return {
     key: crypto.randomUUID(),
     orderable: card.orderable,
@@ -35,25 +51,63 @@ export function newAdjustmentLine(
     stockOnHand: card.stockOnHand,
     netContent: card.orderable.netContent,
     useVVM: card.orderable.extraData?.useVVM === 'true',
-    reasonId: previousLine?.reasonId ?? '',
+    destination:
+      EVENT_KINDS[kind].counterparty === 'destination' ? (previousLine?.destination ?? '') : '',
+    destinationComments:
+      EVENT_KINDS[kind].counterparty === 'destination' &&
+      assignments.find((item) => item.id === previousLine?.destination)?.isFreeTextAllowed
+        ? (previousLine?.destinationComments ?? '')
+        : '',
+    reasonId: previousLine?.reasonId || listedDefaultReasonId(reasons, defaultReasonId),
     reasonFreeText: previousLine?.reasonFreeText ?? '',
     quantity: quantityValue('', card.orderable.netContent),
-    occurredDate: previousLine?.occurredDate ?? today,
+    occurredDate: previousLine?.occurredDate || today,
     vvmStatus: '',
   };
 }
 
-export function changeAdjustmentReason(line: AdjustmentLine, reasonId: string): AdjustmentLine {
+export function changeEventReason(line: EventLine, reasonId: string): EventLine {
   return line.reasonId === reasonId ? line : { ...line, reasonId, reasonFreeText: '' };
 }
 
-export function adjustmentLinesSchema({ reasons, today }: AdjustmentSchemaOptions) {
+export function listedDefaultReasonId(
+  reasons: readonly Reason[],
+  defaultReasonId?: string,
+): string {
+  return reasons.find((reason) => reason.id === defaultReasonId)?.id ?? '';
+}
+
+export function eventReasonRequired(
+  kind: ConfiguredEventKind,
+  reasons: readonly Reason[],
+  defaultReasonId?: string,
+): boolean {
+  return EVENT_KINDS[kind].reasonRequired || !!listedDefaultReasonId(reasons, defaultReasonId);
+}
+
+export function eventLinesSchema({
+  kind,
+  reasons,
+  today,
+  assignments = [],
+  defaultReasonId,
+}: EventSchemaOptions) {
   const byId = new Map(reasons.map((reason) => [reason.id, reason]));
+  const config = EVENT_KINDS[kind];
   const row = lineFields.superRefine((line, context) => {
     const issue = (path: string[], message: string) =>
       context.addIssue({ code: 'custom', path, message });
     const reason = byId.get(line.reasonId);
-    if (!reason) issue(['reasonId'], 'stock-events.required');
+    if (!reason && (eventReasonRequired(kind, reasons, defaultReasonId) || line.reasonId))
+      issue(['reasonId'], 'stock-events.required');
+    if (config.counterparty === 'destination') {
+      const destination = assignments.find((item) => item.id === line.destination);
+      if (!destination) issue(['destination'], 'stock-events.required');
+      if (line.destinationComments.length > 255)
+        issue(['destinationComments'], 'stock-events.comments-too-long');
+      if (line.destinationComments.trim() && !destination?.isFreeTextAllowed)
+        issue(['destinationComments'], 'stock-events.comments-not-allowed');
+    }
 
     const quantity = wholeNumberText(
       {
@@ -66,7 +120,8 @@ export function adjustmentLinesSchema({ reasons, today }: AdjustmentSchemaOption
     if (!quantity.success) {
       for (const error of quantity.error.issues) issue(['quantity', 'doses'], error.message);
     } else if (
-      reason?.reasonType === 'DEBIT' &&
+      (config.stockOnHandCap === 'always' ||
+        (config.stockOnHandCap === 'debit-reason' && reason?.reasonType === 'DEBIT')) &&
       toWholeNumber(line.quantity.doses) > line.stockOnHand
     ) {
       issue(['quantity', 'doses'], 'stock-events.quantity-greater-than-stock-on-hand');
@@ -90,30 +145,44 @@ export function adjustmentLinesSchema({ reasons, today }: AdjustmentSchemaOption
   return z.object({ lines: z.array(row) });
 }
 
-export type AdjustmentPayloadOptions = {
+export function changeEventDestination(line: EventLine, destination: string): EventLine {
+  return line.destination === destination
+    ? line
+    : { ...line, destination, destinationComments: '' };
+}
+
+export type EventPayloadOptions = {
+  kind: ConfiguredEventKind;
+  assignments?: readonly ValidAssignment[];
   programId: string;
   facilityId: string;
   signature: string;
-  lines: readonly AdjustmentLine[];
+  lines: readonly EventLine[];
 };
 
-export function adjustmentPayload({
+export function eventPayload({
+  kind,
+  assignments = [],
   programId,
   facilityId,
   signature,
   lines,
-}: AdjustmentPayloadOptions): StockEvent {
+}: EventPayloadOptions): StockEvent {
   return {
     programId,
     facilityId,
     signature,
-    eventOrigin: 'ADJUSTMENT',
+    eventOrigin: EVENT_KINDS[kind].eventOrigin,
     lineItems: lines.map((line) => ({
       orderableId: line.orderable.id,
       lotId: line.lot?.id ?? null,
       quantity: toWholeNumber(line.quantity.doses),
       occurredDate: line.occurredDate,
-      reasonId: line.reasonId,
+      ...(line.reasonId && { reasonId: line.reasonId }),
+      ...(EVENT_KINDS[kind].counterparty === 'destination' && {
+        destinationId: assignments.find((item) => item.id === line.destination)?.node.id,
+        ...(line.destinationComments.trim() && { destinationFreeText: line.destinationComments }),
+      }),
       ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
       extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},
     })),

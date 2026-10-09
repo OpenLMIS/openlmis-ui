@@ -1,13 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { quantityValue, updateQuantityValue } from '@/components/form/quantity-value';
 import type { Reason } from '@/features/reference-data/lib/types';
 import {
-  type AdjustmentLine,
-  adjustmentLinesSchema,
-  adjustmentPayload,
-  changeAdjustmentReason,
-  newAdjustmentLine,
-} from '@/features/stock-events/lib/adjustment-form';
+  changeEventDestination,
+  changeEventReason,
+  type EventLine,
+  eventLinesSchema,
+  eventPayload,
+  newEventLine,
+} from '@/features/stock-events/lib/event-form';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 
 const today = '2026-10-07';
@@ -37,20 +38,20 @@ const reasons = [
   reason('lost', 'DEBIT', true),
   reason('return', 'CREDIT'),
 ];
-const schema = adjustmentLinesSchema({ reasons, today });
-const line = (patch: Partial<AdjustmentLine> = {}): AdjustmentLine => ({
-  ...newAdjustmentLine(card, undefined, today),
+const schema = eventLinesSchema({ kind: 'adjustment', reasons, today });
+const line = (patch: Partial<EventLine> = {}): EventLine => ({
+  ...newEventLine(card, undefined, today, { kind: 'adjustment' }),
   reasonId: 'damage',
   quantity: quantityValue('1', 16),
   ...patch,
 });
-const issues = (lines: AdjustmentLine[]) =>
+const issues = (lines: EventLine[]) =>
   schema.safeParse({ lines }).error?.issues.map(({ path, message }) => [path.join('.'), message]);
 
-describe('newAdjustmentLine', () => {
+describe('newEventLine', () => {
   it('creates independent stable keys and captures card metadata with empty inputs', () => {
-    const first = newAdjustmentLine(card, undefined, today);
-    const second = newAdjustmentLine(card, undefined, today);
+    const first = newEventLine(card, undefined, today, { kind: 'adjustment' });
+    const second = newEventLine(card, undefined, today, { kind: 'adjustment' });
     expect(first.key).not.toBe(second.key);
     expect(first).not.toHaveProperty('card');
     expect(first).toMatchObject({
@@ -66,20 +67,21 @@ describe('newAdjustmentLine', () => {
       vvmStatus: '',
     });
   });
-  it('copies only date, reason and comments from the previous line, including an empty date', () => {
+  it('copies only date, reason and comments from the previous line, falling back to today for an empty date', () => {
     const previous = line({
       occurredDate: '',
       reasonId: 'lost',
       reasonFreeText: 'Broken',
       vvmStatus: 'STAGE_2',
     });
-    const next = newAdjustmentLine(
+    const next = newEventLine(
       { ...card, lot: null, orderable: { ...card.orderable, extraData: null } },
       previous,
       today,
+      { kind: 'adjustment' },
     );
     expect(next).toMatchObject({
-      occurredDate: '',
+      occurredDate: today,
       reasonId: 'lost',
       reasonFreeText: 'Broken',
       quantity: quantityValue(),
@@ -88,13 +90,14 @@ describe('newAdjustmentLine', () => {
       vvmStatus: '',
     });
     expect(next.key).not.toBe(previous.key);
-    expect(newAdjustmentLine(card, line({ occurredDate: '2026-09-01' }), today).occurredDate).toBe(
-      '2026-09-01',
-    );
+    expect(
+      newEventLine(card, line({ occurredDate: '2026-09-01' }), today, { kind: 'adjustment' })
+        .occurredDate,
+    ).toBe('2026-09-01');
   });
 });
 
-describe('adjustmentLinesSchema', () => {
+describe('eventLinesSchema', () => {
   it.each([
     ['', 'stock-events.required'],
     ['0', 'stock-events.positive-number'],
@@ -211,20 +214,20 @@ describe('adjustmentLinesSchema', () => {
   });
 });
 
-describe('changeAdjustmentReason', () => {
+describe('changeEventReason', () => {
   it('clears comments immutably when the reason changes and preserves them for the same reason', () => {
     const saved = line({ reasonId: 'lost', reasonFreeText: 'Broken' });
-    expect(changeAdjustmentReason(saved, 'damage')).toEqual({
+    expect(changeEventReason(saved, 'damage')).toEqual({
       ...saved,
       reasonId: 'damage',
       reasonFreeText: '',
     });
     expect(saved.reasonFreeText).toBe('Broken');
-    expect(changeAdjustmentReason(saved, 'lost')).toEqual(saved);
+    expect(changeEventReason(saved, 'lost')).toEqual(saved);
   });
 });
 
-describe('adjustmentPayload', () => {
+describe('eventPayload', () => {
   it('matches the legacy POST shape and sends doses without draft metadata', () => {
     const row = line({
       reasonId: 'lost',
@@ -233,7 +236,8 @@ describe('adjustmentPayload', () => {
       quantity: updateQuantityValue(quantityValue('0', 16), 'packs', '2', 16),
     });
     expect(
-      adjustmentPayload({
+      eventPayload({
+        kind: 'adjustment',
         programId: 'program',
         facilityId: 'facility',
         signature: '',
@@ -260,7 +264,8 @@ describe('adjustmentPayload', () => {
   it('sends null lot for no-lot cards, drops empty comments, and keeps empty legacy extraData', () => {
     const row = line({ lot: null, reasonFreeText: '   ', quantity: quantityValue(' ٣ ') });
     expect(
-      adjustmentPayload({
+      eventPayload({
+        kind: 'adjustment',
         programId: 'program',
         facilityId: 'facility',
         signature: 'Jane',
@@ -277,4 +282,136 @@ describe('adjustmentPayload', () => {
       },
     ]);
   });
+});
+
+const assignments = [
+  {
+    id: 'assignment',
+    programId: 'p1',
+    facilityTypeId: 'ft1',
+    name: 'Organization',
+    geoLevelAffinityId: null,
+    node: { id: 'node', referenceId: 'org1', refDataFacility: false },
+    isFreeTextAllowed: true,
+  },
+  {
+    id: 'facility',
+    programId: 'p1',
+    facilityTypeId: 'ft1',
+    name: 'Facility',
+    geoLevelAffinityId: null,
+    node: { id: 'facility-node', referenceId: 'f1', refDataFacility: true },
+    isFreeTextAllowed: false,
+  },
+];
+describe('issue form', () => {
+  const options = { kind: 'issue' as const, reasons, today, assignments };
+  const issueLine = (patch: Partial<EventLine> = {}) =>
+    line({ destination: 'assignment', reasonId: '', ...patch });
+  it('requires a listed destination but permits no reason', () => {
+    expect(eventLinesSchema(options).safeParse({ lines: [issueLine()] }).success).toBe(true);
+    for (const destination of ['', 'missing']) {
+      expect(
+        eventLinesSchema(options).safeParse({ lines: [issueLine({ destination })] }).error?.issues,
+      ).toContainEqual(
+        expect.objectContaining({
+          path: ['lines', 0, 'destination'],
+          message: 'stock-events.required',
+        }),
+      );
+    }
+  });
+  it.each(['', 'return', 'lost'])('caps every issue quantity with reason %s', (reasonId) => {
+    expect(
+      eventLinesSchema(options).safeParse({
+        lines: [issueLine({ reasonId, quantity: quantityValue('51') })],
+      }).error?.issues,
+    ).toContainEqual(expect.objectContaining({ path: ['lines', 0, 'quantity', 'doses'] }));
+  });
+  it('checks destination comments and clears them when destination changes', () => {
+    const saved = issueLine({ destinationComments: 'Deliver' });
+    expect(changeEventDestination(saved, 'facility')).toEqual({
+      ...saved,
+      destination: 'facility',
+      destinationComments: '',
+    });
+    expect(changeEventDestination(saved, 'assignment')).toBe(saved);
+    expect(
+      eventLinesSchema(options).safeParse({
+        lines: [issueLine({ destinationComments: 'a'.repeat(255) })],
+      }).success,
+    ).toBe(true);
+    for (const patch of [
+      { destinationComments: 'a'.repeat(256) },
+      { destination: 'facility', destinationComments: 'Deliver' },
+    ]) {
+      expect(eventLinesSchema(options).safeParse({ lines: [issueLine(patch)] }).success).toBe(
+        false,
+      );
+    }
+  });
+  it('sends the destination node id and omits empty reason and comments', () => {
+    const payload = eventPayload({
+      ...options,
+      programId: 'program',
+      facilityId: 'facility',
+      signature: 'Ada',
+      lines: [issueLine()],
+    });
+    expect(payload.eventOrigin).toBe('ISSUE');
+    expect(payload.lineItems[0]).toEqual({
+      orderableId: card.orderable.id,
+      lotId: card.lot?.id,
+      quantity: 1,
+      occurredDate: today,
+      destinationId: 'node',
+      extraData: {},
+    });
+    expect(
+      eventPayload({
+        ...options,
+        programId: 'program',
+        facilityId: 'facility',
+        signature: '',
+        lines: [issueLine({ destinationComments: 'Deliver' })],
+      }).lineItems[0].destinationFreeText,
+    ).toBe('Deliver');
+  });
+});
+
+describe('default event reason', () => {
+  const options = { kind: 'issue' as const, reasons, defaultReasonId: 'lost', assignments };
+  it('uses only a listed default and makes the reason required', () => {
+    const previous = line({ reasonId: '', occurredDate: '' });
+    expect(newEventLine(card, previous, today, options)).toMatchObject({
+      reasonId: 'lost',
+      occurredDate: today,
+    });
+    expect(
+      newEventLine(card, previous, today, { ...options, defaultReasonId: 'missing' }).reasonId,
+    ).toBe('');
+    expect(newEventLine(card, line({ reasonId: 'damage' }), today, options).reasonId).toBe(
+      'damage',
+    );
+    expect(
+      eventLinesSchema({ ...options, today }).safeParse({
+        lines: [line({ destination: 'assignment', reasonId: '' })],
+      }).error?.issues,
+    ).toContainEqual(
+      expect.objectContaining({ path: ['lines', 0, 'reasonId'], message: 'stock-events.required' }),
+    );
+    expect(
+      eventLinesSchema({ ...options, defaultReasonId: 'missing', today }).safeParse({
+        lines: [line({ destination: 'assignment', reasonId: '' })],
+      }).success,
+    ).toBe(true);
+  });
+});
+
+it('requires an explicit event kind for every form operation', () => {
+  expectTypeOf<Parameters<typeof newEventLine>[3]>().toExtend<{ kind: 'adjustment' | 'issue' }>();
+  expectTypeOf<Parameters<typeof eventLinesSchema>[0]>().toExtend<{
+    kind: 'adjustment' | 'issue';
+  }>();
+  expectTypeOf<Parameters<typeof eventPayload>[0]>().toExtend<{ kind: 'adjustment' | 'issue' }>();
 });
