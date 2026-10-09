@@ -322,7 +322,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 
 - Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
   one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
-  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables.
+  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables, and
+  `width="wide"` for the Physical Inventory draft, whose editable grid needs the full width.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a

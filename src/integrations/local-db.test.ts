@@ -30,6 +30,22 @@ describe('localDatabaseName', () => {
 });
 
 describe('getLocalDb', () => {
+  it('adds the inventory draft table while upgrading a version one database', async () => {
+    signIn('inventory-upgrade');
+    const name = getLocalDb().name;
+    const old = new Dexie(name);
+    old.version(1).stores({});
+    await old.open();
+    old.close();
+    const db = getLocalDb();
+    await db.open();
+    expect(db.verno).toBe(2);
+    await db.table('physicalInventoryDrafts').put({ draftId: 'draft', lines: [] });
+    expect(await db.table('physicalInventoryDrafts').get('draft')).toEqual({
+      draftId: 'draft',
+      lines: [],
+    });
+  });
   it('needs someone signed in, since every database belongs to a user', () => {
     expect(() => getLocalDb()).toThrow();
   });

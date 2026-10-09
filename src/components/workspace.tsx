@@ -10,10 +10,10 @@ type WorkspaceProps = {
 
 type WorkspaceWidthProps = WorkspaceProps & {
   /** `narrow` for a page of settings, which reads better as one short column. */
-  width?: 'default' | 'narrow';
+  width?: 'default' | 'narrow' | 'wide';
 };
 
-const MAX_WIDTH = { default: 'max-w-6xl', narrow: 'max-w-4xl' } as const;
+const MAX_WIDTH = { default: 'max-w-6xl', narrow: 'max-w-4xl', wide: 'max-w-none' } as const;
 
 export function Workspace({ children, width = 'default' }: WorkspaceWidthProps) {
   return (
