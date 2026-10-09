@@ -323,9 +323,17 @@ pnpm is pinned via `packageManager` in `package.json`. Settings that used to liv
 - **Logical CSS properties only** - `ms`/`me`/`ps`/`pe`/`start`/`end`/`text-start`, never
   `ml`/`mr`/`pl`/`pr`/`left`/`right`/`text-left`. The app renders RTL in Arabic.
 - **Tests colocated** with source files (e.g., `use-mobile.test.ts` next to `use-mobile.ts`)
-- **Tests first, never after** - write the failing unit test, then the code that makes it
-  pass. A bug fix starts with a test that reproduces the bug. Test our logic, not shadcn or
-  Base UI behaviour
+- **Tests earn their place** - add a test only for a meaningful, plausible regression
+  in our code that existing tests or static checks do not adequately protect. Prefer the
+  cheapest useful boundary: pure logic for domain rules, a focused interaction for a
+  workflow. No test per component or function, routine label/default snapshots, mock-return
+  echoes, or tests of stock shadcn, Base UI, React or other packages. Trust dependencies;
+  test our decisions and integration. Use the
+  [test-audit skill](.agents/skills/test-audit/SKILL.md) when auditing the suite or deciding
+  whether disputed tests add value.
+- **Tests first when warranted** - write the meaningful failing test, then the code that
+  makes it pass. A bug fix starts with a test that reproduces the bug. Reuse adequate
+  existing coverage instead of adding a duplicate test for every change.
 - **One timeout for the suite** - `vite.config.ts` sets the test timeout and
   `src/tests/setup.ts` the wait for `findBy*` and `waitFor`, both sized for a loaded machine.
   Never pass a timeout to a test or a query, and wait with Testing Library's `waitFor`, not

@@ -96,8 +96,9 @@ conventions. A lint pass catches only a few of them. The ones most often broken:
   Users page (URL owns the state, container queries not viewport breakpoints, the create
   action ends the toolbar); short forms are URL-owned dialogs built from `form-dialog/`
   and `useAppForm`, yes/no settings are `SwitchField`s
-- **Code**: `@/` imports, kebab-case files, `type` over `interface`, tests colocated, no new
-  logic without a unit test,
+- **Code**: `@/` imports, kebab-case files, `type` over `interface`, tests colocated,
+  meaningful regression coverage for our decisions and integration, no redundant tests
+  or tests of stock dependency behavior (use `test-audit` for disputed test value),
   logical CSS only, `BASE_URL` for assets, no `import.meta.env` for anything that varies
   per environment, auth state only through the store
 - **Text**: English labels in Title Case, flat and sorted translation keys present in
@@ -215,9 +216,10 @@ separately, since they are product calls: the fix may belong in a later PR.
 If the user asked for a review only, stop there. If they asked for the PR to be ready,
 continue:
 
-1. Fix each confirmed finding, test first: never write a unit test after the fix. Start
-   with a failing test that reproduces the bug, then make it pass. Keep fixes small and
-   in the style of the surrounding code.
+1. Fix each confirmed finding. For a product bug, start with a meaningful failing test
+   that reproduces it, then make it pass. Reuse adequate existing coverage for safe
+   refactors and test cleanup; do not add tests for formatting or documentation fixes.
+   Keep fixes small and in the style of the surrounding code.
    When a fix changes what the plan says, update `plans/<KEY>.md` in the same commit.
 2. Re-run the gates from step 1, plus `pnpm check`.
 3. Recheck any fixed behaviour in the browser, under the browser rules.
