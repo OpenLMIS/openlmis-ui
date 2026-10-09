@@ -453,6 +453,7 @@ function InventoryDraftRows({
         <InventoryScan
           eligible={eligible.data}
           lines={lines}
+          getLines={() => Object.values(form.state.values.lines)}
           canManageLots={canManageLots}
           paused={busy || submitted || mutation.isPending || addOpen || !!dialog || actionDialog}
           onCount={(line) => {

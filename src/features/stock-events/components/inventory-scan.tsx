@@ -28,12 +28,14 @@ import { getSessionScope } from '@/lib/session-scope';
 export function InventoryScan({
   eligible,
   lines,
+  getLines,
   canManageLots,
   paused,
   onCount,
 }: {
   eligible: readonly InventoryStockLine[];
   lines: readonly InventoryLine[];
+  getLines?: () => readonly InventoryLine[];
   canManageLots: boolean;
   paused: boolean;
   onCount: (line: InventoryLine) => void;
@@ -42,8 +44,8 @@ export function InventoryScan({
   const client = useQueryClient();
   const [scope] = useState(getSessionScope);
   const acceptedExpiries = useRef(new Set<string>());
-  const latest = useRef({ eligible, lines, paused, onCount });
-  latest.current = { eligible, lines, paused, onCount };
+  const latest = useRef({ eligible, lines, getLines, paused, onCount });
+  latest.current = { eligible, lines, getLines, paused, onCount };
   const [prompt, setPrompt] = useState<{
     value: InventoryScanPrompt;
     complete: (accepted: boolean) => void;
@@ -74,7 +76,7 @@ export function InventoryScan({
         scan,
         tradeItemId: tradeItem.id,
         eligible: latest.current.eligible,
-        lines: latest.current.lines,
+        lines: latest.current.getLines?.() ?? latest.current.lines,
         canManageLots,
         acceptedExpiries: acceptedExpiries.current,
         signal,
@@ -98,7 +100,9 @@ export function InventoryScan({
       if (!current()) return;
       if (result.type === 'refuse') return result.message;
       if (result.type === 'line') {
-        const existing = latest.current.lines.find((line) => line.key === result.line.key);
+        const existing = (latest.current.getLines?.() ?? latest.current.lines).find(
+          (line) => line.key === result.line.key,
+        );
         latest.current.onCount(countInventoryScan(existing ?? result.line));
       }
     },

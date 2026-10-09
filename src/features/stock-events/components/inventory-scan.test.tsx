@@ -54,3 +54,30 @@ it('counts against the latest edit when a GTIN lookup finishes', async () => {
     expect.objectContaining({ quantity: { doses: '17', packs: '1', remainder: '7' } }),
   );
 });
+it('counts two queued scans before React renders the first count', async () => {
+  const client = new QueryClient();
+  vi.spyOn(client, 'fetchQuery').mockResolvedValue({ id: 't' } as never);
+  let current = [addedInventoryLine(stock, quantityValue('0'))];
+  const onCount = vi.fn((line) => {
+    current = [line];
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <InventoryScan
+        eligible={[stock]}
+        lines={current}
+        getLines={() => current}
+        canManageLots={false}
+        paused={false}
+        onCount={onCount}
+      />
+    </QueryClientProvider>,
+  );
+  const scan = vi.mocked(useBarcodeScan).mock.calls.at(-1)?.[0].onScan;
+  if (!scan) throw new Error('no scan');
+  await act(async () => {
+    for (let i = 0; i < 2; i++)
+      await scan({ ok: true, gtin: 'g', warnings: [], unparsed: {} }, new AbortController().signal);
+  });
+  expect(current[0].quantity.doses).toBe('20');
+});
