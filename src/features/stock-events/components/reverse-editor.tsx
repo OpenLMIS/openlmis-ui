@@ -223,13 +223,13 @@ export function ReverseEditor({
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
   useEffect(() => {
     if (linesQuery.data && requestedPage !== page)
-      onSearchChange({ reversePage: page === 1 ? undefined : page }, true);
+      onSearchChange({ reversePage: page === 1 ? undefined : page }, true, { resetScroll: false });
   }, [linesQuery.data, requestedPage, page, onSearchChange]);
   useEffect(() => {
     if (!focusField || page !== focusField.page) return;
     const target = document.getElementById(focusField.id);
     if (target) {
-      target.focus();
+      target.focus({ preventScroll: true });
       target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
       setFocusField(null);
     }
@@ -423,7 +423,7 @@ export function ReverseEditor({
             <EventHeader event={event} showSignature={false} />
             <form
               id={FORM_ID}
-              className="flex min-w-0 flex-col gap-4"
+              className="flex min-w-0 flex-col gap-4 **:scroll-mt-14 **:scroll-mb-18"
               noValidate
               onSubmit={(e) => {
                 e.preventDefault();
@@ -541,7 +541,10 @@ export function ReverseEditor({
           const target = alertTarget.current;
           alertTarget.current = null;
           setFocusField(target);
-          onSearchChange({ reversePage: target.page === 1 ? undefined : target.page }, true);
+          if (target.page !== page)
+            onSearchChange({ reversePage: target.page === 1 ? undefined : target.page }, true, {
+              resetScroll: false,
+            });
         }}
       >
         <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>

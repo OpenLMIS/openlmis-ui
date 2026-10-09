@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useCallback, useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
@@ -10,11 +11,13 @@ import {
   stockEventAllLinesOptions,
 } from '@/features/stock-events/api/queries';
 import { ReverseEditor } from '@/features/stock-events/components/reverse-editor';
+import type { ReversePagingSearch } from '@/features/stock-events/lib/search';
 import type {
   EventStockOnHand,
   StockEventLine,
   StockEventLineReason,
 } from '@/features/stock-events/lib/types';
+import type { SearchChange } from '@/lib/table-search';
 
 vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
@@ -49,7 +52,15 @@ const reason: StockEventLineReason = {
 function editor(
   overrides: Partial<StockEventLine> = {},
   seedCurrent = true,
-  { more = [], reversePage }: { more?: Partial<StockEventLine>[]; reversePage?: number } = {},
+  {
+    more = [],
+    reversePage,
+    onSearchChange = vi.fn(),
+  }: {
+    more?: Partial<StockEventLine>[];
+    reversePage?: number;
+    onSearchChange?: SearchChange<ReversePagingSearch>;
+  } = {},
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
@@ -83,8 +94,19 @@ function editor(
         .queryKey,
       {},
     );
-  render(
-    <QueryClientProvider client={client}>
+  function Harness() {
+    const [search, setSearch] = useState<ReversePagingSearch>({
+      reversePage,
+      reverseSize: undefined,
+    });
+    const change = useCallback<SearchChange<ReversePagingSearch>>((update, ...rest) => {
+      onSearchChange(update, ...rest);
+      setSearch((previous) => ({
+        ...previous,
+        ...(typeof update === 'function' ? update(previous) : update),
+      }));
+    }, []);
+    return (
       <ReverseEditor
         event={{
           id: 'event',
@@ -95,13 +117,18 @@ function editor(
           reversible: true,
         }}
         username="user"
-        search={{ reversePage, reverseSize: undefined }}
-        onSearchChange={vi.fn()}
+        search={search}
+        onSearchChange={change}
         onSubmitted={vi.fn()}
         cancel={<button type="button">Cancel</button>}
       >
         Header
       </ReverseEditor>
+    );
+  }
+  render(
+    <QueryClientProvider client={client}>
+      <Harness />
     </QueryClientProvider>,
   );
   return client;
@@ -241,6 +268,33 @@ it('returns a red page to normal once its row gets a reason', async () => {
   await pick();
   expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
   expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+});
+it('focuses an invalid row on the current page after Close without changing the URL', async () => {
+  const onSearchChange = vi.fn();
+  editor({}, true, { onSearchChange });
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
+  );
+  expect(onSearchChange).not.toHaveBeenCalled();
+});
+it('opens the page of an invalid row after Close without scrolling to the top', async () => {
+  const onSearchChange = vi.fn();
+  editor({}, true, { more: Array.from({ length: 10 }, () => ({})), onSearchChange });
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }));
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'Page 1' }));
+  onSearchChange.mockClear();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(onSearchChange).toHaveBeenCalledExactlyOnceWith({ reversePage: 2 }, true, {
+    resetScroll: false,
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
+  );
 });
 it('clears the comments mark once the comment fits 255 characters', async () => {
   editor();
