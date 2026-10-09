@@ -86,7 +86,7 @@ export function ProductLotPicker({
   const pickedCard = pickedLot?.card;
   return (
     <PickerPanel status={children}>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
             <FieldLabelText label={t('stock-events.product')} required />
@@ -122,8 +122,8 @@ export function ProductLotPicker({
           </Combobox>
         </Field>
       </div>
-      {(!product || product.cards.some((card) => card.lot !== null)) && (
-        <div className="min-w-0 flex-1">
+      {product?.cards.some((card) => card.lot !== null) && (
+        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
           <Field spacing="tight">
             <FieldLabel htmlFor={`${id}-lot`}>
               <FieldLabelText label={t('stock-events.lot-code')} required />
@@ -189,27 +189,30 @@ function PickerPanel({ children, status }: { children: ReactNode; status?: React
 export function ProductLotPickerSkeleton() {
   const { t } = useTranslation();
   return (
-    <PickerPanel
-      status={
-        <p role="status" className="text-muted-foreground text-sm">
-          {t('stock-events.products-loading')}
-        </p>
-      }
-    >
-      {[t('stock-events.product'), t('stock-events.lot-code')].map((label) => (
-        <div className="min-w-0 flex-1" key={label}>
-          <Field spacing="tight">
-            <FieldLabel>
-              <FieldLabelText label={label} required />
-            </FieldLabel>
-            <div className="h-8">
-              <Skeleton fill />
-            </div>
-          </Field>
+    <PickerPanel>
+      <p role="status" aria-live="polite" className="sr-only">
+        {t('stock-events.products-loading')}
+      </p>
+      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+        <Field spacing="tight">
+          <FieldLabel>
+            <FieldLabelText label={t('stock-events.product')} required />
+          </FieldLabel>
+          <div className="h-8">
+            <Skeleton fill />
+          </div>
+        </Field>
+      </div>
+      <div className="relative @3xl/main:w-auto">
+        <div className="invisible" aria-hidden="true">
+          <Button width="full" disabled tabIndex={-1} type="button">
+            <PlusIcon data-icon="inline-start" />
+            {t('stock-events.add')}
+          </Button>
         </div>
-      ))}
-      <div className="h-8 @3xl/main:w-20">
-        <Skeleton fill />
+        <div className="absolute inset-0">
+          <Skeleton fill />
+        </div>
       </div>
     </PickerPanel>
   );
