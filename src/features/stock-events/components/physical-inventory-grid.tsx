@@ -1,8 +1,17 @@
 import type { ColumnVisibilityState } from '@tanstack/react-table';
+import { EllipsisIcon } from 'lucide-react';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { formatDateValue } from '@/components/form/date-value';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -12,12 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { PhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
 import { unaccounted } from '@/features/stock-events/lib/physical-inventory-form';
+import { canDeactivateInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
 import type {
   InventoryCategoryBand,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { orEmpty } from '@/lib/empty-value';
+import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { toOptionalWholeNumber } from '@/lib/whole-number';
 
 const COLUMNS = [
@@ -31,6 +43,7 @@ const COLUMNS = [
   ['vvm', 'stock-events.vvm-status'],
   ['reasons', 'physical-inventory.reasons'],
   ['unaccounted', 'physical-inventory.unaccounted'],
+  ['actions', 'stock-events.actions'],
 ] as const;
 type ColumnId = (typeof COLUMNS)[number][0];
 export const INVENTORY_HIDEABLE_COLUMNS = [
@@ -41,14 +54,36 @@ export const INVENTORY_HIDEABLE_COLUMNS = [
 const visibleColumns = (visibility: ColumnVisibilityState, showVvm: boolean) =>
   COLUMNS.filter(([id]) => visibility[id] !== false && (id !== 'vvm' || showVvm));
 
+export type InventoryGridEditor = {
+  form: PhysicalInventoryForm;
+  unit: QuantityUnit;
+  online: boolean;
+  reasonsReady: boolean;
+  pending: boolean;
+  onReasons: (line: InventoryLine) => void;
+  onEditLot: (line: InventoryLine) => void;
+  onRemove: (line: InventoryLine) => void;
+  onDeactivate: (line: InventoryLine) => void;
+};
 type Props = {
+  editor?: InventoryGridEditor;
   bands: readonly InventoryCategoryBand[];
   visibility: ColumnVisibilityState;
   showVvm: boolean;
 };
-export function PhysicalInventoryGrid({ bands, visibility, showVvm }: Props) {
+export function PhysicalInventoryGrid({ bands, visibility, showVvm, editor }: Props) {
   const { t } = useTranslation();
-  const columns = visibleColumns(visibility, showVvm);
+  const columns = visibleColumns(visibility, showVvm).filter(
+    ([id]) =>
+      id !== 'actions' ||
+      bands.some((band) =>
+        band.groups.some((group) =>
+          group.lines.some(
+            (line) => line.justAdded || (editor && canDeactivateInventoryLine(line, editor.online)),
+          ),
+        ),
+      ),
+  );
   return (
     <DataTableCard>
       <Table density="comfortable" layout="auto">
@@ -86,6 +121,7 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm }: Props) {
                         <TableCell key={id}>
                           <InventoryCell
                             id={id}
+                            editor={editor}
                             line={line}
                             hideProduct={group.lines.length > 1}
                             hasLot={group.lines.some((item) => item.lot || item.newLot)}
@@ -110,7 +146,9 @@ function InventoryCell({
   summary,
   hideProduct,
   hasLot,
+  editor,
 }: {
+  editor?: InventoryGridEditor;
   id: ColumnId;
   line: InventoryLine;
   summary?: readonly InventoryLine[];
@@ -119,6 +157,8 @@ function InventoryCell({
 }) {
   const { t, i18n } = useTranslation();
   const format = new Intl.NumberFormat(i18n.language).format;
+  const row = `${line.orderable.fullProductName || line.orderable.productCode} ${line.lot?.lotCode ?? line.newLot?.lotCode ?? t('stock-events.no-lot-defined')}`;
+  const label = (field: string) => t('stock-events.field-of', { field, row });
   const number = (value: number | null | undefined) => (
     <span className="tabular-nums">
       <bdi>{orEmpty(value == null ? null : format(value))}</bdi>
@@ -147,6 +187,12 @@ function InventoryCell({
     case 'packSize':
       return hideProduct ? null : number(line.orderable.netContent);
     case 'lot':
+      if (!summary && line.newLot && editor)
+        return (
+          <Button variant="link" type="button" onClick={() => editor.onEditLot(line)}>
+            {line.newLot.lotCode}
+          </Button>
+        );
       return summary ? null : (
         <bdi>
           {line.lot?.lotCode ??
@@ -158,19 +204,88 @@ function InventoryCell({
       return summary ? null : (
         <bdi>
           {orEmpty(
-            line.lot?.expirationDate
-              ? formatDateValue(line.lot.expirationDate, i18n.language)
+            (line.lot?.expirationDate ?? line.newLot?.expirationDate)
+              ? formatDateValue(
+                  line.lot?.expirationDate ?? line.newLot?.expirationDate ?? '',
+                  i18n.language,
+                )
               : null,
           )}
         </bdi>
       );
     case 'stock':
-      return number(total((item) => item.stockOnHand));
+      return (
+        <bdi dir="ltr">
+          {orEmpty(
+            cardQuantity(
+              total((item) => item.stockOnHand),
+              line.orderable.netContent,
+              editor?.unit ?? 'DOSES',
+              i18n.language,
+            ),
+          )}
+        </bdi>
+      );
     case 'count':
-      return number(total((item) => toOptionalWholeNumber(item.quantity.doses)));
+      if (!summary && editor)
+        return (
+          <div className={editor.unit === 'PACKS' ? 'w-28' : 'w-20'}>
+            <editor.form.AppField name={`lines.${line.key}.quantity`}>
+              {(field) => (
+                <field.QuantityField
+                  label={label(t('physical-inventory.current-stock'))}
+                  layout="inline"
+                  unit={editor.unit}
+                  netContent={line.orderable.netContent}
+                  dosesLabel={t('quantity-unit.doses')}
+                  packsLabel={t('quantity-unit.packs')}
+                  disabled={editor.pending}
+                />
+              )}
+            </editor.form.AppField>
+          </div>
+        );
+      return (
+        <bdi dir="ltr">
+          {orEmpty(
+            cardQuantity(
+              total((item) => toOptionalWholeNumber(item.quantity.doses)),
+              line.orderable.netContent,
+              editor?.unit ?? 'DOSES',
+              i18n.language,
+            ),
+          )}
+        </bdi>
+      );
     case 'unaccounted':
-      return summary ? null : number(unaccounted(line));
+      return summary ? null : (
+        <bdi dir="ltr">
+          {orEmpty(
+            cardQuantity(
+              unaccounted(line),
+              line.orderable.netContent,
+              editor?.unit ?? 'DOSES',
+              i18n.language,
+            ),
+          )}
+        </bdi>
+      );
     case 'reasons':
+      if (!summary && editor)
+        return (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={editor.pending || !line.quantity.doses.trim()}
+            onClick={() => editor.onReasons(line)}
+          >
+            {line.stockAdjustments.length === 0
+              ? t('physical-inventory.add-reasons')
+              : line.stockAdjustments.length === 1
+                ? (line.stockAdjustments[0].reason.name ?? line.stockAdjustments[0].reason.id)
+                : t('physical-inventory.reason-count', { count: line.stockAdjustments.length })}
+          </Button>
+        );
       return summary ? null : (
         <span className="block max-w-48 whitespace-normal break-words">
           {line.stockAdjustments
@@ -178,7 +293,63 @@ function InventoryCell({
             .join(', ')}
         </span>
       );
+    case 'actions':
+      if (
+        summary ||
+        !editor ||
+        (!line.justAdded && !canDeactivateInventoryLine(line, editor.online))
+      )
+        return null;
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={label(t('stock-events.actions'))}
+                disabled={editor.pending}
+              />
+            }
+          >
+            <EllipsisIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" width="auto">
+            <DropdownMenuGroup>
+              {line.justAdded ? (
+                <DropdownMenuItem variant="destructive" onClick={() => editor.onRemove(line)}>
+                  {t('physical-inventory.delete-row')}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => editor.onDeactivate(line)}>
+                  {t('physical-inventory.deactivate')}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
     case 'vvm':
+      if (!summary && editor && line.orderable.extraData?.useVVM === 'true')
+        return (
+          <div className="w-24">
+            <editor.form.AppField name={`lines.${line.key}.vvmStatus`}>
+              {(field) => (
+                <field.SelectField
+                  layout="inline"
+                  label={label(t('stock-events.vvm-status'))}
+                  disabled={editor.pending}
+                  items={[
+                    { value: '', label: t('stock-events.vvm-none') },
+                    { value: 'STAGE_1', label: t('stock-events.stage-1') },
+                    { value: 'STAGE_2', label: t('stock-events.stage-2') },
+                  ]}
+                />
+              )}
+            </editor.form.AppField>
+          </div>
+        );
       return summary || line.orderable.extraData?.useVVM !== 'true'
         ? null
         : line.vvmStatus === 'STAGE_1'

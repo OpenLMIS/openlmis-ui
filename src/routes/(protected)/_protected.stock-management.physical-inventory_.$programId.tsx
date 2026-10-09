@@ -27,6 +27,7 @@ import {
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
+import { dropObsoleteInventoryCopies } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   type InventorySearch,
   inventorySearchSchema,
@@ -66,6 +67,8 @@ export const Route = createFileRoute(
         ? await queryClient.ensureQueryData(options)
         : await queryClient.fetchQuery({ ...options, staleTime: 0 });
     assertSessionScope(session);
+    if (cause !== 'stay')
+      void dropObsoleteInventoryCopies(selection, draft?.id).catch(() => undefined);
     const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
     if (draft && canViewStock) {
       queryClient.prefetchQuery(inventoryStockLinesOptions(draft));
@@ -74,7 +77,14 @@ export const Route = createFileRoute(
         validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
       );
     }
-    return { userId, homeFacility, program, draft, canViewStock };
+    return {
+      userId,
+      homeFacility,
+      program,
+      draft,
+      canViewStock,
+      canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+    };
   },
   pendingComponent: InventoryPending,
   component: InventoryPage,
@@ -82,7 +92,8 @@ export const Route = createFileRoute(
 
 function InventoryPage() {
   const { t } = useTranslation();
-  const { userId, homeFacility, program, draft, canViewStock } = Route.useLoaderData();
+  const { userId, homeFacility, program, draft, canViewStock, canManageLots } =
+    Route.useLoaderData();
   const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<InventorySearch>({});
@@ -110,6 +121,8 @@ function InventoryPage() {
             <PhysicalInventoryEditor
               key={draft.id}
               draft={draft}
+              facilityTypeId={homeFacility.type.id}
+              canManageLots={canManageLots}
               search={search}
               onSearchChange={updateSearch}
             />

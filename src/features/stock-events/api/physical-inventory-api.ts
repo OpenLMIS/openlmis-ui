@@ -124,3 +124,7 @@ export async function fetchEligibleInventoryProducts(
   assertSessionScope(session);
   return buildEligibleProducts(summaries, fulfills, products, lots);
 }
+
+export async function deactivateInventoryStockCard(stockCardId: string) {
+  await client.post(`/stockCards/${stockCardId}/deactivate`);
+}
