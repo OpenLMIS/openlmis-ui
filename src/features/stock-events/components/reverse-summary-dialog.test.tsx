@@ -22,7 +22,7 @@ it('shows the saved balance and closes', async () => {
       ]}
     />,
   );
-  expect(screen.getByText('Vaccine (C1)')).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Vaccine (C1)' })).toHaveTextContent('Vaccine (C1)');
   expect(screen.getByText('50')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
   expect(close).toHaveBeenCalledOnce();

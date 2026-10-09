@@ -36,7 +36,9 @@ it('shows the picked reason, comments and current and resulting balances before 
     />,
   );
   const dialog = screen.getByRole('dialog');
-  expect(within(dialog).getByText('Vaccine (C1)')).toBeInTheDocument();
+  expect(within(dialog).getByRole('cell', { name: 'Vaccine (C1)' })).toHaveTextContent(
+    'Vaccine (C1)',
+  );
   expect(within(dialog).getByText('Cancelled issue: Mistake')).toBeInTheDocument();
   expect(within(dialog).getByText('30')).toBeInTheDocument();
   expect(within(dialog).getByText('50')).toBeInTheDocument();

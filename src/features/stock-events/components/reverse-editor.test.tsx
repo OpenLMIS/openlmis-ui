@@ -1,16 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
-import { fetchEventStockOnHand } from '@/features/stock-events/api/api';
+import { cancelStockEvent, fetchEventStockOnHand } from '@/features/stock-events/api/api';
 import {
   eventStockOnHandOptions,
   stockEventAllLinesOptions,
 } from '@/features/stock-events/api/queries';
 import { ReverseEditor } from '@/features/stock-events/components/reverse-editor';
+import type { StockEventLine, StockEventLineReason } from '@/features/stock-events/lib/types';
 
+vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
+  useElementWidth: () => [vi.fn(), 944],
+}));
 vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
 vi.mock('@/hooks/use-discard-guard', () => ({
@@ -29,7 +34,15 @@ beforeEach(() => {
   useLoginData.setState({ referenceDataUserId: 'user' });
   vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
 });
-function editor() {
+const reason: StockEventLineReason = {
+  id: 'reason',
+  name: 'Cancelled issue',
+  reasonCategory: 'ADJUSTMENT',
+  reasonType: 'CREDIT',
+  tags: ['cancelMovement'],
+  isFreeTextAllowed: true,
+};
+function editor(overrides: Partial<StockEventLine> = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -42,11 +55,17 @@ function editor() {
       quantity: 20,
       stockOnHand: 30,
       occurredDate: '2026-10-01',
+      ...overrides,
     },
   ];
   client.setQueryData(stockEventAllLinesOptions('event').queryKey, lines);
   client.setQueryDefaults(stockEventAllLinesOptions('event').queryKey, { staleTime: Infinity });
-  client.setQueryData(reasonsOptions().queryKey, []);
+  client.setQueryData(reasonsOptions().queryKey, [
+    reason,
+    { ...reason, id: 'other', name: 'Other reason' },
+    { ...reason, id: 'debit', reasonType: 'DEBIT', name: 'Cancelled receipt' },
+    { ...reason, id: 'debit-other', reasonType: 'DEBIT', name: 'Other receipt reason' },
+  ]);
   client.setQueryData(
     eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
       .queryKey,
@@ -73,6 +92,7 @@ function editor() {
       </ReverseEditor>
     </QueryClientProvider>,
   );
+  return client;
 }
 it('cannot submit without selecting a row', async () => {
   editor();
@@ -88,4 +108,113 @@ it('does not auto-pick a cancellation reason when ticking', async () => {
   expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveTextContent(
     'stock-event-reverse.select-option',
   );
+});
+
+async function tick() {
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
+  );
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+}
+async function pick(name = 'Cancelled issue') {
+  await userEvent.click(screen.getByRole('combobox', { name: 'stock-events.field-of' }));
+  await userEvent.click(screen.getByRole('option', { name }));
+}
+it('shows validation as the alert title and dismisses it on ticking', async () => {
+  editor();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent('stock-event-reverse.none-selected');
+  await tick();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+it('dismisses missing-reason validation on unticking', async () => {
+  editor();
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByText('stock-event-reverse.reason-required')).toBeInTheDocument();
+  await tick();
+  expect(screen.queryByText('stock-event-reverse.reason-required')).not.toBeInTheDocument();
+});
+it('clears the reason mark and validation alert when a reason is chosen', async () => {
+  editor();
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await pick();
+  expect(screen.queryByText('stock-event-reverse.reason-required')).not.toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).not.toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+});
+it('dismisses the alert on reason change but keeps the stock mark until Submit', async () => {
+  const client = editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
+  await tick();
+  await pick('Cancelled receipt');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getAllByText('stock-event-reverse.negative-stock')).toHaveLength(2);
+  await pick('Other receipt reason');
+  expect(screen.getAllByText('stock-event-reverse.negative-stock')).toHaveLength(1);
+  client.setQueryData(
+    eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
+      .queryKey,
+    { 'o/': 80 },
+  );
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
+  );
+  expect(screen.getByText('stock-event-reverse.negative-stock')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.queryByText('stock-event-reverse.negative-stock')).not.toBeInTheDocument();
+});
+it.each([
+  new Error('No response'),
+  { isAxiosError: true, response: { status: 400, data: { message: 'Server refused reversal' } } },
+  {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
+    },
+  },
+])('keeps server failure after edits and clears it on the next Submit: %j', async (error) => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce(error);
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await screen.findByText('stock-event-reverse.failed-title');
+  await pick('Other reason');
+  expect(screen.getByText('stock-event-reverse.failed-title')).toBeInTheDocument();
+  await tick();
+  expect(screen.getByText('stock-event-reverse.failed-title')).toBeInTheDocument();
+  await tick();
+  expect(screen.getByText('stock-event-reverse.failed-title')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
+});
+
+it('dismisses the comments validation alert on reason change', async () => {
+  editor();
+  await tick();
+  await pick();
+  fireEvent.change(screen.getByRole('textbox', { name: 'stock-events.field-of' }), {
+    target: { value: 'x'.repeat(256) },
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getAllByText('stock-events.comments-too-long')).toHaveLength(2);
+  await pick('Other reason');
+  expect(screen.getAllByText('stock-events.comments-too-long')).toHaveLength(1);
+  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
+});
+
+it('shows every reverse column at laptop content width with the sidebar open', () => {
+  editor();
+  expect(screen.getAllByRole('columnheader')).toHaveLength(14);
 });

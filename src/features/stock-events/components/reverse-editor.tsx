@@ -11,9 +11,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
-  DataTableHeaderLabel,
   DataTableSkeleton,
-  DataTableToolbar,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -26,6 +24,7 @@ import { useAppForm } from '@/components/form/form';
 import { LoadError } from '@/components/load-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
@@ -91,15 +90,15 @@ const COLUMNS = [
   ['balance', 'stock-event-reverse.new-stock-on-hand'],
 ] as const;
 export const REVERSE_HIDEABLE_COLUMNS = [
-  { id: 'code', labelKey: 'stock-events.product-code', hideBelow: 1200 },
-  { id: 'lot', labelKey: 'stock-event.lot-code', hideBelow: 800 },
-  { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 1400 },
-  { id: 'source', labelKey: 'stock-event.source', hideBelow: 1600 },
-  { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 1600 },
-  { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 1800 },
-  { id: 'current', labelKey: 'stock-event-reverse.current-stock-on-hand', hideBelow: 1000 },
-  { id: 'reversed', labelKey: 'stock-event-reverse.reversed', hideBelow: 1400 },
-  { id: 'comments', labelKey: 'stock-event-reverse.cancel-reason-comments', hideBelow: 1000 },
+  { id: 'code', labelKey: 'stock-events.product-code', hideBelow: 470 },
+  { id: 'lot', labelKey: 'stock-event.lot-code', hideBelow: 530 },
+  { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 603 },
+  { id: 'source', labelKey: 'stock-event.source', hideBelow: 944 },
+  { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 944 },
+  { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 944 },
+  { id: 'current', labelKey: 'stock-event-reverse.current-stock-on-hand', hideBelow: 729 },
+  { id: 'reversed', labelKey: 'stock-event-reverse.reversed', hideBelow: 782 },
+  { id: 'comments', labelKey: 'stock-event-reverse.cancel-reason-comments', hideBelow: 896 },
 ] as const;
 type TableRow = { id: string; line: StockEventLine };
 const helper = createColumnHelper<DataTableFeatures, TableRow>();
@@ -153,6 +152,7 @@ export function ReverseEditor({
   const [summary, setSummary] = useState<{ lines: StockEventLine[]; unavailable: boolean } | null>(
     null,
   );
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [marks, setMarks] = useState<Record<string, ReverseRowMarks>>({});
   const [errors, setErrors] = useState<Record<string, StockEventCancelLineError>>({});
@@ -205,6 +205,7 @@ export function ReverseEditor({
     [form],
   );
   const selectRows = (selection: RowSelectionState) => {
+    setValidationMessage(null);
     const next: ReverseDraft['lines'] = {};
     for (const row of rows) {
       if (selection[row.id] && canReverseLine(row.line))
@@ -224,7 +225,8 @@ export function ReverseEditor({
     const validation = validateReverse(lines, form.state.values, current);
     setMarks(validation.marks);
     setErrors({});
-    setFailure(validation.message ? t(validation.message) : null);
+    setFailure(null);
+    setValidationMessage(validation.message ? t(validation.message) : null);
     for (const row of rows)
       form.setFieldMeta(`lines.${row.id}.reasonId`, (meta) => ({
         ...meta,
@@ -315,9 +317,11 @@ export function ReverseEditor({
           helper.display({
             id,
             meta: {
-              className: id === 'reverse' ? 'w-16' : id === 'product' ? '@xl/main:w-60' : 'w-40',
+              className: id === 'product' ? 'w-24' : undefined,
             },
-            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
+            header: () => (
+              <span className="font-medium text-muted-foreground text-xs">{t(key)}</span>
+            ),
             cell: ({ row }) => {
               const { line, id: rowId } = row.original;
               const rowDraft = draft.lines[rowId];
@@ -360,23 +364,45 @@ export function ReverseEditor({
                   );
                 }
                 case 'code':
-                  return <bdi>{line.orderable.productCode}</bdi>;
+                  return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
                 case 'product':
                   return (
-                    <span className="block min-w-28 max-w-60 whitespace-normal">
+                    <span className="block w-24 whitespace-normal break-words">
                       <bdi>{line.orderable.fullProductName}</bdi>
                     </span>
                   );
                 case 'lot':
-                  return <bdi>{line.lot?.lotCode ?? t('stock-event.no-lot')}</bdi>;
+                  return line.lot ? (
+                    <bdi className="whitespace-nowrap">{line.lot.lotCode}</bdi>
+                  ) : (
+                    <span className="block max-w-16 whitespace-normal">
+                      {t('stock-event.no-lot')}
+                    </span>
+                  );
                 case 'date':
-                  return <bdi>{orEmpty(formatDateValue(line.occurredDate, i18n.language))}</bdi>;
+                  return (
+                    <bdi className="whitespace-nowrap">
+                      {orEmpty(formatDateValue(line.occurredDate, i18n.language))}
+                    </bdi>
+                  );
                 case 'source':
-                  return orEmpty(namedWithFreeText(line.source, line.sourceFreeText));
+                  return (
+                    <span className="block max-w-24 whitespace-normal">
+                      {orEmpty(namedWithFreeText(line.source, line.sourceFreeText))}
+                    </span>
+                  );
                 case 'destination':
-                  return orEmpty(namedWithFreeText(line.destination, line.destinationFreeText));
+                  return (
+                    <span className="block max-w-24 whitespace-normal">
+                      {orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}
+                    </span>
+                  );
                 case 'reason':
-                  return orEmpty(namedWithFreeText(line.reason, line.reasonFreeText));
+                  return (
+                    <span className="block max-w-24 whitespace-normal">
+                      {orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}
+                    </span>
+                  );
                 case 'quantity':
                   return quantity(line.quantity);
                 case 'current':
@@ -386,19 +412,22 @@ export function ReverseEditor({
                 case 'reversed':
                   return line.cancellationEventId ? (
                     line.cancellationEventDocumentNumber ? (
-                      <bdi>{line.cancellationEventDocumentNumber}</bdi>
+                      <bdi className="whitespace-nowrap">
+                        {line.cancellationEventDocumentNumber}
+                      </bdi>
                     ) : (
                       <CheckIcon aria-label={t('stock-event-reverse.reversed')} role="img" />
                     )
                   ) : null;
                 case 'cancelReason':
                   return rowDraft ? (
-                    <div className="w-40">
+                    <div className="w-64">
                       <form.AppField
                         name={`lines.${rowId}.reasonId`}
                         validators={{ onMount: () => mark?.reason }}
                         listeners={{
                           onChange: ({ value }) => {
+                            setValidationMessage(null);
                             const picked = reasons.find((item) => item.id === value);
                             if (!picked) return;
                             const next = changeReverseReason(
@@ -530,15 +559,17 @@ export function ReverseEditor({
                 submit();
               }}
             >
-              <DataTableToolbar>
-                <div className="ms-auto flex flex-wrap items-center justify-end gap-2">
-                  {quantityUnit.canSwitch && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {quantityUnit.canSwitch && (
+                  <div className="flex-1 @md/main:flex-none">
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
                       disabled={pending}
                     />
-                  )}
+                  </div>
+                )}
+                <div className="flex-1 @md/main:flex-none">
                   <DataTableViewOptions
                     {...columnView}
                     columns={REVERSE_HIDEABLE_COLUMNS.map((column) => ({
@@ -547,7 +578,13 @@ export function ReverseEditor({
                     }))}
                   />
                 </div>
-              </DataTableToolbar>
+              </div>
+              {validationMessage && (
+                <Alert variant="destructive">
+                  <CircleAlertIcon />
+                  <AlertTitle>{validationMessage}</AlertTitle>
+                </Alert>
+              )}
               {failure && (
                 <ErrorAlert title={t('stock-event-reverse.failed-title')} description={failure} />
               )}
@@ -557,7 +594,7 @@ export function ReverseEditor({
                   <DataTableSkeleton
                     table={table}
                     rowCount={size}
-                    density="default"
+                    density="compact"
                     layout="auto"
                   />
                 }
@@ -566,7 +603,7 @@ export function ReverseEditor({
                 <ReverseDataReady eventId={event.id}>
                   <DataTable
                     table={table}
-                    density="default"
+                    density="compact"
                     layout="auto"
                     empty={
                       <DataTableEmpty
