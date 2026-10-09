@@ -88,6 +88,7 @@ type FieldProps = {
 };
 
 type FieldFrameProps = FieldProps & {
+  hideErrors?: boolean;
   /** Beside the label in a row, such as a status badge. */
   badge?: ReactNode;
   /** After the badge in a row, or at the end of a stacked label's line, such as a Reset or a link. */
@@ -172,6 +173,7 @@ function RowExtras({
 /** Label, control, description and error, laid out as the field's `layout` asks. */
 function FieldFrame({
   layout = 'stacked',
+  hideErrors,
   label,
   badge,
   action,
@@ -190,7 +192,14 @@ function FieldFrame({
   const details = (
     <>
       {layout === 'inline' ? <HiddenFromView>{descriptionNode}</HiddenFromView> : descriptionNode}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
+      {isInvalid &&
+        (hideErrors ? (
+          <HiddenFromView>
+            <FieldError errors={errors} id={errorId} />
+          </HiddenFromView>
+        ) : (
+          <FieldError errors={errors} id={errorId} />
+        ))}
     </>
   );
 
@@ -219,7 +228,7 @@ function FieldFrame({
   }
   if (layout === 'inline') {
     return (
-      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight" surface="background">
         <HiddenFromView>
           <label htmlFor={field.name} id={`${field.name}-label`}>
             {labelText}
@@ -418,6 +427,7 @@ export function DecimalField(props: FieldProps) {
 }
 
 type TextareaFieldProps = FieldProps & {
+  hideErrors?: boolean;
   maxLength?: number;
   placeholder?: string;
   dir?: 'auto';
@@ -426,6 +436,7 @@ type TextareaFieldProps = FieldProps & {
 export function TextareaField({
   label,
   layout,
+  hideErrors,
   description,
   required,
   disabled,
@@ -443,6 +454,7 @@ export function TextareaField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >
@@ -910,7 +922,7 @@ export type SelectFieldItem = {
 };
 
 type SelectFieldProps = FieldProps &
-  Pick<FieldFrameProps, 'action'> & {
+  Pick<FieldFrameProps, 'action' | 'hideErrors'> & {
     placeholder?: string;
     items: readonly SelectFieldItem[];
   };
@@ -922,6 +934,7 @@ export function SelectField({
   required,
   disabled,
   layout,
+  hideErrors,
   items,
   action,
   placeholder,
@@ -937,6 +950,7 @@ export function SelectField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >

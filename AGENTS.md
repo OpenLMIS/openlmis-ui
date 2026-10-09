@@ -499,6 +499,9 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
+- Inline fields use `Field surface="background"` for opaque controls on selected or hovered rows.
+  `SelectField` and `TextareaField` accept `hideErrors` to keep error descriptions screen-reader-only.
+  Textareas use `resize-none` and grow with their content.
 - Whole numbers default to Java `int` bounds. Server `long` fields pass
   `max: Number.MAX_SAFE_INTEGER`; lower bounds pass `min` and their message. Optional values
   pass `optional` and read with `toOptionalWholeNumber`.
@@ -529,7 +532,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
-`DialogTitle size`, `Field spacing`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
+`DialogTitle size`, `Field spacing/surface`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
 `ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width`, `Button align/width`,
 `PopoverContent width/padding`.
 

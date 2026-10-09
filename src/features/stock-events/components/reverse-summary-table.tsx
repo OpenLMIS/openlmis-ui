@@ -75,7 +75,7 @@ export function ReverseSummaryTable({
           {rows.map(({ line, reason, comments, current, balance }, index) => (
             <TableRow key={line.stockEventLineItemId ?? index}>
               <TableCell>
-                <span className="block min-w-28 max-w-60 whitespace-normal">
+                <span className="whitespace-nowrap">
                   <bdi>{line.orderable.fullProductName}</bdi>{' '}
                   <bdi className="whitespace-nowrap">({line.orderable.productCode})</bdi>
                 </span>
@@ -86,19 +86,25 @@ export function ReverseSummaryTable({
                 </bdi>
               </TableCell>
               <TableCell>
-                <span className="block min-w-28 max-w-60 whitespace-normal">
+                <span className="whitespace-nowrap">
                   {tableValue(namedWithFreeText(reason, comments))}
                 </span>
               </TableCell>
               <TableCell>
-                <span dir="ltr">{quantity(line.quantity, line)}</span>
+                <span className="whitespace-nowrap" dir="ltr">
+                  {quantity(line.quantity, line)}
+                </span>
               </TableCell>
               <TableCell>
-                <span dir="ltr">{quantity(current, line)}</span>
+                <span className="whitespace-nowrap" dir="ltr">
+                  {quantity(current, line)}
+                </span>
               </TableCell>
               {confirmation && (
                 <TableCell>
-                  <span dir="ltr">{quantity(balance, line)}</span>
+                  <span className="whitespace-nowrap" dir="ltr">
+                    {quantity(balance, line)}
+                  </span>
                 </TableCell>
               )}
             </TableRow>

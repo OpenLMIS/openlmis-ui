@@ -34,14 +34,22 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { LoadError } from '@/components/load-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Alert, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -176,6 +184,7 @@ export function ReverseEditor({
   const [marks, setMarks] = useState<Record<string, ReverseRowMarks>>({});
   const [errors, setErrors] = useState<Record<string, StockEventCancelLineError>>({});
   const [focusField, setFocusField] = useState<{ id: string; page: number } | null>(null);
+  const alertTarget = useRef<{ id: string; page: number } | null>(null);
   const leaving = useRef(false);
   const posting = useRef(false);
   const [measure, width] = useElementWidth<HTMLDivElement>();
@@ -244,6 +253,7 @@ export function ReverseEditor({
   };
   const submit = () => {
     if (pending || !lines.length || stock.isFetching) return;
+    alertTarget.current = null;
     const validation = validateReverse(lines, form.state.values, current);
     setMarks(validation.marks);
     setErrors({});
@@ -273,12 +283,12 @@ export function ReverseEditor({
         : `balance-${first.id}`;
     const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
     if (mark.comments) columnView.onVisibilityChange({ ...columnView.visibility, comments: true });
-    setFocusField({ id: field, page: invalidPage });
-    onSearchChange({ reversePage: invalidPage === 1 ? undefined : invalidPage }, true);
+    alertTarget.current = { id: field, page: invalidPage };
   };
   const confirmSubmit = async (signature: string) => {
     if (posting.current) return;
     posting.current = true;
+    alertTarget.current = null;
     setFailure(null);
     try {
       const newId = await mutation.mutateAsync(reversePayload(selected, signature));
@@ -321,8 +331,7 @@ export function ReverseEditor({
         const first = rows.find((row) => byId[row.id]);
         if (first) {
           const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
-          setFocusField({ id: `reverse-${first.id}`, page: invalidPage });
-          onSearchChange({ reversePage: invalidPage === 1 ? undefined : invalidPage }, true);
+          alertTarget.current = { id: `reverse-${first.id}`, page: invalidPage };
         }
       } else setFailure(serverMessage(error) ?? t('stock-event-reverse.failed-description'));
       setSignatureOpen(false);
@@ -348,7 +357,7 @@ export function ReverseEditor({
           helper.display({
             id,
             meta: {
-              className: id === 'product' ? 'w-24' : id === 'reverse' ? 'text-center' : undefined,
+              className: id === 'reverse' ? 'text-center' : 'whitespace-nowrap',
             },
             header: () => (
               <div className={id === 'reverse' ? 'flex justify-center' : undefined}>
@@ -440,15 +449,6 @@ export function ReverseEditor({
                   />
                 </div>
               </div>
-              {validationMessage && (
-                <Alert variant="destructive">
-                  <CircleAlertIcon />
-                  <AlertTitle>{validationMessage}</AlertTitle>
-                </Alert>
-              )}
-              {failure && (
-                <ErrorAlert title={t('stock-event-reverse.failed-title')} description={failure} />
-              )}
               <QueryBoundary
                 resetKey={event.id}
                 pendingFallback={
@@ -526,6 +526,34 @@ export function ReverseEditor({
           {t('stock-events.submit')}
         </Button>
       </WorkspaceFooter>
+      <AlertDialog
+        open={!!(validationMessage || failure)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setValidationMessage(null);
+            setFailure(null);
+          }
+        }}
+        onOpenChangeComplete={(open) => {
+          if (open || !alertTarget.current) return;
+          const target = alertTarget.current;
+          alertTarget.current = null;
+          setFocusField(target);
+          onSearchChange({ reversePage: target.page === 1 ? undefined : target.page }, true);
+        }}
+      >
+        <AlertDialogContent finalFocus={false}>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <CircleAlertIcon className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>{validationMessage || failure}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('stock-event-reverse.close')}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <ReverseConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -718,6 +746,7 @@ function ReverseReasonCell(props: CellProps) {
             }))}
             label={label}
             layout="inline"
+            hideErrors
             placeholder={t('stock-event-reverse.select-option')}
             required
           />
@@ -744,6 +773,7 @@ function ReverseCommentsCell(props: CellProps) {
           <field.TextareaField
             label={label}
             layout="inline"
+            hideErrors
             maxLength={255}
             dir="auto"
             disabled={pending}
@@ -764,7 +794,7 @@ function ReverseBalanceCell(props: CellProps) {
       aria-invalid={!!mark?.stock}
       aria-describedby={mark?.stock ? `stock-error-${rowId}` : undefined}
       aria-label={label}
-      className="flex flex-col gap-1"
+      className={mark?.stock ? 'text-destructive' : undefined}
     >
       {fetching ? (
         <div className="h-4 w-12">
@@ -774,7 +804,7 @@ function ReverseBalanceCell(props: CellProps) {
         balances[rowId] !== undefined && quantity(balances[rowId])
       )}
       {mark?.stock && (
-        <p id={`stock-error-${rowId}`} className="w-48 whitespace-normal text-sm text-destructive">
+        <p id={`stock-error-${rowId}`} className="sr-only">
           {t(mark.stock)}
         </p>
       )}
@@ -790,7 +820,7 @@ function ReverseReadOnlyCell(props: CellProps) {
       return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className="block max-w-24 whitespace-normal break-words">
+        <span className="whitespace-nowrap">
           <bdi>{line.orderable.fullProductName}</bdi>
         </span>
       );
@@ -798,7 +828,7 @@ function ReverseReadOnlyCell(props: CellProps) {
       return line.lot ? (
         <bdi className="whitespace-nowrap">{line.lot.lotCode}</bdi>
       ) : (
-        <span className="block max-w-16 whitespace-normal">{t('stock-event.no-lot')}</span>
+        <span className="whitespace-nowrap">{t('stock-event.no-lot')}</span>
       );
     case 'date':
       return (
@@ -808,19 +838,19 @@ function ReverseReadOnlyCell(props: CellProps) {
       );
     case 'source':
       return (
-        <span className="block min-w-32 max-w-36 whitespace-normal">
+        <span className="whitespace-nowrap">
           {tableValue(namedWithFreeText(line.source, line.sourceFreeText))}
         </span>
       );
     case 'destination':
       return (
-        <span className="block min-w-32 max-w-36 whitespace-normal">
+        <span className="whitespace-nowrap">
           {tableValue(namedWithFreeText(line.destination, line.destinationFreeText))}
         </span>
       );
     case 'reason':
       return (
-        <span className="block min-w-32 max-w-36 whitespace-normal">
+        <span className="whitespace-nowrap">
           {tableValue(namedWithFreeText(line.reason, line.reasonFreeText))}
         </span>
       );

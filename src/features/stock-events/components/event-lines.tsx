@@ -65,7 +65,7 @@ type CellId = (typeof COLUMNS)[number][0];
 
 function Wrapped({ children }: { children: ReactNode }) {
   return (
-    <span className="block max-w-60 whitespace-normal break-normal">
+    <span className="whitespace-nowrap">
       <bdi>{children}</bdi>
     </span>
   );

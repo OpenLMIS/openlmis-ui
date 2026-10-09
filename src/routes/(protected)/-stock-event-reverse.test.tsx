@@ -208,8 +208,13 @@ describe('reverse transaction', () => {
     renderRoute();
     await tick();
     await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-    await screen.findByText('stock-events.required');
-    expect(screen.getByText('stock-event-reverse.reason-required')).toBeInTheDocument();
+    await screen.findByRole('alertdialog');
+    await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
     expect(screen.getByText('stock-event-reverse.negative-stock')).toBeInTheDocument();
     await choose();
     expect(screen.queryByText('stock-events.required')).not.toBeInTheDocument();
@@ -228,6 +233,8 @@ describe('reverse transaction', () => {
     await act(() => router.navigate({ search: (() => ({})) as never }));
     await screen.findByText('Product 0');
     await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+    await screen.findByRole('alertdialog');
+    await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
     await screen.findByText('Product 10');
     await waitFor(() =>
       expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
@@ -308,6 +315,8 @@ describe('reverse transaction', () => {
       await screen.findByText(
         error.response ? 'Server refuses' : 'stock-event-reverse.failed-description',
       );
+      await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
       expect(screen.getAllByRole('checkbox')[0]).toBeChecked();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled();
@@ -323,6 +332,8 @@ describe('reverse transaction', () => {
     const dialog = await signing();
     await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
     await screen.findByText('stock-event-reverse.line-errors');
+    await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(within(screen.getAllByRole('row')[1]).getAllByRole('cell')[0]).toHaveTextContent(
       'Already reversed',
     );
@@ -452,6 +463,8 @@ it('opens the first server-error page and focuses its Reverse checkbox', async (
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await screen.findByRole('alertdialog');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
   const error = await screen.findByText('Server line error');
   const checkbox = screen.getAllByRole('checkbox')[0];
   expect(
@@ -529,8 +542,9 @@ it('asks again on Cancel after a navigation attempt during a POST that returns 4
       }),
   );
   await act(async () => rejectCancel(httpError(400, { message: 'Refused' })));
-  await screen.findByText('Refused');
-  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  await screen.findByRole('alertdialog', { name: 'Refused' });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.cancel' }));
   await screen.findByRole('alertdialog', { name: 'discard-changes.title' });
 });

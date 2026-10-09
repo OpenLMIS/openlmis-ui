@@ -126,45 +126,46 @@ async function pick(name = 'Cancelled issue') {
   await userEvent.click(screen.getByRole('combobox', { name: 'stock-events.field-of' }));
   await userEvent.click(screen.getByRole('option', { name }));
 }
-it('shows validation as the alert title and dismisses it on ticking', async () => {
+async function closeAlert() {
+  const dialog = await screen.findByRole('alertdialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'stock-event-reverse.close' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+}
+it('shows the legacy message in a modal with one Close button', async () => {
   editor();
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
-  expect(screen.getByRole('alert')).toHaveTextContent('stock-event-reverse.none-selected');
-  await tick();
+  const dialog = screen.getByRole('alertdialog', { name: 'stock-event-reverse.none-selected' });
+  expect(within(dialog).getAllByRole('button')).toHaveLength(1);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await closeAlert();
 });
-it('dismisses missing-reason validation on unticking', async () => {
+it('marks the reason without visible field text and focuses it after Close', async () => {
   editor();
   await tick();
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  expect(screen.getByText('stock-event-reverse.reason-required')).toBeInTheDocument();
-  await tick();
-  expect(screen.queryByText('stock-event-reverse.reason-required')).not.toBeInTheDocument();
-});
-it('clears the reason mark and validation alert when a reason is chosen', async () => {
-  editor();
-  await tick();
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveAttribute(
-    'aria-invalid',
-    'true',
-  );
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-event-reverse.reason-required');
+  await closeAlert();
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByText('stock-events.required').closest('.sr-only')).not.toBeNull();
+  await waitFor(() => expect(trigger).toHaveFocus());
   await pick();
-  expect(screen.queryByText('stock-event-reverse.reason-required')).not.toBeInTheDocument();
-  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).not.toHaveAttribute(
-    'aria-invalid',
-    'true',
-  );
+  expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
 });
-it('dismisses the alert on reason change but keeps the stock mark until Submit', async () => {
+it('keeps the hidden stock mark after reason changes until the next Submit', async () => {
   const client = editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
   await tick();
   await pick('Cancelled receipt');
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  expect(screen.getAllByText('stock-event-reverse.negative-stock')).toHaveLength(2);
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-event-reverse.negative-stock');
+  await closeAlert();
+  const balance = document.getElementById('balance-line');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  expect(balance).toHaveClass('text-destructive');
+  expect(screen.getByText('stock-event-reverse.negative-stock')).toHaveClass('sr-only');
+  await waitFor(() => expect(balance).toHaveFocus());
   await pick('Other receipt reason');
-  expect(screen.getAllByText('stock-event-reverse.negative-stock')).toHaveLength(1);
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
   client.setQueryData(
     eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
       .queryKey,
@@ -173,9 +174,8 @@ it('dismisses the alert on reason change but keeps the stock mark until Submit',
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
   );
-  expect(screen.getByText('stock-event-reverse.negative-stock')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  expect(screen.queryByText('stock-event-reverse.negative-stock')).not.toBeInTheDocument();
+  expect(balance).toHaveAttribute('aria-invalid', 'false');
 });
 it.each([
   new Error('No response'),
@@ -187,7 +187,7 @@ it.each([
       data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
     },
   },
-])('keeps server failure after edits and clears it on the next Submit: %j', async (error) => {
+])('shows server failures in the same modal: %j', async (error) => {
   vi.mocked(cancelStockEvent).mockRejectedValueOnce(error);
   editor();
   await tick();
@@ -195,29 +195,30 @@ it.each([
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  await screen.findByText('stock-event-reverse.failed-title');
-  await pick('Other reason');
-  expect(screen.getByText('stock-event-reverse.failed-title')).toBeInTheDocument();
-  await tick();
-  expect(screen.getByText('stock-event-reverse.failed-title')).toBeInTheDocument();
-  await tick();
-  expect(screen.getByText('stock-event-reverse.failed-title')).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveTextContent(
+    error instanceof Error
+      ? 'stock-event-reverse.failed-description'
+      : 'message' in error.response.data
+        ? 'Server refused reversal'
+        : 'stock-event-reverse.line-errors',
+  );
   expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
+  await closeAlert();
+  await pick('Other reason');
 });
-
-it('dismisses the comments validation alert on reason change', async () => {
+it('marks overlong comments without visible field text and focuses after Close', async () => {
   editor();
   await tick();
   await pick();
-  fireEvent.change(screen.getByRole('textbox', { name: 'stock-events.field-of' }), {
-    target: { value: 'x'.repeat(256) },
-  });
+  const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  expect(screen.getAllByText('stock-events.comments-too-long')).toHaveLength(2);
-  await pick('Other reason');
-  expect(screen.getAllByText('stock-events.comments-too-long')).toHaveLength(1);
-  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-events.comments-too-long');
+  await closeAlert();
+  expect(comments).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByText('stock-events.comments-too-long').closest('.sr-only')).not.toBeNull();
+  await waitFor(() => expect(comments).toHaveFocus());
 });
 
 it('shows every reverse column at laptop content width with the sidebar open', () => {
@@ -263,6 +264,7 @@ it('links comments and stock validation marks to their controls', async () => {
   const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
   fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
   expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
     'aria-invalid',
     'true',
@@ -293,6 +295,7 @@ it('links a server line error and focuses its Reverse checkbox', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await closeAlert();
   expect(await screen.findByText('Line refused')).toBeVisible();
   const checkbox = screen.getAllByRole('checkbox')[0];
   expect(
