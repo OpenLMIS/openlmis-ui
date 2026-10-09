@@ -28,6 +28,7 @@ export const inventorySummariesOptions = ({ programId, facilityId }: InventorySc
 export const inventoryStockLinesOptions = (draft: PhysicalInventoryDraft) =>
   queryOptions({
     queryKey: [...queryKeys.physicalInventories.detail(draft.id), 'stock-lines', draft.lineItems],
+    staleTime: Infinity,
     queryFn: async ({ client }) => {
       const session = getSessionScope();
       const summaries = await client.fetchQuery(inventorySummariesOptions(draft));

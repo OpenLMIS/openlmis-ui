@@ -45,8 +45,12 @@ describe('inventory reference lookups', () => {
     const ids = Array.from({ length: 101 }, (_, i) => `t${i}`);
     expect(await fetchLotsByTradeItems(ids)).toEqual([lot]);
     expect(client.get).toHaveBeenCalledTimes(3);
-    expect(client.get).toHaveBeenNthCalledWith(3, '/lots', {
+    expect(client.get).toHaveBeenCalledWith('/lots', {
       params: { tradeItemId: ['t100'], page: 0, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+    expect(client.get).toHaveBeenCalledWith('/lots', {
+      params: { tradeItemId: ids.slice(0, 100), page: 1, size: 100 },
       paramsSerializer: { indexes: null },
     });
   });

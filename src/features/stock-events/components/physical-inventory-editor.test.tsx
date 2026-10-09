@@ -650,3 +650,11 @@ it('updates the unaccounted error immediately when reasons change without Submit
   await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.update' }));
   expect(input).not.toHaveAttribute('aria-invalid', 'true');
 });
+
+it('keeps pagination inside the grid table card container', async () => {
+  setup();
+  await screen.findByRole('table');
+  const pager = await screen.findByRole('button', { name: 'Next Page' });
+  const grid = screen.getByRole('table');
+  expect(grid.closest('.\\@container\\/table')).toContainElement(pager);
+});

@@ -513,18 +513,18 @@ function InventoryDraftRows({
         />
       ) : null}
       {filtered.length ? (
-        <>
-          <PhysicalInventoryGrid
-            bands={page.bands}
-            visibility={visibility}
-            showVvm={showVvm}
-            showActions={showActions}
-            editor={editor}
-          />
-          <DataTableFooter>
-            <DataTablePagination table={table} />
-          </DataTableFooter>
-        </>
+        <PhysicalInventoryGrid
+          bands={page.bands}
+          visibility={visibility}
+          showVvm={showVvm}
+          showActions={showActions}
+          editor={editor}
+          footer={
+            <DataTableFooter>
+              <DataTablePagination table={table} />
+            </DataTableFooter>
+          }
+        />
       ) : (
         <DataTableEmpty
           title={t(

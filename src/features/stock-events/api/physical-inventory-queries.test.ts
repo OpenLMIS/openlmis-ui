@@ -126,3 +126,15 @@ it('refreshes active summaries only once when invalidating a draft and its stock
   client.clear();
   vi.mocked(fetchInventorySummaries).mockResolvedValue([]);
 });
+
+it('does not refetch hydrated stock when the editor mounts', async () => {
+  vi.mocked(fetchInventoryStockLines).mockClear();
+  const client = new QueryClient();
+  const draft = { id: 'fresh', programId: 'p', facilityId: 'f', lineItems: [] };
+  await client.fetchQuery({ ...inventoryStockLinesOptions(draft), staleTime: 0 });
+  const observer = new QueryObserver(client, inventoryStockLinesOptions(draft));
+  const unsubscribe = observer.subscribe(() => {});
+  expect(fetchInventoryStockLines).toHaveBeenCalledTimes(1);
+  unsubscribe();
+  client.clear();
+});

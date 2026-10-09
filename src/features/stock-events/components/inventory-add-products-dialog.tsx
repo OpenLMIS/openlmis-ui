@@ -33,6 +33,7 @@ import { inventoryCountSchema } from '@/features/stock-events/lib/physical-inven
 import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
 import {
   inventoryExpiry,
+  inventoryLineKey,
   inventoryLotCode,
 } from '@/features/stock-events/lib/physical-inventory-lines';
 import {
@@ -179,13 +180,25 @@ function AddProductsForm({
     },
   });
   const picked = useStore(selection.store, (state) => state.values);
+  const available = useMemo(() => {
+    const keys = new Set(listed.map((line) => line.key));
+    return eligible.filter((line) => !keys.has(inventoryLineKey(line.orderable.id, line.lot?.id)));
+  }, [eligible, listed]);
   const products = useMemo(
-    () =>
-      [...new Map(eligible.map((line) => [line.orderable.id, line.orderable])).values()].sort(
-        (a, b) => a.productCode.localeCompare(b.productCode),
-      ),
-    [eligible],
+    () => [
+      ...new Map(
+        [...available, ...eligible].map((line) => [line.orderable.id, line.orderable]),
+      ).values(),
+    ],
+    [eligible, available],
   );
+  const lotLabel = (line: InventoryLine) =>
+    inventoryLotCode(line) ??
+    t(
+      available.some((item) => item.orderable.id === line.orderable.id && item.lot)
+        ? 'stock-events.no-lot-defined'
+        : 'stock-events.product-has-no-lots',
+    );
   const lots = availableInventoryLots(eligible, [...listed, ...items], picked.productId);
   const newAllowed = canManageLots;
   const lotItems = [
@@ -286,7 +299,7 @@ function AddProductsForm({
                     <bdi>{orEmpty(line.orderable.netContent)}</bdi>
                   </TableCell>
                   <TableCell>
-                    <bdi>{inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}</bdi>
+                    <bdi>{lotLabel(line)}</bdi>
                   </TableCell>
                   <TableCell>
                     <bdi>
@@ -313,7 +326,7 @@ function AddProductsForm({
                           <field.QuantityField
                             label={t('stock-events.field-of', {
                               field: t('physical-inventory.current-stock'),
-                              row: `${productName(line.orderable)} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}`,
+                              row: `${productName(line.orderable)} ${lotLabel(line)}`,
                             })}
                             layout="inline"
                             required
@@ -332,7 +345,7 @@ function AddProductsForm({
                       variant="outline"
                       aria-label={t('stock-events.field-of', {
                         field: t('stock-events.remove'),
-                        row: `${productName(line.orderable)} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}`,
+                        row: `${productName(line.orderable)} ${lotLabel(line)}`,
                       })}
                       onClick={() =>
                         itemsForm.setFieldValue('items', (current) =>

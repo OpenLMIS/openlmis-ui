@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +29,10 @@ import {
   fetchPhysicalInventoryDraft,
   startPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
-import { inventoryStockLinesOptions } from '@/features/stock-events/api/physical-inventory-queries';
+import {
+  inventoryStockLinesOptions,
+  physicalInventoryDraftOptions,
+} from '@/features/stock-events/api/physical-inventory-queries';
 import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory';
@@ -280,7 +283,11 @@ it('reads fresh stock on every entry and keeps the cached stock on stay', async 
     { ...stock, stockOnHand: 5 },
   ]);
   vi.mocked(fetchInventoryStockLines).mockResolvedValue([stock]);
-  const loader = EditorRoute.options.loader as (args: {
+  const loader = (
+    typeof EditorRoute.options.loader === 'function'
+      ? EditorRoute.options.loader
+      : EditorRoute.options.loader?.handler
+  ) as (args: {
     context: { queryClient: QueryClient };
     params: { programId: string };
     cause: string;
@@ -300,7 +307,11 @@ it('starts the user read alongside permissions and prefetches lookups before a b
   vi.mocked(fetchPermissionStrings).mockReturnValueOnce(permissions.promise);
   vi.mocked(fetchPhysicalInventoryDraft).mockReturnValueOnce(draft.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = EditorRoute.options.loader as (args: {
+  const loader = (
+    typeof EditorRoute.options.loader === 'function'
+      ? EditorRoute.options.loader
+      : EditorRoute.options.loader?.handler
+  ) as (args: {
     context: { queryClient: QueryClient };
     params: { programId: string };
     cause: string;
@@ -311,5 +322,83 @@ it('starts the user read alongside permissions and prefetches lookups before a b
   await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalled());
   expect(fetchValidReasons).toHaveBeenCalled();
   draft.resolve(null);
+  await loading;
+});
+
+it('blocks a cached draft on re-entry after Start until the new draft is hydrated', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    ...grants,
+    `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+  ]);
+  const stock = [
+    {
+      orderable: { id: 'p', productCode: 'P', fullProductName: 'Product', description: null },
+      lot: null,
+      stockOnHand: 5,
+      stockCardId: 'card',
+      active: true,
+    },
+  ];
+  vi.mocked(fetchInventoryStockLines).mockResolvedValue(stock);
+  vi.mocked(fetchEligibleInventoryProducts).mockResolvedValue(stock);
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValue({
+    id: 'deleted-draft',
+    programId: FP,
+    facilityId: HOME,
+    lineItems: [{ orderableId: 'p', lotId: null, quantity: 99 }],
+  });
+  const user = userEvent.setup();
+  const { router, queryClient } = renderRoute(`${PICKER}/${FP}`);
+  await screen.findByDisplayValue('99');
+  await act(() => router.navigate({ to: PICKER }));
+  const row = (await screen.findByText('Family Planning')).closest('tr') as HTMLElement;
+  await act(async () => {
+    queryClient.setQueryData(
+      physicalInventoryDraftOptions({ programId: FP, facilityId: HOME }).queryKey,
+      null,
+    );
+  });
+  const fresh = Promise.withResolvers<{
+    id: string;
+    programId: string;
+    facilityId: string;
+    lineItems: [];
+  }>();
+  vi.mocked(fetchPhysicalInventoryDraft).mockImplementation((scope) =>
+    scope.programId === FP ? fresh.promise : Promise.resolve(null),
+  );
+  await user.click(await within(row).findByRole('button', { name: 'physical-inventory.start' }));
+  await waitFor(() => expect(router.state.matches.at(-1)?.status).toBe('pending'));
+  expect(screen.queryByDisplayValue('99')).not.toBeInTheDocument();
+  await act(async () => {
+    fresh.resolve({ id: 'new', programId: FP, facilityId: HOME, lineItems: [] });
+  });
+  const next = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  expect(next).toHaveValue('');
+  await user.type(next, '7');
+  await waitFor(() => expect(next).toHaveValue('7'));
+});
+
+it('starts eligible expansion while stock-line hydration is still pending', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    ...grants,
+    `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+  ]);
+  const stock = Promise.withResolvers<[]>();
+  vi.mocked(fetchInventoryStockLines).mockReturnValueOnce(stock.promise);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loader = (
+    typeof EditorRoute.options.loader === 'function'
+      ? EditorRoute.options.loader
+      : EditorRoute.options.loader?.handler
+  ) as (args: {
+    context: { queryClient: QueryClient };
+    params: { programId: string };
+    cause: string;
+  }) => Promise<unknown>;
+  const loading = loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  await waitFor(() => expect(fetchInventoryStockLines).toHaveBeenCalled());
+  expect(fetchEligibleInventoryProducts).toHaveBeenCalled();
+  stock.resolve([]);
   await loading;
 });

@@ -152,8 +152,16 @@ type Props = {
   visibility: ColumnVisibilityState;
   showVvm: boolean;
   showActions: boolean;
+  footer?: ReactNode;
 };
-export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions, editor }: Props) {
+export function PhysicalInventoryGrid({
+  bands,
+  visibility,
+  showVvm,
+  showActions,
+  editor,
+  footer,
+}: Props) {
   const { t } = useTranslation();
   const columns = useMemo(
     () => visibleColumns(visibility, showVvm).filter(([id]) => id !== 'actions' || showActions),
@@ -211,6 +219,7 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions,
           ))}
         </TableBody>
       </Table>
+      {footer}
     </DataTableCard>
   );
 }

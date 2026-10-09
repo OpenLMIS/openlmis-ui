@@ -46,64 +46,67 @@ export const Route = createFileRoute(
   validateSearch: inventorySearchSchema,
   preload: false,
   staticData: { crumbKey: 'physical-inventory.editor-crumb' },
-  loader: async ({ context: { queryClient }, params: { programId }, cause }) => {
-    const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
-    const session = getSessionScope();
-    const userId = useLoginData.getState().referenceDataUserId;
-    if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
-    const [permissions, user] = await Promise.all([
-      requirePermissions(queryClient, RIGHTS.stockInventoriesEdit),
-      queryClient.ensureQueryData(userRecordOptions(userId)),
-    ]);
-    assertSessionScope(session);
-    const homeId = user.homeFacilityId;
-    if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
-      throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
-    const homeFacility = await queryClient.ensureQueryData(facilityOptions(homeId));
-    assertSessionScope(session);
-    const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
-    if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
-    const selection = { facilityId: homeId, programId };
-    const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
-    const summaries: Promise<unknown> =
-      canViewStock && cause === 'enter'
-        ? queryClient.fetchQuery({ ...inventorySummariesOptions(selection), staleTime: 0 })
-        : Promise.resolve();
-    if (canViewStock) {
-      void summaries
-        .then(() =>
-          queryClient.prefetchQuery({
-            ...eligibleInventoryProductsOptions(selection, eligibleUpdatedAfter),
-          }),
-        )
-        .catch(() => undefined);
-      queryClient.prefetchQuery(
-        validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
-      );
-    }
-    const options = physicalInventoryDraftOptions(selection);
-    const [draft] = await Promise.all([
-      cause === 'enter'
-        ? queryClient.fetchQuery({ ...options, staleTime: 0 })
-        : queryClient.ensureQueryData(options),
-      summaries,
-    ]);
-    assertSessionScope(session);
-    if (draft && canViewStock) {
-      if (cause === 'enter')
-        await queryClient.fetchQuery({ ...inventoryStockLinesOptions(draft), staleTime: 0 });
-      else await queryClient.ensureQueryData(inventoryStockLinesOptions(draft));
+  loader: {
+    staleReloadMode: 'blocking',
+    handler: async ({ context: { queryClient }, params: { programId }, cause }) => {
+      const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
+      const session = getSessionScope();
+      const userId = useLoginData.getState().referenceDataUserId;
+      if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+      const [permissions, user] = await Promise.all([
+        requirePermissions(queryClient, RIGHTS.stockInventoriesEdit),
+        queryClient.ensureQueryData(userRecordOptions(userId)),
+      ]);
       assertSessionScope(session);
-    }
-    return {
-      eligibleUpdatedAfter,
-      userId,
-      homeFacility,
-      program,
-      draft,
-      canViewStock,
-      canManageLots: permissions.rights.has(RIGHTS.lotsManage),
-    };
+      const homeId = user.homeFacilityId;
+      if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
+        throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+      const homeFacility = await queryClient.ensureQueryData(facilityOptions(homeId));
+      assertSessionScope(session);
+      const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
+      if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+      const selection = { facilityId: homeId, programId };
+      const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
+      const summaries: Promise<unknown> =
+        canViewStock && cause === 'enter'
+          ? queryClient.fetchQuery({ ...inventorySummariesOptions(selection), staleTime: 0 })
+          : Promise.resolve();
+      if (canViewStock) {
+        void summaries
+          .then(() =>
+            queryClient.prefetchQuery({
+              ...eligibleInventoryProductsOptions(selection, eligibleUpdatedAfter),
+            }),
+          )
+          .catch(() => undefined);
+        queryClient.prefetchQuery(
+          validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
+        );
+      }
+      const options = physicalInventoryDraftOptions(selection);
+      const [draft] = await Promise.all([
+        cause === 'enter'
+          ? queryClient.fetchQuery({ ...options, staleTime: 0 })
+          : queryClient.ensureQueryData(options),
+        summaries,
+      ]);
+      assertSessionScope(session);
+      if (draft && canViewStock) {
+        if (cause === 'enter')
+          await queryClient.fetchQuery({ ...inventoryStockLinesOptions(draft), staleTime: 0 });
+        else await queryClient.ensureQueryData(inventoryStockLinesOptions(draft));
+        assertSessionScope(session);
+      }
+      return {
+        eligibleUpdatedAfter,
+        userId,
+        homeFacility,
+        program,
+        draft,
+        canViewStock,
+        canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+      };
+    },
   },
   pendingComponent: InventoryPending,
   component: InventoryPage,

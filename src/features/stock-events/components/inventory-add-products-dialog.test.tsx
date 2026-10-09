@@ -135,3 +135,85 @@ it('accepts only digits for the added product Current Stock', async () => {
   await user.type(input, '-1.٢x۳');
   expect(input).toHaveValue('123');
 });
+
+it('keeps available products in legacy order instead of sorting by product code', async () => {
+  const user = userEvent.setup();
+  const second = { ...product, id: 'second', productCode: 'A', fullProductName: 'Second' };
+  render(
+    <InventoryAddProductsDialog
+      eligible={[...eligible, { orderable: second, lot: null, stockOnHand: null }]}
+      listed={[]}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={vi.fn()}
+    />,
+  );
+  await user.click(screen.getByRole('combobox', { name: 'stock-events.product' }));
+  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    'Product',
+    'Second',
+  ]);
+});
+
+it('labels a no-lot item by the available lots left in its product group', async () => {
+  const user = userEvent.setup();
+  render(
+    <InventoryAddProductsDialog
+      eligible={eligible}
+      listed={buildInventoryLines([eligible[0]], [])}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={vi.fn()}
+    />,
+  );
+  await choose(user, 'stock-events.product', 'Product');
+  await choose(user, 'stock-events.lot-code', 'stock-events.no-lot-defined');
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+  expect(
+    await within(screen.getByRole('table')).findByText('stock-events.product-has-no-lots'),
+  ).toBeInTheDocument();
+});
+
+it('lists products with available items before products whose lots are all listed', async () => {
+  const user = userEvent.setup();
+  const other = { ...product, id: 'other', productCode: 'Z', fullProductName: 'Other' };
+  render(
+    <InventoryAddProductsDialog
+      eligible={[...eligible, { orderable: other, lot: null, stockOnHand: null }]}
+      listed={buildInventoryLines(eligible, [
+        { orderableId: product.id, lotId: null, quantity: 0 },
+      ])}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={vi.fn()}
+    />,
+  );
+  await user.click(screen.getByRole('combobox', { name: 'stock-events.product' }));
+  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    'Other',
+    'Product',
+  ]);
+});
+
+it('keeps No Lot Defined in the items table when the available group has a lot', async () => {
+  const user = userEvent.setup();
+  render(
+    <InventoryAddProductsDialog
+      eligible={eligible}
+      listed={[]}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={vi.fn()}
+    />,
+  );
+  await choose(user, 'stock-events.product', 'Product');
+  await choose(user, 'stock-events.lot-code', 'stock-events.no-lot-defined');
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+  expect(
+    await within(screen.getByRole('table')).findByText('stock-events.no-lot-defined'),
+  ).toBeInTheDocument();
+});
