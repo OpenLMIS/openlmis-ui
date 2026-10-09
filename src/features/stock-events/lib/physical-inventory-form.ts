@@ -22,8 +22,7 @@ export const inventoryReasonSchema = z.object({
 });
 
 export function unaccounted(line: InventoryLine) {
-  const count = toOptionalWholeNumber(line.quantity.doses);
-  if (count === null) return null;
+  const count = toOptionalWholeNumber(line.quantity.doses) ?? 0;
   return (
     count -
     (line.stockOnHand ?? 0) -
@@ -36,21 +35,23 @@ export function unaccounted(line: InventoryLine) {
   );
 }
 
+export function inventoryLineError(line: InventoryLine) {
+  if (!line.active && line.stockOnHand === 0 && !line.quantity.doses.trim()) return null;
+  const count = inventoryCountSchema.safeParse(line.quantity.doses);
+  if (!count.success) return count.error.issues[0].message;
+  if (unaccounted(line) !== 0) return 'physical-inventory.unaccounted-error';
+  if (line.stockAdjustments.some((reason) => !inventoryReasonSchema.safeParse(reason).success))
+    return 'physical-inventory.invalid-description';
+  return null;
+}
+
 export function validateInventory(
   lines: readonly InventoryLine[],
   displayed: readonly InventoryLine[],
 ) {
   if (displayed.some((line) => !line.active && line.stockOnHand === 0))
     return { kind: 'inactive' } as const;
-  const invalid = lines.filter(
-    (line) =>
-      isInventoryMember(line) &&
-      (!line.active && line.stockOnHand === 0 && !line.quantity.doses.trim()
-        ? false
-        : !inventoryCountSchema.safeParse(line.quantity.doses).success ||
-          unaccounted(line) !== 0 ||
-          line.stockAdjustments.some((reason) => !inventoryReasonSchema.safeParse(reason).success)),
-  );
+  const invalid = lines.filter((line) => isInventoryMember(line) && inventoryLineError(line));
   return invalid.length
     ? ({ kind: 'invalid', lines: invalid } as const)
     : ({ kind: 'valid' } as const);

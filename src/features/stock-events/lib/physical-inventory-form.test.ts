@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
 import {
   inventoryCountSchema,
+  inventoryLineError,
   inventoryReasonSchema,
   inventorySavePayload,
   inventorySubmitPayload,
@@ -47,7 +48,13 @@ describe('inventory counts and differences', () => {
       }),
     ).toBe(0);
     expect(unaccounted({ ...line(), stockOnHand: null, quantity: quantityValue('0') })).toBe(0);
-    expect(unaccounted(line())).toBeNull();
+    expect(unaccounted(line())).toBe(-10);
+  });
+  it('reports a missing count before an unaccounted difference', () => {
+    expect(inventoryLineError(line())).toBe('stock-events.required');
+    expect(inventoryLineError({ ...line(), quantity: quantityValue('9') })).toBe(
+      'physical-inventory.unaccounted-error',
+    );
   });
   it('requires positive reason quantities and refuses balance adjustments', () => {
     expect(inventoryReasonSchema.safeParse(reason('CREDIT', 0)).success).toBe(false);
