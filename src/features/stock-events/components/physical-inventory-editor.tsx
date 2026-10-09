@@ -3,7 +3,16 @@ import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from '@tanst
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -49,7 +58,6 @@ import { InventoryReasonsDialog } from '@/features/stock-events/components/inven
 import { InventoryScan } from '@/features/stock-events/components/inventory-scan';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
-  type InventoryColumnWidths,
   inventoryHideableColumns,
   PhysicalInventoryGrid,
   PhysicalInventoryGridSkeleton,
@@ -108,38 +116,22 @@ type Props = {
 };
 
 export function PhysicalInventoryEditor(props: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const inactiveId = useId();
   const quantityUnit = useQuantityUnit();
   const [addOpen, setAddOpen] = useState(false);
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
-  const measurementKey = `${i18n.language}:${quantityUnit.unit}`;
-  const [measurement, setMeasurement] = useState<{
-    key: string;
-    widths: InventoryColumnWidths;
-  }>({ key: measurementKey, widths: {} });
-  const columnWidths = measurement.key === measurementKey ? measurement.widths : {};
-  const onColumnWidths = useCallback(
-    (next: InventoryColumnWidths) => {
-      setMeasurement((previous) => {
-        const widths = previous.key === measurementKey ? previous.widths : {};
-        const merged = { ...widths, ...next };
-        if (!('vvm' in next)) delete merged.vvm;
-        if (!('actions' in next)) delete merged.actions;
-        return previous.key === measurementKey &&
-          Object.keys(merged).length === Object.keys(widths).length &&
-          Object.entries(merged).every(
-            ([id, value]) => widths[id as keyof InventoryColumnWidths] === value,
-          )
-          ? previous
-          : { key: measurementKey, widths: merged };
-      });
-    },
-    [measurementKey],
-  );
+  const [optionalColumns, setOptionalColumns] = useState({ showVvm: false, showActions: false });
+  const onOptionalColumns = useCallback((showVvm: boolean, showActions: boolean) => {
+    setOptionalColumns((previous) =>
+      previous.showVvm === showVvm && previous.showActions === showActions
+        ? previous
+        : { showVvm, showActions },
+    );
+  }, []);
   const view = useColumnVisibility(
-    inventoryHideableColumns(columnWidths, choices[0]),
+    inventoryHideableColumns({ ...optionalColumns, unit: quantityUnit.unit }, choices[0]),
     choices,
     width,
   );
@@ -189,15 +181,18 @@ export function PhysicalInventoryEditor(props: Props) {
       <QueryBoundary
         errorComponent={InventoryLoadError}
         pendingFallback={
-          <PhysicalInventoryGridSkeleton visibility={view.visibility} widths={columnWidths} />
+          <PhysicalInventoryGridSkeleton
+            visibility={view.visibility}
+            {...optionalColumns}
+            unit={quantityUnit.unit}
+          />
         }
         resetKey={props.draft.id}
       >
         <InventoryRows
           {...props}
           visibility={view.visibility}
-          onColumnWidths={onColumnWidths}
-          columnWidths={columnWidths}
+          onOptionalColumns={onOptionalColumns}
           quantityUnit={quantityUnit}
           addOpen={addOpen}
           onAddClose={() => setAddOpen(false)}
@@ -209,8 +204,7 @@ export function PhysicalInventoryEditor(props: Props) {
 
 type RowsProps = Props & {
   visibility: Record<string, boolean>;
-  onColumnWidths: (widths: InventoryColumnWidths) => void;
-  columnWidths: InventoryColumnWidths;
+  onOptionalColumns: (showVvm: boolean, showActions: boolean) => void;
   quantityUnit: ReturnType<typeof useQuantityUnit>;
   addOpen: boolean;
   onAddClose: () => void;
@@ -232,7 +226,7 @@ function InventoryRows(props: RowsProps) {
     return (
       <PhysicalInventoryGridSkeleton
         visibility={props.visibility}
-        widths={props.columnWidths}
+        unit={props.quantityUnit.unit}
         showVvm={stock.some((line) => line.orderable.extraData?.useVVM === 'true')}
         showActions={buildInventoryLines(stock, props.draft.lineItems).some(
           (line) => line.justAdded || canDeactivateInventoryLine(line, true),
@@ -256,7 +250,7 @@ function InventoryDraftRows({
   search,
   onSearchChange,
   visibility,
-  onColumnWidths,
+  onOptionalColumns,
   stock,
   localLines,
   localFailed,
@@ -390,6 +384,12 @@ function InventoryDraftRows({
   const showVvm = Boolean(
     eligible.data?.some((line) => line.orderable.extraData?.useVVM === 'true'),
   );
+  const showActions = lines.some(
+    (line) => line.justAdded || canDeactivateInventoryLine(line, true),
+  );
+  useLayoutEffect(() => {
+    onOptionalColumns(showVvm, showActions);
+  }, [showVvm, showActions, onOptionalColumns]);
   useEffect(() => {
     if (validationAttempted) void form.validate('change');
   }, [validationAttempted, form]);
@@ -508,11 +508,8 @@ function InventoryDraftRows({
           <PhysicalInventoryGrid
             bands={page.bands}
             visibility={visibility}
-            onColumnWidths={onColumnWidths}
             showVvm={showVvm}
-            showActions={lines.some(
-              (line) => line.justAdded || canDeactivateInventoryLine(line, true),
-            )}
+            showActions={showActions}
             editor={editor}
           />
           <DataTableFooter>

@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { resolveColumnVisibility } from '@/components/data-table/responsive-columns';
 import {
+  INVENTORY_COLUMN_MIN_WIDTHS,
   INVENTORY_HIDEABLE_COLUMNS,
   inventoryHideableColumns,
   PhysicalInventoryGrid,
@@ -154,81 +155,54 @@ describe('inventory column priorities', () => {
     ]);
   });
 
-  it('fits every column when their summed readable widths fit', () => {
-    const widths = {
-      productCode: 96,
-      product: 144,
-      packSize: 64,
-      lot: 112,
-      expiry: 88,
-      stock: 96,
-      count: 88,
-      vvm: 88,
-      reasons: 112,
-      unaccounted: 136,
-      actions: 64,
-    };
-    const columns = inventoryHideableColumns(widths);
-    const total = Object.values(widths).reduce((sum, width) => sum + width, 0);
-    expect(columns.map(({ hideBelow }) => hideBelow)).toEqual([
-      total,
-      total - widths.productCode,
-      total - widths.productCode - widths.packSize,
-      total - widths.productCode - widths.packSize - widths.expiry,
-    ]);
+  it('hides optional columns in priority order at the static minimum-width boundaries', () => {
+    const columns = inventoryHideableColumns({ showVvm: true, showActions: true });
+    const total = Object.values(INVENTORY_COLUMN_MIN_WIDTHS).reduce(
+      (sum, { rem }) => sum + rem * 16,
+      0,
+    );
+    let remaining = total;
     for (let removed = 0; removed < columns.length; removed++) {
-      const width = columns[removed].hideBelow;
-      expect(resolveColumnVisibility(columns, {}, width)[columns[removed].id]).toBe(true);
-      const hidden = Object.entries(resolveColumnVisibility(columns, {}, width - 1))
+      expect(columns[removed].hideBelow).toBe(remaining + 2);
+      expect(resolveColumnVisibility(columns, {}, remaining + 2)[columns[removed].id]).toBe(true);
+      const hidden = Object.entries(resolveColumnVisibility(columns, {}, remaining + 1))
         .filter(([, visible]) => !visible)
         .map(([id]) => id);
       expect(hidden).toEqual(columns.slice(0, removed + 1).map(({ id }) => id));
+      remaining -= INVENTORY_COLUMN_MIN_WIDTHS[columns[removed].id].rem * 16;
     }
-    expect(Object.values(resolveColumnVisibility(columns, {}, 1100))).not.toContain(false);
   });
 
-  it('budgets only applicable columns and preserves explicit View choices', () => {
-    const widths = {
-      productCode: 100,
-      product: 160,
-      packSize: 80,
-      lot: 112,
-      expiry: 96,
-      stock: 104,
-      count: 104,
-      reasons: 112,
-      unaccounted: 144,
-    };
-    const columns = inventoryHideableColumns(widths);
-    expect(columns[0].hideBelow).toBe(1012);
-    expect(resolveColumnVisibility(columns, { productCode: true }, 390)).toEqual({
+  it('budgets VVM and Actions only when shown and reserves room for pack inputs', () => {
+    const base = inventoryHideableColumns({ showVvm: false, showActions: false });
+    const full = inventoryHideableColumns({ showVvm: true, showActions: true });
+    expect(full[0].hideBelow - base[0].hideBelow).toBe(
+      (INVENTORY_COLUMN_MIN_WIDTHS.vvm.rem + INVENTORY_COLUMN_MIN_WIDTHS.actions.rem) * 16,
+    );
+    const packs = inventoryHideableColumns({ showVvm: false, showActions: false, unit: 'PACKS' });
+    expect(packs[0].hideBelow - base[0].hideBelow).toBe(4 * 16);
+  });
+
+  it('counts forced-visible columns, excludes forced-hidden columns and ignores stale choices', () => {
+    const options = { showVvm: false, showActions: false };
+    const base = inventoryHideableColumns(options);
+    expect(inventoryHideableColumns(options, { product: false, lot: false })).toEqual(base);
+    const forcedHidden = inventoryHideableColumns(options, { productCode: false });
+    expect(forcedHidden[1].hideBelow).toBe(base[1].hideBelow);
+    const forcedVisible = inventoryHideableColumns(options, { productCode: true });
+    expect(forcedVisible[1].hideBelow).toBe(base[0].hideBelow);
+    expect(resolveColumnVisibility(forcedVisible, { productCode: true }, 390)).toEqual({
       productCode: true,
       packSize: false,
       expiry: false,
       stock: false,
     });
-  });
-
-  it('counts forced-visible columns and excludes forced-hidden columns from the budget', () => {
-    const widths = {
-      productCode: 100,
-      product: 160,
-      packSize: 80,
-      lot: 112,
-      expiry: 96,
-      stock: 104,
-      count: 104,
-      reasons: 112,
-      unaccounted: 144,
-    };
-    expect(inventoryHideableColumns(widths, { product: false, lot: false })[0].hideBelow).toBe(
-      1012,
-    );
-    const forcedHidden = inventoryHideableColumns(widths, { productCode: false });
-    expect(forcedHidden[1].hideBelow).toBe(912);
-    const forcedVisible = inventoryHideableColumns(widths, { productCode: true });
-    expect(forcedVisible[1].hideBelow).toBe(1012);
-    expect(resolveColumnVisibility(forcedVisible, { productCode: true }, 950).packSize).toBe(false);
+    expect(Object.values(resolveColumnVisibility(base, {}, 390))).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it('keeps identifying and editing columns despite stale stored choices', () => {

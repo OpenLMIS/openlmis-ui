@@ -275,7 +275,7 @@ export function InventoryActions(props: Props) {
           description={t('physical-inventory.unknown-outcome-description')}
         />
       )}
-      <WorkspaceFooterPortal width="default">
+      <WorkspaceFooterPortal width="wide">
         <Button
           size="lg"
           variant="outline"

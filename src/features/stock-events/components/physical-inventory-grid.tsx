@@ -1,8 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { EllipsisIcon } from 'lucide-react';
-import type { CSSProperties } from 'react';
-import { Fragment, memo, useId, useLayoutEffect, useRef } from 'react';
+import { Fragment, memo, type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useFieldContext } from '@/components/form/form-context';
@@ -69,24 +68,64 @@ export const INVENTORY_HIDEABLE_COLUMNS = [
   { id: 'expiry', labelKey: 'stock-events.expiry-date' },
   { id: 'stock', labelKey: 'stock-events.stock-on-hand' },
 ] as const;
-export type InventoryColumnWidths = Partial<Record<ColumnId, number>>;
+export const INVENTORY_COLUMN_MIN_WIDTHS = {
+  productCode: { rem: 7.5, width: 'w-30', content: 'min-w-28' },
+  product: { rem: 8, width: 'w-32', content: 'min-w-30' },
+  packSize: { rem: 5, width: 'w-20', content: 'min-w-18' },
+  lot: { rem: 12, width: 'w-48', content: 'min-w-46' },
+  expiry: { rem: 7, width: 'w-28', content: 'min-w-26' },
+  stock: { rem: 7.5, width: 'w-30', content: 'min-w-28' },
+  count: { rem: 8, width: 'w-32', content: 'min-w-30' },
+  vvm: { rem: 8, width: 'w-32', content: 'min-w-30' },
+  reasons: { rem: 7, width: 'w-28', content: 'min-w-26' },
+  unaccounted: { rem: 11.5, width: 'w-46', content: 'min-w-44' },
+  actions: { rem: 4.5, width: 'w-18', content: 'min-w-16' },
+} satisfies Record<ColumnId, { rem: number; width: string; content: string }>;
+
+type InventoryColumnLayout = { showVvm: boolean; showActions: boolean; unit?: QuantityUnit };
+const columnMinWidth = (id: ColumnId, unit: QuantityUnit = 'DOSES') =>
+  id === 'count' && unit === 'PACKS'
+    ? { rem: 12, width: 'w-48', content: 'min-w-46' }
+    : INVENTORY_COLUMN_MIN_WIDTHS[id];
+
 export function inventoryHideableColumns(
-  widths: InventoryColumnWidths,
+  { showVvm, showActions, unit }: InventoryColumnLayout,
   choices: ColumnVisibilityState = {},
 ) {
-  let required = Object.entries(widths).reduce(
-    (sum, [id, width]) =>
-      sum +
-      (choices[id] === false && INVENTORY_HIDEABLE_COLUMNS.some((column) => column.id === id)
-        ? 0
-        : width),
-    0,
-  );
+  let required =
+    2 +
+    COLUMNS.reduce((sum, [id]) => {
+      if ((id === 'vvm' && !showVvm) || (id === 'actions' && !showActions)) return sum;
+      if (choices[id] === false && INVENTORY_HIDEABLE_COLUMNS.some((column) => column.id === id))
+        return sum;
+      return sum + columnMinWidth(id, unit).rem * 16;
+    }, 0);
   return INVENTORY_HIDEABLE_COLUMNS.map((column) => {
     const hideBelow = required;
-    if (choices[column.id] == null) required -= widths[column.id] ?? 0;
+    if (choices[column.id] == null) required -= columnMinWidth(column.id, unit).rem * 16;
     return { ...column, hideBelow };
   });
+}
+
+function InventoryColumnContent({
+  id,
+  unit,
+  children,
+}: {
+  id: ColumnId;
+  unit?: QuantityUnit;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        columnMinWidth(id, unit).content,
+        id === 'product' ? 'whitespace-normal break-normal' : 'whitespace-nowrap',
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 const visibleColumns = (visibility: ColumnVisibilityState, showVvm: boolean) =>
@@ -114,69 +153,32 @@ type Props = {
   visibility: ColumnVisibilityState;
   showVvm: boolean;
   showActions: boolean;
-  onColumnWidths?: (widths: InventoryColumnWidths) => void;
 };
-const COLUMN_WIDTHS: Record<ColumnId, string> = {
-  productCode: 'w-1',
-  product: 'w-20',
-  packSize: 'w-1',
-  lot: 'w-24',
-  expiry: 'w-1',
-  stock: 'w-1',
-  count: 'w-20',
-  vvm: 'w-20',
-  reasons: 'w-24',
-  unaccounted: 'w-1',
-  actions: 'w-1',
-};
-export function PhysicalInventoryGrid({
-  bands,
-  visibility,
-  showVvm,
-  showActions,
-  editor,
-  onColumnWidths,
-}: Props) {
+export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions, editor }: Props) {
   const { t } = useTranslation();
-  const table = useRef<HTMLTableElement>(null);
   const columns = visibleColumns(visibility, showVvm).filter(
     ([id]) => id !== 'actions' || showActions,
   );
-  useLayoutEffect(() => {
-    if (!onColumnWidths) return;
-    const measure = () => {
-      const widths = Object.fromEntries(
-        Array.from(table.current?.querySelectorAll('th') ?? []).map((head, index) => [
-          columns[index][0],
-          head.getBoundingClientRect().width,
-        ]),
-      );
-      onColumnWidths(widths);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (table.current) observer.observe(table.current);
-    return () => observer.disconnect();
-  }, [columns, onColumnWidths]);
   return (
     <DataTableCard>
       <Table
-        density="tight"
-        layout="content"
-        ref={table}
+        density="compact"
+        layout="auto"
         tabIndex={-1}
         aria-label={t('physical-inventory.editor-crumb')}
       >
         <colgroup>
           {columns.map(([id]) => (
-            <col key={id} className={id === 'product' ? 'w-20' : undefined} />
+            <col key={id} className={columnMinWidth(id, editor.unit).width} />
           ))}
         </colgroup>
         <TableHeader surface="muted">
           <TableRow>
             {columns.map(([id, key]) => (
               <TableHead key={id} data-inventory-column={id}>
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                <InventoryColumnContent id={id} unit={editor.unit}>
+                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                </InventoryColumnContent>
               </TableHead>
             ))}
           </TableRow>
@@ -195,12 +197,14 @@ export function PhysicalInventoryGrid({
                     <TableRow surface="muted">
                       {columns.map(([id]) => (
                         <TableCell key={id}>
-                          <InventoryCell
-                            id={id}
-                            editor={editor}
-                            line={group.lines[0]}
-                            summary={group.lines}
-                          />
+                          <InventoryColumnContent id={id} unit={editor.unit}>
+                            <InventoryCell
+                              id={id}
+                              editor={editor}
+                              line={group.lines[0]}
+                              summary={group.lines}
+                            />
+                          </InventoryColumnContent>
                         </TableCell>
                       ))}
                     </TableRow>
@@ -242,7 +246,9 @@ const InventoryRow = memo(
       <TableRow>
         {columns.map(([id]) => (
           <TableCell key={id}>
-            <InventoryCell id={id} editor={editor} line={line} hideProduct={hideProduct} />
+            <InventoryColumnContent id={id} unit={editor.unit}>
+              <InventoryCell id={id} editor={editor} line={line} hideProduct={hideProduct} />
+            </InventoryColumnContent>
           </TableCell>
         ))}
       </TableRow>
@@ -297,17 +303,25 @@ function InventoryCell({
   switch (id) {
     case 'productCode':
       return hideProduct ? null : <bdi>{line.orderable.productCode}</bdi>;
-    case 'product':
+    case 'product': {
+      const unit = line.orderable.dispensable?.displayUnit;
+      const name = `${productName(line.orderable)}${unit ? ` - ${unit}` : ''}`;
       return hideProduct ? null : (
-        <span className="block w-20 min-w-min whitespace-normal break-normal font-medium">
+        <span className="block w-30 min-w-min whitespace-normal break-normal font-medium">
           <bdi>
-            {productName(line.orderable)}
-            {line.orderable.dispensable?.displayUnit
-              ? ` - ${line.orderable.dispensable.displayUnit}`
-              : ''}
+            {Array.from(name.matchAll(/\S+|\s+/g), (match) =>
+              match[0].trim() ? (
+                <span key={match.index} className="whitespace-nowrap">
+                  {match[0]}
+                </span>
+              ) : (
+                match[0]
+              ),
+            )}
           </bdi>
         </span>
       );
+    }
     case 'packSize':
       return number(line.orderable.netContent);
     case 'lot':
@@ -459,12 +473,12 @@ export function PhysicalInventoryGridSkeleton({
   visibility,
   showVvm = false,
   showActions = false,
-  widths = {},
+  unit = 'DOSES',
 }: {
   visibility: ColumnVisibilityState;
   showVvm?: boolean;
   showActions?: boolean;
-  widths?: InventoryColumnWidths;
+  unit?: QuantityUnit;
 }) {
   const { t } = useTranslation();
   const columns = visibleColumns(visibility, showVvm).filter(
@@ -473,24 +487,19 @@ export function PhysicalInventoryGridSkeleton({
   return (
     <div aria-busy>
       <DataTableCard>
-        <Table density="tight" layout="content">
+        <Table density="compact" layout="auto">
           <colgroup>
             {columns.map(([id]) => (
-              <col
-                key={id}
-                className={cn(
-                  COLUMN_WIDTHS[id],
-                  widths[id] != null && 'w-(--inventory-column-width)',
-                )}
-                style={{ '--inventory-column-width': `${widths[id]}px` } as CSSProperties}
-              />
+              <col key={id} className={columnMinWidth(id, unit).width} />
             ))}
           </colgroup>
           <TableHeader surface="muted">
             <TableRow>
               {columns.map(([id, key]) => (
                 <TableHead key={id} data-inventory-column={id}>
-                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                  <InventoryColumnContent id={id} unit={unit}>
+                    <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                  </InventoryColumnContent>
                 </TableHead>
               ))}
             </TableRow>
@@ -500,9 +509,11 @@ export function PhysicalInventoryGridSkeleton({
               <TableRow key={row}>
                 {columns.map(([id]) => (
                   <TableCell key={id}>
-                    <div className="h-4 w-full">
-                      <Skeleton fill />
-                    </div>
+                    <InventoryColumnContent id={id} unit={unit}>
+                      <div className="h-4 w-full">
+                        <Skeleton fill />
+                      </div>
+                    </InventoryColumnContent>
                   </TableCell>
                 ))}
               </TableRow>

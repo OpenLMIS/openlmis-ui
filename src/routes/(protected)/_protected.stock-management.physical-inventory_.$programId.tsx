@@ -120,7 +120,7 @@ function InventoryPage() {
   if (currentUser !== userId) return <InventoryPending />;
   return (
     <WorkspaceSlots>
-      <Workspace>
+      <Workspace width="wide">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -189,7 +189,7 @@ function InventoryPage() {
 
 function InventoryPending() {
   return (
-    <Workspace>
+    <Workspace width="wide">
       <WorkspaceHeader>
         <div className="h-6 w-96 max-w-full">
           <Skeleton fill />
