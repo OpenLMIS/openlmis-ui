@@ -49,6 +49,8 @@ import { InventoryReasonsDialog } from '@/features/stock-events/components/inven
 import { InventoryScan } from '@/features/stock-events/components/inventory-scan';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
+  type InventoryColumnWidths,
+  inventoryHideableColumns,
   PhysicalInventoryGrid,
   PhysicalInventoryGridSkeleton,
 } from '@/features/stock-events/components/physical-inventory-grid';
@@ -106,13 +108,41 @@ type Props = {
 };
 
 export function PhysicalInventoryEditor(props: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const inactiveId = useId();
   const quantityUnit = useQuantityUnit();
   const [addOpen, setAddOpen] = useState(false);
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
-  const view = useColumnVisibility(INVENTORY_HIDEABLE_COLUMNS, choices, width);
+  const measurementKey = `${i18n.language}:${quantityUnit.unit}`;
+  const [measurement, setMeasurement] = useState<{
+    key: string;
+    widths: InventoryColumnWidths;
+  }>({ key: measurementKey, widths: {} });
+  const columnWidths = measurement.key === measurementKey ? measurement.widths : {};
+  const onColumnWidths = useCallback(
+    (next: InventoryColumnWidths) => {
+      setMeasurement((previous) => {
+        const widths = previous.key === measurementKey ? previous.widths : {};
+        const merged = { ...widths, ...next };
+        if (!('vvm' in next)) delete merged.vvm;
+        if (!('actions' in next)) delete merged.actions;
+        return previous.key === measurementKey &&
+          Object.keys(merged).length === Object.keys(widths).length &&
+          Object.entries(merged).every(
+            ([id, value]) => widths[id as keyof InventoryColumnWidths] === value,
+          )
+          ? previous
+          : { key: measurementKey, widths: merged };
+      });
+    },
+    [measurementKey],
+  );
+  const view = useColumnVisibility(
+    inventoryHideableColumns(columnWidths, choices[0]),
+    choices,
+    width,
+  );
   return (
     <div className="flex flex-col gap-4" ref={measure}>
       <DataTableToolbar>
@@ -158,12 +188,16 @@ export function PhysicalInventoryEditor(props: Props) {
       </DataTableToolbar>
       <QueryBoundary
         errorComponent={InventoryLoadError}
-        pendingFallback={<PhysicalInventoryGridSkeleton visibility={view.visibility} />}
+        pendingFallback={
+          <PhysicalInventoryGridSkeleton visibility={view.visibility} widths={columnWidths} />
+        }
         resetKey={props.draft.id}
       >
         <InventoryRows
           {...props}
           visibility={view.visibility}
+          onColumnWidths={onColumnWidths}
+          columnWidths={columnWidths}
           quantityUnit={quantityUnit}
           addOpen={addOpen}
           onAddClose={() => setAddOpen(false)}
@@ -175,6 +209,8 @@ export function PhysicalInventoryEditor(props: Props) {
 
 type RowsProps = Props & {
   visibility: Record<string, boolean>;
+  onColumnWidths: (widths: InventoryColumnWidths) => void;
+  columnWidths: InventoryColumnWidths;
   quantityUnit: ReturnType<typeof useQuantityUnit>;
   addOpen: boolean;
   onAddClose: () => void;
@@ -196,6 +232,7 @@ function InventoryRows(props: RowsProps) {
     return (
       <PhysicalInventoryGridSkeleton
         visibility={props.visibility}
+        widths={props.columnWidths}
         showVvm={stock.some((line) => line.orderable.extraData?.useVVM === 'true')}
         showActions={buildInventoryLines(stock, props.draft.lineItems).some(
           (line) => line.justAdded || canDeactivateInventoryLine(line, true),
@@ -219,6 +256,7 @@ function InventoryDraftRows({
   search,
   onSearchChange,
   visibility,
+  onColumnWidths,
   stock,
   localLines,
   localFailed,
@@ -470,6 +508,7 @@ function InventoryDraftRows({
           <PhysicalInventoryGrid
             bands={page.bands}
             visibility={visibility}
+            onColumnWidths={onColumnWidths}
             showVvm={showVvm}
             showActions={lines.some(
               (line) => line.justAdded || canDeactivateInventoryLine(line, true),

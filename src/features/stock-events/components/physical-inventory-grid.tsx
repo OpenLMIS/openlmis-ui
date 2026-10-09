@@ -1,9 +1,10 @@
 import { useStore } from '@tanstack/react-form';
 import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { EllipsisIcon } from 'lucide-react';
-import { Fragment, memo, useId } from 'react';
+import type { CSSProperties } from 'react';
+import { Fragment, memo, useId, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableCard } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useFieldContext } from '@/components/form/form-context';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import { updateQuantityValue } from '@/components/form/quantity-value';
@@ -63,11 +64,31 @@ const COLUMNS = [
 ] as const;
 type ColumnId = (typeof COLUMNS)[number][0];
 export const INVENTORY_HIDEABLE_COLUMNS = [
-  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1600 },
-  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1480 },
-  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1360 },
-  { id: 'stock', labelKey: 'stock-events.stock-on-hand', hideBelow: 1200 },
+  { id: 'productCode', labelKey: 'stock-events.product-code' },
+  { id: 'packSize', labelKey: 'stock-events.pack-size' },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date' },
+  { id: 'stock', labelKey: 'stock-events.stock-on-hand' },
 ] as const;
+export type InventoryColumnWidths = Partial<Record<ColumnId, number>>;
+export function inventoryHideableColumns(
+  widths: InventoryColumnWidths,
+  choices: ColumnVisibilityState = {},
+) {
+  let required = Object.entries(widths).reduce(
+    (sum, [id, width]) =>
+      sum +
+      (choices[id] === false && INVENTORY_HIDEABLE_COLUMNS.some((column) => column.id === id)
+        ? 0
+        : width),
+    0,
+  );
+  return INVENTORY_HIDEABLE_COLUMNS.map((column) => {
+    const hideBelow = required;
+    if (choices[column.id] == null) required -= widths[column.id] ?? 0;
+    return { ...column, hideBelow };
+  });
+}
+
 const visibleColumns = (visibility: ColumnVisibilityState, showVvm: boolean) =>
   COLUMNS.filter(
     ([id]) =>
@@ -93,50 +114,69 @@ type Props = {
   visibility: ColumnVisibilityState;
   showVvm: boolean;
   showActions: boolean;
+  onColumnWidths?: (widths: InventoryColumnWidths) => void;
 };
 const COLUMN_WIDTHS: Record<ColumnId, string> = {
-  productCode: 'w-32',
-  product: 'w-56',
-  packSize: 'w-24',
-  lot: 'w-40',
-  expiry: 'w-36',
-  stock: 'w-40',
-  count: 'w-48',
-  vvm: 'w-32',
-  reasons: 'w-40',
-  unaccounted: 'w-48',
-  actions: 'w-12',
+  productCode: 'w-1',
+  product: 'w-20',
+  packSize: 'w-1',
+  lot: 'w-24',
+  expiry: 'w-1',
+  stock: 'w-1',
+  count: 'w-20',
+  vvm: 'w-20',
+  reasons: 'w-24',
+  unaccounted: 'w-1',
+  actions: 'w-1',
 };
-export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions, editor }: Props) {
+export function PhysicalInventoryGrid({
+  bands,
+  visibility,
+  showVvm,
+  showActions,
+  editor,
+  onColumnWidths,
+}: Props) {
   const { t } = useTranslation();
+  const table = useRef<HTMLTableElement>(null);
   const columns = visibleColumns(visibility, showVvm).filter(
     ([id]) => id !== 'actions' || showActions,
   );
+  useLayoutEffect(() => {
+    if (!onColumnWidths) return;
+    const measure = () => {
+      const widths = Object.fromEntries(
+        Array.from(table.current?.querySelectorAll('th') ?? []).map((head, index) => [
+          columns[index][0],
+          head.getBoundingClientRect().width,
+        ]),
+      );
+      onColumnWidths(widths);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (table.current) observer.observe(table.current);
+    return () => observer.disconnect();
+  }, [columns, onColumnWidths]);
   return (
     <DataTableCard>
       <Table
-        density="comfortable"
-        layout="auto"
+        density="tight"
+        layout="content"
+        ref={table}
         tabIndex={-1}
         aria-label={t('physical-inventory.editor-crumb')}
       >
         <colgroup>
           {columns.map(([id]) => (
-            <col key={id} className={COLUMN_WIDTHS[id]} />
+            <col key={id} className={id === 'product' ? 'w-20' : undefined} />
           ))}
         </colgroup>
         <TableHeader surface="muted">
           <TableRow>
             {columns.map(([id, key]) => (
-              <TableHead key={id}>
-                <span
-                  className={cn(
-                    'block whitespace-nowrap text-2xs font-medium tracking-wide',
-                    COLUMN_WIDTHS[id],
-                  )}
-                >
-                  {t(key)}
-                </span>
+              <TableHead key={id} data-inventory-column={id}>
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
               </TableHead>
             ))}
           </TableRow>
@@ -259,7 +299,7 @@ function InventoryCell({
       return hideProduct ? null : <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
       return hideProduct ? null : (
-        <span className="block min-w-56 max-w-64 whitespace-normal break-normal font-medium">
+        <span className="block w-20 min-w-min whitespace-normal break-normal font-medium">
           <bdi>
             {productName(line.orderable)}
             {line.orderable.dispensable?.displayUnit
@@ -341,7 +381,7 @@ function InventoryCell({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             aria-label={label(t('physical-inventory.reasons'))}
             disabled={editor.pending || !line.quantity.doses.trim()}
             onClick={() => editor.onReasons(line)}
@@ -394,7 +434,7 @@ function InventoryCell({
     case 'vvm':
       if (!summary && line.orderable.extraData?.useVVM === 'true')
         return (
-          <div className="w-32">
+          <div className="w-20">
             <editor.form.AppField name={`lines.${line.key}.vvmStatus`}>
               {(field) => (
                 <field.SelectField
@@ -419,10 +459,12 @@ export function PhysicalInventoryGridSkeleton({
   visibility,
   showVvm = false,
   showActions = false,
+  widths = {},
 }: {
   visibility: ColumnVisibilityState;
   showVvm?: boolean;
   showActions?: boolean;
+  widths?: InventoryColumnWidths;
 }) {
   const { t } = useTranslation();
   const columns = visibleColumns(visibility, showVvm).filter(
@@ -431,24 +473,24 @@ export function PhysicalInventoryGridSkeleton({
   return (
     <div aria-busy>
       <DataTableCard>
-        <Table density="comfortable" layout="auto">
+        <Table density="tight" layout="content">
           <colgroup>
             {columns.map(([id]) => (
-              <col key={id} className={COLUMN_WIDTHS[id]} />
+              <col
+                key={id}
+                className={cn(
+                  COLUMN_WIDTHS[id],
+                  widths[id] != null && 'w-(--inventory-column-width)',
+                )}
+                style={{ '--inventory-column-width': `${widths[id]}px` } as CSSProperties}
+              />
             ))}
           </colgroup>
           <TableHeader surface="muted">
             <TableRow>
               {columns.map(([id, key]) => (
-                <TableHead key={id}>
-                  <span
-                    className={cn(
-                      'block whitespace-nowrap text-2xs font-medium tracking-wide',
-                      COLUMN_WIDTHS[id],
-                    )}
-                  >
-                    {t(key)}
-                  </span>
+                <TableHead key={id} data-inventory-column={id}>
+                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
                 </TableHead>
               ))}
             </TableRow>
@@ -458,7 +500,7 @@ export function PhysicalInventoryGridSkeleton({
               <TableRow key={row}>
                 {columns.map(([id]) => (
                   <TableCell key={id}>
-                    <div className={`h-4 ${COLUMN_WIDTHS[id]}`}>
+                    <div className="h-4 w-full">
                       <Skeleton fill />
                     </div>
                   </TableCell>
@@ -489,14 +531,14 @@ function InventoryQuantityInputs({
   const { t } = useTranslation();
   const parts = editor.unit === 'DOSES' ? (['doses'] as const) : (['packs', 'remainder'] as const);
   return (
-    <div data-inventory-key={line.key} className={cn('w-32', editor.unit === 'PACKS' && 'w-56')}>
+    <div data-inventory-key={line.key} className={cn('w-20', editor.unit === 'PACKS' && 'w-44')}>
       <Field data-invalid={Boolean(error)} spacing="tight">
         <FieldLabel>
           <span className="sr-only">{label}</span>
         </FieldLabel>
         <div className="flex gap-1">
           {parts.map((part) => (
-            <div key={part} className="min-w-24 flex-1">
+            <div key={part} className="min-w-20 flex-1">
               <Input
                 aria-label={
                   parts.length === 1
