@@ -15,13 +15,17 @@ import {
   fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
+  fetchValidAssignments,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
 import { client } from '@/integrations/axios';
+import { assertSessionScope } from '@/lib/session-scope';
 
 vi.mock('@/integrations/axios', () => ({
   client: { get: vi.fn() },
 }));
+
+vi.mock('@/lib/session-scope', () => ({ getSessionScope: () => 1, assertSessionScope: vi.fn() }));
 
 const get = vi.mocked(client.get);
 
@@ -378,4 +382,47 @@ describe('fetchTradeItemByGtin', () => {
     get.mockResolvedValueOnce(page([]));
     await expect(fetchTradeItemByGtin('01234567890128')).resolves.toBeNull();
   });
+});
+
+describe('fetchValidAssignments', () => {
+  it.each(['validDestinations', 'validSources'] as const)(
+    'reads every page of %s',
+    async (resource) => {
+      const filter = { programId: 'p1', facilityId: 'f1' };
+      get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
+      get.mockResolvedValueOnce({ data: { content: [{ id: 'a2' }], totalPages: 2 } });
+      await expect(fetchValidAssignments(resource, filter)).resolves.toEqual([
+        { id: 'a1' },
+        { id: 'a2' },
+      ]);
+      expect(get).toHaveBeenNthCalledWith(1, `/${resource}`, {
+        params: { ...filter, page: 0, size: 100 },
+      });
+      expect(get).toHaveBeenNthCalledWith(2, `/${resource}`, {
+        params: { ...filter, page: 1, size: 100 },
+      });
+    },
+  );
+  it('stops on an empty page and rejects a later failure without a partial list', async () => {
+    const filter = { programId: 'p1', facilityId: 'f1' };
+    get.mockResolvedValueOnce({ data: { content: [], totalPages: 0 } });
+    await expect(fetchValidAssignments('validDestinations', filter)).resolves.toEqual([]);
+    expect(get).toHaveBeenCalledTimes(1);
+    get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
+    get.mockRejectedValueOnce(new Error('Unavailable'));
+    await expect(fetchValidAssignments('validDestinations', filter)).rejects.toThrow('Unavailable');
+  });
+});
+
+it('stops destination paging when the session changes between pages', async () => {
+  get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
+  vi.mocked(assertSessionScope)
+    .mockImplementationOnce(() => {})
+    .mockImplementationOnce(() => {
+      throw new Error('Session ended');
+    });
+  await expect(
+    fetchValidAssignments('validDestinations', { programId: 'p1', facilityId: 'f1' }),
+  ).rejects.toThrow('Session ended');
+  expect(get).toHaveBeenCalledTimes(1);
 });

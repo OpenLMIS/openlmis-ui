@@ -1,3 +1,4 @@
+import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type {
   Facility,
   FacilityOperator,
@@ -18,6 +19,7 @@ import type {
   ValidReasonsFilter,
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -221,4 +223,24 @@ export async function fetchValidReasons(
 export async function fetchTradeItemByGtin(gtin: string): Promise<TradeItem | null> {
   const { data } = await client.get<Page<TradeItem>>('/tradeItems', { params: { gtin } });
   return data.content[0] ?? null;
+}
+
+export type ValidAssignmentsFilter = { programId: string; facilityId: string };
+
+export async function fetchValidAssignments(
+  resource: 'validDestinations' | 'validSources',
+  filter: ValidAssignmentsFilter,
+): Promise<ValidAssignment[]> {
+  const scope = getSessionScope();
+  const assignments: ValidAssignment[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<ValidAssignment>>(`/${resource}`, {
+      params: { ...filter, page, size: 100 },
+    });
+    assertSessionScope(scope);
+    assignments.push(...data.content);
+    if (page + 1 >= data.totalPages) break;
+  }
+  return assignments;
 }

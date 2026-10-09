@@ -1,4 +1,5 @@
 {
+  "defaultIssueReasonId": "${DEFAULT_ISSUE_REASON_ID}",
   "authServerClientId": "${AUTH_SERVER_CLIENT_ID}",
   "authServerClientSecret": "${AUTH_SERVER_CLIENT_SECRET}",
   "featureFlags": {

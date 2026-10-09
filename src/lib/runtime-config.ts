@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 type RuntimeConfig = {
+  defaultIssueReasonId?: string;
   authServerClientId?: string;
   authServerClientSecret?: string;
   featureFlags: Record<string, unknown>;
@@ -26,11 +27,10 @@ export async function loadRuntimeConfig(): Promise<void> {
     const parsed: unknown = await response.json();
     if (typeof parsed !== 'object' || parsed === null) return;
 
-    const { authServerClientId, authServerClientSecret, featureFlags } = parsed as Record<
-      string,
-      unknown
-    >;
+    const { authServerClientId, authServerClientSecret, defaultIssueReasonId, featureFlags } =
+      parsed as Record<string, unknown>;
     useRuntimeConfigStore.setState({
+      defaultIssueReasonId: asString(defaultIssueReasonId),
       authServerClientId: asString(authServerClientId),
       authServerClientSecret: asString(authServerClientSecret),
       featureFlags: asRecord(featureFlags),
@@ -55,4 +55,11 @@ export function getDeploymentFlags(): Record<string, unknown> {
 
 export function useDeploymentFlags(): Record<string, unknown> {
   return useRuntimeConfigStore((state) => state.featureFlags);
+}
+
+export function getDefaultIssueReasonId(): string | undefined {
+  return (
+    useRuntimeConfigStore.getState().defaultIssueReasonId ||
+    asString(import.meta.env.VITE_DEFAULT_ISSUE_REASON_ID)
+  );
 }

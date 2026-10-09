@@ -96,7 +96,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: WarehouseIcon,
         items: [
           { titleKey: 'nav.stock-management.unpack', to: '#' },
-          { titleKey: 'nav.stock-management.issue', to: '#' },
+          { titleKey: 'nav.stock-management.issue', to: '/stock-management/issue' },
           { titleKey: 'nav.stock-management.receive', to: '#' },
           { titleKey: 'nav.stock-management.physical-inventory', to: '#' },
           { titleKey: 'nav.stock-management.adjustments', to: '/stock-management/adjustments' },

@@ -6,13 +6,13 @@ import {
 } from '@/routes/(protected)/-stock-event-program-picker';
 
 const copy = {
-  title: 'stock-adjustment.title',
-  nav: 'nav.stock-management.adjustments',
-  description: 'stock-adjustment.page-description',
-  action: 'stock-adjustment.make',
+  title: 'stock-issue.title',
+  nav: 'nav.stock-management.issue',
+  description: 'stock-issue.page-description',
+  action: 'stock-issue.make',
 } as const;
 
-export const Route = createFileRoute('/(protected)/_protected/stock-management/adjustments')({
+export const Route = createFileRoute('/(protected)/_protected/stock-management/issue')({
   loader: ({ context: { queryClient } }) => loadStockEventPrograms(queryClient),
   pendingComponent: () => <StockEventProgramsPending copy={copy} />,
   component: ProgramsPage,
@@ -24,7 +24,7 @@ function ProgramsPage() {
       {...Route.useLoaderData()}
       copy={copy}
       editorLink={(programId) => (
-        <Link params={{ programId }} to="/stock-management/adjustments/$programId" />
+        <Link params={{ programId }} to="/stock-management/issue/$programId" />
       )}
     />
   );

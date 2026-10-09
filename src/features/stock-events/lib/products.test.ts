@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { eventLotOptions, eventProductOptions } from '@/features/stock-events/lib/products';
+import {
+  eventLotOptions,
+  eventProductOptions,
+  issuableCards,
+} from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 
 const product = {
@@ -62,5 +66,28 @@ describe('eventLotOptions', () => {
   });
   it('dedupes lot ids while keeping the original stock card for each option', () => {
     expect(eventLotOptions([card('s1', early), card('s2', early)])).toHaveLength(1);
+  });
+});
+
+describe('issuableCards', () => {
+  it('drops zero stock and expired lots, keeps negative stock, expiry today, missing expiry and no lot', () => {
+    const today = '2026-10-09';
+    const negative = card('negative', null, -1);
+    const expiresToday = card('today', { ...early, expirationDate: today }, 1);
+    const future = card('future', { ...late, expirationDate: '2026-10-10' }, 1);
+    const noExpiry = card('no-expiry', { id: 'l3', lotCode: 'L3', expirationDate: null }, 1);
+    const noLot = card('no-lot', null, 1);
+    const input = [
+      card('zero', null),
+      card('expired', early, 10),
+      negative,
+      expiresToday,
+      future,
+      noExpiry,
+      noLot,
+    ];
+    expect(issuableCards(input, today)).toEqual([negative, expiresToday, future, noExpiry, noLot]);
+    expect(input).toHaveLength(7);
+    expect(issuableCards([], today)).toEqual([]);
   });
 });
