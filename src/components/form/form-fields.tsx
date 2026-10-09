@@ -88,6 +88,7 @@ type FieldProps = {
 };
 
 type FieldFrameProps = FieldProps & {
+  hideErrors?: boolean;
   /** Beside the label in a row, such as a status badge. */
   badge?: ReactNode;
   /** After the badge in a row, or at the end of a stacked label's line, such as a Reset or a link. */
@@ -172,6 +173,7 @@ function RowExtras({
 /** Label, control, description and error, laid out as the field's `layout` asks. */
 function FieldFrame({
   layout = 'stacked',
+  hideErrors,
   label,
   badge,
   action,
@@ -190,7 +192,14 @@ function FieldFrame({
   const details = (
     <>
       {layout === 'inline' ? <HiddenFromView>{descriptionNode}</HiddenFromView> : descriptionNode}
-      {isInvalid && <FieldError errors={errors} id={errorId} />}
+      {isInvalid &&
+        (hideErrors ? (
+          <HiddenFromView>
+            <FieldError errors={errors} id={errorId} />
+          </HiddenFromView>
+        ) : (
+          <FieldError errors={errors} id={errorId} />
+        ))}
     </>
   );
 
@@ -219,7 +228,7 @@ function FieldFrame({
   }
   if (layout === 'inline') {
     return (
-      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
+      <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight" surface="background">
         <HiddenFromView>
           <label htmlFor={field.name} id={`${field.name}-label`}>
             {labelText}
@@ -418,6 +427,8 @@ export function DecimalField(props: FieldProps) {
 }
 
 type TextareaFieldProps = FieldProps & {
+  hideErrors?: boolean;
+  maxLength?: number;
   placeholder?: string;
   dir?: 'auto';
 };
@@ -425,10 +436,12 @@ type TextareaFieldProps = FieldProps & {
 export function TextareaField({
   label,
   layout,
+  hideErrors,
   description,
   required,
   disabled,
   placeholder,
+  maxLength,
   dir,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
@@ -441,10 +454,14 @@ export function TextareaField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >
       <Textarea
+        maxLength={maxLength}
+        rows={layout === 'inline' ? 1 : undefined}
+        size={layout === 'inline' ? 'inline' : 'default'}
         dir={dir}
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
@@ -905,8 +922,10 @@ export type SelectFieldItem = {
 };
 
 type SelectFieldProps = FieldProps &
-  Pick<FieldFrameProps, 'action'> & {
+  Pick<FieldFrameProps, 'action' | 'hideErrors'> & {
+    placeholder?: string;
     items: readonly SelectFieldItem[];
+    size?: 'sm' | 'default';
   };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */
@@ -916,8 +935,11 @@ export function SelectField({
   required,
   disabled,
   layout,
+  hideErrors,
   items,
   action,
+  size,
+  placeholder,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -930,6 +952,7 @@ export function SelectField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >
@@ -937,7 +960,11 @@ export function SelectField({
         disabled={disabled}
         items={items}
         onValueChange={(value) => value !== null && field.handleChange(value)}
-        value={field.state.value}
+        value={
+          field.state.value === '' && !items.some((item) => item.value === '')
+            ? null
+            : field.state.value
+        }
       >
         <SelectTrigger
           aria-describedby={ariaDescribedBy}
@@ -945,9 +972,10 @@ export function SelectField({
           aria-required={required}
           id={field.name}
           onBlur={field.handleBlur}
+          size={size}
           width="full"
         >
-          <SelectValue />
+          <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
           {items.map((item) => (

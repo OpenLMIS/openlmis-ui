@@ -30,9 +30,11 @@ const PAGE_SIZE_ITEMS = DEFAULT_PAGE_SIZE_OPTIONS.map((size) => ({
 export function DataTablePagination<TData extends RowData>({
   table,
   disabled = false,
+  isPageInvalid,
 }: {
   table: DataTableInstance<TData>;
   disabled?: boolean;
+  isPageInvalid?: (pageIndex: number) => boolean;
 }) {
   const labels = useDataTableLabels();
   const pageSizeId = useId();
@@ -80,25 +82,38 @@ export function DataTablePagination<TData extends RowData>({
               <Icon className="rtl:rotate-180" />
             </Button>
           ))}
-          {pages.map((page) => (
-            <div
-              className={cn('tabular-nums', page !== pageIndex && 'hidden @md/table:block')}
-              key={page}
-            >
-              <Button
-                aria-current={page === pageIndex ? 'page' : undefined}
-                aria-label={labels.page(page + 1)}
-                disabled={disabled}
-                onClick={() => {
-                  if (page !== pageIndex) table.setPageIndex(page);
-                }}
-                size="sm"
-                variant={page === pageIndex ? 'default' : 'outline'}
-              >
-                {page + 1}
-              </Button>
-            </div>
-          ))}
+          {pages.map((page) => {
+            const invalid = isPageInvalid?.(page);
+            const current = page === pageIndex;
+            return (
+              <div className={cn('tabular-nums', !current && 'hidden @md/table:block')} key={page}>
+                <Button
+                  aria-current={current ? 'page' : undefined}
+                  aria-label={
+                    invalid
+                      ? `${labels.page(page + 1)}: ${labels.invalidPage}`
+                      : labels.page(page + 1)
+                  }
+                  disabled={disabled}
+                  onClick={() => {
+                    if (page !== pageIndex) table.setPageIndex(page);
+                  }}
+                  size="sm"
+                  variant={
+                    invalid
+                      ? current
+                        ? 'destructive-solid'
+                        : 'destructive-outline'
+                      : current
+                        ? 'default'
+                        : 'outline'
+                  }
+                >
+                  {page + 1}
+                </Button>
+              </div>
+            );
+          })}
           {controls.slice(2).map(({ label, icon: Icon, enabled, go }) => (
             <Button
               aria-label={label}

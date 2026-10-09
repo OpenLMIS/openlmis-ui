@@ -79,3 +79,23 @@ export function changeDetailPaging(
   const next = { ...current, ...(typeof update === 'function' ? update(current) : update) };
   return { detailPage: next.page, detailSize: next.size };
 }
+
+export const reversePagingSchema = z.object({
+  reversePage: paging.shape.page.transform((value) => (value === 1 ? undefined : value)),
+  reverseSize: paging.shape.size.transform((value) => (value === 10 ? undefined : value)),
+});
+export type ReversePagingSearch = z.infer<typeof reversePagingSchema>;
+
+export const reverseTableSearch = (search: ReversePagingSearch): TableSearch => ({
+  page: search.reversePage,
+  size: search.reverseSize,
+});
+
+export function changeReversePaging(
+  previous: ReversePagingSearch,
+  update: Partial<TableSearch> | SearchUpdate<TableSearch>,
+): ReversePagingSearch {
+  const current = reverseTableSearch(previous);
+  const next = { ...current, ...(typeof update === 'function' ? update(current) : update) };
+  return reversePagingSchema.parse({ reversePage: next.page, reverseSize: next.size });
+}

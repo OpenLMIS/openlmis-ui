@@ -21,6 +21,12 @@ export type StockEventSummary = {
   programId: string;
 };
 
+export type StockEventLineReason = StockReason & {
+  id: string;
+  tags: string[];
+  isFreeTextAllowed: boolean;
+};
+
 export type StockEventLine = {
   orderable: {
     id: string;
@@ -36,7 +42,7 @@ export type StockEventLine = {
   destinationFreeText?: string | null;
   quantity: number;
   occurredDate: string;
-  reason?: StockReason | null;
+  reason?: StockEventLineReason | null;
   reasonFreeText?: string | null;
   stockOnHand: number;
   documentNumber?: string | null;
@@ -85,4 +91,39 @@ export type StockEvent = {
   signature?: string;
   eventOrigin: 'ADJUSTMENT' | 'ISSUE' | 'RECEIVE' | 'KIT_UNPACK';
   lineItems: StockEventLineItem[];
+};
+
+export type StockEventCancel = {
+  signature: string;
+  lineItems: {
+    stockEventLineItemId: string | null | undefined;
+    reasonId: string;
+    reasonFreeText?: string;
+  }[];
+};
+
+export type StockEventCancelLineError = {
+  stockEventLineItemId?: string | null;
+  messageKey?: string;
+  message?: string;
+};
+
+export type StockEventCancelError = {
+  messageKey?: string;
+  message?: string;
+  lineErrors?: StockEventCancelLineError[];
+};
+
+export type EventStockOnHandFilter = EventStockCardsFilter & {
+  orderableIds: readonly string[];
+};
+
+export type EventStockOnHand = Record<string, number | null>;
+
+export type EventStockSummary = {
+  canFulfillForMe: {
+    orderable: { id: string };
+    lot: { id: string } | null;
+    stockOnHand: number | null;
+  }[];
 };

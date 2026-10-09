@@ -4,7 +4,12 @@ import { BellOffIcon, Loader2Icon, MailXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableCard, DataTableEmpty, DataTableError } from '@/components/data-table/data-table';
+import {
+  DataTableCard,
+  DataTableEmpty,
+  DataTableError,
+  DataTableHeaderLabel,
+} from '@/components/data-table/data-table';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
@@ -205,10 +210,26 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
             <Table density="comfortable">
               <TableHeader surface="muted">
                 <TableRow>
-                  <TableHead>{t('profile.notifications.notification')}</TableHead>
-                  <TableHead>{t('profile.notifications.channel')}</TableHead>
-                  <TableHead>{t('profile.notifications.use-digest')}</TableHead>
-                  <TableHead>{t('profile.notifications.schedule')}</TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('profile.notifications.notification')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('profile.notifications.channel')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('profile.notifications.use-digest')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('profile.notifications.schedule')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -323,9 +344,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   );
@@ -361,10 +380,20 @@ export function NotificationSettingsSkeleton() {
         <Table density="comfortable">
           <TableHeader surface="muted">
             <TableRow>
-              <TableHead>{t('profile.notifications.notification')}</TableHead>
-              <TableHead>{t('profile.notifications.channel')}</TableHead>
-              <TableHead>{t('profile.notifications.use-digest')}</TableHead>
-              <TableHead>{t('profile.notifications.schedule')}</TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>
+                  {t('profile.notifications.notification')}
+                </DataTableHeaderLabel>
+              </TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('profile.notifications.channel')}</DataTableHeaderLabel>
+              </TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('profile.notifications.use-digest')}</DataTableHeaderLabel>
+              </TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('profile.notifications.schedule')}</DataTableHeaderLabel>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

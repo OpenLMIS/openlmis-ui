@@ -47,7 +47,13 @@ function HeaderFrame({ document, children }: { document?: ReactNode; children: R
   );
 }
 
-export function EventHeader({ event }: { event: StockEventSummary }) {
+export function EventHeader({
+  event,
+  showSignature = true,
+}: {
+  event: StockEventSummary;
+  showSignature?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const typeKey = eventTypeKey(event.type);
@@ -59,7 +65,9 @@ export function EventHeader({ event }: { event: StockEventSummary }) {
           {orEmpty(formatTimestamp(event.processedDate, i18n.language, { time: true, timeZone }))}
         </Detail>
         <Detail label={t('stock-event.performed-by')}>{orEmpty(event.username)}</Detail>
-        <Detail label={t('stock-event.signature')}>{orEmpty(event.signature)}</Detail>
+        {showSignature && (
+          <Detail label={t('stock-event.signature')}>{orEmpty(event.signature)}</Detail>
+        )}
       </dl>
     </HeaderFrame>
   );

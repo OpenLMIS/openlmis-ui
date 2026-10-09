@@ -1,21 +1,31 @@
 import { useBlocker } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { isUnloadAllowed, useLeaveGuard } from '@/hooks/use-leave-guard';
 
 type DiscardGuardOptions = {
   /** True once the page may be left without asking, e.g. right after a save. */
   allowLeave?: () => boolean;
+  pending?: boolean;
 };
 
 /** While there are unsaved changes, leaving the page or signing out asks first; the dialog's props. */
-export function useDiscardGuard(dirty: boolean, { allowLeave }: DiscardGuardOptions = {}) {
+export function useDiscardGuard(
+  dirty: boolean,
+  { allowLeave, pending = false }: DiscardGuardOptions = {},
+) {
   // Opening a dialog keeps the page, so only a different page, or tab, can lose the draft.
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
-      !allowLeave?.() && dirty && current.pathname !== next.pathname && next.pathname !== '/login',
-    enableBeforeUnload: () => dirty && !isUnloadAllowed(),
+      !allowLeave?.() &&
+      (dirty || pending) &&
+      current.pathname !== next.pathname &&
+      next.pathname !== '/login',
+    enableBeforeUnload: () => dirty && !allowLeave?.() && !isUnloadAllowed(),
     withResolver: true,
   });
+  useEffect(() => {
+    if (pending || allowLeave?.()) blocker.reset?.();
+  }, [pending, allowLeave, blocker.reset]);
   // A sign out waiting on the dialog; signing out leaves without the router.
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
@@ -33,9 +43,10 @@ export function useDiscardGuard(dirty: boolean, { allowLeave }: DiscardGuardOpti
     leaveIfAsked,
     /** The props for `DiscardChangesDialog`. */
     dialog: {
-      open: blocker.status === 'blocked' || pendingLeave !== null,
+      open: !pending && !allowLeave?.() && (blocker.status === 'blocked' || pendingLeave !== null),
       signingOut: pendingLeave !== null,
       onDiscard: () => {
+        if (pending) return;
         if (!leaveIfAsked()) blocker.proceed?.();
       },
       onKeepEditing: () => {

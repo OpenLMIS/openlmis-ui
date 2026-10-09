@@ -71,7 +71,7 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('roles.description')} />
       ),
-      cell: ({ getValue }) => getValue() || <span className="text-muted-foreground">-</span>,
+      cell: ({ getValue }) => getValue() || null,
       enableSorting: false,
     }),
     columnHelper.accessor('count', {

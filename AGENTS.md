@@ -213,7 +213,9 @@ gate CI and must have zero findings.**
 has no allowlist. Add a variant in `src/components/ui/`, or put layout classes on a plain
 wrapper. Skeleton sizes always belong to the surrounding layout. Existing variant props
 are defined in the typed components; reuse them before adding another. `TabsList wrap="column"`
-fits odd tab counts; `wrap="md"` fits short labels.
+fits odd tab counts; `wrap="md"` fits short labels. `Button variant="destructive-solid"` and
+`"destructive-outline"` mark the current and other invalid pages in the pager.
+`DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns.
 
 `src/components/ui/` defines the variants and is excluded from design-system and Biome
 linting. Editing these generated files is expected here.
@@ -322,7 +324,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 
 - Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
   one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
-  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables.
+  `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
+  and `width="wide"` for uncapped tables.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -376,6 +379,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
+- Tables draw vertical column dividers by default.
+
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
   with `hideBelow` (container size or pixels) or `defaultHidden`; see `USER_HIDEABLE_COLUMNS`.
   Combine `useElementWidth()`, `useColumnVisibility()` and `useStoredState`. User choices
@@ -384,10 +389,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Column widths (`meta.className`) and toolbar use `Workspace`'s `@container/main`, such as
   `@xl/main:w-2/5` and `@2xl/main:w-72`. Pagination uses the card's `@container/table`: current
   page plus up to three on each side, only current on narrow tables. Links accept sizes 1-100.
+  `isPageInvalid` turns pages holding invalid rows red, with no icon: solid for the current
+  page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
+  rows clears each mark as soon as its cause is fixed, so the pager follows live.
 - Keep tables at every width, never stacked cards. Hide lower-priority columns and allow
-  sideways scrolling on phones. Keep headers on one line.
-- Missing values use `orEmpty`/`EMPTY_VALUE` (`src/lib/empty-value.ts`). Inapplicable cells,
-  such as a product row's lot, stay blank.
+  sideways scrolling on phones. Keep headers on one line; every table header uses
+  `DataTableHeaderLabel`'s style, including loading skeletons.
+- Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
+  normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
   may hide. Row actions use an end-of-row "..." menu at every width.
 - Put Create at the toolbar's end, after View.
@@ -428,12 +437,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
-  `ComboboxInput width/clearLabel`, `Skeleton fill`. These become plain `className`s in the
+  `ComboboxInput width/clearLabel`, `Skeleton fill`, `Button variant="destructive-solid"` and
+  `"destructive-outline"`. These become plain `className`s in the
   registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
-  default, `default` for compact tables needing room; `layout="fixed"` by default, `auto`
+  default, `default` for compact tables needing room, `compact` for tighter cell padding;
+  `layout="fixed"` by default, `auto`
   for content-sized columns such as bin cards.
 - URL/table state stays in `src/lib/table-search.ts` as app glue.
 
@@ -480,19 +491,24 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 
 | Field | Contract |
 |---|---|
-| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords |
+| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
 | `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
 | `TagsField` | Enter/Tab/blur takes the highlighted suggestion or typed text; comma adds typed text; `minLength`/`maxLength` failures show a message |
-| `SelectField` | One choice from a short fixed list; opens below input (`alignItemWithTrigger: false`) |
+| `SelectField` | One choice from a short fixed list; opens below input (`alignItemWithTrigger: false`); `placeholder` shows when empty, unless an item's value is `''` |
 | `ComboboxField` | Searchable choices; item `description` appears muted after label |
 | `ImageField` | `undefined` keeps saved image, `null` removes it, `File` replaces it; validate `onChange` immediately |
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
+- Inline fields use `Field surface="background"` for opaque controls on selected or hovered rows.
+  `SelectField` and `TextareaField` accept `hideErrors` to keep error descriptions screen-reader-only.
+  Textareas use `resize-none` and grow with their content. Inline `SelectField size="sm"` and
+  `Textarea size="inline"` are both 28px; where they appear on tick, as on Reverse, wrap the
+  cell in a fixed width rendered on every row, so ticking never shifts the table.
 - Whole numbers default to Java `int` bounds. Server `long` fields pass
   `max: Number.MAX_SAFE_INTEGER`; lower bounds pass `min` and their message. Optional values
   pass `optional` and read with `toOptionalWholeNumber`.
@@ -523,7 +539,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
-`DialogTitle size`, `Field spacing`, `FieldLabel weight`, `ComboboxInput width/clearLabel`,
+`DialogTitle size`, `Field spacing/surface`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
 `ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width`, `Button align/width`,
 `PopoverContent width/padding`.
 
@@ -585,7 +601,8 @@ home facility, user programs, all facilities and page grants, following legacy:
 **Unsaved work:** draft pages use `useDiscardGuard` (`src/hooks/use-discard-guard.ts`) for
 router navigation. It registers `useLeaveGuard` for exits outside the router; sign-out,
 password changes and other deliberate sign-outs call `whenLeaveAllowed` before acting.
-Both use `src/components/discard-changes-dialog.tsx`. Reload/tab close uses only the
+Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
+during a save without offering Discard. Reload/tab close uses only the
 browser's native prompt. External identity changes follow Authentication below.
 
 **Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,

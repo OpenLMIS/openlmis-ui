@@ -75,12 +75,10 @@ function Pending() {
 
 type NameStatus = LookupStatus['nodes'];
 
-/** A name; a placeholder while loading, a dash if its lookup failed, "Unknown" if gone. */
 function Name({ value, status = 'ready' }: { value: string | undefined; status?: NameStatus }) {
   const { t } = useTranslation();
   if (value !== undefined) return <span className="truncate">{value}</span>;
   if (status === 'pending') return <Pending />;
-  if (status === 'failed') return <span className="text-muted-foreground">-</span>;
   return <span className="text-muted-foreground">{t('users.roles.unknown')}</span>;
 }
 

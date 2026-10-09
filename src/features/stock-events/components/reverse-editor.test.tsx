@@ -1,0 +1,523 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useCallback, useState } from 'react';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
+import { reasonsOptions } from '@/features/reference-data/api/queries';
+import { cancelStockEvent, fetchEventStockOnHand } from '@/features/stock-events/api/api';
+import {
+  eventStockOnHandOptions,
+  stockEventAllLinesOptions,
+} from '@/features/stock-events/api/queries';
+import { ReverseEditor } from '@/features/stock-events/components/reverse-editor';
+import type { ReversePagingSearch } from '@/features/stock-events/lib/search';
+import type {
+  EventStockOnHand,
+  StockEventLine,
+  StockEventLineReason,
+} from '@/features/stock-events/lib/types';
+import type { SearchChange } from '@/lib/table-search';
+
+vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
+  useElementWidth: () => [vi.fn(), 944],
+}));
+vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
+vi.mock('@/hooks/use-discard-guard', () => ({
+  useDiscardGuard: () => ({
+    leaveIfAsked: () => false,
+    dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
+  }),
+}));
+vi.mock('@/features/stock-events/api/api', () => ({
+  fetchAllStockEventLines: vi.fn(),
+  fetchEventStockOnHand: vi.fn(),
+  cancelStockEvent: vi.fn(),
+}));
+vi.mock('@/features/reference-data/api/api', () => ({ fetchReasons: vi.fn() }));
+beforeEach(() => {
+  useLoginData.setState({ referenceDataUserId: 'user' });
+  vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+});
+const reason: StockEventLineReason = {
+  id: 'reason',
+  name: 'Cancelled issue',
+  reasonCategory: 'ADJUSTMENT',
+  reasonType: 'CREDIT',
+  tags: ['cancelMovement'],
+  isFreeTextAllowed: true,
+};
+function editor(
+  overrides: Partial<StockEventLine> = {},
+  seedCurrent = true,
+  {
+    more = [],
+    reversePage,
+    onSearchChange = vi.fn(),
+  }: {
+    more?: Partial<StockEventLine>[];
+    reversePage?: number;
+    onSearchChange?: SearchChange<ReversePagingSearch>;
+  } = {},
+) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  const lines = [
+    {
+      stockEventLineItemId: 'line',
+      orderable: { id: 'o', productCode: 'C1', fullProductName: 'Vaccine', netContent: 5 },
+      destination: { name: 'Clinic' },
+      lot: null,
+      quantity: 20,
+      stockOnHand: 30,
+      occurredDate: '2026-10-01',
+      ...overrides,
+    },
+  ];
+  for (const [index, extra] of more.entries())
+    lines.push({ ...lines[0], stockEventLineItemId: `line-${index + 2}`, ...extra });
+  client.setQueryData(stockEventAllLinesOptions('event').queryKey, lines);
+  client.setQueryDefaults(stockEventAllLinesOptions('event').queryKey, { staleTime: Infinity });
+  client.setQueryData(reasonsOptions().queryKey, [
+    reason,
+    { ...reason, id: 'no-text', name: 'No Text', isFreeTextAllowed: false },
+    { ...reason, id: 'other', name: 'Other reason' },
+    { ...reason, id: 'debit', reasonType: 'DEBIT', name: 'Cancelled receipt' },
+    { ...reason, id: 'debit-other', reasonType: 'DEBIT', name: 'Other receipt reason' },
+  ]);
+  if (seedCurrent)
+    client.setQueryData(
+      eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
+        .queryKey,
+      {},
+    );
+  function Harness() {
+    const [search, setSearch] = useState<ReversePagingSearch>({
+      reversePage,
+      reverseSize: undefined,
+    });
+    const change = useCallback<SearchChange<ReversePagingSearch>>((update, ...rest) => {
+      onSearchChange(update, ...rest);
+      setSearch((previous) => ({
+        ...previous,
+        ...(typeof update === 'function' ? update(previous) : update),
+      }));
+    }, []);
+    return (
+      <ReverseEditor
+        event={{
+          id: 'event',
+          facilityId: 'facility',
+          programId: 'program',
+          type: 'ISSUE',
+          documentNumber: 'D',
+          reversible: true,
+        }}
+        username="user"
+        search={search}
+        onSearchChange={change}
+        onSubmitted={vi.fn()}
+        cancel={<button type="button">Cancel</button>}
+      >
+        Header
+      </ReverseEditor>
+    );
+  }
+  render(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  return client;
+}
+it('cannot submit without selecting a row', async () => {
+  editor();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByText('stock-event-reverse.none-selected')).toBeInTheDocument();
+});
+it.each(['Escape', 'Close'])(
+  'returns focus to Submit after empty selection via %s',
+  async (close) => {
+    editor();
+    const submit = screen.getByRole('button', { name: 'stock-events.submit' });
+    await userEvent.click(submit);
+    if (close === 'Escape') await userEvent.keyboard('{Escape}');
+    else await closeAlert();
+    await waitFor(() => expect(submit).toHaveFocus());
+  },
+);
+it('does not auto-pick a cancellation reason when ticking', async () => {
+  editor();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
+  );
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveTextContent(
+    'stock-event-reverse.select-option',
+  );
+});
+
+async function tick() {
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
+  );
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+}
+async function pick(name = 'Cancelled issue') {
+  await userEvent.click(screen.getByRole('combobox', { name: 'stock-events.field-of' }));
+  await userEvent.click(screen.getByRole('option', { name }));
+}
+async function closeAlert() {
+  const dialog = await screen.findByRole('alertdialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'stock-event-reverse.close' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+}
+it('shows the legacy message in a modal with one Close button', async () => {
+  editor();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  const dialog = screen.getByRole('alertdialog', { name: 'stock-event-reverse.none-selected' });
+  expect(within(dialog).getAllByRole('button')).toHaveLength(1);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await closeAlert();
+});
+it('marks the reason without visible field text and focuses it after Close', async () => {
+  editor();
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-event-reverse.reason-required');
+  await closeAlert();
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByText('stock-events.required').closest('.sr-only')).not.toBeNull();
+  await waitFor(() => expect(trigger).toHaveFocus());
+  await pick();
+  expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
+});
+it('keeps the hidden stock mark after reason changes while stock stays negative', async () => {
+  const client = editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
+  await tick();
+  await pick('Cancelled receipt');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-event-reverse.negative-stock');
+  await closeAlert();
+  const balance = document.getElementById('balance-line');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  expect(balance).toHaveClass('text-destructive');
+  expect(screen.getByText('stock-event-reverse.negative-stock')).toHaveClass('sr-only');
+  await waitFor(() => expect(balance).toHaveFocus());
+  await pick('Other receipt reason');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  act(() => {
+    client.setQueryData(
+      eventStockOnHandOptions({ facilityId: 'facility', programId: 'program', orderableIds: ['o'] })
+        .queryKey,
+      { 'o/': 80 },
+    );
+  });
+  await waitFor(() => expect(balance).toHaveAttribute('aria-invalid', 'false'));
+  expect(balance).not.toHaveClass('text-destructive');
+});
+const receipt = { destination: null, source: { name: 'Depot' }, quantity: 20 };
+async function tickRow(index: number) {
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled(),
+  );
+  await userEvent.click(screen.getAllByRole('checkbox')[index]);
+}
+async function pickRow(index: number, name: string) {
+  await userEvent.click(screen.getAllByRole('combobox', { name: 'stock-events.field-of' })[index]);
+  await userEvent.click(screen.getByRole('option', { name }));
+}
+it('clears the stock mark and the red page once unticking an earlier line lifts the stock', async () => {
+  editor(receipt, true, { more: [receipt] });
+  await tickRow(0);
+  await tickRow(1);
+  await pickRow(0, 'Cancelled receipt');
+  await pickRow(1, 'Cancelled receipt');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-event-reverse.negative-stock');
+  await closeAlert();
+  const balance = document.getElementById('balance-line-2');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  expect(balance).toHaveAttribute('aria-invalid', 'false');
+  expect(screen.queryByText('stock-event-reverse.negative-stock')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Page 1' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await pickRow(0, 'Cancelled receipt');
+  expect(balance).toHaveAttribute('aria-invalid', 'false');
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+});
+it('returns a red page to normal once its row gets a reason', async () => {
+  editor({}, true, { more: Array.from({ length: 10 }, () => ({})), reversePage: 2 });
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(screen.getByRole('button', { name: 'Page 2: Contains Invalid Rows' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  await pick();
+  expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+});
+it('focuses an invalid row on the current page after Close without changing the URL', async () => {
+  const onSearchChange = vi.fn();
+  editor({}, true, { onSearchChange });
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
+  );
+  expect(onSearchChange).not.toHaveBeenCalled();
+});
+it('opens the page of an invalid row after Close without scrolling to the top', async () => {
+  const onSearchChange = vi.fn();
+  editor({}, true, { more: Array.from({ length: 10 }, () => ({})), onSearchChange });
+  await userEvent.click(await screen.findByRole('button', { name: 'Page 2' }));
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'Page 1' }));
+  onSearchChange.mockClear();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(onSearchChange).toHaveBeenCalledExactlyOnceWith({ reversePage: 2 }, true, {
+    resetScroll: false,
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
+  );
+});
+it('clears the comments mark once the comment fits 255 characters', async () => {
+  editor();
+  await tick();
+  await pick();
+  const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(comments).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+  fireEvent.change(comments, { target: { value: 'x'.repeat(255) } });
+  await waitFor(() => expect(comments).not.toHaveAttribute('aria-invalid', 'true'));
+  expect(screen.getByRole('button', { name: 'Page 1' })).toBeInTheDocument();
+});
+it('clears every mark of a row when it is unticked', async () => {
+  editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
+  await tick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  expect(screen.getByRole('button', { name: 'Page 1' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).not.toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(document.getElementById('balance-line')).toHaveAttribute('aria-invalid', 'false');
+});
+it.each([
+  new Error('No response'),
+  { isAxiosError: true, response: { status: 400, data: { message: 'Server refused reversal' } } },
+  {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
+    },
+  },
+])('shows server failures in the same modal: %j', async (error) => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce(error);
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveTextContent(
+    error instanceof Error
+      ? 'stock-event-reverse.failed-description'
+      : 'message' in error.response.data
+        ? 'Server refused reversal'
+        : 'stock-event-reverse.line-errors',
+  );
+  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
+  await closeAlert();
+  await waitFor(() =>
+    expect(
+      error instanceof Error || 'message' in error.response.data
+        ? screen.getByRole('button', { name: 'stock-events.submit' })
+        : screen.getAllByRole('checkbox')[0],
+    ).toHaveFocus(),
+  );
+  await pick('Other reason');
+});
+it('marks overlong comments without visible field text and focuses after Close', async () => {
+  editor();
+  await tick();
+  await pick();
+  const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-events.comments-too-long');
+  await closeAlert();
+  expect(comments).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByText('stock-events.comments-too-long').closest('.sr-only')).not.toBeNull();
+  await waitFor(() => expect(comments).toHaveFocus());
+});
+
+it('shows every reverse column at laptop content width with the sidebar open', () => {
+  editor();
+  expect(screen.getAllByRole('columnheader')).toHaveLength(14);
+});
+
+it('keeps the same comments textarea focused while typing several characters', async () => {
+  editor();
+  await tick();
+  await pick();
+  const textarea = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  await userEvent.click(textarea);
+  await userEvent.keyboard('hello');
+  expect(textarea).toHaveValue('hello');
+  expect(textarea).toHaveFocus();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toBe(textarea);
+});
+it('keeps keyboard focus when toggling Reverse with Space', async () => {
+  editor();
+  await waitFor(() => expect(screen.getAllByRole('checkbox')[0]).toBeEnabled());
+  const checkbox = screen.getAllByRole('checkbox')[0];
+  checkbox.focus();
+  await userEvent.keyboard(' ');
+  expect(checkbox).toBeChecked();
+  expect(checkbox).toHaveFocus();
+});
+it('returns focus to the same reason trigger after a keyboard selection', async () => {
+  editor();
+  await tick();
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  trigger.focus();
+  await userEvent.keyboard('{ArrowDown}');
+  await screen.findByRole('option', { name: 'Cancelled issue' });
+  await userEvent.keyboard('{Enter}');
+  await waitFor(() => expect(trigger).toHaveFocus());
+  expect(trigger).toHaveTextContent('Cancelled issue');
+});
+it('links comments and stock validation marks to their controls', async () => {
+  editor({ destination: null, source: { name: 'Depot' }, quantity: 40 });
+  await tick();
+  await pick('Cancelled receipt');
+  const comments = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  fireEvent.change(comments, { target: { value: 'x'.repeat(256) } });
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  const description = screen
+    .getByRole('textbox', { name: 'stock-events.field-of' })
+    .getAttribute('aria-describedby');
+  expect(document.getElementById(description ?? '')).toHaveTextContent(
+    'stock-events.comments-too-long',
+  );
+  const balance = document.getElementById('balance-line');
+  expect(balance).toHaveAttribute('aria-invalid', 'true');
+  expect(
+    document.getElementById(balance?.getAttribute('aria-describedby') ?? ''),
+  ).toHaveTextContent('stock-event-reverse.negative-stock');
+});
+it('links a server line error and focuses its Reverse checkbox', async () => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
+    },
+  });
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await closeAlert();
+  expect(await screen.findByText('Line refused')).toBeVisible();
+  const checkbox = screen.getAllByRole('checkbox')[0];
+  expect(
+    document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
+  ).toHaveTextContent('Line refused');
+  await waitFor(() => expect(checkbox).toHaveFocus());
+});
+
+it('drops comments when the new reason disallows them', async () => {
+  editor();
+  await tick();
+  await pick();
+  await userEvent.type(screen.getByRole('textbox', { name: 'stock-events.field-of' }), 'Mistake');
+  await pick('No Text');
+  expect(screen.queryByRole('textbox', { name: 'stock-events.field-of' })).not.toBeInTheDocument();
+  await pick();
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('');
+});
+
+it('hides historical stock until the current stock request settles', async () => {
+  let resolveStock!: (stock: EventStockOnHand) => void;
+  vi.mocked(fetchEventStockOnHand).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveStock = resolve;
+    }),
+  );
+  editor({}, false);
+  await waitFor(() => expect(fetchEventStockOnHand).toHaveBeenCalled());
+  const row = screen.getByText('Vaccine').closest('tr');
+  if (!row) throw new Error('Missing product row');
+  const current = within(row).getAllByRole('cell')[9];
+  expect(current.textContent).toBe('');
+  expect(current.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+  expect(within(row).queryByText('30')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
+  await act(async () => resolveStock({ 'o/': 0 }));
+  await waitFor(() => expect(current).toHaveTextContent('0'));
+  expect(current.querySelector('[data-slot="skeleton"]')).not.toBeInTheDocument();
+  await tick();
+  expect(document.getElementById('balance-line')).toHaveTextContent('20');
+});
+
+it('hides selected balances while refreshing current stock', async () => {
+  const client = editor();
+  await tick();
+  let resolveStock!: (stock: EventStockOnHand) => void;
+  vi.mocked(fetchEventStockOnHand).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveStock = resolve;
+    }),
+  );
+  act(() => {
+    void client.invalidateQueries({
+      queryKey: eventStockOnHandOptions({
+        facilityId: 'facility',
+        programId: 'program',
+        orderableIds: ['o'],
+      }).queryKey,
+    });
+  });
+  const balance = document.getElementById('balance-line');
+  if (!balance) throw new Error('Missing balance cell');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled(),
+  );
+  expect(balance.textContent).toBe('');
+  expect(balance.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+  await act(async () => resolveStock({ 'o/': 0 }));
+  await waitFor(() => expect(balance).toHaveTextContent('20'));
+});

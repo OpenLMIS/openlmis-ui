@@ -124,7 +124,12 @@ function DataTableHeader<TData extends RowData>({ table }: { table: DataTableIns
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
               <TableHead aria-sort={ariaSort(header.column)} key={header.id}>
-                {header.isPlaceholder ? null : <FlexRender header={header} />}
+                {header.isPlaceholder ? null : typeof header.column.columnDef.header ===
+                  'string' ? (
+                  <DataTableHeaderLabel>{header.column.columnDef.header}</DataTableHeaderLabel>
+                ) : (
+                  <FlexRender header={header} />
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -187,7 +192,7 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
 
 export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="font-medium text-muted-foreground text-xs uppercase tracking-label">
+    <span className="font-medium text-muted-foreground text-2xs uppercase tracking-table-label">
       {children}
     </span>
   );

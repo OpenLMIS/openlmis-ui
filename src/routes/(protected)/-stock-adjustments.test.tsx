@@ -71,6 +71,8 @@ const homeFacility: Facility = {
   })),
 };
 
+const renderedRoutes: { router: AnyRouter; queryClient: QueryClient; unmount: () => void }[] = [];
+
 function renderRoute(path = PICKER) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
@@ -111,6 +113,7 @@ function renderRoute(path = PICKER) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  renderedRoutes.push({ router, queryClient, unmount: view.unmount });
   return { router, queryClient, ...view };
 }
 
@@ -143,7 +146,18 @@ beforeEach(() => {
   vi.mocked(fetchFacility).mockResolvedValue(homeFacility);
 });
 
-afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+afterEach(async () => {
+  for (const { router, queryClient, unmount } of renderedRoutes.splice(0)) {
+    await waitFor(() => {
+      expect(router.state.status).toBe('idle');
+      expect(router.state.isLoading).toBe(false);
+    });
+    unmount();
+    await queryClient.cancelQueries();
+    queryClient.clear();
+  }
+  useLoginData.setState({ referenceDataUserId: null });
+});
 
 describe('adjustments program picker', () => {
   it('lists granted home programs by name and links to their editors', async () => {

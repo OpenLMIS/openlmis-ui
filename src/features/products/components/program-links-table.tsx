@@ -38,8 +38,6 @@ type RowActions = {
 
 const columnHelper = createColumnHelper<DataTableFeatures, ProgramLinkRow>();
 
-const muted = <span className="text-muted-foreground">-</span>;
-
 function createColumns(t: TFunction, formatPrice: (price: number) => string, actions: RowActions) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
@@ -70,9 +68,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
           <span className="whitespace-normal break-words" dir="auto">
             {getValue()}
           </span>
-        ) : (
-          muted
-        ),
+        ) : null,
       meta: { className: '@3xl/main:w-1/4' },
     }),
     columnHelper.accessor('fullSupply', {
@@ -88,7 +84,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
       ),
       cell: ({ getValue }) => {
         const price = getValue();
-        return price == null ? muted : <span dir="ltr">{formatPrice(price)}</span>;
+        return price == null ? null : <span dir="ltr">{formatPrice(price)}</span>;
       },
       meta: { className: 'w-32' },
     }),

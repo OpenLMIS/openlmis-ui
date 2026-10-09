@@ -23,7 +23,7 @@ import {
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
 import type { StockEventLine } from '@/features/stock-events/lib/types';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { eventLinks, namedWithFreeText } from '@/lib/stock-labels';
 import {
@@ -65,7 +65,7 @@ type CellId = (typeof COLUMNS)[number][0];
 
 function Wrapped({ children }: { children: ReactNode }) {
   return (
-    <span className="block max-w-60 whitespace-normal break-normal">
+    <span className="whitespace-nowrap">
       <bdi>{children}</bdi>
     </span>
   );
@@ -79,13 +79,13 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
         <Wrapped>{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</Wrapped>
       );
     case 'lot':
-      return <Wrapped>{line.lot ? orEmpty(line.lot.lotCode) : t('stock-event.no-lot')}</Wrapped>;
+      return <Wrapped>{line.lot ? tableValue(line.lot.lotCode) : t('stock-event.no-lot')}</Wrapped>;
     case 'expiry':
     case 'date':
       return (
         <span className="whitespace-nowrap">
           <bdi>
-            {orEmpty(
+            {tableValue(
               formatDateValue(
                 id === 'date' ? line.occurredDate : (line.lot?.expirationDate ?? ''),
                 i18n.language,
@@ -95,18 +95,20 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
         </span>
       );
     case 'source':
-      return <Wrapped>{orEmpty(namedWithFreeText(line.source, line.sourceFreeText))}</Wrapped>;
+      return <Wrapped>{tableValue(namedWithFreeText(line.source, line.sourceFreeText))}</Wrapped>;
     case 'destination':
       return (
-        <Wrapped>{orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}</Wrapped>
+        <Wrapped>
+          {tableValue(namedWithFreeText(line.destination, line.destinationFreeText))}
+        </Wrapped>
       );
     case 'reason':
-      return <Wrapped>{orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}</Wrapped>;
+      return <Wrapped>{tableValue(namedWithFreeText(line.reason, line.reasonFreeText))}</Wrapped>;
     case 'quantity':
     case 'balance':
       return (
         <span className="whitespace-nowrap tabular-nums" dir="ltr">
-          {orEmpty(
+          {tableValue(
             cardQuantity(
               id === 'balance' ? line.stockOnHand : line.quantity,
               line.orderable.netContent,
@@ -120,7 +122,7 @@ function LineCell({ id, line, unit }: { id: CellId; line: StockEventLine; unit: 
     case 'reversedBy': {
       const view = t('stock-event.view-event');
       const link = eventLinks(line, { noNumber: '', view })[id];
-      if (!link?.eventId) return <Wrapped>{orEmpty(link?.label)}</Wrapped>;
+      if (!link?.eventId) return <Wrapped>{tableValue(link?.label)}</Wrapped>;
       return (
         <span className="whitespace-nowrap">
           <Link
