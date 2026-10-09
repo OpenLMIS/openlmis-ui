@@ -26,11 +26,11 @@ export function isInventoryMember(line: InventoryLine) {
 export function buildInventoryLines(
   stock: readonly InventoryStockLine[],
   server: readonly InventoryDraftItem[],
-  local: readonly InventoryLine[] = [],
+  local?: readonly InventoryLine[],
   removedKeys: readonly string[] = [],
 ): InventoryLine[] {
   const saved = new Map(
-    server.map((line) => [inventoryLineKey(line.orderableId, line.lotId), line]),
+    (local ? [] : server).map((line) => [inventoryLineKey(line.orderableId, line.lotId), line]),
   );
   const lines = new Map<string, InventoryLine>();
   for (const card of stock) {
@@ -50,7 +50,7 @@ export function buildInventoryLines(
       justAdded: false,
     });
   }
-  for (const line of local) {
+  for (const line of local ?? []) {
     const current = lines.get(line.key);
     lines.set(line.key, {
       ...line,
@@ -134,13 +134,13 @@ export function inventoryPage(
 }
 
 export function inventoryProgress(lines: readonly InventoryLine[]) {
-  const groups = inventoryGroups(lines);
-  return {
-    count: groups.filter((group) =>
-      group.lines.every((line) => Boolean(line.quantity.doses.trim())),
-    ).length,
-    total: groups.length,
-  };
+  const groups = new Map<string, boolean>();
+  for (const line of lines)
+    groups.set(
+      line.orderable.id,
+      (groups.get(line.orderable.id) ?? true) && Boolean(line.quantity.doses.trim()),
+    );
+  return { count: [...groups.values()].filter(Boolean).length, total: groups.size };
 }
 
 export const INVENTORY_PAGE_SIZE = 20;
@@ -170,18 +170,12 @@ export function inventoryLocalCopy(
   lines: readonly InventoryLine[],
   baseline?: readonly InventoryLine[],
 ): InventoryLocalCopy {
-  const originals = baseline && new Map(baseline.map((line) => [line.key, line]));
   const keys = new Set(lines.map((line) => line.key));
   return {
     draftId: draft.id,
     programId: draft.programId,
     facilityId: draft.facilityId,
-    lines: originals
-      ? lines.filter(
-          (line) =>
-            line !== originals.get(line.key) && inventoryLineChanged(line, originals.get(line.key)),
-        )
-      : [...lines],
+    lines: [...lines],
     removedKeys: baseline?.filter((line) => !keys.has(line.key)).map((line) => line.key) ?? [],
     modified: true,
     savedAt: Date.now(),
@@ -206,24 +200,22 @@ export function inventoryFirstInvalid(
   }
 }
 
-function inventoryLineChanged(line: InventoryLine, original?: InventoryLine) {
-  if (!original) return true;
+export function inventoryStructureEqual(a: readonly InventoryLine[], b: readonly InventoryLine[]) {
   return (
-    line.quantity.doses !== original.quantity.doses ||
-    line.quantity.packs !== original.quantity.packs ||
-    line.quantity.remainder !== original.quantity.remainder ||
-    line.active !== original.active ||
-    line.vvmStatus !== original.vvmStatus ||
-    line.justAdded !== original.justAdded ||
-    line.isAdded !== original.isAdded ||
-    line.lot?.id !== original.lot?.id ||
-    line.newLot?.lotCode !== original.newLot?.lotCode ||
-    line.newLot?.expirationDate !== original.newLot?.expirationDate ||
-    line.stockAdjustments.length !== original.stockAdjustments.length ||
-    line.stockAdjustments.some(
-      (item, index) =>
-        item.quantity !== original.stockAdjustments[index].quantity ||
-        item.reason.id !== original.stockAdjustments[index].reason.id,
-    )
+    a.length === b.length &&
+    a.every((line, index) => {
+      const next = b[index];
+      return (
+        line.key === next.key &&
+        line.orderable === next.orderable &&
+        line.lot === next.lot &&
+        line.newLot === next.newLot &&
+        line.stockOnHand === next.stockOnHand &&
+        line.stockCardId === next.stockCardId &&
+        line.active === next.active &&
+        line.isAdded === next.isAdded &&
+        line.justAdded === next.justAdded
+      );
+    })
   );
 }

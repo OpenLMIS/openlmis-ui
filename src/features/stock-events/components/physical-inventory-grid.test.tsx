@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { resolveColumnVisibility } from '@/components/data-table/responsive-columns';
+import { productName } from '@/features/reference-data/lib/product-name';
 import {
   INVENTORY_COLUMN_MIN_WIDTHS,
   INVENTORY_HIDEABLE_COLUMNS,
@@ -15,6 +16,11 @@ import {
   buildInventoryLines,
   inventoryPage,
 } from '@/features/stock-events/lib/physical-inventory-lines';
+
+vi.mock('@/features/reference-data/lib/product-name', async (original) => {
+  const actual = await original<typeof import('@/features/reference-data/lib/product-name')>();
+  return { ...actual, productName: vi.fn(actual.productName) };
+});
 
 const orderable = {
   id: 'p',
@@ -222,4 +228,55 @@ describe('inventory column priorities', () => {
     render(<PhysicalInventoryGridSkeleton {...props} />);
     expect(screen.getAllByRole('columnheader').map((head) => head.textContent)).toEqual(headers);
   });
+});
+
+it('describes an unaccounted error immediately after a count changes and clears it with a blank', async () => {
+  const user = userEvent.setup();
+  render(
+    <Grid
+      bands={inventoryPage(lines.slice(0, 1), 'program').bands}
+      visibility={{}}
+      showVvm={false}
+    />,
+  );
+  const input = screen.getByRole('textbox');
+  await user.clear(input);
+  expect(input).not.toHaveAttribute('aria-invalid', 'true');
+  await user.type(input, '4');
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  expect(document.getElementById(input.getAttribute('aria-describedby') ?? '')).toHaveTextContent(
+    'physical-inventory.unaccounted-error',
+  );
+  await user.clear(input);
+  expect(input).not.toHaveAttribute('aria-invalid', 'true');
+});
+
+it('updates product totals through the group subscription with stable bands', async () => {
+  const user = userEvent.setup();
+  render(<Grid bands={inventoryPage(lines, 'program').bands} visibility={{}} showVvm={false} />);
+  const input = screen.getAllByRole('textbox')[0];
+  await user.clear(input);
+  await user.type(input, '6');
+  const summary = screen.getByText('Product').closest('tr') as HTMLElement;
+  expect(within(summary).getByText('13')).toBeInTheDocument();
+});
+
+it('leaves another product summary subscribed only to its own rows during count entry', async () => {
+  const user = userEvent.setup();
+  const other = { ...orderable, id: 'other', productCode: 'Q', fullProductName: 'Other' };
+  const others = lines.map((line) => ({ ...line, key: `other-${line.key}`, orderable: other }));
+  render(
+    <Grid
+      bands={inventoryPage([...lines, ...others], 'program').bands}
+      visibility={{}}
+      showVvm={false}
+    />,
+  );
+  vi.mocked(productName).mockClear();
+  const input = screen.getAllByRole('textbox')[0];
+  await user.clear(input);
+  await user.type(input, '6');
+  expect(vi.mocked(productName).mock.calls.some(([product]) => product.productCode === 'Q')).toBe(
+    false,
+  );
 });

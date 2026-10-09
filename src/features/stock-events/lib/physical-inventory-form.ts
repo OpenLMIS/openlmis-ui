@@ -40,10 +40,16 @@ export function inventoryLineError(line: InventoryLine) {
 export function validateInventory(
   lines: readonly InventoryLine[],
   displayed: readonly InventoryLine[],
+  includeInactive = false,
 ) {
   if (displayed.some((line) => !line.active && line.stockOnHand === 0))
     return { kind: 'inactive' } as const;
-  const invalid = lines.filter((line) => isInventoryMember(line) && inventoryLineError(line));
+  const invalid = lines.filter(
+    (line) =>
+      (includeInactive || !(!line.active && line.stockOnHand === 0)) &&
+      isInventoryMember(line) &&
+      inventoryLineError(line),
+  );
   return invalid.length
     ? ({ kind: 'invalid', lines: invalid } as const)
     : ({ kind: 'valid' } as const);

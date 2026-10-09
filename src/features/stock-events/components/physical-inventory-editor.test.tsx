@@ -22,13 +22,27 @@ import {
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
-import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
+import {
+  buildInventoryLines,
+  inventoryGroups,
+  inventoryPage,
+} from '@/features/stock-events/lib/physical-inventory-lines';
 import {
   clearInventoryLocal,
   readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+
+vi.mock('@/features/stock-events/lib/physical-inventory-lines', async (original) => {
+  const actual =
+    await original<typeof import('@/features/stock-events/lib/physical-inventory-lines')>();
+  return {
+    ...actual,
+    inventoryGroups: vi.fn(actual.inventoryGroups),
+    inventoryPage: vi.fn(actual.inventoryPage),
+  };
+});
 
 vi.mock('@/components/data-table/responsive-columns', async (original) => ({
   ...(await original<typeof import('@/components/data-table/responsive-columns')>()),
@@ -193,7 +207,9 @@ it('keeps edited counts visible after storage failure', async () => {
   setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.type(input, '8');
-  await screen.findByText('physical-inventory.not-saved-local');
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent('physical-inventory.not-saved-local'),
+  );
   expect(input).toHaveValue('8');
   expect(useDiscardGuard).toHaveBeenLastCalledWith(true);
 });
@@ -262,7 +278,13 @@ it('writes removal of the last locally added line so it cannot return on reopen'
   await user.click(screen.getByRole('menuitem', { name: 'physical-inventory.delete-row' }));
   await waitFor(() =>
     expect(writeInventoryLocal).toHaveBeenLastCalledWith(
-      expect.objectContaining({ lines: [], modified: true }),
+      expect.objectContaining({
+        lines: expect.arrayContaining([
+          expect.objectContaining({ key: 'A|none' }),
+          expect.objectContaining({ key: 'B|none' }),
+        ]),
+        modified: true,
+      }),
       expect.any(Number),
       expect.anything(),
     ),
@@ -567,4 +589,64 @@ it('moves focus to the next count when removing a just-added row', async () => {
   );
   await user.click(screen.getByRole('menuitem', { name: 'physical-inventory.delete-row' }));
   await waitFor(() => expect(inputs[1]).toHaveFocus());
+});
+
+it('keeps sorting and paging stable during count entry while progress and saved counts update', async () => {
+  const user = userEvent.setup();
+  setup({ size: 20, page: 1 });
+  const inputs = await screen.findAllByRole('textbox', { name: 'stock-events.field-of' });
+  vi.mocked(inventoryPage).mockClear();
+  vi.mocked(inventoryGroups).mockClear();
+  await user.type(inputs[0], '12345');
+  expect(inventoryPage).not.toHaveBeenCalled();
+  expect(inventoryGroups).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(writeInventoryLocal).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        lines: expect.arrayContaining([
+          expect.objectContaining({
+            key: 'A|none',
+            quantity: expect.objectContaining({ doses: '12345' }),
+          }),
+          expect.objectContaining({
+            key: 'B|none',
+            quantity: expect.objectContaining({ doses: '' }),
+          }),
+        ]),
+      }),
+      expect.any(Number),
+      expect.anything(),
+    ),
+  );
+});
+it('updates the unaccounted error immediately when reasons change without Submit', async () => {
+  const { fetchValidReasons } = await import('@/features/reference-data/api/api');
+  vi.mocked(fetchValidReasons).mockResolvedValueOnce([
+    {
+      reason: {
+        id: 'r',
+        name: 'Found',
+        reasonType: 'CREDIT',
+        reasonCategory: 'TRANSFER',
+        isFreeTextAllowed: false,
+        tags: [],
+      },
+      hidden: false,
+    },
+  ]);
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '7');
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  await user.click(
+    screen.getByRole('button', { name: 'stock-events.field-of:physical-inventory.reasons' }),
+  );
+  const dialog = screen.getByRole('dialog');
+  await user.click(within(dialog).getByRole('combobox'));
+  await user.click(screen.getByRole('option', { name: 'Found' }));
+  await user.type(within(dialog).getByRole('textbox', { name: 'stock-events.quantity' }), '2');
+  await user.click(within(dialog).getByRole('button', { name: 'stock-events.add' }));
+  await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.update' }));
+  expect(input).not.toHaveAttribute('aria-invalid', 'true');
 });

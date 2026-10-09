@@ -21,6 +21,7 @@ export const queryKeys = {
   orderables: createQueryKeys('orderables'),
   organizations: createQueryKeys('organizations'),
   physicalInventories: createQueryKeys('physicalInventories'),
+  physicalInventoryProducts: createQueryKeys('physicalInventoryProducts'),
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
   reasons: createQueryKeys('reasons'),

@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ import {
 } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
+  inventoryRefreshFilters,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
 import { InventoryOccurredDateDialog } from '@/features/stock-events/components/inventory-occurred-date-dialog';
@@ -33,7 +34,10 @@ import {
   inventorySubmitPayload,
   validateInventory,
 } from '@/features/stock-events/lib/physical-inventory-form';
-import { inventoryLocalCopy } from '@/features/stock-events/lib/physical-inventory-lines';
+import {
+  eligibleInventoryLines,
+  inventoryLocalCopy,
+} from '@/features/stock-events/lib/physical-inventory-lines';
 import {
   clearInventoryLocal,
   writeInventoryLocal,
@@ -59,10 +63,13 @@ type Action =
   | { type: 'submit'; occurredDate: string; signature: string };
 type Props = {
   draft: PhysicalInventoryDraft;
+  eligibleUpdatedAfter?: number;
   baseline: readonly InventoryLine[];
   right: string;
   lines: readonly InventoryLine[];
+  getLines?: () => InventoryLine[];
   displayed: readonly InventoryLine[];
+  includeInactive?: boolean;
   userId: string;
   username: string;
   showInDoses: boolean;
@@ -102,6 +109,8 @@ const ACTION_KEYS = {
 export function InventoryActions(props: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const eligibleOptions = eligibleInventoryProductsOptions(props.draft, props.eligibleUpdatedAfter);
+  const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey }) > 0;
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
   const [unknown, setUnknown] = useState(false);
   const [confirmType, setConfirmType] = useState<'save' | 'delete'>('save');
@@ -126,12 +135,13 @@ export function InventoryActions(props: Props) {
         await deletePhysicalInventory(props.draft.id);
         return [];
       }
-      const eligible = await queryClient.ensureQueryData(
-        eligibleInventoryProductsOptions(props.draft),
-      );
+      const eligible = await queryClient.fetchQuery(eligibleOptions);
       assertSessionScope(scope);
-      const lines = props.lines;
-      if (action.type === 'submit' && validateInventory(lines, props.displayed).kind !== 'valid')
+      const lines = eligibleInventoryLines(props.getLines?.() ?? props.lines, eligible);
+      if (
+        action.type === 'submit' &&
+        validateInventory(lines, props.displayed, props.includeInactive).kind !== 'valid'
+      )
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
         lines,
@@ -175,7 +185,11 @@ export function InventoryActions(props: Props) {
     refusedDescription: t('physical-inventory.print-refused'),
   });
   const submit = () => {
-    const validation = validateInventory(props.lines, props.displayed);
+    const validation = validateInventory(
+      props.getLines?.() ?? props.lines,
+      props.displayed,
+      props.includeInactive,
+    );
     if (validation.kind === 'inactive') {
       toast.error(t('physical-inventory.inactive-title'), {
         description: t('physical-inventory.inactive-description'),
@@ -235,20 +249,21 @@ export function InventoryActions(props: Props) {
         });
     }
     if (!mutation.isCurrent()) return;
-    props.onSaved(next, action.type !== 'save');
-    const keys =
+    if (action.type !== 'delete') props.onSaved(next, action.type !== 'save');
+    const filters =
       action.type === 'submit'
         ? [
             queryKeys.physicalInventories.all,
             queryKeys.stockEvents.all,
             queryKeys.stockCardSummaries.all,
             queryKeys.stockCards.all,
-          ]
-        : [queryKeys.physicalInventories.all];
-    for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
+          ].map((queryKey) => ({ queryKey }))
+        : inventoryRefreshFilters(props.draft);
+    for (const filter of filters) void queryClient.invalidateQueries(filter);
     toast.success(t(ACTION_KEYS[action.type].successTitle), {
       description: t(ACTION_KEYS[action.type].successDescription),
     });
+    setDialog(action.type === 'submit' ? 'print' : null);
     if (action.type === 'save') {
       try {
         await queryClient.fetchQuery({
@@ -261,7 +276,6 @@ export function InventoryActions(props: Props) {
       } catch {}
       if (!mutation.isCurrent()) return;
     }
-    setDialog(action.type === 'submit' ? 'print' : null);
     props.onBusy(false);
     posting.current = false;
     if (action.type === 'delete') await props.onDeleted();
@@ -288,12 +302,12 @@ export function InventoryActions(props: Props) {
           <Button
             size="lg"
             variant="outline"
-            disabled={disabled}
+            disabled={disabled || eligibleFetching}
             onClick={() => openConfirm('save')}
           >
             {t('physical-inventory.save')}
           </Button>
-          <Button size="lg" disabled={disabled || unknown} onClick={submit}>
+          <Button size="lg" disabled={disabled || eligibleFetching || unknown} onClick={submit}>
             {t('stock-events.submit')}
           </Button>
         </div>

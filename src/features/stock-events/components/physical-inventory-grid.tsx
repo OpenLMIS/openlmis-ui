@@ -1,7 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { EllipsisIcon } from 'lucide-react';
-import { Fragment, memo, type ReactNode, useId } from 'react';
+import { Fragment, memo, type ReactNode, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useFieldContext } from '@/components/form/form-context';
@@ -29,7 +29,6 @@ import {
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { PhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
 import {
-  inventoryCountSchema,
   inventoryLineError,
   unaccounted,
 } from '@/features/stock-events/lib/physical-inventory-form';
@@ -156,8 +155,9 @@ type Props = {
 };
 export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions, editor }: Props) {
   const { t } = useTranslation();
-  const columns = visibleColumns(visibility, showVvm).filter(
-    ([id]) => id !== 'actions' || showActions,
+  const columns = useMemo(
+    () => visibleColumns(visibility, showVvm).filter(([id]) => id !== 'actions' || showActions),
+    [visibility, showVvm, showActions],
   );
   return (
     <DataTableCard>
@@ -194,20 +194,7 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions,
               {band.groups.map((group) => (
                 <Fragment key={group.orderable.id}>
                   {group.lines.length > 1 ? (
-                    <TableRow surface="muted">
-                      {columns.map(([id]) => (
-                        <TableCell key={id}>
-                          <InventoryColumnContent id={id} unit={editor.unit}>
-                            <InventoryCell
-                              id={id}
-                              editor={editor}
-                              line={group.lines[0]}
-                              summary={group.lines}
-                            />
-                          </InventoryColumnContent>
-                        </TableCell>
-                      ))}
-                    </TableRow>
+                    <InventorySummaryRow editor={editor} lines={group.lines} columns={columns} />
                   ) : null}
                   {group.lines.map((line) => (
                     <InventoryRow
@@ -227,6 +214,35 @@ export function PhysicalInventoryGrid({ bands, visibility, showVvm, showActions,
     </DataTableCard>
   );
 }
+
+const InventorySummaryRow = memo(function InventorySummaryRow({
+  editor,
+  lines,
+  columns,
+}: {
+  editor: InventoryGridEditor;
+  lines: readonly InventoryLine[];
+  columns: readonly (typeof COLUMNS)[number][];
+}) {
+  const summary = useStore(
+    editor.form.store,
+    (state) => lines.map((line) => state.values.lines[line.key]).filter(Boolean),
+    (previous, next) =>
+      previous.length === next.length && previous.every((line, index) => line === next[index]),
+  );
+  if (!summary.length) return null;
+  return (
+    <TableRow surface="muted">
+      {columns.map(([id]) => (
+        <TableCell key={id}>
+          <InventoryColumnContent id={id} unit={editor.unit}>
+            <InventoryCell id={id} editor={editor} line={summary[0]} summary={summary} />
+          </InventoryColumnContent>
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+});
 
 const InventoryRow = memo(
   function InventoryRow({
@@ -278,15 +294,10 @@ function InventoryCell({
   const formats = inventoryFormats(i18n.language);
   const format = formats.number;
   const errorId = useId();
-  const countResult =
-    id === 'count' && !summary ? inventoryCountSchema.safeParse(line.quantity.doses) : null;
-  const error = !countResult
-    ? null
-    : editor.validationAttempted
+  const error =
+    id === 'count' && !summary && (editor.validationAttempted || line.quantity.doses.trim())
       ? inventoryLineError(line)
-      : line.quantity.doses.trim() && !countResult.success
-        ? countResult.error.issues[0].message
-        : null;
+      : null;
   const row = `${productName(line.orderable)} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}`;
   const label = (field: string) => t('stock-events.field-of', { field, row });
   const number = (value: number | null | undefined) => (

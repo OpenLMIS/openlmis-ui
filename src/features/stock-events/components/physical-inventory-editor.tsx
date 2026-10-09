@@ -48,6 +48,7 @@ import { productName } from '@/features/reference-data/lib/product-name';
 import { deactivateInventoryStockCard } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
+  inventoryRefreshFilters,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
 import { InventoryActions } from '@/features/stock-events/components/inventory-actions';
@@ -55,6 +56,7 @@ import { InventoryAddProductsDialog } from '@/features/stock-events/components/i
 import { InventoryDeactivateDialog } from '@/features/stock-events/components/inventory-deactivate-dialog';
 import { InventoryEditLotDialog } from '@/features/stock-events/components/inventory-edit-lot-dialog';
 import { InventoryReasonsDialog } from '@/features/stock-events/components/inventory-reasons-dialog';
+import { InventorySaveIndicator } from '@/features/stock-events/components/inventory-save-indicator';
 import { InventoryScan } from '@/features/stock-events/components/inventory-scan';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
@@ -63,7 +65,10 @@ import {
   PhysicalInventoryGridSkeleton,
 } from '@/features/stock-events/components/physical-inventory-grid';
 import { usePhysicalInventoryAutosave } from '@/features/stock-events/hooks/use-physical-inventory-autosave';
-import { usePhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
+import {
+  type PhysicalInventoryForm,
+  usePhysicalInventoryForm,
+} from '@/features/stock-events/hooks/use-physical-inventory-form';
 import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
 import {
   buildInventoryLines,
@@ -75,6 +80,7 @@ import {
   inventoryPage,
   inventoryPageOf,
   inventoryProgress,
+  inventoryStructureEqual,
 } from '@/features/stock-events/lib/physical-inventory-lines';
 import { readInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
 import {
@@ -111,6 +117,7 @@ type Props = {
   facilityTypeId: string;
   canManageLots: boolean;
   draft: PhysicalInventoryDraft;
+  eligibleUpdatedAfter?: number;
   search: InventorySearch;
   onSearchChange: SearchChange<InventorySearch>;
 };
@@ -237,7 +244,7 @@ function InventoryRows(props: RowsProps) {
     <InventoryDraftRows
       {...props}
       stock={stock}
-      localLines={local.data?.modified ? local.data.lines : []}
+      localLines={local.data?.modified ? local.data.lines : undefined}
       localFailed={local.isError}
       localRemoved={local.data?.modified ? (local.data.removedKeys ?? []) : []}
       localModified={Boolean(local.data?.modified)}
@@ -266,18 +273,18 @@ function InventoryDraftRows({
   username,
   onDeleted,
   onSubmitted,
+  eligibleUpdatedAfter,
 }: RowsProps & {
   stock: InventoryStockLine[];
-  localLines: InventoryLine[];
+  localLines?: InventoryLine[];
   localFailed: boolean;
   localRemoved: string[];
   localModified: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
   const scanning = useFlag('GS1_SCANNING');
-  const eligible = useQuery(
-    eligibleInventoryProductsOptions({ programId: draft.programId, facilityId: draft.facilityId }),
-  );
+  const eligible = useQuery(eligibleInventoryProductsOptions(draft, entryUpdatedAfter));
   const reasonsQuery = useQuery(
     validReasonsOptions({ program: draft.programId, facilityType: facilityTypeId }),
   );
@@ -295,8 +302,27 @@ function InventoryDraftRows({
     buildInventoryLines(stock, draft.lineItems, localLines, localRemoved),
   );
   const form = usePhysicalInventoryForm(formLines, validationAttempted);
-  const records = useStore(form.store, (state) => state.values.lines);
-  const allLines = useMemo(() => Object.values(records), [records]);
+  const deferred = useDeferredValue(search);
+  const formatDate = inventoryFormats(i18n.language).date;
+  const noLotLabel = t('stock-events.no-lot-defined');
+  const allLines = useStore(
+    form.store,
+    (state) => Object.values(state.values.lines),
+    (previous, next) => {
+      if (!inventoryStructureEqual(previous, next)) return false;
+      if (!deferred.keyword) return true;
+      const before = filterInventoryLines(previous, deferred, formatDate, noLotLabel);
+      const after = filterInventoryLines(next, deferred, formatDate, noLotLabel);
+      return (
+        before.length === after.length &&
+        before.every((line, index) => line.key === after[index].key)
+      );
+    },
+  );
+  const getLines = useCallback(
+    () => eligibleInventoryLines(Object.values(form.state.values.lines), eligible.data),
+    [form, eligible.data],
+  );
   const [modified, setModified] = useState(localModified);
   const dirty = useStore(form.store, (state) => state.isDirty);
   useEffect(() => {
@@ -305,18 +331,20 @@ function InventoryDraftRows({
   const copy = useCallback(
     () =>
       !busy && !submitted && (modified || form.state.isDirty)
-        ? inventoryLocalCopy(draft, allLines, baseline)
+        ? inventoryLocalCopy(draft, Object.values(form.state.values.lines), baseline)
         : null,
-    [busy, submitted, modified, form, draft, allLines, baseline],
+    [busy, submitted, modified, form, draft, baseline],
   );
-  const autosave = usePhysicalInventoryAutosave(copy);
+  const autosave = usePhysicalInventoryAutosave(copy, form);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   const guard = useDiscardGuard(!submitted && (status === 'saving' || status === 'failed'));
   const [dialog, setDialog] = useState<{
     type: 'reasons' | 'lot' | 'deactivate';
     key: string;
   } | null>(null);
-  const dialogLine = dialog ? records[dialog.key] : undefined;
+  const dialogLine = useStore(form.store, (state) =>
+    dialog ? state.values.lines[dialog.key] : undefined,
+  );
   const online = useOnline();
   const mutation = useSessionMutation({
     retry: false,
@@ -326,12 +354,12 @@ function InventoryDraftRows({
         focusAfterRemoval(dialogLine);
         patchLine(dialogLine.key, { active: false });
       }
-      for (const queryKey of [
-        queryKeys.physicalInventories.all,
-        queryKeys.stockCardSummaries.all,
-        queryKeys.stockCards.all,
+      for (const filter of [
+        ...inventoryRefreshFilters(draft),
+        { queryKey: queryKeys.stockCardSummaries.all },
+        { queryKey: queryKeys.stockCards.all },
       ])
-        void queryClient.invalidateQueries({ queryKey });
+        void queryClient.invalidateQueries(filter);
       setDialog(null);
       toast.success(t('physical-inventory.deactivated-title'), {
         description: t('physical-inventory.deactivated-description'),
@@ -342,26 +370,18 @@ function InventoryDraftRows({
         description: t('physical-inventory.deactivate-error-description'),
       }),
   });
-  const deferred = useDeferredValue(search);
   const lines = useMemo(
     () => eligibleInventoryLines(allLines, eligible.data),
     [allLines, eligible.data],
   );
   const filtered = useMemo(
-    () =>
-      filterInventoryLines(
-        lines,
-        deferred,
-        inventoryFormats(i18n.language).date,
-        t('stock-events.no-lot-defined'),
-      ),
-    [lines, deferred, i18n.language, t],
+    () => filterInventoryLines(lines, deferred, formatDate, noLotLabel),
+    [lines, deferred, formatDate, noLotLabel],
   );
   const page = useMemo(
     () => inventoryPage(filtered, draft.programId, deferred.page, deferred.size),
     [filtered, draft.programId, deferred.page, deferred.size],
   );
-  const progress = useMemo(() => inventoryProgress(filtered), [filtered]);
   const tableState = useTableSearchState({
     search: { ...search, page: page.page },
     defaultSort: NO_SORT,
@@ -395,7 +415,6 @@ function InventoryDraftRows({
   }, [validationAttempted, form]);
   useEffect(() => {
     if (!focusKey || search !== deferred) return;
-    // Let dialog and menu focus restoration finish before focusing a surviving row.
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
         const element = region.current?.querySelector<HTMLInputElement>(
@@ -481,18 +500,8 @@ function InventoryDraftRows({
   );
   return (
     <div ref={region} tabIndex={-1} className="flex flex-col gap-4" aria-busy={search !== deferred}>
-      <p role="status" className="text-sm text-muted-foreground">
-        {t(
-          status === 'saving'
-            ? 'physical-inventory.saving'
-            : status === 'failed'
-              ? 'physical-inventory.not-saved-local'
-              : 'physical-inventory.saved-local',
-        )}
-      </p>
-      <Progress value={progress.total ? (progress.count / progress.total) * 100 : 0}>
-        <ProgressLabel>{t('physical-inventory.progress', progress)}</ProgressLabel>
-      </Progress>
+      <InventorySaveIndicator status={status} />
+      <InventoryCompletion form={form} lines={filtered} />
       {eligible.isError ? (
         <LoadError
           error={eligible.error}
@@ -570,14 +579,17 @@ function InventoryDraftRows({
       )}
       <InventoryActions
         draft={draft}
+        eligibleUpdatedAfter={entryUpdatedAfter}
         right={right}
         baseline={baseline}
         lines={lines}
+        getLines={getLines}
         displayed={filtered}
+        includeInactive={Boolean(search.includeInactive)}
         userId={userId}
         username={username}
         showInDoses={quantityUnit.unit === 'DOSES'}
-        disabled={busy || mutation.isPending || !eligible.data}
+        disabled={busy || mutation.isPending || !eligible.data || eligible.isError}
         flush={autosave.flush}
         onBusy={setBusy}
         onLots={(next) =>
@@ -595,20 +607,18 @@ function InventoryDraftRows({
         }}
         onInvalid={(invalid) => {
           setValidationAttempted(true);
+          const currentLines = getLines();
           const visibleInvalid = inventoryFirstInvalid(
-            lines,
+            currentLines,
             invalid,
             draft.programId,
             Boolean(search.includeInactive),
             search.size,
           );
-          const includeInactive = Boolean(search.includeInactive) || !visibleInvalid;
-          const first =
-            visibleInvalid ??
-            inventoryFirstInvalid(lines, invalid, draft.programId, true, search.size) ??
-            invalid[0];
+          const includeInactive = Boolean(search.includeInactive);
+          const first = visibleInvalid ?? invalid[0];
           const targetPage = inventoryPageOf(
-            filterInventoryLines(lines, { includeInactive }, String),
+            filterInventoryLines(currentLines, { includeInactive }, String),
             first,
             search.size,
           );
@@ -616,9 +626,6 @@ function InventoryDraftRows({
           onSearchChange(
             {
               keyword: undefined,
-              ...(includeInactive !== search.includeInactive && includeInactive
-                ? { includeInactive: true }
-                : {}),
               page: targetPage === 1 ? undefined : targetPage,
             },
             true,
@@ -640,7 +647,7 @@ function InventoryDraftRows({
           onRetry={() => {
             void eligible.refetch();
           }}
-          listed={lines}
+          listed={getLines()}
           canManageLots={canManageLots}
           unit={quantityUnit.unit}
           onClose={onAddClose}
@@ -705,7 +712,7 @@ function InventoryDraftRows({
       {dialog?.type === 'lot' && dialogLine?.newLot && (
         <InventoryEditLotDialog
           line={dialogLine}
-          listed={[...(eligible.data ?? []), ...lines]}
+          listed={[...(eligible.data ?? []), ...getLines()]}
           onClose={() => setDialog(null)}
           onUpdate={(lot) => {
             patchLine(dialogLine.key, { newLot: lot });
@@ -748,5 +755,26 @@ function InventoryLoadError({ error, reset }: ErrorComponentProps) {
       title={t('physical-inventory.load-error-title')}
       description={t('physical-inventory.load-error-description')}
     />
+  );
+}
+
+function InventoryCompletion({
+  form,
+  lines,
+}: {
+  form: PhysicalInventoryForm;
+  lines: readonly InventoryLine[];
+}) {
+  const { t } = useTranslation();
+  const total = useMemo(() => new Set(lines.map((line) => line.orderable.id)).size, [lines]);
+  const count = useStore(
+    form.store,
+    (state) =>
+      inventoryProgress(lines.map((line) => state.values.lines[line.key]).filter(Boolean)).count,
+  );
+  return (
+    <Progress value={total ? (count / total) * 100 : 0}>
+      <ProgressLabel>{t('physical-inventory.progress', { count, total })}</ProgressLabel>
+    </Progress>
   );
 }

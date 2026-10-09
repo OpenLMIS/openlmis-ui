@@ -9,6 +9,7 @@ import {
   inventoryPage,
   inventoryPageOf,
   inventoryProgress,
+  inventoryStructureEqual,
 } from '@/features/stock-events/lib/physical-inventory-lines';
 
 const product = {
@@ -164,4 +165,63 @@ it('focuses the first invalid line in each page category-band order after cleari
   }));
   expect(inventoryFirstInvalid(items, [items[1], items[2]], 'program', false, 3)?.key).toBe('C');
   expect(inventoryFirstInvalid(items, [items[1], items[2]], 'program', false, 2)?.key).toBe('B');
+});
+
+it('keeps the whole modified device draft ahead of another user save while refreshing stock', () => {
+  const cards = ['A', 'B'].map((id) => ({ ...stock, orderable: { ...product, id } }));
+  const initial = buildInventoryLines(cards, [
+    { orderableId: 'A', quantity: 5 },
+    { orderableId: 'B', quantity: 8 },
+  ]);
+  const edited = [{ ...initial[0], quantity: quantityValue('6') }, initial[1]];
+  const copy = inventoryLocalCopy({ id: 'd', facilityId: 'f', programId: 'p' }, edited, initial);
+  expect(copy.lines).toHaveLength(2);
+  const reopened = buildInventoryLines(
+    cards.map((card) => ({ ...card, stockOnHand: 12, active: false, stockCardId: 'fresh' })),
+    [
+      { orderableId: 'A', quantity: 5 },
+      { orderableId: 'B', quantity: 20 },
+    ],
+    copy.lines,
+    copy.removedKeys,
+  );
+  expect(reopened.map((line) => line.quantity.doses)).toEqual(['6', '8']);
+  expect(reopened[1]).toMatchObject({ stockOnHand: 12, stockCardId: 'fresh', active: false });
+});
+it('does not restore server draft state or stockless membership absent from a modified copy', () => {
+  const stockless = { ...stock, stockCardId: null, stockOnHand: null };
+  expect(buildInventoryLines([stockless], [{ orderableId: 'p', quantity: 20 }], [])).toEqual([]);
+  expect(
+    buildInventoryLines([stock], [{ orderableId: 'p', quantity: 20 }], [lines()[0]])[0],
+  ).toMatchObject({ quantity: { doses: '' }, isAdded: true });
+});
+
+it('ignores editable values when comparing grid structure but catches membership and lot edits', () => {
+  const original = lines();
+  expect(
+    inventoryStructureEqual(original, [
+      {
+        ...original[0],
+        quantity: quantityValue('7'),
+        vvmStatus: 'STAGE_1',
+        stockAdjustments: [{ reason: { id: 'r' }, quantity: 2 }],
+      },
+    ]),
+  ).toBe(true);
+  expect(inventoryStructureEqual(original, [])).toBe(false);
+  expect(inventoryStructureEqual(original, [{ ...original[0], active: false }])).toBe(false);
+  expect(inventoryStructureEqual(original, [{ ...original[0], justAdded: true }])).toBe(false);
+  expect(
+    inventoryStructureEqual(original, [
+      {
+        ...original[0],
+        newLot: {
+          clientId: 'new',
+          lotCode: 'changed',
+          expirationDate: null,
+          tradeItemId: 't',
+        },
+      },
+    ]),
+  ).toBe(false);
 });

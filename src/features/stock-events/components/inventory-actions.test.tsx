@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { toast } from 'sonner';
@@ -8,6 +8,8 @@ import { WorkspaceSlots } from '@/components/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deletePhysicalInventory,
+  fetchEligibleInventoryProducts,
+  fetchPhysicalInventoryDraft,
   savePhysicalInventory,
   submitPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
@@ -26,6 +28,8 @@ vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   fetchPhysicalInventoryReport: vi.fn(),
   createPhysicalInventoryLot: vi.fn(),
   fetchPhysicalInventoryDraft: vi.fn().mockResolvedValue(null),
+  fetchEligibleInventoryProducts: vi.fn().mockResolvedValue([]),
+  fetchInventorySummaries: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   clearInventoryLocal: vi.fn(),
@@ -59,6 +63,7 @@ function setup() {
   client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [stock]);
   const fetch = vi.spyOn(client, 'fetchQuery');
   const onSaved = vi.fn();
+  const onDeleted = vi.fn();
   render(
     <QueryClientProvider client={client}>
       <WorkspaceSlots>
@@ -78,13 +83,13 @@ function setup() {
           onSaved={onSaved}
           onDialogChange={vi.fn()}
           onInvalid={vi.fn()}
-          onDeleted={vi.fn()}
+          onDeleted={onDeleted}
           onSubmitted={vi.fn()}
         />
       </WorkspaceSlots>
     </QueryClientProvider>,
   );
-  return { fetch, onSaved };
+  return { fetch, onSaved, onDeleted, client };
 }
 it('refetches Save with the facility/program key rather than the draft object', async () => {
   const user = userEvent.setup();
@@ -106,7 +111,7 @@ it.each(['save', 'delete', 'submit'] as const)(
   async (action) => {
     const user = userEvent.setup();
     vi.mocked(clearInventoryLocal).mockRejectedValue(new Error('Full'));
-    const { onSaved } = setup();
+    const { onSaved, onDeleted } = setup();
     await user.click(
       screen.getByRole('button', {
         name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
@@ -117,7 +122,7 @@ it.each(['save', 'delete', 'submit'] as const)(
         name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
       }),
     );
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
     expect(toast.error).toHaveBeenCalledWith('physical-inventory.local-clear-error-title', {
       description: `physical-inventory.${action}-local-clear-error`,
     });
@@ -137,4 +142,86 @@ it('uses inventory wording for an unknown submit outcome and prevents a retry', 
   expect(toast.error).toHaveBeenCalledWith('stock-events.unknown-outcome-title', {
     description: 'physical-inventory.unknown-outcome-description',
   });
+});
+
+it.each(['save', 'submit'] as const)(
+  'waits for in-flight eligibility before confirming %s',
+  async (action) => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    await user.click(
+      screen.getByRole('button', {
+        name: action === 'save' ? 'physical-inventory.save' : 'stock-events.submit',
+      }),
+    );
+    const fresh = Promise.withResolvers<(typeof stock)[]>();
+    vi.mocked(fetchEligibleInventoryProducts).mockReturnValueOnce(fresh.promise);
+    let refresh!: Promise<unknown>;
+    act(() => {
+      refresh = client.fetchQuery({ ...eligibleInventoryProductsOptions(draft), staleTime: 0 });
+    });
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: action === 'save' ? 'physical-inventory.save' : 'stock-events.confirm',
+      }),
+    );
+    expect(savePhysicalInventory).not.toHaveBeenCalled();
+    expect(submitPhysicalInventory).not.toHaveBeenCalled();
+    await act(async () => {
+      fresh.resolve([stock]);
+      await refresh;
+    });
+    await waitFor(() =>
+      expect(
+        action === 'save' ? savePhysicalInventory : submitPhysicalInventory,
+      ).toHaveBeenCalled(),
+    );
+  },
+);
+it('closes Save at success while the server draft refresh is still pending', async () => {
+  const user = userEvent.setup();
+  const fresh = Promise.withResolvers<null>();
+  vi.mocked(fetchPhysicalInventoryDraft).mockReturnValueOnce(fresh.promise);
+  setup();
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await act(async () => {
+    fresh.resolve(null);
+  });
+});
+it('navigates after Delete without resetting the draft to empty lines', async () => {
+  const user = userEvent.setup();
+  const { onSaved, onDeleted } = setup();
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
+  );
+  await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
+it('disables Save and Submit throughout an eligibility refresh without disabling Delete', async () => {
+  const { client } = setup();
+  const fresh = Promise.withResolvers<(typeof stock)[]>();
+  vi.mocked(fetchEligibleInventoryProducts).mockReturnValueOnce(fresh.promise);
+  let refresh!: Promise<unknown>;
+  act(() => {
+    refresh = client.fetchQuery({ ...eligibleInventoryProductsOptions(draft), staleTime: 0 });
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'physical-inventory.save' })).toBeDisabled(),
+  );
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'physical-inventory.delete' })).toBeEnabled();
+  await act(async () => {
+    fresh.resolve([stock]);
+    await refresh;
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'physical-inventory.save' })).toBeEnabled(),
+  );
 });

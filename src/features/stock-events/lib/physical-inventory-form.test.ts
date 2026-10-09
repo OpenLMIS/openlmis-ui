@@ -109,3 +109,15 @@ describe('inventory payloads', () => {
     expect(payload.lineItems[0]).not.toHaveProperty('justAdded');
   });
 });
+
+it('skips all validation for inactive zero-stock lines hidden by the inactive filter', () => {
+  const hidden = { ...line(), active: false, stockOnHand: 0, quantity: quantityValue('3') };
+  expect(validateInventory([hidden], []).kind).toBe('valid');
+  expect(validateInventory([hidden, line()], []).kind).toBe('invalid');
+  expect(inventorySubmitPayload(draft, [hidden], '2026-10-09', '').lineItems[0].quantity).toBe(3);
+});
+
+it('validates a counted inactive line hidden only by Keywords when inactive items are included', () => {
+  const hidden = { ...line(), active: false, stockOnHand: 0, quantity: quantityValue('3') };
+  expect(validateInventory([hidden], [], true).kind).toBe('invalid');
+});

@@ -47,6 +47,7 @@ export const Route = createFileRoute(
   preload: false,
   staticData: { crumbKey: 'physical-inventory.editor-crumb' },
   loader: async ({ context: { queryClient }, params: { programId }, cause }) => {
+    const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
     const session = getSessionScope();
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
@@ -72,8 +73,7 @@ export const Route = createFileRoute(
       void summaries
         .then(() =>
           queryClient.prefetchQuery({
-            ...eligibleInventoryProductsOptions(selection),
-            ...(cause === 'enter' && { staleTime: 0 }),
+            ...eligibleInventoryProductsOptions(selection, eligibleUpdatedAfter),
           }),
         )
         .catch(() => undefined);
@@ -96,6 +96,7 @@ export const Route = createFileRoute(
       assertSessionScope(session);
     }
     return {
+      eligibleUpdatedAfter,
       userId,
       homeFacility,
       program,
@@ -110,8 +111,15 @@ export const Route = createFileRoute(
 
 function InventoryPage() {
   const { t } = useTranslation();
-  const { userId, homeFacility, program, draft, canViewStock, canManageLots } =
-    Route.useLoaderData();
+  const {
+    userId,
+    homeFacility,
+    program,
+    draft,
+    canViewStock,
+    canManageLots,
+    eligibleUpdatedAfter,
+  } = Route.useLoaderData();
   const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -144,6 +152,7 @@ function InventoryPage() {
               <PhysicalInventoryEditor
                 key={draft.id}
                 draft={draft}
+                eligibleUpdatedAfter={eligibleUpdatedAfter}
                 right={RIGHTS.stockInventoriesEdit}
                 userId={userId}
                 username={username}
