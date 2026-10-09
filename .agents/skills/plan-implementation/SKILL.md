@@ -132,8 +132,10 @@ referenced by legacy URL.
 - Reuse: existing components, hooks and lookups
 - Rules: the business rules to enforce, with their legacy source
 - Translations: new keys
-- Tests: what to unit test (our logic, not shadcn primitives), written before the code
-  they cover, and what to check in the browser, which `review-pr` runs
+- Tests: meaningful regressions to protect, existing coverage to reuse, and the cheapest
+  useful boundary for each gap (use `test-audit` for disputed value). New tests come
+  before the code they cover; trust stock dependencies. Include browser checks that
+  `review-pr` runs where a unit or component test cannot prove the behavior
 - Risks and edge cases
 
 ## UI/UX
@@ -165,8 +167,9 @@ Once approved:
 
 1. Create the branch (`feat/<key>-<slug>`, lowercase), and commit the plan first as
    `docs: plan <KEY>`.
-2. Build it step by step, test first: never write a unit test after the code. Each step
-   starts with a failing test for the logic it adds, then the code that makes it pass.
+2. Build it step by step. When a new test earns its place under AGENTS.md, write it
+   failing first, then the code that makes it pass. Reuse adequate existing coverage;
+   do not add a test for every component, function or implementation step.
    Keep the plan true: when the build departs from the plan, update the plan in the
    same PR rather than leaving it stale.
 3. Link the ticket at the top of the PR description, and run `review-pr` before asking to

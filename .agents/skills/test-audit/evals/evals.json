@@ -1,0 +1,44 @@
+{
+  "skill_name": "test-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Dry-run test-audit on src/lib, src/hooks and src/integrations. We want fewer meaningful tests, not coverage targets. Check configuration snapshots, duplicated rules and storage/session regressions. Read candidate tests and production code. Do not modify the suite or install tools.",
+      "expected_output": "A scoped evidence-based audit that separates configuration locks from valuable domain, session and storage behavior. Every proposed deletion states surrendered or retained protection. No speculative runtime savings or mutation claims.",
+      "files": [],
+      "expectations": [
+        "Reads production code as well as test files for each reported finding.",
+        "Identifies at least one concrete low-value configuration assertion without classifying all configuration invariants as worthless.",
+        "Preserves meaningful user/session/storage isolation protection.",
+        "States the audit scope and whether runtime measurements were available.",
+        "Does not modify source/tests or install dependencies during the dry run."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Dry-run test-audit on src/features. AI agents have added many API, form and table tests. Identify the best reductions, especially expensive tests, while preserving data-loss, access, concurrent-save and partial-failure protection. Trust packages. Do not modify code.",
+      "expected_output": "Verified feature-level findings that assess consequence and unique protection instead of automatically retaining every exact HTTP assertion or removing every mock. Recommendations favor smaller valuable tests and name any retained companions.",
+      "files": [],
+      "expectations": [
+        "Distinguishes meaningful payload/failure tests from mechanical CRUD request checks.",
+        "Does not label an entire test file tautological solely because Axios is mocked.",
+        "Names the test and production source for each concrete recommendation.",
+        "Preserves or explicitly replaces valuable data-loss or concurrent-save coverage.",
+        "Does not treat passing tests as proof that the suite is valuable."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Dry-run test-audit on src/components and src/routes. We use shadcn and should trust its primitives and other packages. Find stock-library tests, implementation-detail locks and duplicated wrappers, while keeping tests of our actual decisions and integration. Do not change the suite.",
+      "expected_output": "A scoped UI audit that avoids retesting primitives but recognizes consequential app wiring. It finds concrete brittle or redundant assertions and proposes minimal behavioral replacements only where needed.",
+      "files": [],
+      "expectations": [
+        "Distinguishes stock primitive behavior from application configuration and integration.",
+        "Identifies a concrete brittle DOM or wrapper assertion, with a file and test name.",
+        "Does not classify a harness using real production components as copied production logic.",
+        "States what protection removal would surrender or which retained assertion replaces it.",
+        "Does not recommend broad new browser suites or one test per primitive."
+      ]
+    }
+  ]
+}
