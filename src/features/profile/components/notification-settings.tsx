@@ -344,9 +344,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   );

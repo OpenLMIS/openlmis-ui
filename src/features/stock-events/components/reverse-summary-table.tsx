@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { StockEventLine } from '@/features/stock-events/lib/types';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { namedWithFreeText } from '@/lib/stock-labels';
 
@@ -34,7 +34,7 @@ export function ReverseSummaryTable({
 }) {
   const { t, i18n } = useTranslation();
   const quantity = (value: number | undefined, line: StockEventLine) =>
-    orEmpty(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
+    tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
   return (
     <div className="min-w-0 max-w-full overflow-x-auto">
       <Table density="default" layout="auto">
@@ -87,7 +87,7 @@ export function ReverseSummaryTable({
               </TableCell>
               <TableCell>
                 <span className="block min-w-28 max-w-60 whitespace-normal">
-                  {orEmpty(namedWithFreeText(reason, comments))}
+                  {tableValue(namedWithFreeText(reason, comments))}
                 </span>
               </TableCell>
               <TableCell>

@@ -18,7 +18,7 @@ function Table({
       <table
         data-slot="table"
         className={cn(
-          "w-full caption-bottom text-sm",
+          "w-full caption-bottom text-sm [&_th:not(:last-child)]:border-e [&_td:not(:last-child)]:border-e",
           density === "comfortable" &&
             "[&_td]:h-12 [&_td]:px-4 [&_td]:py-1.5 [&_th]:h-10 [&_th]:px-4",
           density === "compact" && "[&_td]:px-1 [&_th]:px-1",
@@ -95,7 +95,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pe-0",
+        "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground",
         className
       )}
       {...props}
@@ -108,7 +108,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pe-0",
+        "p-2 align-middle whitespace-nowrap",
         className
       )}
       {...props}

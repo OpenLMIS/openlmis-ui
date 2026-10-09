@@ -37,7 +37,7 @@ const columnHelper = createColumnHelper<DataTableFeatures, LotRow>();
 const muted = (text: string) => <span className="text-muted-foreground">{text}</span>;
 
 function createColumns(t: TFunction, language: string, onEdit: (id: string) => void) {
-  const date = (value: string | null) => (value ? formatDateValue(value, language) : muted('-'));
+  const date = (value: string | null) => (value ? formatDateValue(value, language) : null);
   return columnHelper.columns([
     columnHelper.accessor((lot) => lot.product?.productCode ?? '', {
       id: 'productCode',
@@ -51,9 +51,7 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
               {getValue()}
             </span>
           </span>
-        ) : (
-          muted('-')
-        ),
+        ) : null,
       meta: { className: 'w-40' },
     }),
     columnHelper.accessor((lot) => lot.product?.fullProductName ?? '', {
@@ -68,9 +66,7 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
           <span className="block whitespace-normal break-words" dir="auto">
             {getValue()}
           </span>
-        ) : (
-          muted('-')
-        ),
+        ) : null,
     }),
     columnHelper.accessor('lotCode', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('lots.lot-code')} />,

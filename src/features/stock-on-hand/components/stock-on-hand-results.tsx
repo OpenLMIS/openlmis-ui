@@ -40,7 +40,7 @@ import {
 import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-groups';
 import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -204,7 +204,7 @@ function useStockText() {
   const unavailable = t('stock-on-hand.unavailable');
   const packSize = (product: Orderable | undefined) =>
     product?.netContent == null
-      ? orEmpty(product?.netContent)
+      ? tableValue(product?.netContent)
       : new Intl.NumberFormat(i18n.language).format(product.netContent);
   return {
     productCode,
@@ -386,8 +386,8 @@ function GroupedTable({
                             product: <Wrapped>{text.productLabel(card.product)}</Wrapped>,
                             packSize: text.packSize(card.product),
                             lotCode: <Wrapped>{text.lotLabel(card)}</Wrapped>,
-                            expiry: orEmpty(text.date(card.lot?.expirationDate)),
-                            lastUpdate: orEmpty(text.date(card.occurredDate)),
+                            expiry: tableValue(text.date(card.lot?.expirationDate)),
+                            lastUpdate: tableValue(text.date(card.occurredDate)),
                             stockOnHand: (
                               <Quantity
                                 unavailable={text.unavailable}

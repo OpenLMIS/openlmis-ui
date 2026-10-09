@@ -160,12 +160,21 @@ describe('reverse transaction', () => {
     expect(fetchAllStockEventLines).not.toHaveBeenCalled();
     expect(fetchReasons).not.toHaveBeenCalled();
   });
+  it('renders one breadcrumb trail when the event request is forbidden', async () => {
+    vi.mocked(fetchStockEvent).mockRejectedValue(httpError(403));
+    renderRoute();
+    await screen.findByRole('heading', { name: 'no-access.title' });
+    expect(screen.getAllByRole('navigation', { name: 'breadcrumbs.label' })).toHaveLength(1);
+  });
   it('opens a non-reversible event with a right anywhere and omits signature', async () => {
     renderRoute();
     await screen.findByRole('heading', { name: 'stock-event-reverse.title' });
     await screen.findByText('Vaccine');
     expect(screen.queryByText('Signed')).not.toBeInTheDocument();
     expect(screen.getAllByRole('columnheader')).toHaveLength(14);
+    const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+    expect(cells[5]?.textContent).toBe('');
+    expect(cells[7]?.textContent).toBe('');
   });
   it('ticks with an empty reason and unticks without keeping a draft', async () => {
     renderRoute();

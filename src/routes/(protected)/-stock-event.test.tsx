@@ -275,7 +275,8 @@ describe('stock event detail', () => {
     const table = await screen.findByRole('table');
     expect(within(table).getByText('stock-event.no-lot')).toBeInTheDocument();
     expect(within(table).getByText('Count: Recount')).toBeInTheDocument();
-    expect(within(table).getByText(EMPTY_VALUE)).toBeInTheDocument();
+    expect(within(table).queryByText(EMPTY_VALUE)).not.toBeInTheDocument();
+    expect(within(table).getAllByRole('cell')[2]?.textContent).toBe('');
   });
 
   it('pages on the server independently from list paging and keeps the header', async () => {

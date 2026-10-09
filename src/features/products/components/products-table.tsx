@@ -35,8 +35,6 @@ import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();
 
-const muted = <span className="text-muted-foreground">-</span>;
-
 function createColumns(t: TFunction, listSearch: ProductsSearch) {
   return columnHelper.columns([
     columnHelper.accessor('productCode', {
@@ -55,9 +53,7 @@ function createColumns(t: TFunction, listSearch: ProductsSearch) {
           <span className="block whitespace-normal break-words" dir="auto">
             {getValue()}
           </span>
-        ) : (
-          muted
-        ),
+        ) : null,
       meta: { className: '@2xl/main:w-2/5' },
     }),
     columnHelper.accessor('description', {
@@ -69,9 +65,7 @@ function createColumns(t: TFunction, listSearch: ProductsSearch) {
           <span className="line-clamp-2 whitespace-normal break-words" dir="auto">
             {getValue()}
           </span>
-        ) : (
-          muted
-        ),
+        ) : null,
     }),
     columnHelper.display({
       id: 'actions',

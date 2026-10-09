@@ -377,6 +377,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
+- Tables draw vertical column dividers by default.
+
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
   with `hideBelow` (container size or pixels) or `defaultHidden`; see `USER_HIDEABLE_COLUMNS`.
   Combine `useElementWidth()`, `useColumnVisibility()` and `useStoredState`. User choices
@@ -389,8 +391,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Keep tables at every width, never stacked cards. Hide lower-priority columns and allow
   sideways scrolling on phones. Keep headers on one line; every table header uses
   `DataTableHeaderLabel`'s style, including loading skeletons.
-- Missing values use `orEmpty`/`EMPTY_VALUE` (`src/lib/empty-value.ts`). Inapplicable cells,
-  such as a product row's lot, stay blank.
+- Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
+  normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
   may hide. Row actions use an end-of-row "..." menu at every width.
 - Put Create at the toolbar's end, after View.

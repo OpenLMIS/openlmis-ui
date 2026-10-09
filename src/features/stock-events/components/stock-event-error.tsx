@@ -43,20 +43,13 @@ export function StockEventError({
     !isNotFound(props.error) &&
     !(isAxiosError(props.error) && props.error.response?.status === 400)
   ) {
-    const fallback = (
+    return (
       <ErrorFallback
         {...props}
         back={back}
         description={t('stock-event.error-description')}
         title={t('stock-event.error-title')}
       />
-    );
-    return width ? (
-      <Workspace width={width}>
-        <WorkspaceContent>{fallback}</WorkspaceContent>
-      </Workspace>
-    ) : (
-      fallback
     );
   }
   return (

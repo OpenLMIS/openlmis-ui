@@ -20,7 +20,7 @@ import {
   changeCardPaging,
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import type { FacilityProgramSelection } from '@/lib/facility-program-selection';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type EventLink, eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
@@ -61,7 +61,7 @@ type CellId = (typeof COLUMNS)[number][0];
 function Wrapped({ children }: { children: string | null | undefined }) {
   return (
     <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{orEmpty(children)}</bdi>
+      <bdi>{tableValue(children)}</bdi>
     </span>
   );
 }

@@ -421,13 +421,18 @@ describe('stock card display and paging', () => {
     );
   });
 
-  it('shows a dash in an empty cell', async () => {
+  it('leaves missing table values blank', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 1400,
     } as DOMRect);
     renderRoute();
     const table = await screen.findByRole('table');
-    expect(within(table).getAllByText(EMPTY_VALUE).length).toBeGreaterThan(0);
+    expect(within(table).queryByText(EMPTY_VALUE)).not.toBeInTheDocument();
+    expect(
+      within(table)
+        .getAllByRole('cell')
+        .some((cell) => !cell.textContent),
+    ).toBe(true);
   });
 
   it('shows the empty ledger and clamps its stale page to the beginning', async () => {

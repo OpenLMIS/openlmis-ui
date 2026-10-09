@@ -40,8 +40,6 @@ type StockColumn = 'maxPeriodsOfStock' | 'minPeriodsOfStock' | 'emergencyOrderPo
 
 const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
 
-const muted = <span className="text-muted-foreground">-</span>;
-
 function createColumns(t: TFunction, formatNumber: (value: number) => string, actions: RowActions) {
   const stockColumn = (id: StockColumn, title: string) =>
     columnHelper.display({
@@ -51,7 +49,7 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
       cell: ({ row }) => {
         if (row.original.kind === 'group') return null;
         const value = row.original.approval[id];
-        return value == null ? muted : <span dir="ltr">{formatNumber(value)}</span>;
+        return value == null ? null : <span dir="ltr">{formatNumber(value)}</span>;
       },
     });
 

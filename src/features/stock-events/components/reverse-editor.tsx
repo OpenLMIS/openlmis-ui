@@ -86,7 +86,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
@@ -348,9 +348,13 @@ export function ReverseEditor({
           helper.display({
             id,
             meta: {
-              className: id === 'product' ? 'w-24' : undefined,
+              className: id === 'product' ? 'w-24' : id === 'reverse' ? 'text-center' : undefined,
             },
-            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
+            header: () => (
+              <div className={id === 'reverse' ? 'flex justify-center' : undefined}>
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+              </div>
+            ),
             cell: ({ row }) => {
               const props = { row, id, keyLabel: key };
               switch (id) {
@@ -618,7 +622,7 @@ function useReverseCell({ row, keyLabel: key }: CellProps) {
   });
   const quantity = (value: number | undefined) => (
     <span className="whitespace-nowrap tabular-nums" dir="ltr">
-      {orEmpty(cardQuantity(value, line.orderable.netContent, unit, i18n.language))}
+      {tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language))}
     </span>
   );
 
@@ -631,26 +635,28 @@ function ReverseCheckboxCell(props: CellProps) {
 
   const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
   return (
-    <div className="flex flex-col gap-1">
-      <Checkbox
-        id={`reverse-${rowId}`}
-        aria-invalid={!!error}
-        aria-describedby={error ? `reverse-error-${rowId}` : undefined}
-        aria-label={label}
-        disabled={pending || fetching || !canReverseLine(line)}
-        checked={row.getIsSelected()}
-        onCheckedChange={(checked) => row.toggleSelected(checked)}
-      />
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex items-center justify-center">
+        <Checkbox
+          id={`reverse-${rowId}`}
+          aria-invalid={!!error}
+          aria-describedby={error ? `reverse-error-${rowId}` : undefined}
+          aria-label={label}
+          disabled={pending || fetching || !canReverseLine(line)}
+          checked={row.getIsSelected()}
+          onCheckedChange={(checked) => row.toggleSelected(checked)}
+        />
+      </div>
       {error && (
         <p
           id={`reverse-error-${rowId}`}
-          className="flex w-48 items-start gap-1 whitespace-normal break-words text-sm text-destructive"
+          className="flex min-w-0 max-w-48 items-start gap-1 whitespace-normal break-words text-start text-sm text-destructive"
           role="alert"
         >
           <span className="shrink-0">
             <CircleAlertIcon />
           </span>
-          <span>{'key' in error ? t(error.key) : error.message}</span>
+          <span className="min-w-0">{'key' in error ? t(error.key) : error.message}</span>
         </p>
       )}
     </div>
@@ -797,25 +803,25 @@ function ReverseReadOnlyCell(props: CellProps) {
     case 'date':
       return (
         <bdi className="whitespace-nowrap">
-          {orEmpty(formatDateValue(line.occurredDate, i18n.language))}
+          {tableValue(formatDateValue(line.occurredDate, i18n.language))}
         </bdi>
       );
     case 'source':
       return (
         <span className="block min-w-32 max-w-36 whitespace-normal">
-          {orEmpty(namedWithFreeText(line.source, line.sourceFreeText))}
+          {tableValue(namedWithFreeText(line.source, line.sourceFreeText))}
         </span>
       );
     case 'destination':
       return (
         <span className="block min-w-32 max-w-36 whitespace-normal">
-          {orEmpty(namedWithFreeText(line.destination, line.destinationFreeText))}
+          {tableValue(namedWithFreeText(line.destination, line.destinationFreeText))}
         </span>
       );
     case 'reason':
       return (
         <span className="block min-w-32 max-w-36 whitespace-normal">
-          {orEmpty(namedWithFreeText(line.reason, line.reasonFreeText))}
+          {tableValue(namedWithFreeText(line.reason, line.reasonFreeText))}
         </span>
       );
     case 'quantity':

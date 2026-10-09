@@ -26,7 +26,7 @@ import {
   type AdjustmentLine,
   changeAdjustmentReason,
 } from '@/features/stock-events/lib/adjustment-form';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
@@ -100,7 +100,7 @@ const LineCell = memo(function LineCell({
     case 'packSize':
       return (
         <span className="tabular-nums">
-          {orEmpty(
+          {tableValue(
             line.netContent == null
               ? null
               : new Intl.NumberFormat(i18n.language).format(line.netContent),
@@ -112,7 +112,7 @@ const LineCell = memo(function LineCell({
     case 'expiry':
       return (
         <bdi>
-          {orEmpty(
+          {tableValue(
             line.lot?.expirationDate
               ? formatDateValue(line.lot.expirationDate, i18n.language)
               : null,
@@ -187,7 +187,7 @@ const LineCell = memo(function LineCell({
     case 'total':
       return (
         <span className="tabular-nums">
-          {orEmpty(
+          {tableValue(
             cardQuantity(
               /^[0-9]+$/.test(toLatinDigits(line.quantity.doses.trim()))
                 ? toWholeNumber(line.quantity.doses)

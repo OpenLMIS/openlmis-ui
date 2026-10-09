@@ -201,7 +201,10 @@ describe('transaction history page', () => {
     expect(
       within(rows[1] as HTMLElement).getByText('transaction-history.type-receive'),
     ).toBeVisible();
-    expect(within(rows[1] as HTMLElement).getAllByText(EMPTY_VALUE)).toHaveLength(2);
+    expect(within(rows[1] as HTMLElement).queryByText(EMPTY_VALUE)).not.toBeInTheDocument();
+    const cells = within(rows[1] as HTMLElement).getAllByRole('cell');
+    expect(cells[0]?.textContent).toBe('');
+    expect(cells[5]?.textContent).toBe('');
     expect(fetchStockEvents).toHaveBeenCalledWith({
       facilityId: HOME,
       programId: FP,

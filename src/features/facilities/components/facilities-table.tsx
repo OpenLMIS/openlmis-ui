@@ -43,10 +43,8 @@ import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib
 
 const columnHelper = createColumnHelper<DataTableFeatures, Facility>();
 
-const muted = <span className="text-muted-foreground">-</span>;
-
 function text(value: string | null | undefined, dir: 'auto' | 'ltr' = 'auto', strong = false) {
-  if (!value) return muted;
+  if (!value) return null;
   return (
     <span className="flex">
       <span className={strong ? 'min-w-0 truncate font-medium' : 'min-w-0 truncate'} dir={dir}>
