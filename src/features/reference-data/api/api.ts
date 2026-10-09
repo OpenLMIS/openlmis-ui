@@ -130,15 +130,18 @@ const BY_IDS_BATCH = 100;
 
 /** The records with the given ids, at most 100 ids a request and every page of each; none is sent for no ids, which would list them all. */
 async function fetchByIds<T extends { id: string }>(path: string, ids: readonly string[]) {
+  const scope = getSessionScope();
   const unique = [...new Set(ids)];
   const found: T[] = [];
   for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
     const batch = unique.slice(start, start + BY_IDS_BATCH);
     for (let page = 0; ; page += 1) {
+      assertSessionScope(scope);
       const { data } = await client.get<Page<T>>(path, {
         params: { id: batch, page, size: BY_IDS_BATCH },
         paramsSerializer: { indexes: null },
       });
+      assertSessionScope(scope);
       found.push(...data.content);
       if (page + 1 >= data.totalPages) break;
     }

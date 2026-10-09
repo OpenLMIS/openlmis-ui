@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   createLot,
   fetchLotsByTradeItems,
   fetchOrderableFulfills,
+  fetchOrderablesByIds,
 } from '@/features/reference-data/api/api';
 import {
   lotsByTradeItemsOptions,
@@ -14,6 +16,16 @@ vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() }
 beforeEach(() => vi.clearAllMocks());
 
 describe('inventory reference lookups', () => {
+  it('stops an id lookup before the next batch when the signed-in user changes', async () => {
+    vi.mocked(client.get).mockImplementationOnce(async () => {
+      useLoginData.setState({ referenceDataUserId: 'changed' });
+      return { data: { content: [], totalPages: 1 } };
+    });
+    await expect(
+      fetchOrderablesByIds(Array.from({ length: 101 }, (_, i) => String(i))),
+    ).rejects.toThrow();
+    expect(client.get).toHaveBeenCalledTimes(1);
+  });
   it('skips empty ids and batches fulfills into at most 100 unique ids', async () => {
     vi.mocked(client.get).mockResolvedValue({
       data: { p: { canFulfillForMe: ['t'], canBeFulfilledByMe: [] } },
