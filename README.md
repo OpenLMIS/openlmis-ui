@@ -1,16 +1,12 @@
 # OpenLMIS UI
 
-Web frontend for OpenLMIS, built with React 19, TypeScript, Vite and Tailwind CSS v4.
-
-It is designed to run **beside** the legacy AngularJS UI rather than replace it in one
-step. Both are served from the same host, the new UI under a URL prefix (`/v2`), so a
-screen can move over on its own schedule and users pick which one to use.
-
-[docs/dual-boot/dual-boot.md](docs/dual-boot/dual-boot.md) explains what that looks like for users.
+OpenLMIS frontend built with React 19, TypeScript, Vite and Tailwind CSS v4. It runs beside
+legacy AngularJS on the same host, under `/v2`, so screens can migrate independently.
+The [dual-boot guide](docs/dual-boot/dual-boot.md) explains how users choose between UIs.
 
 ## Quick start
 
-Requires Node 24 (see `.nvmrc`) and pnpm 12 (pinned via `packageManager` in `package.json`).
+Requires Node 24 (`.nvmrc`) and pnpm 12 (`packageManager` in `package.json`).
 
 ```bash
 cp .env.example .env
@@ -18,101 +14,100 @@ pnpm install
 pnpm dev
 ```
 
-The dev server proxies `/api` and `/localeSettings` to the OpenLMIS instance named by
-`VITE_API_PROXY_TARGET`, so the browser stays same-origin and there is no CORS to configure.
+The dev server proxies `/api` and `/localeSettings` to `VITE_API_PROXY_TARGET`, keeping
+browser requests same-origin without CORS setup.
 
 ## Environment variables
 
-Copy `.env.example` to `.env` and adjust. All are read at build time by Vite.
+Adjust `.env` using `.env.example`. Vite reads these at dev/build time; the table shows
+fallbacks when unset, not the example file's values.
 
-| Variable | Default | Description |
+| Variable | Default | Purpose |
 |---|---|---|
-| `VITE_API_BASE_URL` | `/api` | Axios base URL. Keep it relative so the proxy decides the target |
-| `VITE_API_PROXY_TARGET` | `http://localhost:8080` | OpenLMIS instance the dev server forwards `/api` and `/localeSettings` to |
+| `VITE_API_BASE_URL` | `/api` | Same-origin API path, outside the app's URL prefix |
+| `VITE_API_PROXY_TARGET` | `http://localhost:8080` | Dev/preview target for `/api` and `/localeSettings` |
 | `VITE_FE_PORT` | Vite default | Dev server port |
-| `VITE_AUTH_SERVER_CLIENT_ID` | - | OAuth client id for the password grant |
-| `VITE_AUTH_SERVER_CLIENT_SECRET` | - | OAuth client secret for the password grant |
-| `VITE_SHOW_DEVTOOLS` | - | Set to `true` to enable TanStack devtools |
-| `VITE_BASE_PATH` | `/` | URL prefix the app is served under, compiled into asset paths |
+| `VITE_AUTH_SERVER_CLIENT_ID` | - | OAuth password-grant client id, fallback when runtime config omits it |
+| `VITE_AUTH_SERVER_CLIENT_SECRET` | - | OAuth client secret, fallback when runtime config omits it |
+| `VITE_SHOW_DEVTOOLS` | - | `true` enables TanStack devtools |
+| `VITE_BASE_PATH` | `/` | App prefix compiled into asset URLs |
+
+Containers write OAuth credentials and deployment flags to `config.json` at startup.
+Feature flags have no `.env` fallback. `VITE_BASE_PATH` remains a build input and must match
+container `BASE_PATH`; see the [deployment guide](docs/deployment/deployment.md).
 
 ## Scripts
 
-| Command | Description |
+| Command | Purpose |
 |---|---|
-| `pnpm dev` | Start dev server |
-| `pnpm build` | Type-check + production build |
+| `pnpm dev` | Dev server |
+| `pnpm build` | Type-check and production build |
 | `pnpm preview` | Preview production build |
-| `pnpm check` | Lint + format + sort imports |
-| `pnpm lint` | Lint only |
-| `pnpm lint:ds` | Design-system rules (shadcn/lint via Oxlint) |
-| `pnpm format` | Format only |
-| `pnpm test` | Tests in watch mode |
-| `pnpm test:run` | Tests single run (CI) |
-| `pnpm sort-messages` | Sort translation keys alphabetically |
+| `pnpm check` | Biome lint, format and organize imports |
+| `pnpm lint` | Biome lint |
+| `pnpm lint:ds` | Design-system rules via Oxlint |
+| `pnpm format` | Format |
+| `pnpm test` | Vitest watch mode |
+| `pnpm test:run` | Vitest single run |
+| `pnpm sort-messages` | Alphabetize translation keys |
 
 ## Project layout
 
-Features are self-contained: each owns its API calls, queries, components and types.
+Each feature owns its API calls, queries, components and types.
 
-```
+```text
 src/
   index.tsx           # Entry point
-  globals.css         # Global styles + base theme tokens (presets in lib/theme-presets.ts)
-  routes/             # File-based routes (TanStack Router), route tree is generated
-  features/<name>/    # api/, components/, hooks/, lib/, store/ per feature
-  components/         # Shared components; components/ui/ is shadcn-generated
-  integrations/       # Axios, TanStack Query/Router, i18next singletons
-  lib/                # config, shared types, utils, query key factory
+  globals.css         # Base theme tokens; presets in lib/theme-presets.ts
+  routes/             # TanStack file-based routes; generated route tree
+  features/<name>/    # Feature api/, components/, hooks/, lib/, store/
+  components/         # Shared components; ui/ holds generated shadcn components
+  integrations/       # Axios, TanStack Query/Router and i18next singletons
+  lib/                # Shared config, types, utilities and query keys
   hooks/              # Shared hooks
-public/locales/       # Translation catalogs, fetched at runtime
-docs/                 # Deployment notes, the dual-boot guide and the offline plan
-docker/               # Container entrypoint, nginx template, Consul registration
+public/locales/       # Runtime-fetched translation catalogs
+docs/                 # User, deployment and offline guides
+docker/               # Entrypoint, nginx template and Consul registration
 ```
 
 ## Languages
 
-Ships with English, Portuguese, Arabic, Spanish and French. Catalogs are static assets under
-`public/locales/`, fetched at runtime rather than bundled, so a deployment can correct a
-string or add a language without rebuilding.
-
-Arabic means the app renders right-to-left, and every screen is expected to work in both
-directions.
+English, Portuguese, Arabic, Spanish and French ship with the app. Catalogs in
+`public/locales/` load at runtime, so deployments can correct strings without rebuilding.
+All screens must support both left-to-right and Arabic right-to-left layouts.
+See [AGENTS.md](AGENTS.md#internationalization-i18next) for registering another language.
 
 ## Deployment
 
-The app runs as a container inside an existing OpenLMIS stack, next to the legacy
-`reference-ui`, serving a URL prefix so both UIs are available at once. Routing comes from
-Consul, so the shared nginx gateway needs no change.
-
-To run the whole thing locally, including Consul and the real gateway image:
+The container runs next to legacy `reference-ui`. Consul routes its prefix without changes
+to the shared nginx gateway. To try the full stack locally:
 
 ```bash
-docker compose up --build   # then http://localhost:8080/v2/
+docker compose up --build   # http://localhost:8080/v2/
 ```
 
-See [docs/deployment/deployment.md](docs/deployment/deployment.md) for how routing works, why the prefix is a
-build input, and the snippet to add to `openlmis-deployment`.
+The [deployment guide](docs/deployment/deployment.md) covers routing, build prefixes and
+adding the service to `openlmis-deployment`.
 
 ## Offline support
 
-After one online visit the app opens and reloads offline, in every language: a service worker
-keeps its files. Offline data and drafts come next. The [offline plan](docs/offline-plan/offline-plan.md)
-says what is done and what follows.
+After one online visit, the service worker lets the app open/reload offline in every
+supported language. Offline data and drafts are planned; see the
+[offline plan](docs/offline-plan/offline-plan.md).
 
-The service worker only runs in a production build. To try it, build with the base path and
-preview it, since `pnpm dev` never registers one:
+The worker runs only in production builds. To try it locally, supply `dist/config.json`
+with runtime settings after building, then preview:
 
 ```bash
-VITE_BASE_PATH=/v2 pnpm build && VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
+VITE_BASE_PATH=/v2 pnpm build
+# Place config.json in dist/ before previewing.
+VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
 ```
 
 ## Contributing
 
-[AGENTS.md](AGENTS.md) is the working reference for anyone writing code here, human or
-agent. It covers the data-fetching pattern, the RTL rules, i18n, the design-system lint
-constraints, page layout and commit conventions.
+[AGENTS.md](AGENTS.md) defines coding patterns, constraints and conventions.
+[docs/](docs/README.md) indexes the human guides.
 
-[docs/](docs/README.md) indexes the longer-form documentation.
-
-Pre-commit and pre-push hooks (lefthook) run Biome, typecheck and the test suite, so
-`pnpm check && pnpm test:run` before pushing saves a round trip.
+Lefthook runs staged Biome fixes, translation sorting and typecheck before commits;
+Biome, design-system lint, typecheck and the full test suite before pushes.
