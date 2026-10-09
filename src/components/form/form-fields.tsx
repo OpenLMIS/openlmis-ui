@@ -418,6 +418,7 @@ export function DecimalField(props: FieldProps) {
 }
 
 type TextareaFieldProps = FieldProps & {
+  maxLength?: number;
   placeholder?: string;
   dir?: 'auto';
 };
@@ -429,6 +430,7 @@ export function TextareaField({
   required,
   disabled,
   placeholder,
+  maxLength,
   dir,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
@@ -445,6 +447,9 @@ export function TextareaField({
       state={state}
     >
       <Textarea
+        maxLength={maxLength}
+        rows={layout === 'inline' ? 1 : undefined}
+        size={layout === 'inline' ? 'inline' : 'default'}
         dir={dir}
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
@@ -906,6 +911,7 @@ export type SelectFieldItem = {
 
 type SelectFieldProps = FieldProps &
   Pick<FieldFrameProps, 'action'> & {
+    placeholder?: string;
     items: readonly SelectFieldItem[];
   };
 
@@ -918,6 +924,7 @@ export function SelectField({
   layout,
   items,
   action,
+  placeholder,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -937,7 +944,7 @@ export function SelectField({
         disabled={disabled}
         items={items}
         onValueChange={(value) => value !== null && field.handleChange(value)}
-        value={field.state.value}
+        value={field.state.value || null}
       >
         <SelectTrigger
           aria-describedby={ariaDescribedBy}
@@ -947,7 +954,7 @@ export function SelectField({
           onBlur={field.handleBlur}
           width="full"
         >
-          <SelectValue />
+          <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
           {items.map((item) => (

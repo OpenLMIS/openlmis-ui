@@ -685,3 +685,43 @@ describe('date picker', () => {
     expect(onValueChange).toHaveBeenCalledWith('');
   });
 });
+
+function ReverseFields({ selected = '' }: { selected?: string }) {
+  const form = useAppForm({ defaultValues: { reason: selected, comments: '' } });
+  return (
+    <>
+      <form.AppField name="reason">
+        {(field) => (
+          <field.SelectField
+            items={[{ value: 'r1', label: 'Cancellation' }]}
+            label="Reason"
+            layout="inline"
+            placeholder="Select an option"
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="comments">
+        {(field) => <field.TextareaField label="Comments" layout="inline" maxLength={255} />}
+      </form.AppField>
+    </>
+  );
+}
+
+describe('reverse inline fields', () => {
+  it('shows the supplied placeholder for an empty selection', () => {
+    render(<ReverseFields />);
+    expect(screen.getByRole('combobox', { name: 'Reason' })).toHaveTextContent('Select an option');
+  });
+  it('shows the selected label instead of the placeholder', () => {
+    render(<ReverseFields selected="r1" />);
+    expect(screen.getByRole('combobox', { name: 'Reason' })).toHaveTextContent('Cancellation');
+    expect(screen.queryByText('Select an option')).not.toBeInTheDocument();
+  });
+  it('gives inline comments a one-row size and a hard length cap', () => {
+    render(<ReverseFields />);
+    const comments = screen.getByRole('textbox', { name: 'Comments' });
+    expect(comments).toHaveAttribute('maxlength', '255');
+    expect(comments).toHaveAttribute('rows', '1');
+    expect(comments).toHaveAttribute('data-size', 'inline');
+  });
+});

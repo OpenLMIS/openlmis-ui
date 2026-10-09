@@ -277,7 +277,7 @@ Two ways out when a page needs a different treatment:
    `SidebarFooter padding`, `SidebarMenuSub end`, `SelectTrigger width`,
    `Table density` (`default`, `comfortable`, `compact`)/`layout`, `TableHeader surface`, `TableRow surface`, `Badge success/warning/info`, `Alert warning/success/info`, `RadioGroup columns` (`tiles`, `row`) and `variant` (`segmented`, with `RadioGroupItem variant`),
    `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-   `Field spacing`, `FieldLabel weight`,
+   `Field spacing`, `FieldLabel weight`, `Textarea size` (`default`, `inline`),
    `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `ChartContainer height`, `Progress tone`, `Tabs spacing`, `TabsList wrap` (`true`, `column` for an odd number of tabs, or `md` for short labels).
 2. Put the layout classes on a plain wrapper element around the component. This is the
    right call for one-off positioning (`<div className="w-full max-w-sm"><Card>...`) and
@@ -650,7 +650,7 @@ the first submit and then follow each correction.
 Both folders follow the data-table's registry rules: stock shadcn primitives,
 `@tanstack/react-form`, `lucide-react` and their sibling files only, and no i18next. The
 exceptions are `DialogContent size`/`height`/`layout`, `DialogHeader spacing`, `DialogTitle size`,
-`Field spacing`, `FieldLabel weight`,
+`Field spacing`, `FieldLabel weight`, `Textarea size` (`default`, `inline`),
 `ComboboxInput width`/`clearLabel`, `ComboboxChip removeLabel`, `RadioGroup columns`,
 `SelectTrigger width`, `Button align/width` and `PopoverContent width/padding`. In a row,
 `SwitchField` and `SelectField` take an `action` in the label's row, such as a flag's info button

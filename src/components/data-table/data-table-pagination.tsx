@@ -4,6 +4,7 @@ import {
   ChevronRightIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon,
+  CircleAlertIcon,
 } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import type { DataTableInstance } from '@/components/data-table/data-table';
@@ -30,9 +31,11 @@ const PAGE_SIZE_ITEMS = DEFAULT_PAGE_SIZE_OPTIONS.map((size) => ({
 export function DataTablePagination<TData extends RowData>({
   table,
   disabled = false,
+  isPageInvalid,
 }: {
   table: DataTableInstance<TData>;
   disabled?: boolean;
+  isPageInvalid?: (pageIndex: number) => boolean;
 }) {
   const labels = useDataTableLabels();
   const pageSizeId = useId();
@@ -87,7 +90,11 @@ export function DataTablePagination<TData extends RowData>({
             >
               <Button
                 aria-current={page === pageIndex ? 'page' : undefined}
-                aria-label={labels.page(page + 1)}
+                aria-label={
+                  isPageInvalid?.(page)
+                    ? `${labels.page(page + 1)}: ${labels.invalidPage}`
+                    : labels.page(page + 1)
+                }
                 disabled={disabled}
                 onClick={() => {
                   if (page !== pageIndex) table.setPageIndex(page);
@@ -96,6 +103,11 @@ export function DataTablePagination<TData extends RowData>({
                 variant={page === pageIndex ? 'default' : 'outline'}
               >
                 {page + 1}
+                {isPageInvalid?.(page) && (
+                  <span className="text-destructive">
+                    <CircleAlertIcon aria-hidden data-icon="inline-end" />
+                  </span>
+                )}
               </Button>
             </div>
           ))}

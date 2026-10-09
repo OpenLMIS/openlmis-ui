@@ -18,6 +18,7 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
       resetColumns: t('data-table.reset-columns'),
       rowsPerPage: t('data-table.rows-per-page'),
       page: (page) => t('data-table.page', { page }),
+      invalidPage: t('data-table.invalid-page'),
       range: (from, to, total) => t('data-table.range', { from, to, total }),
       firstPage: t('data-table.first-page'),
       previousPage: t('data-table.previous-page'),

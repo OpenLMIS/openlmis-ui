@@ -16,11 +16,13 @@ function Harness({
   rowCount,
   onPaginationChange,
   disabled,
+  isPageInvalid,
 }: {
   pagination: PaginationState;
   rowCount: number;
   onPaginationChange: (updater: unknown) => void;
   disabled?: boolean;
+  isPageInvalid?: (pageIndex: number) => boolean;
 }) {
   const table = useTable({
     features: dataTableFeatures,
@@ -31,7 +33,7 @@ function Harness({
     state: { pagination },
     onPaginationChange,
   });
-  return <DataTablePagination disabled={disabled} table={table} />;
+  return <DataTablePagination disabled={disabled} table={table} isPageInvalid={isPageInvalid} />;
 }
 
 describe('DataTablePagination', () => {
@@ -206,4 +208,23 @@ describe('DataTablePagination', () => {
       expect(updater(pagination)).toEqual({ pageIndex: 0, pageSize: 20 });
     },
   );
+});
+
+describe('invalid pages', () => {
+  it('marks invalid page buttons with an icon and the supplied accessible label', () => {
+    render(
+      <DataTableLabelsProvider labels={{ invalidPage: 'Contém linhas inválidas' }}>
+        <Harness
+          onPaginationChange={vi.fn()}
+          pagination={{ pageIndex: 0, pageSize: 10 }}
+          rowCount={30}
+          isPageInvalid={(index) => index === 1}
+        />
+      </DataTableLabelsProvider>,
+    );
+    const invalid = screen.getByRole('button', { name: 'Page 2: Contém linhas inválidas' });
+    expect(invalid.querySelector('svg')).toBeInTheDocument();
+    expect(invalid.querySelector('.text-destructive')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Page 1' }).querySelector('svg')).toBeNull();
+  });
 });

@@ -11,6 +11,7 @@ export type DataTableLabels = {
   resetColumns: string;
   rowsPerPage: string;
   page: (page: number) => string;
+  invalidPage: string;
   /** The rows on screen out of the total, e.g. "1-10 / 1,211". */
   range: (from: number, to: number, total: number) => string;
   firstPage: string;
@@ -34,6 +35,7 @@ export const defaultDataTableLabels: DataTableLabels = {
   resetColumns: 'Reset Columns',
   rowsPerPage: 'Rows Per Page',
   page: (page) => `Page ${page}`,
+  invalidPage: 'Contains invalid rows',
   range: (from, to, total) =>
     `${from.toLocaleString()}-${to.toLocaleString()} / ${total.toLocaleString()}`,
   firstPage: 'First Page',
