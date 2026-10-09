@@ -20,6 +20,7 @@ export const queryKeys = {
   orderableDisplayCategories: createQueryKeys('orderableDisplayCategories'),
   orderables: createQueryKeys('orderables'),
   organizations: createQueryKeys('organizations'),
+  physicalInventories: createQueryKeys('physicalInventories'),
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
   reasons: createQueryKeys('reasons'),

@@ -6,8 +6,10 @@ import type {
   GeographicZone,
   LotSummary,
   MinimalFacility,
+  NewLot,
   Orderable,
   OrderableDisplayCategory,
+  OrderableFulfills,
   Organization,
   Program,
   Reason,
@@ -18,6 +20,7 @@ import type {
   ValidReasonsFilter,
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -221,4 +224,45 @@ export async function fetchValidReasons(
 export async function fetchTradeItemByGtin(gtin: string): Promise<TradeItem | null> {
   const { data } = await client.get<Page<TradeItem>>('/tradeItems', { params: { gtin } });
   return data.content[0] ?? null;
+}
+
+export async function fetchOrderableFulfills(ids: readonly string[]): Promise<OrderableFulfills> {
+  const unique = [...new Set(ids)];
+  const scope = getSessionScope();
+  const found: OrderableFulfills = {};
+  for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
+    assertSessionScope(scope);
+    const { data } = await client.get<OrderableFulfills>('/orderableFulfills', {
+      params: { id: unique.slice(start, start + BY_IDS_BATCH) },
+      paramsSerializer: { indexes: null },
+    });
+    assertSessionScope(scope);
+    Object.assign(found, data);
+  }
+  return found;
+}
+
+export async function fetchLotsByTradeItems(ids: readonly string[]): Promise<LotSummary[]> {
+  const unique = [...new Set(ids)];
+  const scope = getSessionScope();
+  const found = new Map<string, LotSummary>();
+  for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
+    const batch = unique.slice(start, start + BY_IDS_BATCH);
+    for (let page = 0; ; page += 1) {
+      assertSessionScope(scope);
+      const { data } = await client.get<Page<LotSummary>>('/lots', {
+        params: { tradeItemId: batch, page, size: BY_IDS_BATCH },
+        paramsSerializer: { indexes: null },
+      });
+      assertSessionScope(scope);
+      for (const lot of data.content) found.set(lot.id, lot);
+      if (page + 1 >= data.totalPages) break;
+    }
+  }
+  return [...found.values()];
+}
+
+export async function createLot(lot: NewLot): Promise<LotSummary> {
+  const { data } = await client.post<LotSummary>('/lots', lot);
+  return data;
 }

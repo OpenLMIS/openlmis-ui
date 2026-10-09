@@ -137,11 +137,17 @@ export type Orderable = {
   netContent?: number | null;
   identifiers?: Record<string, string>;
   extraData?: { useVVM?: string } | null;
+  programs?: {
+    programId: string;
+    orderableDisplayCategoryId?: string | null;
+    orderableCategoryDisplayName?: string | null;
+  }[];
   meta?: { versionNumber?: number; [key: string]: unknown };
 };
 
 /** A lot as a lookup by id lists it, enough to name it beside a stock balance. */
 export type LotSummary = {
+  tradeItemId?: string;
   id: string;
   lotCode: string;
   expirationDate: string | null;
@@ -158,3 +164,15 @@ export type ValidReasonAssignment = {
 export type ValidReasonsFilter = { program: string; facilityType: string };
 
 export type TradeItem = { id: string; gtin?: string | null };
+
+export type OrderableFulfills = Record<
+  string,
+  { canFulfillForMe?: string[]; canBeFulfilledByMe?: string[] }
+>;
+
+export type NewLot = {
+  lotCode: string;
+  expirationDate: string | null;
+  tradeItemId: string;
+  active: true;
+};
