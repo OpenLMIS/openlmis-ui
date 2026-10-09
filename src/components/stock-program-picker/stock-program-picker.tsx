@@ -17,29 +17,43 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-type StockProgramRow = { id: string; label: string };
+export type StockProgramRow = {
+  id: string;
+  label: string;
+  status?: ReactNode;
+  actionLabel?: string;
+  disabled?: boolean;
+};
 
 type StockProgramPickerProps = {
   rows: readonly StockProgramRow[];
   hasHomeFacility: boolean;
   actionLabel: string;
   linkFor: (row: StockProgramRow) => ReactElement;
+  statusLabel?: string;
+  onAction?: (row: StockProgramRow) => void;
 };
 
-function ProgramTable({ children }: { children: ReactNode }) {
+function ProgramTable({ children, statusLabel }: { children: ReactNode; statusLabel?: string }) {
   const { t } = useTranslation();
   return (
     <DataTableCard>
       <Table density="comfortable" layout="fixed">
         <colgroup>
           <col className="w-2/5" />
-          <col className="w-3/5" />
+          {statusLabel ? <col className="w-1/3" /> : null}
+          <col />
         </colgroup>
         <TableHeader surface="muted">
           <TableRow>
             <TableHead>
               <DataTableHeaderLabel>{t('stock-programs.program')}</DataTableHeaderLabel>
             </TableHead>
+            {statusLabel ? (
+              <TableHead>
+                <DataTableHeaderLabel>{statusLabel}</DataTableHeaderLabel>
+              </TableHead>
+            ) : null}
             <TableHead>
               <div className="text-end">
                 <DataTableHeaderLabel>{t('stock-programs.action')}</DataTableHeaderLabel>
@@ -58,6 +72,8 @@ export function StockProgramPicker({
   hasHomeFacility,
   actionLabel,
   linkFor,
+  statusLabel,
+  onAction,
 }: StockProgramPickerProps) {
   const { t } = useTranslation();
   if (!hasHomeFacility || rows.length === 0) {
@@ -76,22 +92,31 @@ export function StockProgramPicker({
     );
   }
   return (
-    <ProgramTable>
+    <ProgramTable statusLabel={statusLabel}>
       {rows.map((row) => (
         <TableRow key={row.id}>
           <TableCell>
             <div className="whitespace-normal break-words font-medium">{row.label}</div>
           </TableCell>
+          {statusLabel ? (
+            <TableCell>
+              <div className="whitespace-normal break-words">{row.status}</div>
+            </TableCell>
+          ) : null}
           <TableCell>
             <div className="flex justify-end">
               <Button
-                nativeButton={false}
-                render={linkFor(row)}
-                role="link"
+                nativeButton={Boolean(onAction)}
+                render={onAction ? undefined : linkFor(row)}
+                role={onAction ? undefined : 'link'}
+                disabled={row.disabled}
+                onClick={onAction ? () => onAction(row) : undefined}
                 size="xl"
                 width="shrink"
               >
-                <span className="whitespace-normal break-words">{actionLabel}</span>
+                <span className="whitespace-normal break-words">
+                  {row.actionLabel ?? actionLabel}
+                </span>
               </Button>
             </div>
           </TableCell>
@@ -101,10 +126,10 @@ export function StockProgramPicker({
   );
 }
 
-export function StockProgramPickerSkeleton() {
+export function StockProgramPickerSkeleton({ statusLabel }: { statusLabel?: string } = {}) {
   return (
     <div aria-busy>
-      <ProgramTable>
+      <ProgramTable statusLabel={statusLabel}>
         {[0, 1].map((row) => (
           <TableRow key={row}>
             <TableCell>
@@ -112,6 +137,13 @@ export function StockProgramPickerSkeleton() {
                 <Skeleton fill />
               </div>
             </TableCell>
+            {statusLabel ? (
+              <TableCell>
+                <div className="h-4 w-20">
+                  <Skeleton fill />
+                </div>
+              </TableCell>
+            ) : null}
             <TableCell>
               <div className="ms-auto h-8 w-32 max-w-full">
                 <Skeleton fill />
