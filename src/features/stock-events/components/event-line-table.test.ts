@@ -72,10 +72,10 @@ it('lets View restore all optional Issue columns on a phone', () => {
 });
 
 it.each([
-  [true, 'PACKS', [1882, 1769, 1693, 1576]],
-  [true, 'DOSES', [1733, 1620, 1544, 1544]],
-  [false, 'PACKS', [1700, 1587, 1511, 1394]],
-  [false, 'DOSES', [1551, 1438, 1362, 1362]],
+  [true, 'PACKS', [1692, 1580, 1504, 1387]],
+  [true, 'DOSES', [1547, 1435, 1359, 1359]],
+  [false, 'PACKS', [1510, 1397, 1321, 1204]],
+  [false, 'DOSES', [1365, 1252, 1176, 1176]],
 ] as const)('uses measured Issue budgets with lots %s in %s', (hasLots, unit, thresholds) => {
   const columns = eventHideableColumns('issue', { hasLots, unit });
   expect(columns.map(({ hideBelow }) => hideBelow)).toEqual(thresholds);

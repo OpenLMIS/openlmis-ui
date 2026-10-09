@@ -59,10 +59,10 @@ export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1150 },
 ] as const;
 const ISSUE_HIDEABLE_COLUMNS = [
-  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1881.53125 },
-  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1768.859375 },
-  { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1692.828125 },
-  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1575.796875 },
+  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1691.859375 },
+  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1579.1875 },
+  { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1503.15625 },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1386.125 },
 ] as const;
 export function eventHideableColumns(
   kind: ConfiguredEventKind,
@@ -74,7 +74,7 @@ export function eventHideableColumns(
     const lotWidth = !hasLots ? 73.90625 : 0;
     const expiryWidth = !hasLots ? 108.453125 : 0;
     const totalWidth = unit === 'DOSES' && includesTotal ? 117.03125 : 0;
-    const quantityWidth = unit === 'DOSES' ? 32 : 0;
+    const quantityWidth = unit === 'DOSES' ? 28 : 0;
     return {
       ...column,
       hideBelow: Math.ceil(column.hideBelow - lotWidth - expiryWidth - totalWidth - quantityWidth),
@@ -124,7 +124,13 @@ const LineCell = memo(function LineCell({
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className="block min-w-28 max-w-40 whitespace-normal break-words font-medium">
+        <span
+          className={
+            kind === 'issue'
+              ? 'block min-w-20 max-w-28 whitespace-normal break-words font-medium'
+              : 'block min-w-28 max-w-40 whitespace-normal break-words font-medium'
+          }
+        >
           <bdi>
             {name}
             {line.orderable.dispensable?.displayUnit &&
@@ -162,7 +168,7 @@ const LineCell = memo(function LineCell({
       );
     case 'destination':
       return (
-        <div className="w-64 whitespace-normal break-words">
+        <div className="w-54 whitespace-normal @3xl/main:w-49 break-words">
           <form.AppField
             name={`lines[${index}].destination`}
             listeners={{
@@ -197,7 +203,7 @@ const LineCell = memo(function LineCell({
       );
     case 'destinationComments':
       return destinations.find((item) => item.id === line.destination)?.isFreeTextAllowed ? (
-        <div className="w-44 whitespace-normal break-words">
+        <div className="w-37 whitespace-normal @3xl/main:w-32 break-words">
           <form.AppField name={`lines[${index}].destinationComments`}>
             {(field) => (
               <field.TextField
@@ -216,7 +222,7 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-44 whitespace-normal break-words'
+              ? 'w-38 whitespace-normal break-words'
               : 'w-40 whitespace-normal break-words'
           }
         >
@@ -252,7 +258,7 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-40 whitespace-normal break-words'
+              ? 'w-37 whitespace-normal @3xl/main:w-32 break-words'
               : 'w-32 whitespace-normal break-words'
           }
         >
@@ -273,7 +279,9 @@ const LineCell = memo(function LineCell({
         <div
           className={
             unit === 'PACKS'
-              ? 'w-28 whitespace-normal break-words'
+              ? kind === 'issue'
+                ? 'w-27 whitespace-normal break-words'
+                : 'w-28 whitespace-normal break-words'
               : 'w-20 whitespace-normal break-words'
           }
         >
@@ -332,7 +340,7 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-40 whitespace-normal break-words'
+              ? 'w-31 whitespace-normal break-words'
               : 'w-32 whitespace-normal break-words'
           }
         >
