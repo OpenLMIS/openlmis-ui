@@ -30,6 +30,10 @@ pnpm sort-messages    # Sort translation keys
 Lefthook runs staged Biome fixes, translation sorting and `tsc --noEmit` before commits;
 Biome, design-system lint, typecheck and the full test suite before pushes.
 
+Several agents often share one machine. While iterating, run only the test files your change
+touches; leave the full suite to the pre-push hook unless asked. Keep the `maxWorkers` cap in
+`vite.config.ts`.
+
 ## Architecture
 
 **Stack**: React 19, TypeScript 7, Vite 8 (Rolldown), Tailwind CSS v4, shadcn/ui,
