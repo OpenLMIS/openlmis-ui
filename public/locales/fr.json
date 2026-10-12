@@ -1111,7 +1111,6 @@
   "stock-event-reverse.done-description": "La transaction a été annulée.",
   "stock-event-reverse.done-title": "Transaction annulée",
   "stock-event-reverse.failed-description": "La transaction n’a pas pu être annulée.",
-  "stock-event-reverse.failed-title": "Échec de l’annulation",
   "stock-event-reverse.line-errors": "Certaines lignes ne peuvent pas être annulées. Les lignes marquées d’un point d’exclamation rouge en expliquent la raison.",
   "stock-event-reverse.negative-stock": "L’annulation de cette ligne ferait passer le stock disponible en dessous de zéro.",
   "stock-event-reverse.new-stock-on-hand": "Nouveau stock disponible",

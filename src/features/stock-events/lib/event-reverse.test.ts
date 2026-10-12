@@ -233,18 +233,22 @@ describe('live reverse marks', () => {
 });
 
 describe('reverse payload and errors', () => {
-  it('preserves a typed signature and comments and omits blank comments without refusing missing ids', () => {
+  it('preserves a typed signature, trims comments and omits blank comments without refusing missing ids', () => {
     const rows = [
       { line: line(), reasonId: 'r1', comments: '' },
       { line: line({ stockEventLineItemId: null }), reasonId: 'r2', comments: '  ' },
-      { line: line({ stockEventLineItemId: 'other' }), reasonId: 'r3', comments: ' As typed ' },
+      {
+        line: line({ stockEventLineItemId: 'other' }),
+        reasonId: 'r3',
+        comments: '  Padded comment  ',
+      },
     ];
     expect(reversePayload(rows, '')).toEqual({
       signature: '',
       lineItems: [
         { stockEventLineItemId: 'line', reasonId: 'r1' },
         { stockEventLineItemId: null, reasonId: 'r2' },
-        { stockEventLineItemId: 'other', reasonId: 'r3', reasonFreeText: ' As typed ' },
+        { stockEventLineItemId: 'other', reasonId: 'r3', reasonFreeText: 'Padded comment' },
       ],
     });
     expect(reversePayload([], ' Typed ')).toEqual({ signature: ' Typed ', lineItems: [] });

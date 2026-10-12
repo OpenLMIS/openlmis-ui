@@ -1111,7 +1111,6 @@
   "stock-event-reverse.done-description": "La transacción se ha revertido.",
   "stock-event-reverse.done-title": "Transacción revertida",
   "stock-event-reverse.failed-description": "No se pudo revertir la transacción.",
-  "stock-event-reverse.failed-title": "No se pudo revertir la transacción",
   "stock-event-reverse.line-errors": "Algunos artículos no se pueden revertir. Las filas marcadas con un signo de exclamación rojo explican el motivo.",
   "stock-event-reverse.negative-stock": "Revertir este artículo haría que las existencias disponibles fueran inferiores a cero.",
   "stock-event-reverse.new-stock-on-hand": "Nuevas existencias disponibles",

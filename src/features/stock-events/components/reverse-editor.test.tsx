@@ -351,7 +351,6 @@ it.each([
         ? 'Server refused reversal'
         : 'stock-event-reverse.line-errors',
   );
-  expect(screen.queryByText('stock-event-reverse.failed-title')).not.toBeInTheDocument();
   await closeAlert();
   await waitFor(() =>
     expect(

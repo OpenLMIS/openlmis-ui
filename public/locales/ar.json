@@ -1111,7 +1111,6 @@
   "stock-event-reverse.done-description": "تم عكس المعاملة.",
   "stock-event-reverse.done-title": "تم عكس المعاملة",
   "stock-event-reverse.failed-description": "تعذر عكس المعاملة.",
-  "stock-event-reverse.failed-title": "تعذر العكس",
   "stock-event-reverse.line-errors": "لا يمكن عكس بعض البنود. توضح الصفوف المميزة بعلامة تعجب حمراء السبب.",
   "stock-event-reverse.negative-stock": "سيؤدي عكس هذا البند إلى انخفاض المخزون المتاح إلى أقل من صفر.",
   "stock-event-reverse.new-stock-on-hand": "المخزون المتاح الجديد",

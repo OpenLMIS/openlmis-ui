@@ -22,6 +22,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { rightsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -286,11 +287,10 @@ function StockEventActions({
 }
 
 function StockEventPending() {
+  const userId = useLoginData((state) => state.referenceDataUserId);
+  const rights = useQuery({ ...rightsOptions(userId ?? ''), enabled: false }).data;
   const { canSwitch } = useQuantityUnit();
-  useReloadForUser(
-    useLoginData((state) => state.referenceDataUserId),
-    stockEventOptions(Route.useParams().eventId).queryKey,
-  );
+  useReloadForUser(userId, stockEventOptions(Route.useParams().eventId).queryKey);
   const search = Route.useSearch();
   const { measure, columnView } = useEventLayout();
   return (
@@ -308,6 +308,11 @@ function StockEventPending() {
           </div>
         </WorkspaceHeading>
         <WorkspaceActions>
+          {rights?.has(RIGHTS.stockEventsCancel) && (
+            <div className="h-10 w-24">
+              <Skeleton fill />
+            </div>
+          )}
           <div className="h-10 w-24">
             <Skeleton fill />
           </div>

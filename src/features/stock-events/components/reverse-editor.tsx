@@ -242,14 +242,14 @@ export function ReverseEditor({
   const selectRows = (selection: RowSelectionState) => {
     setValidationMessage(null);
     const next: ReverseDraft['lines'] = {};
-    for (const row of rows) {
+    for (const row of rows)
       if (selection[row.id] && canReverseLine(row.line))
         next[row.id] = draft.lines[row.id] ?? { reasonId: '', comments: '' };
-      if (!selection[row.id]) {
-        clearFieldMark(row.id, 'reasonId');
-        clearFieldMark(row.id, 'comments');
+    for (const id of Object.keys(draft.lines))
+      if (!next[id]) {
+        clearFieldMark(id, 'reasonId');
+        clearFieldMark(id, 'comments');
       }
-    }
     form.setFieldValue('lines', next);
     setErrors((previous) =>
       Object.fromEntries(Object.entries(previous).filter(([id]) => selection[id])),
@@ -263,14 +263,14 @@ export function ReverseEditor({
     setErrors({});
     setFailure(null);
     setValidationMessage(validation.message ? t(validation.message) : null);
-    for (const row of rows) {
-      form.setFieldMeta(`lines.${row.id}.reasonId`, (meta) => ({
+    for (const id of new Set([...Object.keys(form.state.values.lines), ...Object.keys(marks)])) {
+      form.setFieldMeta(`lines.${id}.reasonId`, (meta) => ({
         ...meta,
-        errorMap: { onSubmit: validation.marks[row.id]?.reason },
+        errorMap: { onSubmit: validation.marks[id]?.reason },
       }));
-      form.setFieldMeta(`lines.${row.id}.comments`, (meta) => ({
+      form.setFieldMeta(`lines.${id}.comments`, (meta) => ({
         ...meta,
-        errorMap: { onSubmit: validation.marks[row.id]?.comments },
+        errorMap: { onSubmit: validation.marks[id]?.comments },
       }));
     }
     if (validation.valid) {
@@ -405,6 +405,36 @@ export function ReverseEditor({
     onRowSelectionChange: (update) =>
       selectRows(typeof update === 'function' ? update(selection) : update),
   });
+  const cells = useMemo(
+    () => ({
+      form,
+      draft,
+      marks: liveMarks,
+      errors,
+      reasons,
+      current,
+      balances,
+      pending,
+      fetching: stock.isFetching,
+      unit: quantityUnit.unit,
+      clearFieldMark,
+      setValidationMessage,
+      setErrors,
+    }),
+    [
+      form,
+      draft,
+      liveMarks,
+      errors,
+      reasons,
+      current,
+      balances,
+      pending,
+      stock.isFetching,
+      quantityUnit.unit,
+      clearFieldMark,
+    ],
+  );
   const closeSummary = async () => {
     if (!mutation.isCurrent()) return;
     leaving.current = true;
@@ -463,23 +493,7 @@ export function ReverseEditor({
                 errorComponent={ReverseDataError}
               >
                 <ReverseDataReady eventId={event.id}>
-                  <ReverseCells
-                    value={{
-                      form,
-                      draft,
-                      marks: liveMarks,
-                      errors,
-                      reasons,
-                      current,
-                      balances,
-                      pending,
-                      fetching: stock.isFetching,
-                      unit: quantityUnit.unit,
-                      clearFieldMark,
-                      setValidationMessage,
-                      setErrors,
-                    }}
-                  >
+                  <ReverseCells value={cells}>
                     <DataTable
                       table={table}
                       density="compact"
@@ -648,10 +662,11 @@ function useReverseCell({ row, keyLabel: key }: CellProps) {
   const rowDraft = draft.lines[rowId];
   const mark = marks[rowId];
   const reason = reasons.find((item) => item.id === rowDraft?.reasonId);
-  const label = t('stock-events.field-of', {
-    field: t(key),
-    row: `${line.orderable.fullProductName} (${line.orderable.productCode}) ${line.lot?.lotCode ?? t('stock-event.no-lot')} ${formatDateValue(line.occurredDate, i18n.language)}`,
-  });
+  const label = () =>
+    t('stock-events.field-of', {
+      field: t(key),
+      row: `${line.orderable.fullProductName} (${line.orderable.productCode}) ${line.lot?.lotCode ?? t('stock-event.no-lot')} ${formatDateValue(line.occurredDate, i18n.language)}`,
+    });
   const quantity = (value: number | undefined) => (
     <span className="whitespace-nowrap tabular-nums" dir="ltr">
       {tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language))}
@@ -673,7 +688,7 @@ function ReverseCheckboxCell(props: CellProps) {
           id={`reverse-${rowId}`}
           aria-invalid={!!error}
           aria-describedby={error ? `reverse-error-${rowId}` : undefined}
-          aria-label={label}
+          aria-label={label()}
           disabled={pending || fetching || !canReverseLine(line)}
           checked={row.getIsSelected()}
           onCheckedChange={(checked) => row.toggleSelected(checked)}
@@ -745,7 +760,7 @@ function ReverseReasonCell(props: CellProps) {
                 value: item.id,
                 label: item.name,
               }))}
-              label={label}
+              label={label()}
               layout="inline"
               hideErrors
               placeholder={t('stock-event-reverse.select-option')}
@@ -779,7 +794,7 @@ function ReverseCommentsCell(props: CellProps) {
         >
           {(field) => (
             <field.TextareaField
-              label={label}
+              label={label()}
               layout="inline"
               hideErrors
               maxLength={255}
@@ -802,7 +817,7 @@ function ReverseBalanceCell(props: CellProps) {
       tabIndex={-1}
       aria-invalid={!!mark?.stock}
       aria-describedby={mark?.stock ? `stock-error-${rowId}` : undefined}
-      aria-label={label}
+      aria-label={label()}
       className={mark?.stock ? 'text-destructive' : undefined}
     >
       {fetching ? (

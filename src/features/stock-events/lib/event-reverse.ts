@@ -159,7 +159,7 @@ export function reversePayload(rows: readonly ReverseRow[], signature: string): 
     lineItems: rows.map(({ line, reasonId, comments }) => ({
       stockEventLineItemId: line.stockEventLineItemId,
       reasonId,
-      ...(comments.trim() && { reasonFreeText: comments }),
+      ...(comments.trim() && { reasonFreeText: comments.trim() }),
     })),
   };
 }
