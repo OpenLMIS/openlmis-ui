@@ -67,6 +67,10 @@ container builds and serves fine but every login fails with
 
 `VITE_BASE_PATH` stays a build input, since it is compiled into asset URLs.
 
+`DEFAULT_ISSUE_REASON_ID` is a container environment variable holding the id of the reason to
+preselect on new Issue lines. If it is one of the listed issue reasons, Reason becomes required.
+If it is empty or is not one of those reasons, no reason is preselected and Reason stays optional.
+
 ## Branding and theme
 
 The app name, logo, colour theme and default appearance come from the reference data service

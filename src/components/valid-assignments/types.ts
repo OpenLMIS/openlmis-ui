@@ -9,6 +9,7 @@ export type ValidAssignment = {
   facilityTypeId: string;
   node: { id: string; referenceId: string; refDataFacility: boolean };
   name: string | null;
+  isFreeTextAllowed?: boolean;
   geoLevelAffinityId: string | null;
 };
 

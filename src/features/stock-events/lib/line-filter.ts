@@ -1,15 +1,17 @@
+import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
-import type { AdjustmentLine } from '@/features/stock-events/lib/adjustment-form';
+import type { EventLine } from '@/features/stock-events/lib/event-form';
 
 export type LineDateFormatter = (value: string) => string;
 
-export function filterAdjustmentLines(
-  lines: readonly AdjustmentLine[],
+export function filterEventLines(
+  lines: readonly EventLine[],
   keyword: string,
   reasons: readonly Pick<Reason, 'id' | 'name'>[],
   formatDate: LineDateFormatter,
   noLotLabel = '',
-): AdjustmentLine[] {
+  assignments: readonly ValidAssignment[] = [],
+): EventLine[] {
   const query = keyword.trim().toLowerCase();
   if (!query) return [...lines];
   const reasonNames = new Map(reasons.map((reason) => [reason.id, reason.name]));
@@ -21,6 +23,8 @@ export function filterAdjustmentLines(
       orderable.productCode,
       unit ? `${name} - ${unit}` : name,
       String(line.stockOnHand),
+      assignments.find((item) => item.id === line.destination)?.name,
+      line.destinationComments,
       reasonNames.get(line.reasonId),
       line.reasonFreeText,
       line.quantity.doses,

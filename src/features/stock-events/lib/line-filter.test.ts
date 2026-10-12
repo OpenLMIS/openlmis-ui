@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { newAdjustmentLine } from '@/features/stock-events/lib/adjustment-form';
-import { filterAdjustmentLines, pageOf } from '@/features/stock-events/lib/line-filter';
+import { newEventLine } from '@/features/stock-events/lib/event-form';
+import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 
 const row = {
-  ...newAdjustmentLine(
+  ...newEventLine(
     {
       stockOnHand: 50,
       orderable: {
@@ -19,6 +19,7 @@ const row = {
     },
     undefined,
     '2026-10-07',
+    { kind: 'adjustment' },
   ),
   reasonId: 'lost',
   reasonFreeText: 'Research Only',
@@ -47,13 +48,13 @@ const other = {
   occurredDate: '',
 };
 const filter = (keyword: string) =>
-  filterAdjustmentLines([row, other], keyword, reasons, formatDate);
+  filterEventLines([row, other], keyword, reasons, formatDate, '', []);
 
-describe('filterAdjustmentLines', () => {
+describe('filterEventLines', () => {
   it.each(['No Lot Defined', 'لم يتم تحديد دفعة'])(
     'matches the displayed null-lot label %s',
     (label) => {
-      expect(filterAdjustmentLines([row, other], label, reasons, formatDate, label)).toEqual([
+      expect(filterEventLines([row, other], label, reasons, formatDate, label, [])).toEqual([
         other,
       ]);
     },
@@ -81,11 +82,11 @@ describe('filterAdjustmentLines', () => {
   });
   it('keeps draft order and all lines for an empty keyword without changing them', () => {
     expect(filter('  ')).toEqual([row, other]);
-    expect(filterAdjustmentLines([], 'x', reasons, formatDate)).toEqual([]);
+    expect(filterEventLines([], 'x', reasons, formatDate, '', [])).toEqual([]);
     expect(filter('c1')[0]).toBe(row);
   });
   it('uses the supplied page-language date formatter', () => {
-    expect(filterAdjustmentLines([row], 'localized', reasons, () => 'localized date')).toEqual([
+    expect(filterEventLines([row], 'localized', reasons, () => 'localized date', '', [])).toEqual([
       row,
     ]);
   });
@@ -95,4 +96,27 @@ describe('pageOf', () => {
   it('maps zero-based line indexes to the one-based page used by table search', () => {
     expect([0, 9, 10, 19, 20].map((index) => pageOf(index, 10))).toEqual([1, 1, 2, 2, 3]);
   });
+});
+
+it.each(['hospital', 'courier'])('matches Issue destination fields: %s', (keyword) => {
+  const line = { ...row, destination: 'assigned', destinationComments: 'Courier delivery' };
+  const assignments = [
+    {
+      id: 'assigned',
+      name: 'District Hospital',
+      programId: 'p',
+      facilityTypeId: 't',
+      node: { id: 'node', referenceId: 'facility', refDataFacility: true },
+      geoLevelAffinityId: null,
+    },
+  ];
+  expect(filterEventLines([line], keyword, reasons, formatDate, '', assignments)).toEqual([line]);
+  expect(
+    filterEventLines(
+      [{ ...line, destination: '', destinationComments: '' }],
+      keyword,
+      reasons,
+      formatDate,
+    ),
+  ).toEqual([]);
 });

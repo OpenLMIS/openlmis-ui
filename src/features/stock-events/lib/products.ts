@@ -13,7 +13,7 @@ export type EventLotOption = {
   card: EventStockCard;
 } & (
   | { label: string; labelKey?: never }
-  | { labelKey: 'stock-events.no-lot-defined' | 'stock-events.product-has-no-lots'; label?: never }
+  | { labelKey: 'stock-events.no-lot-defined'; label?: never }
 );
 
 export function eventProductOptions(cards: readonly EventStockCard[]): EventProductOption[] {
@@ -54,8 +54,18 @@ export function eventLotOptions(cards: readonly EventStockCard[]): EventLotOptio
       value: '',
       lot: null,
       card: noLot,
-      labelKey: lots.size ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots',
+      labelKey: 'stock-events.no-lot-defined',
     });
   }
   return sorted;
+}
+
+export type EventCardFilter = (cards: readonly EventStockCard[]) => readonly EventStockCard[];
+export const allEventCards: EventCardFilter = (cards) => cards;
+
+export function issuableCards(cards: readonly EventStockCard[], today: string): EventStockCard[] {
+  return cards.filter(
+    (card) =>
+      card.stockOnHand !== 0 && (!card.lot?.expirationDate || card.lot.expirationDate >= today),
+  );
 }

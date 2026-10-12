@@ -85,6 +85,7 @@ type FieldProps = {
   required?: boolean;
   disabled?: boolean;
   layout?: FieldLayout;
+  hideErrors?: boolean;
 };
 
 type FieldFrameProps = FieldProps & {
@@ -185,6 +186,7 @@ function FieldFrame({
   children,
 }: FieldFrameProps) {
   const field = useFieldContext<unknown>();
+  const [errorOpen, setErrorOpen] = useState(false);
   const labelText = <FieldLabelText label={label} required={required} />;
   const descriptionNode = description && (
     <FieldDescription id={descriptionId}>{description}</FieldDescription>
@@ -234,7 +236,34 @@ function FieldFrame({
             {labelText}
           </label>
         </HiddenFromView>
-        {children}
+        {hideErrors ? (
+          <Tooltip
+            disabled={!isInvalid}
+            triggerId={`${field.name}-error-trigger`}
+            open={isInvalid && errorOpen}
+            onOpenChange={setErrorOpen}
+          >
+            <TooltipTrigger
+              id={`${field.name}-error-trigger`}
+              render={<div className="min-w-0" />}
+              tabIndex={-1}
+              onFocusCapture={() => setErrorOpen(true)}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setErrorOpen(false);
+              }}
+            >
+              {children}
+            </TooltipTrigger>
+            <TooltipContent id={`${field.name}-error-tooltip`} role="tooltip">
+              {errors
+                .map(({ message }) => message)
+                .filter(Boolean)
+                .join(' ')}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          children
+        )}
         {details}
       </Field>
     );
@@ -333,6 +362,7 @@ type QuantityFieldProps = FieldProps & {
   netContent?: number | null;
   packsLabel: string;
   dosesLabel: string;
+  sizing?: 'full' | 'minimum';
 };
 
 export function QuantityField({
@@ -345,6 +375,8 @@ export function QuantityField({
   netContent,
   packsLabel,
   dosesLabel,
+  hideErrors,
+  sizing = 'full',
 }: QuantityFieldProps) {
   const field = useFieldContext<QuantityValue>();
   const dosesErrors = useStore(
@@ -374,49 +406,80 @@ export function QuantityField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        {parts.map((part, index) => {
-          const partId = `${field.name}-${part}-label`;
-          return (
-            <Fragment key={part}>
-              {unit === 'PACKS' && index === 1 && <span aria-hidden="true">+</span>}
-              <div className="min-w-0 flex-1">
-                {unit === 'PACKS' && (
-                  <HiddenFromView>
-                    <label htmlFor={index === 0 ? field.name : `${field.name}-${part}`} id={partId}>
-                      {part === 'packs' ? packsLabel : dosesLabel}
-                    </label>
-                  </HiddenFromView>
+      <div className="w-full">
+        <div
+          className={
+            sizing === 'minimum'
+              ? 'flex w-full min-w-0 contain-inline-size items-center gap-1'
+              : 'flex min-w-0 items-center gap-1'
+          }
+          dir="ltr"
+        >
+          {parts.map((part, index) => {
+            const partId = `${field.name}-${part}-label`;
+            return (
+              <Fragment key={part}>
+                {unit === 'PACKS' && index === 1 && (
+                  <span aria-hidden="true" className="shrink-0 whitespace-nowrap">
+                    ( +
+                  </span>
                 )}
-                <Input
-                  aria-describedby={state.describedBy}
-                  aria-invalid={state.isInvalid}
-                  aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
-                  aria-required={required}
-                  autoComplete="off"
-                  dir="ltr"
-                  disabled={disabled}
-                  id={index === 0 ? field.name : `${field.name}-${part}`}
-                  inputMode="numeric"
-                  placeholder={
-                    unit === 'PACKS' ? (part === 'packs' ? packsLabel : dosesLabel) : undefined
-                  }
-                  name={`${field.name}.${part}`}
-                  onBlur={field.handleBlur}
-                  onChange={(event) =>
-                    field.handleChange(
-                      updateQuantityValue(field.state.value, part, event.target.value, netContent),
-                    )
-                  }
-                  value={field.state.value[part]}
-                />
-              </div>
-            </Fragment>
-          );
-        })}
+                <div className={sizing === 'minimum' ? 'flex-auto' : 'min-w-0 flex-1'}>
+                  {unit === 'PACKS' && (
+                    <HiddenFromView>
+                      <label
+                        htmlFor={index === 0 ? field.name : `${field.name}-${part}`}
+                        id={partId}
+                      >
+                        {part === 'packs' ? packsLabel : dosesLabel}
+                      </label>
+                    </HiddenFromView>
+                  )}
+                  <div>
+                    <Input
+                      sizing={sizing}
+                      controlSize={layout === 'inline' ? 'sm' : 'default'}
+                      aria-describedby={state.describedBy}
+                      aria-invalid={state.isInvalid}
+                      aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
+                      aria-required={required}
+                      autoComplete="off"
+                      dir="ltr"
+                      disabled={disabled || (part === 'remainder' && netContent === 1)}
+                      id={index === 0 ? field.name : `${field.name}-${part}`}
+                      inputMode="numeric"
+                      placeholder={part === 'packs' ? packsLabel : dosesLabel}
+                      name={`${field.name}.${part}`}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(
+                          updateQuantityValue(
+                            field.state.value,
+                            part,
+                            event.target.value,
+                            netContent,
+                          ),
+                        )
+                      }
+                      value={
+                        part === 'remainder' && netContent === 1 ? '0' : field.state.value[part]
+                      }
+                    />
+                  </div>
+                </div>
+              </Fragment>
+            );
+          })}
+          {unit === 'PACKS' && (
+            <span aria-hidden="true" className="shrink-0">
+              )
+            </span>
+          )}
+        </div>
       </div>
     </FieldFrame>
   );
@@ -926,6 +989,7 @@ type SelectFieldProps = FieldProps &
     placeholder?: string;
     items: readonly SelectFieldItem[];
     size?: 'sm' | 'default';
+    wrap?: 'nowrap' | 'wrap';
   };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */
@@ -940,6 +1004,7 @@ export function SelectField({
   action,
   size,
   placeholder,
+  wrap,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description);
@@ -973,6 +1038,7 @@ export function SelectField({
           id={field.name}
           onBlur={field.handleBlur}
           size={size}
+          wrap={wrap}
           width="full"
         >
           <SelectValue placeholder={placeholder} />
@@ -1065,7 +1131,7 @@ export function ComboboxField({
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem key={item.value} value={item}>
-                <span className="min-w-0 truncate" dir="auto">
+                <span className="min-w-0 whitespace-normal break-words" dir="auto">
                   {item.label}
                 </span>
                 {item.description && (
@@ -1330,6 +1396,7 @@ const weekdayName = (date: Date, locale: string) =>
 export function DateField({
   label,
   layout,
+  hideErrors,
   description,
   required,
   disabled,
@@ -1347,10 +1414,12 @@ export function DateField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >
       <DatePicker
+        size={layout === 'inline' ? 'sm' : 'default'}
         clearLabel={clearLabel}
         earliest={earliest}
         latest={latest}
@@ -1369,6 +1438,7 @@ export function DateField({
 }
 
 type DatePickerProps = {
+  size?: 'sm' | 'default';
   id: string;
   /** `yyyy-MM-dd`, or an empty string for no date. */
   value: string;
@@ -1390,6 +1460,7 @@ type DatePickerProps = {
 
 /** A date picked from a calendar, shown in the page's language; the calendar loads as it mounts. */
 export function DatePicker({
+  size = 'default',
   id,
   value,
   onValueChange,
@@ -1461,6 +1532,7 @@ export function DatePicker({
               id={id}
               onBlur={onBlur}
               ref={trigger}
+              size={size}
               type="button"
               variant="outline"
               width="full"

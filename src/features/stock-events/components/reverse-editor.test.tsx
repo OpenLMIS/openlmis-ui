@@ -191,7 +191,10 @@ it('marks the reason without visible field text and focuses it after Close', asy
   await closeAlert();
   const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
   expect(trigger).toHaveAttribute('aria-invalid', 'true');
-  expect(screen.getByText('stock-events.required').closest('.sr-only')).not.toBeNull();
+  expect(trigger).toHaveAccessibleDescription('stock-events.required');
+  expect(
+    document.getElementById(trigger.getAttribute('aria-describedby') ?? '')?.closest('.sr-only'),
+  ).not.toBeNull();
   await waitFor(() => expect(trigger).toHaveFocus());
   await pick();
   expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
@@ -371,7 +374,10 @@ it('marks overlong comments without visible field text and focuses after Close',
   expect(screen.getByRole('alertdialog')).toHaveTextContent('stock-events.comments-too-long');
   await closeAlert();
   expect(comments).toHaveAttribute('aria-invalid', 'true');
-  expect(screen.getByText('stock-events.comments-too-long').closest('.sr-only')).not.toBeNull();
+  expect(comments).toHaveAccessibleDescription('stock-events.comments-too-long');
+  expect(
+    document.getElementById(comments.getAttribute('aria-describedby') ?? '')?.closest('.sr-only'),
+  ).not.toBeNull();
   await waitFor(() => expect(comments).toHaveFocus());
 });
 

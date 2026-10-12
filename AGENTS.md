@@ -127,6 +127,11 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
   page, avoiding oversized URLs.
 - `userRecordOptions` and `userProgramsOptions` read the signed-in user's record and programs;
   keep their keys separate from the Users page's richer detail.
+- `validDestinationsOptions` reads every page through `fetchValidAssignments`, under
+  `queryKeys.validDestinations.all` so admin saves refresh it. `reasonsOf` keeps visible reasons
+  of one category and, optionally, one type.
+- Stock event screens read legacy's v2 stock list and resolve its cards' products and lots
+  through the id lookups above.
 
 ### Internationalization (i18next)
 
@@ -228,6 +233,7 @@ edits, which have no prop for TypeScript to detect:
 | File | Required customization |
 |---|---|
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
+| `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
 | `select.tsx` | Default `alignItemWithTrigger` to `false` |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
@@ -326,6 +332,9 @@ App-shell pages compose `src/components/workspace.tsx`:
   one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
   and `width="wide"` for uncapped tables.
+- Stock event pending views use the real icon, description, cached title or title-height placeholder,
+  disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
+  the real translated Button size.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -379,6 +388,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
+- Issue hides optional columns by measured fit because translated inputs make pixel thresholds
+  language dependent. With draft lines but no filter matches, keep fitted visibility and the last
+  rendered column widths until rows return. Issue quantity inputs fill their cell while reserving
+  a character-unit minimum based only on their translated placeholder, with room for at least
+  five digits; extra digits scroll inside the input. Issue's date column minimum measures all
+  12 months in the page language. Sizers live once per column in the header. Adjustments keeps
+  full-width inputs and master's existing column minimums.
+
 - Tables draw vertical column dividers by default.
 
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
@@ -398,7 +415,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
-  may hide. Row actions use an end-of-row "..." menu at every width.
+  may hide. Row actions use an end-of-row "..." menu at every width. Draft editor line tables
+  whose only row action is Remove use a trash icon button.
 - Put Create at the toolbar's end, after View.
 
 **Filters and states:**
@@ -436,7 +454,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
-  `Table density/layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `Table density/layout/width`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `Skeleton fill`, `Button variant="destructive-solid"` and
   `"destructive-outline"`. These become plain `className`s in the
   registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
@@ -493,7 +511,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` divides the wrapper equally without placeholder minimums |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
@@ -504,8 +522,12 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
+- Inline `SelectField`, `TextareaField`, `QuantityField` and `DateField` accept `hideErrors`.
+  Editor line tables use it to hide error text, retain `aria-invalid` and
+  screen-reader descriptions, and show the message on field hover or focus through Tooltip without
+  adding tab stops. Invalid Submit and server failures open an AlertDialog, as Reverse does; closing
+  validation focuses the first invalid field on its page.
 - Inline fields use `Field surface="background"` for opaque controls on selected or hovered rows.
-  `SelectField` and `TextareaField` accept `hideErrors` to keep error descriptions screen-reader-only.
   Textareas use `resize-none` and grow with their content. Inline `SelectField size="sm"` and
   `Textarea size="inline"` are both 28px; where they appear on tick, as on Reverse, wrap the
   cell in a fixed width rendered on every row, so ticking never shifts the table.
@@ -539,8 +561,9 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
-`DialogTitle size`, `Field spacing/surface`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
-`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width`, `Button align/width`,
+`DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
+`FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
+`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width/wrap`, `Button align/width`,
 `PopoverContent width/padding`.
 
 **Every toast has a short Title Case title and a detail sentence as `description`**, displayed
@@ -719,9 +742,9 @@ See `.env.example` and [README.md](README.md#environment-variables).
 - Keep `VITE_API_BASE_URL` root-absolute (`/api`), shared with legacy outside the app prefix.
 - `VITE_BASE_PATH` is compiled at build time; follow the base-path rules above.
 - Per-environment settings use `src/lib/runtime-config.ts`, reading `config.json` written
-  at container startup so one image works everywhere. OAuth credentials fall back to
-  `import.meta.env` for dev; feature flags deliberately do not. Never rely on build-time
-  `import.meta.env` for deployment-varying runtime settings.
+  at container startup so one image works everywhere. OAuth credentials and the default issue
+  reason fall back to `import.meta.env` for dev; feature flags deliberately do not. Never rely
+  on build-time `import.meta.env` for deployment-varying runtime settings.
 
 ## Skills
 

@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
@@ -28,35 +28,41 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
-import { tradeItemByGtinOptions, validReasonsOptions } from '@/features/reference-data/api/queries';
-import { adjustmentReasons } from '@/features/reference-data/lib/adjustment-reasons';
+import {
+  tradeItemByGtinOptions,
+  validDestinationsOptions,
+  validReasonsOptions,
+} from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import {
-  EVENT_HIDEABLE_COLUMNS,
   EventLineTable,
+  EventLineTableSkeleton,
+  eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
-import { useAdjustmentForm } from '@/features/stock-events/hooks/use-adjustment-form';
-import {
-  adjustmentLinesSchema,
-  adjustmentPayload,
-  newAdjustmentLine,
-} from '@/features/stock-events/lib/adjustment-form';
+import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
-import { filterAdjustmentLines, pageOf } from '@/features/stock-events/lib/line-filter';
+import {
+  eventLinesSchema,
+  eventPayload,
+  eventReasonRequired,
+  newEventLine,
+} from '@/features/stock-events/lib/event-form';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 import { eventProductOptions } from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
@@ -64,31 +70,38 @@ import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import {
+  acknowledgeScanExpiry,
+  isScanExpiryAcknowledged,
+} from '@/lib/scan-expiry-acknowledgements';
 import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
 import { resolveScan } from '@/lib/stock-scan';
 import type { SearchChange } from '@/lib/table-search';
 
-export type AdjustmentSearch = {
+export type EventSearch = {
   page?: number | undefined;
   size?: number | undefined;
   keyword?: string | undefined;
 };
 type Props = {
+  kind: ConfiguredEventKind;
+  defaultReasonId?: string;
   children: ReactNode;
   facilityId: string;
   facilityTypeId: string;
   programId: string;
   username: string;
   canViewStock: boolean;
-  search: AdjustmentSearch;
-  onSearchChange: SearchChange<AdjustmentSearch>;
-  onSubmitted: () => void | Promise<void>;
+  search: EventSearch;
+  onSearchChange: SearchChange<EventSearch>;
+  onSubmitted: (eventId: string) => void | Promise<void>;
 };
-const FORM_ID = 'adjustment-form';
 const columnChoicesSchema = z.record(z.string(), z.boolean());
-const NO_REASONS: never[] = [];
+const EMPTY_LOOKUP: never[] = [];
 
-export function AdjustmentEditor({
+export function EventEditor({
+  kind,
+  defaultReasonId,
   children,
   facilityId,
   facilityTypeId,
@@ -100,25 +113,53 @@ export function AdjustmentEditor({
   onSubmitted,
 }: Props) {
   const { t, i18n } = useTranslation();
+  const config = EVENT_KINDS[kind];
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
+  const filterCards = useCallback(
+    (cards: readonly EventStockCard[]) => config.cardFilter(cards, today),
+    [config, today],
+  );
   const reasonsQuery = useQuery({
     ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
     enabled: canViewStock,
   });
   const reasons = useMemo(
-    () => (reasonsQuery.data ? adjustmentReasons(reasonsQuery.data) : NO_REASONS),
-    [reasonsQuery.data],
+    () => (reasonsQuery.data ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
+    [reasonsQuery.data, config],
   );
+  const needsDestinations = config.counterparty === 'destination';
+  const destinationsQuery = useQuery({
+    ...validDestinationsOptions({ programId, facilityId }),
+    enabled: canViewStock && needsDestinations,
+  });
+  const destinations = destinationsQuery.data ?? EMPTY_LOOKUP;
+  const ready =
+    reasonsQuery.data !== undefined &&
+    (!needsDestinations || (destinationsQuery.data !== undefined && destinations.length > 0));
+  const cardsQuery = useQuery({
+    ...eventStockCardsOptions({ facilityId, programId }),
+    enabled: canViewStock,
+  });
+  const offeredCards = useMemo(
+    () => filterCards(cardsQuery.data ?? []),
+    [cardsQuery.data, filterCards],
+  );
+  const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
   const quantityUnit = useQuantityUnit();
   const scanning = useFlag('GS1_SCANNING');
+  const [submitted, setSubmitted] = useState(false);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
+  const [unknownOutcome, setUnknownOutcome] = useState(false);
+  const [validationOpen, setValidationOpen] = useState(false);
+  const alertTarget = useRef<{ name: string; page: number } | null>(null);
+  const submitButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
   const signing = useRef(false);
   signing.current = signatureOpen;
-  const lastAdded = useRef<ReturnType<typeof newAdjustmentLine> | undefined>(undefined);
+  const lastAdded = useRef<ReturnType<typeof newEventLine> | undefined>(undefined);
   const leaving = useRef(false);
   const posting = useRef(false);
   const region = useRef<HTMLDivElement>(null);
@@ -130,38 +171,69 @@ export function AdjustmentEditor({
     },
     [measure],
   );
-  const [choices, setChoices] = useStoredState('adjustment-columns', columnChoicesSchema, {});
-  const columns = useColumnVisibility(EVENT_HIDEABLE_COLUMNS, [choices, setChoices], width);
-  const form = useAdjustmentForm({
-    reasons,
-    today,
+  const [choices, setChoices] = useStoredState(config.columnChoicesKey, columnChoicesSchema, {});
+  const lineOptions = { kind, reasons, defaultReasonId, today, assignments: destinations };
+  const schema = eventLinesSchema(lineOptions);
+  const form = useEventForm({
+    ...lineOptions,
     onValid: () => {
       if (form.state.values.lines.length) setSignatureOpen(true);
     },
     onInvalid: () => showInvalid(),
   });
   const showInvalid = () => {
-    const issue = adjustmentLinesSchema({ reasons, today }).safeParse(form.state.values).error
-      ?.issues[0];
+    const issue = schema.safeParse(form.state.values).error?.issues[0];
     if (!issue) return;
     const index = Number(issue.path[1]);
     const field = String(issue.path[2]);
-    setFocusField({ name: `lines[${index}].${field}`, page: pageOf(index, search.size ?? 10) });
+    const page = pageOf(index, search.size ?? 10);
+    alertTarget.current = { name: `lines[${index}].${field}`, page };
     onSearchChange(
       {
         keyword: undefined,
-        page: pageOf(index, search.size ?? 10) === 1 ? undefined : pageOf(index, search.size ?? 10),
+        page: page === 1 ? undefined : page,
       },
       true,
     );
-    toast.error(t('stock-adjustment.invalid-title'), {
-      description: t('stock-adjustment.invalid-description'),
-    });
+    setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
+  const hasLots = offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
+  const hasVVM =
+    offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
+    lines.some((line) => line.useVVM);
+  const hideableColumns = eventHideableColumns(kind);
+  const fitColumns = useMemo(
+    () =>
+      hideableColumns.filter(
+        ({ id }) =>
+          (id !== 'total' || quantityUnit.unit === 'PACKS') && (id !== 'expiry' || hasLots),
+      ),
+    [hideableColumns, quantityUnit.unit, hasLots],
+  );
+  const fitLineKeys = lines.map((line) => line.key).join(',');
+  const hasDestinationComments = lines.some((line) =>
+    destinations.some(
+      (destination) => destination.id === line.destination && destination.isFreeTextAllowed,
+    ),
+  );
+  const fitContent = useMemo(
+    () => ({
+      fitLineKeys,
+      language: i18n.language,
+      unit: quantityUnit.unit,
+      hasLots,
+      hasVVM,
+      hasDestinationComments,
+      ready,
+    }),
+    [fitLineKeys, i18n.language, quantityUnit.unit, hasLots, hasVVM, hasDestinationComments, ready],
+  );
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
-  const guard = useDiscardGuard(lines.length > 0, { allowLeave: () => leaving.current });
+  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
+    allowLeave: () => leaving.current,
+  });
   const keyword = search.keyword ?? '';
   const lineKeys = JSON.stringify(lines.map((line) => line.key));
   const language = i18n.language;
@@ -174,17 +246,27 @@ export function AdjustmentEditor({
   let matches = filter.matches;
   if (keyword !== filter.keyword || lineKeys !== filter.lineKeys || language !== filter.language) {
     matches = new Set(
-      filterAdjustmentLines(
+      filterEventLines(
         lines,
         keyword,
         reasons,
         (value) => formatDateValue(value, i18n.language),
         t('stock-events.no-lot-defined'),
+        destinations,
       ).map((line) => line.key),
     );
     setFilter({ keyword, lineKeys, language, matches });
   }
   const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
+  const columns = useFitColumnVisibility(
+    needsDestinations ? fitColumns : hideableColumns,
+    [choices, setChoices],
+    region,
+    width,
+    fitContent,
+    needsDestinations,
+    lines.length > 0 && filtered.length === 0,
+  );
   const mutation = useSessionMutation({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
@@ -200,7 +282,8 @@ export function AdjustmentEditor({
     }
   }, [focusField, search.keyword, search.page]);
   const add = (card: EventStockCard) => {
-    const next = newAdjustmentLine(card, lastAdded.current, today);
+    if (!ready || submitted || pending) return;
+    const next = newEventLine(card, lastAdded.current, today, lineOptions);
     lastAdded.current = next;
     form.setFieldValue('lines', (current) => [next, ...current]);
     clearFilter();
@@ -226,7 +309,7 @@ export function AdjustmentEditor({
   );
   const confirmSubmit = async (signature: string) => {
     if (posting.current) return;
-    if (!adjustmentLinesSchema({ reasons, today }).safeParse(form.state.values).success) {
+    if (!schema.safeParse(form.state.values).success) {
       setSignatureOpen(false);
       await form.validate('submit');
       if (!mutation.isCurrent()) return;
@@ -235,21 +318,27 @@ export function AdjustmentEditor({
     }
     posting.current = true;
     setFailure(null);
+    setUnknownOutcome(false);
+    let eventId: string;
     try {
-      await mutation.mutateAsync(
-        adjustmentPayload({ facilityId, programId, signature, lines: form.state.values.lines }),
+      eventId = await mutation.mutateAsync(
+        eventPayload({
+          kind,
+          assignments: destinations,
+          facilityId,
+          programId,
+          signature,
+          lines: form.state.values.lines,
+        }),
       );
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const unknown = isAxiosError(error) && !error.response;
       const description = unknown
         ? t('stock-events.unknown-outcome-description')
-        : (serverMessage(error) ?? t('stock-adjustment.submit-error-description'));
+        : (serverMessage(error) ?? t(config.copy.submitErrorDescription));
       setFailure({ unknown, description });
-      toast.error(
-        t(unknown ? 'stock-events.unknown-outcome-title' : 'stock-adjustment.submit-error-title'),
-        { description },
-      );
+      setUnknownOutcome(unknown);
       setSignatureOpen(false);
       posting.current = false;
       return;
@@ -257,8 +346,9 @@ export function AdjustmentEditor({
     if (!mutation.isCurrent()) return;
     setSignatureOpen(false);
     leaving.current = true;
-    toast.success(t('stock-adjustment.submitted-title'), {
-      description: t('stock-adjustment.submitted-description'),
+    flushSync(() => setSubmitted(true));
+    toast.success(t(config.copy.submittedTitle), {
+      description: t(config.copy.submittedDescription),
     });
     for (const queryKey of [
       queryKeys.stockEvents.all,
@@ -267,9 +357,8 @@ export function AdjustmentEditor({
     ]) {
       void queryClient.invalidateQueries({ queryKey });
     }
-    if (!guard.leaveIfAsked()) await onSubmitted();
+    if (!guard.leaveIfAsked()) await onSubmitted(eventId);
   };
-  const acceptedExpiries = useRef(new Set<string>());
   const [expiryPrompt, setExpiryPrompt] = useState<{
     recorded: string;
     scanned: string;
@@ -279,6 +368,7 @@ export function AdjustmentEditor({
     parsed: Gs1Result,
     signal: AbortSignal,
   ): Promise<ScanMessage | undefined> => {
+    if (!ready || submitted || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
     if (signal.aborted || signing.current || !mutation.isCurrent()) return;
     let tradeItem: TradeItem | null;
@@ -298,15 +388,19 @@ export function AdjustmentEditor({
     const resolution = resolveScan({
       scan: parsed,
       tradeItemId: tradeItem.id,
-      products: eventProductOptions(cards),
+      products: eventProductOptions(filterCards(cards)),
       lines: form.state.values.lines,
       policy: { allowsNewLot: false },
     });
     if (resolution.type === 'refuse') return scanMessage(resolution.reason, resolution.params);
     let action = resolution;
     if (resolution.type === 'confirm-expiry') {
-      const mismatch = `${parsed.gtin}|${parsed.lotCode?.toLowerCase()}|${resolution.recorded}|${resolution.scanned}`;
-      if (!acceptedExpiries.current.has(mismatch)) {
+      const next = resolution.next;
+      const lot =
+        next.type === 'add'
+          ? next.card.lot
+          : form.state.values.lines.find((line) => line.key === next.lineKey)?.lot;
+      if (lot && !isScanExpiryAcknowledged(lot)) {
         const accepted = await new Promise<boolean>((resolve) => {
           const abort = () => {
             setExpiryPrompt(null);
@@ -325,13 +419,13 @@ export function AdjustmentEditor({
         });
         if (signal.aborted || signing.current || !mutation.isCurrent()) return;
         if (!accepted) return { key: 'scan.not-resolved' };
-        acceptedExpiries.current.add(mismatch);
+        acknowledgeScanExpiry(lot);
       }
       action = resolution.next;
     }
     if (signal.aborted || signing.current || !mutation.isCurrent()) return;
     const next = applyScanCount(form.state.values.lines, action, {
-      today,
+      ...lineOptions,
       previousLine: lastAdded.current,
     });
     const countedKey = action.type === 'count' ? action.lineKey : next[0].key;
@@ -340,36 +434,50 @@ export function AdjustmentEditor({
     const visible = next.filter((line) => matches.has(line.key));
     const hidden = !visible.some((line) => line.key === countedKey);
     const index = (hidden ? next : visible).findIndex((line) => line.key === countedKey);
+    const page = pageOf(index, search.size ?? 10);
     onSearchChange(
       {
         ...(hidden ? { keyword: undefined } : {}),
-        page: pageOf(index, search.size ?? 10) === 1 ? undefined : pageOf(index, search.size ?? 10),
+        page: page === 1 ? undefined : page,
       },
       true,
     );
   };
   const scanStatus = useBarcodeScan({
-    enabled: scanning && canViewStock && !pending && !signatureOpen,
+    enabled:
+      scanning &&
+      canViewStock &&
+      ready &&
+      !submitted &&
+      !pending &&
+      !signatureOpen &&
+      !validationOpen &&
+      !failure,
     onScan,
   });
   const visibility = {
     ...columns.visibility,
     total: quantityUnit.unit === 'PACKS' && columns.visibility.total !== false,
-    vvm: lines.some((line) => line.useVVM),
+    lotCode: hasLots && columns.visibility.lotCode !== false,
+    expiry: hasLots && columns.visibility.expiry !== false,
+    vvm: hasVVM,
   };
+  const tablePending = (
+    <EventLineTableSkeleton kind={kind} unit={quantityUnit.unit} columnVisibility={visibility} />
+  );
   return (
     <>
-      <Workspace>
+      <Workspace width={config.width}>
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
             <form
               className="flex min-w-0 flex-col gap-4"
-              id={FORM_ID}
+              id={config.formId}
               noValidate
               onSubmit={(event) => {
                 event.preventDefault();
-                if (lines.length && reasonsQuery.data && !pending) void form.handleSubmit();
+                if (lines.length && ready && !submitted && !pending) void form.handleSubmit();
               }}
             >
               {canViewStock && (
@@ -381,12 +489,19 @@ export function AdjustmentEditor({
                   <ProductLotPicker
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending}
+                    disabled={pending || submitted || !ready}
+                    cardFilter={filterCards}
                     onAdd={add}
                   >
                     {scanning && <ScanStatus {...scanStatus} />}
                   </ProductLotPicker>
                 </QueryBoundary>
+              )}
+              {unknownOutcome && (
+                <ErrorAlert
+                  title={t('stock-events.unknown-outcome-title')}
+                  description={t('stock-events.unknown-outcome-description')}
+                />
               )}
               <DataTableToolbar>
                 <fieldset className="w-full @xl/main:w-72" disabled={pending}>
@@ -404,15 +519,19 @@ export function AdjustmentEditor({
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
-                      disabled={pending}
+                      disabled={pending || submitted}
                     />
                   )}
                   <div className="shrink-0">
                     <DataTableViewOptions
                       {...columns}
-                      columns={EVENT_HIDEABLE_COLUMNS.filter(
-                        (column) => column.id !== 'total' || quantityUnit.unit === 'PACKS',
-                      ).map((column) => ({ id: column.id, label: t(column.labelKey) }))}
+                      columns={hideableColumns
+                        .filter(
+                          (column) =>
+                            (column.id !== 'total' || quantityUnit.unit === 'PACKS') &&
+                            (column.id !== 'expiry' || hasLots),
+                        )
+                        .map((column) => ({ id: column.id, label: t(column.labelKey) }))}
                     />
                   </div>
                 </div>
@@ -423,50 +542,58 @@ export function AdjustmentEditor({
                   title={t('stock-events.no-stock-view-title')}
                   description={t('stock-events.no-stock-view-description')}
                 />
+              ) : cardsQuery.isError && cardsQuery.data === undefined ? (
+                <EventLineTableSkeleton
+                  kind={kind}
+                  unit={quantityUnit.unit}
+                  columnVisibility={visibility}
+                  busy={false}
+                />
               ) : (
                 <QueryBoundary
                   resetKey={`${programId}/${facilityTypeId}`}
-                  pendingFallback={
-                    <div className="h-40">
-                      <Skeleton fill />
-                    </div>
-                  }
+                  pendingFallback={tablePending}
                   errorComponent={ReasonsError}
                 >
                   <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
-                    <EventLineTable
-                      form={form}
-                      lines={filtered}
-                      reasons={reasons}
-                      unit={quantityUnit.unit}
-                      today={today}
-                      disabled={pending}
-                      onRemove={remove}
-                      search={search}
-                      onSearchChange={onSearchChange}
-                      columnVisibility={visibility}
-                      onClearFilter={clearFilter}
-                    />
+                    <StockCardsReady facilityId={facilityId} programId={programId}>
+                      <DestinationsReady
+                        pendingFallback={tablePending}
+                        needed={needsDestinations}
+                        facilityId={facilityId}
+                        programId={programId}
+                      >
+                        <EventLineTable
+                          kind={kind}
+                          fitContent={fitContent}
+                          containerWidth={width}
+                          reasonRequired={reasonRequired}
+                          form={form}
+                          lines={filtered}
+                          cards={offeredCards}
+                          reasons={reasons}
+                          destinations={destinations}
+                          unit={quantityUnit.unit}
+                          today={today}
+                          disabled={pending || submitted}
+                          onRemove={remove}
+                          search={search}
+                          onSearchChange={onSearchChange}
+                          columnVisibility={visibility}
+                          onClearFilter={clearFilter}
+                        />
+                      </DestinationsReady>
+                    </StockCardsReady>
                   </ReasonsReady>
                 </QueryBoundary>
-              )}
-              {failure && (
-                <ErrorAlert
-                  title={t(
-                    failure.unknown
-                      ? 'stock-events.unknown-outcome-title'
-                      : 'stock-adjustment.submit-error-title',
-                  )}
-                  description={failure.description}
-                />
               )}
             </form>
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width={config.width}>
         <Button
-          disabled={!filtered.length || pending}
+          disabled={!filtered.length || pending || submitted}
           onClick={() => setClearOpen(true)}
           size="lg"
           variant="outline"
@@ -474,8 +601,9 @@ export function AdjustmentEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
-          disabled={!lines.length || pending || !reasonsQuery.data}
-          form={FORM_ID}
+          disabled={!lines.length || pending || submitted || !ready}
+          ref={submitButton}
+          form={config.formId}
           size="lg"
           type="submit"
         >
@@ -483,6 +611,40 @@ export function AdjustmentEditor({
           {t('stock-events.submit')}
         </Button>
       </WorkspaceFooter>
+      <AlertDialog
+        open={validationOpen || !!failure}
+        onOpenChange={(open) => {
+          if (!open) {
+            setValidationOpen(false);
+            setFailure(null);
+          }
+        }}
+        onOpenChangeComplete={(open) => {
+          if (open || !alertTarget.current) return;
+          setFocusField(alertTarget.current);
+          alertTarget.current = null;
+        }}
+      >
+        <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t(
+                failure
+                  ? failure.unknown
+                    ? 'stock-events.unknown-outcome-title'
+                    : config.copy.submitErrorTitle
+                  : config.copy.invalidTitle,
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {failure?.description ?? t(config.copy.invalidDescription)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <ClearLinesDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
@@ -556,15 +718,93 @@ function ReasonsReady({
   return children;
 }
 
-function ReasonsError({ error, reset }: { error: unknown; reset: () => void }) {
+function ReasonsError(props: { error: unknown; reset: () => void }) {
+  return <LookupError {...props} lookup="reasons" />;
+}
+
+function DestinationsReady({
+  pendingFallback,
+  needed,
+  facilityId,
+  programId,
+  children,
+}: {
+  pendingFallback: ReactNode;
+  needed: boolean;
+  facilityId: string;
+  programId: string;
+  children: ReactNode;
+}) {
+  if (!needed) return children;
+  return (
+    <QueryBoundary
+      resetKey={`${programId}/${facilityId}`}
+      pendingFallback={pendingFallback}
+      errorComponent={DestinationsError}
+    >
+      <DestinationLookup facilityId={facilityId} programId={programId}>
+        {children}
+      </DestinationLookup>
+    </QueryBoundary>
+  );
+}
+
+function DestinationLookup({
+  facilityId,
+  programId,
+  children,
+}: {
+  facilityId: string;
+  programId: string;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const { data } = useSuspenseQuery(validDestinationsOptions({ facilityId, programId }));
+  if (!data.length)
+    return (
+      <DataTableEmpty
+        icon={<ShieldAlertIcon />}
+        title={t('stock-events.no-destinations-title')}
+        description={t('stock-events.no-destinations-description')}
+      />
+    );
+  return children;
+}
+
+function DestinationsError(props: { error: unknown; reset: () => void }) {
+  return <LookupError {...props} lookup="destinations" />;
+}
+
+function StockCardsReady({
+  facilityId,
+  programId,
+  children,
+}: {
+  facilityId: string;
+  programId: string;
+  children: ReactNode;
+}) {
+  useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
+  return children;
+}
+
+function LookupError({
+  error,
+  reset,
+  lookup,
+}: {
+  error: unknown;
+  reset: () => void;
+  lookup: 'reasons' | 'destinations';
+}) {
   const { t } = useTranslation();
   if (isRefused(error)) return <p>{t('no-access.description')}</p>;
   return (
     <LoadError
       error={error}
       reset={reset}
-      title={t('stock-events.reasons-error-title')}
-      description={t('stock-events.reasons-error-description')}
+      title={t(`stock-events.${lookup}-error-title`)}
+      description={t(`stock-events.${lookup}-error-description`)}
     />
   );
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { eventLotOptions, eventProductOptions } from '@/features/stock-events/lib/products';
+import {
+  eventLotOptions,
+  eventProductOptions,
+  issuableCards,
+} from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 
 const product = {
@@ -53,14 +57,37 @@ describe('eventLotOptions', () => {
     expect(options[1]).toEqual({ value: 'l1', lot: early, card: cards[2], label: 'LC2017A' });
     expect(cards[0]?.lot).toBe(late);
   });
-  it('names a no-lot-only product with the distinct legacy message', () => {
+  it('uses the no-lot option label even when the picker hides the lot select', () => {
     const noLot = card('s0', null);
     expect(eventLotOptions([noLot])).toEqual([
-      { value: '', lot: null, card: noLot, labelKey: 'stock-events.product-has-no-lots' },
+      { value: '', lot: null, card: noLot, labelKey: 'stock-events.no-lot-defined' },
     ]);
     expect(eventLotOptions([])).toEqual([]);
   });
   it('dedupes lot ids while keeping the original stock card for each option', () => {
     expect(eventLotOptions([card('s1', early), card('s2', early)])).toHaveLength(1);
+  });
+});
+
+describe('issuableCards', () => {
+  it('drops zero stock and expired lots, keeps negative stock, expiry today, missing expiry and no lot', () => {
+    const today = '2026-10-09';
+    const negative = card('negative', null, -1);
+    const expiresToday = card('today', { ...early, expirationDate: today }, 1);
+    const future = card('future', { ...late, expirationDate: '2026-10-10' }, 1);
+    const noExpiry = card('no-expiry', { id: 'l3', lotCode: 'L3', expirationDate: null }, 1);
+    const noLot = card('no-lot', null, 1);
+    const input = [
+      card('zero', null),
+      card('expired', early, 10),
+      negative,
+      expiresToday,
+      future,
+      noExpiry,
+      noLot,
+    ];
+    expect(issuableCards(input, today)).toEqual([negative, expiresToday, future, noExpiry, noLot]);
+    expect(input).toHaveLength(7);
+    expect(issuableCards([], today)).toEqual([]);
   });
 });

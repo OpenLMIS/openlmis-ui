@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolveColumnVisibility } from '@/components/data-table/responsive-columns';
-import { EVENT_HIDEABLE_COLUMNS } from '@/features/stock-events/components/event-line-table';
+import {
+  EVENT_HIDEABLE_COLUMNS,
+  eventHideableColumns,
+} from '@/features/stock-events/components/event-line-table';
 
 describe('event line column defaults', () => {
   it.each([358, 736, 1000, 1104])('reserves editable cells at %i px of content', (width) => {
@@ -26,4 +29,19 @@ describe('event line column defaults', () => {
     const choices = { productCode: true, packSize: true, expiry: true, total: true };
     expect(resolveColumnVisibility(EVENT_HIDEABLE_COLUMNS, choices, 358)).toEqual(choices);
   });
+});
+
+it('keeps only the four optional Issue columns in View, in hiding priority order', () => {
+  expect(eventHideableColumns('issue').map(({ id }) => id)).toEqual([
+    'productCode',
+    'packSize',
+    'total',
+    'expiry',
+  ]);
+});
+
+it('lets View restore all optional Issue columns on a phone', () => {
+  const columns = eventHideableColumns('issue');
+  const choices = Object.fromEntries(columns.map(({ id }) => [id, true]));
+  expect(resolveColumnVisibility(columns, choices, 341)).toEqual(choices);
 });

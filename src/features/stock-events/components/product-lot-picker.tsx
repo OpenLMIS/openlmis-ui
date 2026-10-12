@@ -4,6 +4,7 @@ import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateValue } from '@/components/form/date-value';
 import { FieldLabelText } from '@/components/form/form-fields';
+import { ScanStatus } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -18,33 +19,48 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import {
+  type EventCardFilter,
   type EventLotOption,
   eventLotOptions,
   eventProductOptions,
 } from '@/features/stock-events/lib/products';
 import type { EventStockCard, EventStockCardsFilter } from '@/features/stock-events/lib/types';
+import { useFlag } from '@/lib/feature-flags';
 
 type Props = EventStockCardsFilter & {
   children?: ReactNode;
+  cardFilter: EventCardFilter;
   disabled: boolean;
   onAdd: (card: EventStockCard) => void;
 };
 
-export function ProductLotPicker({ facilityId, programId, onAdd, disabled, children }: Props) {
+export function ProductLotPicker({
+  facilityId,
+  programId,
+  onAdd,
+  disabled,
+  children,
+  cardFilter,
+}: Props) {
   const { t, i18n } = useTranslation();
   const id = useId();
   const { data: cards } = useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
-  const products = useMemo(() => eventProductOptions(cards), [cards]);
+  const products = useMemo(() => eventProductOptions(cardFilter(cards)), [cards, cardFilter]);
   const [productId, setProductId] = useState<string | null>(null);
   const [lotId, setLotId] = useState<string | null>(null);
-  const product = products.find((item) => item.value === productId);
+  const selectedProductId = products.length === 1 ? products[0].value : productId;
+  const product = products.find((item) => item.value === selectedProductId);
+  if (selectedProductId !== productId) {
+    setProductId(selectedProductId);
+    setLotId(null);
+  }
   const lots = eventLotOptions(product?.cards ?? []);
   const lotItems = lots.map((item) => ({
     value: item.value,
@@ -65,11 +81,13 @@ export function ProductLotPicker({ facilityId, programId, onAdd, disabled, child
       )}
     </span>
   );
-  const pickedLot = lots.find((item) => item.value === lotId);
+  const selectedLotId = lots.length === 1 ? lots[0].value : lotId;
+  if (lots.length === 1 && selectedLotId !== lotId) setLotId(selectedLotId);
+  const pickedLot = lots.find((item) => item.value === selectedLotId);
   const pickedCard = pickedLot?.card;
   return (
     <PickerPanel status={children}>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
             <FieldLabelText label={t('stock-events.product')} required />
@@ -105,37 +123,41 @@ export function ProductLotPicker({ facilityId, programId, onAdd, disabled, child
           </Combobox>
         </Field>
       </div>
-      <div className="min-w-0 flex-1">
-        <Field spacing="tight">
-          <FieldLabel htmlFor={`${id}-lot`}>
-            <FieldLabelText label={t('stock-events.lot-code')} required />
-          </FieldLabel>
-          <Select
-            items={lotItems}
-            value={lotId}
-            disabled={disabled || !product}
-            onValueChange={setLotId}
-          >
-            <SelectTrigger
-              id={`${id}-lot`}
-              aria-required="true"
-              aria-label={t('stock-events.lot-code')}
-              width="full"
+      {product?.cards.some((card) => card.lot !== null) && (
+        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+          <Field spacing="tight">
+            <FieldLabel htmlFor={`${id}-lot`}>
+              <FieldLabelText label={t('stock-events.lot-code')} required />
+            </FieldLabel>
+            <Select
+              items={lotItems}
+              value={selectedLotId}
+              disabled={disabled}
+              onValueChange={setLotId}
             >
-              <SelectValue placeholder={t('stock-events.lot-code')}>
-                {pickedLot ? lotLabel(pickedLot) : undefined}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {lots.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {lotLabel(item)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
+              <SelectTrigger
+                id={`${id}-lot`}
+                aria-required="true"
+                aria-label={t('stock-events.lot-code')}
+                width="full"
+              >
+                <SelectValue placeholder={t('stock-events.lot-code')}>
+                  {pickedLot ? lotLabel(pickedLot) : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lots.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {lotLabel(item)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      )}
       <div className="@3xl/main:w-auto">
         <Button
           width="full"
@@ -167,22 +189,33 @@ function PickerPanel({ children, status }: { children: ReactNode; status?: React
 
 export function ProductLotPickerSkeleton() {
   const { t } = useTranslation();
+  const scanning = useFlag('GS1_SCANNING');
   return (
-    <PickerPanel>
-      {[t('stock-events.product'), t('stock-events.lot-code')].map((label) => (
-        <div className="min-w-0 flex-1" key={label}>
-          <Field spacing="tight">
-            <FieldLabel>
-              <FieldLabelText label={label} required />
-            </FieldLabel>
-            <div className="h-8">
-              <Skeleton fill />
-            </div>
-          </Field>
-        </div>
-      ))}
-      <div className="h-8 @3xl/main:w-20">
-        <Skeleton fill />
+    <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
+      <p role="status" aria-live="polite" className="sr-only">
+        {t('stock-events.products-loading')}
+      </p>
+      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+        <Field spacing="tight">
+          <FieldLabel>
+            <FieldLabelText label={t('stock-events.product')} required />
+          </FieldLabel>
+          <Combobox disabled>
+            <ComboboxInput
+              disabled
+              aria-label={t('stock-events.product')}
+              aria-required="true"
+              placeholder={t('stock-events.product')}
+              width="full"
+            />
+          </Combobox>
+        </Field>
+      </div>
+      <div className="@3xl/main:w-auto">
+        <Button width="full" disabled type="button">
+          <PlusIcon data-icon="inline-start" />
+          {t('stock-events.add')}
+        </Button>
       </div>
     </PickerPanel>
   );

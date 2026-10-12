@@ -73,3 +73,11 @@ describe('quantity value', () => {
     },
   );
 });
+
+it('keeps cleared single-dose packs required despite their forced zero remainder', () => {
+  expect(updateQuantityValue(quantityValue('4', 1), 'packs', '', 1)).toEqual({
+    doses: '',
+    packs: '',
+    remainder: '0',
+  });
+});
