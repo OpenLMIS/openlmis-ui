@@ -1,4 +1,10 @@
-import type { EventStockCard } from '@/features/stock-events/lib/types';
+import type {
+  ApprovedProduct,
+  LotSummary,
+  OrderableFulfills,
+} from '@/features/reference-data/lib/types';
+import { stockKey } from '@/features/stock-events/lib/event-reverse';
+import type { EventStockCard, EventStockOnHand } from '@/features/stock-events/lib/types';
 
 export type EventProductOption = {
   value: string;
@@ -16,6 +22,20 @@ export type EventLotOption = {
   | { labelKey: 'stock-events.no-lot-defined'; label?: never }
 );
 
+export type ApprovedProductOption = Omit<EventProductOption, 'cards'> & { approvedId: string };
+
+export const ADD_NEW_LOT = 'add-new-lot';
+
+export type ReceiveLotOption =
+  | EventLotOption
+  | { value: typeof ADD_NEW_LOT; lot: null; labelKey: 'stock-events.add-new-lot'; card?: never };
+
+function productLabel(orderable: EventStockCard['orderable']): string {
+  const name = orderable.fullProductName || orderable.productCode;
+  const unit = orderable.dispensable?.displayUnit;
+  return unit ? `${name} - ${unit}` : name;
+}
+
 export function eventProductOptions(cards: readonly EventStockCard[]): EventProductOption[] {
   const products = new Map<string, EventProductOption>();
   for (const card of cards) {
@@ -24,17 +44,79 @@ export function eventProductOptions(cards: readonly EventStockCard[]): EventProd
     if (product) {
       product.cards.push(card);
     } else {
-      const name = orderable.fullProductName || orderable.productCode;
-      const unit = orderable.dispensable?.displayUnit;
       products.set(orderable.id, {
         value: orderable.id,
-        label: unit ? `${name} - ${unit}` : name,
+        label: productLabel(orderable),
         orderable,
         cards: [card],
       });
     }
   }
   return [...products.values()];
+}
+
+export function approvedProductOptions(
+  page: readonly ApprovedProduct[],
+  fulfils: OrderableFulfills | undefined,
+  fulfillingOrderables: readonly EventStockCard['orderable'][],
+  search = '',
+): ApprovedProductOption[] {
+  const fulfilling = new Map(fulfillingOrderables.map((orderable) => [orderable.id, orderable]));
+  const options = new Map<string, ApprovedProductOption>();
+  const place = (orderable: EventStockCard['orderable'], approvedId: string) => {
+    if (!options.has(orderable.id))
+      options.set(orderable.id, {
+        value: orderable.id,
+        label: productLabel(orderable),
+        orderable,
+        approvedId,
+      });
+  };
+  const term = search.trim().toLowerCase();
+  if (term) {
+    for (const orderable of fulfillingOrderables) {
+      const approvedId = Object.keys(fulfils ?? {}).find((id) =>
+        fulfils?.[id]?.canFulfillForMe?.includes(orderable.id),
+      );
+      if (approvedId && orderable.fullProductName?.toLowerCase().includes(term))
+        place(orderable, approvedId);
+    }
+  }
+  for (const { orderable } of page) {
+    for (const id of fulfils?.[orderable.id]?.canFulfillForMe ?? []) {
+      const fulfiller = fulfilling.get(id);
+      if (fulfiller) place(fulfiller, orderable.id);
+    }
+    place(orderable, orderable.id);
+  }
+  return [...options.values()];
+}
+
+const byExpiry = (first: LotSummary, second: LotSummary) =>
+  first.expirationDate && second.expirationDate
+    ? first.expirationDate.localeCompare(second.expirationDate)
+    : Number(!first.expirationDate) - Number(!second.expirationDate);
+
+export function receiveLotOptions(
+  { orderable }: Pick<ApprovedProductOption, 'orderable'>,
+  lots: readonly LotSummary[],
+  stock: EventStockOnHand,
+  canAddLot: boolean,
+): ReceiveLotOption[] {
+  const card = (lot: LotSummary | null): EventStockCard => ({
+    orderable,
+    lot,
+    stockOnHand: stock[stockKey(orderable.id, lot?.id)] ?? null,
+  });
+  return [
+    ...(canAddLot && orderable.identifiers?.tradeItem
+      ? [{ value: ADD_NEW_LOT, lot: null, labelKey: 'stock-events.add-new-lot' } as const]
+      : []),
+    { value: '', lot: null, labelKey: 'stock-events.no-lot-defined', card: card(null) },
+    ...[...lots]
+      .sort(byExpiry)
+      .map((lot) => ({ value: lot.id, label: lot.lotCode, lot, card: card(lot) })),
+  ];
 }
 
 export function eventLotOptions(cards: readonly EventStockCard[]): EventLotOption[] {

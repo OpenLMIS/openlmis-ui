@@ -229,16 +229,18 @@ export const tradeItemByGtinOptions = (gtin: string) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
+export const validAssignmentsOptions = (
+  resource: 'validSources' | 'validDestinations',
+  filter: ValidAssignmentsFilter,
+) =>
   queryOptions({
-    queryKey: [...queryKeys.validDestinations.all, 'lookup', filter] as const,
-    queryFn: () => fetchValidAssignments('validDestinations', filter),
+    queryKey: [...queryKeys[resource].all, 'lookup', filter] as const,
+    queryFn: () => fetchValidAssignments(resource, filter),
     staleTime: LOOKUP_STALE_TIME,
   });
 
+export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
+  validAssignmentsOptions('validDestinations', filter);
+
 export const validSourcesOptions = (filter: ValidAssignmentsFilter) =>
-  queryOptions({
-    queryKey: [...queryKeys.validSources.all, 'lookup', filter] as const,
-    queryFn: () => fetchValidAssignments('validSources', filter),
-    staleTime: LOOKUP_STALE_TIME,
-  });
+  validAssignmentsOptions('validSources', filter);

@@ -26,7 +26,6 @@ import {
   facilityOptions,
   userProgramsOptions,
   userRecordOptions,
-  validDestinationsOptions,
   validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
@@ -39,6 +38,7 @@ import { PrintEventDialog } from '@/features/stock-events/components/print-event
 import { ProductLotPickerSkeleton } from '@/features/stock-events/components/product-lot-picker';
 import {
   type ConfiguredEventKind,
+  counterpartyOptions,
   EVENT_KINDS,
   type PrintableEventKind,
 } from '@/features/stock-events/lib/event-kinds';
@@ -85,9 +85,13 @@ export async function loadStockEventEditor(
   queryClient.prefetchQuery(userProgramsOptions(userId));
   const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
   if (canViewStock) {
-    if (EVENT_KINDS[kind].counterparty === 'destination')
-      queryClient.prefetchQuery(validDestinationsOptions({ facilityId: homeId, programId }));
-    queryClient.prefetchQuery(eventStockCardsOptions({ facilityId: homeId, programId }));
+    const { counterparty, products } = EVENT_KINDS[kind];
+    if (counterparty !== 'none')
+      queryClient.prefetchQuery(
+        counterpartyOptions(counterparty, { facilityId: homeId, programId }),
+      );
+    if (products.from === 'stock-cards')
+      queryClient.prefetchQuery(eventStockCardsOptions({ facilityId: homeId, programId }));
     queryClient.prefetchQuery(
       validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
     );

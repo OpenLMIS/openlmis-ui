@@ -3,6 +3,7 @@ import { quantityValue, updateQuantityValue } from '@/components/form/quantity-v
 import type { Reason } from '@/features/reference-data/lib/types';
 import {
   changeEventCounterparty,
+  changeEventLot,
   changeEventReason,
   type EventLine,
   eventLinesSchema,
@@ -422,10 +423,166 @@ describe('default event reason', () => {
   });
 });
 
+describe('receive form', () => {
+  const receiveReasons = [reason('transfer-in', 'CREDIT', true)];
+  const options = { kind: 'receive' as const, reasons: receiveReasons, today, assignments };
+  const receiveLine = (patch: Partial<EventLine> = {}) =>
+    line({ counterparty: 'assignment', reasonId: '', ...patch });
+  const parse = (lines: EventLine[], patch: { defaultReasonId?: string } = {}) =>
+    eventLinesSchema({ ...options, ...patch }).safeParse({ lines });
+  const newLot = { lotCode: 'NEW-1', expirationDate: '2027-01-31', tradeItemId: 'trade-1' };
+  it('requires a listed source and never caps the quantity by stock on hand', () => {
+    expect(
+      parse([
+        receiveLine({ quantity: quantityValue('51') }),
+        receiveLine({ stockOnHand: null, quantity: quantityValue('9') }),
+      ]).success,
+    ).toBe(true);
+    for (const counterparty of ['', 'missing']) {
+      expect(parse([receiveLine({ counterparty })]).error?.issues).toEqual([
+        expect.objectContaining({
+          path: ['lines', 0, 'counterparty'],
+          message: 'stock-events.required',
+        }),
+      ]);
+    }
+  });
+  it('allows source comments only for a free-text source, up to 255 characters', () => {
+    expect(parse([receiveLine({ counterpartyComments: 'a'.repeat(255) })]).success).toBe(true);
+    expect(parse([receiveLine({ counterpartyComments: 'a'.repeat(256) })]).success).toBe(false);
+    expect(
+      parse([receiveLine({ counterparty: 'facility', counterpartyComments: 'NGO' })]).error?.issues,
+    ).toEqual([
+      expect.objectContaining({
+        path: ['lines', 0, 'counterpartyComments'],
+        message: 'stock-events.comments-not-allowed',
+      }),
+    ]);
+  });
+  it('keeps the reason optional unless the default is listed, then preselects and requires it', () => {
+    const fresh = (defaultReasonId?: string) =>
+      newEventLine(card, undefined, today, { ...options, defaultReasonId, productHasLots: true });
+    expect(fresh().reasonId).toBe('');
+    expect(fresh('missing').reasonId).toBe('');
+    expect(fresh('transfer-in').reasonId).toBe('transfer-in');
+    expect(parse([receiveLine()], { defaultReasonId: 'missing' }).success).toBe(true);
+    expect(parse([receiveLine()], { defaultReasonId: 'transfer-in' }).error?.issues).toEqual([
+      expect.objectContaining({ path: ['lines', 0, 'reasonId'], message: 'stock-events.required' }),
+    ]);
+  });
+  it('copies the source, its allowed comments, reason and date from the previous line', () => {
+    const previous = receiveLine({
+      counterpartyComments: 'From NGO',
+      reasonId: 'transfer-in',
+      reasonFreeText: 'Donation',
+      occurredDate: '2026-10-01',
+    });
+    expect(newEventLine(card, previous, today, { ...options, productHasLots: true })).toMatchObject(
+      {
+        counterparty: 'assignment',
+        counterpartyComments: 'From NGO',
+        reasonId: 'transfer-in',
+        reasonFreeText: 'Donation',
+        occurredDate: '2026-10-01',
+      },
+    );
+    expect(
+      newEventLine(card, { ...previous, counterparty: 'facility' }, today, {
+        ...options,
+        productHasLots: true,
+      }),
+    ).toMatchObject({ counterparty: 'facility', counterpartyComments: '' });
+  });
+  it('sends the source node id, existing lot ids and new lots inline without empty fields', () => {
+    const payload = eventPayload({
+      ...options,
+      programId: 'program',
+      facilityId: 'facility',
+      signature: 'Ada',
+      lines: [
+        receiveLine({ counterpartyComments: 'From NGO', reasonId: 'transfer-in' }),
+        receiveLine({ lot: newLot, counterpartyComments: '  ' }),
+        receiveLine({ lot: { ...newLot, expirationDate: null } }),
+        receiveLine({ lot: null }),
+      ],
+    });
+    expect(payload.eventOrigin).toBe('RECEIVE');
+    expect(payload.lineItems).toEqual([
+      {
+        orderableId: 'product-1',
+        lotId: 'lot-1',
+        quantity: 1,
+        occurredDate: today,
+        sourceId: 'node',
+        sourceFreeText: 'From NGO',
+        reasonId: 'transfer-in',
+        extraData: {},
+      },
+      {
+        orderableId: 'product-1',
+        lot: { lotCode: 'NEW-1', expirationDate: '2027-01-31' },
+        quantity: 1,
+        occurredDate: today,
+        sourceId: 'node',
+        extraData: {},
+      },
+      {
+        orderableId: 'product-1',
+        lot: { lotCode: 'NEW-1' },
+        quantity: 1,
+        occurredDate: today,
+        sourceId: 'node',
+        extraData: {},
+      },
+      {
+        orderableId: 'product-1',
+        lotId: null,
+        quantity: 1,
+        occurredDate: today,
+        sourceId: 'node',
+        extraData: {},
+      },
+    ]);
+    expect(payload.lineItems[1]).not.toHaveProperty('lotId');
+    expect(payload.lineItems[0]).not.toHaveProperty('destinationId');
+  });
+});
+
+describe('changeEventLot', () => {
+  const lot = (lotCode: string, expirationDate: string | null, tradeItemId = 'trade-1') => ({
+    lotCode,
+    expirationDate,
+    tradeItemId,
+  });
+  const lines = [
+    line({ key: 'a', lot: lot('NEW-1', '2027-01-31') }),
+    line({ key: 'b', lot: lot('NEW-1', '2027-01-31', 'trade-2') }),
+    line({ key: 'c', lot: lot('NEW-1', '2027-06-30') }),
+    line({ key: 'd', lot: lot('NEW-2', '2027-01-31') }),
+    line({ key: 'e' }),
+  ];
+  const lotsOf = (next: EventLine[]) => next.map((item) => item.lot);
+  it('applies a changed code and expiry to that line only', () => {
+    const next = changeEventLot(lines, 'a', { lotCode: 'NEW-9', expirationDate: '2028-01-01' });
+    expect(lotsOf(next)).toEqual([lot('NEW-9', '2028-01-01'), ...lotsOf(lines).slice(1)]);
+  });
+  it('applies a changed expiry alone to every new lot with the same code and old expiry', () => {
+    const next = changeEventLot(lines, 'a', { lotCode: 'NEW-1', expirationDate: null });
+    expect(lotsOf(next)).toEqual([
+      lot('NEW-1', null),
+      lot('NEW-1', null, 'trade-2'),
+      ...lotsOf(lines).slice(2),
+    ]);
+    expect(lines[0].lot).toEqual(lot('NEW-1', '2027-01-31'));
+  });
+  it('leaves lines with an existing lot unchanged', () => {
+    expect(changeEventLot(lines, 'e', { lotCode: 'X', expirationDate: null })).toEqual(lines);
+  });
+});
+
 it('requires an explicit event kind for every form operation', () => {
-  expectTypeOf<Parameters<typeof newEventLine>[3]>().toExtend<{ kind: 'adjustment' | 'issue' }>();
-  expectTypeOf<Parameters<typeof eventLinesSchema>[0]>().toExtend<{
-    kind: 'adjustment' | 'issue';
-  }>();
-  expectTypeOf<Parameters<typeof eventPayload>[0]>().toExtend<{ kind: 'adjustment' | 'issue' }>();
+  type Kind = { kind: 'adjustment' | 'issue' | 'receive' };
+  expectTypeOf<Parameters<typeof newEventLine>[3]>().toExtend<Kind>();
+  expectTypeOf<Parameters<typeof eventLinesSchema>[0]>().toExtend<Kind>();
+  expectTypeOf<Parameters<typeof eventPayload>[0]>().toExtend<Kind>();
 });

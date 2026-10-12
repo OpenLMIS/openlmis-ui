@@ -1,18 +1,60 @@
 import type { ParseKeys } from 'i18next';
+import type { ValidAssignmentsFilter } from '@/features/reference-data/api/api';
+import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
 import { allEventCards, issuableCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 
-export type EventProducts = {
-  from: 'stock-cards';
-  cardFilter: (cards: readonly EventStockCard[], today: string) => readonly EventStockCard[];
-};
+export type EventProducts =
+  | {
+      from: 'stock-cards';
+      cardFilter: (cards: readonly EventStockCard[], today: string) => readonly EventStockCard[];
+    }
+  | { from: 'approved-products' };
 
 export type EventPrintCopy = Record<
   'title' | 'skip' | 'loading' | 'printedTitle' | 'printed' | 'errorTitle' | 'error' | 'refused',
   ParseKeys
 >;
+
+export type CounterpartySide = 'destination' | 'source';
+
+export const COUNTERPARTY = {
+  destination: {
+    resource: 'validDestinations',
+    column: 'stock-events.issue-to',
+    comments: 'stock-events.destination-comments',
+    noLookupTitle: 'stock-events.no-destinations-title',
+    noLookupDescription: 'stock-events.no-destinations-description',
+    lookupErrorTitle: 'stock-events.destinations-error-title',
+    lookupErrorDescription: 'stock-events.destinations-error-description',
+  },
+  source: {
+    resource: 'validSources',
+    column: 'stock-events.received-from',
+    comments: 'stock-events.source-comments',
+    noLookupTitle: 'stock-events.no-sources-title',
+    noLookupDescription: 'stock-events.no-sources-description',
+    lookupErrorTitle: 'stock-events.sources-error-title',
+    lookupErrorDescription: 'stock-events.sources-error-description',
+  },
+} as const satisfies Record<
+  CounterpartySide,
+  { resource: 'validSources' | 'validDestinations' } & Record<
+    | 'column'
+    | 'comments'
+    | 'noLookupTitle'
+    | 'noLookupDescription'
+    | 'lookupErrorTitle'
+    | 'lookupErrorDescription',
+    ParseKeys
+  >
+>;
+
+export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignmentsFilter) {
+  return validAssignmentsOptions(COUNTERPARTY[side].resource, filter);
+}
 
 export type EventKindConfig = {
   eventOrigin: StockEvent['eventOrigin'];
@@ -20,10 +62,11 @@ export type EventKindConfig = {
   columnFit: 'thresholds' | 'measured';
   products: EventProducts;
   print: EventPrintCopy | null;
-  counterparty: 'none' | 'destination';
+  counterparty: 'none' | CounterpartySide;
   reasonRequired: boolean;
   reasons: (assignments: readonly ValidReasonAssignment[]) => Reason[];
-  stockOnHandCap: 'debit-reason' | 'always';
+  stockOnHandCap: 'debit-reason' | 'always' | 'never';
+  newLots: 'none' | 'manual-and-scan';
   copy: Record<
     | 'editorTitle'
     | 'editorDescription'
@@ -53,6 +96,7 @@ export const EVENT_KINDS = {
     reasons: (assignments: readonly ValidReasonAssignment[]) =>
       reasonsOf(assignments, 'ADJUSTMENT'),
     stockOnHandCap: 'debit-reason',
+    newLots: 'none',
     copy: {
       editorTitle: 'stock-adjustment.editor-title',
       editorDescription: 'stock-adjustment.editor-description',
@@ -88,6 +132,7 @@ export const EVENT_KINDS = {
     reasons: (assignments: readonly ValidReasonAssignment[]) =>
       reasonsOf(assignments, 'TRANSFER', 'DEBIT'),
     stockOnHandCap: 'always',
+    newLots: 'none',
     copy: {
       editorTitle: 'stock-issue.editor-title',
       editorDescription: 'stock-issue.editor-description',
@@ -103,7 +148,43 @@ export const EVENT_KINDS = {
     columnChoicesKey: 'issue-columns',
     formId: 'issue-form',
   },
-} as const satisfies Record<'adjustment' | 'issue', EventKindConfig>;
+  receive: {
+    eventOrigin: 'RECEIVE',
+    width: 'wide',
+    columnFit: 'measured',
+    products: { from: 'approved-products' },
+    print: {
+      title: 'stock-receive.print-title',
+      skip: 'stock-receive.print-skip',
+      loading: 'stock-receive.print-loading',
+      printedTitle: 'stock-receive.printed-title',
+      printed: 'stock-receive.printed',
+      errorTitle: 'stock-receive.print-error-title',
+      error: 'stock-receive.print-error',
+      refused: 'stock-receive.print-refused',
+    },
+    counterparty: 'source',
+    reasonRequired: false,
+    reasons: (assignments: readonly ValidReasonAssignment[]) =>
+      reasonsOf(assignments, 'TRANSFER', 'CREDIT'),
+    stockOnHandCap: 'never',
+    newLots: 'manual-and-scan',
+    copy: {
+      editorTitle: 'stock-receive.editor-title',
+      editorDescription: 'stock-receive.editor-description',
+      emptyTitle: 'stock-receive.empty-title',
+      emptyDescription: 'stock-receive.empty-description',
+      invalidTitle: 'stock-receive.invalid-title',
+      invalidDescription: 'stock-receive.invalid-description',
+      submitErrorTitle: 'stock-receive.submit-error-title',
+      submitErrorDescription: 'stock-receive.submit-error-description',
+      submittedTitle: 'stock-receive.submitted-title',
+      submittedDescription: 'stock-receive.submitted-description',
+    },
+    columnChoicesKey: 'receive-columns',
+    formId: 'receive-form',
+  },
+} as const satisfies Record<'adjustment' | 'issue' | 'receive', EventKindConfig>;
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 

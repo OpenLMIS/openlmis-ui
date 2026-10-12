@@ -1,4 +1,5 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
+import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +25,12 @@ import {
   changeEventReason,
   type EventLine,
 } from '@/features/stock-events/lib/event-form';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import {
+  COUNTERPARTY,
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  type EventKindConfig,
+} from '@/features/stock-events/lib/event-kinds';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -65,7 +71,13 @@ export function eventHideableColumns(kind: ConfiguredEventKind) {
     ? MEASURED_HIDEABLE_COLUMNS
     : EVENT_HIDEABLE_COLUMNS;
 }
-const NO_DESTINATIONS: readonly ValidAssignment[] = [];
+function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterparty']): ParseKeys {
+  if (side === 'none') return key;
+  if (id === 'destination') return COUNTERPARTY[side].column;
+  if (id === 'destinationComments') return COUNTERPARTY[side].comments;
+  return key;
+}
+const NO_ASSIGNMENTS: readonly ValidAssignment[] = [];
 const helper = createColumnHelper<DataTableFeatures, EventLine>();
 const NO_SORT = { id: 'product', desc: false };
 
@@ -131,7 +143,7 @@ type CellProps = {
   line: EventLine;
   form: EventForm;
   reasons: readonly Reason[];
-  destinations?: readonly ValidAssignment[];
+  assignments?: readonly ValidAssignment[];
   unit: QuantityUnit;
   today: string;
   disabled: boolean;
@@ -145,7 +157,7 @@ const LineCell = memo(function LineCell({
   line,
   form,
   reasons,
-  destinations = NO_DESTINATIONS,
+  assignments = NO_ASSIGNMENTS,
   unit,
   today,
   disabled,
@@ -160,8 +172,9 @@ const LineCell = memo(function LineCell({
     line.lot?.lotCode ??
     t(line.productHasLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
   const row = t('stock-events.row-identity', { product: name, lot: lotLabel, position: index + 1 });
-  const label = (key: (typeof COLUMNS)[number][1]) =>
-    t('stock-events.field-of', { field: t(key), row });
+  const label = (key: ParseKeys) => t('stock-events.field-of', { field: t(key), row });
+  const side = EVENT_KINDS[kind].counterparty;
+  const counterparty = COUNTERPARTY[side === 'none' ? 'destination' : side];
   const reason = reasons.find((item) => item.id === line.reasonId);
   const measured = EVENT_KINDS[kind].columnFit === 'measured';
   switch (id) {
@@ -219,8 +232,8 @@ const LineCell = memo(function LineCell({
                 <field.SelectField
                   disabled={disabled}
                   required
-                  items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
-                  label={label('stock-events.issue-to')}
+                  items={assignments.map((item) => ({ value: item.id, label: item.name ?? '' }))}
+                  label={label(counterparty.column)}
                   layout="inline"
                   hideErrors
                   placeholder={t('stock-events.select-option')}
@@ -232,7 +245,7 @@ const LineCell = memo(function LineCell({
         </div>
       );
     case 'destinationComments':
-      return destinations.find((item) => item.id === line.counterparty)?.isFreeTextAllowed ? (
+      return assignments.find((item) => item.id === line.counterparty)?.isFreeTextAllowed ? (
         <div
           className={
             measured
@@ -245,7 +258,7 @@ const LineCell = memo(function LineCell({
               <field.TextareaField
                 disabled={disabled}
                 dir="auto"
-                label={label('stock-events.destination-comments')}
+                label={label(counterparty.comments)}
                 layout="inline"
                 hideErrors
                 maxLength={255}
@@ -449,7 +462,7 @@ export function EventLineTable({
   form,
   lines,
   reasons,
-  destinations = NO_DESTINATIONS,
+  assignments = NO_ASSIGNMENTS,
   unit,
   today,
   disabled,
@@ -471,10 +484,11 @@ export function EventLineTable({
       helper.columns(
         COLUMNS.filter(
           ([id]) =>
-            config.counterparty === 'destination' ||
+            config.counterparty !== 'none' ||
             (id !== 'destination' && id !== 'destinationComments'),
-        ).map(([id, key]) =>
-          helper.display({
+        ).map(([id, columnKey]) => {
+          const key = columnLabel(id, columnKey, config.counterparty);
+          return helper.display({
             id,
             header: () => (
               <>
@@ -486,7 +500,7 @@ export function EventLineTable({
                     <SelectSizer
                       labels={[
                         t('stock-events.select-option'),
-                        ...destinations.map((item) => item.name ?? ''),
+                        ...assignments.map((item) => item.name ?? ''),
                       ]}
                     />
                   )}
@@ -547,15 +561,15 @@ export function EventLineTable({
                 line={row.original}
                 form={form}
                 reasons={reasons}
-                destinations={destinations}
+                assignments={assignments}
                 unit={unit}
                 today={today}
                 disabled={disabled}
                 onRemove={onRemove}
               />
             ),
-          }),
-        ),
+          });
+        }),
       ),
     [
       kind,
@@ -564,7 +578,7 @@ export function EventLineTable({
       reasonRequired,
       form,
       reasons,
-      destinations,
+      assignments,
       unit,
       today,
       disabled,

@@ -3,14 +3,24 @@ import { parseDateValue } from '@/components/form/date-value';
 import { type QuantityValue, quantityValue } from '@/components/form/quantity-value';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
+import {
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  type EventKindConfig,
+} from '@/features/stock-events/lib/event-kinds';
+import type {
+  EventLot,
+  EventStockCard,
+  NewLot,
+  StockEvent,
+  StockEventLineItem,
+} from '@/features/stock-events/lib/types';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
   key: z.string(),
   orderable: z.custom<EventStockCard['orderable']>(),
-  lot: z.custom<EventStockCard['lot']>(),
+  lot: z.custom<EventLot | null>(),
   stockOnHand: z.number().nullable(),
   productHasLots: z.boolean(),
   netContent: z.number().nullable().optional(),
@@ -38,8 +48,10 @@ export type EventLineOptions = Pick<EventSchemaOptions, 'kind'> &
   Partial<Omit<EventSchemaOptions, 'kind' | 'today'>>;
 export type NewEventLineOptions = EventLineOptions & { productHasLots: boolean };
 
+export type EventLineCandidate = Omit<EventStockCard, 'id' | 'lot'> & { lot: EventLot | null };
+
 export function newEventLine(
-  card: EventStockCard,
+  card: EventLineCandidate,
   previousLine: EventLine | undefined,
   today: string,
   { kind, assignments = [], reasons = [], defaultReasonId, productHasLots }: NewEventLineOptions,
@@ -150,6 +162,49 @@ export function changeEventCounterparty(line: EventLine, counterparty: string): 
     : { ...line, counterparty, counterpartyComments: '' };
 }
 
+export function isNewLot(lot: EventLot | null | undefined): lot is NewLot {
+  return !!lot && !('id' in lot);
+}
+
+export function changeEventLot(
+  lines: readonly EventLine[],
+  key: string,
+  next: Pick<NewLot, 'lotCode' | 'expirationDate'>,
+): EventLine[] {
+  const old = lines.find((line) => line.key === key)?.lot;
+  if (!isNewLot(old)) return [...lines];
+  if (old.lotCode !== next.lotCode)
+    return lines.map((line) => (line.key === key ? { ...line, lot: { ...old, ...next } } : line));
+  return lines.map((line) =>
+    isNewLot(line.lot) &&
+    line.lot.lotCode === old.lotCode &&
+    line.lot.expirationDate === old.expirationDate
+      ? { ...line, lot: { ...line.lot, expirationDate: next.expirationDate } }
+      : line,
+  );
+}
+
+function lotFields(lot: EventLot | null): Pick<StockEventLineItem, 'lotId' | 'lot'> {
+  if (!isNewLot(lot)) return { lotId: lot?.id ?? null };
+  return {
+    lot: {
+      lotCode: lot.lotCode,
+      ...(lot.expirationDate && { expirationDate: lot.expirationDate }),
+    },
+  };
+}
+
+function counterpartyFields(
+  side: EventKindConfig['counterparty'],
+  nodeId: string | undefined,
+  comments: string | undefined,
+): Partial<StockEventLineItem> {
+  if (side === 'destination')
+    return { destinationId: nodeId, ...(comments && { destinationFreeText: comments }) };
+  if (side === 'source') return { sourceId: nodeId, ...(comments && { sourceFreeText: comments }) };
+  return {};
+}
+
 export type EventPayloadOptions = {
   kind: ConfiguredEventKind;
   assignments?: readonly ValidAssignment[];
@@ -167,21 +222,23 @@ export function eventPayload({
   signature,
   lines,
 }: EventPayloadOptions): StockEvent {
+  const { counterparty, eventOrigin } = EVENT_KINDS[kind];
   return {
     programId,
     facilityId,
     signature,
-    eventOrigin: EVENT_KINDS[kind].eventOrigin,
+    eventOrigin,
     lineItems: lines.map((line) => ({
       orderableId: line.orderable.id,
-      lotId: line.lot?.id ?? null,
+      ...lotFields(line.lot),
       quantity: toWholeNumber(line.quantity.doses),
       occurredDate: line.occurredDate,
       ...(line.reasonId && { reasonId: line.reasonId }),
-      ...(EVENT_KINDS[kind].counterparty === 'destination' && {
-        destinationId: assignments.find((item) => item.id === line.counterparty)?.node.id,
-        ...(line.counterpartyComments.trim() && { destinationFreeText: line.counterpartyComments }),
-      }),
+      ...counterpartyFields(
+        counterparty,
+        assignments.find((item) => item.id === line.counterparty)?.node.id,
+        line.counterpartyComments.trim() ? line.counterpartyComments : undefined,
+      ),
       ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
       extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},
     })),
