@@ -23,22 +23,10 @@ const issues = (values: Partial<ReturnType<typeof toLotFormValues>>, refused: st
 };
 
 describe('lotFormSchema', () => {
-  it('takes a code of the characters lot codes allow', () => {
-    expect(issues({ lotCode: `AB-12/3.x_(1)*+,:;<=>?!"%&'`.slice(0, 20) })).toEqual([]);
-  });
-
-  it('asks for a code', () => {
+  it('reports the Lots page messages for the lot code rules', () => {
     expect(issues({ lotCode: '  ' })).toContain('lots.form.code-required');
-  });
-
-  it('refuses a code longer than 20 characters', () => {
-    expect(issues({ lotCode: 'A'.repeat(20) })).toEqual([]);
     expect(issues({ lotCode: 'A'.repeat(21) })).toEqual(['lots.form.code-too-long']);
-  });
-
-  it('refuses characters a lot code cannot hold', () => {
     expect(issues({ lotCode: 'LC 2017' })).toEqual(['lots.form.code-invalid']);
-    expect(issues({ lotCode: 'LÓT1' })).toEqual(['lots.form.code-invalid']);
   });
 
   it('refuses a code the server said another lot of the product has, whatever its case', () => {

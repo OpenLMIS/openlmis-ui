@@ -9,13 +9,14 @@ beforeEach(() => {
   useLoginData.setState({ referenceDataUserId: null });
   useLoginData.setState({ referenceDataUserId: 'user' });
 });
-it('remembers a batch by lot id, otherwise by case-insensitive lot code', () => {
+it('remembers a batch by lot id, otherwise by trade item and case-insensitive lot code', () => {
   acknowledgeScanExpiry({ id: 'lot', lotCode: 'Batch' });
   expect(isScanExpiryAcknowledged({ id: 'LOT', lotCode: 'Different' })).toBe(true);
   expect(isScanExpiryAcknowledged({ id: 'other', lotCode: 'Batch' })).toBe(false);
-  acknowledgeScanExpiry({ lotCode: 'Batch' });
-  expect(isScanExpiryAcknowledged({ lotCode: 'BATCH' })).toBe(true);
-  expect(isScanExpiryAcknowledged({ lotCode: 'other' })).toBe(false);
+  acknowledgeScanExpiry({ lotCode: 'Batch', tradeItemId: 'item' });
+  expect(isScanExpiryAcknowledged({ lotCode: 'BATCH', tradeItemId: 'item' })).toBe(true);
+  expect(isScanExpiryAcknowledged({ lotCode: 'other', tradeItemId: 'item' })).toBe(false);
+  expect(isScanExpiryAcknowledged({ lotCode: 'Batch', tradeItemId: 'another' })).toBe(false);
 });
 it('keeps acknowledgement through same-user renewal and clears it on user changes', () => {
   acknowledgeScanExpiry({ id: 'lot', lotCode: 'Batch' });
