@@ -51,8 +51,16 @@ function SelectRowCheckbox<TData extends RowData>({
 export function selectionColumn<TData extends RowData>(rowLabel: (row: TData) => string) {
   return createColumnHelper<DataTableFeatures, TData>().display({
     id: 'select',
-    header: ({ table }) => <SelectPageCheckbox table={table} />,
-    cell: ({ row }) => <SelectRowCheckbox label={rowLabel(row.original)} row={row} />,
+    header: ({ table }) => (
+      <div className="flex items-center justify-center">
+        <SelectPageCheckbox table={table} />
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center justify-center">
+        <SelectRowCheckbox label={rowLabel(row.original)} row={row} />
+      </div>
+    ),
     meta: { className: 'w-10' },
   });
 }

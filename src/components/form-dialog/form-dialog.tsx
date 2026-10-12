@@ -19,7 +19,7 @@ type FormDialogProps = {
   /** `false` for a dialog the user must answer, which has no close button. */
   closeButton?: boolean;
   /** `xl` for a dialog holding a table, such as a list to pick from. */
-  size?: 'lg' | 'xl';
+  size?: 'lg' | 'xl' | '2xl';
   /** `fixed` keeps the same height whatever the body shows, such as a table as it is filtered. */
   height?: 'auto' | 'fixed';
   children: ReactNode;

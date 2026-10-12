@@ -30,7 +30,7 @@ const row: RoleRow = {
   isUnsaved: false,
 };
 
-function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports) {
+function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports, failed = false) {
   const queryClient = new QueryClient();
   queryClient.setQueryData(rolesOptions().queryKey, [
     {
@@ -48,7 +48,7 @@ function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports)
         onSearchChange={vi.fn()}
         rows={rows}
         search={{}}
-        status={{ nodes: 'ready', facilities: 'ready' }}
+        status={{ nodes: failed ? 'failed' : 'ready', facilities: failed ? 'failed' : 'ready' }}
         tab={tab}
       />
     </QueryClientProvider>,
@@ -56,6 +56,12 @@ function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports)
 }
 
 describe('RoleAssignmentsTable', () => {
+  it('keeps a failed node lookup visibly distinct from an empty cell', () => {
+    renderTable([row], false, supervision, true);
+    const node = screen.getAllByRole('cell')[1];
+    expect(within(node).getByText('users.roles.unknown')).toBeVisible();
+  });
+
   it("shows a role's rights from the button beside its name, without a dialog", async () => {
     renderTable([row], false);
     expect(screen.queryByRole('button', { name: 'Report Viewer' })).toBeNull();

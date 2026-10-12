@@ -53,6 +53,10 @@ const fieldVariants = cva(
   "group/field flex w-full data-[invalid=true]:text-destructive",
   {
     variants: {
+      surface: {
+        default: "",
+        background: "[&_input]:bg-background [&_textarea]:bg-background [&_[data-slot=select-trigger]]:bg-background [&_[data-slot=input-group]]:bg-background [&_[data-slot=combobox-chips]]:bg-background [&_[data-slot=button]]:bg-background dark:[&_input]:bg-background dark:[&_textarea]:bg-background dark:[&_[data-slot=select-trigger]]:bg-background dark:[&_[data-slot=select-trigger]:hover]:bg-background dark:[&_[data-slot=input-group]]:bg-background dark:[&_[data-slot=combobox-chips]]:bg-background dark:[&_[data-slot=button]]:bg-background",
+      },
       spacing: {
         default: "gap-2",
         tight: "gap-1",
@@ -76,6 +80,7 @@ function Field({
   className,
   orientation = "vertical",
   spacing = "default",
+  surface = "default",
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
@@ -83,7 +88,7 @@ function Field({
       role="group"
       data-slot="field"
       data-orientation={orientation}
-      className={cn(fieldVariants({ orientation, spacing }), className)}
+      className={cn(fieldVariants({ orientation, spacing, surface }), className)}
       {...props}
     />
   )

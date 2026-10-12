@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   changeDetailPaging,
+  changeReversePaging,
   detailPagingSchema,
   detailTableSearch,
   hasEventFilters,
   invalidDateRange,
+  reversePagingSchema,
+  reverseTableSearch,
   toEventsQuery,
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
@@ -104,5 +107,33 @@ describe('detail paging search', () => {
       detailPage: 3,
       detailSize: 20,
     });
+  });
+});
+
+describe('reverse paging search', () => {
+  it('validates reverse paging separately and omits defaults', () => {
+    expect(reversePagingSchema.parse({ reversePage: 2, reverseSize: 50, detailPage: 4 })).toEqual({
+      reversePage: 2,
+      reverseSize: 50,
+    });
+    expect(reversePagingSchema.parse({ reversePage: 0, reverseSize: 101 })).toEqual({
+      reversePage: undefined,
+      reverseSize: undefined,
+    });
+    expect(reversePagingSchema.parse({ reversePage: 1, reverseSize: 10 })).toEqual({
+      reversePage: undefined,
+      reverseSize: undefined,
+    });
+  });
+  it('maps and changes the latest reverse paging', () => {
+    expect(reverseTableSearch({ reversePage: 2, reverseSize: 20 })).toEqual({ page: 2, size: 20 });
+    expect(
+      changeReversePaging({ reversePage: 2, reverseSize: 20 }, (current) => ({
+        page: (current.page ?? 1) + 1,
+      })),
+    ).toEqual({ reversePage: 3, reverseSize: 20 });
+    expect(changeReversePaging({ reversePage: 2, reverseSize: 20 }, { page: 1, size: 10 })).toEqual(
+      { reversePage: undefined, reverseSize: undefined },
+    );
   });
 });

@@ -42,9 +42,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
               {getValue()}
             </span>
           </span>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+        ) : null,
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.code')} />,

@@ -53,7 +53,7 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     columnHelper.accessor('lastName', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.name')} />,
       meta: { className: '@xl/main:w-2/5 @4xl/main:w-1/4' },
-      cell: ({ row }) => fullName(row.original) || '-',
+      cell: ({ row }) => fullName(row.original) || null,
     }),
     columnHelper.accessor('username', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.username')} />,
@@ -63,7 +63,7 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     }),
     columnHelper.accessor('email', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.email')} />,
-      cell: ({ getValue }) => getValue() ?? <span className="text-muted-foreground">-</span>,
+      cell: ({ getValue }) => getValue() ?? null,
       enableSorting: false,
     }),
     columnHelper.accessor('active', {

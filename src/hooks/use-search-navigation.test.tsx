@@ -7,7 +7,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { act, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
@@ -43,7 +43,33 @@ async function renderList(initial = '/users') {
   return router;
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('useSearchNavigation', () => {
+  it('scrolls to the top for a new page of the list but not when a dialog opens', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    await renderList('/users');
+    scrollTo.mockClear();
+    await act(() => actions.updateSearch({ page: 2 }));
+    expect(scrollTo).toHaveBeenCalled();
+
+    scrollTo.mockClear();
+    await act(() => actions.openDialog({ user: 'u1' }));
+    await screen.findByText('{"page":2,"user":"u1"}');
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('keeps the scroll position when asked to', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    await renderList('/users');
+    scrollTo.mockClear();
+    await act(() => actions.updateSearch({ page: 2 }, true, { resetScroll: false }));
+    await screen.findByText('{"page":2}');
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
   it('merges a change into the search, adding a history entry unless told to replace', async () => {
     const router = await renderList('/users?q=ada');
     await act(() => actions.updateSearch({ page: 2 }));

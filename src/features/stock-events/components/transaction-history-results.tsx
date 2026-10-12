@@ -26,7 +26,7 @@ import {
 } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { orEmpty } from '@/lib/empty-value';
+import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const NO_SORT = { id: 'date', desc: true };
@@ -57,7 +57,7 @@ type CellId = (typeof COLUMNS)[number][0];
 function Wrapped({ children }: { children: string | number | null | undefined }) {
   return (
     <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{orEmpty(children)}</bdi>
+      <bdi>{tableValue(children)}</bdi>
     </span>
   );
 }
@@ -86,7 +86,7 @@ function EventCell({
     case 'documentNumber':
       return (
         <span className="whitespace-nowrap">
-          <bdi>{orEmpty(event.documentNumber)}</bdi>
+          <bdi>{tableValue(event.documentNumber)}</bdi>
         </span>
       );
     case 'type': {
@@ -96,13 +96,13 @@ function EventCell({
     case 'date':
       return (
         <span className="whitespace-nowrap">
-          <bdi>{orEmpty(eventDay(event.processedDate))}</bdi>
+          <bdi>{tableValue(eventDay(event.processedDate))}</bdi>
         </span>
       );
     case 'entriesCount':
       return (
         <span className="tabular-nums">
-          {orEmpty(event.entriesCount?.toLocaleString(i18n.language))}
+          {tableValue(event.entriesCount?.toLocaleString(i18n.language))}
         </span>
       );
     case 'performedBy':

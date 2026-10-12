@@ -247,14 +247,20 @@ describe('stock on hand page', () => {
     ).toContain('stock-on-hand.last-update');
   });
 
-  it('shows a dash for an empty value in a lot row', async () => {
+  it('leaves missing lot values blank', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 1200,
     } as DOMRect);
     renderRoute(appliedPath());
 
     const lot = (await screen.findAllByText('stock-on-hand.no-lot'))[0]?.closest('tr');
-    expect(lot && within(lot).getAllByText(EMPTY_VALUE)).not.toHaveLength(0);
+    expect(lot && within(lot).queryByText(EMPTY_VALUE)).not.toBeInTheDocument();
+    expect(
+      lot &&
+        within(lot)
+          .getAllByRole('cell')
+          .some((cell) => !cell.textContent),
+    ).toBe(true);
   });
 
   it('opens a searched link on its products, each with its cards', async () => {

@@ -16,11 +16,13 @@ function Harness({
   rowCount,
   onPaginationChange,
   disabled,
+  isPageInvalid,
 }: {
   pagination: PaginationState;
   rowCount: number;
   onPaginationChange: (updater: unknown) => void;
   disabled?: boolean;
+  isPageInvalid?: (pageIndex: number) => boolean;
 }) {
   const table = useTable({
     features: dataTableFeatures,
@@ -31,7 +33,7 @@ function Harness({
     state: { pagination },
     onPaginationChange,
   });
-  return <DataTablePagination disabled={disabled} table={table} />;
+  return <DataTablePagination disabled={disabled} table={table} isPageInvalid={isPageInvalid} />;
 }
 
 describe('DataTablePagination', () => {
@@ -206,4 +208,43 @@ describe('DataTablePagination', () => {
       expect(updater(pagination)).toEqual({ pageIndex: 0, pageSize: 20 });
     },
   );
+});
+
+describe('invalid pages', () => {
+  it('turns invalid page buttons red without an icon and names them with the supplied label', () => {
+    render(
+      <DataTableLabelsProvider labels={{ invalidPage: 'Contém linhas inválidas' }}>
+        <Harness
+          onPaginationChange={vi.fn()}
+          pagination={{ pageIndex: 0, pageSize: 10 }}
+          rowCount={30}
+          isPageInvalid={(index) => index === 1}
+        />
+      </DataTableLabelsProvider>,
+    );
+    const invalid = screen.getByRole('button', { name: 'Page 2: Contém linhas inválidas' });
+    expect(invalid.querySelector('svg')).toBeNull();
+    expect(invalid).toHaveClass('text-destructive');
+    const valid = screen.getByRole('button', { name: 'Page 3' });
+    expect(valid).not.toHaveClass('text-destructive');
+    expect(screen.getByRole('button', { name: 'Page 1' })).not.toHaveClass('bg-destructive');
+  });
+
+  it('fills the current invalid page solid red so it stands apart from other invalid pages', () => {
+    render(
+      <Harness
+        onPaginationChange={vi.fn()}
+        pagination={{ pageIndex: 0, pageSize: 10 }}
+        rowCount={30}
+        isPageInvalid={() => true}
+      />,
+    );
+    const currentPage = screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' });
+    expect(currentPage).toHaveAttribute('aria-current', 'page');
+    expect(currentPage.querySelector('svg')).toBeNull();
+    expect(currentPage).toHaveClass('bg-destructive');
+    expect(screen.getByRole('button', { name: 'Page 2: Contains Invalid Rows' })).not.toHaveClass(
+      'bg-destructive',
+    );
+  });
 });

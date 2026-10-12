@@ -1,13 +1,11 @@
 import { FilterIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DatePicker } from '@/components/form/form-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import type { TransactionHistorySearch } from '@/features/stock-events/lib/search';
@@ -34,7 +32,6 @@ export function TransactionHistoryToolbar({
 }: TransactionHistoryToolbarProps) {
   const { t } = useTranslation();
   const count = activeFilters(search);
-  const documentNumberId = useId();
   const change = (patch: Partial<TransactionHistorySearch>) =>
     onFilterChange({ ...patch, page: undefined });
   const typeOptions = EVENT_TYPES.map((type) => ({
@@ -92,17 +89,11 @@ export function TransactionHistoryToolbar({
                 placeholder={t('transaction-history.end-date')}
                 value={search.endDate ?? ''}
               />
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor={documentNumberId}>
-                  {t('transaction-history.search-document-number')}
-                </Label>
-                <DataTableSearch
-                  id={documentNumberId}
-                  onValueChange={(value) => change({ documentNumber: value || undefined })}
-                  placeholder={t('transaction-history.search-document-number')}
-                  value={search.documentNumber ?? ''}
-                />
-              </div>
+              <DataTableSearch
+                onValueChange={(value) => change({ documentNumber: value || undefined })}
+                placeholder={t('transaction-history.search-document-number')}
+                value={search.documentNumber ?? ''}
+              />
             </div>
           </PopoverContent>
         </Popover>

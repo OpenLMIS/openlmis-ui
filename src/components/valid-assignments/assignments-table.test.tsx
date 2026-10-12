@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
@@ -219,7 +219,10 @@ describe('AssignmentsTable', { timeout: 10_000 }, () => {
     renderTable([balaka('a1', 'p1')]);
 
     const row = (await screen.findByText('Balaka District Hospital')).closest('tr');
-    expect(await within(row as HTMLElement).findByText('-')).toBeVisible();
+    await waitFor(() =>
+      expect(within(row as HTMLElement).getAllByRole('cell')[4]?.textContent).toBe(''),
+    );
+    expect(within(row as HTMLElement).queryByText('-')).not.toBeInTheDocument();
   });
 
   it('moves back to the last page when the page asked for is past the end', async () => {

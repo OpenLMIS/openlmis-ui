@@ -134,7 +134,7 @@ function createColumns(
         if (!row.original.node.refDataFacility) return muted(t('valid-assignments.organization'));
         if (!zones) return <CellSkeleton />;
         const zone = zones.get(row.original.node.referenceId);
-        return zone ? wrapped(zone) : muted('-');
+        return zone ? wrapped(zone) : null;
       },
     }),
     columnHelper.accessor('geoLevel', {
@@ -142,8 +142,7 @@ function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('valid-assignments.geo-level-affinity')} />
       ),
-      cell: ({ getValue, row }) =>
-        row.original.geoLevelAffinityId ? looked(getValue()) : muted('-'),
+      cell: ({ getValue, row }) => (row.original.geoLevelAffinityId ? looked(getValue()) : null),
     }),
     columnHelper.display({
       id: 'actions',

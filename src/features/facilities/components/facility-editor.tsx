@@ -3,7 +3,7 @@ import { type QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableCard } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   DialogLoadError,
   ErrorAlert,
@@ -492,10 +492,22 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
             <Table density="comfortable">
               <TableHeader surface="muted">
                 <TableRow>
-                  <TableHead>{t('facilities.form.program')}</TableHead>
-                  <TableHead>{t('facilities.form.program-active')}</TableHead>
-                  <TableHead>{t('facilities.form.start-date')}</TableHead>
-                  <TableHead>{t('facilities.form.locally-fulfilled')}</TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>{t('facilities.form.program')}</DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('facilities.form.program-active')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>{t('facilities.form.start-date')}</DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('facilities.form.locally-fulfilled')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
                   <TableHead>
                     <span className="sr-only">{t('facilities.form.actions')}</span>
                   </TableHead>

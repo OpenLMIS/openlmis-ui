@@ -51,6 +51,7 @@ import { Route as protectedProtectedAdministrationProductsIdGeneralRouteImport }
 import { Route as protectedProtectedAdministrationProductsIdKitUnpackListRouteImport } from './routes/(protected)/_protected.administration.products_.$id.kit-unpack-list'
 import { Route as protectedProtectedAdministrationProductsIdProgramsRouteImport } from './routes/(protected)/_protected.administration.products_.$id.programs'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
+import { Route as protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history_.$eventId_.reverse'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -297,6 +298,14 @@ const protectedProtectedAdministrationUsersIdRolesRoute =
     path: '/administration/users/$id/roles',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute =
+  protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport.update(
+    {
+      id: '/stock-management/transaction-history_/$eventId_/reverse',
+      path: '/stock-management/transaction-history/$eventId/reverse',
+      getParentRoute: () => protectedProtectedRoute,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -339,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/stock-management/transaction-history/$eventId/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/administration/products/$id/': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -379,6 +389,7 @@ export interface FileRoutesByTo {
   '/administration/products/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/stock-management/transaction-history/$eventId/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
 export interface FileRoutesById {
@@ -424,6 +435,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id/kit-unpack-list': typeof protectedProtectedAdministrationProductsIdKitUnpackListRoute
   '/(protected)/_protected/administration/products_/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/(protected)/_protected/administration/products_/$id/': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -469,6 +481,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id/kit-unpack-list'
     | '/administration/products/$id/programs'
     | '/administration/users/$id/roles'
+    | '/stock-management/transaction-history/$eventId/reverse'
     | '/administration/products/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -509,6 +522,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id/kit-unpack-list'
     | '/administration/products/$id/programs'
     | '/administration/users/$id/roles'
+    | '/stock-management/transaction-history/$eventId/reverse'
     | '/administration/products/$id'
   id:
     | '__root__'
@@ -553,6 +567,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id/kit-unpack-list'
     | '/(protected)/_protected/administration/products_/$id/programs'
     | '/(protected)/_protected/administration/users_/$id/roles'
+    | '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse'
     | '/(protected)/_protected/administration/products_/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -860,6 +875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationUsersIdRolesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse': {
+      id: '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse'
+      path: '/stock-management/transaction-history/$eventId/reverse'
+      fullPath: '/stock-management/transaction-history/$eventId/reverse'
+      preLoaderRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
   }
 }
 
@@ -955,6 +977,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedStockManagementStockOnHandStockCardIdRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   protectedProtectedStockManagementTransactionHistoryEventIdRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
+  protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
 }
 
 const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
@@ -1007,6 +1030,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedStockManagementTransactionHistoryEventIdRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
     protectedProtectedAdministrationUsersIdRolesRoute,
+  protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute:
+    protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute,
 }
 
 const protectedProtectedRouteWithChildren =

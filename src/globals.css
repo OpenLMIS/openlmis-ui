@@ -126,6 +126,7 @@
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: calc(1 / 0.6875);
   --tracking-label: 0.08em;
+  --tracking-table-label: 0.04em;
   --grid-template-columns-label-value: auto 1fr;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

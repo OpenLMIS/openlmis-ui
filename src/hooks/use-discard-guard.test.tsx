@@ -7,7 +7,8 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
@@ -15,15 +16,25 @@ import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 let guard: ReturnType<typeof useDiscardGuard>;
 
 let leaving = false;
+let saving = false;
 
 function Draft({ dirty }: { dirty: boolean }) {
-  guard = useDiscardGuard(dirty, { allowLeave: () => leaving });
+  const [allowed, setAllowed] = useState(false);
+  guard = useDiscardGuard(dirty, { allowLeave: () => allowed || leaving, pending: saving });
   const { open, signingOut } = guard.dialog;
-  return <p>{open ? `asking${signingOut ? ' to sign out' : ''}` : 'editing'}</p>;
+  return (
+    <>
+      <p>{open ? `asking${signingOut ? ' to sign out' : ''}` : 'editing'}</p>
+      <button type="button" onClick={() => setAllowed(true)}>
+        Allow leaving
+      </button>
+    </>
+  );
 }
 
-async function renderAt(dirty: boolean) {
+async function renderAt(dirty: boolean, pending = false) {
   leaving = false;
+  saving = pending;
   const root = createRootRoute({ component: Outlet });
   const routes = ['/profile', '/profile/roles', '/login'].map((path) =>
     createRoute({
@@ -127,4 +138,43 @@ describe('useDiscardGuard', () => {
       router.history.destroy();
     },
   );
+});
+
+it('blocks navigation while saving without offering a discard dialog', async () => {
+  const router = await renderAt(true, true);
+  act(() => void router.navigate({ to: '/profile/roles' }));
+  await act(async () => {});
+  expect(router.state.location.pathname).toBe('/profile');
+  expect(guard.dialog.open).toBe(false);
+  act(() => guard.dialog.onDiscard());
+  expect(router.state.location.pathname).toBe('/profile');
+});
+it('blocks sign out while saving without allowing discard', async () => {
+  await renderAt(true, true);
+  const signOut = vi.fn();
+  act(() => whenLeaveAllowed(signOut));
+  expect(guard.dialog.open).toBe(false);
+  act(() => guard.dialog.onDiscard());
+  expect(signOut).not.toHaveBeenCalled();
+});
+
+it('hides an already blocked dialog once leaving is allowed', async () => {
+  const router = await renderAt(true);
+  act(() => void router.navigate({ to: '/profile/roles' }));
+  await screen.findByText('asking');
+  fireEvent.click(screen.getByRole('button', { name: 'Allow leaving' }));
+  expect(guard.dialog.open).toBe(false);
+});
+it('does not ask before unload once leaving is allowed', async () => {
+  leaving = false;
+  saving = false;
+  const root = createRootRoute({ component: () => <Draft dirty /> });
+  const router = createRouter({ routeTree: root, history: createBrowserHistory() });
+  render(<RouterProvider router={router} />);
+  await screen.findByText('editing');
+  leaving = true;
+  const unload = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(false);
+  router.history.destroy();
 });

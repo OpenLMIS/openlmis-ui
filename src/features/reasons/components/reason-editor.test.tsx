@@ -247,7 +247,7 @@ describe('ReasonEditor', () => {
     const category = await screen.findByRole('combobox', { name: /^Category/ });
     expect(category).toHaveTextContent('Aggregation');
     expect(category).toBeDisabled();
-    expect(screen.getByRole('combobox', { name: /^Type/ })).toBeDisabled();
+    expect(await screen.findByRole('combobox', { name: /^Type/ })).toBeDisabled();
     expect(await screen.findByText('Old Type')).toBeVisible();
   });
 

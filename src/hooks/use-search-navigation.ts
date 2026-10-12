@@ -22,36 +22,43 @@ export function useSearchNavigation<TSearch extends object>(closedDialogs: Parti
   const navigate = useNavigate();
   // The page passes its own search type; the router cannot know which page calls this.
   const withSearch = useCallback(
-    (search: (previous: TSearch) => TSearch, options: { replace?: boolean; mark?: boolean }) =>
+    (
+      search: (previous: TSearch) => TSearch,
+      options: { replace?: boolean; mark?: boolean; resetScroll?: boolean },
+    ) =>
       navigate({
         to: '.',
         search: search as never,
         replace: options.replace,
+        resetScroll: options.resetScroll,
         state: options.mark ? markDialogOpened : undefined,
       }),
     [navigate],
   );
 
   const updateSearch = useCallback<SearchChange<TSearch>>(
-    (update, replace = false) =>
+    (update, replace = false, options) =>
       void withSearch(
         (previous) => ({
           ...previous,
           ...(typeof update === 'function' ? update(previous) : update),
         }),
-        { replace },
+        { replace, resetScroll: options?.resetScroll },
       ),
     [withSearch],
   );
   // Opening marks the entry it pushes, so closing steps Back, even after Forward reopened it.
   const openDialog = useCallback(
     (params: Partial<TSearch>) =>
-      withSearch((previous) => ({ ...previous, ...closedDialogs, ...params }), { mark: true }),
+      withSearch((previous) => ({ ...previous, ...closedDialogs, ...params }), {
+        mark: true,
+        resetScroll: false,
+      }),
     [withSearch, closedDialogs],
   );
   const closeDialog = useCallback(() => {
     if (router.state.location.state.dialogOpenedHere) router.history.back();
-    else updateSearch(closedDialogs, true);
+    else updateSearch(closedDialogs, true, { resetScroll: false });
   }, [router, updateSearch, closedDialogs]);
 
   return { updateSearch, openDialog, closeDialog };
