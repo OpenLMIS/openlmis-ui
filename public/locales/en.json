@@ -996,6 +996,7 @@
   "scan.lot-required": "This product is tracked by lot, but the barcode carries no lot number. Enter this item manually.",
   "scan.not-resolved": "This scan could not be matched to a product on this screen.",
   "scan.product-ambiguous": "Barcode {gtin} matches more than one product on this screen. Select the product manually.",
+  "scan.product-not-in-program": "No product with barcode {gtin} is approved for this program.",
   "scan.product-not-on-screen": "No product with barcode {gtin} is available on this screen. Check that it is in this program and has stock on hand.",
   "scan.ready": "Ready To Scan",
   "scan.working": "Checking Scan...",

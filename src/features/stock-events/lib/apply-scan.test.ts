@@ -286,3 +286,39 @@ it.each([
     [],
   );
 });
+
+it('adds a scanned new lot or stockless Receive entry with the manual Add defaults', () => {
+  const stockless = { orderable: card.orderable, lot: null, stockOnHand: null };
+  const policy = { allowsNewLot: true, today } as const;
+  const previousLine = {
+    ...draft,
+    reasonId: '',
+    counterparty: 'source',
+    counterpartyComments: '',
+  };
+  const lines = [previousLine];
+  const options = { kind: 'receive', today, productHasLots: false, previousLine } as const;
+  const newLot = resolveScan({
+    scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2027-03-31' },
+    tradeItemId: 't1',
+    products: [{ orderable: card.orderable, cards: [stockless] }],
+    lines,
+    policy,
+  });
+  expect(applyScanCount(lines, newLot, options)[0]).toMatchObject({
+    orderable: card.orderable,
+    lot: { lotCode: 'NEW', expirationDate: '2027-03-31', tradeItemId: 't1' },
+    stockOnHand: 0,
+    counterparty: 'source',
+    occurredDate: '2026-09-01',
+    quantity: quantityValue('20', 20),
+  });
+  const noLot = resolveScan({
+    scan: { gtin: scan.gtin },
+    tradeItemId: 't1',
+    products: [{ orderable: card.orderable, cards: [stockless] }],
+    lines,
+    policy,
+  });
+  expect(applyScanCount(lines, noLot, options)[0]).toMatchObject({ lot: null, stockOnHand: null });
+});

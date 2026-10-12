@@ -1,12 +1,8 @@
 import type { ParseKeys } from 'i18next';
 import type { Gs1Error } from '@/lib/gs1/parse-gs1';
+import type { ScanRefusalReason } from '@/lib/stock-scan';
 
 export type ScanMessage = { key: ParseKeys; params?: Record<string, string | number> };
-export type ScanRefusal =
-  | 'productNotOnScreen'
-  | 'productAmbiguous'
-  | 'lotNotOnScreen'
-  | 'lotRequired';
 export type ScanLookupFailure = 'noGtin' | 'gtinLookupFailed' | 'gtinNotRegistered';
 
 const MESSAGE_KEYS = {
@@ -24,16 +20,18 @@ const MESSAGE_KEYS = {
   INVALID_LOT_CODE: 'scan.error.scanner-setup',
   INVALID_SERIAL: 'scan.error.scanner-setup',
   productNotOnScreen: 'scan.product-not-on-screen',
+  productNotInProgram: 'scan.product-not-in-program',
   productAmbiguous: 'scan.product-ambiguous',
   lotNotOnScreen: 'scan.lot-not-on-screen',
   lotRequired: 'scan.lot-required',
+  lotExpiryPast: 'stock-events.lot-expiry-past',
   noGtin: 'scan.error.no-product-code',
   gtinLookupFailed: 'scan.gtin-lookup-failed',
   gtinNotRegistered: 'scan.gtin-not-registered',
-} as const satisfies Record<Gs1Error | ScanRefusal | ScanLookupFailure, ParseKeys>;
+} as const satisfies Record<Gs1Error | ScanRefusalReason | ScanLookupFailure, ParseKeys>;
 
 export function scanMessage(
-  reason: Gs1Error | ScanRefusal | ScanLookupFailure,
+  reason: Gs1Error | ScanRefusalReason | ScanLookupFailure,
   params?: ScanMessage['params'],
 ): ScanMessage {
   const key = MESSAGE_KEYS[reason];

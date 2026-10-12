@@ -63,6 +63,10 @@ import {
 } from '@/features/stock-events/lib/event-kinds';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
+import {
+  type ApprovedScanProduct,
+  approvedScanProduct,
+} from '@/features/stock-events/lib/scan-products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -79,7 +83,7 @@ import {
   isScanExpiryAcknowledged,
 } from '@/lib/scan-expiry-acknowledgements';
 import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
-import { resolveScan } from '@/lib/stock-scan';
+import { resolveScan, type ScanProduct } from '@/lib/stock-scan';
 import type { SearchChange } from '@/lib/table-search';
 
 export type EventSearch = {
@@ -391,28 +395,52 @@ export function EventEditor({
   ): Promise<ScanMessage | undefined> => {
     if (!ready || submitted || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
-    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+    const stale = () => signal.aborted || signing.current || !mutation.isCurrent();
+    if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
       tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
     } catch {
-      return signal.aborted || signing.current || !mutation.isCurrent()
-        ? undefined
-        : scanMessage('gtinLookupFailed');
+      return stale() ? undefined : scanMessage('gtinLookupFailed');
     }
-    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+    if (stale()) return;
     if (!tradeItem) return scanMessage('gtinNotRegistered', { gtin: parsed.gtin });
-    const cards = queryClient.getQueryData(
-      eventStockCardsOptions({ facilityId, programId }).queryKey,
-    );
-    if (!cards) return { key: 'scan.not-resolved' };
-    const offered = filterCards(cards);
+    let scanProducts: readonly ScanProduct<EventStockCard>[];
+    let hasLotsOf: (orderableId: string) => boolean;
+    if (products.from === 'stock-cards') {
+      const cards = queryClient.getQueryData(
+        eventStockCardsOptions({ facilityId, programId }).queryKey,
+      );
+      if (!cards) return { key: 'scan.not-resolved' };
+      const offered = filterCards(cards);
+      scanProducts = eventProductOptions(offered);
+      hasLotsOf = (orderableId) => productHasLots(offered, orderableId);
+    } else {
+      let found: ApprovedScanProduct;
+      try {
+        found = await approvedScanProduct(
+          queryClient,
+          { facilityId, programId },
+          tradeItem.id,
+          stale,
+        );
+      } catch {
+        return stale() ? undefined : scanMessage('gtinLookupFailed');
+      }
+      if (found.type === 'stale' || stale()) return;
+      if (found.type === 'refuse') return scanMessage(found.reason, { gtin: parsed.gtin });
+      scanProducts = [found.product];
+      hasLotsOf = () => found.productHasLots;
+    }
     const resolution = resolveScan({
       scan: parsed,
       tradeItemId: tradeItem.id,
-      products: eventProductOptions(offered),
+      products: scanProducts,
       lines: form.state.values.lines,
-      policy: { allowsNewLot: false },
+      policy:
+        config.newLots === 'manual-and-scan'
+          ? { allowsNewLot: true, today }
+          : { allowsNewLot: false },
     });
     if (resolution.type === 'refuse') return scanMessage(resolution.reason, resolution.params);
     let action = resolution;
@@ -439,17 +467,17 @@ export function EventEditor({
             },
           });
         });
-        if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+        if (stale()) return;
         if (!accepted) return { key: 'scan.not-resolved' };
         acknowledgeScanExpiry(lot);
       }
       action = resolution.next;
     }
-    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+    if (stale()) return;
     const next = applyScanCount(form.state.values.lines, action, {
       ...lineOptions,
       previousLine: lastAdded.current,
-      productHasLots: action.type === 'add' && productHasLots(offered, action.card.orderable.id),
+      productHasLots: action.type === 'add' && hasLotsOf(action.card.orderable.id),
     });
     const countedKey = action.type === 'count' ? action.lineKey : next[0].key;
     if (action.type === 'add') lastAdded.current = next[0];

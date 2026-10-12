@@ -22,7 +22,9 @@ import {
   fetchApprovedProducts,
   fetchFacilityOrderableFulfills,
   fetchLotsByTradeItems,
+  fetchOrderableFulfills,
   fetchOrderablesByIds,
+  fetchOrderablesByTradeItems,
   fetchTradeItemByGtin,
   fetchValidAssignments,
   fetchValidReasons,
@@ -78,6 +80,8 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacilityOrderableFulfills: vi.fn(),
   fetchLotsByTradeItems: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
+  fetchOrderablesByTradeItems: vi.fn(),
+  fetchOrderableFulfills: vi.fn(),
 }));
 const destinations = [
   {
@@ -1413,5 +1417,130 @@ describe('Receive editor', () => {
     expect(
       screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-2, Line 2' }),
     ).toBeInTheDocument();
+  });
+
+  describe('scanning', () => {
+    const fulfiller = {
+      ...aspirin,
+      id: 'fulfiller',
+      fullProductName: 'Aspirin Box',
+      identifiers: { tradeItem: 'box' },
+    };
+    const parsed = {
+      ok: true as const,
+      gtin: '00012345678905',
+      lotCode: 'lot-1',
+      warnings: [],
+      unparsed: {},
+    };
+    beforeEach(() => {
+      vi.mocked(fetchTradeItemByGtin).mockResolvedValue({ id: 'box' } as never);
+      vi.mocked(fetchOrderablesByTradeItems).mockResolvedValue([fulfiller]);
+      vi.mocked(fetchApprovedProducts).mockImplementation(async ({ orderableIds }) => ({
+        content: (orderableIds ?? ['product']).includes('product')
+          ? [{ id: 'approved-product', orderable: aspirin }]
+          : [],
+        totalElements: 1,
+        totalPages: 1,
+        number: 0,
+        size: 50,
+      }));
+      vi.mocked(fetchOrderableFulfills).mockResolvedValue({
+        fulfiller: { canBeFulfilledByMe: ['product'] },
+      });
+      vi.mocked(fetchLotsByTradeItems).mockResolvedValue([
+        { id: 'lot-1', lotCode: 'LOT-1', expirationDate: '2099-01-31', tradeItemId: 'box' },
+      ] as never);
+      vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+    });
+    async function scanned() {
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      let message: Awaited<ReturnType<typeof scan>>;
+      await act(async () => {
+        message = await scan(parsed, new AbortController().signal);
+      });
+      return message;
+    }
+
+    it('adds a product fulfilling an approved one with its lot and the approved stock lookup', async () => {
+      receiveSetup();
+      expect(await scanned()).toBeUndefined();
+      expect(
+        await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box LOT-1/ }),
+      ).toHaveValue('16');
+      expect(fetchOrderableFulfills).toHaveBeenCalledWith(['fulfiller']);
+      expect(fetchEventStockOnHand).toHaveBeenCalledWith(
+        expect.objectContaining({ orderableIds: ['product'] }),
+      );
+    });
+
+    it('refuses a product neither approved nor fulfilling an approved one', async () => {
+      vi.mocked(fetchOrderableFulfills).mockResolvedValue({});
+      receiveSetup();
+      const message = await scanned();
+      expect(message).toEqual({
+        key: 'scan.product-not-in-program',
+        params: { gtin: parsed.gtin },
+      });
+      expect(i18n.t('scan.product-not-in-program', { gtin: parsed.gtin })).toBe(
+        `No product with barcode ${parsed.gtin} is approved for this program.`,
+      );
+      expect(fetchLotsByTradeItems).not.toHaveBeenCalledWith(['box']);
+    });
+
+    it.each([
+      {
+        stage: 'products',
+        hold: (gate: Promise<void>) =>
+          vi.mocked(fetchOrderablesByTradeItems).mockImplementationOnce(async () => {
+            await gate;
+            return [fulfiller];
+          }),
+        later: () => expect(fetchOrderableFulfills).not.toHaveBeenCalledWith(['fulfiller']),
+      },
+      {
+        stage: 'fulfils',
+        hold: (gate: Promise<void>) =>
+          vi.mocked(fetchOrderableFulfills).mockImplementationOnce(async () => {
+            await gate;
+            return { fulfiller: { canBeFulfilledByMe: ['product'] } };
+          }),
+        later: () => expect(fetchLotsByTradeItems).not.toHaveBeenCalledWith(['box']),
+      },
+      {
+        stage: 'lots',
+        hold: (gate: Promise<void>) =>
+          vi.mocked(fetchLotsByTradeItems).mockImplementationOnce(async () => {
+            await gate;
+            return [];
+          }),
+        later: () => {},
+      },
+    ])('applies nothing when the session changes while $stage load', async ({ hold, later }) => {
+      receiveSetup();
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      let open!: () => void;
+      hold(
+        new Promise<void>((resolve) => {
+          open = resolve;
+        }),
+      );
+      let operation!: ReturnType<typeof scan>;
+      await act(async () => {
+        operation = scan(parsed, new AbortController().signal);
+      });
+      act(() => {
+        useLoginData.setState({ referenceDataUserId: 'other-user' });
+        useLoginData.setState({ referenceDataUserId: 'ada-id' });
+      });
+      let message: Awaited<ReturnType<typeof scan>>;
+      await act(async () => {
+        open();
+        message = await operation;
+      });
+      expect(message).toBeUndefined();
+      later();
+      expect(screen.queryByRole('textbox', { name: /^Quantity/ })).not.toBeInTheDocument();
+    });
   });
 });
