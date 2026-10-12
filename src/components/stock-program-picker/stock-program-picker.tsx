@@ -101,7 +101,7 @@ export function StockProgramPicker({
   );
 }
 
-export function StockProgramPickerSkeleton() {
+export function StockProgramPickerSkeleton({ actionLabel }: { actionLabel: string }) {
   return (
     <div aria-busy>
       <ProgramTable>
@@ -113,8 +113,17 @@ export function StockProgramPickerSkeleton() {
               </div>
             </TableCell>
             <TableCell>
-              <div className="ms-auto h-8 w-32 max-w-full">
-                <Skeleton fill />
+              <div className="flex justify-end">
+                <div className="relative">
+                  <div className="invisible" aria-hidden="true">
+                    <Button size="xl" width="shrink" disabled tabIndex={-1}>
+                      <span className="whitespace-normal break-words">{actionLabel}</span>
+                    </Button>
+                  </div>
+                  <div className="absolute inset-0">
+                    <Skeleton fill />
+                  </div>
+                </div>
               </div>
             </TableCell>
           </TableRow>

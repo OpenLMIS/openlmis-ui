@@ -55,7 +55,7 @@ const fieldVariants = cva(
     variants: {
       surface: {
         default: "",
-        background: "[&_input]:bg-background [&_textarea]:bg-background [&_[data-slot=select-trigger]]:bg-background [&_[data-slot=input-group]]:bg-background [&_[data-slot=combobox-chips]]:bg-background [&_[data-slot=button]]:bg-background dark:[&_input]:bg-background dark:[&_textarea]:bg-background dark:[&_[data-slot=select-trigger]]:bg-background dark:[&_[data-slot=select-trigger]:hover]:bg-background dark:[&_[data-slot=input-group]]:bg-background dark:[&_[data-slot=combobox-chips]]:bg-background dark:[&_[data-slot=button]]:bg-background",
+        background: "[&_input:not([data-slot=input-group-control])]:bg-background [&_textarea]:bg-background [&_[data-slot=select-trigger]]:bg-background [&_[data-slot=input-group]]:bg-background [&_[data-slot=combobox-chips]]:bg-background [&_[data-slot=button]]:bg-background dark:[&_input:not([data-slot=input-group-control])]:bg-background dark:[&_textarea]:bg-background dark:[&_[data-slot=select-trigger]]:bg-background dark:[&_[data-slot=select-trigger]:hover]:bg-background dark:[&_[data-slot=input-group]]:bg-background dark:[&_[data-slot=combobox-chips]]:bg-background dark:[&_[data-slot=button]]:bg-background",
       },
       spacing: {
         default: "gap-2",

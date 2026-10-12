@@ -1,6 +1,6 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import { ClipboardPenLineIcon, EllipsisIcon, Trash2Icon } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -12,17 +12,12 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
 import type { EventSearch } from '@/features/stock-events/components/event-editor';
-import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
+import { ProductName } from '@/features/stock-events/components/product-name';
+import { type EventForm, useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import {
   changeEventDestination,
   changeEventReason,
@@ -60,31 +55,51 @@ export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1150 },
 ] as const;
 const ISSUE_HIDEABLE_COLUMNS = [
-  { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1691.859375 },
-  { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1579.1875 },
-  { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1503.15625 },
-  { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1386.125 },
+  { id: 'productCode', labelKey: 'stock-events.product-code' },
+  { id: 'packSize', labelKey: 'stock-events.pack-size' },
+  { id: 'total', labelKey: 'stock-events.total-quantity' },
+  { id: 'expiry', labelKey: 'stock-events.expiry-date' },
 ] as const;
-export function eventHideableColumns(
-  kind: ConfiguredEventKind,
-  { hasLots = true, unit = 'PACKS' }: { hasLots?: boolean; unit?: QuantityUnit } = {},
-) {
-  if (EVENT_KINDS[kind].counterparty !== 'destination') return EVENT_HIDEABLE_COLUMNS;
-  return ISSUE_HIDEABLE_COLUMNS.map((column) => {
-    const includesTotal = column.id !== 'expiry';
-    const lotWidth = !hasLots ? 73.90625 : 0;
-    const expiryWidth = !hasLots ? 108.453125 : 0;
-    const totalWidth = unit === 'DOSES' && includesTotal ? 117.03125 : 0;
-    const quantityWidth = unit === 'DOSES' ? 28 : 0;
-    return {
-      ...column,
-      hideBelow: Math.ceil(column.hideBelow - lotWidth - expiryWidth - totalWidth - quantityWidth),
-    };
-  });
+export function eventHideableColumns(kind: ConfiguredEventKind) {
+  return EVENT_KINDS[kind].counterparty === 'destination'
+    ? ISSUE_HIDEABLE_COLUMNS
+    : EVENT_HIDEABLE_COLUMNS;
 }
 const NO_DESTINATIONS: readonly ValidAssignment[] = [];
 const helper = createColumnHelper<DataTableFeatures, EventLine>();
 const NO_SORT = { id: 'product', desc: false };
+
+function SelectSizer({
+  labels,
+  wrap = 'nowrap',
+}: {
+  labels: readonly string[];
+  wrap?: 'nowrap' | 'wrap';
+}) {
+  return (
+    <div
+      aria-hidden
+      className={
+        wrap === 'wrap'
+          ? 'invisible grid h-0 w-28 overflow-hidden pe-8 ps-2.5 text-sm'
+          : 'invisible grid h-0 w-max overflow-hidden pe-8 ps-2.5 text-sm'
+      }
+    >
+      {[...new Set(labels)].map((label) => (
+        <span
+          key={label}
+          className={
+            wrap === 'wrap'
+              ? 'col-start-1 row-start-1 whitespace-normal'
+              : 'col-start-1 row-start-1 whitespace-nowrap'
+          }
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 type CellProps = {
   kind: ConfiguredEventKind;
@@ -118,6 +133,9 @@ const LineCell = memo(function LineCell({
 }: CellProps) {
   const { t, i18n } = useTranslation();
   const name = line.orderable.fullProductName || line.orderable.productCode;
+  const productLabel = line.orderable.dispensable?.displayUnit
+    ? `${name} - ${line.orderable.dispensable.displayUnit}`
+    : name;
   const lotLabel =
     line.lot?.lotCode ??
     t(hasProductLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
@@ -129,21 +147,7 @@ const LineCell = memo(function LineCell({
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
-      return (
-        <span
-          className={
-            kind === 'issue'
-              ? 'block min-w-20 max-w-28 whitespace-normal break-words font-medium'
-              : 'block min-w-28 max-w-40 whitespace-normal break-words font-medium'
-          }
-        >
-          <bdi>
-            {name}
-            {line.orderable.dispensable?.displayUnit &&
-              ` - ${line.orderable.dispensable.displayUnit}`}
-          </bdi>
-        </span>
-      );
+      return <ProductName label={productLabel} width={kind === 'issue' ? 'compact' : 'default'} />;
     case 'packSize':
       return (
         <span className="tabular-nums">
@@ -174,7 +178,13 @@ const LineCell = memo(function LineCell({
       );
     case 'destination':
       return (
-        <div className="w-54 whitespace-normal @3xl/main:w-49 break-words">
+        <div className="w-full whitespace-normal break-words">
+          <SelectSizer
+            labels={[
+              t('stock-events.select-option'),
+              ...destinations.map((item) => item.name ?? ''),
+            ]}
+          />
           <form.AppField
             name={`lines[${index}].destination`}
             listeners={{
@@ -190,19 +200,15 @@ const LineCell = memo(function LineCell({
             }}
           >
             {(field) => (
-              <field.ComboboxField
+              <field.SelectField
                 disabled={disabled}
                 required
-                limit={destinations.length}
                 items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
                 label={label('stock-events.issue-to')}
                 layout="inline"
+                hideErrors
                 placeholder={t('stock-events.select-option')}
-                emptyMessage={t('stock-events.issue-to-empty')}
-                clearLabel={t('stock-events.field-of', {
-                  field: t('stock-events.issue-to-clear'),
-                  row,
-                })}
+                size="sm"
               />
             )}
           </form.AppField>
@@ -210,14 +216,21 @@ const LineCell = memo(function LineCell({
       );
     case 'destinationComments':
       return destinations.find((item) => item.id === line.destination)?.isFreeTextAllowed ? (
-        <div className="w-37 whitespace-normal @3xl/main:w-32 break-words">
+        <div
+          className={
+            kind === 'issue'
+              ? 'w-full min-w-28 whitespace-normal break-words'
+              : 'w-full min-w-32 whitespace-normal break-words'
+          }
+        >
           <form.AppField name={`lines[${index}].destinationComments`}>
             {(field) => (
-              <field.TextField
+              <field.TextareaField
                 disabled={disabled}
                 dir="auto"
                 label={label('stock-events.destination-comments')}
                 layout="inline"
+                hideErrors
                 maxLength={255}
               />
             )}
@@ -229,10 +242,17 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-38 whitespace-normal break-words'
-              : 'w-40 whitespace-normal break-words'
+              ? 'w-full whitespace-normal break-words'
+              : 'w-full min-w-28 whitespace-normal break-words'
           }
         >
+          <SelectSizer
+            wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+            labels={[
+              ...(!reasonRequired ? [t('stock-events.select-option')] : []),
+              ...reasons.map((item) => item.name),
+            ]}
+          />
           <form.AppField
             name={`lines[${index}].reasonId`}
             listeners={{
@@ -254,7 +274,10 @@ const LineCell = memo(function LineCell({
                 ]}
                 label={label('stock-events.reason')}
                 layout="inline"
+                hideErrors
                 required={reasonRequired}
+                size="sm"
+                wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
               />
             )}
           </form.AppField>
@@ -265,17 +288,18 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-37 whitespace-normal @3xl/main:w-32 break-words'
-              : 'w-32 whitespace-normal break-words'
+              ? 'w-full min-w-28 whitespace-normal break-words'
+              : 'w-full min-w-32 whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].reasonFreeText`}>
             {(field) => (
-              <field.TextField
+              <field.TextareaField
                 disabled={disabled}
                 dir="auto"
                 label={label('stock-events.reason-comments')}
                 layout="inline"
+                hideErrors
               />
             )}
           </form.AppField>
@@ -285,11 +309,11 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            unit === 'PACKS'
-              ? kind === 'issue'
-                ? 'w-27 whitespace-normal break-words'
-                : 'w-28 whitespace-normal break-words'
-              : 'w-20 whitespace-normal break-words'
+            kind === 'issue'
+              ? 'w-max whitespace-normal break-words'
+              : unit === 'PACKS'
+                ? 'w-28 whitespace-normal break-words'
+                : 'w-20 whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].quantity`}>
@@ -300,6 +324,8 @@ const LineCell = memo(function LineCell({
                 packsLabel={t('quantity-unit.packs')}
                 label={label('stock-events.quantity')}
                 layout="inline"
+                hideErrors
+                sizing={kind === 'issue' ? 'content' : 'full'}
                 netContent={line.netContent}
                 unit={unit}
                 required
@@ -331,7 +357,9 @@ const LineCell = memo(function LineCell({
               <field.SelectField
                 disabled={disabled}
                 label={label('stock-events.vvm-status')}
+                size="sm"
                 layout="inline"
+                hideErrors
                 items={[
                   { value: '', label: t('stock-events.vvm-none') },
                   { value: 'STAGE_1', label: t('stock-events.stage-1') },
@@ -347,7 +375,7 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-31 whitespace-normal break-words'
+              ? 'w-max whitespace-normal break-words'
               : 'w-32 whitespace-normal break-words'
           }
         >
@@ -358,6 +386,7 @@ const LineCell = memo(function LineCell({
                 label={label('stock-events.date')}
                 latest={today}
                 layout="inline"
+                hideErrors
                 placeholder={t('stock-events.date')}
                 required
               />
@@ -367,30 +396,24 @@ const LineCell = memo(function LineCell({
       );
     case 'actions':
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger
+        <Tooltip>
+          <TooltipTrigger
             render={
               <Button
-                aria-label={label('stock-events.actions')}
+                aria-label={t('stock-events.field-of', { field: t('stock-events.remove'), row })}
                 data-line-actions={line.key}
                 disabled={disabled}
+                onClick={() => onRemove(line.key)}
                 size="icon-sm"
                 type="button"
-                variant="ghost"
+                variant="destructive-ghost"
               />
             }
           >
-            <EllipsisIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" width="auto">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => onRemove(line.key)} variant="destructive">
-                <Trash2Icon />
-                {t('stock-events.remove')}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <Trash2Icon />
+          </TooltipTrigger>
+          <TooltipContent>{t('stock-events.remove')}</TooltipContent>
+        </Tooltip>
       );
   }
 });
@@ -402,6 +425,8 @@ type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'hasProductLots'> & {
   onSearchChange: SearchChange<EventSearch>;
   columnVisibility: ColumnVisibilityState;
   onClearFilter: () => void;
+  fitContent?: unknown;
+  containerWidth?: number;
 };
 export function EventLineTable({
   kind,
@@ -419,8 +444,10 @@ export function EventLineTable({
   onSearchChange,
   columnVisibility,
   onClearFilter,
+  fitContent,
+  containerWidth,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
   const lineIndex = useRef(new Map<string, number>());
   lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
@@ -438,7 +465,12 @@ export function EventLineTable({
         ).map(([id, key]) =>
           helper.display({
             id,
-            header: () => <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>,
+            header: () => (
+              <span className={id === 'actions' ? 'sr-only' : undefined}>
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+              </span>
+            ),
+            meta: id === 'actions' ? { className: 'w-10' } : undefined,
             cell: ({ row }) => (
               <LineCell
                 kind={kind}
@@ -498,6 +530,27 @@ export function EventLineTable({
   useEffect(() => {
     if (page !== requestedPage) onSearchChange({ page: page === 1 ? undefined : page }, true);
   }, [page, requestedPage, onSearchChange]);
+  const tableRegion = useRef<HTMLDivElement>(null);
+  const columnWidths = useRef<Record<string, number>>({});
+  const measuredContent = useRef({ fitContent, containerWidth, unit, language: i18n.language });
+  const previous = measuredContent.current;
+  if (
+    previous.fitContent !== fitContent ||
+    previous.containerWidth !== containerWidth ||
+    previous.unit !== unit ||
+    previous.language !== i18n.language
+  ) {
+    columnWidths.current = {};
+    measuredContent.current = { fitContent, containerWidth, unit, language: i18n.language };
+  }
+  useLayoutEffect(() => {
+    if (!rows.length) return;
+    const headers = tableRegion.current?.querySelectorAll('thead th');
+    table.getVisibleLeafColumns().forEach((column, index) => {
+      const width = headers?.[index]?.getBoundingClientRect().width;
+      if (width) columnWidths.current[column.id] = width;
+    });
+  });
   const hasLines = form.state.values.lines.length > 0;
   const empty = (
     <DataTableEmpty
@@ -516,12 +569,54 @@ export function EventLineTable({
     />
   );
   return (
-    <DataTable
-      table={table}
-      density="compact"
-      layout="auto"
-      empty={empty}
-      footer={lines.length > 0 && <DataTablePagination table={table} disabled={disabled} />}
-    />
+    <div ref={tableRegion}>
+      <DataTable
+        columnWidths={
+          hasLines && !rows.length && Object.keys(columnWidths.current).length
+            ? columnWidths.current
+            : undefined
+        }
+        table={table}
+        density="compact"
+        layout="auto"
+        empty={empty}
+        footer={lines.length > 0 && <DataTablePagination table={table} disabled={disabled} />}
+      />
+    </div>
+  );
+}
+
+export function EventLineTableSkeleton({
+  kind,
+  unit,
+  columnVisibility,
+  busy = true,
+}: {
+  kind: ConfiguredEventKind;
+  unit: QuantityUnit;
+  columnVisibility: ColumnVisibilityState;
+  busy?: boolean;
+}) {
+  const today = '';
+  const form = useEventForm({ kind, reasons: [], today, onValid: () => {}, onInvalid: () => {} });
+  return (
+    <div aria-busy={busy || undefined}>
+      <EventLineTable
+        kind={kind}
+        unit={unit}
+        columnVisibility={columnVisibility}
+        form={form}
+        lines={[]}
+        cards={[]}
+        reasons={[]}
+        reasonRequired={false}
+        today={today}
+        disabled
+        search={{}}
+        onSearchChange={() => {}}
+        onRemove={() => {}}
+        onClearFilter={() => {}}
+      />
+    </div>
   );
 }

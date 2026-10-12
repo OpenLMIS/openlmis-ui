@@ -21,6 +21,7 @@ export type DataTableViewColumn = {
 type DataTableViewOptionsProps = {
   /** The columns a user may hide; leave out the identifying column and actions, which always show. */
   columns: DataTableViewColumn[];
+  disabled?: boolean;
   visibility: ColumnVisibilityState;
   onVisibilityChange: (visibility: ColumnVisibilityState) => void;
   /** Returns every column to its default, e.g. the one suited to the screen size. */
@@ -29,6 +30,7 @@ type DataTableViewOptionsProps = {
 
 export function DataTableViewOptions({
   columns,
+  disabled,
   visibility,
   onVisibilityChange,
   onReset,
@@ -38,7 +40,7 @@ export function DataTableViewOptions({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" width="full" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" width="full" disabled={disabled} />}>
         <Settings2Icon data-icon="inline-start" />
         {labels.view}
       </DropdownMenuTrigger>

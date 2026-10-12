@@ -9,7 +9,11 @@ import {
 } from '@tanstack/react-router';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
+import ICU from 'i18next-icu';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
 import { ErrorFallback } from '@/components/error-fallback';
 import { canOpen } from '@/components/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -21,6 +25,7 @@ import {
   fetchValidAssignments,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
+import { facilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { fetchEventStockCards } from '@/features/stock-events/api/api';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
@@ -28,7 +33,8 @@ import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.
 import { Route as AdjustmentEditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
 import { Route as IssuePickerRoute } from '@/routes/(protected)/_protected.stock-management.issue';
 import { Route as IssueEditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
-import { loadStockEventEditor } from '@/routes/(protected)/-stock-event-editor';
+import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
+import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
@@ -251,15 +257,51 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       vi.mocked(fetchFacility).mockReturnValue(new Promise(() => {}));
       renderRoute();
 
-      expect(
-        await screen.findByRole('heading', { name: `nav.stock-management.${kind}` }),
-      ).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
       expect(await screen.findByRole('table')).toBeInTheDocument();
       expect(screen.queryByText('Essential Meds')).not.toBeInTheDocument();
     });
   });
 
   describe(`${kind} editor access`, () => {
+    it('uses cached facility and program names in the pending editor without fetching them again', async () => {
+      const i18n = createInstance();
+      await i18n.use(ICU).init({
+        lng: 'en',
+        resources: { en: { translation: en } },
+        keySeparator: false,
+      });
+      const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+      queryClient.setQueryData(userRecordOptions(USER).queryKey, {
+        id: USER,
+        username: 'administrator',
+        firstName: 'Admin',
+        lastName: 'Istrator',
+        active: true,
+        roleAssignments: [],
+        homeFacilityId: HOME,
+      });
+      queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
+      const router = renderPage(
+        <I18nextProvider i18n={i18n}>
+          <StockEventPending kind={kind === 'issue' ? 'issue' : 'adjustment'} programId={FP} />
+        </I18nextProvider>,
+        { queryClient },
+      );
+      try {
+        const title = await screen.findByRole('heading', { level: 1 });
+        expect(title).toHaveTextContent('Comfort Health Clinic');
+        expect(title).toHaveTextContent('Family Planning');
+        expect(title).toHaveTextContent('HC01');
+        expect(fetchFacility).not.toHaveBeenCalled();
+        expect(fetchUserRecord).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+      } finally {
+        router.update({ context: {} });
+        queryClient.clear();
+      }
+    });
+
     it('starts the user record while editor permissions are still pending', async () => {
       let finish!: (permissions: string[]) => void;
       vi.mocked(fetchPermissionStrings).mockReturnValueOnce(

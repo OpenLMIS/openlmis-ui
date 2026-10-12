@@ -11,6 +11,7 @@ import {
   StockProgramPicker,
   StockProgramPickerSkeleton,
 } from '@/components/stock-program-picker/stock-program-picker';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
   WorkspaceContent,
@@ -59,7 +60,13 @@ function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy })
           <ClipboardPenLineIcon />
         </WorkspaceIcon>
         <WorkspaceTitle>
-          {home ? t(copy.title, { facility: recordLabel(home) }) : t(copy.nav)}
+          {home ? (
+            t(copy.title, { facility: recordLabel(home) })
+          ) : (
+            <span className="block h-5 w-64 max-w-full @xl/main:w-96">
+              <Skeleton fill />
+            </span>
+          )}
         </WorkspaceTitle>
         <WorkspaceDescription>{t(copy.description)}</WorkspaceDescription>
       </WorkspaceHeading>
@@ -80,13 +87,14 @@ type PickerProps = {
   editorLink: (programId: string) => ReactElement;
 };
 export function StockEventProgramPicker({ userId, permissions, copy, editorLink }: PickerProps) {
+  const { t } = useTranslation();
   return (
     <Workspace width="narrow">
       <ProgramsHeader userId={userId} copy={copy} />
       <WorkspaceContent>
         <QueryBoundary
           errorComponent={ProgramsError}
-          pendingFallback={<StockProgramPickerSkeleton />}
+          pendingFallback={<StockProgramPickerSkeleton actionLabel={t(copy.action)} />}
           resetKey={userId}
         >
           <EventPrograms
@@ -180,11 +188,12 @@ function ProgramsError({ error, reset }: ErrorComponentProps) {
 }
 
 export function StockEventProgramsPending({ copy }: { copy: PickerCopy }) {
+  const { t } = useTranslation();
   return (
     <Workspace width="narrow">
       <ProgramsHeader copy={copy} />
       <WorkspaceContent>
-        <StockProgramPickerSkeleton />
+        <StockProgramPickerSkeleton actionLabel={t(copy.action)} />
       </WorkspaceContent>
     </Workspace>
   );

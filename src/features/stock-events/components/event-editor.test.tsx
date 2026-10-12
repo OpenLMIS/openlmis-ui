@@ -480,8 +480,7 @@ describe('EventEditor', () => {
       await user.click(screen.getByRole('button', { name: /^Date, Aspirin/ }));
       await user.click(await screen.findByRole('button', { name: /October 1st, 2026/ }));
       const date = screen.getByRole('button', { name: /^Date, Aspirin/ }).textContent;
-      await user.click(screen.getByRole('button', { name: /^Actions, Aspirin/ }));
-      await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+      await user.click(screen.getByRole('button', { name: /^Remove, Aspirin/ }));
       if (method === 'manual') await user.click(screen.getByRole('button', { name: 'Add' }));
       else
         await act(async () => {
@@ -522,7 +521,7 @@ describe('EventEditor', () => {
     });
     expect(quantity).toHaveValue('17');
   });
-  it('revalidates current lines at Confirm and shows inline errors without posting', async () => {
+  it('revalidates current lines at Confirm and shows the validation dialog without posting', async () => {
     const { user } = setup();
     await validLine(user);
     const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
@@ -533,18 +532,18 @@ describe('EventEditor', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(submitStockEvent).not.toHaveBeenCalled();
     expect(quantity).toHaveAttribute('aria-invalid', 'true');
-    expect(
-      await screen.findByText(en['stock-events.quantity-greater-than-stock-on-hand']),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      en['stock-adjustment.invalid-title'],
+    );
+    expect(quantity).toHaveAccessibleDescription(
+      en['stock-events.quantity-greater-than-stock-on-hand'],
+    );
   });
 
   it('copies reason, comments and date into another line, then removes it with focus on the remaining action', async () => {
     const { user } = setup();
     await add(user);
     await pickReason(user);
-    expect(screen.getByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }).tagName).toBe(
-      'INPUT',
-    );
     await user.type(
       screen.getByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }),
       'Broken',
@@ -556,10 +555,9 @@ describe('EventEditor', () => {
     ).toHaveValue('Broken');
     const dates = screen.getAllByRole('button', { name: /^Date, Aspirin/ });
     expect(dates[0]).toHaveTextContent(dates[1].textContent ?? '');
-    await user.click(screen.getAllByRole('button', { name: /^Actions, Aspirin/ })[0]);
-    await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+    await user.click(screen.getAllByRole('button', { name: /^Remove, Aspirin/ })[0]);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /^Actions, Aspirin/ })).toHaveFocus(),
+      expect(screen.getByRole('button', { name: /^Remove, Aspirin/ })).toHaveFocus(),
     );
   });
   it('keeps the quantity through Packs and Doses switches', async () => {
@@ -617,6 +615,10 @@ describe('EventEditor', () => {
     });
     await filter(user, 'missing');
     await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      en['stock-adjustment.invalid-title'],
+    );
+    await user.click(screen.getByRole('button', { name: /^Close$/ }));
     await waitFor(() =>
       expect(screen.getAllByRole('combobox', { name: /^Reason, Aspirin/ })[0]).toHaveFocus(),
     );
@@ -669,16 +671,35 @@ describe('EventEditor', () => {
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+        error.response
+          ? 'Stock changed'
+          : 'Check the stock card before submitting again. The server may already have recorded this stock event.',
+      );
+      await user.click(screen.getByRole('button', { name: /^Close$/ }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toHaveFocus());
       expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
-      expect(
-        await screen.findByText(
-          error.response
-            ? 'Stock changed'
-            : 'Check the stock card before submitting again. The server may already have recorded this stock event.',
-        ),
-      ).toBeInTheDocument();
+      if (error.response) expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      else
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'Check the stock card before submitting again. The server may already have recorded this stock event.',
+        );
       expect(submitStockEvent).toHaveBeenCalledOnce();
       expect(onSubmitted).not.toHaveBeenCalled();
+      if (!error.response) {
+        let finish!: (id: string) => void;
+        vi.mocked(submitStockEvent).mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finish = resolve;
+            }),
+        );
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        await act(async () => finish('event'));
+        await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
+      }
     },
   );
   it('adds a scanned product, counts its next scan and reveals it without changing focus', async () => {
@@ -720,6 +741,8 @@ describe('EventEditor', () => {
     });
     await filter(user, 'missing');
     await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByRole('alertdialog');
+    await user.click(screen.getByRole('button', { name: /^Close$/ }));
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveFocus(),
     );
@@ -940,12 +963,22 @@ describe('Issue editor', () => {
     const { user } = issueSetup();
     await add(user, 'OTHER');
     const destination = screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ });
-    expect(destination).toHaveValue('');
+    expect(destination).toHaveTextContent('Select An Option');
     expect(
       screen.queryByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Submit' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(en['stock-issue.invalid-title']);
+    expect(dialog).toHaveTextContent(en['stock-issue.invalid-description']);
+    expect(destination).toHaveAttribute('aria-invalid', 'true');
+    expect(destination).toHaveAccessibleDescription('This field is required');
+    expect(
+      document.getElementById('lines[0].destination-error')?.closest('.sr-only'),
+    ).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: /^Close$/ }));
     await waitFor(() => expect(destination).toHaveFocus());
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('This field is required');
     await user.click(destination);
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
     const comments = screen.getByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ });
@@ -968,8 +1001,7 @@ describe('Issue editor', () => {
     expect(
       screen.queryByRole('textbox', { name: /^Reason Comments, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Clear Issue To, Aspirin OTHER/ }));
-    expect(destination).toHaveValue('');
+    expect(destination).toHaveTextContent('CHW');
   });
 
   it('copies the destination comments, filters the destination name and submits its node id', async () => {
@@ -1127,4 +1159,114 @@ it('retains draft lot and VVM columns when refreshed stock no longer offers them
   }
   expect(screen.getByText('OTHER')).toBeInTheDocument();
   expect(screen.getByRole('combobox', { name: /^VVM Status, Aspirin OTHER/ })).toBeInTheDocument();
+});
+
+it('keeps the empty table busy until stock cards determine its lot and VVM columns', async () => {
+  let finish!: (cards: EventStockCard[]) => void;
+  vi.mocked(fetchEventStockCards).mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  setup(true, (client) =>
+    client.removeQueries({
+      queryKey: eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+    }),
+  );
+  const header = await screen.findByRole('columnheader', { name: 'Product' });
+  expect(header.closest('[aria-busy="true"]')).not.toBeNull();
+  await act(async () => finish([other]));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('columnheader', { name: 'Lot Code' }).closest('[aria-busy="true"]'),
+    ).toBeNull(),
+  );
+});
+
+it('stops announcing a busy table after stock cards fail and keeps the retry available', async () => {
+  vi.mocked(fetchEventStockCards).mockRejectedValue(new Error('Unavailable'));
+  setup(true, (client) =>
+    client.removeQueries({
+      queryKey: eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+    }),
+  );
+  expect(await screen.findByText(en['stock-events.cards-error-title'])).toBeInTheDocument();
+  expect(
+    screen.getByRole('columnheader', { name: 'Product' }).closest('[aria-busy="true"]'),
+  ).toBeNull();
+  expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+});
+
+it('discards frozen row widths after unit or language changes while no rows match', async () => {
+  const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 175,
+    height: 28,
+    top: 0,
+    bottom: 28,
+    left: 0,
+    right: 175,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  try {
+    const { user } = setup();
+    await add(user);
+    await filter(user, 'missing');
+    await screen.findByText('No Matching Products');
+    const measured = () => document.querySelector('[style*="--table-width"]');
+    expect(measured()).not.toBeNull();
+    await user.click(screen.getByRole('radio', { name: 'Packs' }));
+    expect(measured()).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Clear Filter' }));
+    await filter(user, 'missing');
+    await screen.findByText('No Matching Products');
+    expect(measured()).not.toBeNull();
+    await act(async () => i18n.changeLanguage('fr'));
+    expect(measured()).toBeNull();
+  } finally {
+    bounds.mockRestore();
+  }
+});
+
+it('releases frozen row widths when the editor container resizes without matching rows', async () => {
+  let resize!: () => void;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(element: Element) {
+        if (element.firstElementChild?.tagName === 'FORM') {
+          resize = () =>
+            this.callback(
+              [{ contentRect: { width: 900 } } as ResizeObserverEntry],
+              this as unknown as ResizeObserver,
+            );
+        }
+      }
+      disconnect() {}
+    },
+  );
+  const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 175,
+    height: 28,
+    top: 0,
+    bottom: 28,
+    left: 0,
+    right: 175,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  try {
+    const { user } = setup();
+    await add(user);
+    await filter(user, 'missing');
+    await screen.findByText('No Matching Products');
+    expect(document.querySelector('[style*="--table-width"]')).not.toBeNull();
+    act(resize);
+    expect(document.querySelector('[style*="--table-width"]')).toBeNull();
+  } finally {
+    bounds.mockRestore();
+  }
 });

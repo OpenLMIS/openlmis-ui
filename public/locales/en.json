@@ -1185,8 +1185,6 @@
   "stock-events.expiry-mismatch-title": "Expiry Dates Differ",
   "stock-events.field-of": "{field}, {row}",
   "stock-events.issue-to": "Issue To",
-  "stock-events.issue-to-clear": "Clear Issue To",
-  "stock-events.issue-to-empty": "No destinations match.",
   "stock-events.keywords": "Keywords",
   "stock-events.lot-code": "Lot Code",
   "stock-events.no-destinations-description": "No destinations are set up for this program. Contact an administrator.",

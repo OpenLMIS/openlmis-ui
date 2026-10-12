@@ -1185,8 +1185,6 @@
   "stock-events.expiry-mismatch-title": "As datas de validade diferem",
   "stock-events.field-of": "{field}, {row}",
   "stock-events.issue-to": "Saída Para",
-  "stock-events.issue-to-clear": "Limpar Destino Da Saída",
-  "stock-events.issue-to-empty": "Nenhum destino corresponde.",
   "stock-events.keywords": "Palavras-chave",
   "stock-events.lot-code": "Código do lote",
   "stock-events.no-destinations-description": "Não estão configurados destinos para este programa. Contacte um administrador.",

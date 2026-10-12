@@ -1185,8 +1185,6 @@
   "stock-events.expiry-mismatch-title": "Las fechas de caducidad difieren",
   "stock-events.field-of": "{field}, {row}",
   "stock-events.issue-to": "Salida A",
-  "stock-events.issue-to-clear": "Borrar Destino De Salida",
-  "stock-events.issue-to-empty": "No hay destinos que coincidan.",
   "stock-events.keywords": "Palabras clave",
   "stock-events.lot-code": "Código de lote",
   "stock-events.no-destinations-description": "No hay destinos configurados para este programa. Contacte con un administrador.",

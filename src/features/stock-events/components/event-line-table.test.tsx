@@ -187,87 +187,6 @@ it('keeps full Issue comment headers without truncation or hover text', async ()
   }
 });
 
-it.each(['DOSES', 'PACKS'] as const)('reserves readable Issue controls in %s', async (unit) => {
-  const reasons = [
-    {
-      id: 'transfer',
-      name: 'Transfer Out',
-      reasonType: 'DEBIT',
-      reasonCategory: 'TRANSFER',
-      isFreeTextAllowed: true,
-      tags: [],
-    },
-  ];
-  const destinations = [
-    {
-      id: 'chw',
-      name: 'CHW',
-      isFreeTextAllowed: true,
-      programId: 'program',
-      facilityTypeId: 'type',
-      node: { id: 'node', referenceId: 'chw', refDataFacility: false },
-      geoLevelAffinityId: null,
-    },
-  ];
-  const line = newEventLine(
-    {
-      stockOnHand: 67,
-      orderable: { id: 'product', productCode: 'C1', fullProductName: 'Product', netContent: 16 },
-      lot: null,
-    },
-    undefined,
-    '2026-10-09',
-    { kind: 'issue' },
-  );
-  line.destination = 'chw';
-  line.reasonId = 'transfer';
-  function Fixture() {
-    const form = useEventForm({
-      kind: 'issue',
-      reasons,
-      destinations,
-      today: '2026-10-09',
-      onValid: vi.fn(),
-      onInvalid: vi.fn(),
-    });
-    useEffect(() => {
-      form.setFieldValue('lines', [line]);
-    }, [form]);
-    const lines = useStore(form.store, (state) => state.values.lines);
-    return (
-      <EventLineTable
-        kind="issue"
-        reasonRequired={false}
-        form={form}
-        lines={lines}
-        cards={NO_CARDS}
-        reasons={reasons}
-        destinations={destinations}
-        unit={unit}
-        today="2026-10-09"
-        disabled={false}
-        onRemove={vi.fn()}
-        search={{}}
-        onSearchChange={vi.fn()}
-        columnVisibility={{}}
-        onClearFilter={vi.fn()}
-      />
-    );
-  }
-  renderPage(<Fixture />);
-  await waitFor(() => expect(document.getElementById('lines[0].destination')).toBeInTheDocument());
-  for (const [id, width] of [
-    ['destination', 'w-54'],
-    ['destinationComments', 'w-37'],
-    ['reasonId', 'w-38'],
-    ['reasonFreeText', 'w-37'],
-    ['occurredDate', 'w-31'],
-    ['quantity', unit === 'PACKS' ? 'w-27' : 'w-20'],
-  ]) {
-    expect(document.getElementById(`lines[0].${id}`)?.closest(`.${width}`)).not.toBeNull();
-  }
-});
-
 it.each([false, true])(
   'distinguishes duplicate draft lines after paging with product lots %s',
   async (hasProductLots) => {
@@ -334,7 +253,7 @@ it.each([false, true])(
       const input = await screen.findByRole('combobox', {
         name: `Issue To, HUMATROPE ${message}, Line ${position}`,
       });
-      expect(input).toHaveAttribute('placeholder', 'Select An Option');
+      expect(input).toHaveTextContent('Select An Option');
       expect(
         within(input.closest('tr') as HTMLTableRowElement).getByText(message),
       ).toBeInTheDocument();

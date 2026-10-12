@@ -1185,8 +1185,6 @@
   "stock-events.expiry-mismatch-title": "تواريخ انتهاء الصلاحية مختلفة",
   "stock-events.field-of": "{field}، {row}",
   "stock-events.issue-to": "الصرف إلى",
-  "stock-events.issue-to-clear": "مسح وجهة الصرف",
-  "stock-events.issue-to-empty": "لا توجد وجهات مطابقة.",
   "stock-events.keywords": "الكلمات المفتاحية",
   "stock-events.lot-code": "رمز التشغيلة",
   "stock-events.no-destinations-description": "لم يتم إعداد وجهات لهذا البرنامج. تواصل مع مسؤول النظام.",

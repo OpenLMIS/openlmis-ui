@@ -15,7 +15,7 @@ function wholeNumber(text: string): number | null {
 }
 
 export function quantityValue(doses = '', netContent?: number | null): QuantityValue {
-  if (!doses.trim()) return { doses, packs: '', remainder: '' };
+  if (!doses.trim()) return { doses, packs: '', remainder: netContent === 1 ? '0' : '' };
   const value = wholeNumber(doses);
   if (value === null) return { doses, packs: doses, remainder: '' };
   const size = packSize(netContent);
@@ -29,8 +29,9 @@ export function updateQuantityValue(
   netContent?: number | null,
 ): QuantityValue {
   if (part === 'doses') return quantityValue(text, netContent);
-  const next = { ...value, [part]: text };
-  if (!next.packs.trim() && !next.remainder.trim()) return { ...next, doses: '' };
+  const next = { ...value, [part]: text, ...(netContent === 1 ? { remainder: '0' } : {}) };
+  if (!next.packs.trim() && (netContent === 1 || !next.remainder.trim()))
+    return { ...next, doses: '' };
   const packs = next.packs.trim() ? wholeNumber(next.packs) : 0;
   const remainder = next.remainder.trim() ? wholeNumber(next.remainder) : 0;
   const size = packSize(netContent);

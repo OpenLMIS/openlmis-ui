@@ -1185,8 +1185,6 @@
   "stock-events.expiry-mismatch-title": "Les dates d’expiration diffèrent",
   "stock-events.field-of": "{field}, {row}",
   "stock-events.issue-to": "Sortie Vers",
-  "stock-events.issue-to-clear": "Effacer La Destination De Sortie",
-  "stock-events.issue-to-empty": "Aucune destination ne correspond.",
   "stock-events.keywords": "Mots-clés",
   "stock-events.lot-code": "Code du lot",
   "stock-events.no-destinations-description": "Aucune destination n’est configurée pour ce programme. Contactez un administrateur.",

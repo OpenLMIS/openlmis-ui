@@ -331,6 +331,9 @@ App-shell pages compose `src/components/workspace.tsx`:
   one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
   and `width="wide"` for uncapped tables.
+- Stock event pending views use the real icon, description, cached title or title-height placeholder,
+  disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
+  the real translated Button size.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -384,6 +387,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
+- Issue hides optional columns by measured fit because translated inputs make pixel thresholds
+  language dependent. With draft lines but no filter matches, keep fitted visibility and the last
+  rendered column widths until rows return. Inline quantity inputs size to their own placeholder
+  or value with bounded content sizing.
+
 - Tables draw vertical column dividers by default.
 
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
@@ -403,7 +411,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
-  may hide. Row actions use an end-of-row "..." menu at every width.
+  may hide. Row actions use an end-of-row "..." menu at every width. Draft editor line tables
+  whose only row action is Remove use a trash icon button.
 - Put Create at the toolbar's end, after View.
 
 **Filters and states:**
@@ -441,7 +450,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
-  `Table density/layout`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `Table density/layout/width`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `Skeleton fill`, `Button variant="destructive-solid"` and
   `"destructive-outline"`. These become plain `className`s in the
   registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
@@ -498,7 +507,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="content"` fits each input to its placeholder or value, `sizing="full"` fills the wrapper |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
@@ -509,8 +518,12 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
+- Inline `SelectField`, `TextareaField`, `QuantityField` and `DateField` accept `hideErrors`.
+  Editor line tables use it to hide error text, retain `aria-invalid` and
+  screen-reader descriptions, and show the message on field hover or focus through Tooltip without
+  adding tab stops. Invalid Submit and server failures open an AlertDialog, as Reverse does; closing
+  validation focuses the first invalid field on its page.
 - Inline fields use `Field surface="background"` for opaque controls on selected or hovered rows.
-  `SelectField` and `TextareaField` accept `hideErrors` to keep error descriptions screen-reader-only.
   Textareas use `resize-none` and grow with their content. Inline `SelectField size="sm"` and
   `Textarea size="inline"` are both 28px; where they appear on tick, as on Reverse, wrap the
   cell in a fixed width rendered on every row, so ticking never shifts the table.
@@ -544,8 +557,8 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
-`DialogTitle size`, `Field spacing/surface`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
-`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width`, `Button align/width`,
+`DialogTitle size`, `Input controlSize/sizing`, `Field spacing/surface`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
+`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width/wrap`, `Button align/width`,
 `PopoverContent width/padding`.
 
 **Every toast has a short Title Case title and a detail sentence as `description`**, displayed

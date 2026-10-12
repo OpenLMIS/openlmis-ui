@@ -4,6 +4,7 @@ import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateValue } from '@/components/form/date-value';
 import { FieldLabelText } from '@/components/form/form-fields';
+import { ScanStatus } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -23,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import {
   type EventCardFilter,
@@ -32,6 +32,7 @@ import {
   eventProductOptions,
 } from '@/features/stock-events/lib/products';
 import type { EventStockCard, EventStockCardsFilter } from '@/features/stock-events/lib/types';
+import { useFlag } from '@/lib/feature-flags';
 
 type Props = EventStockCardsFilter & {
   children?: ReactNode;
@@ -188,8 +189,9 @@ function PickerPanel({ children, status }: { children: ReactNode; status?: React
 
 export function ProductLotPickerSkeleton() {
   const { t } = useTranslation();
+  const scanning = useFlag('GS1_SCANNING');
   return (
-    <PickerPanel>
+    <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
       <p role="status" aria-live="polite" className="sr-only">
         {t('stock-events.products-loading')}
       </p>
@@ -198,21 +200,22 @@ export function ProductLotPickerSkeleton() {
           <FieldLabel>
             <FieldLabelText label={t('stock-events.product')} required />
           </FieldLabel>
-          <div className="h-8">
-            <Skeleton fill />
-          </div>
+          <Combobox disabled>
+            <ComboboxInput
+              disabled
+              aria-label={t('stock-events.product')}
+              aria-required="true"
+              placeholder={t('stock-events.product')}
+              width="full"
+            />
+          </Combobox>
         </Field>
       </div>
-      <div className="relative @3xl/main:w-auto">
-        <div className="invisible" aria-hidden="true">
-          <Button width="full" disabled tabIndex={-1} type="button">
-            <PlusIcon data-icon="inline-start" />
-            {t('stock-events.add')}
-          </Button>
-        </div>
-        <div className="absolute inset-0">
-          <Skeleton fill />
-        </div>
+      <div className="@3xl/main:w-auto">
+        <Button width="full" disabled type="button">
+          <PlusIcon data-icon="inline-start" />
+          {t('stock-events.add')}
+        </Button>
       </div>
     </PickerPanel>
   );

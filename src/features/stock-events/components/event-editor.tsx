@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
@@ -28,7 +28,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
 import {
   tradeItemByGtinOptions,
@@ -41,6 +40,7 @@ import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import {
   EventLineTable,
+  EventLineTableSkeleton,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 import {
@@ -62,6 +62,7 @@ import { eventProductOptions } from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
@@ -151,6 +152,10 @@ export function EventEditor({
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
+  const [unknownOutcome, setUnknownOutcome] = useState(false);
+  const [validationOpen, setValidationOpen] = useState(false);
+  const alertTarget = useRef<{ name: string; page: number } | null>(null);
+  const submitButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
   const signing = useRef(false);
   signing.current = signatureOpen;
@@ -182,7 +187,7 @@ export function EventEditor({
     const index = Number(issue.path[1]);
     const field = String(issue.path[2]);
     const page = pageOf(index, search.size ?? 10);
-    setFocusField({ name: `lines[${index}].${field}`, page });
+    alertTarget.current = { name: `lines[${index}].${field}`, page };
     onSearchChange(
       {
         keyword: undefined,
@@ -190,17 +195,40 @@ export function EventEditor({
       },
       true,
     );
-    toast.error(t(config.copy.invalidTitle), {
-      description: t(config.copy.invalidDescription),
-    });
+    setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
   const hasLots = offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
     lines.some((line) => line.useVVM);
-  const hideableColumns = eventHideableColumns(kind, { hasLots, unit: quantityUnit.unit });
-  const columns = useColumnVisibility(hideableColumns, [choices, setChoices], width);
+  const hideableColumns = eventHideableColumns(kind);
+  const fitColumns = useMemo(
+    () =>
+      hideableColumns.filter(
+        ({ id }) =>
+          (id !== 'total' || quantityUnit.unit === 'PACKS') && (id !== 'expiry' || hasLots),
+      ),
+    [hideableColumns, quantityUnit.unit, hasLots],
+  );
+  const fitLineKeys = lines.map((line) => line.key).join(',');
+  const hasDestinationComments = lines.some((line) =>
+    destinations.some(
+      (destination) => destination.id === line.destination && destination.isFreeTextAllowed,
+    ),
+  );
+  const fitContent = useMemo(
+    () => ({
+      fitLineKeys,
+      language: i18n.language,
+      unit: quantityUnit.unit,
+      hasLots,
+      hasVVM,
+      hasDestinationComments,
+      ready,
+    }),
+    [fitLineKeys, i18n.language, quantityUnit.unit, hasLots, hasVVM, hasDestinationComments, ready],
+  );
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
   const guard = useDiscardGuard(lines.length > 0 && !submitted, {
@@ -230,6 +258,15 @@ export function EventEditor({
     setFilter({ keyword, lineKeys, language, matches });
   }
   const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
+  const columns = useFitColumnVisibility(
+    needsDestinations ? fitColumns : hideableColumns,
+    [choices, setChoices],
+    region,
+    width,
+    fitContent,
+    needsDestinations,
+    lines.length > 0 && filtered.length === 0,
+  );
   const mutation = useSessionMutation({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
@@ -281,6 +318,7 @@ export function EventEditor({
     }
     posting.current = true;
     setFailure(null);
+    setUnknownOutcome(false);
     let eventId: string;
     try {
       eventId = await mutation.mutateAsync(
@@ -300,10 +338,7 @@ export function EventEditor({
         ? t('stock-events.unknown-outcome-description')
         : (serverMessage(error) ?? t(config.copy.submitErrorDescription));
       setFailure({ unknown, description });
-      toast.error(
-        t(unknown ? 'stock-events.unknown-outcome-title' : config.copy.submitErrorTitle),
-        { description },
-      );
+      setUnknownOutcome(unknown);
       setSignatureOpen(false);
       posting.current = false;
       return;
@@ -409,7 +444,15 @@ export function EventEditor({
     );
   };
   const scanStatus = useBarcodeScan({
-    enabled: scanning && canViewStock && ready && !submitted && !pending && !signatureOpen,
+    enabled:
+      scanning &&
+      canViewStock &&
+      ready &&
+      !submitted &&
+      !pending &&
+      !signatureOpen &&
+      !validationOpen &&
+      !failure,
     onScan,
   });
   const visibility = {
@@ -419,6 +462,9 @@ export function EventEditor({
     expiry: hasLots && columns.visibility.expiry !== false,
     vvm: hasVVM,
   };
+  const tablePending = (
+    <EventLineTableSkeleton kind={kind} unit={quantityUnit.unit} columnVisibility={visibility} />
+  );
   return (
     <>
       <Workspace width={config.width}>
@@ -450,6 +496,12 @@ export function EventEditor({
                     {scanning && <ScanStatus {...scanStatus} />}
                   </ProductLotPicker>
                 </QueryBoundary>
+              )}
+              {unknownOutcome && (
+                <ErrorAlert
+                  title={t('stock-events.unknown-outcome-title')}
+                  description={t('stock-events.unknown-outcome-description')}
+                />
               )}
               <DataTableToolbar>
                 <fieldset className="w-full @xl/main:w-72" disabled={pending}>
@@ -490,48 +542,50 @@ export function EventEditor({
                   title={t('stock-events.no-stock-view-title')}
                   description={t('stock-events.no-stock-view-description')}
                 />
+              ) : cardsQuery.isError && cardsQuery.data === undefined ? (
+                <EventLineTableSkeleton
+                  kind={kind}
+                  unit={quantityUnit.unit}
+                  columnVisibility={visibility}
+                  busy={false}
+                />
               ) : (
                 <QueryBoundary
                   resetKey={`${programId}/${facilityTypeId}`}
-                  pendingFallback={<LookupSkeleton />}
+                  pendingFallback={tablePending}
                   errorComponent={ReasonsError}
                 >
                   <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
-                    <DestinationsReady
-                      needed={needsDestinations}
-                      facilityId={facilityId}
-                      programId={programId}
-                    >
-                      <EventLineTable
-                        kind={kind}
-                        reasonRequired={reasonRequired}
-                        form={form}
-                        lines={filtered}
-                        cards={offeredCards}
-                        reasons={reasons}
-                        destinations={destinations}
-                        unit={quantityUnit.unit}
-                        today={today}
-                        disabled={pending || submitted}
-                        onRemove={remove}
-                        search={search}
-                        onSearchChange={onSearchChange}
-                        columnVisibility={visibility}
-                        onClearFilter={clearFilter}
-                      />
-                    </DestinationsReady>
+                    <StockCardsReady facilityId={facilityId} programId={programId}>
+                      <DestinationsReady
+                        pendingFallback={tablePending}
+                        needed={needsDestinations}
+                        facilityId={facilityId}
+                        programId={programId}
+                      >
+                        <EventLineTable
+                          kind={kind}
+                          fitContent={fitContent}
+                          containerWidth={width}
+                          reasonRequired={reasonRequired}
+                          form={form}
+                          lines={filtered}
+                          cards={offeredCards}
+                          reasons={reasons}
+                          destinations={destinations}
+                          unit={quantityUnit.unit}
+                          today={today}
+                          disabled={pending || submitted}
+                          onRemove={remove}
+                          search={search}
+                          onSearchChange={onSearchChange}
+                          columnVisibility={visibility}
+                          onClearFilter={clearFilter}
+                        />
+                      </DestinationsReady>
+                    </StockCardsReady>
                   </ReasonsReady>
                 </QueryBoundary>
-              )}
-              {failure && (
-                <ErrorAlert
-                  title={t(
-                    failure.unknown
-                      ? 'stock-events.unknown-outcome-title'
-                      : config.copy.submitErrorTitle,
-                  )}
-                  description={failure.description}
-                />
               )}
             </form>
           </div>
@@ -548,6 +602,7 @@ export function EventEditor({
         </Button>
         <Button
           disabled={!lines.length || pending || submitted || !ready}
+          ref={submitButton}
           form={config.formId}
           size="lg"
           type="submit"
@@ -556,6 +611,40 @@ export function EventEditor({
           {t('stock-events.submit')}
         </Button>
       </WorkspaceFooter>
+      <AlertDialog
+        open={validationOpen || !!failure}
+        onOpenChange={(open) => {
+          if (!open) {
+            setValidationOpen(false);
+            setFailure(null);
+          }
+        }}
+        onOpenChangeComplete={(open) => {
+          if (open || !alertTarget.current) return;
+          setFocusField(alertTarget.current);
+          alertTarget.current = null;
+        }}
+      >
+        <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t(
+                failure
+                  ? failure.unknown
+                    ? 'stock-events.unknown-outcome-title'
+                    : config.copy.submitErrorTitle
+                  : config.copy.invalidTitle,
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {failure?.description ?? t(config.copy.invalidDescription)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <ClearLinesDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
@@ -634,11 +723,13 @@ function ReasonsError(props: { error: unknown; reset: () => void }) {
 }
 
 function DestinationsReady({
+  pendingFallback,
   needed,
   facilityId,
   programId,
   children,
 }: {
+  pendingFallback: ReactNode;
   needed: boolean;
   facilityId: string;
   programId: string;
@@ -648,7 +739,7 @@ function DestinationsReady({
   return (
     <QueryBoundary
       resetKey={`${programId}/${facilityId}`}
-      pendingFallback={<LookupSkeleton />}
+      pendingFallback={pendingFallback}
       errorComponent={DestinationsError}
     >
       <DestinationLookup facilityId={facilityId} programId={programId}>
@@ -684,12 +775,17 @@ function DestinationsError(props: { error: unknown; reset: () => void }) {
   return <LookupError {...props} lookup="destinations" />;
 }
 
-function LookupSkeleton() {
-  return (
-    <div className="h-40">
-      <Skeleton fill />
-    </div>
-  );
+function StockCardsReady({
+  facilityId,
+  programId,
+  children,
+}: {
+  facilityId: string;
+  programId: string;
+  children: ReactNode;
+}) {
+  useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
+  return children;
 }
 
 function LookupError({

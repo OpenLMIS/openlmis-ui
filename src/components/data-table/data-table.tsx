@@ -15,7 +15,7 @@ import {
   ChevronsUpDownIcon,
   ChevronUpIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useDataTableLabels } from '@/components/data-table/data-table-labels';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export type DataTableColumnMeta = {
   /** Width classes, e.g. `w-1/5` or `w-16 xl:w-72`. Columns without any share what is left. */
@@ -57,6 +58,7 @@ export type DataTableInstance<TData extends RowData> = ReactTable<DataTableFeatu
 
 type DataTableProps<TData extends RowData> = {
   table: DataTableInstance<TData>;
+  columnWidths?: Readonly<Record<string, number>>;
   density?: 'default' | 'comfortable' | 'compact';
   /** `auto` sizes each column to its content instead of keeping widths steady across pages. */
   layout?: 'fixed' | 'auto';
@@ -70,6 +72,7 @@ type DataTableProps<TData extends RowData> = {
 
 export function DataTable<TData extends RowData>({
   table,
+  columnWidths,
   empty,
   isStale = false,
   footer,
@@ -81,9 +84,19 @@ export function DataTable<TData extends RowData>({
 
   return (
     <DataTableCard>
-      <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
-        <Table density={density} layout={layout}>
-          <DataTableHeader table={table} />
+      <div
+        aria-busy={isStale}
+        className="transition-opacity aria-busy:opacity-60"
+        style={
+          columnWidths
+            ? ({
+                '--table-width': `${columns.reduce((total, column) => total + (columnWidths[column.id] ?? 0), 0)}px`,
+              } as CSSProperties)
+            : undefined
+        }
+      >
+        <Table density={density} layout={layout} width={columnWidths ? 'measured' : 'full'}>
+          <DataTableHeader table={table} columnWidths={columnWidths} />
           <TableBody>
             {rows.length > 0 ? (
               rows.map((row) => (
@@ -111,12 +124,29 @@ export function DataTable<TData extends RowData>({
 }
 
 /** Column widths and the header row, shared by the table and its skeleton so neither shifts. */
-function DataTableHeader<TData extends RowData>({ table }: { table: DataTableInstance<TData> }) {
+function DataTableHeader<TData extends RowData>({
+  table,
+  columnWidths,
+}: {
+  table: DataTableInstance<TData>;
+  columnWidths?: Readonly<Record<string, number>>;
+}) {
   return (
     <>
       <colgroup>
         {table.getVisibleLeafColumns().map((column) => (
-          <col className={column.columnDef.meta?.className} key={column.id} />
+          <col
+            className={cn(
+              column.columnDef.meta?.className,
+              columnWidths?.[column.id] && 'w-(--column-width)',
+            )}
+            key={column.id}
+            style={
+              columnWidths?.[column.id]
+                ? ({ '--column-width': `${columnWidths[column.id]}px` } as CSSProperties)
+                : undefined
+            }
+          />
         ))}
       </colgroup>
       <TableHeader surface="muted">
