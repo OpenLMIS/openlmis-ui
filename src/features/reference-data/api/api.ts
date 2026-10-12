@@ -1,5 +1,6 @@
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type {
+  ApprovedProduct,
   Facility,
   FacilityOperator,
   FacilityType,
@@ -9,6 +10,7 @@ import type {
   MinimalFacility,
   Orderable,
   OrderableDisplayCategory,
+  OrderableFulfills,
   Organization,
   Program,
   Reason,
@@ -128,16 +130,23 @@ export async function fetchOrderables({
 const BY_IDS_BATCH = 100;
 
 /** The records with the given ids, at most 100 ids a request and every page of each; none is sent for no ids, which would list them all. */
-async function fetchByIds<T extends { id: string }>(path: string, ids: readonly string[]) {
+async function fetchByIds<T extends { id: string }>(
+  path: string,
+  ids: readonly string[],
+  param = 'id',
+) {
+  const scope = getSessionScope();
   const unique = [...new Set(ids)];
   const found: T[] = [];
   for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
     const batch = unique.slice(start, start + BY_IDS_BATCH);
     for (let page = 0; ; page += 1) {
+      assertSessionScope(scope);
       const { data } = await client.get<Page<T>>(path, {
-        params: { id: batch, page, size: BY_IDS_BATCH },
+        params: { [param]: batch, page, size: BY_IDS_BATCH },
         paramsSerializer: { indexes: null },
       });
+      assertSessionScope(scope);
       found.push(...data.content);
       if (page + 1 >= data.totalPages) break;
     }
@@ -162,6 +171,70 @@ export async function fetchOrderablesByIds(ids: readonly string[]): Promise<Orde
 
 export function fetchLotsByIds(ids: readonly string[]): Promise<LotSummary[]> {
   return fetchByIds<LotSummary>('/lots', ids);
+}
+
+export async function fetchLotsByTradeItems(ids: readonly string[]): Promise<LotSummary[]> {
+  const lots = await fetchByIds<LotSummary>('/lots', ids, 'tradeItemId');
+  return [...new Map(lots.map((lot) => [lot.id, lot])).values()];
+}
+
+export async function fetchOrderableFulfills(ids: readonly string[]): Promise<OrderableFulfills> {
+  const scope = getSessionScope();
+  const unique = [...new Set(ids)];
+  const fulfills: OrderableFulfills = {};
+  for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
+    assertSessionScope(scope);
+    const { data } = await client.get<OrderableFulfills>('/orderableFulfills', {
+      params: { id: unique.slice(start, start + BY_IDS_BATCH) },
+      paramsSerializer: { indexes: null },
+    });
+    assertSessionScope(scope);
+    Object.assign(fulfills, data);
+  }
+  return fulfills;
+}
+
+export type FacilityProgramFilter = { facilityId: string; programId: string };
+
+export async function fetchFacilityOrderableFulfills(
+  filter: FacilityProgramFilter,
+): Promise<OrderableFulfills> {
+  const { data } = await client.get<OrderableFulfills>('/orderableFulfills', { params: filter });
+  return data;
+}
+
+export type ApprovedProductsFilter = FacilityProgramFilter & {
+  name?: string;
+  code?: string;
+  orderableIds?: readonly string[];
+  page: number;
+  size: number;
+};
+
+export async function fetchApprovedProducts({
+  facilityId,
+  programId,
+  name,
+  code,
+  orderableIds,
+  page,
+  size,
+}: ApprovedProductsFilter): Promise<Page<ApprovedProduct>> {
+  const { data } = await client.get<Page<ApprovedProduct>>(
+    `/facilities/${facilityId}/approvedProducts`,
+    {
+      params: {
+        programId,
+        ...(name && { orderableName: name }),
+        ...(code && { orderableCode: code }),
+        ...(orderableIds?.length && { orderableId: orderableIds }),
+        page,
+        size,
+      },
+      paramsSerializer: { indexes: null },
+    },
+  );
+  return data;
 }
 
 export async function fetchUserRecord(id: string): Promise<UserRecord> {
@@ -228,7 +301,7 @@ export async function fetchTradeItemByGtin(gtin: string): Promise<TradeItem | nu
 export type ValidAssignmentsFilter = { programId: string; facilityId: string };
 
 export async function fetchValidAssignments(
-  resource: 'validDestinations',
+  resource: 'validSources' | 'validDestinations',
   filter: ValidAssignmentsFilter,
 ): Promise<ValidAssignment[]> {
   const scope = getSessionScope();

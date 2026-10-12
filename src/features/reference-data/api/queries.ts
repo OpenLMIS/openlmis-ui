@@ -1,13 +1,18 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  type ApprovedProductsFilter,
+  type FacilityProgramFilter,
+  fetchApprovedProducts,
   fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
+  fetchFacilityOrderableFulfills,
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
   fetchLotsByIds,
+  fetchLotsByTradeItems,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
   fetchOrderables,
@@ -156,6 +161,25 @@ export const lotsByIdsOptions = (ids: readonly string[]) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
+export const lotsByTradeItemsOptions = (tradeItemIds: readonly string[]) =>
+  queryOptions({
+    queryKey: queryKeys.lots.list({ tradeItemIds }),
+    queryFn: () => fetchLotsByTradeItems(tradeItemIds),
+  });
+
+export const approvedProductsOptions = (filter: ApprovedProductsFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'facility', filter] as const,
+    queryFn: () => fetchApprovedProducts(filter),
+  });
+
+export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'fulfills', filter] as const,
+    queryFn: () => fetchFacilityOrderableFulfills(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
 export const userRecordOptions = (id: string) =>
   queryOptions({
@@ -209,5 +233,12 @@ export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
   queryOptions({
     queryKey: [...queryKeys.validDestinations.all, 'lookup', filter] as const,
     queryFn: () => fetchValidAssignments('validDestinations', filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const validSourcesOptions = (filter: ValidAssignmentsFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.validSources.all, 'lookup', filter] as const,
+    queryFn: () => fetchValidAssignments('validSources', filter),
     staleTime: LOOKUP_STALE_TIME,
   });
