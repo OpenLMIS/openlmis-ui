@@ -41,6 +41,7 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchReasons: vi.fn(),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),

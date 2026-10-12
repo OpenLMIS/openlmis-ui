@@ -6,7 +6,6 @@ export const MAX_CONTENT_QUANTITY = 2_147_483_647;
 type KitRecord = { id: string; children?: readonly OrderableChild[] };
 type KitContents = Pick<KitRecord, 'children'>;
 type KitContentLine = KitContents & { quantity: number };
-export type KitLineItem = StockEventLineItem & KitContentLine;
 export type KitReasons = { debit: string; credit: string };
 export type KitUnpackReasonIds = {
   kitUnpackReasonId?: string;
@@ -57,17 +56,17 @@ export function kitContentsProblem(
 }
 
 export function expandKitLines(
-  items: readonly KitLineItem[],
+  items: readonly StockEventLineItem[],
+  childrenPerItem: readonly (readonly OrderableChild[] | undefined)[],
   reasons: KitReasons,
 ): StockEventLineItem[] {
   return [
-    ...items.map(({ children: _children, ...item }) => ({
+    ...items.map((item) => ({
       ...item,
       reasonId: reasons.debit,
-      extraData: { ...item.extraData },
     })),
-    ...items.flatMap((item) =>
-      (item.children ?? []).map((child) => ({
+    ...items.flatMap((item, index) =>
+      (childrenPerItem[index] ?? []).map((child) => ({
         orderableId: child.orderable.id,
         lotId: null,
         quantity: item.quantity * (child.quantity as number),
@@ -83,9 +82,7 @@ export function contentTotalsTooLarge(lines: readonly KitContentLine[]): number[
   const totals = new Map<string, { quantity: number; indexes: Set<number> }>();
   lines.forEach((line, index) => {
     for (const child of line.children ?? []) {
-      if (child.quantity === null || child.quantity <= 0 || !Number.isInteger(child.quantity))
-        continue;
-      const quantity = line.quantity * child.quantity;
+      const quantity = line.quantity * (child.quantity as number);
       if (!(quantity > 0)) continue;
       const total = totals.get(child.orderable.id) ?? { quantity: 0, indexes: new Set<number>() };
       total.quantity += quantity;

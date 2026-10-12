@@ -757,8 +757,8 @@ describe('unpack form', () => {
       ['lines.0.quantity.doses', 'stock-unpack.contents-too-large'],
     ]);
   });
-  it.each([undefined, []])('refuses a product with no kit contents %s on quantity', (children) => {
-    expect(unpackIssues([kitLine({ orderable: { ...card.orderable, children } })])).toEqual([
+  it('refuses a product with no kit contents on quantity', () => {
+    expect(unpackIssues([kitLine({ orderable: { ...card.orderable, children: [] } })])).toEqual([
       ['lines.0.quantity.doses', 'stock-unpack.not-a-kit'],
     ]);
   });

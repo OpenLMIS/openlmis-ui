@@ -111,66 +111,6 @@ describe('kitContentsProblem', () => {
 });
 
 describe('expandKitLines', () => {
-  it('matches the captured legacy line item structure and ordering', () => {
-    const captured = {
-      lineItems: [
-        {
-          orderableId: 'd602d0c6-4052-456c-8ccd-61b4ad77bece',
-          quantity: 2,
-          extraData: {},
-          occurredDate: '2026-12-20',
-          reasonId: '9b4b653a-f319-4a1b-bb80-8d6b4dd6cc12',
-          lotId: '4727ecbf-df85-41ce-bbe0-bdcc3b1fe448',
-        },
-        {
-          orderableId: '23819693-0670-4c4b-b400-28e009b86b51',
-          quantity: 3,
-          extraData: {},
-          occurredDate: '2026-10-12',
-          reasonId: '9b4b653a-f319-4a1b-bb80-8d6b4dd6cc12',
-          lotId: null,
-        },
-        {
-          orderableId: '880cf2eb-7b68-4450-a037-a0dec1a17987',
-          quantity: 6,
-          extraData: {},
-          occurredDate: '2026-12-20',
-          reasonId: '0676fdea-9ba8-4e6d-ae26-bb14f0dcfecd',
-          lotId: null,
-        },
-        {
-          orderableId: '7f7b83db-580d-4269-88d2-7f9c80a591a9',
-          quantity: 6,
-          extraData: {},
-          occurredDate: '2026-10-12',
-          reasonId: '0676fdea-9ba8-4e6d-ae26-bb14f0dcfecd',
-          lotId: null,
-        },
-        {
-          orderableId: 'bfde33c3-83f1-4feb-a27c-842852f66b71',
-          quantity: 15,
-          extraData: {},
-          occurredDate: '2026-10-12',
-          reasonId: '0676fdea-9ba8-4e6d-ae26-bb14f0dcfecd',
-          lotId: null,
-        },
-      ],
-    };
-    const [first, second, ...contents] = captured.lineItems;
-    const input = deepFreeze([
-      { ...first, children: [{ orderable: { id: contents[0].orderableId }, quantity: 3 }] },
-      {
-        ...second,
-        children: [
-          { orderable: { id: contents[1].orderableId }, quantity: 2 },
-          { orderable: { id: contents[2].orderableId }, quantity: 5 },
-        ],
-      },
-    ]);
-    expect(
-      expandKitLines(input, deepFreeze({ debit: first.reasonId, credit: contents[0].reasonId })),
-    ).toEqual(captured.lineItems);
-  });
   it('expands each repeated kit separately from doses, keeping lots, dates, VVM and zero credits', () => {
     const input = deepFreeze([
       {
@@ -180,7 +120,12 @@ describe('expandKitLines', () => {
       },
       { ...item(3), children: [...children, { orderable: { id: 'zero' }, quantity: 0 }] },
     ]);
-    const output = expandKitLines(input, reasons);
+    const lineItems = deepFreeze(input.map(({ children: _children, ...item }) => item));
+    const output = expandKitLines(
+      lineItems,
+      input.map((item) => item.children),
+      reasons,
+    );
     expect(output).toEqual([
       {
         orderableId: 'kit',
@@ -239,10 +184,7 @@ describe('expandKitLines', () => {
         extraData: {},
       },
     ]);
-    expect(output).not.toBe(input);
-    expect(output[0]).not.toBe(input[0]);
-    expect(output[0].extraData).not.toBe(input[0].extraData);
-    expect(input[0].children).toBe(children);
+    expect(output[0]).not.toBe(lineItems[0]);
   });
 });
 

@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import type { ErrorComponentProps } from '@tanstack/react-router';
+import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -107,7 +108,7 @@ export function StockEventProgramPicker({ userId, permissions, kind, editorLink 
 }
 
 type ProgramTableProps = {
-  action: (typeof EVENT_KINDS)[ConfiguredEventKind]['copy']['make'];
+  action: ParseKeys;
   editorLink: PickerProps['editorLink'];
 };
 function EventPrograms({

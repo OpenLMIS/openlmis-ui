@@ -398,7 +398,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
-- Event kinds with `columnFit: 'measured'` (Issue, Receive) hide optional columns by measured fit
+- Event kinds with `columnFit: 'measured'` (Issue, Receive, Unpack) hide optional columns by measured fit
   because translated inputs make pixel thresholds language dependent. With draft lines but no
   filter matches, keep fitted visibility and the last rendered column widths until rows return.
   Their quantity inputs fill their cell while reserving a character-unit minimum based only on
@@ -584,7 +584,8 @@ at most two lines. `Toaster` supplies the translated close button; callers never
 
 Behind `GS1_SCANNING`, compose `useBarcodeScan` and `ScanStatus`. The GS1 parser and stock
 resolver live in `src/lib/`. Pause while dialogs are open, check cancellation before applying
-pending results, and abort on unmount. Each screen supplies its own lot policy.
+pending results, and abort on unmount. Each screen supplies its own lot policy. Stock event
+scanning follows the kind policy; Unpack keeps it off, as legacy.
 
 ## Facility and program picker
 
@@ -754,7 +755,7 @@ See `.env.example` and [README.md](README.md#environment-variables).
 - `VITE_BASE_PATH` is compiled at build time; follow the base-path rules above.
 - Per-environment settings use `src/lib/runtime-config.ts`, reading `config.json` written
   at container startup so one image works everywhere. OAuth credentials and the default issue
-  and receive reasons fall back to `import.meta.env` for dev; feature flags deliberately do not.
+  and receive reasons and both kit unpack reason ids fall back to `import.meta.env` for dev; feature flags deliberately do not.
   Never rely on build-time `import.meta.env` for deployment-varying runtime settings.
 
 ## Skills

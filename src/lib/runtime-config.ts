@@ -84,10 +84,7 @@ export function getDefaultReceiveReasonId(): string | undefined {
   );
 }
 
-export function getKitUnpackReasonIds(): {
-  kitUnpackReasonId?: string;
-  unpackedFromKitReasonId?: string;
-} {
+export function getKitUnpackReasonIds() {
   const config = useRuntimeConfigStore.getState();
   return {
     kitUnpackReasonId:

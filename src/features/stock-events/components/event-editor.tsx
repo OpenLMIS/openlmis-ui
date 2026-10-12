@@ -156,7 +156,7 @@ export function EventEditor({
     () => (reasonsQuery.data && config.reasons ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
     [reasonsQuery.data, config],
   );
-  const needsKitContents = config.contents === 'kit';
+  const needsKitContents = config.contents.type === 'kit';
   const kitReasonsQuery = useQuery({
     ...reasonsOptions(),
     enabled: canViewStock && needsKitContents,
@@ -171,7 +171,7 @@ export function EventEditor({
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
   const ready =
     (config.reasons === null || reasonsQuery.data !== undefined) &&
-    (!needsKitContents || (kitReasonsQuery.data !== undefined && kitReasons.ok)) &&
+    (!needsKitContents || kitReasons.ok) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...eventStockCardsOptions({ facilityId, programId }),
@@ -187,6 +187,7 @@ export function EventEditor({
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [contentsChangedKits, setContentsChangedKits] = useState<string[]>([]);
   const [contentsChangedOpen, setContentsChangedOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
@@ -195,8 +196,8 @@ export function EventEditor({
   const alertTarget = useRef<{ name: string; page: number } | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
-  const signing = useRef(false);
-  signing.current = confirmationOpen;
+  const confirming = useRef(false);
+  confirming.current = confirmationOpen;
   const lastAdded = useRef<ReturnType<typeof newEventLine> | undefined>(undefined);
   const leaving = useRef(false);
   const posting = useRef(false);
@@ -361,7 +362,7 @@ export function EventEditor({
   );
   const submit = async () => {
     if (!mutation.isCurrent()) return;
-    if (!needsKitContents) {
+    if (config.contents.type !== 'kit') {
       void form.handleSubmit();
       return;
     }
@@ -375,18 +376,28 @@ export function EventEditor({
       });
       if (!mutation.isCurrent()) return;
       form.setFieldValue('lines', withFreshContents(currentLines, fresh));
-      if (kitContentsChanged(currentLines, fresh).length) {
+      const changedIds = kitContentsChanged(currentLines, fresh);
+      if (changedIds.length) {
+        setContentsChangedKits(
+          changedIds.map((id) => {
+            const kit = currentLines.find((line) => line.orderable.id === id)?.orderable;
+            return kit?.fullProductName || kit?.productCode || id;
+          }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: eventStockCardsOptions({ facilityId, programId }).queryKey,
+          exact: true,
+        });
         setContentsChangedOpen(true);
         return;
       }
       await form.handleSubmit();
-      if (!mutation.isCurrent()) return;
     } catch (error) {
       if (!mutation.isCurrent()) return;
       setFailure({
         unknown: false,
         description: isOfflineError(error)
-          ? t('stock-unpack.refresh-offline')
+          ? t(config.contents.copy.refreshOffline)
           : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
       });
     } finally {
@@ -457,7 +468,7 @@ export function EventEditor({
   ): Promise<ScanMessage | undefined> => {
     if (!ready || submitted || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
-    const stale = () => signal.aborted || signing.current || !mutation.isCurrent();
+    const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
@@ -619,14 +630,16 @@ export function EventEditor({
                   description={t('stock-events.unknown-outcome-description')}
                 />
               )}
-              {needsKitContents && kitReasonsQuery.data !== undefined && !kitReasons.ok && (
-                <ErrorAlert
-                  title={t('stock-unpack.not-set-up-title')}
-                  description={t('stock-unpack.not-set-up-description', {
-                    setting: kitReasons.setting,
-                  })}
-                />
-              )}
+              {config.contents.type === 'kit' &&
+                kitReasonsQuery.data !== undefined &&
+                !kitReasons.ok && (
+                  <ErrorAlert
+                    title={t(config.contents.copy.notSetUpTitle)}
+                    description={t(config.contents.copy.notSetUpDescription, {
+                      setting: kitReasons.setting,
+                    })}
+                  />
+                )}
               <DataTableToolbar>
                 <fieldset className="w-full @xl/main:w-72" disabled={pending}>
                   <DataTableSearch
@@ -674,8 +687,7 @@ export function EventEditor({
                   busy={false}
                 />
               ) : (
-                <OptionalReasonsReady
-                  needed={config.reasons !== null || needsKitContents}
+                <EventReasonsReady
                   allReasons={needsKitContents}
                   programId={programId}
                   facilityTypeId={facilityTypeId}
@@ -708,7 +720,7 @@ export function EventEditor({
                       />
                     </CounterpartyReady>
                   </StockCardsReady>
-                </OptionalReasonsReady>
+                </EventReasonsReady>
               )}
             </form>
           </div>
@@ -768,24 +780,30 @@ export function EventEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog
-        open={contentsChangedOpen}
-        onOpenChange={(open) => {
-          if (!pending) setContentsChangedOpen(open);
-        }}
-      >
-        <AlertDialogContent finalFocus={submitButton}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('stock-unpack.contents-changed-title')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('stock-unpack.contents-changed-description')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {config.contents.type === 'kit' && (
+        <AlertDialog
+          open={contentsChangedOpen}
+          onOpenChange={(open) => {
+            if (!pending) setContentsChangedOpen(open);
+          }}
+        >
+          <AlertDialogContent finalFocus={submitButton}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t(config.contents.copy.contentsChangedTitle)}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t(config.contents.copy.contentsChangedDescription, {
+                  kits: new Intl.ListFormat(i18n.resolvedLanguage ?? i18n.language).format(
+                    contentsChangedKits,
+                  ),
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       <ClearLinesDialog
         kind={kind}
         open={clearOpen}
@@ -807,6 +825,7 @@ export function EventEditor({
         />
       ) : (
         <SubmitConfirmDialog
+          finalFocus={submitButton}
           open={confirmationOpen}
           onOpenChange={setConfirmationOpen}
           username={username}
@@ -860,31 +879,19 @@ function StockCardsError({ error, reset }: { error: unknown; reset: () => void }
   );
 }
 
-function OptionalReasonsReady({
-  needed,
+function EventReasonsReady({
   allReasons,
   pendingFallback,
   programId,
   facilityTypeId,
   children,
 }: {
-  needed: boolean;
   allReasons: boolean;
   pendingFallback: ReactNode;
   programId: string;
   facilityTypeId: string;
   children: ReactNode;
 }) {
-  if (!needed)
-    return (
-      <QueryBoundary
-        resetKey={`${programId}/${facilityTypeId}`}
-        pendingFallback={pendingFallback}
-        errorComponent={StockCardsError}
-      >
-        {children}
-      </QueryBoundary>
-    );
   return (
     <QueryBoundary
       resetKey={`${programId}/${facilityTypeId}`}

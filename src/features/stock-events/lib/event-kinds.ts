@@ -58,7 +58,22 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 
 export type EventKindConfig = {
   eventOrigin: StockEvent['eventOrigin'] | null;
-  contents: 'none' | 'kit';
+  contents:
+    | { type: 'none' }
+    | {
+        type: 'kit';
+        copy: Record<
+          | 'notSetUpTitle'
+          | 'notSetUpDescription'
+          | 'contentsChangedTitle'
+          | 'contentsChangedDescription'
+          | 'refreshOffline'
+          | 'notAKit'
+          | 'contentsInvalid'
+          | 'contentsTooLarge',
+          ParseKeys
+        >;
+      };
   confirmation:
     | { type: 'signature' }
     | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
@@ -98,7 +113,7 @@ export type EventKindConfig = {
 export const EVENT_KINDS = {
   adjustment: {
     eventOrigin: 'ADJUSTMENT',
-    contents: 'none',
+    contents: { type: 'none' },
     confirmation: { type: 'signature' },
     scanning: true,
     width: 'default',
@@ -134,7 +149,7 @@ export const EVENT_KINDS = {
   },
   issue: {
     eventOrigin: 'ISSUE',
-    contents: 'none',
+    contents: { type: 'none' },
     confirmation: { type: 'signature' },
     scanning: true,
     width: 'wide',
@@ -179,7 +194,7 @@ export const EVENT_KINDS = {
   },
   receive: {
     eventOrigin: 'RECEIVE',
-    contents: 'none',
+    contents: { type: 'none' },
     confirmation: { type: 'signature' },
     scanning: true,
     width: 'wide',
@@ -224,7 +239,19 @@ export const EVENT_KINDS = {
   },
   unpack: {
     eventOrigin: null,
-    contents: 'kit',
+    contents: {
+      type: 'kit',
+      copy: {
+        notSetUpTitle: 'stock-unpack.not-set-up-title',
+        notSetUpDescription: 'stock-unpack.not-set-up-description',
+        contentsChangedTitle: 'stock-unpack.contents-changed-title',
+        contentsChangedDescription: 'stock-unpack.contents-changed-description',
+        refreshOffline: 'stock-unpack.refresh-offline',
+        notAKit: 'stock-unpack.not-a-kit',
+        contentsInvalid: 'stock-unpack.contents-invalid',
+        contentsTooLarge: 'stock-unpack.contents-too-large',
+      },
+    },
     confirmation: {
       type: 'confirm',
       title: 'stock-unpack.confirm-title',

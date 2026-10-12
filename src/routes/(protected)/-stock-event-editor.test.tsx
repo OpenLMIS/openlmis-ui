@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
@@ -32,7 +32,11 @@ import {
 } from '@/features/reference-data/api/api';
 import { facilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
-import { fetchEventStockCards, fetchEventStockOnHand } from '@/features/stock-events/api/api';
+import {
+  fetchEventStockCards,
+  fetchEventStockOnHand,
+  submitStockEvent,
+} from '@/features/stock-events/api/api';
 import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
@@ -42,6 +46,7 @@ import { Route as IssueEditorRoute } from '@/routes/(protected)/_protected.stock
 import { Route as ReceivePickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
 import { Route as ReceiveEditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
 import { Route as UnpackPickerRoute } from '@/routes/(protected)/_protected.stock-management.unpack';
+import { Route as UnpackEditorRoute } from '@/routes/(protected)/_protected.stock-management.unpack_.$programId';
 import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
 import { renderPage } from '@/tests/render-page';
 
@@ -70,6 +75,14 @@ vi.mock('@/features/stock-events/api/api', () => ({
   fetchEventStockCards: vi.fn(),
   fetchEventStockOnHand: vi.fn(),
   submitStockEvent: vi.fn(),
+}));
+
+vi.mock('@/lib/runtime-config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/runtime-config')>()),
+  getKitUnpackReasonIds: vi.fn(() => ({
+    kitUnpackReasonId: 'unpack',
+    unpackedFromKitReasonId: 'contents',
+  })),
 }));
 
 const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
@@ -584,7 +597,7 @@ describe('Unpack policies', () => {
     expect(canOpen('/stock-management/unpack', new Set(['STOCK_ADJUST']))).toBe(true);
   });
 
-  it('links the picker program to its Unpack editor', async () => {
+  function renderUnpackRoute(path = '/stock-management/unpack') {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -597,18 +610,37 @@ describe('Unpack policies', () => {
       loader: UnpackPickerRoute.options.loader as never,
       component: UnpackPickerRoute.options.component as never,
     });
+    const editor = createRoute({
+      getParentRoute: () => layout,
+      path: 'stock-management/unpack/$programId',
+      validateSearch: UnpackEditorRoute.options.validateSearch as never,
+      loader: UnpackEditorRoute.options.loader as never,
+      component: UnpackEditorRoute.options.component as never,
+      pendingComponent: UnpackEditorRoute.options.pendingComponent as never,
+      staticData: UnpackEditorRoute.options.staticData,
+    }).update({ id: '/stock-management/unpack_/$programId' } as never);
+    const stock = createRoute({
+      getParentRoute: () => layout,
+      path: 'stock-management/stock-on-hand',
+      component: () => <h1>Stock landing</h1>,
+    });
     const router = createRouter({
       routeTree: root.addChildren([
-        group.addChildren([layout.addChildren([picker] as never)] as never),
+        group.addChildren([layout.addChildren([picker, editor, stock] as never)] as never),
       ] as never),
       context: { queryClient },
-      history: createMemoryHistory({ initialEntries: ['/stock-management/unpack'] }),
+      history: createMemoryHistory({ initialEntries: [path] }),
     } as never) as AnyRouter;
     const view = render(
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
+    return { router, queryClient, ...view };
+  }
+
+  it('links the picker program to its Unpack editor', async () => {
+    const { queryClient, ...view } = renderUnpackRoute();
     try {
       expect(await screen.findByRole('link', { name: 'stock-unpack.make' })).toHaveAttribute(
         'href',
@@ -616,6 +648,64 @@ describe('Unpack policies', () => {
       );
     } finally {
       view.unmount();
+      await queryClient.cancelQueries();
+      queryClient.clear();
+    }
+  });
+
+  it('lands on Stock On Hand for the home facility and program after confirmation', async () => {
+    const kit = {
+      id: 'kit',
+      description: null,
+      productCode: 'K1',
+      fullProductName: 'Delivery Kit',
+      netContent: 1,
+      children: [{ orderable: { id: 'gloves' }, quantity: 2 }],
+    };
+    vi.mocked(fetchEventStockCards).mockResolvedValue([
+      { stockOnHand: 50, orderable: kit, lot: null },
+    ]);
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([kit]);
+    vi.mocked(fetchReasons).mockResolvedValue([
+      {
+        id: 'unpack',
+        name: 'Unpack Kit',
+        reasonType: 'DEBIT',
+        reasonCategory: 'AGGREGATION',
+        isFreeTextAllowed: false,
+        tags: [],
+      },
+      {
+        id: 'contents',
+        name: 'Unpacked From Kit',
+        reasonType: 'CREDIT',
+        reasonCategory: 'AGGREGATION',
+        isFreeTextAllowed: false,
+        tags: [],
+      },
+    ]);
+    vi.mocked(submitStockEvent).mockResolvedValue('event-id');
+    const user = userEvent.setup();
+    const { router, queryClient, unmount } = renderUnpackRoute(`/stock-management/unpack/${FP}`);
+    try {
+      const add = await screen.findByRole('button', { name: 'stock-events.add' });
+      await waitFor(() => expect(add).toBeEnabled());
+      await user.click(add);
+      fireEvent.change(
+        document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
+        { target: { value: '2' } },
+      );
+      await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+      await user.click(await screen.findByRole('button', { name: 'stock-events.confirm' }));
+      expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
+      expect(router.state.location.search).toMatchObject({
+        mode: 'my',
+        facilityId: HOME,
+        programId: FP,
+      });
+      expect(submitStockEvent).toHaveBeenCalledOnce();
+    } finally {
+      unmount();
       await queryClient.cancelQueries();
       queryClient.clear();
     }

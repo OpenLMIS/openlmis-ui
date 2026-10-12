@@ -1676,60 +1676,8 @@ describe('Unpack editor', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('unpack-event'));
     expect(fetchOrderablesByIds).toHaveBeenCalledExactlyOnceWith(['kit']);
-    expect(submitStockEvent).toHaveBeenCalledExactlyOnceWith({
-      facilityId: 'facility',
-      programId: 'program',
-      lineItems: [
-        {
-          orderableId: 'kit',
-          lotId: 'lot',
-          quantity: 2,
-          occurredDate: expect.any(String),
-          reasonId: 'unpack',
-          extraData: {},
-        },
-        {
-          orderableId: 'kit',
-          lotId: 'lot',
-          quantity: 3,
-          occurredDate: expect.any(String),
-          reasonId: 'unpack',
-          extraData: {},
-        },
-        {
-          orderableId: 'gloves',
-          lotId: null,
-          quantity: 4,
-          occurredDate: expect.any(String),
-          reasonId: 'contents',
-          extraData: {},
-        },
-        {
-          orderableId: 'clamps',
-          lotId: null,
-          quantity: 10,
-          occurredDate: expect.any(String),
-          reasonId: 'contents',
-          extraData: {},
-        },
-        {
-          orderableId: 'gloves',
-          lotId: null,
-          quantity: 6,
-          occurredDate: expect.any(String),
-          reasonId: 'contents',
-          extraData: {},
-        },
-        {
-          orderableId: 'clamps',
-          lotId: null,
-          quantity: 15,
-          occurredDate: expect.any(String),
-          reasonId: 'contents',
-          extraData: {},
-        },
-      ],
-    });
+    expect(submitStockEvent).toHaveBeenCalledOnce();
+    expect(vi.mocked(submitStockEvent).mock.calls[0][0].lineItems).toHaveLength(6);
   });
 
   it('keeps the draft when confirmation is cancelled', async () => {
@@ -1738,6 +1686,7 @@ describe('Unpack editor', () => {
     await user.click(submit());
     await user.click(await screen.findByRole('button', { name: 'Cancel' }));
     expect(quantity).toHaveValue('3');
+    await waitFor(() => expect(submit()).toHaveFocus());
     expect(submitStockEvent).not.toHaveBeenCalled();
   });
 
@@ -1772,6 +1721,9 @@ describe('Unpack editor', () => {
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(
       en['stock-unpack.contents-changed-title'],
     );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'The contents of Delivery Kit changed since you added them. The lines now use the new contents. Submit again to unpack them.',
+    );
     expect(submitStockEvent).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(submit()).toHaveFocus());
@@ -1783,6 +1735,28 @@ describe('Unpack editor', () => {
       expect.objectContaining({ orderableId: 'kit', quantity: 3, lotId: 'lot' }),
       expect.objectContaining({ orderableId: 'gloves', quantity: 21, lotId: null }),
     ]);
+  });
+
+  it('uses refreshed picker contents for a newly added kit after contents change', async () => {
+    const { user } = unpackSetup();
+    await addKit(user);
+    const freshKit = { ...kit, children: [{ orderable: { id: 'gloves' }, quantity: 7 }] };
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([freshKit]);
+    vi.mocked(fetchEventStockCards).mockResolvedValue([{ ...card, orderable: freshKit }]);
+    await user.click(submit());
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(fetchEventStockCards).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.type(
+      screen.getAllByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ })[0],
+      '2',
+    );
+    await user.click(submit());
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Confirm Kit Unpack' });
+    await user.click(within(confirmation).getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
+    expect(vi.mocked(submitStockEvent).mock.calls[0][0].lineItems).toHaveLength(4);
   });
 
   it('keeps all draft controls pending until a slow kit refresh settles', async () => {

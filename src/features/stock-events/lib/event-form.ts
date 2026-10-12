@@ -147,15 +147,17 @@ export function eventLinesSchema({
       issue(['quantity', 'doses'], 'stock-events.quantity-greater-than-stock-on-hand');
     }
 
-    if (config.contents === 'kit') {
+    if (config.contents.type === 'kit') {
       const problem = kitContentsProblem(line.orderable);
       if (problem) {
         issue(
           ['quantity', 'doses'],
-          problem === 'not-a-kit' ? 'stock-unpack.not-a-kit' : 'stock-unpack.contents-invalid',
+          problem === 'not-a-kit'
+            ? config.contents.copy.notAKit
+            : config.contents.copy.contentsInvalid,
         );
       } else if (quantity.success && expandedQuantityTooLarge(line)) {
-        issue(['quantity', 'doses'], 'stock-unpack.contents-too-large');
+        issue(['quantity', 'doses'], config.contents.copy.contentsTooLarge);
       }
     }
 
@@ -175,7 +177,7 @@ export function eventLinesSchema({
     if (line.vvmStatus && !line.useVVM) issue(['vvmStatus'], 'stock-events.vvm-not-allowed');
   });
   const lines = z.array(row).superRefine((lines, context) => {
-    if (config.contents !== 'kit') return;
+    if (config.contents.type !== 'kit') return;
     const contents = lines.map((line) => ({
       quantity:
         quantitySchema.safeParse(line.quantity.doses).success && !expandedQuantityTooLarge(line)
@@ -187,7 +189,7 @@ export function eventLinesSchema({
       context.addIssue({
         code: 'custom',
         path: [index, 'quantity', 'doses'],
-        message: 'stock-unpack.contents-too-large',
+        message: config.contents.copy.contentsTooLarge,
       });
     }
   });
@@ -269,10 +271,7 @@ export function eventPayload({
   lines,
 }: EventPayloadOptions): StockEvent {
   const config = EVENT_KINDS[kind];
-  if (config.contents === 'kit' && !kitReasons) {
-    throw new Error('Kit unpack reasons are required');
-  }
-  const lineItems = lines.map((line) => ({
+  let lineItems: StockEvent['lineItems'] = lines.map((line) => ({
     orderableId: line.orderable.id,
     ...lotFields(line.lot),
     quantity: toWholeNumber(line.quantity.doses),
@@ -286,20 +285,19 @@ export function eventPayload({
     ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
     extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},
   }));
+  if (config.contents.type === 'kit') {
+    if (!kitReasons) throw new Error('Kit unpack reasons are required');
+    lineItems = expandKitLines(
+      lineItems,
+      lines.map((line) => line.orderable.children),
+      kitReasons,
+    );
+  }
   return {
     programId,
     facilityId,
     ...(config.confirmation.type === 'signature' && signature !== undefined && { signature }),
     ...(config.eventOrigin !== null && { eventOrigin: config.eventOrigin }),
-    lineItems:
-      config.contents === 'kit' && kitReasons
-        ? expandKitLines(
-            lineItems.map((item, index) => ({
-              ...item,
-              children: lines[index].orderable.children,
-            })),
-            kitReasons,
-          )
-        : lineItems,
+    lineItems,
   };
 }
