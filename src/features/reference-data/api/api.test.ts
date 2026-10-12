@@ -529,3 +529,19 @@ describe('fetchLotsByTradeItems', () => {
     expect(get).not.toHaveBeenCalled();
   });
 });
+
+it('stops id batches when the session changes after the first request', async () => {
+  const ids = Array.from({ length: 101 }, (_, index) => `o${index}`);
+  let changed = false;
+  get.mockImplementationOnce(async () => {
+    changed = true;
+    return page([orderable('o0')]);
+  });
+  get.mockResolvedValue(page([orderable('o100')]));
+  vi.mocked(assertSessionScope).mockImplementation((scope) => {
+    expect(scope).toBe(1);
+    if (changed) throw new Error('Session ended');
+  });
+  await expect(fetchOrderablesByIds(ids)).rejects.toThrow('Session ended');
+  expect(get).toHaveBeenCalledTimes(1);
+});

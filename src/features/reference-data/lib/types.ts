@@ -126,8 +126,14 @@ export type Reason = {
   tags: string[];
 };
 
+export type OrderableChild = {
+  orderable: { id: string };
+  quantity: number | null;
+};
+
 /** A product as the lookups list it; `identifiers.tradeItem` ties it to its lots. */
 export type Orderable = {
+  children?: OrderableChild[];
   id: string;
   productCode: string;
   fullProductName: string | null;
