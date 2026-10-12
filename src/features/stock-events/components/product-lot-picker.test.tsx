@@ -1,22 +1,42 @@
 import { QueryClient } from '@tanstack/react-query';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
+import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
+import {
+  fetchApprovedProducts,
+  fetchFacilityOrderableFulfills,
+  fetchLotsByTradeItems,
+  fetchOrderablesByIds,
+} from '@/features/reference-data/api/api';
+import type { Orderable } from '@/features/reference-data/lib/types';
+import { fetchEventStockOnHand } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
 import { allEventCards } from '@/features/stock-events/lib/products';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
+import type { EventLot, EventStockCard } from '@/features/stock-events/lib/types';
 import { renderPage } from '@/tests/render-page';
+
+vi.mock('@/features/reference-data/api/api', () => ({
+  fetchApprovedProducts: vi.fn(),
+  fetchFacilityOrderableFulfills: vi.fn(),
+  fetchLotsByTradeItems: vi.fn(),
+  fetchOrderablesByIds: vi.fn(),
+}));
+vi.mock('@/features/stock-events/api/api', () => ({
+  fetchEventStockOnHand: vi.fn(),
+  fetchEventStockCards: vi.fn(),
+}));
 
 const i18n = createInstance();
 beforeAll(() =>
-  i18n.init({ lng: 'en', resources: { en: { translation: en } }, keySeparator: false }),
+  i18n.use(ICU).init({ lng: 'en', resources: { en: { translation: en } }, keySeparator: false }),
 );
 const card: EventStockCard = {
   id: 'card',
@@ -90,7 +110,10 @@ describe('ProductLotPicker', () => {
     await user.click(await screen.findByRole('option', { name: noLot ? 'No Lot Defined' : 'LOT' }));
     expect(add).toBeEnabled();
     await user.click(add);
-    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ lot: noLot ? null : card.lot }));
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ lot: noLot ? null : card.lot }),
+      true,
+    );
     await user.click(product);
     await user.click(await screen.findByRole('option', { name: 'Ibuprofen' }));
     expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
@@ -128,7 +151,7 @@ it.each([true, false])(
     if (noLot) expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
     else expect(screen.getByRole('combobox', { name: 'Lot Code' })).toHaveTextContent('LOT');
     await user.click(screen.getByRole('button', { name: 'Add' }));
-    expect(onAdd).toHaveBeenCalledWith(offered);
+    expect(onAdd).toHaveBeenCalledWith(offered, !noLot);
     await user.click(screen.getByRole('combobox', { name: 'Product' }));
     expect(screen.queryByRole('option', { name: 'Hidden' })).not.toBeInTheDocument();
   },
@@ -164,5 +187,334 @@ it('keeps an automatically picked lot when a refresh adds another option', async
     ]),
   );
   await user.click(screen.getByRole('button', { name: 'Add' }));
-  expect(onAdd).toHaveBeenCalledWith(card);
+  expect(onAdd).toHaveBeenCalledWith(card, true);
+});
+
+const aspirin: Orderable = {
+  id: 'aspirin',
+  productCode: 'C1',
+  fullProductName: 'Aspirin',
+  description: null,
+  netContent: 16,
+  identifiers: { tradeItem: 'trade' },
+};
+const ibuprofen: Orderable = {
+  id: 'ibuprofen',
+  productCode: 'C2',
+  fullProductName: 'Ibuprofen',
+  description: null,
+  netContent: 1,
+};
+const generic: Orderable = { ...aspirin, id: 'generic', fullProductName: 'Salicylate' };
+const existingLot = {
+  id: 'lot-a',
+  lotCode: 'LOT-A',
+  expirationDate: '2030-01-01',
+  tradeItemId: 'trade',
+};
+const approvedPage = (orderables: Orderable[], totalElements = orderables.length) => ({
+  content: orderables.map((orderable) => ({ id: `approved-${orderable.id}`, orderable })),
+  totalElements,
+  totalPages: Math.ceil(totalElements / 50),
+  number: 0,
+  size: 50,
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function renderApproved({
+  canManageLots = false,
+  lines = [],
+}: {
+  canManageLots?: boolean;
+  lines?: { key: string; lot: EventLot | null }[];
+} = {}) {
+  const onAdd = vi.fn();
+  const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  renderPage(
+    <I18nextProvider i18n={i18n}>
+      <form onSubmit={onSubmit}>
+        <ProductLotPicker
+          from="approved-products"
+          facilityId="facility"
+          programId="program"
+          disabled={false}
+          canManageLots={canManageLots}
+          lines={lines}
+          onAdd={onAdd}
+        />
+      </form>
+    </I18nextProvider>,
+    { queryClient },
+  );
+  return { onAdd, onSubmit, queryClient, user: userEvent.setup() };
+}
+
+async function productBox() {
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
+  return screen.getByRole('combobox', { name: 'Product' });
+}
+
+async function pickProduct(user: ReturnType<typeof userEvent.setup>, name: string | RegExp) {
+  await user.click(await productBox());
+  await user.click(await screen.findByRole('option', { name }));
+}
+
+describe('ProductLotPicker with approved products', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(fetchApprovedProducts).mockImplementation(async ({ name }) =>
+      name ? approvedPage([ibuprofen], 1) : approvedPage([aspirin, ibuprofen], 120),
+    );
+    vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({});
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
+    vi.mocked(fetchLotsByTradeItems).mockResolvedValue([existingLot]);
+    vi.mocked(fetchEventStockOnHand).mockResolvedValue({ 'aspirin/lot-a': 40 });
+  });
+
+  it('searches by name, reports the count and keeps the picked product across searches', async () => {
+    const { user, onAdd } = renderApproved();
+    const product = await productBox();
+    await user.click(product);
+    expect(await screen.findByText('Showing 2 of 120. Type to search.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
+    await user.type(product, 'ibu', {
+      initialSelectionStart: 0,
+      initialSelectionEnd: 'Aspirin'.length,
+    });
+    await waitFor(() =>
+      expect(fetchApprovedProducts).toHaveBeenCalledWith({
+        facilityId: 'facility',
+        programId: 'program',
+        name: 'ibu',
+        page: 0,
+        size: 50,
+      }),
+    );
+    expect(await screen.findByRole('option', { name: 'Ibuprofen' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Aspirin' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: /^LOT-A/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onAdd).toHaveBeenCalledWith(
+      { orderable: aspirin, lot: existingLot, stockOnHand: 40 },
+      true,
+    );
+  });
+
+  it('loads the next page from Show More', async () => {
+    vi.mocked(fetchApprovedProducts).mockImplementation(async ({ page }) =>
+      page === 0 ? approvedPage([aspirin], 2) : { ...approvedPage([ibuprofen], 2), number: page },
+    );
+    const { user } = renderApproved();
+    await user.click(await productBox());
+    await screen.findByRole('option', { name: 'Aspirin' });
+    expect(screen.queryByRole('option', { name: 'Ibuprofen' })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('option', { name: 'Show More' }));
+    expect(await screen.findByRole('option', { name: 'Ibuprofen' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Aspirin' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Show More' })).not.toBeInTheDocument();
+  });
+
+  it('offers Retry when a further page fails to load', async () => {
+    vi.mocked(fetchApprovedProducts)
+      .mockResolvedValueOnce(approvedPage([aspirin], 2))
+      .mockRejectedValueOnce(new Error('Unavailable'))
+      .mockResolvedValue({ ...approvedPage([ibuprofen], 2), number: 1 });
+    const { user } = renderApproved();
+    await user.click(await productBox());
+    await user.click(await screen.findByRole('option', { name: 'Show More' }));
+    expect(await screen.findByText(en['stock-events.show-more-error'])).toHaveAttribute(
+      'aria-live',
+      'polite',
+    );
+    await user.click(await screen.findByRole('option', { name: 'Try Again' }));
+    expect(await screen.findByRole('option', { name: 'Ibuprofen' })).toBeInTheDocument();
+    expect(screen.queryByText(en['stock-events.show-more-error'])).not.toBeInTheDocument();
+  });
+
+  it('keeps loaded lots and stock on hand usable when a refresh fails', async () => {
+    const { user, queryClient } = renderApproved();
+    await pickProduct(user, 'Aspirin');
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: /^LOT-A/ }));
+    vi.mocked(fetchLotsByTradeItems).mockRejectedValue(new Error('Unavailable'));
+    vi.mocked(fetchEventStockOnHand).mockRejectedValue(new Error('Unavailable'));
+    await act(async () => queryClient.refetchQueries());
+    await act(() => new Promise((done) => setTimeout(done)));
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.queryByText(en['stock-events.lots-error-title'])).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
+  });
+
+  it("waits for the picked product's lots and stock on hand before Add", async () => {
+    const lots = deferred<(typeof existingLot)[]>();
+    const stock = deferred<Record<string, number>>();
+    vi.mocked(fetchLotsByTradeItems).mockReturnValue(lots.promise);
+    vi.mocked(fetchEventStockOnHand).mockReturnValue(stock.promise);
+    const { user, onAdd } = renderApproved();
+    await pickProduct(user, 'Ibuprofen');
+    const add = screen.getByRole('button', { name: 'Add' });
+    expect(add).toBeDisabled();
+    expect(fetchLotsByTradeItems).not.toHaveBeenCalled();
+    expect(fetchEventStockOnHand).toHaveBeenCalledWith({
+      facilityId: 'facility',
+      programId: 'program',
+      orderableIds: ['ibuprofen'],
+    });
+    await act(async () => stock.resolve({}));
+    await waitFor(() => expect(add).toBeEnabled());
+    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    await user.click(add);
+    expect(onAdd).toHaveBeenCalledWith(
+      { orderable: ibuprofen, lot: null, stockOnHand: null },
+      false,
+    );
+    await pickProduct(user, 'Aspirin');
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    expect(fetchLotsByTradeItems).toHaveBeenCalledWith(['trade']);
+    await act(async () => lots.resolve([existingLot]));
+    expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+  });
+
+  it('retries a failed lots load', async () => {
+    vi.mocked(fetchLotsByTradeItems).mockRejectedValueOnce(new Error('Unavailable'));
+    const { user } = renderApproved();
+    await pickProduct(user, 'Aspirin');
+    expect(await screen.findByText(en['stock-events.lots-error-title'])).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.queryByText(en['stock-events.lots-error-title'])).not.toBeInTheDocument();
+  });
+
+  it('validates a new lot and adds it on Enter without submitting the form', async () => {
+    const { user, onAdd, onSubmit } = renderApproved({
+      canManageLots: true,
+      lines: [
+        {
+          key: 'drafted',
+          lot: { lotCode: 'NEW-1', expirationDate: '2031-01-01', tradeItemId: 'trade' },
+        },
+      ],
+    });
+    await pickProduct(user, 'Aspirin');
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    const code = screen.getByRole('textbox', { name: 'New Lot Code' });
+    await user.type(code, '{Enter}');
+    expect(code).toHaveAccessibleDescription('This field is required');
+    await user.type(code, 'lot-a{Enter}');
+    expect(code).toHaveAccessibleDescription('This lot code already exists.');
+    await user.clear(code);
+    await user.type(code, 'new-1{Enter}');
+    expect(code).toHaveAccessibleDescription('This lot code already exists.');
+    await user.clear(code);
+    await user.type(code, 'NEW-2{Enter}');
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onAdd).toHaveBeenCalledWith(
+      {
+        orderable: aspirin,
+        lot: { lotCode: 'NEW-2', expirationDate: null, tradeItemId: 'trade' },
+        stockOnHand: 0,
+      },
+      true,
+    );
+    expect(code).toHaveValue('NEW-2');
+    expect(code).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('lists a fulfilling product once the fulfilment map loads, also by its own name', async () => {
+    const fulfils = deferred<Record<string, { canFulfillForMe: string[] }>>();
+    vi.mocked(fetchFacilityOrderableFulfills).mockReturnValue(fulfils.promise);
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([generic]);
+    vi.mocked(fetchApprovedProducts).mockImplementation(async ({ name }) =>
+      name ? approvedPage([]) : approvedPage([aspirin, ibuprofen]),
+    );
+    const { user, onAdd } = renderApproved();
+    const product = await productBox();
+    await user.click(product);
+    await screen.findByRole('option', { name: 'Aspirin' });
+    expect(screen.queryByRole('option', { name: 'Salicylate' })).not.toBeInTheDocument();
+    await act(async () => fulfils.resolve({ aspirin: { canFulfillForMe: ['generic'] } }));
+    await screen.findByRole('option', { name: 'Salicylate' });
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Salicylate',
+      'Aspirin',
+      'Ibuprofen',
+    ]);
+    await user.type(product, 'salic');
+    await waitFor(() =>
+      expect(fetchApprovedProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'salic' }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'Salicylate',
+      ]),
+    );
+    await user.click(screen.getByRole('option', { name: 'Salicylate' }));
+    await waitFor(() =>
+      expect(fetchEventStockOnHand).toHaveBeenCalledWith(
+        expect.objectContaining({ orderableIds: ['aspirin'] }),
+      ),
+    );
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'No Lot Defined' }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onAdd).toHaveBeenCalledWith({ orderable: generic, lot: null, stockOnHand: null }, true);
+  });
+
+  it('picks the sole approved product only without a search', async () => {
+    vi.mocked(fetchApprovedProducts).mockResolvedValue(approvedPage([ibuprofen]));
+    renderApproved();
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Ibuprofen'),
+    );
+  });
+
+  it('keeps the sole approved product and a typed new lot when fulfilling products load', async () => {
+    const fulfils = deferred<Record<string, { canFulfillForMe: string[] }>>();
+    vi.mocked(fetchFacilityOrderableFulfills).mockReturnValue(fulfils.promise);
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([generic]);
+    vi.mocked(fetchApprovedProducts).mockResolvedValue(approvedPage([aspirin]));
+    const { user } = renderApproved({ canManageLots: true });
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin'),
+    );
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1');
+    await act(async () => fulfils.resolve({ aspirin: { canFulfillForMe: ['generic'] } }));
+    await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalled());
+    await user.click(screen.getByRole('combobox', { name: 'Product' }));
+    await screen.findByRole('option', { name: 'Salicylate' });
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin');
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'New Lot Code' })).toHaveValue('NEW-1');
+  });
+
+  it('retries a failed product search', async () => {
+    vi.mocked(fetchApprovedProducts)
+      .mockRejectedValueOnce(new Error('Unavailable'))
+      .mockResolvedValue(approvedPage([aspirin]));
+    const { user } = renderApproved();
+    expect(
+      await screen.findByText(en['stock-events.products-search-error-title']),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin'),
+    );
+  });
 });

@@ -3,13 +3,12 @@ import { z } from 'zod';
 import type { LotSummary } from '@/features/reference-data/lib/types';
 import { isNewLot } from '@/features/stock-events/lib/event-form';
 import type { EventLot, NewLot } from '@/features/stock-events/lib/types';
-import { lotCodeSchema } from '@/lib/lot-code';
+import { lotCodeSchema, sameLotCode } from '@/lib/lot-code';
 
 type DraftLine = { key: string; lot: EventLot | null };
 type LotContext = { lots: readonly LotSummary[]; lines: readonly DraftLine[]; today: string };
 
 const errorKey = (key: ParseKeys) => key;
-const sameCode = (first: string, second: string) => first.toLowerCase() === second.toLowerCase();
 
 const lotFields = (today: string) =>
   z.object({
@@ -36,13 +35,13 @@ function draftLotWithOtherExpiry(
       key !== exceptKey &&
       isNewLot(lot) &&
       lot.tradeItemId === tradeItemId &&
-      sameCode(lot.lotCode, lotCode) &&
+      sameLotCode(lot.lotCode, lotCode) &&
       (lot.expirationDate ?? '') !== expirationDate,
   );
 }
 
 const existingLot = (lots: readonly LotSummary[], lotCode: string) =>
-  lots.some((lot) => sameCode(lot.lotCode, lotCode));
+  lots.some((lot) => sameLotCode(lot.lotCode, lotCode));
 
 export function newLotSchema({
   tradeItemId,

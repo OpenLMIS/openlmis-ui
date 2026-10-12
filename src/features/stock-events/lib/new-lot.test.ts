@@ -67,6 +67,9 @@ describe('editLotSchema', () => {
     expect(edit(newLot('NEW-1', '2027-01-31'), 'NEW-1', '2027-06-30')).toBeUndefined();
     expect(edit(newLot('LC2017A', null), 'LC2017A')).toBeUndefined();
     expect(edit(own, 'lc2017a')).toEqual([['lotCode', 'stock-events.lot-code-exists']]);
+    expect(edit(newLot('new-1', '2027-06-30'), 'NEW-1', '2027-06-30')).toEqual([
+      ['expirationDate', 'stock-events.lot-expiry-conflict'],
+    ]);
   });
   it('applies the code and expiry rules of a new lot', () => {
     expect(edit(own, '')).toEqual([['lotCode', 'stock-events.required']]);

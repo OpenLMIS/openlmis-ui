@@ -18,3 +18,6 @@ export function lotCodeSchema(messages: LotCodeMessages) {
     .refine((code) => code.length <= MAX_LOT_CODE_LENGTH, messages.tooLong)
     .refine((code) => LOT_CODE_CHARACTERS.test(code), messages.invalid);
 }
+
+export const sameLotCode = (first: string, second: string) =>
+  first.toLowerCase() === second.toLowerCase();

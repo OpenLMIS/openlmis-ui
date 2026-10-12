@@ -575,6 +575,18 @@ describe('changeEventLot', () => {
     ]);
     expect(lines[0].lot).toEqual(lot('NEW-1', '2027-01-31'));
   });
+  it('matches the edited code in any letter case', () => {
+    const cased = [
+      line({ key: 'a', lot: lot('abc', null) }),
+      line({ key: 'b', lot: lot('ABC', null) }),
+    ];
+    expect(
+      lotsOf(changeEventLot(cased, 'a', { lotCode: 'abc', expirationDate: '2028-01-01' })),
+    ).toEqual([lot('abc', '2028-01-01'), lot('ABC', '2028-01-01')]);
+    expect(
+      lotsOf(changeEventLot(cased, 'a', { lotCode: 'Abc', expirationDate: '2028-01-01' })),
+    ).toEqual([lot('Abc', '2028-01-01'), lot('ABC', null)]);
+  });
   it('leaves lines with an existing lot unchanged', () => {
     expect(changeEventLot(lines, 'e', { lotCode: 'X', expirationDate: null })).toEqual(lines);
   });

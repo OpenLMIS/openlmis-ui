@@ -48,6 +48,7 @@ import { SignatureDialog } from '@/features/stock-events/components/signature-di
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
+  type EventLineCandidate,
   eventLinesSchema,
   eventPayload,
   eventReasonRequired,
@@ -95,6 +96,7 @@ type Props = {
   programId: string;
   username: string;
   canViewStock: boolean;
+  canManageLots?: boolean;
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
   onSubmitted: (eventId: string) => void | Promise<void>;
@@ -111,6 +113,7 @@ export function EventEditor({
   programId,
   username,
   canViewStock,
+  canManageLots = false,
   search,
   onSearchChange,
   onSubmitted,
@@ -205,7 +208,8 @@ export function EventEditor({
     setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
-  const hasLots = offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
+  const hasLots =
+    !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
     lines.some((line) => line.useVVM);
@@ -295,11 +299,11 @@ export function EventEditor({
       setFocusField(null);
     }
   }, [focusField, search.keyword, search.page]);
-  const add = (card: EventStockCard) => {
+  const add = (candidate: EventLineCandidate, hasLotsOfProduct: boolean) => {
     if (!ready || submitted || pending) return;
-    const next = newEventLine(card, lastAdded.current, today, {
+    const next = newEventLine(candidate, lastAdded.current, today, {
       ...lineOptions,
-      productHasLots: productHasLots(offeredCards, card.orderable.id),
+      productHasLots: hasLotsOfProduct,
     });
     lastAdded.current = next;
     form.setFieldValue('lines', (current) => [next, ...current]);
@@ -509,7 +513,9 @@ export function EventEditor({
                     facilityId={facilityId}
                     programId={programId}
                     disabled={pending || submitted || !ready}
-                    cardFilter={filterCards}
+                    {...(fromCards
+                      ? { cardFilter: filterCards }
+                      : { from: 'approved-products' as const, canManageLots, lines })}
                     onAdd={add}
                   >
                     {scanning && <ScanStatus {...scanStatus} />}

@@ -1,7 +1,7 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
-import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -17,13 +17,16 @@ import { InputSizer } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
+import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
 import type { EventSearch } from '@/features/stock-events/components/event-editor';
 import { ProductName } from '@/features/stock-events/components/product-name';
 import { type EventForm, useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import {
   changeEventCounterparty,
+  changeEventLot,
   changeEventReason,
   type EventLine,
+  isNewLot,
 } from '@/features/stock-events/lib/event-form';
 import {
   COUNTERPARTY,
@@ -31,6 +34,7 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
+import type { NewLot } from '@/features/stock-events/lib/types';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -193,7 +197,19 @@ const LineCell = memo(function LineCell({
         </span>
       );
     case 'lotCode':
-      return <bdi>{lotLabel}</bdi>;
+      return isNewLot(line.lot) ? (
+        <EditLotButton
+          line={line}
+          lot={line.lot}
+          label={t('stock-events.edit-lot', { row })}
+          product={productLabel}
+          form={form}
+          today={today}
+          disabled={disabled}
+        />
+      ) : (
+        <bdi>{lotLabel}</bdi>
+      );
     case 'expiry':
       return (
         <bdi>
@@ -446,6 +462,53 @@ const LineCell = memo(function LineCell({
       );
   }
 });
+
+function EditLotButton({
+  line,
+  lot,
+  label,
+  product,
+  form,
+  today,
+  disabled,
+}: {
+  line: EventLine;
+  lot: NewLot;
+  label: string;
+  product: string;
+  form: EventForm;
+  today: string;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        padding="none"
+        size="sm"
+        type="button"
+        variant="link"
+      >
+        <bdi>{lot.lotCode}</bdi>
+      </Button>
+      <EditLotDialog
+        open={open}
+        onOpenChange={setOpen}
+        lot={lot}
+        lineKey={line.key}
+        product={product}
+        lines={form.state.values.lines}
+        today={today}
+        onSave={(next) =>
+          form.setFieldValue('lines', (current) => changeEventLot(current, line.key, next))
+        }
+      />
+    </>
+  );
+}
 
 type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
   lines: EventLine[];

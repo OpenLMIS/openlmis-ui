@@ -15,6 +15,7 @@ import type {
   StockEvent,
   StockEventLineItem,
 } from '@/features/stock-events/lib/types';
+import { sameLotCode } from '@/lib/lot-code';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
@@ -177,7 +178,7 @@ export function changeEventLot(
     return lines.map((line) => (line.key === key ? { ...line, lot: { ...old, ...next } } : line));
   return lines.map((line) =>
     isNewLot(line.lot) &&
-    line.lot.lotCode === old.lotCode &&
+    sameLotCode(line.lot.lotCode, old.lotCode) &&
     line.lot.expirationDate === old.expirationDate
       ? { ...line, lot: { ...line.lot, expirationDate: next.expirationDate } }
       : line,
