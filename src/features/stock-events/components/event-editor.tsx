@@ -144,8 +144,6 @@ export function EventEditor({
     () => filterCards(cardsQuery.data ?? []),
     [cardsQuery.data, filterCards],
   );
-  const hasLots = offeredCards.some((card) => !!card.lot);
-  const hasVVM = offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true');
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
   const quantityUnit = useQuantityUnit();
   const scanning = useFlag('GS1_SCANNING');
@@ -169,8 +167,6 @@ export function EventEditor({
     [measure],
   );
   const [choices, setChoices] = useStoredState(config.columnChoicesKey, columnChoicesSchema, {});
-  const hideableColumns = eventHideableColumns(kind, { hasLots, unit: quantityUnit.unit });
-  const columns = useColumnVisibility(hideableColumns, [choices, setChoices], width);
   const lineOptions = { kind, reasons, defaultReasonId, today, assignments: destinations };
   const schema = eventLinesSchema(lineOptions);
   const form = useEventForm({
@@ -199,6 +195,12 @@ export function EventEditor({
     });
   };
   const lines = useStore(form.store, (state) => state.values.lines);
+  const hasLots = offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
+  const hasVVM =
+    offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
+    lines.some((line) => line.useVVM);
+  const hideableColumns = eventHideableColumns(kind, { hasLots, unit: quantityUnit.unit });
+  const columns = useColumnVisibility(hideableColumns, [choices, setChoices], width);
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
   const guard = useDiscardGuard(lines.length > 0 && !submitted, {
@@ -419,7 +421,7 @@ export function EventEditor({
   };
   return (
     <>
-      <Workspace width={kind === 'issue' ? 'wide' : 'default'}>
+      <Workspace width={config.width}>
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
@@ -505,6 +507,7 @@ export function EventEditor({
                         reasonRequired={reasonRequired}
                         form={form}
                         lines={filtered}
+                        cards={offeredCards}
                         reasons={reasons}
                         destinations={destinations}
                         unit={quantityUnit.unit}
@@ -534,7 +537,7 @@ export function EventEditor({
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter width={kind === 'issue' ? 'wide' : 'default'}>
+      <WorkspaceFooter width={config.width}>
         <Button
           disabled={!filtered.length || pending || submitted}
           onClick={() => setClearOpen(true)}

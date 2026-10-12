@@ -1211,6 +1211,7 @@
   "stock-events.reasons-error-title": "Não foi possível carregar os motivos",
   "stock-events.remove": "Remover",
   "stock-events.required": "Este campo é obrigatório",
+  "stock-events.row-identity": "{product} {lot}, Linha {position, number}",
   "stock-events.select-option": "Selecione Uma Opção",
   "stock-events.signature": "Assinatura",
   "stock-events.signature-title": "Escolher Assinatura",

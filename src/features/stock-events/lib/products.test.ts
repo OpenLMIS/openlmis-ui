@@ -57,10 +57,10 @@ describe('eventLotOptions', () => {
     expect(options[1]).toEqual({ value: 'l1', lot: early, card: cards[2], label: 'LC2017A' });
     expect(cards[0]?.lot).toBe(late);
   });
-  it('names a no-lot-only product with the distinct legacy message', () => {
+  it('uses the no-lot option label even when the picker hides the lot select', () => {
     const noLot = card('s0', null);
     expect(eventLotOptions([noLot])).toEqual([
-      { value: '', lot: null, card: noLot, labelKey: 'stock-events.product-has-no-lots' },
+      { value: '', lot: null, card: noLot, labelKey: 'stock-events.no-lot-defined' },
     ]);
     expect(eventLotOptions([])).toEqual([]);
   });

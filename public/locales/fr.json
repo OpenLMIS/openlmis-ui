@@ -1211,6 +1211,7 @@
   "stock-events.reasons-error-title": "Impossible de charger les motifs",
   "stock-events.remove": "Retirer",
   "stock-events.required": "Ce champ est obligatoire",
+  "stock-events.row-identity": "{product} {lot}, Ligne {position, number}",
   "stock-events.select-option": "Sélectionnez Une Option",
   "stock-events.signature": "Signature",
   "stock-events.signature-title": "Choisir la Signature",

@@ -1211,6 +1211,7 @@
   "stock-events.reasons-error-title": "Could Not Load Reasons",
   "stock-events.remove": "Remove",
   "stock-events.required": "This field is required",
+  "stock-events.row-identity": "{product} {lot}, Line {position, number}",
   "stock-events.select-option": "Select An Option",
   "stock-events.signature": "Signature",
   "stock-events.signature-title": "Choose Signature",

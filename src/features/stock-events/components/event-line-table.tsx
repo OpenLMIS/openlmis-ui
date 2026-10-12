@@ -1,6 +1,6 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardPenLineIcon, EllipsisIcon, Trash2Icon } from 'lucide-react';
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -29,6 +29,7 @@ import {
   type EventLine,
 } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -88,6 +89,7 @@ const NO_SORT = { id: 'product', desc: false };
 type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
+  hasProductLots: boolean;
   id: CellId;
   index: number;
   line: EventLine;
@@ -102,6 +104,7 @@ type CellProps = {
 const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
+  hasProductLots,
   id,
   index,
   line,
@@ -115,7 +118,10 @@ const LineCell = memo(function LineCell({
 }: CellProps) {
   const { t, i18n } = useTranslation();
   const name = line.orderable.fullProductName || line.orderable.productCode;
-  const row = `${name} ${line.lot?.lotCode ?? t('stock-events.no-lot-defined')}`;
+  const lotLabel =
+    line.lot?.lotCode ??
+    t(hasProductLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
+  const row = t('stock-events.row-identity', { product: name, lot: lotLabel, position: index + 1 });
   const label = (key: (typeof COLUMNS)[number][1]) =>
     t('stock-events.field-of', { field: t(key), row });
   const reason = reasons.find((item) => item.id === line.reasonId);
@@ -149,7 +155,7 @@ const LineCell = memo(function LineCell({
         </span>
       );
     case 'lotCode':
-      return <bdi>{line.lot?.lotCode ?? t('stock-events.no-lot-defined')}</bdi>;
+      return <bdi>{lotLabel}</bdi>;
     case 'expiry':
       return (
         <bdi>
@@ -191,6 +197,7 @@ const LineCell = memo(function LineCell({
                 items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
                 label={label('stock-events.issue-to')}
                 layout="inline"
+                placeholder={t('stock-events.select-option')}
                 emptyMessage={t('stock-events.issue-to-empty')}
                 clearLabel={t('stock-events.field-of', {
                   field: t('stock-events.issue-to-clear'),
@@ -388,7 +395,8 @@ const LineCell = memo(function LineCell({
   }
 });
 
-type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
+type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'hasProductLots'> & {
+  cards: readonly EventStockCard[];
   lines: EventLine[];
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
@@ -400,6 +408,7 @@ export function EventLineTable({
   reasonRequired,
   form,
   lines,
+  cards,
   reasons,
   destinations = NO_DESTINATIONS,
   unit,
@@ -413,12 +422,18 @@ export function EventLineTable({
 }: Props) {
   const { t } = useTranslation();
   const config = EVENT_KINDS[kind];
+  const lineIndex = useRef(new Map<string, number>());
+  lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
+  const productsWithLots = useMemo(
+    () => new Set(cards.filter((card) => card.lot).map((card) => card.orderable.id)),
+    [cards],
+  );
   const columns = useMemo(
     () =>
       helper.columns(
         COLUMNS.filter(
           ([id]) =>
-            EVENT_KINDS[kind].counterparty === 'destination' ||
+            config.counterparty === 'destination' ||
             (id !== 'destination' && id !== 'destinationComments'),
         ).map(([id, key]) =>
           helper.display({
@@ -429,7 +444,8 @@ export function EventLineTable({
                 kind={kind}
                 reasonRequired={reasonRequired}
                 id={id}
-                index={form.state.values.lines.findIndex((item) => item.key === row.original.key)}
+                index={lineIndex.current.get(row.original.key) ?? -1}
+                hasProductLots={productsWithLots.has(row.original.orderable.id)}
                 line={row.original}
                 form={form}
                 reasons={reasons}
@@ -443,7 +459,20 @@ export function EventLineTable({
           }),
         ),
       ),
-    [kind, reasonRequired, form, reasons, destinations, unit, today, disabled, onRemove, t],
+    [
+      kind,
+      config,
+      productsWithLots,
+      reasonRequired,
+      form,
+      reasons,
+      destinations,
+      unit,
+      today,
+      disabled,
+      onRemove,
+      t,
+    ],
   );
   const size = search.size ?? 10;
   const requestedPage = search.page ?? 1;

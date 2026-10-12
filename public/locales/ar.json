@@ -1211,6 +1211,7 @@
   "stock-events.reasons-error-title": "تعذر تحميل الأسباب",
   "stock-events.remove": "إزالة",
   "stock-events.required": "هذا الحقل مطلوب",
+  "stock-events.row-identity": "{product} {lot}، السطر {position, number}",
   "stock-events.select-option": "اختر خيارًا",
   "stock-events.signature": "التوقيع",
   "stock-events.signature-title": "اختر التوقيع",

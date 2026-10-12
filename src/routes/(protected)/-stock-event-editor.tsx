@@ -12,6 +12,7 @@ import {
   validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
 
@@ -29,14 +30,16 @@ export const stockEventSearchSchema = tableSearchSchema(['id'])
 export async function loadStockEventEditor(
   queryClient: QueryClient,
   programId: string,
-  { destinations }: { destinations: boolean },
+  kind: ConfiguredEventKind,
 ) {
   const userId = useLoginData.getState().referenceDataUserId;
-  const permissions = await requirePermissions(queryClient, RIGHTS.stockAdjust);
   if (!userId) {
     throw new ForbiddenError(RIGHTS.stockAdjust);
   }
-  const user = await queryClient.ensureQueryData(userRecordOptions(userId));
+  const [permissions, user] = await Promise.all([
+    requirePermissions(queryClient, RIGHTS.stockAdjust),
+    queryClient.ensureQueryData(userRecordOptions(userId)),
+  ]);
   const homeId = user.homeFacilityId;
   if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockAdjust, homeId, programId)) {
     throw new ForbiddenError(RIGHTS.stockAdjust);
@@ -49,7 +52,7 @@ export async function loadStockEventEditor(
   queryClient.prefetchQuery(userProgramsOptions(userId));
   const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
   if (canViewStock) {
-    if (destinations)
+    if (EVENT_KINDS[kind].counterparty === 'destination')
       queryClient.prefetchQuery(validDestinationsOptions({ facilityId: homeId, programId }));
     queryClient.prefetchQuery(eventStockCardsOptions({ facilityId: homeId, programId }));
     queryClient.prefetchQuery(

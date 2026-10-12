@@ -228,7 +228,7 @@ export async function fetchTradeItemByGtin(gtin: string): Promise<TradeItem | nu
 export type ValidAssignmentsFilter = { programId: string; facilityId: string };
 
 export async function fetchValidAssignments(
-  resource: 'validDestinations' | 'validSources',
+  resource: 'validDestinations',
   filter: ValidAssignmentsFilter,
 ): Promise<ValidAssignment[]> {
   const scope = getSessionScope();

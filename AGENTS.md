@@ -128,8 +128,8 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
 - `userRecordOptions` and `userProgramsOptions` read the signed-in user's record and programs;
   keep their keys separate from the Users page's richer detail.
 - `validDestinationsOptions` reads every page through `fetchValidAssignments`, under
-  `queryKeys.validDestinations.all` so admin saves refresh it; Receive's valid sources reuse
-  the fetcher. `reasonsOf` keeps visible reasons of one category and, optionally, one type.
+  `queryKeys.validDestinations.all` so admin saves refresh it. `reasonsOf` keeps visible reasons
+  of one category and, optionally, one type.
 - Stock event screens read legacy's v2 stock list and resolve its cards' products and lots
   through the id lookups above.
 
@@ -724,9 +724,9 @@ See `.env.example` and [README.md](README.md#environment-variables).
 - Keep `VITE_API_BASE_URL` root-absolute (`/api`), shared with legacy outside the app prefix.
 - `VITE_BASE_PATH` is compiled at build time; follow the base-path rules above.
 - Per-environment settings use `src/lib/runtime-config.ts`, reading `config.json` written
-  at container startup so one image works everywhere. OAuth credentials fall back to
-  `import.meta.env` for dev; feature flags deliberately do not. Never rely on build-time
-  `import.meta.env` for deployment-varying runtime settings.
+  at container startup so one image works everywhere. OAuth credentials and the default issue
+  reason fall back to `import.meta.env` for dev; feature flags deliberately do not. Never rely
+  on build-time `import.meta.env` for deployment-varying runtime settings.
 
 ## Skills
 

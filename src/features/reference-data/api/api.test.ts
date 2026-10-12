@@ -385,24 +385,22 @@ describe('fetchTradeItemByGtin', () => {
 });
 
 describe('fetchValidAssignments', () => {
-  it.each(['validDestinations', 'validSources'] as const)(
-    'reads every page of %s',
-    async (resource) => {
-      const filter = { programId: 'p1', facilityId: 'f1' };
-      get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
-      get.mockResolvedValueOnce({ data: { content: [{ id: 'a2' }], totalPages: 2 } });
-      await expect(fetchValidAssignments(resource, filter)).resolves.toEqual([
-        { id: 'a1' },
-        { id: 'a2' },
-      ]);
-      expect(get).toHaveBeenNthCalledWith(1, `/${resource}`, {
-        params: { ...filter, page: 0, size: 100 },
-      });
-      expect(get).toHaveBeenNthCalledWith(2, `/${resource}`, {
-        params: { ...filter, page: 1, size: 100 },
-      });
-    },
-  );
+  it('reads every page of valid destinations', async () => {
+    const resource = 'validDestinations';
+    const filter = { programId: 'p1', facilityId: 'f1' };
+    get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
+    get.mockResolvedValueOnce({ data: { content: [{ id: 'a2' }], totalPages: 2 } });
+    await expect(fetchValidAssignments(resource, filter)).resolves.toEqual([
+      { id: 'a1' },
+      { id: 'a2' },
+    ]);
+    expect(get).toHaveBeenNthCalledWith(1, `/${resource}`, {
+      params: { ...filter, page: 0, size: 100 },
+    });
+    expect(get).toHaveBeenNthCalledWith(2, `/${resource}`, {
+      params: { ...filter, page: 1, size: 100 },
+    });
+  });
   it('stops on an empty page and rejects a later failure without a partial list', async () => {
     const filter = { programId: 'p1', facilityId: 'f1' };
     get.mockResolvedValueOnce({ data: { content: [], totalPages: 0 } });

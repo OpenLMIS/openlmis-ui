@@ -10,6 +10,7 @@ import {
 } from '@/components/workspace';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { recordLabel } from '@/lib/facility-program-selection';
 import {
@@ -24,8 +25,8 @@ export const Route = createFileRoute(
   validateSearch: stockEventSearchSchema,
   staticData: { crumbKey: 'stock-adjustment.editor-crumb' },
   loader: ({ context: { queryClient }, params: { programId } }) =>
-    loadStockEventEditor(queryClient, programId, { destinations: false }),
-  pendingComponent: StockEventPending,
+    loadStockEventEditor(queryClient, programId, 'adjustment'),
+  pendingComponent: () => <StockEventPending width={EVENT_KINDS.adjustment.width} />,
   component: AdjustmentPage,
 });
 

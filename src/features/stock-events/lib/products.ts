@@ -13,7 +13,7 @@ export type EventLotOption = {
   card: EventStockCard;
 } & (
   | { label: string; labelKey?: never }
-  | { labelKey: 'stock-events.no-lot-defined' | 'stock-events.product-has-no-lots'; label?: never }
+  | { labelKey: 'stock-events.no-lot-defined'; label?: never }
 );
 
 export function eventProductOptions(cards: readonly EventStockCard[]): EventProductOption[] {
@@ -54,7 +54,7 @@ export function eventLotOptions(cards: readonly EventStockCard[]): EventLotOptio
       value: '',
       lot: null,
       card: noLot,
-      labelKey: lots.size ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots',
+      labelKey: 'stock-events.no-lot-defined',
     });
   }
   return sorted;

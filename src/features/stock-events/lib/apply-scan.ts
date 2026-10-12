@@ -1,18 +1,17 @@
 import { quantityValue } from '@/components/form/quantity-value';
 import {
   type EventLine,
-  type EventSchemaOptions,
+  type EventLineOptions,
   newEventLine,
 } from '@/features/stock-events/lib/event-form';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { ScanResolution } from '@/lib/stock-scan';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
 
-export type ScanCountDefaults = Pick<EventSchemaOptions, 'kind'> &
-  Partial<Omit<EventSchemaOptions, 'kind' | 'today'>> & {
-    today: string;
-    previousLine?: EventLine;
-  };
+type ScanCountDefaults = EventLineOptions & {
+  today: string;
+  previousLine?: EventLine;
+};
 
 function onePack(netContent: number | null | undefined): number {
   return netContent && Number.isFinite(netContent) && netContent > 0 ? netContent : 1;

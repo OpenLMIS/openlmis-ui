@@ -131,7 +131,7 @@ export function ProductLotPicker({
             <Select
               items={lotItems}
               value={selectedLotId}
-              disabled={disabled || !product}
+              disabled={disabled}
               onValueChange={setLotId}
             >
               <SelectTrigger

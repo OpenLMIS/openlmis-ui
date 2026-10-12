@@ -233,18 +233,18 @@ async function filter(user: ReturnType<typeof userEvent.setup>, keyword: string)
 async function validLine(user: ReturnType<typeof userEvent.setup>) {
   await add(user);
   await pickReason(user);
-  await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' }), '17');
+  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
 describe('EventEditor', () => {
   it('reveals a cached hidden line when scanning makes its quantity match the keyword', async () => {
     const { user } = setup();
     await add(user);
-    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' }), '11');
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '11');
     await add(user, 'OTHER');
-    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin OTHER' }), '27');
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }), '27');
     await filter(user, '27');
-    expect(screen.queryByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toBeNull();
     const keywords = screen.getByRole('textbox', { name: 'Keywords' });
     await act(async () => keywords.focus());
     await act(async () => {
@@ -253,7 +253,7 @@ describe('EventEditor', () => {
         new AbortController().signal,
       );
     });
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('27');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('27');
     expect(keywords).toHaveFocus();
   });
 
@@ -273,7 +273,7 @@ describe('EventEditor', () => {
       act(() => vi.advanceTimersByTime(650));
       expect(getSearch()).toEqual({ keyword: 'Aspirin' });
       expect(keywords).toHaveValue('Aspirin');
-      expect(screen.getAllByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveLength(10);
+      expect(screen.getAllByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveLength(10);
     } finally {
       vi.useRealTimers();
     }
@@ -323,14 +323,14 @@ describe('EventEditor', () => {
   it('keeps a quantity match visible while replacing 27 with 28', async () => {
     const { user } = setup();
     await add(user);
-    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' }), '27');
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '27');
     await filter(user, '27');
-    const quantity = screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' });
+    const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
     await user.clear(quantity);
     await user.type(quantity, '28');
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('28');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('28');
     await filter(user, '28');
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('28');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('28');
     await filter(user, '27');
     expect(await screen.findByText('No Matching Products')).toBeInTheDocument();
   });
@@ -342,7 +342,7 @@ describe('EventEditor', () => {
     expect(await screen.findByText('No Matching Products')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Clear Search' }));
     expect(keywords).toHaveValue('');
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
   it.each(['products', 'reasons'] as const)(
@@ -444,7 +444,7 @@ describe('EventEditor', () => {
       finish({ id: 'trade' });
       await operation;
     });
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('17');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   });
   it('keeps the draft through same-user session expiry and reauthentication', async () => {
     const { user } = setup();
@@ -455,7 +455,7 @@ describe('EventEditor', () => {
         .getState()
         .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'new-token' }),
     );
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('17');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   });
 
   it('restores focus to Product after clearing the last line', async () => {
@@ -474,7 +474,7 @@ describe('EventEditor', () => {
       await add(user);
       await pickReason(user);
       await user.type(
-        screen.getByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }),
+        screen.getByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }),
         'Broken',
       );
       await user.click(screen.getByRole('button', { name: /^Date, Aspirin/ }));
@@ -491,7 +491,7 @@ describe('EventEditor', () => {
           );
         });
       expect(
-        await screen.findByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }),
+        await screen.findByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }),
       ).toHaveValue('Broken');
       expect(screen.getByRole('combobox', { name: /^Reason, Aspirin/ })).toHaveTextContent('Lost');
       expect(screen.getByRole('button', { name: /^Date, Aspirin/ })).toHaveTextContent(date ?? '');
@@ -500,7 +500,7 @@ describe('EventEditor', () => {
   it('drops a scan lookup that finishes while signing', async () => {
     const { user } = setup();
     await validLine(user);
-    const quantity = screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' });
+    const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
     let resolve!: (value: { id: string }) => void;
     vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
       new Promise((done) => {
@@ -525,7 +525,7 @@ describe('EventEditor', () => {
   it('revalidates current lines at Confirm and shows inline errors without posting', async () => {
     const { user } = setup();
     await validLine(user);
-    const quantity = screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' });
+    const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await screen.findByRole('dialog');
     act(() => fireEvent.change(quantity, { target: { value: '65' } }));
@@ -542,18 +542,18 @@ describe('EventEditor', () => {
     const { user } = setup();
     await add(user);
     await pickReason(user);
-    expect(screen.getByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }).tagName).toBe(
+    expect(screen.getByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }).tagName).toBe(
       'INPUT',
     );
     await user.type(
-      screen.getByRole('textbox', { name: 'Reason Comments, Aspirin LOT' }),
+      screen.getByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }),
       'Broken',
     );
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getAllByRole('combobox', { name: /^Reason, Aspirin/ })).toHaveLength(2);
-    expect(screen.getAllByRole('textbox', { name: 'Reason Comments, Aspirin LOT' })[0]).toHaveValue(
-      'Broken',
-    );
+    expect(
+      screen.getAllByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ })[0],
+    ).toHaveValue('Broken');
     const dates = screen.getAllByRole('button', { name: /^Date, Aspirin/ });
     expect(dates[0]).toHaveTextContent(dates[1].textContent ?? '');
     await user.click(screen.getAllByRole('button', { name: /^Actions, Aspirin/ })[0]);
@@ -566,16 +566,20 @@ describe('EventEditor', () => {
     const { user } = setup();
     await validLine(user);
     await user.click(screen.getByRole('radio', { name: 'Packs' }));
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT Packs' })).toHaveValue('1');
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT Doses' })).toHaveValue('1');
+    expect(
+      screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT, Line \d+ Packs$/ }),
+    ).toHaveValue('1');
+    expect(
+      screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT, Line \d+ Doses$/ }),
+    ).toHaveValue('1');
     await user.click(screen.getByRole('radio', { name: 'Doses' }));
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('17');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   });
   it('shows Arabic digit quantities correctly in the packs total', async () => {
     localStorage.setItem('adjustment-columns', JSON.stringify({ total: true }));
     const { user } = setup();
     await add(user);
-    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' }), '١٧');
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '١٧');
     await user.click(screen.getByRole('radio', { name: 'Packs' }));
     const table = screen.getByRole('table');
     const headers = within(table).getAllByRole('columnheader');
@@ -599,9 +603,9 @@ describe('EventEditor', () => {
     ).toBeInTheDocument();
     await user.click(within(confirm).getByRole('button', { name: 'Clear' }));
     await user.click(await screen.findByRole('button', { name: 'Clear Filter' }));
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toBeInTheDocument();
     expect(
-      screen.queryByRole('textbox', { name: 'Quantity, Aspirin OTHER' }),
+      screen.queryByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
   });
   it('validates hidden rows and returns to the first invalid field', async () => {
@@ -665,7 +669,7 @@ describe('EventEditor', () => {
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('17');
+      expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
       expect(
         await screen.findByText(
           error.response
@@ -693,11 +697,13 @@ describe('EventEditor', () => {
     await act(async () => {
       await scan(parsed, signal);
     });
-    expect(await screen.findByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('16');
+    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+      '16',
+    );
     await act(async () => {
       await scan(parsed, signal);
     });
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('32');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('32');
     expect(focus).toHaveFocus();
   });
   it('goes to page two for an invalid line that the keyword hides', async () => {
@@ -709,15 +715,15 @@ describe('EventEditor', () => {
       for (let index = 0; index < 10; index++) fireEvent.click(addButton);
     });
     act(() => {
-      for (const input of screen.getAllByRole('textbox', { name: 'Quantity, Aspirin LOT' }))
+      for (const input of screen.getAllByRole('textbox', { name: /^Quantity, Aspirin LOT/ }))
         fireEvent.change(input, { target: { value: '1' } });
     });
     await filter(user, 'missing');
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await waitFor(() =>
-      expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveFocus(),
+      expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveFocus(),
     );
-    expect(screen.getAllByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveLength(1);
+    expect(screen.getAllByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveLength(1);
   });
   it('confirms an expiry mismatch once per batch across expiry values and editor openings and ignores aborted scans', async () => {
     setup();
@@ -736,7 +742,7 @@ describe('EventEditor', () => {
       await scan(parsed, controller.signal);
     });
     expect(
-      screen.queryByRole('textbox', { name: 'Quantity, Aspirin LOT' }),
+      screen.queryByRole('textbox', { name: /^Quantity, Aspirin LOT/ }),
     ).not.toBeInTheDocument();
     const signal = new AbortController().signal;
     let operation: ReturnType<typeof scan>;
@@ -748,7 +754,9 @@ describe('EventEditor', () => {
     await act(async () => {
       await operation;
     });
-    expect(await screen.findByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('16');
+    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+      '16',
+    );
     await act(async () => {
       operation = scan({ ...parsed, expiry: '2028-01-01', lotCode: 'lot' }, signal);
     });
@@ -756,7 +764,7 @@ describe('EventEditor', () => {
     await act(async () => {
       await operation;
     });
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('32');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('32');
     cleanup();
     setup();
     await screen.findByRole('combobox', { name: 'Product' });
@@ -764,7 +772,7 @@ describe('EventEditor', () => {
       await scan({ ...parsed, expiry: '2029-01-01' }, signal);
     });
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Quantity, Aspirin LOT' })).toHaveValue('16');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('16');
   });
   it('explains missing stock view access and offers no picker', async () => {
     setup(false);
@@ -931,16 +939,16 @@ describe('Issue editor', () => {
   it('leaves Issue To blank, focuses its error, clears comments on change and clears an optional reason', async () => {
     const { user } = issueSetup();
     await add(user, 'OTHER');
-    const destination = screen.getByRole('combobox', { name: 'Issue To, Aspirin OTHER' });
+    const destination = screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ });
     expect(destination).toHaveValue('');
     expect(
-      screen.queryByRole('textbox', { name: 'Destination Comments, Aspirin OTHER' }),
+      screen.queryByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await waitFor(() => expect(destination).toHaveFocus());
     await user.click(destination);
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
-    const comments = screen.getByRole('textbox', { name: 'Destination Comments, Aspirin OTHER' });
+    const comments = screen.getByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ });
     expect(comments).toHaveAttribute('maxlength', '255');
     await user.type(comments, 'Courier');
     await user.click(destination);
@@ -949,18 +957,18 @@ describe('Issue editor', () => {
     await user.click(destination);
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
     expect(
-      screen.getByRole('textbox', { name: 'Destination Comments, Aspirin OTHER' }),
+      screen.getByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
     ).toHaveValue('');
-    const select = screen.getByRole('combobox', { name: 'Reason, Aspirin OTHER' });
+    const select = screen.getByRole('combobox', { name: /^Reason, Aspirin OTHER/ });
     expect(select).not.toHaveAttribute('aria-required', 'true');
     await user.click(select);
     await user.click(await screen.findByRole('option', { name: 'Transfer Out' }));
     await user.click(select);
     await user.click(await screen.findByRole('option', { name: 'Select An Option' }));
     expect(
-      screen.queryByRole('textbox', { name: 'Reason Comments, Aspirin OTHER' }),
+      screen.queryByRole('textbox', { name: /^Reason Comments, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear Issue To, Aspirin OTHER' }));
+    await user.click(screen.getByRole('button', { name: /^Clear Issue To, Aspirin OTHER/ }));
     expect(destination).toHaveValue('');
   });
 
@@ -968,20 +976,20 @@ describe('Issue editor', () => {
     vi.mocked(submitStockEvent).mockResolvedValue('issue-event');
     const { user, onSubmitted } = issueSetup();
     await add(user, 'OTHER');
-    await user.click(screen.getByRole('combobox', { name: 'Issue To, Aspirin OTHER' }));
+    await user.click(screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ }));
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
     await user.type(
-      screen.getByRole('textbox', { name: 'Destination Comments, Aspirin OTHER' }),
+      screen.getByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
       'Courier',
     );
-    await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin OTHER' }), '2');
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }), '2');
     await add(user, 'OTHER');
     expect(
-      screen.getAllByRole('textbox', { name: 'Destination Comments, Aspirin OTHER' })[0],
+      screen.getAllByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ })[0],
     ).toHaveValue('Courier');
-    await user.type(screen.getAllByRole('textbox', { name: 'Quantity, Aspirin OTHER' })[0], '3');
+    await user.type(screen.getAllByRole('textbox', { name: /^Quantity, Aspirin OTHER/ })[0], '3');
     await filter(user, 'CHW');
-    expect(screen.getAllByRole('textbox', { name: 'Quantity, Aspirin OTHER' })).toHaveLength(2);
+    expect(screen.getAllByRole('textbox', { name: /^Quantity, Aspirin OTHER/ })).toHaveLength(2);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('issue-event'));
@@ -1057,7 +1065,7 @@ describe('Issue editor', () => {
   });
 });
 
-describe('review: readiness after a failed background refetch', () => {
+describe('readiness after a failed background refetch', () => {
   it.each(['reasons', 'destinations'] as const)(
     'keeps Add, scan and Submit usable after a failed %s refetch',
     async (lookup) => {
@@ -1073,7 +1081,7 @@ describe('review: readiness after a failed background refetch', () => {
         lookup === 'destinations' ? 'issue' : 'adjustment',
       );
       await add(user, 'OTHER');
-      await user.type(screen.getByRole('textbox', { name: 'Quantity, Aspirin OTHER' }), '17');
+      await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }), '17');
       expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
       const queryKey =
         lookup === 'reasons'
@@ -1093,4 +1101,30 @@ describe('review: readiness after a failed background refetch', () => {
       expect(scanningEnabled).toBe(true);
     },
   );
+});
+
+it('retains draft lot and VVM columns when refreshed stock no longer offers them', async () => {
+  localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
+  const { user, queryClient } = setup(true, (client) =>
+    client.setQueryData(
+      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+      [{ ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } }],
+    ),
+  );
+  await add(user, 'OTHER');
+  for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
+    expect(screen.getByRole('columnheader', { name })).toBeInTheDocument();
+  }
+  act(() => {
+    queryClient.setQueryData(
+      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+      [{ ...card, lot: null }],
+    );
+  });
+  await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Lot Code' })).toBeNull());
+  for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
+    expect(screen.getByRole('columnheader', { name })).toBeInTheDocument();
+  }
+  expect(screen.getByText('OTHER')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: /^VVM Status, Aspirin OTHER/ })).toBeInTheDocument();
 });

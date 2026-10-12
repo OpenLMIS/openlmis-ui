@@ -14,6 +14,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import { PrintEventDialog } from '@/features/stock-events/components/print-event-dialog';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { recordLabel } from '@/lib/facility-program-selection';
@@ -29,8 +30,8 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/i
   validateSearch: stockEventSearchSchema,
   staticData: { crumbKey: 'stock-issue.editor-crumb' },
   loader: ({ context: { queryClient }, params: { programId } }) =>
-    loadStockEventEditor(queryClient, programId, { destinations: true }),
-  pendingComponent: () => <StockEventPending width="wide" />,
+    loadStockEventEditor(queryClient, programId, 'issue'),
+  pendingComponent: () => <StockEventPending width={EVENT_KINDS.issue.width} />,
   component: IssuePage,
 });
 

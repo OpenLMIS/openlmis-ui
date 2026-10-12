@@ -58,12 +58,12 @@ screens above. More move over as they are rebuilt.
 
 ## Barcode scanning on Adjustments and Issue
 
-Issue scans match only lots with stock that have not expired, just like its product picker.
-
 When scanning is enabled for your deployment, Adjustments and Issue show a Ready To Scan indicator.
 Scan a product's barcode with a hand scanner to add its product and lot. Scanning the same
 product and lot again adds one pack to its quantity. Check the reason, quantity and date before
 submitting. Scanning pauses while a dialog is open.
+
+Issue scans match only lots with stock that have not expired, just like its product picker.
 
 If a scan is refused, the indicator explains why. Check the barcode and the selected program,
 then try again, or select the product and lot manually. Both screens accept existing lots only.

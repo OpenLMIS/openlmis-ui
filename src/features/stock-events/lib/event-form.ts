@@ -33,16 +33,14 @@ export type EventSchemaOptions = {
   defaultReasonId?: string;
 };
 
+export type EventLineOptions = Pick<EventSchemaOptions, 'kind'> &
+  Partial<Omit<EventSchemaOptions, 'kind' | 'today'>>;
+
 export function newEventLine(
   card: EventStockCard,
   previousLine: EventLine | undefined,
   today: string,
-  {
-    kind,
-    assignments = [],
-    reasons = [],
-    defaultReasonId,
-  }: Pick<EventSchemaOptions, 'kind'> & Partial<Omit<EventSchemaOptions, 'kind' | 'today'>>,
+  { kind, assignments = [], reasons = [], defaultReasonId }: EventLineOptions,
 ): EventLine {
   return {
     key: crypto.randomUUID(),
@@ -70,10 +68,7 @@ export function changeEventReason(line: EventLine, reasonId: string): EventLine 
   return line.reasonId === reasonId ? line : { ...line, reasonId, reasonFreeText: '' };
 }
 
-export function listedDefaultReasonId(
-  reasons: readonly Reason[],
-  defaultReasonId?: string,
-): string {
+function listedDefaultReasonId(reasons: readonly Reason[], defaultReasonId?: string): string {
   return reasons.find((reason) => reason.id === defaultReasonId)?.id ?? '';
 }
 

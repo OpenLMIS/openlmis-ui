@@ -37,9 +37,7 @@ describe('reasonsOf', () => {
     ]);
     expect(reasonsOf([], 'ADJUSTMENT')).toEqual([]);
   });
-});
 
-describe('reasonsOf', () => {
   it('keeps only visible debit transfers, deduped in server order', () => {
     const first = reason('first', 'TRANSFER');
     const second = reason('second', 'TRANSFER');

@@ -5,6 +5,7 @@ import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/typ
 
 export type EventKindConfig = {
   eventOrigin: StockEvent['eventOrigin'];
+  width: 'default' | 'wide';
   cardFilter: (cards: readonly EventStockCard[], today: string) => readonly EventStockCard[];
   counterparty: 'none' | 'destination';
   reasonRequired: boolean;
@@ -28,6 +29,7 @@ export type EventKindConfig = {
 export const EVENT_KINDS = {
   adjustment: {
     eventOrigin: 'ADJUSTMENT',
+    width: 'default',
     cardFilter: allEventCards,
     counterparty: 'none',
     reasonRequired: true,
@@ -49,6 +51,7 @@ export const EVENT_KINDS = {
   },
   issue: {
     eventOrigin: 'ISSUE',
+    width: 'wide',
     cardFilter: issuableCards,
     counterparty: 'destination',
     reasonRequired: false,

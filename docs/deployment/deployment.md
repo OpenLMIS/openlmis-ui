@@ -67,6 +67,10 @@ container builds and serves fine but every login fails with
 
 `VITE_BASE_PATH` stays a build input, since it is compiled into asset URLs.
 
+`DEFAULT_ISSUE_REASON_ID` is a container environment variable holding the id of the reason to
+preselect on new Issue lines. If it is one of the listed issue reasons, Reason becomes required.
+If it is empty or is not one of those reasons, no reason is preselected and Reason stays optional.
+
 ## Branding and theme
 
 The app name, logo, colour theme and default appearance come from the reference data service
@@ -99,9 +103,6 @@ Optional features are turned on or off in two places:
   `BATCH_APPROVE_SCREEN`, `GS1_SCANNING` and `SHOW_REQUISITION_LESS_ORDER` (`true` or `false`),
   `QUANTITY_UNIT_OPTION` (`PACKS`, `DOSES` or `BOTH`) and `DEFAULT_QUANTITY_UNIT` (`PACKS` or
   `DOSES`). The entrypoint writes them into `config.json`; an unset variable means the default.
-- **`DEFAULT_ISSUE_REASON_ID`** preselects that reason on new Issue lines and makes Reason
-  required when the reason is in the program’s list, like the legacy UI’s build variable.
-  Leave it unset for an optional reason.
 - **`SYSTEM_SETTINGS`** (`true` or `false`, off by default) offers the Settings page. Turn it on only
   where the reference data service stores the new UI's settings; the released versions do not. It
   is read from the environment alone, so it never appears among the flags below.

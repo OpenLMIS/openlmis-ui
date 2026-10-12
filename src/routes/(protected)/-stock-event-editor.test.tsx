@@ -26,9 +26,9 @@ import { fetchEventStockCards } from '@/features/stock-events/api/api';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
 import { Route as AdjustmentEditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
-
 import { Route as IssuePickerRoute } from '@/routes/(protected)/_protected.stock-management.issue';
 import { Route as IssueEditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
+import { loadStockEventEditor } from '@/routes/(protected)/-stock-event-editor';
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
@@ -179,7 +179,7 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
     useLoginData.setState({ referenceDataUserId: null });
   });
 
-  describe('adjustments program picker', () => {
+  describe(`${kind} program picker`, () => {
     it('lists granted home programs by name and links to their editors', async () => {
       const user = userEvent.setup();
       const { router } = renderRoute();
@@ -213,7 +213,7 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       expect(fetchFacility).not.toHaveBeenCalled();
     });
 
-    it('hides the navigation entry without the adjustment right', () => {
+    it(`hides the ${kind} navigation entry without the adjustment right`, () => {
       expect(canOpen(PICKER, undefined)).toBe(false);
       expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
       expect(canOpen(PICKER, new Set(['STOCK_ADJUST']))).toBe(true);
@@ -259,7 +259,26 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
     });
   });
 
-  describe('adjustment editor access', () => {
+  describe(`${kind} editor access`, () => {
+    it('starts the user record while editor permissions are still pending', async () => {
+      let finish!: (permissions: string[]) => void;
+      vi.mocked(fetchPermissionStrings).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const loading = loadStockEventEditor(
+        queryClient,
+        FP,
+        kind === 'issue' ? 'issue' : 'adjustment',
+      );
+      const started = vi.mocked(fetchUserRecord).mock.calls.length;
+      finish(grants);
+      await loading;
+      expect(started).toBe(1);
+    });
+
     it('removes old lines while new rights are pending and loads a fresh draft for the same facility', async () => {
       const rights = [...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`];
       vi.mocked(fetchPermissionStrings).mockResolvedValue(rights);
