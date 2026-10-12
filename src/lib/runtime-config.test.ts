@@ -95,3 +95,20 @@ describe('getDefaultIssueReasonId', () => {
     expect(getDefaultIssueReasonId()).toBeUndefined();
   });
 });
+
+describe('getDefaultReceiveReasonId', () => {
+  it('uses the runtime receive default ahead of the dev fallback', async () => {
+    vi.stubEnv('VITE_DEFAULT_RECEIVE_REASON_ID', 'dev-reason');
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ defaultReceiveReasonId: 'runtime-reason' })),
+        ),
+    );
+    const { loadRuntimeConfig, getDefaultReceiveReasonId } = await load();
+    await loadRuntimeConfig();
+    expect(getDefaultReceiveReasonId()).toBe('runtime-reason');
+  });
+});

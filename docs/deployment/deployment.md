@@ -71,6 +71,9 @@ container builds and serves fine but every login fails with
 preselect on new Issue lines. If it is one of the listed issue reasons, Reason becomes required.
 If it is empty or is not one of those reasons, no reason is preselected and Reason stays optional.
 
+`DEFAULT_RECEIVE_REASON_ID` works the same way for new Receive lines and the listed receive
+reasons.
+
 ## Branding and theme
 
 The app name, logo, colour theme and default appearance come from the reference data service
