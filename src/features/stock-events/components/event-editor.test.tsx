@@ -974,7 +974,7 @@ describe('Issue editor', () => {
     expect(destination).toHaveAttribute('aria-invalid', 'true');
     expect(destination).toHaveAccessibleDescription('This field is required');
     expect(
-      document.getElementById('lines[0].destination-error')?.closest('.sr-only'),
+      document.getElementById('lines[0].counterparty-error')?.closest('.sr-only'),
     ).not.toBeNull();
     await user.click(screen.getByRole('button', { name: /^Close$/ }));
     await waitFor(() => expect(destination).toHaveFocus());

@@ -58,7 +58,7 @@ import {
 } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
-import { eventProductOptions } from '@/features/stock-events/lib/products';
+import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -214,7 +214,7 @@ export function EventEditor({
   const fitLineKeys = lines.map((line) => line.key).join(',');
   const hasDestinationComments = lines.some((line) =>
     destinations.some(
-      (destination) => destination.id === line.destination && destination.isFreeTextAllowed,
+      (destination) => destination.id === line.counterparty && destination.isFreeTextAllowed,
     ),
   );
   const fitContent = useMemo(
@@ -284,7 +284,10 @@ export function EventEditor({
   }, [focusField, search.keyword, search.page]);
   const add = (card: EventStockCard) => {
     if (!ready || submitted || pending) return;
-    const next = newEventLine(card, lastAdded.current, today, lineOptions);
+    const next = newEventLine(card, lastAdded.current, today, {
+      ...lineOptions,
+      productHasLots: productHasLots(offeredCards, card.orderable.id),
+    });
     lastAdded.current = next;
     form.setFieldValue('lines', (current) => [next, ...current]);
     clearFilter();
@@ -386,10 +389,11 @@ export function EventEditor({
       eventStockCardsOptions({ facilityId, programId }).queryKey,
     );
     if (!cards) return { key: 'scan.not-resolved' };
+    const offered = filterCards(cards);
     const resolution = resolveScan({
       scan: parsed,
       tradeItemId: tradeItem.id,
-      products: eventProductOptions(filterCards(cards)),
+      products: eventProductOptions(offered),
       lines: form.state.values.lines,
       policy: { allowsNewLot: false },
     });
@@ -428,6 +432,7 @@ export function EventEditor({
     const next = applyScanCount(form.state.values.lines, action, {
       ...lineOptions,
       previousLine: lastAdded.current,
+      productHasLots: action.type === 'add' && productHasLots(offered, action.card.orderable.id),
     });
     const countedKey = action.type === 'count' ? action.lineKey : next[0].key;
     if (action.type === 'add') lastAdded.current = next[0];
@@ -571,7 +576,6 @@ export function EventEditor({
                           reasonRequired={reasonRequired}
                           form={form}
                           lines={filtered}
-                          cards={offeredCards}
                           reasons={reasons}
                           destinations={destinations}
                           unit={quantityUnit.unit}

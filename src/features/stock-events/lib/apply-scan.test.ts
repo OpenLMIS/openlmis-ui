@@ -22,7 +22,7 @@ const card: EventStockCard = {
 };
 const scan = { gtin: '00012345678905', lotCode: 'LOT', serial: 'same-pack' };
 const draft = {
-  ...newEventLine(card, undefined, today, { kind: 'adjustment' }),
+  ...newEventLine(card, undefined, today, { kind: 'adjustment', productHasLots: true }),
   reasonId: 'lost',
   reasonFreeText: 'Broken',
   occurredDate: '2026-09-01',
@@ -31,7 +31,11 @@ const draft = {
 
 describe('applyScanCount', () => {
   it('counts the first scan and prepends a new line with the manual Add defaults', () => {
-    const result = applyScanCount([draft], { type: 'add', card }, { kind: 'adjustment', today });
+    const result = applyScanCount(
+      [draft],
+      { type: 'add', card },
+      { kind: 'adjustment', today, productHasLots: true },
+    );
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       orderable: card.orderable,
@@ -44,7 +48,11 @@ describe('applyScanCount', () => {
     expect(result[0].key).not.toBe(draft.key);
     expect(result[1]).toBe(draft);
     expect(
-      applyScanCount([], { type: 'add', card }, { kind: 'adjustment', today })[0],
+      applyScanCount(
+        [],
+        { type: 'add', card },
+        { kind: 'adjustment', today, productHasLots: true },
+      )[0],
     ).toMatchObject({
       reasonId: '',
       occurredDate: today,
@@ -55,7 +63,7 @@ describe('applyScanCount', () => {
     const result = applyScanCount(
       [draft],
       { type: 'count', lineKey: draft.key },
-      { kind: 'adjustment', today },
+      { kind: 'adjustment', today, productHasLots: true },
     );
     expect(result).toEqual([{ ...draft, quantity: { doses: '45', packs: '2', remainder: '5' } }]);
     expect(draft.quantity.doses).toBe('25');
@@ -77,7 +85,11 @@ describe('applyScanCount', () => {
     });
     expect(resolution.type).toBe('count');
     if (resolution.type !== 'count') throw new Error('Expected count');
-    const result = applyScanCount(lines, resolution, { kind: 'adjustment', today });
+    const result = applyScanCount(lines, resolution, {
+      kind: 'adjustment',
+      today,
+      productHasLots: true,
+    });
     expect(result[0]).toBe(other);
     expect(result[1].quantity.doses).toBe('45');
     expect(result[2]).toBe(duplicate);
@@ -95,7 +107,7 @@ describe('applyScanCount', () => {
       });
       if (decision.type !== 'add' && decision.type !== 'count')
         throw new Error('Expected scan action');
-      lines = applyScanCount(lines, decision, { kind: 'adjustment', today });
+      lines = applyScanCount(lines, decision, { kind: 'adjustment', today, productHasLots: true });
     }
     expect(lines).toHaveLength(1);
     expect(lines[0].quantity.doses).toBe('40');
@@ -107,14 +119,14 @@ describe('applyScanCount', () => {
       const added = applyScanCount(
         [],
         { type: 'add', card: fallback },
-        { kind: 'adjustment', today },
+        { kind: 'adjustment', today, productHasLots: true },
       );
       expect(added[0].quantity).toEqual(quantityValue('1', netContent));
       expect(
         applyScanCount(
           added,
           { type: 'count', lineKey: added[0].key },
-          { kind: 'adjustment', today },
+          { kind: 'adjustment', today, productHasLots: true },
         )[0].quantity.doses,
       ).toBe('2');
     },
@@ -125,7 +137,7 @@ describe('applyScanCount', () => {
         applyScanCount(
           [{ ...draft, quantity: quantityValue(doses, 20) }],
           { type: 'count', lineKey: draft.key },
-          { kind: 'adjustment', today },
+          { kind: 'adjustment', today, productHasLots: true },
         )[0].quantity.doses,
       ).toBe('20');
     }
@@ -133,7 +145,7 @@ describe('applyScanCount', () => {
       applyScanCount(
         [{ ...draft, quantity: quantityValue('۲۵', 20) }],
         { type: 'count', lineKey: draft.key },
-        { kind: 'adjustment', today },
+        { kind: 'adjustment', today, productHasLots: true },
       )[0].quantity.doses,
     ).toBe('45');
   });
@@ -143,7 +155,7 @@ describe('applyScanCount', () => {
       applyScanCount(
         lines,
         { type: 'refuse', reason: 'lotRequired', params: {} },
-        { kind: 'adjustment', today },
+        { kind: 'adjustment', today, productHasLots: true },
       ),
     ).toEqual(lines);
     expect(
@@ -155,11 +167,15 @@ describe('applyScanCount', () => {
           scanned: '2027-02-01',
           next: { type: 'count', lineKey: draft.key },
         },
-        { kind: 'adjustment', today },
+        { kind: 'adjustment', today, productHasLots: true },
       ),
     ).toEqual(lines);
     expect(
-      applyScanCount(lines, { type: 'count', lineKey: 'gone' }, { kind: 'adjustment', today }),
+      applyScanCount(
+        lines,
+        { type: 'count', lineKey: 'gone' },
+        { kind: 'adjustment', today, productHasLots: true },
+      ),
     ).toEqual(lines);
   });
   it('permits increments beyond SOH or int bounds so the ordinary schema marks them invalid', () => {
@@ -177,7 +193,7 @@ describe('applyScanCount', () => {
     const counted = applyScanCount(
       [draft],
       { type: 'count', lineKey: draft.key },
-      { kind: 'adjustment', today },
+      { kind: 'adjustment', today, productHasLots: true },
     );
     expect(schema.safeParse({ lines: counted }).error?.issues).toContainEqual(
       expect.objectContaining({
@@ -189,7 +205,7 @@ describe('applyScanCount', () => {
     const overflow = applyScanCount(
       [huge],
       { type: 'count', lineKey: huge.key },
-      { kind: 'adjustment', today },
+      { kind: 'adjustment', today, productHasLots: true },
     );
     expect(overflow[0].quantity.doses).toBe('2147483667');
     expect(schema.safeParse({ lines: overflow }).error?.issues).toContainEqual(
@@ -215,6 +231,7 @@ it('copies issue destination and falls back to today and a listed reason on scan
     {
       kind: 'issue',
       today,
+      productHasLots: true,
       reasons,
       defaultReasonId: 'transfer',
       assignments: [
@@ -232,16 +249,16 @@ it('copies issue destination and falls back to today and a listed reason on scan
         ...draft,
         occurredDate: '',
         reasonId: '',
-        destination: 'assignment',
-        destinationComments: 'Deliver',
+        counterparty: 'assignment',
+        counterpartyComments: 'Deliver',
       },
     },
   );
   expect(result[0]).toMatchObject({
     occurredDate: today,
     reasonId: 'transfer',
-    destination: 'assignment',
-    destinationComments: 'Deliver',
+    counterparty: 'assignment',
+    counterpartyComments: 'Deliver',
   });
 });
 
@@ -265,5 +282,7 @@ it.each([
     policy: { allowsNewLot: false },
   });
   expect(resolution).toMatchObject({ type: 'refuse', reason: 'lotNotOnScreen' });
-  expect(applyScanCount([], resolution, { kind: 'issue', today })).toEqual([]);
+  expect(applyScanCount([], resolution, { kind: 'issue', today, productHasLots: true })).toEqual(
+    [],
+  );
 });

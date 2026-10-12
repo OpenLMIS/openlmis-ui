@@ -19,7 +19,7 @@ const row = {
     },
     undefined,
     '2026-10-07',
-    { kind: 'adjustment' },
+    { kind: 'adjustment', productHasLots: true },
   ),
   reasonId: 'lost',
   reasonFreeText: 'Research Only',
@@ -80,6 +80,10 @@ describe('filterEventLines', () => {
     expect(filter('2019-01-30')).toEqual([]);
     expect(filter('no matches')).toEqual([]);
   });
+  it('never matches the text of a missing stock on hand', () => {
+    const stockless = { ...other, stockOnHand: null };
+    expect(filterEventLines([stockless], 'null', reasons, formatDate, '', [])).toEqual([]);
+  });
   it('keeps draft order and all lines for an empty keyword without changing them', () => {
     expect(filter('  ')).toEqual([row, other]);
     expect(filterEventLines([], 'x', reasons, formatDate, '', [])).toEqual([]);
@@ -99,7 +103,7 @@ describe('pageOf', () => {
 });
 
 it.each(['hospital', 'courier'])('matches Issue destination fields: %s', (keyword) => {
-  const line = { ...row, destination: 'assigned', destinationComments: 'Courier delivery' };
+  const line = { ...row, counterparty: 'assigned', counterpartyComments: 'Courier delivery' };
   const assignments = [
     {
       id: 'assigned',
@@ -113,7 +117,7 @@ it.each(['hospital', 'courier'])('matches Issue destination fields: %s', (keywor
   expect(filterEventLines([line], keyword, reasons, formatDate, '', assignments)).toEqual([line]);
   expect(
     filterEventLines(
-      [{ ...line, destination: '', destinationComments: '' }],
+      [{ ...line, counterparty: '', counterpartyComments: '' }],
       keyword,
       reasons,
       formatDate,

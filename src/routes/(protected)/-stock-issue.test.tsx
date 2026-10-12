@@ -206,7 +206,7 @@ describe('Issue report after submit', () => {
     const user = userEvent.setup();
     const { router } = renderRoute(`${PICKER}/${FP}`);
     await user.click(await screen.findByRole('button', { name: 'stock-events.add' }));
-    const destination = document.getElementById('lines[0].destination') as HTMLElement;
+    const destination = document.getElementById('lines[0].counterparty') as HTMLElement;
     await user.click(destination);
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
     fireEvent.change(

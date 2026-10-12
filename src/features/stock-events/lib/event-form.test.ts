@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { quantityValue, updateQuantityValue } from '@/components/form/quantity-value';
 import type { Reason } from '@/features/reference-data/lib/types';
 import {
-  changeEventDestination,
+  changeEventCounterparty,
   changeEventReason,
   type EventLine,
   eventLinesSchema,
@@ -40,7 +40,7 @@ const reasons = [
 ];
 const schema = eventLinesSchema({ kind: 'adjustment', reasons, today });
 const line = (patch: Partial<EventLine> = {}): EventLine => ({
-  ...newEventLine(card, undefined, today, { kind: 'adjustment' }),
+  ...newEventLine(card, undefined, today, { kind: 'adjustment', productHasLots: true }),
   reasonId: 'damage',
   quantity: quantityValue('1', 16),
   ...patch,
@@ -50,8 +50,14 @@ const issues = (lines: EventLine[]) =>
 
 describe('newEventLine', () => {
   it('creates independent stable keys and captures card metadata with empty inputs', () => {
-    const first = newEventLine(card, undefined, today, { kind: 'adjustment' });
-    const second = newEventLine(card, undefined, today, { kind: 'adjustment' });
+    const first = newEventLine(card, undefined, today, {
+      kind: 'adjustment',
+      productHasLots: true,
+    });
+    const second = newEventLine(card, undefined, today, {
+      kind: 'adjustment',
+      productHasLots: true,
+    });
     expect(first.key).not.toBe(second.key);
     expect(first).not.toHaveProperty('card');
     expect(first).toMatchObject({
@@ -78,7 +84,7 @@ describe('newEventLine', () => {
       { ...card, lot: null, orderable: { ...card.orderable, extraData: null } },
       previous,
       today,
-      { kind: 'adjustment' },
+      { kind: 'adjustment', productHasLots: true },
     );
     expect(next).toMatchObject({
       occurredDate: today,
@@ -91,8 +97,10 @@ describe('newEventLine', () => {
     });
     expect(next.key).not.toBe(previous.key);
     expect(
-      newEventLine(card, line({ occurredDate: '2026-09-01' }), today, { kind: 'adjustment' })
-        .occurredDate,
+      newEventLine(card, line({ occurredDate: '2026-09-01' }), today, {
+        kind: 'adjustment',
+        productHasLots: true,
+      }).occurredDate,
     ).toBe('2026-09-01');
   });
 });
@@ -307,15 +315,15 @@ const assignments = [
 describe('issue form', () => {
   const options = { kind: 'issue' as const, reasons, today, assignments };
   const issueLine = (patch: Partial<EventLine> = {}) =>
-    line({ destination: 'assignment', reasonId: '', ...patch });
+    line({ counterparty: 'assignment', reasonId: '', ...patch });
   it('requires a listed destination but permits no reason', () => {
     expect(eventLinesSchema(options).safeParse({ lines: [issueLine()] }).success).toBe(true);
-    for (const destination of ['', 'missing']) {
+    for (const counterparty of ['', 'missing']) {
       expect(
-        eventLinesSchema(options).safeParse({ lines: [issueLine({ destination })] }).error?.issues,
+        eventLinesSchema(options).safeParse({ lines: [issueLine({ counterparty })] }).error?.issues,
       ).toContainEqual(
         expect.objectContaining({
-          path: ['lines', 0, 'destination'],
+          path: ['lines', 0, 'counterparty'],
           message: 'stock-events.required',
         }),
       );
@@ -329,21 +337,21 @@ describe('issue form', () => {
     ).toContainEqual(expect.objectContaining({ path: ['lines', 0, 'quantity', 'doses'] }));
   });
   it('checks destination comments and clears them when destination changes', () => {
-    const saved = issueLine({ destinationComments: 'Deliver' });
-    expect(changeEventDestination(saved, 'facility')).toEqual({
+    const saved = issueLine({ counterpartyComments: 'Deliver' });
+    expect(changeEventCounterparty(saved, 'facility')).toEqual({
       ...saved,
-      destination: 'facility',
-      destinationComments: '',
+      counterparty: 'facility',
+      counterpartyComments: '',
     });
-    expect(changeEventDestination(saved, 'assignment')).toBe(saved);
+    expect(changeEventCounterparty(saved, 'assignment')).toBe(saved);
     expect(
       eventLinesSchema(options).safeParse({
-        lines: [issueLine({ destinationComments: 'a'.repeat(255) })],
+        lines: [issueLine({ counterpartyComments: 'a'.repeat(255) })],
       }).success,
     ).toBe(true);
     for (const patch of [
-      { destinationComments: 'a'.repeat(256) },
-      { destination: 'facility', destinationComments: 'Deliver' },
+      { counterpartyComments: 'a'.repeat(256) },
+      { counterparty: 'facility', counterpartyComments: 'Deliver' },
     ]) {
       expect(eventLinesSchema(options).safeParse({ lines: [issueLine(patch)] }).success).toBe(
         false,
@@ -373,14 +381,20 @@ describe('issue form', () => {
         programId: 'program',
         facilityId: 'facility',
         signature: '',
-        lines: [issueLine({ destinationComments: 'Deliver' })],
+        lines: [issueLine({ counterpartyComments: 'Deliver' })],
       }).lineItems[0].destinationFreeText,
     ).toBe('Deliver');
   });
 });
 
 describe('default event reason', () => {
-  const options = { kind: 'issue' as const, reasons, defaultReasonId: 'lost', assignments };
+  const options = {
+    kind: 'issue' as const,
+    reasons,
+    defaultReasonId: 'lost',
+    assignments,
+    productHasLots: true,
+  };
   it('uses only a listed default and makes the reason required', () => {
     const previous = line({ reasonId: '', occurredDate: '' });
     expect(newEventLine(card, previous, today, options)).toMatchObject({
@@ -395,14 +409,14 @@ describe('default event reason', () => {
     );
     expect(
       eventLinesSchema({ ...options, today }).safeParse({
-        lines: [line({ destination: 'assignment', reasonId: '' })],
+        lines: [line({ counterparty: 'assignment', reasonId: '' })],
       }).error?.issues,
     ).toContainEqual(
       expect.objectContaining({ path: ['lines', 0, 'reasonId'], message: 'stock-events.required' }),
     );
     expect(
       eventLinesSchema({ ...options, defaultReasonId: 'missing', today }).safeParse({
-        lines: [line({ destination: 'assignment', reasonId: '' })],
+        lines: [line({ counterparty: 'assignment', reasonId: '' })],
       }).success,
     ).toBe(true);
   });

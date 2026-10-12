@@ -11,11 +11,12 @@ const lineFields = z.object({
   key: z.string(),
   orderable: z.custom<EventStockCard['orderable']>(),
   lot: z.custom<EventStockCard['lot']>(),
-  stockOnHand: z.number(),
+  stockOnHand: z.number().nullable(),
+  productHasLots: z.boolean(),
   netContent: z.number().nullable().optional(),
   useVVM: z.boolean(),
-  destination: z.string(),
-  destinationComments: z.string(),
+  counterparty: z.string(),
+  counterpartyComments: z.string(),
   reasonId: z.string(),
   reasonFreeText: z.string(),
   quantity: z.object({ doses: z.string(), packs: z.string(), remainder: z.string() }),
@@ -35,26 +36,28 @@ export type EventSchemaOptions = {
 
 export type EventLineOptions = Pick<EventSchemaOptions, 'kind'> &
   Partial<Omit<EventSchemaOptions, 'kind' | 'today'>>;
+export type NewEventLineOptions = EventLineOptions & { productHasLots: boolean };
 
 export function newEventLine(
   card: EventStockCard,
   previousLine: EventLine | undefined,
   today: string,
-  { kind, assignments = [], reasons = [], defaultReasonId }: EventLineOptions,
+  { kind, assignments = [], reasons = [], defaultReasonId, productHasLots }: NewEventLineOptions,
 ): EventLine {
+  const hasCounterparty = EVENT_KINDS[kind].counterparty !== 'none';
   return {
     key: crypto.randomUUID(),
     orderable: card.orderable,
     lot: card.lot,
     stockOnHand: card.stockOnHand,
+    productHasLots,
     netContent: card.orderable.netContent,
     useVVM: card.orderable.extraData?.useVVM === 'true',
-    destination:
-      EVENT_KINDS[kind].counterparty === 'destination' ? (previousLine?.destination ?? '') : '',
-    destinationComments:
-      EVENT_KINDS[kind].counterparty === 'destination' &&
-      assignments.find((item) => item.id === previousLine?.destination)?.isFreeTextAllowed
-        ? (previousLine?.destinationComments ?? '')
+    counterparty: hasCounterparty ? (previousLine?.counterparty ?? '') : '',
+    counterpartyComments:
+      hasCounterparty &&
+      assignments.find((item) => item.id === previousLine?.counterparty)?.isFreeTextAllowed
+        ? (previousLine?.counterpartyComments ?? '')
         : '',
     reasonId: previousLine?.reasonId || listedDefaultReasonId(reasons, defaultReasonId),
     reasonFreeText: previousLine?.reasonFreeText ?? '',
@@ -95,13 +98,13 @@ export function eventLinesSchema({
     const reason = byId.get(line.reasonId);
     if (!reason && (eventReasonRequired(kind, reasons, defaultReasonId) || line.reasonId))
       issue(['reasonId'], 'stock-events.required');
-    if (config.counterparty === 'destination') {
-      const destination = assignments.find((item) => item.id === line.destination);
-      if (!destination) issue(['destination'], 'stock-events.required');
-      if (line.destinationComments.length > 255)
-        issue(['destinationComments'], 'stock-events.comments-too-long');
-      if (line.destinationComments.trim() && !destination?.isFreeTextAllowed)
-        issue(['destinationComments'], 'stock-events.comments-not-allowed');
+    if (config.counterparty !== 'none') {
+      const counterparty = assignments.find((item) => item.id === line.counterparty);
+      if (!counterparty) issue(['counterparty'], 'stock-events.required');
+      if (line.counterpartyComments.length > 255)
+        issue(['counterpartyComments'], 'stock-events.comments-too-long');
+      if (line.counterpartyComments.trim() && !counterparty?.isFreeTextAllowed)
+        issue(['counterpartyComments'], 'stock-events.comments-not-allowed');
     }
 
     const quantity = wholeNumberText(
@@ -117,6 +120,7 @@ export function eventLinesSchema({
     } else if (
       (config.stockOnHandCap === 'always' ||
         (config.stockOnHandCap === 'debit-reason' && reason?.reasonType === 'DEBIT')) &&
+      line.stockOnHand !== null &&
       toWholeNumber(line.quantity.doses) > line.stockOnHand
     ) {
       issue(['quantity', 'doses'], 'stock-events.quantity-greater-than-stock-on-hand');
@@ -140,10 +144,10 @@ export function eventLinesSchema({
   return z.object({ lines: z.array(row) });
 }
 
-export function changeEventDestination(line: EventLine, destination: string): EventLine {
-  return line.destination === destination
+export function changeEventCounterparty(line: EventLine, counterparty: string): EventLine {
+  return line.counterparty === counterparty
     ? line
-    : { ...line, destination, destinationComments: '' };
+    : { ...line, counterparty, counterpartyComments: '' };
 }
 
 export type EventPayloadOptions = {
@@ -175,8 +179,8 @@ export function eventPayload({
       occurredDate: line.occurredDate,
       ...(line.reasonId && { reasonId: line.reasonId }),
       ...(EVENT_KINDS[kind].counterparty === 'destination' && {
-        destinationId: assignments.find((item) => item.id === line.destination)?.node.id,
-        ...(line.destinationComments.trim() && { destinationFreeText: line.destinationComments }),
+        destinationId: assignments.find((item) => item.id === line.counterparty)?.node.id,
+        ...(line.counterpartyComments.trim() && { destinationFreeText: line.counterpartyComments }),
       }),
       ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
       extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},

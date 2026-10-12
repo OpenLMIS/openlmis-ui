@@ -1,14 +1,14 @@
 import { quantityValue } from '@/components/form/quantity-value';
 import {
   type EventLine,
-  type EventLineOptions,
+  type NewEventLineOptions,
   newEventLine,
 } from '@/features/stock-events/lib/event-form';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { ScanResolution } from '@/lib/stock-scan';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
 
-type ScanCountDefaults = EventLineOptions & {
+type ScanCountDefaults = NewEventLineOptions & {
   today: string;
   previousLine?: EventLine;
 };

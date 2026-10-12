@@ -20,12 +20,11 @@ import type { EventSearch } from '@/features/stock-events/components/event-edito
 import { ProductName } from '@/features/stock-events/components/product-name';
 import { type EventForm, useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import {
-  changeEventDestination,
+  changeEventCounterparty,
   changeEventReason,
   type EventLine,
 } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -127,7 +126,6 @@ const DateSizer = memo(function DateSizer({ year, language }: { year: string; la
 type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
-  hasProductLots: boolean;
   id: CellId;
   index: number;
   line: EventLine;
@@ -142,7 +140,6 @@ type CellProps = {
 const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
-  hasProductLots,
   id,
   index,
   line,
@@ -161,7 +158,7 @@ const LineCell = memo(function LineCell({
     : name;
   const lotLabel =
     line.lot?.lotCode ??
-    t(hasProductLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
+    t(line.productHasLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
   const row = t('stock-events.row-identity', { product: name, lot: lotLabel, position: index + 1 });
   const label = (key: (typeof COLUMNS)[number][1]) =>
     t('stock-events.field-of', { field: t(key), row });
@@ -205,15 +202,15 @@ const LineCell = memo(function LineCell({
         <div className="w-full whitespace-normal break-words">
           <div className="w-full contain-inline-size">
             <form.AppField
-              name={`lines[${index}].destination`}
+              name={`lines[${index}].counterparty`}
               listeners={{
                 onChange: ({ value }) => {
-                  const next = changeEventDestination(line, value ?? '');
-                  if (value == null) form.setFieldValue(`lines[${index}].destination`, '');
+                  const next = changeEventCounterparty(line, value ?? '');
+                  if (value == null) form.setFieldValue(`lines[${index}].counterparty`, '');
                   if (next !== line)
                     form.setFieldValue(
-                      `lines[${index}].destinationComments`,
-                      next.destinationComments,
+                      `lines[${index}].counterpartyComments`,
+                      next.counterpartyComments,
                     );
                 },
               }}
@@ -235,7 +232,7 @@ const LineCell = memo(function LineCell({
         </div>
       );
     case 'destinationComments':
-      return destinations.find((item) => item.id === line.destination)?.isFreeTextAllowed ? (
+      return destinations.find((item) => item.id === line.counterparty)?.isFreeTextAllowed ? (
         <div
           className={
             measured
@@ -243,7 +240,7 @@ const LineCell = memo(function LineCell({
               : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
         >
-          <form.AppField name={`lines[${index}].destinationComments`}>
+          <form.AppField name={`lines[${index}].counterpartyComments`}>
             {(field) => (
               <field.TextareaField
                 disabled={disabled}
@@ -437,8 +434,7 @@ const LineCell = memo(function LineCell({
   }
 });
 
-type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'hasProductLots'> & {
-  cards: readonly EventStockCard[];
+type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
   lines: EventLine[];
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
@@ -452,7 +448,6 @@ export function EventLineTable({
   reasonRequired,
   form,
   lines,
-  cards,
   reasons,
   destinations = NO_DESTINATIONS,
   unit,
@@ -471,10 +466,6 @@ export function EventLineTable({
   const measured = config.columnFit === 'measured';
   const lineIndex = useRef(new Map<string, number>());
   lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
-  const productsWithLots = useMemo(
-    () => new Set(cards.filter((card) => card.lot).map((card) => card.orderable.id)),
-    [cards],
-  );
   const columns = useMemo(
     () =>
       helper.columns(
@@ -553,7 +544,6 @@ export function EventLineTable({
                 reasonRequired={reasonRequired}
                 id={id}
                 index={lineIndex.current.get(row.original.key) ?? -1}
-                hasProductLots={productsWithLots.has(row.original.orderable.id)}
                 line={row.original}
                 form={form}
                 reasons={reasons}
@@ -571,7 +561,6 @@ export function EventLineTable({
       kind,
       config,
       measured,
-      productsWithLots,
       reasonRequired,
       form,
       reasons,
@@ -685,7 +674,6 @@ export function EventLineTableSkeleton({
         columnVisibility={columnVisibility}
         form={form}
         lines={[]}
-        cards={[]}
         reasons={[]}
         reasonRequired={false}
         today={today}

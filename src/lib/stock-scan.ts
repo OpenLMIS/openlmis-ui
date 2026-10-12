@@ -15,7 +15,7 @@ export type ScanCard = {
   id?: string;
   orderable: ScanOrderable;
   lot: ScanLot | null;
-  stockOnHand: number;
+  stockOnHand: number | null;
 };
 export type ScanProduct<Card extends ScanCard = ScanCard> = {
   orderable: Card['orderable'];

@@ -68,7 +68,7 @@ export type PageQuery = { page: number; size: number };
 
 export type EventStockCard = {
   id?: string;
-  stockOnHand: number;
+  stockOnHand: number | null;
   orderable: Omit<Orderable, 'description'> & { description?: string | null };
   lot: LotSummary | null;
 };

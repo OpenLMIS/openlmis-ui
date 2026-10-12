@@ -69,3 +69,7 @@ export function issuableCards(cards: readonly EventStockCard[], today: string): 
       card.stockOnHand !== 0 && (!card.lot?.expirationDate || card.lot.expirationDate >= today),
   );
 }
+
+export function productHasLots(cards: readonly EventStockCard[], orderableId: string): boolean {
+  return cards.some((card) => card.orderable.id === orderableId && !!card.lot);
+}
