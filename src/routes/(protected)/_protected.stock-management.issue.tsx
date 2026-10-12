@@ -5,16 +5,9 @@ import {
   StockEventProgramsPending,
 } from '@/routes/(protected)/-stock-event-program-picker';
 
-const copy = {
-  title: 'stock-issue.title',
-  nav: 'nav.stock-management.issue',
-  description: 'stock-issue.page-description',
-  action: 'stock-issue.make',
-} as const;
-
 export const Route = createFileRoute('/(protected)/_protected/stock-management/issue')({
   loader: ({ context: { queryClient } }) => loadStockEventPrograms(queryClient),
-  pendingComponent: () => <StockEventProgramsPending copy={copy} />,
+  pendingComponent: () => <StockEventProgramsPending kind="issue" />,
   component: ProgramsPage,
 });
 
@@ -22,7 +15,7 @@ function ProgramsPage() {
   return (
     <StockEventProgramPicker
       {...Route.useLoaderData()}
-      copy={copy}
+      kind="issue"
       editorLink={(programId) => (
         <Link params={{ programId }} to="/stock-management/issue/$programId" />
       )}

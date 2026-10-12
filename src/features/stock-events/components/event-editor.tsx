@@ -45,6 +45,7 @@ import {
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
+import { SubmitConfirmDialog } from '@/features/stock-events/components/submit-confirm-dialog';
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
@@ -60,6 +61,7 @@ import {
   type CounterpartySide,
   counterpartyOptions,
   EVENT_KINDS,
+  type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
@@ -123,7 +125,7 @@ export function EventEditor({
   onSubmitted,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const config = EVENT_KINDS[kind];
+  const config: EventKindConfig = EVENT_KINDS[kind];
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
   const { products } = config;
@@ -135,10 +137,10 @@ export function EventEditor({
   );
   const reasonsQuery = useQuery({
     ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
-    enabled: canViewStock,
+    enabled: canViewStock && config.reasons !== null,
   });
   const reasons = useMemo(
-    () => (reasonsQuery.data ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
+    () => (reasonsQuery.data && config.reasons ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
     [reasonsQuery.data, config],
   );
   const side = config.counterparty;
@@ -149,7 +151,7 @@ export function EventEditor({
   });
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
   const ready =
-    reasonsQuery.data !== undefined &&
+    (config.reasons === null || reasonsQuery.data !== undefined) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...eventStockCardsOptions({ facilityId, programId }),
@@ -161,9 +163,9 @@ export function EventEditor({
   );
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
   const quantityUnit = useQuantityUnit();
-  const scanning = useFlag('GS1_SCANNING');
+  const scanning = useFlag('GS1_SCANNING') && config.scanning;
   const [submitted, setSubmitted] = useState(false);
-  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
   const [unknownOutcome, setUnknownOutcome] = useState(false);
@@ -172,7 +174,7 @@ export function EventEditor({
   const submitButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
   const signing = useRef(false);
-  signing.current = signatureOpen;
+  signing.current = confirmationOpen;
   const lastAdded = useRef<ReturnType<typeof newEventLine> | undefined>(undefined);
   const leaving = useRef(false);
   const posting = useRef(false);
@@ -191,7 +193,7 @@ export function EventEditor({
   const form = useEventForm({
     ...lineOptions,
     onValid: () => {
-      if (form.state.values.lines.length) setSignatureOpen(true);
+      if (form.state.values.lines.length) setConfirmationOpen(true);
     },
     onInvalid: () => showInvalid(),
   });
@@ -332,10 +334,10 @@ export function EventEditor({
     },
     [form],
   );
-  const confirmSubmit = async (signature: string) => {
+  const confirmSubmit = async (signature?: string) => {
     if (posting.current) return;
     if (!schema.safeParse(form.state.values).success) {
-      setSignatureOpen(false);
+      setConfirmationOpen(false);
       await form.validate('submit');
       if (!mutation.isCurrent()) return;
       showInvalid();
@@ -363,12 +365,12 @@ export function EventEditor({
         : (serverMessage(error) ?? t(config.copy.submitErrorDescription));
       setFailure({ unknown, description });
       setUnknownOutcome(unknown);
-      setSignatureOpen(false);
+      setConfirmationOpen(false);
       posting.current = false;
       return;
     }
     if (!mutation.isCurrent()) return;
-    setSignatureOpen(false);
+    setConfirmationOpen(false);
     leaving.current = true;
     flushSync(() => setSubmitted(true));
     toast.success(t(config.copy.submittedTitle), {
@@ -501,7 +503,7 @@ export function EventEditor({
       ready &&
       !submitted &&
       !pending &&
-      !signatureOpen &&
+      !confirmationOpen &&
       !validationOpen &&
       !failure,
     onScan,
@@ -534,10 +536,11 @@ export function EventEditor({
               {canViewStock && (
                 <QueryBoundary
                   resetKey={`${facilityId}/${programId}`}
-                  pendingFallback={<ProductLotPickerSkeleton />}
+                  pendingFallback={<ProductLotPickerSkeleton kind={kind} scanning={scanning} />}
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
+                    kind={kind}
                     facilityId={facilityId}
                     programId={programId}
                     disabled={pending || submitted || !ready}
@@ -603,45 +606,40 @@ export function EventEditor({
                   busy={false}
                 />
               ) : (
-                <QueryBoundary
-                  resetKey={`${programId}/${facilityTypeId}`}
+                <OptionalReasonsReady
+                  needed={config.reasons !== null}
+                  programId={programId}
+                  facilityTypeId={facilityTypeId}
                   pendingFallback={tablePending}
-                  errorComponent={ReasonsError}
                 >
-                  <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
-                    <StockCardsReady
-                      needed={fromCards}
+                  <StockCardsReady needed={fromCards} facilityId={facilityId} programId={programId}>
+                    <CounterpartyReady
+                      pendingFallback={tablePending}
+                      side={needsCounterparty ? side : null}
                       facilityId={facilityId}
                       programId={programId}
                     >
-                      <CounterpartyReady
-                        pendingFallback={tablePending}
-                        side={needsCounterparty ? side : null}
-                        facilityId={facilityId}
-                        programId={programId}
-                      >
-                        <EventLineTable
-                          kind={kind}
-                          fitContent={fitContent}
-                          containerWidth={width}
-                          reasonRequired={reasonRequired}
-                          form={form}
-                          lines={filtered}
-                          reasons={reasons}
-                          assignments={assignments}
-                          unit={quantityUnit.unit}
-                          today={today}
-                          disabled={pending || submitted}
-                          onRemove={remove}
-                          search={search}
-                          onSearchChange={onSearchChange}
-                          columnVisibility={visibility}
-                          onClearFilter={clearFilter}
-                        />
-                      </CounterpartyReady>
-                    </StockCardsReady>
-                  </ReasonsReady>
-                </QueryBoundary>
+                      <EventLineTable
+                        kind={kind}
+                        fitContent={fitContent}
+                        containerWidth={width}
+                        reasonRequired={reasonRequired}
+                        form={form}
+                        lines={filtered}
+                        reasons={reasons}
+                        assignments={assignments}
+                        unit={quantityUnit.unit}
+                        today={today}
+                        disabled={pending || submitted}
+                        onRemove={remove}
+                        search={search}
+                        onSearchChange={onSearchChange}
+                        columnVisibility={visibility}
+                        onClearFilter={clearFilter}
+                      />
+                    </CounterpartyReady>
+                  </StockCardsReady>
+                </OptionalReasonsReady>
               )}
             </form>
           </div>
@@ -702,6 +700,7 @@ export function EventEditor({
         </AlertDialogContent>
       </AlertDialog>
       <ClearLinesDialog
+        kind={kind}
         open={clearOpen}
         onOpenChange={setClearOpen}
         restoreFocus={() => region.current?.querySelector<HTMLInputElement>('[role="combobox"]')}
@@ -711,13 +710,26 @@ export function EventEditor({
           form.setFieldValue('lines', (current) => current.filter((line) => !keys.has(line.key)));
         }}
       />
-      <SignatureDialog
-        open={signatureOpen}
-        onOpenChange={setSignatureOpen}
-        username={username}
-        pending={pending}
-        onConfirm={confirmSubmit}
-      />
+      {config.confirmation.type === 'signature' ? (
+        <SignatureDialog
+          open={confirmationOpen}
+          onOpenChange={setConfirmationOpen}
+          username={username}
+          pending={pending}
+          onConfirm={confirmSubmit}
+        />
+      ) : (
+        <SubmitConfirmDialog
+          open={confirmationOpen}
+          onOpenChange={setConfirmationOpen}
+          username={username}
+          count={lines.length}
+          title={config.confirmation.title}
+          description={config.confirmation.description}
+          pending={pending}
+          onConfirm={() => confirmSubmit()}
+        />
+      )}
       <DiscardChangesDialog {...guard.dialog} description={t('stock-events.discard-description')} />
       <AlertDialog
         open={!!expiryPrompt}
@@ -758,6 +770,42 @@ function StockCardsError({ error, reset }: { error: unknown; reset: () => void }
       title={t('stock-events.cards-error-title')}
       description={t('stock-events.cards-error-description')}
     />
+  );
+}
+
+function OptionalReasonsReady({
+  needed,
+  pendingFallback,
+  programId,
+  facilityTypeId,
+  children,
+}: {
+  needed: boolean;
+  pendingFallback: ReactNode;
+  programId: string;
+  facilityTypeId: string;
+  children: ReactNode;
+}) {
+  if (!needed)
+    return (
+      <QueryBoundary
+        resetKey={`${programId}/${facilityTypeId}`}
+        pendingFallback={pendingFallback}
+        errorComponent={StockCardsError}
+      >
+        {children}
+      </QueryBoundary>
+    );
+  return (
+    <QueryBoundary
+      resetKey={`${programId}/${facilityTypeId}`}
+      pendingFallback={pendingFallback}
+      errorComponent={ReasonsError}
+    >
+      <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
+        {children}
+      </ReasonsReady>
+    </QueryBoundary>
   );
 }
 

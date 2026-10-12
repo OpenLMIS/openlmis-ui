@@ -10,6 +10,7 @@ import {
 } from '@/components/workspace';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { recordLabel } from '@/lib/facility-program-selection';
 import {
@@ -62,13 +63,15 @@ function AdjustmentPage() {
             <ClipboardPenLineIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>
-            {t('stock-adjustment.editor-title', {
+            {t(EVENT_KINDS.adjustment.copy.editorTitle, {
               code: homeFacility.code,
               facility: recordLabel(homeFacility),
               program: recordLabel(program),
             })}
           </WorkspaceTitle>
-          <WorkspaceDescription>{t('stock-adjustment.editor-description')}</WorkspaceDescription>
+          <WorkspaceDescription>
+            {t(EVENT_KINDS.adjustment.copy.editorDescription)}
+          </WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
     </EventEditor>

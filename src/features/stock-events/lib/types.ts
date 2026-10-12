@@ -98,7 +98,7 @@ export type StockEvent = {
   programId: string;
   facilityId: string;
   signature?: string;
-  eventOrigin: 'ADJUSTMENT' | 'ISSUE' | 'RECEIVE' | 'KIT_UNPACK';
+  eventOrigin?: 'ADJUSTMENT' | 'ISSUE' | 'RECEIVE';
   lineItems: StockEventLineItem[];
 };
 

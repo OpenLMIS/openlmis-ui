@@ -549,8 +549,9 @@ export function EventLineTable({
       helper.columns(
         COLUMNS.filter(
           ([id]) =>
-            config.counterparty !== 'none' ||
-            (id !== 'destination' && id !== 'destinationComments'),
+            (config.counterparty !== 'none' ||
+              (id !== 'destination' && id !== 'destinationComments')) &&
+            (config.reasons !== null || (id !== 'reason' && id !== 'comments')),
         ).map(([id, columnKey]) => {
           const key = columnLabel(id, columnKey, config.counterparty);
           return helper.display({
@@ -558,7 +559,9 @@ export function EventLineTable({
             header: () => (
               <>
                 <span className={id === 'actions' ? 'sr-only' : undefined}>
-                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                  <DataTableHeaderLabel>
+                    {t(id === 'product' ? config.copy.product : key)}
+                  </DataTableHeaderLabel>
                 </span>
                 <div aria-hidden className="invisible h-0 overflow-hidden font-normal">
                   {id === 'destination' && (

@@ -49,7 +49,7 @@ describe('ProductLotPicker', () => {
   it('keeps the product field label while announcing loading only to screen readers', async () => {
     renderPage(
       <I18nextProvider i18n={i18n}>
-        <ProductLotPickerSkeleton />
+        <ProductLotPickerSkeleton kind="adjustment" scanning={false} />
       </I18nextProvider>,
     );
     const label = await screen.findByText('Product');
@@ -86,6 +86,7 @@ describe('ProductLotPicker', () => {
     renderPage(
       <I18nextProvider i18n={i18n}>
         <ProductLotPicker
+          kind="adjustment"
           facilityId="facility"
           programId="program"
           disabled={false}
@@ -138,6 +139,7 @@ it.each([true, false])(
     renderPage(
       <I18nextProvider i18n={i18n}>
         <ProductLotPicker
+          kind="adjustment"
           facilityId="facility"
           programId="program"
           disabled={false}
@@ -169,6 +171,7 @@ it('keeps an automatically picked lot when a refresh adds another option', async
   renderPage(
     <I18nextProvider i18n={i18n}>
       <ProductLotPicker
+        kind="adjustment"
         facilityId="facility"
         programId="program"
         disabled={false}
@@ -242,6 +245,7 @@ function renderApproved({
     <I18nextProvider i18n={i18n}>
       <form onSubmit={onSubmit}>
         <ProductLotPicker
+          kind="receive"
           from="approved-products"
           facilityId="facility"
           programId="program"

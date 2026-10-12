@@ -9,8 +9,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 
 type ClearLinesDialogProps = {
+  kind: ConfiguredEventKind;
   open: boolean;
   count: number;
   onOpenChange: (open: boolean) => void;
@@ -19,6 +21,7 @@ type ClearLinesDialogProps = {
 };
 
 export function ClearLinesDialog({
+  kind,
   open,
   count,
   onOpenChange,
@@ -30,9 +33,9 @@ export function ClearLinesDialog({
     <AlertDialog onOpenChange={onOpenChange} open={open}>
       <AlertDialogContent finalFocus={restoreFocus}>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('stock-events.clear-title')}</AlertDialogTitle>
+          <AlertDialogTitle>{t(EVENT_KINDS[kind].copy.clearTitle)}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('stock-events.clear-description', { count })}
+            {t(EVENT_KINDS[kind].copy.clearDescription, { count })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

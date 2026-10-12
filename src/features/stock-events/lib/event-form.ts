@@ -211,7 +211,7 @@ export type EventPayloadOptions = {
   assignments?: readonly ValidAssignment[];
   programId: string;
   facilityId: string;
-  signature: string;
+  signature?: string;
   lines: readonly EventLine[];
 };
 
@@ -223,12 +223,12 @@ export function eventPayload({
   signature,
   lines,
 }: EventPayloadOptions): StockEvent {
-  const { counterparty, eventOrigin } = EVENT_KINDS[kind];
+  const config = EVENT_KINDS[kind];
   return {
     programId,
     facilityId,
-    signature,
-    eventOrigin,
+    ...(signature !== undefined && { signature }),
+    ...(config.eventOrigin !== null && { eventOrigin: config.eventOrigin }),
     lineItems: lines.map((line) => ({
       orderableId: line.orderable.id,
       ...lotFields(line.lot),
@@ -236,7 +236,7 @@ export function eventPayload({
       occurredDate: line.occurredDate,
       ...(line.reasonId && { reasonId: line.reasonId }),
       ...counterpartyFields(
-        counterparty,
+        config.counterparty,
         assignments.find((item) => item.id === line.counterparty)?.node.id,
         line.counterpartyComments.trim() ? line.counterpartyComments : undefined,
       ),

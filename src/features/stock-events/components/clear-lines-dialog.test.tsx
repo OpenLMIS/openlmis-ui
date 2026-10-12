@@ -17,7 +17,13 @@ describe('ClearLinesDialog', () => {
   ])('names exactly %i lines being cleared', (count, text) => {
     render(
       <I18nextProvider i18n={i18n}>
-        <ClearLinesDialog count={Number(count)} onClear={vi.fn()} onOpenChange={vi.fn()} open />
+        <ClearLinesDialog
+          kind="adjustment"
+          count={Number(count)}
+          onClear={vi.fn()}
+          onOpenChange={vi.fn()}
+          open
+        />
       </I18nextProvider>,
     );
     expect(screen.getByRole('alertdialog')).toHaveAccessibleName('Clear Products?');

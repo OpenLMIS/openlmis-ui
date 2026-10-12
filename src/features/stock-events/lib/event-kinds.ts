@@ -57,17 +57,28 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 }
 
 export type EventKindConfig = {
-  eventOrigin: StockEvent['eventOrigin'];
+  eventOrigin: StockEvent['eventOrigin'] | null;
+  contents: 'none' | 'kit';
+  confirmation:
+    | { type: 'signature' }
+    | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
+  scanning: boolean;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
   products: EventProducts;
   print: EventPrintCopy | null;
   counterparty: 'none' | CounterpartySide;
   reasonRequired: boolean;
-  reasons: (assignments: readonly ValidReasonAssignment[]) => Reason[];
+  reasons: ((assignments: readonly ValidReasonAssignment[]) => Reason[]) | null;
   stockOnHandCap: 'debit-reason' | 'always' | 'never';
   newLots: 'none' | 'manual-and-scan';
   copy: Record<
+    | 'pickerTitle'
+    | 'make'
+    | 'pageDescription'
+    | 'product'
+    | 'clearTitle'
+    | 'clearDescription'
     | 'editorTitle'
     | 'editorDescription'
     | 'emptyTitle'
@@ -78,7 +89,7 @@ export type EventKindConfig = {
     | 'submitErrorDescription'
     | 'submittedTitle'
     | 'submittedDescription',
-    string
+    ParseKeys
   >;
   columnChoicesKey: string;
   formId: string;
@@ -87,6 +98,9 @@ export type EventKindConfig = {
 export const EVENT_KINDS = {
   adjustment: {
     eventOrigin: 'ADJUSTMENT',
+    contents: 'none',
+    confirmation: { type: 'signature' },
+    scanning: true,
     width: 'default',
     columnFit: 'thresholds',
     products: { from: 'stock-cards', cardFilter: allEventCards },
@@ -98,6 +112,12 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'debit-reason',
     newLots: 'none',
     copy: {
+      pickerTitle: 'stock-adjustment.title',
+      make: 'stock-adjustment.make',
+      pageDescription: 'stock-adjustment.page-description',
+      product: 'stock-events.product',
+      clearTitle: 'stock-events.clear-title',
+      clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-adjustment.editor-title',
       editorDescription: 'stock-adjustment.editor-description',
       emptyTitle: 'stock-adjustment.empty-title',
@@ -114,6 +134,9 @@ export const EVENT_KINDS = {
   },
   issue: {
     eventOrigin: 'ISSUE',
+    contents: 'none',
+    confirmation: { type: 'signature' },
+    scanning: true,
     width: 'wide',
     columnFit: 'measured',
     products: { from: 'stock-cards', cardFilter: issuableCards },
@@ -134,6 +157,12 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     newLots: 'none',
     copy: {
+      pickerTitle: 'stock-issue.title',
+      make: 'stock-issue.make',
+      pageDescription: 'stock-issue.page-description',
+      product: 'stock-events.product',
+      clearTitle: 'stock-events.clear-title',
+      clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-issue.editor-title',
       editorDescription: 'stock-issue.editor-description',
       emptyTitle: 'stock-issue.empty-title',
@@ -150,6 +179,9 @@ export const EVENT_KINDS = {
   },
   receive: {
     eventOrigin: 'RECEIVE',
+    contents: 'none',
+    confirmation: { type: 'signature' },
+    scanning: true,
     width: 'wide',
     columnFit: 'measured',
     products: { from: 'approved-products' },
@@ -170,6 +202,12 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'never',
     newLots: 'manual-and-scan',
     copy: {
+      pickerTitle: 'stock-receive.title',
+      make: 'stock-receive.make',
+      pageDescription: 'stock-receive.page-description',
+      product: 'stock-events.product',
+      clearTitle: 'stock-events.clear-title',
+      clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-receive.editor-title',
       editorDescription: 'stock-receive.editor-description',
       emptyTitle: 'stock-receive.empty-title',

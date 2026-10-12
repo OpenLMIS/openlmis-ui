@@ -29,6 +29,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
@@ -48,7 +49,8 @@ export async function loadStockEventPrograms(queryClient: QueryClient) {
   });
   return { userId, permissions };
 }
-function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy }) {
+function ProgramsHeader({ userId, kind }: { userId?: string; kind: ConfiguredEventKind }) {
+  const copy = EVENT_KINDS[kind].copy;
   const { t } = useTranslation();
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: Boolean(userId) });
   const homeId = user?.homeFacilityId;
@@ -61,52 +63,41 @@ function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy })
         </WorkspaceIcon>
         <WorkspaceTitle>
           {home ? (
-            t(copy.title, { facility: recordLabel(home) })
+            t(copy.pickerTitle, { facility: recordLabel(home) })
           ) : (
             <span className="block h-5 w-64 max-w-full @xl/main:w-96">
               <Skeleton fill />
             </span>
           )}
         </WorkspaceTitle>
-        <WorkspaceDescription>{t(copy.description)}</WorkspaceDescription>
+        <WorkspaceDescription>{t(copy.pageDescription)}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
   );
 }
 
-type PickerCopy = {
-  title: 'stock-adjustment.title' | 'stock-issue.title' | 'stock-receive.title';
-  nav:
-    | 'nav.stock-management.adjustments'
-    | 'nav.stock-management.issue'
-    | 'nav.stock-management.receive';
-  description:
-    | 'stock-adjustment.page-description'
-    | 'stock-issue.page-description'
-    | 'stock-receive.page-description';
-  action: 'stock-adjustment.make' | 'stock-issue.make' | 'stock-receive.make';
-};
 type PickerProps = {
   userId: string;
   permissions: Permissions;
-  copy: PickerCopy;
+  kind: ConfiguredEventKind;
   editorLink: (programId: string) => ReactElement;
 };
-export function StockEventProgramPicker({ userId, permissions, copy, editorLink }: PickerProps) {
+export function StockEventProgramPicker({ userId, permissions, kind, editorLink }: PickerProps) {
   const { t } = useTranslation();
+  const copy = EVENT_KINDS[kind].copy;
   return (
     <Workspace width="narrow">
-      <ProgramsHeader userId={userId} copy={copy} />
+      <ProgramsHeader userId={userId} kind={kind} />
       <WorkspaceContent>
         <QueryBoundary
           errorComponent={ProgramsError}
-          pendingFallback={<StockProgramPickerSkeleton actionLabel={t(copy.action)} />}
+          pendingFallback={<StockProgramPickerSkeleton actionLabel={t(copy.make)} />}
           resetKey={userId}
         >
           <EventPrograms
             userId={userId}
             permissions={permissions}
-            action={copy.action}
+            action={copy.make}
             editorLink={editorLink}
           />
         </QueryBoundary>
@@ -116,14 +107,14 @@ export function StockEventProgramPicker({ userId, permissions, copy, editorLink 
 }
 
 type ProgramTableProps = {
-  action: PickerCopy['action'];
+  action: (typeof EVENT_KINDS)[ConfiguredEventKind]['copy']['make'];
   editorLink: PickerProps['editorLink'];
 };
 function EventPrograms({
   userId,
   permissions,
   ...table
-}: Omit<PickerProps, 'copy'> & ProgramTableProps) {
+}: Omit<PickerProps, 'kind'> & ProgramTableProps) {
   const [user, programs] = useSuspenseQueries({
     queries: [userRecordOptions(userId), userProgramsOptions(userId)],
   });
@@ -193,13 +184,14 @@ function ProgramsError({ error, reset }: ErrorComponentProps) {
   );
 }
 
-export function StockEventProgramsPending({ copy }: { copy: PickerCopy }) {
+export function StockEventProgramsPending({ kind }: { kind: ConfiguredEventKind }) {
+  const copy = EVENT_KINDS[kind].copy;
   const { t } = useTranslation();
   return (
     <Workspace width="narrow">
-      <ProgramsHeader copy={copy} />
+      <ProgramsHeader kind={kind} />
       <WorkspaceContent>
-        <StockProgramPickerSkeleton actionLabel={t(copy.action)} />
+        <StockProgramPickerSkeleton actionLabel={t(copy.make)} />
       </WorkspaceContent>
     </Workspace>
   );
