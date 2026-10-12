@@ -24,12 +24,16 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   facilityOptions,
+  facilityOrderableFulfillsOptions,
   userProgramsOptions,
   userRecordOptions,
   validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  eventApprovedProductsOptions,
+  eventStockCardsOptions,
+} from '@/features/stock-events/api/queries';
 import {
   EventLineTableSkeleton,
   eventHideableColumns,
@@ -86,17 +90,20 @@ export async function loadStockEventEditor(
   const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
   if (canViewStock) {
     const { counterparty, products } = EVENT_KINDS[kind];
+    const filter = { facilityId: homeId, programId };
     if (counterparty !== 'none')
-      queryClient.prefetchQuery(
-        counterpartyOptions(counterparty, { facilityId: homeId, programId }),
-      );
-    if (products.from === 'stock-cards')
-      queryClient.prefetchQuery(eventStockCardsOptions({ facilityId: homeId, programId }));
+      queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
+    if (products.from === 'stock-cards') queryClient.prefetchQuery(eventStockCardsOptions(filter));
+    if (products.from === 'approved-products') {
+      queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
+      queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
+    }
     queryClient.prefetchQuery(
       validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
     );
   }
-  return { userId, homeFacility, program, canViewStock };
+  const canManageLots = permissions.rights.has(RIGHTS.lotsManage);
+  return { userId, homeFacility, program, canViewStock, canManageLots };
 }
 
 export function StockEventPending({

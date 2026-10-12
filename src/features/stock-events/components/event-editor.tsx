@@ -345,17 +345,16 @@ export function EventEditor({
     setFailure(null);
     setUnknownOutcome(false);
     let eventId: string;
+    const payload = eventPayload({
+      kind,
+      assignments,
+      facilityId,
+      programId,
+      signature,
+      lines: form.state.values.lines,
+    });
     try {
-      eventId = await mutation.mutateAsync(
-        eventPayload({
-          kind,
-          assignments,
-          facilityId,
-          programId,
-          signature,
-          lines: form.state.values.lines,
-        }),
-      );
+      eventId = await mutation.mutateAsync(payload);
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const unknown = isAxiosError(error) && !error.response;
@@ -379,6 +378,7 @@ export function EventEditor({
       queryKeys.stockEvents.all,
       queryKeys.stockCardSummaries.all,
       queryKeys.stockCards.all,
+      ...(payload.lineItems.some((item) => item.lot) ? [queryKeys.lots.all] : []),
     ]) {
       void queryClient.invalidateQueries({ queryKey });
     }

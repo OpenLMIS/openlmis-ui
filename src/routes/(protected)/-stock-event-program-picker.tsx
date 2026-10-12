@@ -75,10 +75,16 @@ function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy })
 }
 
 type PickerCopy = {
-  title: 'stock-adjustment.title' | 'stock-issue.title';
-  nav: 'nav.stock-management.adjustments' | 'nav.stock-management.issue';
-  description: 'stock-adjustment.page-description' | 'stock-issue.page-description';
-  action: 'stock-adjustment.make' | 'stock-issue.make';
+  title: 'stock-adjustment.title' | 'stock-issue.title' | 'stock-receive.title';
+  nav:
+    | 'nav.stock-management.adjustments'
+    | 'nav.stock-management.issue'
+    | 'nav.stock-management.receive';
+  description:
+    | 'stock-adjustment.page-description'
+    | 'stock-issue.page-description'
+    | 'stock-receive.page-description';
+  action: 'stock-adjustment.make' | 'stock-issue.make' | 'stock-receive.make';
 };
 type PickerProps = {
   userId: string;
