@@ -117,7 +117,7 @@ export function EventEditor({
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
   const filterCards = useCallback(
-    (cards: readonly EventStockCard[]) => config.cardFilter(cards, today),
+    (cards: readonly EventStockCard[]) => config.products.cardFilter(cards, today),
     [config, today],
   );
   const reasonsQuery = useQuery({
@@ -258,13 +258,14 @@ export function EventEditor({
     setFilter({ keyword, lineKeys, language, matches });
   }
   const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
+  const measured = config.columnFit === 'measured';
   const columns = useFitColumnVisibility(
-    needsDestinations ? fitColumns : hideableColumns,
+    measured ? fitColumns : hideableColumns,
     [choices, setChoices],
     region,
     width,
     fitContent,
-    needsDestinations,
+    measured,
     lines.length > 0 && filtered.length === 0,
   );
   const mutation = useSessionMutation({

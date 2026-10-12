@@ -255,7 +255,7 @@ it.each([
     lot: { id: 'other', lotCode: 'OTHER', expirationDate: '2027-01-01' },
   };
   const products = eventProductOptions(
-    EVENT_KINDS.issue.cardFilter([unavailable, available], today),
+    EVENT_KINDS.issue.products.cardFilter([unavailable, available], today),
   );
   const resolution = resolveScan({
     scan,

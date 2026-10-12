@@ -7,14 +7,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import type { EventPrintCopy } from '@/features/stock-events/lib/event-kinds';
 
 type Props = {
+  copy: EventPrintCopy;
   open: boolean;
   onPrint: () => void;
   onSkip: () => void;
 };
 
-export function PrintEventDialog({ open, onPrint, onSkip }: Props) {
+export function PrintEventDialog({ copy, open, onPrint, onSkip }: Props) {
   const { t } = useTranslation();
   return (
     <AlertDialog
@@ -25,11 +27,11 @@ export function PrintEventDialog({ open, onPrint, onSkip }: Props) {
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('stock-issue.print-title')}</AlertDialogTitle>
+          <AlertDialogTitle>{t(copy.title)}</AlertDialogTitle>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <Button variant="outline" onClick={onSkip}>
-            {t('stock-issue.print-skip')}
+            {t(copy.skip)}
           </Button>
           <Button onClick={onPrint}>{t('stock-event.print')}</Button>
         </AlertDialogFooter>

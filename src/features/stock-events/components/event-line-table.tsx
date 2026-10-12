@@ -55,15 +55,15 @@ export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1250 },
   { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1150 },
 ] as const;
-const ISSUE_HIDEABLE_COLUMNS = [
+const MEASURED_HIDEABLE_COLUMNS = [
   { id: 'productCode', labelKey: 'stock-events.product-code' },
   { id: 'packSize', labelKey: 'stock-events.pack-size' },
   { id: 'total', labelKey: 'stock-events.total-quantity' },
   { id: 'expiry', labelKey: 'stock-events.expiry-date' },
 ] as const;
 export function eventHideableColumns(kind: ConfiguredEventKind) {
-  return EVENT_KINDS[kind].counterparty === 'destination'
-    ? ISSUE_HIDEABLE_COLUMNS
+  return EVENT_KINDS[kind].columnFit === 'measured'
+    ? MEASURED_HIDEABLE_COLUMNS
     : EVENT_HIDEABLE_COLUMNS;
 }
 const NO_DESTINATIONS: readonly ValidAssignment[] = [];
@@ -166,11 +166,12 @@ const LineCell = memo(function LineCell({
   const label = (key: (typeof COLUMNS)[number][1]) =>
     t('stock-events.field-of', { field: t(key), row });
   const reason = reasons.find((item) => item.id === line.reasonId);
+  const measured = EVENT_KINDS[kind].columnFit === 'measured';
   switch (id) {
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
-      return <ProductName label={productLabel} width={kind === 'issue' ? 'compact' : 'default'} />;
+      return <ProductName label={productLabel} width={measured ? 'compact' : 'default'} />;
     case 'packSize':
       return (
         <span className="tabular-nums">
@@ -237,7 +238,7 @@ const LineCell = memo(function LineCell({
       return destinations.find((item) => item.id === line.destination)?.isFreeTextAllowed ? (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
               : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
@@ -260,7 +261,7 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full whitespace-normal break-words'
               : 'w-full min-w-28 whitespace-normal break-words'
           }
@@ -290,7 +291,7 @@ const LineCell = memo(function LineCell({
                   hideErrors
                   required={reasonRequired}
                   size="sm"
-                  wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+                  wrap={measured ? 'nowrap' : 'wrap'}
                 />
               )}
             </form.AppField>
@@ -301,7 +302,7 @@ const LineCell = memo(function LineCell({
       return reason?.isFreeTextAllowed ? (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
               : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
@@ -323,7 +324,7 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full contain-inline-size whitespace-normal break-words'
               : unit === 'PACKS'
                 ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
@@ -339,7 +340,7 @@ const LineCell = memo(function LineCell({
                 label={label('stock-events.quantity')}
                 layout="inline"
                 hideErrors
-                sizing={kind === 'issue' ? 'minimum' : 'full'}
+                sizing={measured ? 'minimum' : 'full'}
                 netContent={line.netContent}
                 unit={unit}
                 required
@@ -391,7 +392,7 @@ const LineCell = memo(function LineCell({
         <div className="w-full whitespace-normal break-words">
           <div
             className={
-              kind === 'issue'
+              measured
                 ? 'w-full min-w-28 contain-inline-size'
                 : 'w-full min-w-32 contain-inline-size'
             }
@@ -467,6 +468,7 @@ export function EventLineTable({
 }: Props) {
   const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
+  const measured = config.columnFit === 'measured';
   const lineIndex = useRef(new Map<string, number>());
   lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
   const productsWithLots = useMemo(
@@ -499,14 +501,14 @@ export function EventLineTable({
                   )}
                   {id === 'reason' && (
                     <SelectSizer
-                      wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+                      wrap={measured ? 'nowrap' : 'wrap'}
                       labels={[
                         ...(!reasonRequired ? [t('stock-events.select-option')] : []),
                         ...reasons.map((item) => item.name),
                       ]}
                     />
                   )}
-                  {kind === 'issue' && id === 'quantity' && (
+                  {measured && id === 'quantity' && (
                     <div
                       aria-hidden
                       className="invisible flex h-0 w-max items-center gap-1 overflow-hidden"
@@ -526,7 +528,7 @@ export function EventLineTable({
                       )}
                     </div>
                   )}
-                  {kind === 'issue' && id === 'vvm' && (
+                  {measured && id === 'vvm' && (
                     <SelectSizer
                       labels={[
                         t('stock-events.vvm-none'),
@@ -535,7 +537,7 @@ export function EventLineTable({
                       ]}
                     />
                   )}
-                  {kind === 'issue' && id === 'date' && (
+                  {measured && id === 'date' && (
                     <DateSizer
                       year={today.slice(0, 4) || String(new Date().getFullYear())}
                       language={i18n.language}
@@ -568,6 +570,7 @@ export function EventLineTable({
     [
       kind,
       config,
+      measured,
       productsWithLots,
       reasonRequired,
       form,

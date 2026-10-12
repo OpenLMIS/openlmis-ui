@@ -1,5 +1,7 @@
 import { type QueryClient, useQuery } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { ClipboardPenLineIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -27,15 +29,23 @@ import {
   validDestinationsOptions,
   validReasonsOptions,
 } from '@/features/reference-data/api/queries';
+import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import {
   EventLineTableSkeleton,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
+import { PrintEventDialog } from '@/features/stock-events/components/print-event-dialog';
 import { ProductLotPickerSkeleton } from '@/features/stock-events/components/product-lot-picker';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import {
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  type PrintableEventKind,
+} from '@/features/stock-events/lib/event-kinds';
+import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { recordLabel } from '@/lib/facility-program-selection';
+import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
 
@@ -102,7 +112,6 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
-  const prefix = kind === 'issue' ? 'stock-issue' : 'stock-adjustment';
   const visibility = { lotCode: false, expiry: false, vvm: false, total: unit.unit === 'PACKS' };
   return (
     <>
@@ -114,7 +123,7 @@ export function StockEventPending({
             </WorkspaceIcon>
             <WorkspaceTitle>
               {home && program ? (
-                t(`${prefix}.editor-title`, {
+                t(config.copy.editorTitle, {
                   code: home.code,
                   facility: recordLabel(home),
                   program: recordLabel(program),
@@ -125,7 +134,7 @@ export function StockEventPending({
                 </span>
               )}
             </WorkspaceTitle>
-            <WorkspaceDescription>{t(`${prefix}.editor-description`)}</WorkspaceDescription>
+            <WorkspaceDescription>{t(config.copy.editorDescription)}</WorkspaceDescription>
           </WorkspaceHeading>
         </WorkspaceHeader>
         <WorkspaceContent>
@@ -171,4 +180,55 @@ export function StockEventPending({
       </WorkspaceFooter>
     </>
   );
+}
+
+export function useStockEventPrint({
+  kind,
+  userId,
+  facilityId,
+  programId,
+}: {
+  kind: PrintableEventKind;
+  userId: string;
+  facilityId: string;
+  programId: string;
+}) {
+  const { t } = useTranslation();
+  const copy = EVENT_KINDS[kind].print;
+  const navigate = useNavigate();
+  const [eventId, setEventId] = useState<string | null>(null);
+  const landing = () =>
+    navigate({
+      to: '/stock-management/stock-on-hand',
+      search: { mode: 'my', facilityId, programId },
+    });
+  const print = usePrintReport({
+    userId,
+    right: RIGHTS.stockCardsView,
+    facilityId,
+    programId,
+    request: (lang) => fetchStockEventReport(eventId ?? '', { showInDoses: true, lang }),
+    onReport: () => openReport(`stock_event_${eventId}.pdf`, t(copy.loading)),
+    successTitle: t(copy.printedTitle),
+    successDescription: t(copy.printed),
+    errorTitle: t(copy.errorTitle),
+    errorDescription: t(copy.error),
+    refusedDescription: t(copy.refused),
+  });
+  return {
+    onSubmitted: setEventId,
+    dialog: (
+      <PrintEventDialog
+        copy={copy}
+        open={eventId !== null}
+        onSkip={() => {
+          void landing();
+        }}
+        onPrint={() => {
+          print.print();
+          void landing();
+        }}
+      />
+    ),
+  };
 }
