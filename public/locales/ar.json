@@ -1376,6 +1376,7 @@
   "stock-unpack.not-set-up-description": "الإعداد {setting} مفقود أو لا يحدد السبب الصحيح. اطلب من المسؤول إصلاح إعدادات هذا النشر.",
   "stock-unpack.not-set-up-title": "تفكيك الأطقم غير مُعدّ",
   "stock-unpack.page-description": "سجّل الأطقم المفتوحة كمنتجات محتواها لأحد برامج منشأتك الرئيسية.",
+  "stock-unpack.refresh-offline": "تعذر التحقق من الأطقم لأنك غير متصل بالإنترنت. أرسل مرة أخرى بعد استعادة الاتصال بالإنترنت.",
   "stock-unpack.submit-error-description": "تعذر إرسال عملية التفكيك. تم الاحتفاظ بسطور الأطقم.",
   "stock-unpack.submit-error-title": "لم يتم إرسال تفكيك الأطقم",
   "stock-unpack.submitted-description": "تم إرسال حدث تفكيك المخزون.",

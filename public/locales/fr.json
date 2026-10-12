@@ -1376,6 +1376,7 @@
   "stock-unpack.not-set-up-description": "Le paramètre {setting} est manquant ou ne désigne pas le bon motif. Demandez à votre administrateur de corriger la configuration de cette installation.",
   "stock-unpack.not-set-up-title": "Le Déballage Des Kits N’est Pas Configuré",
   "stock-unpack.page-description": "Enregistrez les kits ouverts en produits qu’ils contiennent pour un des programmes de votre établissement d’attache.",
+  "stock-unpack.refresh-offline": "Les kits n’ont pas pu être vérifiés car vous êtes hors ligne. Soumettez à nouveau une fois la connexion rétablie.",
   "stock-unpack.submit-error-description": "Le déballage n’a pas pu être soumis. Vos lignes de kits ont été conservées.",
   "stock-unpack.submit-error-title": "Déballage Des Kits Non Soumis",
   "stock-unpack.submitted-description": "L’événement de déballage de stock a été soumis.",

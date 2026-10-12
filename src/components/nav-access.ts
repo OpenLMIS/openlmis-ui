@@ -27,6 +27,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/stock-management/adjustments': RIGHTS.stockAdjust,
   '/stock-management/issue': RIGHTS.stockAdjust,
   '/stock-management/receive': RIGHTS.stockAdjust,
+  '/stock-management/unpack': RIGHTS.stockAdjust,
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */

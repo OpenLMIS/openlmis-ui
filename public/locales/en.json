@@ -1376,6 +1376,7 @@
   "stock-unpack.not-set-up-description": "The {setting} setting is missing or does not name the right reason. Ask your administrator to fix this deployment's configuration.",
   "stock-unpack.not-set-up-title": "Kit Unpack Is Not Set Up",
   "stock-unpack.page-description": "Record kits opened into the products inside them for one of your home facility's programs.",
+  "stock-unpack.refresh-offline": "Kits could not be checked because you're offline. Submit again once you're back online.",
   "stock-unpack.submit-error-description": "The unpacking could not be submitted. Your kit lines have been kept.",
   "stock-unpack.submit-error-title": "Kit Unpack Not Submitted",
   "stock-unpack.submitted-description": "The stock unpacking event has been submitted.",

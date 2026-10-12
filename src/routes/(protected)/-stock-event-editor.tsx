@@ -25,6 +25,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import {
   facilityOptions,
   facilityOrderableFulfillsOptions,
+  reasonsOptions,
   userProgramsOptions,
   userRecordOptions,
   validReasonsOptions,
@@ -101,6 +102,7 @@ export async function loadStockEventEditor(
       queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
       queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
     }
+    if (EVENT_KINDS[kind].contents === 'kit') queryClient.prefetchQuery(reasonsOptions());
     if (EVENT_KINDS[kind].reasons !== null)
       queryClient.prefetchQuery(
         validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),

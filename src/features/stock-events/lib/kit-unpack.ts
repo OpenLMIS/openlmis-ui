@@ -119,9 +119,8 @@ export function kitContentsChanged(
     ...new Set(
       lines
         .filter(({ orderable }) => {
-          const fresh = byId.get(orderable.id);
+          const fresh = byId.get(orderable.id) ?? { children: undefined };
           return (
-            !fresh ||
             JSON.stringify(contentsMultiset(orderable)) !== JSON.stringify(contentsMultiset(fresh))
           );
         })

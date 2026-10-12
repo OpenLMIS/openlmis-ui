@@ -126,7 +126,7 @@ export const organizationsOptions = () =>
 export const reasonsOptions = () =>
   queryOptions({
     queryKey: queryKeys.reasons.list(),
-    queryFn: fetchReasons,
+    queryFn: () => fetchReasons(),
     staleTime: LOOKUP_STALE_TIME,
   });
 

@@ -294,6 +294,13 @@ describe('fresh kit contents', () => {
       ),
     ).toEqual(['kit']);
   });
+  it('reports a missing kit once, then lets validation refuse the refreshed line', () => {
+    const lines = deepFreeze([line]);
+    expect(kitContentsChanged(lines, [])).toEqual(['kit']);
+    const updated = withFreshContents(lines, []);
+    expect(kitContentsChanged(updated, [])).toEqual([]);
+    expect(kitContentsProblem(updated[0].orderable)).toBe('not-a-kit');
+  });
   it('replaces only contents on new lines and orderables without mutating frozen inputs', () => {
     const lines = deepFreeze([line]);
     const fresh = deepFreeze([

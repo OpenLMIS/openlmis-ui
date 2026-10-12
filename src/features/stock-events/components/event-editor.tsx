@@ -30,7 +30,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
-import { tradeItemByGtinOptions, validReasonsOptions } from '@/features/reference-data/api/queries';
+import {
+  orderablesByIdsOptions,
+  reasonsOptions,
+  tradeItemByGtinOptions,
+  validReasonsOptions,
+} from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
@@ -63,6 +68,12 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
+import {
+  type KitUnpackReasonIds,
+  kitContentsChanged,
+  unpackReasons,
+  withFreshContents,
+} from '@/features/stock-events/lib/kit-unpack';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
 import {
@@ -78,7 +89,7 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
-import { isRefused } from '@/lib/http';
+import { isOfflineError, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import {
   acknowledgeScanExpiry,
@@ -96,6 +107,7 @@ export type EventSearch = {
 type Props = {
   kind: ConfiguredEventKind;
   defaultReasonId?: string;
+  kitUnpackReasonIds?: KitUnpackReasonIds;
   children: ReactNode;
   facilityId: string;
   facilityTypeId: string;
@@ -113,6 +125,7 @@ const EMPTY_LOOKUP: never[] = [];
 export function EventEditor({
   kind,
   defaultReasonId,
+  kitUnpackReasonIds,
   children,
   facilityId,
   facilityTypeId,
@@ -143,6 +156,12 @@ export function EventEditor({
     () => (reasonsQuery.data && config.reasons ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
     [reasonsQuery.data, config],
   );
+  const needsKitContents = config.contents === 'kit';
+  const kitReasonsQuery = useQuery({
+    ...reasonsOptions(),
+    enabled: canViewStock && needsKitContents,
+  });
+  const kitReasons = unpackReasons(kitReasonsQuery.data, kitUnpackReasonIds ?? {});
   const side = config.counterparty;
   const needsCounterparty = side !== 'none';
   const counterpartyQuery = useQuery({
@@ -152,6 +171,7 @@ export function EventEditor({
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
   const ready =
     (config.reasons === null || reasonsQuery.data !== undefined) &&
+    (!needsKitContents || (kitReasonsQuery.data !== undefined && kitReasons.ok)) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...eventStockCardsOptions({ facilityId, programId }),
@@ -166,6 +186,8 @@ export function EventEditor({
   const scanning = useFlag('GS1_SCANNING') && config.scanning;
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [contentsChangedOpen, setContentsChangedOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
   const [unknownOutcome, setUnknownOutcome] = useState(false);
@@ -193,9 +215,11 @@ export function EventEditor({
   const form = useEventForm({
     ...lineOptions,
     onValid: () => {
-      if (form.state.values.lines.length) setConfirmationOpen(true);
+      if (mutation.isCurrent() && form.state.values.lines.length) setConfirmationOpen(true);
     },
-    onInvalid: () => showInvalid(),
+    onInvalid: () => {
+      if (mutation.isCurrent()) showInvalid();
+    },
   });
   const showInvalid = () => {
     const issue = schema.safeParse(form.state.values).error?.issues[0];
@@ -254,9 +278,6 @@ export function EventEditor({
   );
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
-  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
-    allowLeave: () => leaving.current,
-  });
   const keyword = search.keyword ?? '';
   const lineKeys = JSON.stringify(lines.map((line) => line.key));
   const language = i18n.language;
@@ -295,7 +316,11 @@ export function EventEditor({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
   });
-  const pending = mutation.isPending;
+  const pending = refreshing || mutation.isPending;
+  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
+    allowLeave: () => leaving.current,
+    pending,
+  });
   const clearFilter = () => onSearchChange({ keyword: undefined, page: undefined }, true);
   useEffect(() => {
     if (!focusField || search.keyword || (search.page ?? 1) !== focusField.page) return;
@@ -334,8 +359,42 @@ export function EventEditor({
     },
     [form],
   );
+  const submit = async () => {
+    if (!mutation.isCurrent()) return;
+    if (!needsKitContents) {
+      void form.handleSubmit();
+      return;
+    }
+    setRefreshing(true);
+    try {
+      const currentLines = form.state.values.lines;
+      const kitIds = [...new Set(currentLines.map((line) => line.orderable.id))];
+      const fresh = await queryClient.fetchQuery({
+        ...orderablesByIdsOptions(kitIds),
+        staleTime: 0,
+      });
+      if (!mutation.isCurrent()) return;
+      form.setFieldValue('lines', withFreshContents(currentLines, fresh));
+      if (kitContentsChanged(currentLines, fresh).length) {
+        setContentsChangedOpen(true);
+        return;
+      }
+      await form.handleSubmit();
+      if (!mutation.isCurrent()) return;
+    } catch (error) {
+      if (!mutation.isCurrent()) return;
+      setFailure({
+        unknown: false,
+        description: isOfflineError(error)
+          ? t('stock-unpack.refresh-offline')
+          : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const confirmSubmit = async (signature?: string) => {
-    if (posting.current) return;
+    if (posting.current || !mutation.isCurrent() || (needsKitContents && !kitReasons.ok)) return;
     if (!schema.safeParse(form.state.values).success) {
       setConfirmationOpen(false);
       await form.validate('submit');
@@ -353,6 +412,7 @@ export function EventEditor({
       facilityId,
       programId,
       signature,
+      kitReasons: needsKitContents && kitReasons.ok ? kitReasons : undefined,
       lines: form.state.values.lines,
     });
     try {
@@ -530,7 +590,7 @@ export function EventEditor({
               noValidate
               onSubmit={(event) => {
                 event.preventDefault();
-                if (lines.length && ready && !submitted && !pending) void form.handleSubmit();
+                if (lines.length && ready && !submitted && !pending) void submit();
               }}
             >
               {canViewStock && (
@@ -557,6 +617,14 @@ export function EventEditor({
                 <ErrorAlert
                   title={t('stock-events.unknown-outcome-title')}
                   description={t('stock-events.unknown-outcome-description')}
+                />
+              )}
+              {needsKitContents && kitReasonsQuery.data !== undefined && !kitReasons.ok && (
+                <ErrorAlert
+                  title={t('stock-unpack.not-set-up-title')}
+                  description={t('stock-unpack.not-set-up-description', {
+                    setting: kitReasons.setting,
+                  })}
                 />
               )}
               <DataTableToolbar>
@@ -607,7 +675,8 @@ export function EventEditor({
                 />
               ) : (
                 <OptionalReasonsReady
-                  needed={config.reasons !== null}
+                  needed={config.reasons !== null || needsKitContents}
+                  allReasons={needsKitContents}
                   programId={programId}
                   facilityTypeId={facilityTypeId}
                   pendingFallback={tablePending}
@@ -668,7 +737,7 @@ export function EventEditor({
       <AlertDialog
         open={validationOpen || !!failure}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !pending) {
             setValidationOpen(false);
             setFailure(null);
           }
@@ -692,6 +761,24 @@ export function EventEditor({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={contentsChangedOpen}
+        onOpenChange={(open) => {
+          if (!pending) setContentsChangedOpen(open);
+        }}
+      >
+        <AlertDialogContent finalFocus={submitButton}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('stock-unpack.contents-changed-title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('stock-unpack.contents-changed-description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -775,12 +862,14 @@ function StockCardsError({ error, reset }: { error: unknown; reset: () => void }
 
 function OptionalReasonsReady({
   needed,
+  allReasons,
   pendingFallback,
   programId,
   facilityTypeId,
   children,
 }: {
   needed: boolean;
+  allReasons: boolean;
   pendingFallback: ReactNode;
   programId: string;
   facilityTypeId: string;
@@ -802,11 +891,20 @@ function OptionalReasonsReady({
       pendingFallback={pendingFallback}
       errorComponent={ReasonsError}
     >
-      <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
-        {children}
-      </ReasonsReady>
+      {allReasons ? (
+        <KitReasonsReady>{children}</KitReasonsReady>
+      ) : (
+        <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
+          {children}
+        </ReasonsReady>
+      )}
     </QueryBoundary>
   );
+}
+
+function KitReasonsReady({ children }: { children: ReactNode }) {
+  useSuspenseQuery(reasonsOptions());
+  return children;
 }
 
 function ReasonsReady({

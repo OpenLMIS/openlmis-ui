@@ -1376,6 +1376,7 @@
   "stock-unpack.not-set-up-description": "Falta la configuración {setting} o no indica el motivo correcto. Pida a su administrador que corrija la configuración de esta instalación.",
   "stock-unpack.not-set-up-title": "El Desembalaje De Kits No Está Configurado",
   "stock-unpack.page-description": "Registre los kits abiertos como los productos que contienen para uno de los programas de su establecimiento de origen.",
+  "stock-unpack.refresh-offline": "No se pudieron comprobar los kits porque no tienes conexión. Vuelve a enviar cuando recuperes la conexión.",
   "stock-unpack.submit-error-description": "No se pudo enviar el desembalaje. Se han conservado sus líneas de kits.",
   "stock-unpack.submit-error-title": "Desembalaje De Kits No Enviado",
   "stock-unpack.submitted-description": "El evento de desembalaje de existencias se ha enviado.",

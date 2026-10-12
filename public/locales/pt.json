@@ -1376,6 +1376,7 @@
   "stock-unpack.not-set-up-description": "A definição {setting} está em falta ou não indica o motivo correto. Peça ao seu administrador para corrigir a configuração desta instalação.",
   "stock-unpack.not-set-up-title": "A Desembalagem De Kits Não Está Configurada",
   "stock-unpack.page-description": "Registe os kits abertos nos produtos que contêm para um dos programas da sua unidade de saúde de origem.",
+  "stock-unpack.refresh-offline": "Não foi possível verificar os kits porque está sem ligação à Internet. Submeta novamente quando a ligação for restabelecida.",
   "stock-unpack.submit-error-description": "Não foi possível submeter a desembalagem. As suas linhas de kits foram mantidas.",
   "stock-unpack.submit-error-title": "Desembalagem De Kits Não Submetida",
   "stock-unpack.submitted-description": "O evento de desembalagem de stock foi submetido.",

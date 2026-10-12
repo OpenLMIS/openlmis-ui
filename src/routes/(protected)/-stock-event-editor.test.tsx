@@ -24,6 +24,7 @@ import {
   fetchFacilityOrderableFulfills,
   fetchLotsByTradeItems,
   fetchOrderablesByIds,
+  fetchReasons,
   fetchUserPrograms,
   fetchUserRecord,
   fetchValidAssignments,
@@ -32,6 +33,7 @@ import {
 import { facilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { fetchEventStockCards, fetchEventStockOnHand } from '@/features/stock-events/api/api';
+import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
 import { Route as AdjustmentEditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
@@ -39,6 +41,7 @@ import { Route as IssuePickerRoute } from '@/routes/(protected)/_protected.stock
 import { Route as IssueEditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
 import { Route as ReceivePickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
 import { Route as ReceiveEditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
+import { Route as UnpackPickerRoute } from '@/routes/(protected)/_protected.stock-management.unpack';
 import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
 import { renderPage } from '@/tests/render-page';
 
@@ -51,6 +54,7 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchReasons: vi.fn(),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
@@ -521,5 +525,99 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
 
       expect(router.state.location.searchStr).toBe('');
     });
+  });
+});
+
+describe('Unpack policies', () => {
+  const program = { id: FP, code: 'FP', name: 'Family Planning', active: true };
+  beforeEach(() => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: USER, username: 'ada', accessToken: 'token' });
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      `STOCK_ADJUST|${HOME}|${FP}`,
+      `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+    ]);
+    vi.mocked(fetchUserRecord).mockResolvedValue({
+      id: USER,
+      username: 'ada',
+      firstName: 'Ada',
+      lastName: '',
+      active: true,
+      homeFacilityId: HOME,
+      roleAssignments: [],
+    });
+    vi.mocked(fetchUserPrograms).mockResolvedValue([program]);
+    vi.mocked(fetchFacility).mockResolvedValue({
+      id: HOME,
+      code: 'HC',
+      name: 'Clinic',
+      active: true,
+      enabled: true,
+      type: { id: 'type', code: 'HC', name: 'Health Center' },
+      geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'District' } },
+      supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: false }],
+    });
+    vi.mocked(fetchReasons).mockResolvedValue([]);
+    vi.mocked(fetchEventStockCards).mockResolvedValue([]);
+  });
+  afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+
+  it('prefetches stock cards and the reasons list without valid reasons or destinations', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    try {
+      await loadStockEventEditor(client, FP, 'unpack');
+      expect(fetchEventStockCards).toHaveBeenCalledWith({ facilityId: HOME, programId: FP });
+      expect(fetchReasons).toHaveBeenCalledOnce();
+      expect(fetchValidReasons).not.toHaveBeenCalled();
+      expect(fetchValidAssignments).not.toHaveBeenCalled();
+    } finally {
+      await client.cancelQueries();
+      client.clear();
+    }
+  });
+
+  it('shows the Unpack navigation entry only with STOCK_ADJUST', () => {
+    expect(JSON.stringify(LIVE_NAV_GROUPS)).toContain('/stock-management/unpack');
+    expect(canOpen('/stock-management/unpack', undefined)).toBe(false);
+    expect(canOpen('/stock-management/unpack', new Set(['STOCK_CARDS_VIEW']))).toBe(false);
+    expect(canOpen('/stock-management/unpack', new Set(['STOCK_ADJUST']))).toBe(true);
+  });
+
+  it('links the picker program to its Unpack editor', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+    const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
+    const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+    const picker = createRoute({
+      getParentRoute: () => layout,
+      path: 'stock-management/unpack',
+      loader: UnpackPickerRoute.options.loader as never,
+      component: UnpackPickerRoute.options.component as never,
+    });
+    const router = createRouter({
+      routeTree: root.addChildren([
+        group.addChildren([layout.addChildren([picker] as never)] as never),
+      ] as never),
+      context: { queryClient },
+      history: createMemoryHistory({ initialEntries: ['/stock-management/unpack'] }),
+    } as never) as AnyRouter;
+    const view = render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    try {
+      expect(await screen.findByRole('link', { name: 'stock-unpack.make' })).toHaveAttribute(
+        'href',
+        `/stock-management/unpack/${FP}`,
+      );
+    } finally {
+      view.unmount();
+      await queryClient.cancelQueries();
+      queryClient.clear();
+    }
   });
 });
