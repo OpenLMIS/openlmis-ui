@@ -593,8 +593,212 @@ describe('changeEventLot', () => {
 });
 
 it('requires an explicit event kind for every form operation', () => {
-  type Kind = { kind: 'adjustment' | 'issue' | 'receive' };
+  type Kind = { kind: 'adjustment' | 'issue' | 'receive' | 'unpack' };
   expectTypeOf<Parameters<typeof newEventLine>[3]>().toExtend<Kind>();
   expectTypeOf<Parameters<typeof eventLinesSchema>[0]>().toExtend<Kind>();
   expectTypeOf<Parameters<typeof eventPayload>[0]>().toExtend<Kind>();
+});
+
+describe('unpack form', () => {
+  const options = { kind: 'unpack' as const, reasons: [], today };
+  const children = [
+    { orderable: { id: 'child-a' }, quantity: 2 },
+    { orderable: { id: 'child-b' }, quantity: 5 },
+  ];
+  const kitLine = (patch: Partial<EventLine> = {}) =>
+    line({
+      reasonId: '',
+      orderable: { ...card.orderable, children },
+      ...patch,
+    });
+  const unpackIssues = (lines: EventLine[]) =>
+    eventLinesSchema(options)
+      .safeParse({ lines })
+      .error?.issues.map(({ path, message }) => [path.join('.'), message]);
+
+  it('builds debit kit lines first then no-lot credits from each line in doses, without origin or signature', () => {
+    const first = kitLine({
+      quantity: updateQuantityValue(quantityValue('', 16), 'packs', '2', 16),
+      occurredDate: '2026-10-06',
+      vvmStatus: 'STAGE_2',
+    });
+    const second = kitLine({ quantity: quantityValue('3'), lot: null });
+    expect(
+      eventPayload({
+        kind: 'unpack',
+        programId: 'program',
+        facilityId: 'facility',
+        signature: 'Ada',
+        kitReasons: { debit: 'unpack', credit: 'contents' },
+        lines: [first, second],
+      }),
+    ).toEqual({
+      programId: 'program',
+      facilityId: 'facility',
+      lineItems: [
+        {
+          orderableId: 'product-1',
+          lotId: 'lot-1',
+          quantity: 32,
+          occurredDate: '2026-10-06',
+          reasonId: 'unpack',
+          extraData: { vvmStatus: 'STAGE_2' },
+        },
+        {
+          orderableId: 'product-1',
+          lotId: null,
+          quantity: 3,
+          occurredDate: today,
+          reasonId: 'unpack',
+          extraData: {},
+        },
+        {
+          orderableId: 'child-a',
+          lotId: null,
+          quantity: 64,
+          occurredDate: '2026-10-06',
+          reasonId: 'contents',
+          extraData: {},
+        },
+        {
+          orderableId: 'child-b',
+          lotId: null,
+          quantity: 160,
+          occurredDate: '2026-10-06',
+          reasonId: 'contents',
+          extraData: {},
+        },
+        {
+          orderableId: 'child-a',
+          lotId: null,
+          quantity: 6,
+          occurredDate: today,
+          reasonId: 'contents',
+          extraData: {},
+        },
+        {
+          orderableId: 'child-b',
+          lotId: null,
+          quantity: 15,
+          occurredDate: today,
+          reasonId: 'contents',
+          extraData: {},
+        },
+      ],
+    });
+  });
+  it('refuses to build an unpack payload without its configured reasons', () => {
+    expect(() =>
+      eventPayload({
+        kind: 'unpack',
+        programId: 'program',
+        facilityId: 'facility',
+        lines: [kitLine()],
+      }),
+    ).toThrow('Kit unpack reasons are required');
+  });
+  it('caps every unpack line independently, allowing equal SOH', () => {
+    expect(
+      unpackIssues([
+        kitLine({ quantity: quantityValue('50') }),
+        kitLine({ quantity: quantityValue('50') }),
+      ]),
+    ).toBeUndefined();
+    expect(unpackIssues([kitLine(), kitLine({ quantity: quantityValue('51') })])).toEqual([
+      ['lines.1.quantity.doses', 'stock-events.quantity-greater-than-stock-on-hand'],
+    ]);
+    expect(unpackIssues([kitLine({ stockOnHand: -1 })])).toEqual([
+      ['lines.0.quantity.doses', 'stock-events.quantity-greater-than-stock-on-hand'],
+    ]);
+  });
+  it('accepts a content quantity at the int maximum and rejects one more on quantity', () => {
+    const withCount = (quantity: number) =>
+      kitLine({
+        orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity }] },
+        quantity: quantityValue('2'),
+      });
+    expect(
+      unpackIssues([
+        kitLine({
+          stockOnHand: 2_147_483_647,
+          quantity: quantityValue('2147483647'),
+          orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity: 1 }] },
+        }),
+      ]),
+    ).toBeUndefined();
+    expect(unpackIssues([withCount(1_073_741_823)])).toBeUndefined();
+    expect(unpackIssues([withCount(1_073_741_824)])).toEqual([
+      ['lines.0.quantity.doses', 'stock-unpack.contents-too-large'],
+    ]);
+  });
+  it('refuses an invalid content count on quantity', () => {
+    expect(
+      unpackIssues([
+        kitLine({
+          orderable: {
+            ...card.orderable,
+            children: [{ orderable: { id: 'child' }, quantity: null }],
+          },
+        }),
+      ]),
+    ).toEqual([['lines.0.quantity.doses', 'stock-unpack.contents-invalid']]);
+  });
+  it('does not flag other lines for a line already over the content limit', () => {
+    const over = kitLine({
+      quantity: quantityValue('1073741824'),
+      stockOnHand: 2_147_483_647,
+      orderable: { ...card.orderable, children: [{ orderable: { id: 'x' }, quantity: 2 }] },
+    });
+    const small = kitLine({
+      quantity: quantityValue('1'),
+      orderable: { ...card.orderable, children: [{ orderable: { id: 'x' }, quantity: 1 }] },
+    });
+    expect(unpackIssues([over, small])).toEqual([
+      ['lines.0.quantity.doses', 'stock-unpack.contents-too-large'],
+    ]);
+  });
+  it.each([undefined, []])('refuses a product with no kit contents %s on quantity', (children) => {
+    expect(unpackIssues([kitLine({ orderable: { ...card.orderable, children } })])).toEqual([
+      ['lines.0.quantity.doses', 'stock-unpack.not-a-kit'],
+    ]);
+  });
+  it('allows zero contents and flags every positive contributor to an overflowing shared product total', () => {
+    const shared = [{ orderable: { id: 'shared' }, quantity: 1_073_741_823 }];
+    const first = kitLine({ orderable: { ...card.orderable, children: shared } });
+    const second = kitLine({ orderable: { ...card.orderable, id: 'other-kit', children: shared } });
+    const zero = kitLine({
+      orderable: { ...card.orderable, children: [{ orderable: { id: 'shared' }, quantity: 0 }] },
+    });
+    expect(unpackIssues([first, second, zero])).toBeUndefined();
+    expect(
+      unpackIssues([
+        first,
+        second,
+        kitLine({
+          quantity: quantityValue('2'),
+          orderable: {
+            ...card.orderable,
+            children: [{ orderable: { id: 'shared' }, quantity: 1 }],
+          },
+        }),
+        zero,
+        kitLine(),
+      ]),
+    ).toEqual([
+      ['lines.0.quantity.doses', 'stock-unpack.contents-too-large'],
+      ['lines.1.quantity.doses', 'stock-unpack.contents-too-large'],
+      ['lines.2.quantity.doses', 'stock-unpack.contents-too-large'],
+    ]);
+  });
+  it('does not count invalid raw quantities toward other lines content totals', () => {
+    const shared = [{ orderable: { id: 'shared' }, quantity: 1_073_741_823 }];
+    const valid = kitLine({ orderable: { ...card.orderable, children: shared } });
+    const invalid = kitLine({
+      quantity: quantityValue('1.5'),
+      orderable: { ...card.orderable, children: shared },
+    });
+    expect(unpackIssues([valid, invalid])).toEqual([
+      ['lines.1.quantity.doses', 'stock-events.positive-number'],
+    ]);
+  });
 });

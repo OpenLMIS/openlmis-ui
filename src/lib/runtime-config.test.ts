@@ -112,3 +112,27 @@ describe('getDefaultReceiveReasonId', () => {
     expect(getDefaultReceiveReasonId()).toBe('runtime-reason');
   });
 });
+
+describe('getKitUnpackReasonIds', () => {
+  it('reads both kit unpack reasons from config.json ahead of dev fallbacks', async () => {
+    vi.stubEnv('VITE_KIT_UNPACK_REASON_ID', 'dev-debit');
+    vi.stubEnv('VITE_UNPACKED_FROM_KIT_REASON_ID', 'dev-credit');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            kitUnpackReasonId: 'runtime-debit',
+            unpackedFromKitReasonId: 'runtime-credit',
+          }),
+        ),
+      ),
+    );
+    const { loadRuntimeConfig, getKitUnpackReasonIds } = await load();
+    await loadRuntimeConfig();
+    expect(getKitUnpackReasonIds()).toEqual({
+      kitUnpackReasonId: 'runtime-debit',
+      unpackedFromKitReasonId: 'runtime-credit',
+    });
+  });
+});

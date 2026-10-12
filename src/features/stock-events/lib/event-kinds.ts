@@ -3,7 +3,7 @@ import type { ValidAssignmentsFilter } from '@/features/reference-data/api/api';
 import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
-import { allEventCards, issuableCards } from '@/features/stock-events/lib/products';
+import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 
 type EventProducts =
@@ -222,7 +222,46 @@ export const EVENT_KINDS = {
     columnChoicesKey: 'receive-columns',
     formId: 'receive-form',
   },
-} as const satisfies Record<'adjustment' | 'issue' | 'receive', EventKindConfig>;
+  unpack: {
+    eventOrigin: null,
+    contents: 'kit',
+    confirmation: {
+      type: 'confirm',
+      title: 'stock-unpack.confirm-title',
+      description: 'stock-unpack.confirm-description',
+    },
+    scanning: false,
+    columnFit: 'measured',
+    width: 'default',
+    products: { from: 'stock-cards', cardFilter: kitCards },
+    print: null,
+    newLots: 'none',
+    counterparty: 'none',
+    reasonRequired: false,
+    reasons: null,
+    stockOnHandCap: 'always',
+    copy: {
+      pickerTitle: 'stock-unpack.title',
+      make: 'stock-unpack.make',
+      pageDescription: 'stock-unpack.page-description',
+      editorTitle: 'stock-unpack.editor-title',
+      editorDescription: 'stock-unpack.editor-description',
+      product: 'stock-unpack.kit',
+      clearTitle: 'stock-unpack.clear-title',
+      clearDescription: 'stock-unpack.clear-description',
+      emptyTitle: 'stock-unpack.empty-title',
+      emptyDescription: 'stock-unpack.empty-description',
+      invalidTitle: 'stock-unpack.invalid-title',
+      invalidDescription: 'stock-unpack.invalid-description',
+      submitErrorTitle: 'stock-unpack.submit-error-title',
+      submitErrorDescription: 'stock-unpack.submit-error-description',
+      submittedTitle: 'stock-unpack.submitted-title',
+      submittedDescription: 'stock-unpack.submitted-description',
+    },
+    columnChoicesKey: 'unpack-columns',
+    formId: 'unpack-form',
+  },
+} as const satisfies Record<'adjustment' | 'issue' | 'receive' | 'unpack', EventKindConfig>;
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 

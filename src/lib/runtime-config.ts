@@ -3,6 +3,8 @@ import { create } from 'zustand';
 type RuntimeConfig = {
   defaultIssueReasonId?: string;
   defaultReceiveReasonId?: string;
+  kitUnpackReasonId?: string;
+  unpackedFromKitReasonId?: string;
   authServerClientId?: string;
   authServerClientSecret?: string;
   featureFlags: Record<string, unknown>;
@@ -33,11 +35,15 @@ export async function loadRuntimeConfig(): Promise<void> {
       authServerClientSecret,
       defaultIssueReasonId,
       defaultReceiveReasonId,
+      kitUnpackReasonId,
+      unpackedFromKitReasonId,
       featureFlags,
     } = parsed as Record<string, unknown>;
     useRuntimeConfigStore.setState({
       defaultIssueReasonId: asString(defaultIssueReasonId),
       defaultReceiveReasonId: asString(defaultReceiveReasonId),
+      kitUnpackReasonId: asString(kitUnpackReasonId),
+      unpackedFromKitReasonId: asString(unpackedFromKitReasonId),
       authServerClientId: asString(authServerClientId),
       authServerClientSecret: asString(authServerClientSecret),
       featureFlags: asRecord(featureFlags),
@@ -76,4 +82,17 @@ export function getDefaultReceiveReasonId(): string | undefined {
     useRuntimeConfigStore.getState().defaultReceiveReasonId ||
     asString(import.meta.env.VITE_DEFAULT_RECEIVE_REASON_ID)
   );
+}
+
+export function getKitUnpackReasonIds(): {
+  kitUnpackReasonId?: string;
+  unpackedFromKitReasonId?: string;
+} {
+  const config = useRuntimeConfigStore.getState();
+  return {
+    kitUnpackReasonId:
+      config.kitUnpackReasonId || asString(import.meta.env.VITE_KIT_UNPACK_REASON_ID),
+    unpackedFromKitReasonId:
+      config.unpackedFromKitReasonId || asString(import.meta.env.VITE_UNPACKED_FROM_KIT_REASON_ID),
+  };
 }
