@@ -1,5 +1,5 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import { ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
+import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,6 +12,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { Button } from '@/components/ui/button';
+import { InputSizer } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
@@ -101,6 +102,28 @@ function SelectSizer({
   );
 }
 
+const DateSizer = memo(function DateSizer({ year, language }: { year: string; language: string }) {
+  const labels = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, month) =>
+        formatDateValue(`${year}-${String(month + 1).padStart(2, '0')}-28`, language),
+      ),
+    [year, language],
+  );
+  return (
+    <div aria-hidden className="invisible grid h-0 w-max overflow-hidden">
+      {labels.map((label) => (
+        <span key={label} className="col-start-1 row-start-1">
+          <Button align="start" disabled size="sm" tabIndex={-1} variant="outline">
+            <CalendarIcon data-icon="inline-start" />
+            {label}
+          </Button>
+        </span>
+      ))}
+    </div>
+  );
+});
+
 type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
@@ -179,39 +202,35 @@ const LineCell = memo(function LineCell({
     case 'destination':
       return (
         <div className="w-full whitespace-normal break-words">
-          <SelectSizer
-            labels={[
-              t('stock-events.select-option'),
-              ...destinations.map((item) => item.name ?? ''),
-            ]}
-          />
-          <form.AppField
-            name={`lines[${index}].destination`}
-            listeners={{
-              onChange: ({ value }) => {
-                const next = changeEventDestination(line, value ?? '');
-                if (value == null) form.setFieldValue(`lines[${index}].destination`, '');
-                if (next !== line)
-                  form.setFieldValue(
-                    `lines[${index}].destinationComments`,
-                    next.destinationComments,
-                  );
-              },
-            }}
-          >
-            {(field) => (
-              <field.SelectField
-                disabled={disabled}
-                required
-                items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
-                label={label('stock-events.issue-to')}
-                layout="inline"
-                hideErrors
-                placeholder={t('stock-events.select-option')}
-                size="sm"
-              />
-            )}
-          </form.AppField>
+          <div className="w-full contain-inline-size">
+            <form.AppField
+              name={`lines[${index}].destination`}
+              listeners={{
+                onChange: ({ value }) => {
+                  const next = changeEventDestination(line, value ?? '');
+                  if (value == null) form.setFieldValue(`lines[${index}].destination`, '');
+                  if (next !== line)
+                    form.setFieldValue(
+                      `lines[${index}].destinationComments`,
+                      next.destinationComments,
+                    );
+                },
+              }}
+            >
+              {(field) => (
+                <field.SelectField
+                  disabled={disabled}
+                  required
+                  items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
+                  label={label('stock-events.issue-to')}
+                  layout="inline"
+                  hideErrors
+                  placeholder={t('stock-events.select-option')}
+                  size="sm"
+                />
+              )}
+            </form.AppField>
+          </div>
         </div>
       );
     case 'destinationComments':
@@ -219,8 +238,8 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-28 whitespace-normal break-words'
-              : 'w-32 whitespace-normal break-words'
+              ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
+              : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].destinationComments`}>
@@ -246,41 +265,36 @@ const LineCell = memo(function LineCell({
               : 'w-full min-w-28 whitespace-normal break-words'
           }
         >
-          <SelectSizer
-            wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
-            labels={[
-              ...(!reasonRequired ? [t('stock-events.select-option')] : []),
-              ...reasons.map((item) => item.name),
-            ]}
-          />
-          <form.AppField
-            name={`lines[${index}].reasonId`}
-            listeners={{
-              onChange: ({ value }) => {
-                const next = changeEventReason(line, value);
-                if (next !== line)
-                  form.setFieldValue(`lines[${index}].reasonFreeText`, next.reasonFreeText);
-              },
-            }}
-          >
-            {(field) => (
-              <field.SelectField
-                disabled={disabled}
-                items={[
-                  ...(!reasonRequired
-                    ? [{ value: '', label: t('stock-events.select-option') }]
-                    : []),
-                  ...reasons.map((item) => ({ value: item.id, label: item.name })),
-                ]}
-                label={label('stock-events.reason')}
-                layout="inline"
-                hideErrors
-                required={reasonRequired}
-                size="sm"
-                wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
-              />
-            )}
-          </form.AppField>
+          <div className="w-full contain-inline-size">
+            <form.AppField
+              name={`lines[${index}].reasonId`}
+              listeners={{
+                onChange: ({ value }) => {
+                  const next = changeEventReason(line, value);
+                  if (next !== line)
+                    form.setFieldValue(`lines[${index}].reasonFreeText`, next.reasonFreeText);
+                },
+              }}
+            >
+              {(field) => (
+                <field.SelectField
+                  disabled={disabled}
+                  items={[
+                    ...(!reasonRequired
+                      ? [{ value: '', label: t('stock-events.select-option') }]
+                      : []),
+                    ...reasons.map((item) => ({ value: item.id, label: item.name })),
+                  ]}
+                  label={label('stock-events.reason')}
+                  layout="inline"
+                  hideErrors
+                  required={reasonRequired}
+                  size="sm"
+                  wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+                />
+              )}
+            </form.AppField>
+          </div>
         </div>
       );
     case 'comments':
@@ -288,8 +302,8 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-28 whitespace-normal break-words'
-              : 'w-32 whitespace-normal break-words'
+              ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
+              : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].reasonFreeText`}>
@@ -310,10 +324,10 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-max whitespace-normal break-words'
+              ? 'w-full contain-inline-size whitespace-normal break-words'
               : unit === 'PACKS'
-                ? 'w-28 whitespace-normal break-words'
-                : 'w-20 whitespace-normal break-words'
+                ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
+                : 'w-full min-w-20 contain-inline-size whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].quantity`}>
@@ -325,7 +339,7 @@ const LineCell = memo(function LineCell({
                 label={label('stock-events.quantity')}
                 layout="inline"
                 hideErrors
-                sizing={kind === 'issue' ? 'content' : 'full'}
+                sizing={kind === 'issue' ? 'minimum' : 'full'}
                 netContent={line.netContent}
                 unit={unit}
                 required
@@ -351,47 +365,51 @@ const LineCell = memo(function LineCell({
       );
     case 'vvm':
       return line.useVVM ? (
-        <div className="w-24 whitespace-normal break-words">
-          <form.AppField name={`lines[${index}].vvmStatus`}>
-            {(field) => (
-              <field.SelectField
-                disabled={disabled}
-                label={label('stock-events.vvm-status')}
-                size="sm"
-                layout="inline"
-                hideErrors
-                items={[
-                  { value: '', label: t('stock-events.vvm-none') },
-                  { value: 'STAGE_1', label: t('stock-events.stage-1') },
-                  { value: 'STAGE_2', label: t('stock-events.stage-2') },
-                ]}
-              />
-            )}
-          </form.AppField>
+        <div className="w-full whitespace-normal break-words">
+          <div className="w-full min-w-24 contain-inline-size">
+            <form.AppField name={`lines[${index}].vvmStatus`}>
+              {(field) => (
+                <field.SelectField
+                  disabled={disabled}
+                  label={label('stock-events.vvm-status')}
+                  size="sm"
+                  layout="inline"
+                  hideErrors
+                  items={[
+                    { value: '', label: t('stock-events.vvm-none') },
+                    { value: 'STAGE_1', label: t('stock-events.stage-1') },
+                    { value: 'STAGE_2', label: t('stock-events.stage-2') },
+                  ]}
+                />
+              )}
+            </form.AppField>
+          </div>
         </div>
       ) : null;
     case 'date':
       return (
-        <div
-          className={
-            kind === 'issue'
-              ? 'w-max whitespace-normal break-words'
-              : 'w-32 whitespace-normal break-words'
-          }
-        >
-          <form.AppField name={`lines[${index}].occurredDate`}>
-            {(field) => (
-              <field.DateField
-                disabled={disabled}
-                label={label('stock-events.date')}
-                latest={today}
-                layout="inline"
-                hideErrors
-                placeholder={t('stock-events.date')}
-                required
-              />
-            )}
-          </form.AppField>
+        <div className="w-full whitespace-normal break-words">
+          <div
+            className={
+              kind === 'issue'
+                ? 'w-full min-w-28 contain-inline-size'
+                : 'w-full min-w-32 contain-inline-size'
+            }
+          >
+            <form.AppField name={`lines[${index}].occurredDate`}>
+              {(field) => (
+                <field.DateField
+                  disabled={disabled}
+                  label={label('stock-events.date')}
+                  latest={today}
+                  layout="inline"
+                  hideErrors
+                  placeholder={t('stock-events.date')}
+                  required
+                />
+              )}
+            </form.AppField>
+          </div>
         </div>
       );
     case 'actions':
@@ -466,9 +484,65 @@ export function EventLineTable({
           helper.display({
             id,
             header: () => (
-              <span className={id === 'actions' ? 'sr-only' : undefined}>
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-              </span>
+              <>
+                <span className={id === 'actions' ? 'sr-only' : undefined}>
+                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                </span>
+                <div aria-hidden className="invisible h-0 overflow-hidden font-normal">
+                  {id === 'destination' && (
+                    <SelectSizer
+                      labels={[
+                        t('stock-events.select-option'),
+                        ...destinations.map((item) => item.name ?? ''),
+                      ]}
+                    />
+                  )}
+                  {id === 'reason' && (
+                    <SelectSizer
+                      wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+                      labels={[
+                        ...(!reasonRequired ? [t('stock-events.select-option')] : []),
+                        ...reasons.map((item) => item.name),
+                      ]}
+                    />
+                  )}
+                  {kind === 'issue' && id === 'quantity' && (
+                    <div
+                      aria-hidden
+                      className="invisible flex h-0 w-max items-center gap-1 overflow-hidden"
+                      dir="ltr"
+                    >
+                      <InputSizer
+                        placeholder={t(
+                          unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
+                        )}
+                      />
+                      {unit === 'PACKS' && (
+                        <>
+                          <span className="shrink-0 whitespace-nowrap">( +</span>
+                          <InputSizer placeholder={t('quantity-unit.doses')} />
+                          <span>)</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {kind === 'issue' && id === 'vvm' && (
+                    <SelectSizer
+                      labels={[
+                        t('stock-events.vvm-none'),
+                        t('stock-events.stage-1'),
+                        t('stock-events.stage-2'),
+                      ]}
+                    />
+                  )}
+                  {kind === 'issue' && id === 'date' && (
+                    <DateSizer
+                      year={today.slice(0, 4) || String(new Date().getFullYear())}
+                      language={i18n.language}
+                    />
+                  )}
+                </div>
+              </>
             ),
             meta: id === 'actions' ? { className: 'w-10' } : undefined,
             cell: ({ row }) => (
@@ -504,6 +578,7 @@ export function EventLineTable({
       disabled,
       onRemove,
       t,
+      i18n.language,
     ],
   );
   const size = search.size ?? 10;

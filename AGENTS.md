@@ -233,6 +233,7 @@ edits, which have no prop for TypeScript to detect:
 | File | Required customization |
 |---|---|
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
+| `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
 | `select.tsx` | Default `alignItemWithTrigger` to `false` |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
@@ -389,9 +390,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Issue hides optional columns by measured fit because translated inputs make pixel thresholds
   language dependent. With draft lines but no filter matches, keep fitted visibility and the last
-  rendered column widths until rows return. Inline quantity inputs use a fixed character-unit width
-  based only on their translated placeholder, with room for at least five digits; extra digits
-  scroll inside the input.
+  rendered column widths until rows return. Issue quantity inputs fill their cell while reserving
+  a character-unit minimum based only on their translated placeholder, with room for at least
+  five digits; extra digits scroll inside the input. Issue's date column minimum measures all
+  12 months in the page language. Sizers live once per column in the header. Adjustments keeps
+  full-width inputs and master's existing column minimums.
 
 - Tables draw vertical column dividers by default.
 
@@ -508,7 +511,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="content"` fixes each input width from its placeholder only, with room for at least five digits, `sizing="full"` fills the wrapper |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` divides the wrapper equally without placeholder minimums |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
@@ -558,7 +561,8 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
-`DialogTitle size`, `Input controlSize/sizing`, `Field spacing/surface`, `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
+`DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
+`FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
 `ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width/wrap`, `Button align/width`,
 `PopoverContent width/padding`.
 

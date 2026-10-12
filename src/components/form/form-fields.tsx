@@ -362,7 +362,7 @@ type QuantityFieldProps = FieldProps & {
   netContent?: number | null;
   packsLabel: string;
   dosesLabel: string;
-  sizing?: 'content' | 'full';
+  sizing?: 'full' | 'minimum';
 };
 
 export function QuantityField({
@@ -376,7 +376,7 @@ export function QuantityField({
   packsLabel,
   dosesLabel,
   hideErrors,
-  sizing = layout === 'inline' ? 'content' : 'full',
+  sizing = 'full',
 }: QuantityFieldProps) {
   const field = useFieldContext<QuantityValue>();
   const dosesErrors = useStore(
@@ -410,58 +410,76 @@ export function QuantityField({
       required={required}
       state={state}
     >
-      <div
-        className={
-          sizing === 'content'
-            ? 'flex min-w-0 items-center gap-0.5'
-            : 'flex min-w-0 items-center gap-1'
-        }
-        dir="ltr"
-      >
-        {parts.map((part, index) => {
-          const partId = `${field.name}-${part}-label`;
-          return (
-            <Fragment key={part}>
-              {unit === 'PACKS' && index === 1 && (
-                <span aria-hidden="true" className="shrink-0 whitespace-nowrap">
-                  ( +
-                </span>
-              )}
-              <div className={sizing === 'content' ? 'shrink-0' : 'min-w-0 flex-1'}>
-                {unit === 'PACKS' && (
-                  <HiddenFromView>
-                    <label htmlFor={index === 0 ? field.name : `${field.name}-${part}`} id={partId}>
-                      {part === 'packs' ? packsLabel : dosesLabel}
-                    </label>
-                  </HiddenFromView>
+      <div className="w-full">
+        <div
+          className={
+            sizing === 'minimum'
+              ? 'flex w-full min-w-0 contain-inline-size items-center gap-1'
+              : 'flex min-w-0 items-center gap-1'
+          }
+          dir="ltr"
+        >
+          {parts.map((part, index) => {
+            const partId = `${field.name}-${part}-label`;
+            return (
+              <Fragment key={part}>
+                {unit === 'PACKS' && index === 1 && (
+                  <span aria-hidden="true" className="shrink-0 whitespace-nowrap">
+                    ( +
+                  </span>
                 )}
-                <Input
-                  sizing={sizing}
-                  controlSize={layout === 'inline' ? 'sm' : 'default'}
-                  aria-describedby={state.describedBy}
-                  aria-invalid={state.isInvalid}
-                  aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
-                  aria-required={required}
-                  autoComplete="off"
-                  dir="ltr"
-                  disabled={disabled || (part === 'remainder' && netContent === 1)}
-                  id={index === 0 ? field.name : `${field.name}-${part}`}
-                  inputMode="numeric"
-                  placeholder={part === 'packs' ? packsLabel : dosesLabel}
-                  name={`${field.name}.${part}`}
-                  onBlur={field.handleBlur}
-                  onChange={(event) =>
-                    field.handleChange(
-                      updateQuantityValue(field.state.value, part, event.target.value, netContent),
-                    )
-                  }
-                  value={part === 'remainder' && netContent === 1 ? '0' : field.state.value[part]}
-                />
-              </div>
-            </Fragment>
-          );
-        })}
-        {unit === 'PACKS' && <span aria-hidden="true">)</span>}
+                <div className={sizing === 'minimum' ? 'flex-auto' : 'min-w-0 flex-1'}>
+                  {unit === 'PACKS' && (
+                    <HiddenFromView>
+                      <label
+                        htmlFor={index === 0 ? field.name : `${field.name}-${part}`}
+                        id={partId}
+                      >
+                        {part === 'packs' ? packsLabel : dosesLabel}
+                      </label>
+                    </HiddenFromView>
+                  )}
+                  <div>
+                    <Input
+                      sizing={sizing}
+                      controlSize={layout === 'inline' ? 'sm' : 'default'}
+                      aria-describedby={state.describedBy}
+                      aria-invalid={state.isInvalid}
+                      aria-labelledby={unit === 'PACKS' ? `${labelId} ${partId}` : labelId}
+                      aria-required={required}
+                      autoComplete="off"
+                      dir="ltr"
+                      disabled={disabled || (part === 'remainder' && netContent === 1)}
+                      id={index === 0 ? field.name : `${field.name}-${part}`}
+                      inputMode="numeric"
+                      placeholder={part === 'packs' ? packsLabel : dosesLabel}
+                      name={`${field.name}.${part}`}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(
+                          updateQuantityValue(
+                            field.state.value,
+                            part,
+                            event.target.value,
+                            netContent,
+                          ),
+                        )
+                      }
+                      value={
+                        part === 'remainder' && netContent === 1 ? '0' : field.state.value[part]
+                      }
+                    />
+                  </div>
+                </div>
+              </Fragment>
+            );
+          })}
+          {unit === 'PACKS' && (
+            <span aria-hidden="true" className="shrink-0">
+              )
+            </span>
+          )}
+        </div>
       </div>
     </FieldFrame>
   );
