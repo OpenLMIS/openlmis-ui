@@ -219,8 +219,8 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-full min-w-28 whitespace-normal break-words'
-              : 'w-full min-w-32 whitespace-normal break-words'
+              ? 'w-28 whitespace-normal break-words'
+              : 'w-32 whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].destinationComments`}>
@@ -288,8 +288,8 @@ const LineCell = memo(function LineCell({
         <div
           className={
             kind === 'issue'
-              ? 'w-full min-w-28 whitespace-normal break-words'
-              : 'w-full min-w-32 whitespace-normal break-words'
+              ? 'w-28 whitespace-normal break-words'
+              : 'w-32 whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].reasonFreeText`}>

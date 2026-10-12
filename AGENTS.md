@@ -389,8 +389,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Issue hides optional columns by measured fit because translated inputs make pixel thresholds
   language dependent. With draft lines but no filter matches, keep fitted visibility and the last
-  rendered column widths until rows return. Inline quantity inputs size to their own placeholder
-  or value with bounded content sizing.
+  rendered column widths until rows return. Inline quantity inputs use a fixed character-unit width
+  based only on their translated placeholder, with room for at least five digits; extra digits
+  scroll inside the input.
 
 - Tables draw vertical column dividers by default.
 
@@ -507,7 +508,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="content"` fits each input to its placeholder or value, `sizing="full"` fills the wrapper |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="content"` fixes each input width from its placeholder only, with room for at least five digits, `sizing="full"` fills the wrapper |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
