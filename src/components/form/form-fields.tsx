@@ -989,7 +989,7 @@ type SelectFieldProps = FieldProps &
     placeholder?: string;
     items: readonly SelectFieldItem[];
     size?: 'sm' | 'default';
-    wrap?: 'nowrap' | 'wrap';
+    wrap?: 'nowrap' | 'wrap' | 'two-lines';
   };
 
 /** One of a short, fixed list; the field's value is the item's `value`. */

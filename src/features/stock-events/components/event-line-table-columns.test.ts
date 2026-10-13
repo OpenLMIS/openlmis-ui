@@ -4,6 +4,7 @@ import {
   EVENT_HIDEABLE_COLUMNS,
   eventFitColumns,
   eventHideableColumns,
+  usesCompactEventColumns,
 } from '@/features/stock-events/components/event-line-table';
 
 describe('event line column defaults', () => {
@@ -51,5 +52,16 @@ it('keeps Product Code out of measured fit only where the kind asks', () => {
   expect(eventFitColumns('unpack').map(({ id }) => id)).toEqual(['packSize', 'total', 'expiry']);
   for (const kind of ['issue', 'receive'] as const) {
     expect(eventFitColumns(kind)).toEqual(eventHideableColumns(kind));
+  }
+});
+
+it('uses compact columns only for transfers with a known wide container', () => {
+  for (const kind of ['issue', 'receive'] as const) {
+    expect(usesCompactEventColumns(kind)).toBe(false);
+    expect(usesCompactEventColumns(kind, 2000)).toBe(true);
+  }
+  for (const kind of ['adjustment', 'unpack'] as const) {
+    expect(usesCompactEventColumns(kind)).toBe(false);
+    expect(usesCompactEventColumns(kind, 2000)).toBe(false);
   }
 });
