@@ -39,6 +39,7 @@
   "discard-changes.title": "Discard Unsaved Changes?",
   "error.check-connection": "Check your connection and try again.",
   "error.description": "An unexpected error occurred. Please try again.",
+  "error.eyebrow": "Error",
   "error.title": "Something Went Wrong",
   "error.try-again": "Try Again",
   "facilities.actions": "Actions",

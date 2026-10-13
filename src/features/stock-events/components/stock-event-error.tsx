@@ -23,6 +23,8 @@ export function StockEventError({
   ...props
 }: ErrorComponentProps & { search: unknown; width?: ComponentProps<typeof Workspace>['width'] }) {
   const { t } = useTranslation();
+  const notFound =
+    isNotFound(props.error) || (isAxiosError(props.error) && props.error.response?.status === 400);
   const back = (
     <Button
       nativeButton={false}
@@ -32,17 +34,14 @@ export function StockEventError({
           to="/stock-management/transaction-history"
         />
       }
-      size="sm"
-      variant="outline"
+      size={notFound ? 'sm' : 'lg'}
+      variant={notFound ? 'outline' : 'default'}
     >
       <ChevronLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
       {t('stock-event.back')}
     </Button>
   );
-  if (
-    !isNotFound(props.error) &&
-    !(isAxiosError(props.error) && props.error.response?.status === 400)
-  ) {
+  if (!notFound) {
     return (
       <ErrorFallback
         {...props}

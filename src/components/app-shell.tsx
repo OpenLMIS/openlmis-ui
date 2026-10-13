@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode } from 'react';
 import { AppHeader } from '@/components/app-header';
 import { AppSidebar } from '@/components/app-sidebar';
 import { TranslatedDataTableLabels } from '@/components/translated-data-table-labels';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+
+export const AppShellContext = createContext(false);
 
 type AppShellProps = {
   children: ReactNode;
@@ -10,14 +12,16 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <AppHeader />
-        <div className="mx-auto flex w-full flex-1 flex-col">
-          <TranslatedDataTableLabels>{children}</TranslatedDataTableLabels>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <AppShellContext value={true}>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <AppHeader />
+          <div className="mx-auto flex w-full flex-1 flex-col">
+            <TranslatedDataTableLabels>{children}</TranslatedDataTableLabels>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </AppShellContext>
   );
 }
