@@ -404,6 +404,10 @@ describe('ProductLotPicker with approved products', () => {
       { orderable: aspirin, lot: existingLot, stockOnHand: 40 },
       true,
     );
+    expect(fetchEventStockOnHand).toHaveBeenCalledTimes(1);
+    expect(fetchLotsByTradeItems).toHaveBeenCalledTimes(1);
+    expect(fetchEventStockOnHand).toHaveBeenCalledTimes(1);
+    expect(fetchLotsByTradeItems).toHaveBeenCalledTimes(1);
   });
 
   it("waits for the picked product's lots and stock on hand before Add", async () => {
@@ -420,7 +424,7 @@ describe('ProductLotPicker with approved products', () => {
     expect(fetchEventStockOnHand).toHaveBeenCalledWith({
       facilityId: 'facility',
       programId: 'program',
-      orderableIds: ['ibuprofen'],
+      orderableIds: ['aspirin', 'ibuprofen'],
     });
     await act(async () => stock.resolve({}));
     await waitFor(() => expect(add).toBeEnabled());
