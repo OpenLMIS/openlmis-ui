@@ -131,11 +131,17 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
   page, avoiding oversized URLs.
 - `userRecordOptions` and `userProgramsOptions` read the signed-in user's record and programs;
   keep their keys separate from the Users page's richer detail.
-- `validDestinationsOptions` reads every page through `fetchValidAssignments`, under
-  `queryKeys.validDestinations.all` so admin saves refresh it. `reasonsOf` keeps visible reasons
-  of one category and, optionally, one type.
-- Stock event screens read legacy's v2 stock list and resolve its cards' products and lots
-  through the id lookups above.
+- `validDestinationsOptions` and `validSourcesOptions` read every page through
+  `fetchValidAssignments`, under `queryKeys.validDestinations.all` and `validSources.all` so
+  admin saves refresh them. `reasonsOf` keeps visible reasons of one category and, optionally,
+  one type.
+- `approvedProductsOptions` reads one page of a facility's approved products for a program; it
+  has no sort, and name and code are separate filters. `lotsByTradeItemsOptions` reads every
+  lot of the given trade items. `facilityOrderableFulfillsOptions` maps a facility's products
+  to those they can fulfil.
+- Stock event screens choose products through `EventKindConfig.products`: Adjustments and Issue
+  read legacy's v2 stock list and resolve its cards' products and lots through the id lookups
+  above; Receive pages approved products and offers every lot of the picked product's trade item.
 
 ### Internationalization (i18next)
 
@@ -392,13 +398,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
-- Issue hides optional columns by measured fit because translated inputs make pixel thresholds
-  language dependent. With draft lines but no filter matches, keep fitted visibility and the last
-  rendered column widths until rows return. Issue quantity inputs fill their cell while reserving
-  a character-unit minimum based only on their translated placeholder, with room for at least
-  five digits; extra digits scroll inside the input. Issue's date column minimum measures all
-  12 months in the page language. Sizers live once per column in the header. Adjustments keeps
-  full-width inputs and master's existing column minimums.
+- Event kinds with `columnFit: 'measured'` (Issue, Receive) hide optional columns by measured fit
+  because translated inputs make pixel thresholds language dependent. With draft lines but no
+  filter matches, keep fitted visibility and the last rendered column widths until rows return.
+  Their quantity inputs fill their cell while reserving a character-unit minimum based only on
+  their translated placeholder, with room for at least five digits; extra digits scroll inside
+  the input. Their date column minimum measures all 12 months in the page language. Sizers live
+  once per column in the header. Adjustments (`'thresholds'`) keeps full-width inputs and
+  master's existing column minimums.
 
 - Tables draw vertical column dividers by default.
 
@@ -747,8 +754,8 @@ See `.env.example` and [README.md](README.md#environment-variables).
 - `VITE_BASE_PATH` is compiled at build time; follow the base-path rules above.
 - Per-environment settings use `src/lib/runtime-config.ts`, reading `config.json` written
   at container startup so one image works everywhere. OAuth credentials and the default issue
-  reason fall back to `import.meta.env` for dev; feature flags deliberately do not. Never rely
-  on build-time `import.meta.env` for deployment-varying runtime settings.
+  and receive reasons fall back to `import.meta.env` for dev; feature flags deliberately do not.
+  Never rely on build-time `import.meta.env` for deployment-varying runtime settings.
 
 ## Skills
 
