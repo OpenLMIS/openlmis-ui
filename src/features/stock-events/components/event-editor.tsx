@@ -370,10 +370,14 @@ export function EventEditor({
     },
     [form],
   );
+  const validateAndSubmit = async () => {
+    await form.validate('submit');
+    if (mutation.isCurrent()) await form.handleSubmit();
+  };
   const submit = async () => {
     if (!mutation.isCurrent()) return;
     if (config.contents.type !== 'kit') {
-      void form.handleSubmit();
+      void validateAndSubmit();
       return;
     }
     setRefreshing(true);
@@ -403,7 +407,7 @@ export function EventEditor({
         });
         return;
       }
-      await form.handleSubmit();
+      await validateAndSubmit();
     } catch (error) {
       if (!mutation.isCurrent()) return;
       setFailure({
@@ -614,7 +618,7 @@ export function EventEditor({
               className="flex min-w-0 flex-col gap-4"
               id={config.formId}
               noValidate
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
                 if (lines.length && ready && !submitted && !pending) void submit();
               }}

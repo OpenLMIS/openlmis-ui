@@ -983,6 +983,20 @@ describe('Issue editor', () => {
       'issue',
     );
 
+  it('marks Issue To on lines added after a failed Submit', async () => {
+    const { user } = issueSetup();
+    await add(user, 'OTHER');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: /^Close$/ }));
+    await add(user, 'OTHER');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: /^Close$/ }));
+    for (const destination of screen.getAllByRole('combobox', { name: /^Issue To,/ }))
+      expect(destination).toHaveAttribute('aria-invalid', 'true');
+    for (const quantity of screen.getAllByRole('textbox', { name: /^Quantity,/ }))
+      expect(quantity).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('leaves Issue To blank, focuses its error, clears comments on change and clears an optional reason', async () => {
     const { user } = issueSetup();
     await add(user, 'OTHER');
