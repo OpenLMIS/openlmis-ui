@@ -401,7 +401,7 @@ it('keeps keyboard focus when toggling Reverse with Space', async () => {
   editor();
   await waitFor(() => expect(screen.getAllByRole('checkbox')[0]).toBeEnabled());
   const checkbox = screen.getAllByRole('checkbox')[0];
-  checkbox.focus();
+  act(() => checkbox.focus());
   await userEvent.keyboard(' ');
   expect(checkbox).toBeChecked();
   expect(checkbox).toHaveFocus();
@@ -410,7 +410,7 @@ it('returns focus to the same reason trigger after a keyboard selection', async 
   editor();
   await tick();
   const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
-  trigger.focus();
+  act(() => trigger.focus());
   await userEvent.keyboard('{ArrowDown}');
   await screen.findByRole('option', { name: 'Cancelled issue' });
   await userEvent.keyboard('{Enter}');

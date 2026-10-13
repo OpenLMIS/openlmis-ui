@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandPalette } from '@/components/command-palette';
@@ -26,7 +26,10 @@ function renderPalette(rights: string[]) {
   renderPage(<CommandPalette />, { queryClient });
 }
 
-afterEach(() => useLoginData.setState({ referenceDataUserId: null, username: null }));
+afterEach(() => {
+  cleanup();
+  useLoginData.setState({ referenceDataUserId: null, username: null });
+});
 
 describe('CommandPalette', () => {
   it('offers Account and, with the right, Settings', async () => {

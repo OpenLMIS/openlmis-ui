@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useAppConfigurationStore } from '@/lib/app-configuration';
@@ -12,6 +12,7 @@ function setFlags(featureFlags: Record<string, string>) {
 }
 
 afterEach(() => {
+  cleanup();
   useAppConfigurationStore.setState(initial, true);
   localStorage.clear();
 });

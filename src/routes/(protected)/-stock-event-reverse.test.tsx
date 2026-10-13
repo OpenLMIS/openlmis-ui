@@ -8,11 +8,20 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchReasons } from '@/features/reference-data/api/api';
 import {
@@ -25,6 +34,7 @@ import type { StockEventLine, StockEventSummary } from '@/features/stock-events/
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history_.$eventId_.reverse';
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -41,6 +51,9 @@ vi.mock('@/features/reference-data/api/api', () => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+const REVERSE_MATCH_ID =
+  '/(protected)/_protected/stock-management/transaction-history/$eventId/reverse/stock-management/transaction-history/event1/reverse';
+
 const event: StockEventSummary = {
   id: 'event1',
   facilityId: 'facility',
@@ -69,7 +82,11 @@ const reason = {
   reasonType: 'CREDIT' as const,
   isFreeTextAllowed: true,
 };
-function renderRoute(extra = '', browserHistory = false) {
+function renderRoute(
+  extra = '',
+  browserHistory = false,
+  renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -101,6 +118,7 @@ function renderRoute(extra = '', browserHistory = false) {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    renderOptions,
   );
   return { router, queryClient };
 }
@@ -136,11 +154,12 @@ beforeEach(() => {
   vi.mocked(fetchReasons).mockResolvedValue([reason]);
   vi.mocked(fetchEventStockOnHand).mockResolvedValue({ 'o1/lot1': 60 });
   vi.mocked(cancelStockEvent).mockResolvedValue('new-event');
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-    width: 2000,
-  } as DOMRect);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+    new DOMRect(0, 0, 2000, 800),
+  );
 });
 afterEach(() => {
+  cleanup();
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
@@ -154,17 +173,29 @@ describe('reverse transaction', () => {
     expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
   });
   it('requires the cancel right before rendering the editor', async () => {
+    const assertRouteWarning = expectRouteWarning(REVERSE_MATCH_ID);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_EVENTS_CANCEL');
+    });
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
-    renderRoute();
+    renderRoute('', false, { onCaughtError });
     await screen.findByRole('heading', { name: 'no-access.title' });
     expect(fetchAllStockEventLines).not.toHaveBeenCalled();
     expect(fetchReasons).not.toHaveBeenCalled();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
   it('renders one breadcrumb trail when the event request is forbidden', async () => {
-    vi.mocked(fetchStockEvent).mockRejectedValue(httpError(403));
-    renderRoute();
+    const assertRouteWarning = expectRouteWarning(REVERSE_MATCH_ID);
+    const failure = httpError(403);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockEvent).mockRejectedValue(failure);
+    renderRoute('', false, { onCaughtError });
     await screen.findByRole('heading', { name: 'no-access.title' });
     expect(screen.getAllByRole('navigation', { name: 'breadcrumbs.label' })).toHaveLength(1);
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
   it('opens a non-reversible event with a right anywhere and omits signature', async () => {
     renderRoute();
@@ -344,6 +375,11 @@ describe('reverse transaction', () => {
     expect(screen.queryByText('Already reversed')).not.toBeInTheDocument();
   });
   it('ignores a user change during the summary read', async () => {
+    const assertRouteWarning = expectRouteWarning(REVERSE_MATCH_ID);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_EVENTS_CANCEL');
+    });
     let release = () => {};
     vi.mocked(fetchAllStockEventLines).mockImplementation((id) =>
       id === 'new-event'
@@ -352,7 +388,7 @@ describe('reverse transaction', () => {
           })
         : Promise.resolve([line]),
     );
-    const { router } = renderRoute();
+    const { router } = renderRoute('', false, { onCaughtError });
     const dialog = await signing();
     await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
     await waitFor(() => expect(fetchAllStockEventLines).toHaveBeenCalledWith('new-event'));
@@ -361,6 +397,8 @@ describe('reverse transaction', () => {
     await act(async () => release());
     expect(toast.success).not.toHaveBeenCalled();
     expect(router.state.location.pathname).toContain('/reverse');
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
   it('Cancel preserves detail search and asks before discarding ticks', async () => {
     const { router } = renderRoute('?page=4&detailPage=2');
@@ -403,7 +441,9 @@ it('prefetches lines and reasons while the event is still loading', async () => 
   expect(fetchReasons).toHaveBeenCalled();
 });
 it('keeps Reversed and Lot Code visible at phone content width', async () => {
-  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width: 350 } as DOMRect);
+  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue(
+    new DOMRect(0, 0, 350, 800),
+  );
   vi.mocked(fetchAllStockEventLines).mockResolvedValue([
     { ...line, cancellationEventId: 'cancelled', cancellationEventDocumentNumber: 'REV-1' },
   ]);

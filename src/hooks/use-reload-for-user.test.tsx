@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -23,7 +23,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   useLoginData.setState({ referenceDataUserId: 'user1' });
 });
-afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+afterEach(() => {
+  cleanup();
+  useLoginData.setState({ referenceDataUserId: null });
+});
 
 describe('useReloadForUser', () => {
   it('keeps a page loaded for the signed-in user', () => {

@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/nav-user';
@@ -28,6 +28,7 @@ async function renderMenu(rights: string[], systemSettings = 'true') {
 }
 
 afterEach(() => {
+  cleanup();
   useLoginData.setState({ referenceDataUserId: null, username: null });
   vi.unstubAllGlobals();
 });

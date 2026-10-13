@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_APP_CONFIGURATION,
@@ -114,7 +114,7 @@ describe('getFlag and useFlag', () => {
 
     expect(getFlag('BATCH_APPROVE_SCREEN')).toBe(true);
     expect(result.current).toBe(true);
-    setAppConfiguration(DEFAULT_APP_CONFIGURATION);
+    act(() => setAppConfiguration(DEFAULT_APP_CONFIGURATION));
   });
 
   it('follow deployment flags that arrive after the app started', async () => {
@@ -129,7 +129,7 @@ describe('getFlag and useFlag', () => {
         ),
     );
 
-    await loadRuntimeConfig();
+    await act(() => loadRuntimeConfig());
 
     await waitFor(() => expect(result.current).toBe(true));
   });

@@ -5,7 +5,16 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
@@ -118,6 +127,7 @@ beforeAll(() =>
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
+  vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
   vi.stubGlobal(
     'ResizeObserver',
@@ -156,10 +166,19 @@ const reason = {
 function setup(
   canViewStock = true,
   configure?: (client: QueryClient) => void,
-  defaultReasonId?: string,
-  browserHistory = false,
-  kind: ConfiguredEventKind = 'adjustment',
-  canManageLots = false,
+  {
+    defaultReasonId,
+    browserHistory = false,
+    kind = 'adjustment',
+    canManageLots = false,
+    onCaughtError,
+  }: {
+    defaultReasonId?: string;
+    browserHistory?: boolean;
+    kind?: ConfiguredEventKind;
+    canManageLots?: boolean;
+    onCaughtError?: RenderOptions['onCaughtError'];
+  } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
@@ -222,8 +241,9 @@ function setup(
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
+      { onCaughtError },
     );
-  else renderPage(<Page />, { queryClient });
+  else renderPage(<Page />, { queryClient, onCaughtError });
   return {
     router,
     user: userEvent.setup(),
@@ -284,7 +304,7 @@ describe('EventEditor', () => {
   it('cancels pending typing when Back restores the same keyword on page one', async () => {
     const { user, navigateSearch, getSearch } = setup();
     await add(user);
-    act(() => {
+    await act(async () => {
       for (let index = 0; index < 10; index++)
         fireEvent.click(screen.getByRole('button', { name: 'Add' }));
       navigateSearch({ keyword: 'Aspirin', page: 2 });
@@ -294,7 +314,7 @@ describe('EventEditor', () => {
     try {
       fireEvent.change(keywords, { target: { value: 'No Lot Defined' } });
       act(() => navigateSearch({ keyword: 'Aspirin' }));
-      act(() => vi.advanceTimersByTime(650));
+      await act(async () => vi.advanceTimersByTimeAsync(650));
       expect(getSearch()).toEqual({ keyword: 'Aspirin' });
       expect(keywords).toHaveValue('Aspirin');
       expect(screen.getAllByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveLength(10);
@@ -373,20 +393,25 @@ describe('EventEditor', () => {
     'retries a failed %s request in the content',
     async (source) => {
       const fetch = source === 'products' ? fetchEventStockCards : fetchValidReasons;
-      vi.mocked(fetch).mockRejectedValueOnce(httpError(500));
+      const failure = httpError(500);
+      const onCaughtError = vi.fn();
+      vi.mocked(fetch).mockRejectedValueOnce(failure);
       if (source === 'products')
         vi.mocked(fetchEventStockCards).mockResolvedValueOnce([card, other]);
       else
         vi.mocked(fetchValidReasons).mockResolvedValueOnce([
           { id: 'assignment', reason, hidden: false },
         ]);
-      const { user } = setup(true, (client) =>
-        client.removeQueries({
-          queryKey:
-            source === 'products'
-              ? eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey
-              : validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
-        }),
+      const { user } = setup(
+        true,
+        (client) =>
+          client.removeQueries({
+            queryKey:
+              source === 'products'
+                ? eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey
+                : validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
+          }),
+        { onCaughtError },
       );
       const retry = await screen.findByRole('button', { name: 'Try Again' });
       expect(retry.closest('.flex-wrap')).toBeNull();
@@ -396,6 +421,7 @@ describe('EventEditor', () => {
         expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument(),
       );
       expect(fetch).toHaveBeenCalledTimes(2);
+      expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([failure]);
     },
   );
   it('blocks Confirm if the session owner changes before the route renders', async () => {
@@ -846,7 +872,7 @@ it('waits for reasons before manual and scanned additions receive the default', 
       client.removeQueries({
         queryKey: validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
       }),
-    'lost',
+    { defaultReasonId: 'lost' },
   );
   await screen.findByRole('combobox', { name: 'Product' });
   expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
@@ -891,7 +917,7 @@ it.each(['success', 'failure'])(
   async (outcome) => {
     if (outcome === 'success') vi.mocked(submitStockEvent).mockResolvedValueOnce('new-event');
     else vi.mocked(submitStockEvent).mockRejectedValueOnce(httpError(400));
-    const { user, onSubmitted, router } = setup(true, undefined, undefined, true);
+    const { user, onSubmitted, router } = setup(true, undefined, { browserHistory: true });
     await validLine(user);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
@@ -929,9 +955,7 @@ it('uses Issue stock eligibility for both the picker and scan resolver and prese
         [{ reason: { ...reason, reasonCategory: 'TRANSFER' }, hidden: false }],
       );
     },
-    'lost',
-    false,
-    'issue',
+    { defaultReasonId: 'lost', kind: 'issue' },
   );
   await waitFor(() => expect(scanningEnabled).toBe(true));
   for (const lotCode of ['LOT', 'ZERO']) {
@@ -958,7 +982,10 @@ it('uses Issue stock eligibility for both the picker and scan resolver and prese
 });
 
 describe('Issue editor', () => {
-  const issueSetup = (configure?: (client: QueryClient) => void) =>
+  const issueSetup = (
+    configure?: (client: QueryClient) => void,
+    { onCaughtError }: Pick<RenderOptions, 'onCaughtError'> = {},
+  ) =>
     setup(
       true,
       (client) => {
@@ -978,9 +1005,7 @@ describe('Issue editor', () => {
         );
         configure?.(client);
       },
-      undefined,
-      false,
-      'issue',
+      { kind: 'issue', onCaughtError },
     );
 
   it('marks Issue To on lines added after a failed Submit', async () => {
@@ -1146,31 +1171,39 @@ describe('Issue editor', () => {
   });
 
   it('retries a destination failure', async () => {
-    vi.mocked(fetchValidAssignments)
-      .mockRejectedValueOnce(new Error('Unavailable'))
-      .mockResolvedValue(destinations);
-    const { user } = issueSetup((client) =>
-      client.removeQueries({
-        queryKey: validDestinationsOptions({ facilityId: 'facility', programId: 'program' })
-          .queryKey,
-      }),
+    const failure = new Error('Unavailable');
+    const onCaughtError = vi.fn();
+    vi.mocked(fetchValidAssignments).mockRejectedValueOnce(failure).mockResolvedValue(destinations);
+    const { user } = issueSetup(
+      (client) =>
+        client.removeQueries({
+          queryKey: validDestinationsOptions({ facilityId: 'facility', programId: 'program' })
+            .queryKey,
+        }),
+      { onCaughtError },
     );
     expect(await screen.findByText('Could Not Load Destinations')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([failure]);
   });
   it('keeps a refused destination lookup short and disables submission', async () => {
-    vi.mocked(fetchValidAssignments).mockRejectedValueOnce(httpError(403));
-    issueSetup((client) =>
-      client.removeQueries({
-        queryKey: validDestinationsOptions({ facilityId: 'facility', programId: 'program' })
-          .queryKey,
-      }),
+    const failure = httpError(403);
+    const onCaughtError = vi.fn();
+    vi.mocked(fetchValidAssignments).mockRejectedValueOnce(failure);
+    issueSetup(
+      (client) =>
+        client.removeQueries({
+          queryKey: validDestinationsOptions({ facilityId: 'facility', programId: 'program' })
+            .queryKey,
+        }),
+      { onCaughtError },
     );
     expect(await screen.findByText(en['no-access.description'])).toBeInTheDocument();
     expect(screen.queryByText('Could Not Load Destinations')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
     expect(scanningEnabled).toBe(false);
+    expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([failure]);
   });
 });
 
@@ -1185,9 +1218,7 @@ describe('readiness after a failed background refetch', () => {
             eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
             [other],
           ),
-        undefined,
-        false,
-        lookup === 'destinations' ? 'issue' : 'adjustment',
+        { kind: lookup === 'destinations' ? 'issue' : 'adjustment' },
       );
       await add(user, 'OTHER');
       await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }), '17');
@@ -1261,17 +1292,23 @@ it('keeps the empty table busy until stock cards determine its lot and VVM colum
 });
 
 it('stops announcing a busy table after stock cards fail and keeps the retry available', async () => {
-  vi.mocked(fetchEventStockCards).mockRejectedValue(new Error('Unavailable'));
-  setup(true, (client) =>
-    client.removeQueries({
-      queryKey: eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-    }),
+  const failure = new Error('Unavailable');
+  const onCaughtError = vi.fn();
+  vi.mocked(fetchEventStockCards).mockRejectedValue(failure);
+  setup(
+    true,
+    (client) =>
+      client.removeQueries({
+        queryKey: eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+      }),
+    { onCaughtError },
   );
   expect(await screen.findByText(en['stock-events.cards-error-title'])).toBeInTheDocument();
   expect(
     screen.getByRole('columnheader', { name: 'Product' }).closest('[aria-busy="true"]'),
   ).toBeNull();
   expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+  expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([failure]);
 });
 
 it('discards frozen row widths after unit or language changes while no rows match', async () => {
@@ -1398,10 +1435,7 @@ describe('Receive editor', () => {
           destinations,
         );
       },
-      undefined,
-      false,
-      'receive',
-      true,
+      { kind: 'receive', canManageLots: true },
     );
   async function pick(user: ReturnType<typeof userEvent.setup>, name: string) {
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
@@ -1621,10 +1655,12 @@ describe('Unpack editor', () => {
     configured = true,
     orderable = kit,
     configure,
+    onCaughtError,
   }: {
     configured?: boolean;
     orderable?: Orderable;
     configure?: (client: QueryClient) => void;
+    onCaughtError?: RenderOptions['onCaughtError'];
   } = {}) {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -1669,7 +1705,7 @@ describe('Unpack editor', () => {
         </I18nextProvider>
       );
     }
-    renderPage(<Page />, { queryClient });
+    renderPage(<Page />, { queryClient, onCaughtError });
     return { user: userEvent.setup(), queryClient, onSubmitted };
   }
   async function addKit(user: ReturnType<typeof userEvent.setup>) {
@@ -1731,9 +1767,12 @@ describe('Unpack editor', () => {
   });
 
   it('waits for the reasons list and retries a failed load', async () => {
-    vi.mocked(fetchReasons).mockRejectedValueOnce(httpError(500)).mockResolvedValue(kitReasons);
+    const failure = httpError(500);
+    const onCaughtError = vi.fn();
+    vi.mocked(fetchReasons).mockRejectedValueOnce(failure).mockResolvedValue(kitReasons);
     const { user } = unpackSetup({
       configure: (client) => client.removeQueries({ queryKey: reasonsOptions().queryKey }),
+      onCaughtError,
     });
     expect(await screen.findByText(en['stock-events.reasons-error-title'])).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
@@ -1741,6 +1780,7 @@ describe('Unpack editor', () => {
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
     expect(fetchReasons).toHaveBeenCalledTimes(2);
+    expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([failure]);
   });
 
   it('stops for changed contents, retains the draft and submits the updated contents next time', async () => {

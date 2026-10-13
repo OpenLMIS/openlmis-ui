@@ -72,16 +72,24 @@ describe('useAuthActions', () => {
   });
 
   it('still reports a sign out the server could not complete', async () => {
+    const failure = new Error('Network Error');
+    const report = console.error;
+    const log = vi.spyOn(console, 'error').mockImplementation((...args) => {
+      if (args[0] !== '[useAuthActions.logout]' || args[1] !== failure || args.length !== 2) {
+        report(...args);
+      }
+    });
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'token' });
-    vi.mocked(authApi.logout).mockRejectedValue(new Error('Network Error'));
+    vi.mocked(authApi.logout).mockRejectedValue(failure);
     const { result } = renderHook(() => useAuthActions());
 
     await act(() => result.current.logout());
 
     expect(useLoginData.getState().isAuthenticated).toBe(false);
     expect(toast.error).toHaveBeenCalledOnce();
+    expect(log).toHaveBeenCalledExactlyOnceWith('[useAuthActions.logout]', failure);
   });
 
   it('says the server could not be reached when signing in offline, not that the password is wrong', async () => {

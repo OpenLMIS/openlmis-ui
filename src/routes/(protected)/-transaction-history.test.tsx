@@ -7,7 +7,15 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -66,7 +74,7 @@ const page = (content: StockEventSummary[], totalElements = content.length) => (
   size: 10,
 });
 
-function renderRoute(path: string) {
+function renderRoute(path: string, renderOptions: Pick<RenderOptions, 'onCaughtError'> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, retry: false } },
   });
@@ -98,6 +106,7 @@ function renderRoute(path: string) {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    renderOptions,
   );
   return { router, queryClient };
 }
@@ -150,6 +159,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
@@ -359,19 +369,25 @@ describe('transaction history page', () => {
   });
 
   it('shows an error with a retry when the events fail to load', async () => {
+    const failure = httpError(500);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
     const user = userEvent.setup();
-    vi.mocked(fetchStockEvents).mockRejectedValueOnce(httpError(500));
-    renderRoute(appliedPath());
+    vi.mocked(fetchStockEvents).mockRejectedValueOnce(failure);
+    renderRoute(appliedPath(), { onCaughtError });
 
     await user.click(await screen.findByRole('button', { name: /try again/i }));
     expect(await screen.findByText('FM71-ISS-1')).toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
   });
 
   it('says the transactions need a connection when the request gets no answer', async () => {
-    vi.mocked(fetchStockEvents).mockRejectedValue(networkError());
-    renderRoute(appliedPath());
+    const failure = networkError();
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockEvents).mockRejectedValue(failure);
+    renderRoute(appliedPath(), { onCaughtError });
 
     expect(await screen.findByText('offline.notice-title')).toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
   });
 
   it('opens a filtered page 2 again from its link, as after a reload', async () => {

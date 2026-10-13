@@ -623,8 +623,10 @@ describe('date field', () => {
     expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
   });
 
-  it('tells screen readers a date is required, with its label and value', () => {
-    render(<DateForm onSubmit={vi.fn()} />);
+  it('tells screen readers a date is required, with its label and value', async () => {
+    await act(async () => {
+      render(<DateForm onSubmit={vi.fn()} />);
+    });
 
     expect(
       screen.getByRole('button', { name: 'Started Required Pick A Date' }),
@@ -641,12 +643,14 @@ describe('date field', () => {
     expect(screen.getByRole('button', { name: 'Kept Oct 1, 2026' })).toBeInTheDocument();
   });
 
-  it('shows the date in the language it is given', () => {
-    render(
-      <FormMessagesProvider dateLanguage="pt" formatError={(message) => message}>
-        <DateForm onSubmit={vi.fn()} />
-      </FormMessagesProvider>,
-    );
+  it('shows the date in the language it is given', async () => {
+    await act(async () => {
+      render(
+        <FormMessagesProvider dateLanguage="pt" formatError={(message) => message}>
+          <DateForm onSubmit={vi.fn()} />
+        </FormMessagesProvider>,
+      );
+    });
 
     expect(screen.getByRole('button', { name: /^Opened/ })).toHaveTextContent('1 de out. de 2026');
   });
