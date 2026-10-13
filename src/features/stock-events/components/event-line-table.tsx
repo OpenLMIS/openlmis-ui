@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
@@ -157,6 +158,16 @@ type CellProps = {
   disabled: boolean;
   onRemove: (key: string) => void;
 };
+const revalidating = new WeakSet<EventForm>();
+function revalidateMountedFields(form: EventForm) {
+  if (!form.state.submissionAttempts || revalidating.has(form)) return;
+  revalidating.add(form);
+  queueMicrotask(() => {
+    revalidating.delete(form);
+    void form.validate('change');
+  });
+}
+
 const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
@@ -172,6 +183,7 @@ const LineCell = memo(function LineCell({
   onRemove,
 }: CellProps) {
   const { t, i18n } = useTranslation();
+  useEffect(() => revalidateMountedFields(form), [form]);
   const name = line.orderable.fullProductName || line.orderable.productCode;
   const productLabel = line.orderable.dispensable?.displayUnit
     ? `${name} - ${line.orderable.dispensable.displayUnit}`
@@ -692,6 +704,13 @@ export function EventLineTable({
   useEffect(() => {
     if (page !== requestedPage) onSearchChange({ page: page === 1 ? undefined : page }, true);
   }, [page, requestedPage, onSearchChange]);
+  const invalidLines = useStore(form.store, (state) => {
+    const errors = state.errorMap.onDynamic;
+    return errors && typeof errors === 'object' ? Object.keys(errors).join(' ') : '';
+  });
+  const invalidIndexes = new Set(
+    [...invalidLines.matchAll(/lines\[(\d+)\]/g)].map((match) => Number(match[1])),
+  );
   const tableRegion = useRef<HTMLDivElement>(null);
   const columnWidths = useRef<Record<string, number>>({});
   const measuredContent = useRef({ fitContent, containerWidth, unit, language: i18n.language });
@@ -742,7 +761,19 @@ export function EventLineTable({
         density="compact"
         layout="auto"
         empty={empty}
-        footer={lines.length > 0 && <DataTablePagination table={table} disabled={disabled} />}
+        footer={
+          lines.length > 0 && (
+            <DataTablePagination
+              table={table}
+              disabled={disabled}
+              isPageInvalid={(index) =>
+                lines
+                  .slice(index * size, (index + 1) * size)
+                  .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
+              }
+            />
+          )
+        }
       />
     </div>
   );
