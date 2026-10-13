@@ -150,7 +150,7 @@ export function FieldLabelText({ label, required }: Pick<FieldProps, 'label' | '
 }
 
 /** For screen readers only; not a direct `Field` child, whose `sr-only` rule would size it to its text. */
-function HiddenFromView({ children }: { children: ReactNode }) {
+export function HiddenFromView({ children }: { children: ReactNode }) {
   return (
     <div className="contents">
       <div className="sr-only">{children}</div>

@@ -36,6 +36,7 @@ import {
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
 import type { NewLot } from '@/features/stock-events/lib/types';
+import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -478,11 +479,7 @@ const LineCell = memo(function LineCell({
                   size="sm"
                   layout="inline"
                   hideErrors
-                  items={[
-                    { value: '', label: t('stock-events.vvm-none') },
-                    { value: 'STAGE_1', label: t('stock-events.stage-1') },
-                    { value: 'STAGE_2', label: t('stock-events.stage-2') },
-                  ]}
+                  items={vvmItems(t)}
                 />
               )}
             </form.AppField>

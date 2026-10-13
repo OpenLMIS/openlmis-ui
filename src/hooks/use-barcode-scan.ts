@@ -59,10 +59,26 @@ function writeField(
   if (!field.isConnected) return;
   const prototype =
     field instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
-  Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(field, value);
-  field.dispatchEvent(new Event('input', { bubbles: true }));
+  if (field.value !== value) {
+    Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(field, value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   if (snapshot.start !== null && start !== null && end !== null)
     field.setSelectionRange(start, end, snapshot.direction ?? undefined);
+}
+
+function replayField(snapshot: FieldSnapshot, text: string) {
+  const start = snapshot.start ?? snapshot.value.length;
+  const end = snapshot.end ?? start;
+  const room = snapshot.field.maxLength - (snapshot.value.length - (end - start));
+  const inserted = snapshot.field.maxLength >= 0 ? text.slice(0, Math.max(0, room)) : text;
+  const caret = start + inserted.length;
+  writeField(
+    snapshot,
+    snapshot.value.slice(0, start) + inserted + snapshot.value.slice(end),
+    caret,
+    caret,
+  );
 }
 
 function rejectedMessage(error: unknown): ScanMessage {
@@ -149,7 +165,7 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
     }
 
     function apply(event: ScanCaptureEvent, keyboard?: KeyboardEvent) {
-      const result = reduceScanCapture(state, event);
+      const result = reduceScanCapture(state, event, !!snapshotField());
       state = result.state;
       for (const effect of result.effects) {
         switch (effect.type) {
@@ -165,13 +181,7 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
             snapshot = undefined;
             break;
           case 'replay':
-            if (snapshot) {
-              const start = snapshot.start ?? snapshot.value.length;
-              const end = snapshot.end ?? start;
-              const value =
-                snapshot.value.slice(0, start) + effect.text + snapshot.value.slice(end);
-              writeField(snapshot, value, start + effect.text.length, start + effect.text.length);
-            }
+            if (snapshot) replayField(snapshot, effect.text);
             snapshot = undefined;
             break;
           case 'schedule-timeout':
@@ -212,6 +222,15 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
         syncListening();
         return;
       }
+      if (
+        event.isComposing ||
+        event.keyCode === 229 ||
+        event.key === 'Dead' ||
+        event.key === 'Process'
+      ) {
+        resetCapture();
+        return;
+      }
       apply(
         {
           type: event.type === 'keyup' ? 'keyup' : 'keydown',
@@ -237,16 +256,7 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
         });
         for (const effect of result.effects) {
           if (effect.type === 'restore-field') writeField(snapshot, snapshot.value);
-          if (effect.type === 'replay') {
-            const start = snapshot.start ?? snapshot.value.length;
-            const end = snapshot.end ?? start;
-            writeField(
-              snapshot,
-              snapshot.value.slice(0, start) + effect.text + snapshot.value.slice(end),
-              start + effect.text.length,
-              start + effect.text.length,
-            );
-          }
+          if (effect.type === 'replay') replayField(snapshot, effect.text);
         }
       }
       snapshot = undefined;
@@ -260,10 +270,14 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
       if (next) {
         document.addEventListener('keydown', onKey, true);
         document.addEventListener('keyup', onKey, true);
+        document.addEventListener('focusout', resetCapture, true);
+        document.addEventListener('pointerdown', resetCapture, true);
         void processQueue();
       } else {
         document.removeEventListener('keydown', onKey, true);
         document.removeEventListener('keyup', onKey, true);
+        document.removeEventListener('focusout', resetCapture, true);
+        document.removeEventListener('pointerdown', resetCapture, true);
         resetCapture();
       }
     }
@@ -283,6 +297,8 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
       clearTimeout(statusTimer);
       document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('keyup', onKey, true);
+      document.removeEventListener('focusout', resetCapture, true);
+      document.removeEventListener('pointerdown', resetCapture, true);
       resetCapture();
     };
   }, [enabled]);

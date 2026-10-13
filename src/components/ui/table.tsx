@@ -79,13 +79,14 @@ function TableRow({
   className,
   surface = "default",
   ...props
-}: React.ComponentProps<"tr"> & { surface?: "default" | "muted" }) {
+}: React.ComponentProps<"tr"> & { surface?: "default" | "muted" | "primary" }) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         surface === "muted" && "bg-muted/30 font-medium has-aria-expanded:bg-muted/30",
+        surface === "primary" && "bg-primary text-primary-foreground font-medium hover:bg-primary has-aria-expanded:bg-primary data-[state=selected]:bg-primary",
         className
       )}
       {...props}
@@ -106,12 +107,17 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  className,
+  tone = "default",
+  ...props
+}: React.ComponentProps<"td"> & { tone?: "default" | "danger" }) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
         "p-2 align-middle whitespace-nowrap",
+        tone === "danger" && "bg-destructive/10 text-destructive",
         className
       )}
       {...props}

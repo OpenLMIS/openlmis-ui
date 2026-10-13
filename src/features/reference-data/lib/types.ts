@@ -143,6 +143,11 @@ export type Orderable = {
   netContent?: number | null;
   identifiers?: Record<string, string>;
   extraData?: { useVVM?: string } | null;
+  programs?: {
+    programId: string;
+    orderableDisplayCategoryId?: string | null;
+    orderableCategoryDisplayName?: string | null;
+  }[];
   meta?: { versionNumber?: number; [key: string]: unknown };
 };
 

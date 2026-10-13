@@ -10,7 +10,7 @@ plus local storage in the browser, and needs nothing new on the server.
 | The app opens and reloads offline after one online visit, in every language | Done (FM-175) |
 | Pages say "Connect To Download This Data" instead of loading forever | Done (FM-175) |
 | The sidebar says when you are offline, back online, or when an update is ready | Done (FM-175) |
-| A private local database for each user and each deployment, ready for later | Done (FM-175), nothing stored yet |
+| A private local database for each user and each deployment | Done (FM-175); physical inventory drafts are saved automatically on the device |
 | A screen whose data and drafts work offline, then sync | Planned for the offline pass after the initial online stock screens (FM-166) |
 
 ## The Tools
