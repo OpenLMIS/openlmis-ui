@@ -40,7 +40,7 @@ export function TransactionHistoryToolbar({
   }));
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="basis-full @md/main:me-auto @md/main:basis-auto">
+      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <Popover>
           <PopoverTrigger
             render={<Button disabled={disabled} type="button" variant="outline" width="full" />}

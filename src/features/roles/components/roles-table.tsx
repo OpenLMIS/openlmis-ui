@@ -77,7 +77,7 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
     columnHelper.accessor('count', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('roles.users')} />,
       cell: ({ getValue }) => <span className="tabular-nums">{getValue() ?? 0}</span>,
-      meta: { className: 'w-36' },
+      meta: { className: 'w-56' },
     }),
     ...(hasActions
       ? [

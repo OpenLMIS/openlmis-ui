@@ -155,11 +155,11 @@ function StockCardPage() {
           <StockCardHeader card={data.card} unit={unit} />
           <div className="flex flex-wrap items-center justify-end gap-2">
             {canSwitch && (
-              <div className="flex-1 @md/main:flex-none">
+              <div className="flex-1 @2xl/main:flex-none">
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockCardColumns columnView={columnView} />
+            <StockCardColumns columnView={columnView} canSwitch={canSwitch} />
           </div>
           <StockCardLines
             card={data.card}
@@ -175,10 +175,16 @@ function StockCardPage() {
   );
 }
 
-function StockCardColumns({ columnView }: { columnView: ReturnType<typeof useColumnVisibility> }) {
+function StockCardColumns({
+  columnView,
+  canSwitch,
+}: {
+  columnView: ReturnType<typeof useColumnVisibility>;
+  canSwitch: boolean;
+}) {
   const { t } = useTranslation();
   return (
-    <div>
+    <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
         columns={STOCK_CARD_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
           id,
@@ -260,11 +266,15 @@ function StockCardPending() {
           <StockCardHeaderSkeleton />
           <div className="flex justify-end gap-2">
             {canSwitch && (
-              <div className="h-8 flex-1 @md/main:w-36 @md/main:flex-none">
+              <div className="h-8 flex-1 @2xl/main:w-36 @2xl/main:flex-none">
                 <Skeleton fill />
               </div>
             )}
-            <div className="h-8 w-20">
+            <div
+              className={
+                canSwitch ? 'h-8 w-20 shrink-0' : 'h-8 flex-1 @2xl/main:w-20 @2xl/main:flex-none'
+              }
+            >
               <Skeleton fill />
             </div>
           </div>

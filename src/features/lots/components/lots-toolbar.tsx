@@ -44,7 +44,7 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
           value={search.product}
         />
       </div>
-      <div className="min-w-64 flex-1 @2xl/main:max-w-80">
+      <div className="w-full @2xl/main:w-auto @2xl/main:min-w-64 @2xl/main:flex-1 @2xl/main:max-w-80">
         <DatePicker
           clearLabel={t('data-table.clear-filter', { label: t('lots.earliest-expiry') })}
           id="lots-earliest-expiry"
@@ -57,7 +57,7 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
           value={search.expiryFrom ?? ''}
         />
       </div>
-      <div className="min-w-64 flex-1 @2xl/main:max-w-80">
+      <div className="min-w-0 flex-1 @2xl/main:min-w-64 @2xl/main:max-w-80">
         <DatePicker
           clearLabel={t('data-table.clear-filter', { label: t('lots.latest-expiry') })}
           earliest={search.expiryFrom}

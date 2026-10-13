@@ -105,7 +105,16 @@ export function InventoryToolbar({
       </div>
       <div className="flex w-full flex-wrap items-center gap-2 @4xl/main:ms-auto @4xl/main:w-auto">
         <div className="basis-full @4xl/main:basis-auto">{save}</div>
-        <div className="shrink-0">
+        {quantityUnit.canSwitch && (
+          <div className="flex-1 @4xl/main:flex-none">
+            <QuantityUnitToggle
+              disabled={disabled}
+              unit={quantityUnit.unit}
+              onUnitChange={quantityUnit.setUnit}
+            />
+          </div>
+        )}
+        <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}>
           <DataTableViewOptions
             disabled={disabled}
             columns={INVENTORY_HIDEABLE_COLUMNS.map((column) => ({
@@ -115,19 +124,12 @@ export function InventoryToolbar({
             {...view}
           />
         </div>
-        <div className="flex-1 @4xl/main:flex-none">
+        <div className="w-full @4xl/main:w-auto">
           <Button disabled={disabled} onClick={onAdd} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('physical-inventory.add-product')}
           </Button>
         </div>
-        {quantityUnit.canSwitch && (
-          <QuantityUnitToggle
-            disabled={disabled}
-            unit={quantityUnit.unit}
-            onUnitChange={quantityUnit.setUnit}
-          />
-        )}
       </div>
     </DataTableToolbar>
   );

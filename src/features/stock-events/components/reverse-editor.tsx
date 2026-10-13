@@ -462,7 +462,7 @@ export function ReverseEditor({
             >
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {quantityUnit.canSwitch && (
-                  <div className="flex-1 @md/main:flex-none">
+                  <div className="flex-1 @2xl/main:flex-none">
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
@@ -470,7 +470,7 @@ export function ReverseEditor({
                     />
                   </div>
                 )}
-                <div className="flex-1 @md/main:flex-none">
+                <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
                     {...columnView}
                     columns={REVERSE_HIDEABLE_COLUMNS.map((column) => ({
