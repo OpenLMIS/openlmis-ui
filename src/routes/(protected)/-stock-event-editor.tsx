@@ -52,7 +52,6 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
-import { useFlag } from '@/lib/feature-flags';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
@@ -165,7 +164,6 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
-  const scanning = useFlag('GS1_SCANNING') && config.scanning;
   const visibility = { lotCode: false, expiry: false, vvm: false, total: unit.unit === 'PACKS' };
   return (
     <>
@@ -173,7 +171,7 @@ export function StockEventPending({
         <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
-            <ProductLotPickerSkeleton kind={kind} scanning={scanning} />
+            <ProductLotPickerSkeleton kind={kind} />
             <DataTableToolbar>
               <fieldset className="w-full @xl/main:w-72" disabled>
                 <DataTableSearch

@@ -107,6 +107,14 @@ const KINDS = {
     counterparty: 'validDestinations',
     products: 'stock-cards',
   },
+  unpack: {
+    eventKind: 'unpack',
+    PickerRoute: UnpackPickerRoute,
+    EditorRoute: UnpackEditorRoute,
+    copy: 'stock-unpack',
+    counterparty: null,
+    products: 'stock-cards',
+  },
   receive: {
     eventKind: 'receive',
     PickerRoute: ReceivePickerRoute,
@@ -284,6 +292,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     });
 
     it(`hides the ${kind} navigation entry without the adjustment right`, () => {
+      expect(JSON.stringify(LIVE_NAV_GROUPS)).toContain(PICKER);
       expect(canOpen(PICKER, undefined)).toBe(false);
       expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
       expect(canOpen(PICKER, new Set(['STOCK_ADJUST']))).toBe(true);
@@ -327,6 +336,8 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     });
   });
 
+  if (kind === 'unpack') return;
+
   describe(`${kind} editor access`, () => {
     it('uses cached facility and program names in the pending editor without fetching them again', async () => {
       const i18n = createInstance();
@@ -335,7 +346,9 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         resources: { en: { translation: en } },
         keySeparator: false,
       });
-      const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { staleTime: Infinity } },
+      });
       queryClient.setQueryData(userRecordOptions(USER).queryKey, {
         id: USER,
         username: 'administrator',
@@ -590,13 +603,6 @@ describe('Unpack policies', () => {
     }
   });
 
-  it('shows the Unpack navigation entry only with STOCK_ADJUST', () => {
-    expect(JSON.stringify(LIVE_NAV_GROUPS)).toContain('/stock-management/unpack');
-    expect(canOpen('/stock-management/unpack', undefined)).toBe(false);
-    expect(canOpen('/stock-management/unpack', new Set(['STOCK_CARDS_VIEW']))).toBe(false);
-    expect(canOpen('/stock-management/unpack', new Set(['STOCK_ADJUST']))).toBe(true);
-  });
-
   function renderUnpackRoute(path = '/stock-management/unpack') {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -638,20 +644,6 @@ describe('Unpack policies', () => {
     );
     return { router, queryClient, ...view };
   }
-
-  it('links the picker program to its Unpack editor', async () => {
-    const { queryClient, ...view } = renderUnpackRoute();
-    try {
-      expect(await screen.findByRole('link', { name: 'stock-unpack.make' })).toHaveAttribute(
-        'href',
-        `/stock-management/unpack/${FP}`,
-      );
-    } finally {
-      view.unmount();
-      await queryClient.cancelQueries();
-      queryClient.clear();
-    }
-  });
 
   it('lands on Stock On Hand for the home facility and program after confirmation', async () => {
     const kit = {

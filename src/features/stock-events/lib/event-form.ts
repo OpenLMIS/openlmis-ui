@@ -13,7 +13,6 @@ import {
   expandKitLines,
   type KitReasons,
   kitContentsProblem,
-  MAX_CONTENT_QUANTITY,
 } from '@/features/stock-events/lib/kit-unpack';
 import type {
   EventLot,
@@ -23,7 +22,7 @@ import type {
   StockEventLineItem,
 } from '@/features/stock-events/lib/types';
 import { sameLotCode } from '@/lib/lot-code';
-import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
+import { MAX_WHOLE_NUMBER, toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
   key: z.string(),
@@ -198,7 +197,7 @@ export function eventLinesSchema({
 
 function expandedQuantityTooLarge(line: EventLine): boolean {
   return !!line.orderable.children?.some(
-    (child) => toWholeNumber(line.quantity.doses) * (child.quantity ?? 0) > MAX_CONTENT_QUANTITY,
+    (child) => toWholeNumber(line.quantity.doses) * (child.quantity ?? 0) > MAX_WHOLE_NUMBER,
   );
 }
 

@@ -588,7 +588,7 @@ export function EventLineTable({
                       dir="ltr"
                     >
                       <InputSizer
-                        sizing={measured ? 'minimum' : 'full'}
+                        sizing={measured ? 'minimum' : 'full-minimum'}
                         placeholder={t(
                           unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
                         )}
@@ -597,7 +597,7 @@ export function EventLineTable({
                         <>
                           <span className="shrink-0 whitespace-nowrap">( +</span>
                           <InputSizer
-                            sizing={measured ? 'minimum' : 'full'}
+                            sizing={measured ? 'minimum' : 'full-minimum'}
                             placeholder={t('quantity-unit.doses')}
                           />
                           <span>)</span>

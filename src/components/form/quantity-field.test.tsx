@@ -24,13 +24,11 @@ function QuantityForm({
   onSubmit,
   netContent = 16,
   doses = '50',
-  sizing = 'full',
 }: {
   unit: Unit;
   onSubmit: (value: unknown) => void;
   netContent?: number;
   doses?: string;
-  sizing?: 'full' | 'minimum';
 }) {
   const form = useAppForm({
     defaultValues: { quantity: quantityValue(doses, netContent) },
@@ -54,7 +52,6 @@ function QuantityForm({
             dosesLabel="Doses"
             netContent={netContent}
             unit={unit}
-            sizing={sizing}
             required
           />
         )}
@@ -78,33 +75,28 @@ describe('QuantityField form wiring', () => {
     expect(screen.getByText('( +')).toBeVisible();
   });
 
-  it.each(['full', 'minimum'] as const)(
-    'switches units without changing doses and names both pack inputs with %s sizing',
-    async (sizing) => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-      const { rerender } = render(
-        <QuantityForm onSubmit={onSubmit} unit="DOSES" sizing={sizing} />,
-      );
-      expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A' })).toHaveValue('50');
-      expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A' })).toHaveAttribute(
-        'placeholder',
-        'Doses',
-      );
-      rerender(<QuantityForm onSubmit={onSubmit} unit="PACKS" sizing={sizing} />);
-      const packs = screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Packs' });
-      expect(packs).toHaveValue('3');
-      expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Doses' })).toHaveValue('2');
-      await user.clear(packs);
-      await user.type(packs, '4');
-      rerender(<QuantityForm onSubmit={onSubmit} unit="DOSES" sizing={sizing} />);
-      expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A' })).toHaveValue('66');
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-      expect(onSubmit).toHaveBeenCalledWith({
-        quantity: { doses: '66', packs: '4', remainder: '2' },
-      });
-    },
-  );
+  it('switches units without changing doses and names both pack inputs', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const { rerender } = render(<QuantityForm onSubmit={onSubmit} unit="DOSES" />);
+    expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A' })).toHaveValue('50');
+    expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A' })).toHaveAttribute(
+      'placeholder',
+      'Doses',
+    );
+    rerender(<QuantityForm onSubmit={onSubmit} unit="PACKS" />);
+    const packs = screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Packs' });
+    expect(packs).toHaveValue('3');
+    expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A Doses' })).toHaveValue('2');
+    await user.clear(packs);
+    await user.type(packs, '4');
+    rerender(<QuantityForm onSubmit={onSubmit} unit="DOSES" />);
+    expect(screen.getByRole('textbox', { name: 'Quantity, C1 LC2017A' })).toHaveValue('66');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      quantity: { doses: '66', packs: '4', remainder: '2' },
+    });
+  });
 
   it('retains invalid pack text through unit switches and resolves validation message keys', async () => {
     const user = userEvent.setup();

@@ -57,7 +57,7 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 }
 
 export type EventKindConfig = {
-  eventOrigin: StockEvent['eventOrigin'] | null;
+  eventOrigin: NonNullable<StockEvent['eventOrigin']> | null;
   contents:
     | { type: 'none' }
     | {

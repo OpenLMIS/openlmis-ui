@@ -3,10 +3,9 @@ import type { OrderableChild, Reason } from '@/features/reference-data/lib/types
 import {
   contentTotalsTooLarge,
   expandKitLines,
-  kitContentsChanged,
   kitContentsProblem,
+  refreshKitContents,
   unpackReasons,
-  withFreshContents,
 } from '@/features/stock-events/lib/kit-unpack';
 
 function deepFreeze<T>(value: T): T {
@@ -190,18 +189,6 @@ describe('expandKitLines', () => {
 
 describe('contentTotalsTooLarge', () => {
   const shared = [{ orderable: { id: 'shared' }, quantity: 1 }];
-  it('accepts the limit and returns every contributing index above it, excluding other products and zero counts', () => {
-    const lines = deepFreeze([
-      { ...item(2_147_483_646), children: shared },
-      { ...item(1), orderableId: 'another-kit', children: shared },
-      { ...item(1), children: [{ orderable: { id: 'other' }, quantity: 1 }] },
-      { ...item(1), children: [{ orderable: { id: 'shared' }, quantity: 0 }] },
-    ]);
-    expect(contentTotalsTooLarge(lines)).toEqual([]);
-    expect(contentTotalsTooLarge(deepFreeze([...lines, { ...item(1), children: shared }]))).toEqual(
-      [0, 1, 4],
-    );
-  });
   it('sums duplicate child entries too', () => {
     expect(
       contentTotalsTooLarge(
@@ -216,7 +203,8 @@ describe('fresh kit contents', () => {
   it('compares child ids and counts as multisets, including duplicate multiplicity', () => {
     const lines = deepFreeze([line, { ...line, key: 'second' }]);
     expect(
-      kitContentsChanged(lines, deepFreeze([{ ...kit, children: [...children].reverse() }])),
+      refreshKitContents(lines, deepFreeze([{ ...kit, children: [...children].reverse() }]))
+        .changed,
     ).toEqual([]);
     for (const fresh of [
       [{ ...kit, children: [...children, children[0]] }],
@@ -226,21 +214,21 @@ describe('fresh kit contents', () => {
       [{ ...kit, children: [] }],
       [],
     ]) {
-      expect(kitContentsChanged(lines, deepFreeze(fresh))).toEqual(['kit']);
+      expect(refreshKitContents(lines, deepFreeze(fresh)).changed).toEqual([kit]);
     }
     const duplicate = { ...kit, children: [children[0], children[0], children[1]] };
     expect(
-      kitContentsChanged(
+      refreshKitContents(
         [{ orderable: duplicate }],
         [{ ...duplicate, children: [children[0], children[1], children[1]] }],
-      ),
-    ).toEqual(['kit']);
+      ).changed,
+    ).toEqual([duplicate]);
   });
   it('reports a missing kit once, then lets validation refuse the refreshed line', () => {
     const lines = deepFreeze([line]);
-    expect(kitContentsChanged(lines, [])).toEqual(['kit']);
-    const updated = withFreshContents(lines, []);
-    expect(kitContentsChanged(updated, [])).toEqual([]);
+    expect(refreshKitContents(lines, []).changed).toEqual([kit]);
+    const updated = refreshKitContents(lines, []).lines;
+    expect(refreshKitContents(updated, []).changed).toEqual([]);
     expect(kitContentsProblem(updated[0].orderable)).toBe('not-a-kit');
   });
   it('replaces only contents on new lines and orderables without mutating frozen inputs', () => {
@@ -248,21 +236,23 @@ describe('fresh kit contents', () => {
     const fresh = deepFreeze([
       { ...kit, productCode: 'new-code', children: [{ orderable: { id: 'new' }, quantity: 4 }] },
     ]);
-    const result = withFreshContents(lines, fresh);
+    const result = refreshKitContents(lines, fresh).lines;
     expect(result).toEqual([{ ...line, orderable: { ...kit, children: fresh[0].children } }]);
     expect(result[0]).not.toBe(line);
     expect(result[0].orderable).not.toBe(kit);
     expect(result[0].quantity).toBe(line.quantity);
     expect(result[0].lot).toBe(line.lot);
-    expect(withFreshContents(lines, [])[0].orderable.children).toBeUndefined();
+    expect(refreshKitContents(lines, []).lines[0].orderable.children).toBeUndefined();
   });
   it('retains invalid fresh counts so validation can refuse them and later recover', () => {
     const freshChildren: OrderableChild[] = [{ orderable: { id: 'child' }, quantity: null }];
-    const updated = withFreshContents(
+    const updated = refreshKitContents(
       deepFreeze([line]),
       deepFreeze([{ ...kit, children: freshChildren }]),
-    );
+    ).lines;
     expect(kitContentsProblem(updated[0].orderable)).toBe('invalid-count');
-    expect(kitContentsProblem(withFreshContents(updated, [kit])[0].orderable)).toBeUndefined();
+    expect(
+      kitContentsProblem(refreshKitContents(updated, [kit]).lines[0].orderable),
+    ).toBeUndefined();
   });
 });

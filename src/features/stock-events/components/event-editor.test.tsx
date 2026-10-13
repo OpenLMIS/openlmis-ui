@@ -1722,7 +1722,7 @@ describe('Unpack editor', () => {
       en['stock-unpack.contents-changed-title'],
     );
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'The contents of Delivery Kit changed since you added them. The lines now use the new contents. Submit again to unpack them.',
+      'The contents of \u2068Delivery Kit\u2069 changed since you added them. The lines now use the new contents. Submit again to unpack them.',
     );
     expect(submitStockEvent).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Close' }));

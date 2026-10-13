@@ -1,7 +1,7 @@
 import type { OrderableChild, Reason } from '@/features/reference-data/lib/types';
 import type { StockEventLineItem } from '@/features/stock-events/lib/types';
 
-export const MAX_CONTENT_QUANTITY = 2_147_483_647;
+import { MAX_WHOLE_NUMBER } from '@/lib/whole-number';
 
 type KitRecord = { id: string; children?: readonly OrderableChild[] };
 type KitContents = Pick<KitRecord, 'children'>;
@@ -48,7 +48,7 @@ export function kitContentsProblem(
         quantity === null ||
         !Number.isInteger(quantity) ||
         quantity < 0 ||
-        quantity > MAX_CONTENT_QUANTITY,
+        quantity > MAX_WHOLE_NUMBER,
     )
   )
     return 'invalid-count';
@@ -93,7 +93,7 @@ export function contentTotalsTooLarge(lines: readonly KitContentLine[]): number[
   return [
     ...new Set(
       [...totals.values()]
-        .filter((total) => total.quantity > MAX_CONTENT_QUANTITY)
+        .filter((total) => total.quantity > MAX_WHOLE_NUMBER)
         .flatMap((total) => [...total.indexes]),
     ),
   ].sort((a, b) => a - b);
@@ -107,32 +107,21 @@ function contentsMultiset(kit: KitContents): string[] {
     .sort();
 }
 
-export function kitContentsChanged(
-  lines: readonly { orderable: KitRecord }[],
-  freshKits: readonly KitRecord[],
-): string[] {
-  const byId = new Map(freshKits.map((kit) => [kit.id, kit]));
-  return [
-    ...new Set(
-      lines
-        .filter(({ orderable }) => {
-          const fresh = byId.get(orderable.id) ?? { children: undefined };
-          return (
-            JSON.stringify(contentsMultiset(orderable)) !== JSON.stringify(contentsMultiset(fresh))
-          );
-        })
-        .map(({ orderable }) => orderable.id),
-    ),
-  ];
-}
-
-export function withFreshContents<T extends { orderable: KitRecord }>(
+export function refreshKitContents<T extends { orderable: KitRecord }>(
   lines: readonly T[],
   freshKits: readonly KitRecord[],
-): T[] {
+): { lines: T[]; changed: T['orderable'][] } {
   const byId = new Map(freshKits.map((kit) => [kit.id, kit]));
-  return lines.map((line) => ({
-    ...line,
-    orderable: { ...line.orderable, children: byId.get(line.orderable.id)?.children },
-  }));
+  const changed = new Map<string, T['orderable']>();
+  const refreshed = lines.map((line) => {
+    const children = byId.get(line.orderable.id)?.children;
+    if (
+      JSON.stringify(contentsMultiset(line.orderable)) !==
+      JSON.stringify(contentsMultiset({ children }))
+    ) {
+      changed.set(line.orderable.id, line.orderable);
+    }
+    return { ...line, orderable: { ...line.orderable, children } };
+  });
+  return { lines: refreshed, changed: [...changed.values()] };
 }

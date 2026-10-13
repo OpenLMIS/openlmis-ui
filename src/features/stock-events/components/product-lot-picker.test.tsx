@@ -49,7 +49,7 @@ describe('ProductLotPicker', () => {
   it('keeps the product field label while announcing loading only to screen readers', async () => {
     renderPage(
       <I18nextProvider i18n={i18n}>
-        <ProductLotPickerSkeleton kind="adjustment" scanning={false} />
+        <ProductLotPickerSkeleton kind="adjustment" />
       </I18nextProvider>,
     );
     const label = await screen.findByText('Product');

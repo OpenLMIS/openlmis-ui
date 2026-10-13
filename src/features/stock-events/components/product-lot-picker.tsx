@@ -117,6 +117,7 @@ function StockCardLotPicker({
 }: BaseProps & { cardFilter: EventCardFilter }) {
   const { t, i18n } = useTranslation();
   const lotLabel = useLotLabel();
+  const copy = EVENT_KINDS[kind].copy;
   const id = useId();
   const { data: cards } = useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
   const products = useMemo(() => eventProductOptions(cardFilter(cards)), [cards, cardFilter]);
@@ -142,7 +143,7 @@ function StockCardLotPicker({
       <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
-            <FieldLabelText label={t(EVENT_KINDS[kind].copy.product)} required />
+            <FieldLabelText label={t(copy.product)} required />
           </FieldLabel>
           <Combobox
             items={products}
@@ -157,18 +158,14 @@ function StockCardLotPicker({
             <ComboboxInput
               id={`${id}-product`}
               aria-required="true"
-              aria-label={t(EVENT_KINDS[kind].copy.product)}
+              aria-label={t(copy.product)}
               dir="auto"
-              placeholder={t(EVENT_KINDS[kind].copy.product)}
+              placeholder={t(copy.product)}
               width="full"
             />
             <ComboboxContent>
               <ComboboxEmpty>
-                {t(
-                  products.length === 0
-                    ? EVENT_KINDS[kind].copy.noProducts
-                    : 'stock-events.no-matches-title',
-                )}
+                {t(products.length === 0 ? copy.noProducts : 'stock-events.no-matches-title')}
               </ComboboxEmpty>
               <ComboboxList>
                 {(item) => (
@@ -264,7 +261,6 @@ function ApprovedProductLotPicker({
 }) {
   const { t, i18n } = useTranslation();
   const id = useId();
-  const scanning = useFlag('GS1_SCANNING') && EVENT_KINDS[kind].scanning;
   const lotLabel = useLotLabel();
   const today = toDateValue(new Date());
   const filter = { facilityId, programId };
@@ -408,8 +404,7 @@ function ApprovedProductLotPicker({
     if (stockFailed) void stockQuery.refetch();
   };
 
-  if (first.data === undefined && first.isPending)
-    return <ProductLotPickerSkeleton kind={kind} scanning={scanning} />;
+  if (first.data === undefined && first.isPending) return <ProductLotPickerSkeleton kind={kind} />;
   return (
     <PickerPanel
       status={children}
@@ -650,14 +645,10 @@ function PickerPanel({
   );
 }
 
-export function ProductLotPickerSkeleton({
-  scanning,
-  kind,
-}: {
-  scanning: boolean;
-  kind: ConfiguredEventKind;
-}) {
+export function ProductLotPickerSkeleton({ kind }: { kind: ConfiguredEventKind }) {
   const { t } = useTranslation();
+  const copy = EVENT_KINDS[kind].copy;
+  const scanning = useFlag('GS1_SCANNING') && EVENT_KINDS[kind].scanning;
   return (
     <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
       <p role="status" aria-live="polite" className="sr-only">
@@ -666,14 +657,14 @@ export function ProductLotPickerSkeleton({
       <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel>
-            <FieldLabelText label={t(EVENT_KINDS[kind].copy.product)} required />
+            <FieldLabelText label={t(copy.product)} required />
           </FieldLabel>
           <Combobox disabled>
             <ComboboxInput
               disabled
-              aria-label={t(EVENT_KINDS[kind].copy.product)}
+              aria-label={t(copy.product)}
               aria-required="true"
-              placeholder={t(EVENT_KINDS[kind].copy.product)}
+              placeholder={t(copy.product)}
               width="full"
             />
           </Combobox>

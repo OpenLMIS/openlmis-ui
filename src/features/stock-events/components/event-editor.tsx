@@ -1,5 +1,10 @@
 import { useStore } from '@tanstack/react-form';
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
@@ -70,9 +75,8 @@ import {
 } from '@/features/stock-events/lib/event-kinds';
 import {
   type KitUnpackReasonIds,
-  kitContentsChanged,
+  refreshKitContents,
   unpackReasons,
-  withFreshContents,
 } from '@/features/stock-events/lib/kit-unpack';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
@@ -149,15 +153,18 @@ export function EventEditor({
       products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
     [products, today],
   );
+  const needsKitContents = config.contents.type === 'kit';
+  const reasonOptions = needsKitContents
+    ? reasonsOptions()
+    : validReasonsOptions({ program: programId, facilityType: facilityTypeId });
   const reasonsQuery = useQuery({
     ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
-    enabled: canViewStock && config.reasons !== null,
+    enabled: canViewStock && !needsKitContents && config.reasons !== null,
   });
   const reasons = useMemo(
     () => (reasonsQuery.data && config.reasons ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
     [reasonsQuery.data, config],
   );
-  const needsKitContents = config.contents.type === 'kit';
   const kitReasonsQuery = useQuery({
     ...reasonsOptions(),
     enabled: canViewStock && needsKitContents,
@@ -188,10 +195,11 @@ export function EventEditor({
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [contentsChangedKits, setContentsChangedKits] = useState<string[]>([]);
-  const [contentsChangedOpen, setContentsChangedOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
+  const [failure, setFailure] = useState<{
+    title: ParseKeys;
+    description: string;
+  } | null>(null);
   const [unknownOutcome, setUnknownOutcome] = useState(false);
   const [validationOpen, setValidationOpen] = useState(false);
   const alertTarget = useRef<{ name: string; page: number } | null>(null);
@@ -376,27 +384,29 @@ export function EventEditor({
         staleTime: 0,
       });
       if (!mutation.isCurrent()) return;
-      form.setFieldValue('lines', withFreshContents(currentLines, fresh));
-      const changedIds = kitContentsChanged(currentLines, fresh);
-      if (changedIds.length) {
-        setContentsChangedKits(
-          changedIds.map((id) => {
-            const kit = currentLines.find((line) => line.orderable.id === id)?.orderable;
-            return kit?.fullProductName || kit?.productCode || id;
+      const refreshed = refreshKitContents(currentLines, fresh);
+      form.setFieldValue('lines', refreshed.lines);
+      if (refreshed.changed.length) {
+        setFailure({
+          title: config.contents.copy.contentsChangedTitle,
+          description: t(config.contents.copy.contentsChangedDescription, {
+            kits: formatIsolatedList(
+              refreshed.changed.map((kit) => kit.fullProductName || kit.productCode),
+              i18n.resolvedLanguage ?? i18n.language,
+            ),
           }),
-        );
+        });
         queryClient.invalidateQueries({
           queryKey: eventStockCardsOptions({ facilityId, programId }).queryKey,
           exact: true,
         });
-        setContentsChangedOpen(true);
         return;
       }
       await form.handleSubmit();
     } catch (error) {
       if (!mutation.isCurrent()) return;
       setFailure({
-        unknown: false,
+        title: config.copy.submitErrorTitle,
         description: isOfflineError(error)
           ? t(config.contents.copy.refreshOffline)
           : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
@@ -435,7 +445,10 @@ export function EventEditor({
       const description = unknown
         ? t('stock-events.unknown-outcome-description')
         : (serverMessage(error) ?? t(config.copy.submitErrorDescription));
-      setFailure({ unknown, description });
+      setFailure({
+        title: unknown ? 'stock-events.unknown-outcome-title' : config.copy.submitErrorTitle,
+        description,
+      });
       setUnknownOutcome(unknown);
       setConfirmationOpen(false);
       posting.current = false;
@@ -608,7 +621,7 @@ export function EventEditor({
               {canViewStock && (
                 <QueryBoundary
                   resetKey={`${facilityId}/${programId}`}
-                  pendingFallback={<ProductLotPickerSkeleton kind={kind} scanning={scanning} />}
+                  pendingFallback={<ProductLotPickerSkeleton kind={kind} />}
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
@@ -688,40 +701,45 @@ export function EventEditor({
                   busy={false}
                 />
               ) : (
-                <EventReasonsReady
-                  allReasons={needsKitContents}
-                  programId={programId}
-                  facilityTypeId={facilityTypeId}
+                <QueryBoundary
+                  resetKey={`${programId}/${facilityTypeId}`}
+                  errorComponent={ReasonsError}
                   pendingFallback={tablePending}
                 >
-                  <StockCardsReady needed={fromCards} facilityId={facilityId} programId={programId}>
-                    <CounterpartyReady
-                      pendingFallback={tablePending}
-                      side={needsCounterparty ? side : null}
+                  <ReasonsReady options={reasonOptions}>
+                    <StockCardsReady
+                      needed={fromCards}
                       facilityId={facilityId}
                       programId={programId}
                     >
-                      <EventLineTable
-                        kind={kind}
-                        fitContent={fitContent}
-                        containerWidth={width}
-                        reasonRequired={reasonRequired}
-                        form={form}
-                        lines={filtered}
-                        reasons={reasons}
-                        assignments={assignments}
-                        unit={quantityUnit.unit}
-                        today={today}
-                        disabled={pending || submitted}
-                        onRemove={remove}
-                        search={search}
-                        onSearchChange={onSearchChange}
-                        columnVisibility={visibility}
-                        onClearFilter={clearFilter}
-                      />
-                    </CounterpartyReady>
-                  </StockCardsReady>
-                </EventReasonsReady>
+                      <CounterpartyReady
+                        pendingFallback={tablePending}
+                        side={needsCounterparty ? side : null}
+                        facilityId={facilityId}
+                        programId={programId}
+                      >
+                        <EventLineTable
+                          kind={kind}
+                          fitContent={fitContent}
+                          containerWidth={width}
+                          reasonRequired={reasonRequired}
+                          form={form}
+                          lines={filtered}
+                          reasons={reasons}
+                          assignments={assignments}
+                          unit={quantityUnit.unit}
+                          today={today}
+                          disabled={pending || submitted}
+                          onRemove={remove}
+                          search={search}
+                          onSearchChange={onSearchChange}
+                          columnVisibility={visibility}
+                          onClearFilter={clearFilter}
+                        />
+                      </CounterpartyReady>
+                    </StockCardsReady>
+                  </ReasonsReady>
+                </QueryBoundary>
               )}
             </form>
           </div>
@@ -763,15 +781,7 @@ export function EventEditor({
       >
         <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t(
-                failure
-                  ? failure.unknown
-                    ? 'stock-events.unknown-outcome-title'
-                    : config.copy.submitErrorTitle
-                  : config.copy.invalidTitle,
-              )}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
             </AlertDialogDescription>
@@ -781,31 +791,6 @@ export function EventEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {config.contents.type === 'kit' && (
-        <AlertDialog
-          open={contentsChangedOpen}
-          onOpenChange={(open) => {
-            if (!pending) setContentsChangedOpen(open);
-          }}
-        >
-          <AlertDialogContent finalFocus={submitButton}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t(config.contents.copy.contentsChangedTitle)}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t(config.contents.copy.contentsChangedDescription, {
-                  kits: formatIsolatedList(
-                    contentsChangedKits,
-                    i18n.resolvedLanguage ?? i18n.language,
-                  ),
-                })}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
       <ClearLinesDialog
         kind={kind}
         open={clearOpen}
@@ -881,51 +866,14 @@ function StockCardsError({ error, reset }: { error: unknown; reset: () => void }
   );
 }
 
-function EventReasonsReady({
-  allReasons,
-  pendingFallback,
-  programId,
-  facilityTypeId,
-  children,
-}: {
-  allReasons: boolean;
-  pendingFallback: ReactNode;
-  programId: string;
-  facilityTypeId: string;
-  children: ReactNode;
-}) {
-  return (
-    <QueryBoundary
-      resetKey={`${programId}/${facilityTypeId}`}
-      pendingFallback={pendingFallback}
-      errorComponent={ReasonsError}
-    >
-      {allReasons ? (
-        <KitReasonsReady>{children}</KitReasonsReady>
-      ) : (
-        <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
-          {children}
-        </ReasonsReady>
-      )}
-    </QueryBoundary>
-  );
-}
-
-function KitReasonsReady({ children }: { children: ReactNode }) {
-  useSuspenseQuery(reasonsOptions());
-  return children;
-}
-
 function ReasonsReady({
-  programId,
-  facilityTypeId,
+  options,
   children,
 }: {
-  programId: string;
-  facilityTypeId: string;
+  options: ReturnType<typeof reasonsOptions> | ReturnType<typeof validReasonsOptions>;
   children: ReactNode;
 }) {
-  useSuspenseQuery(validReasonsOptions({ program: programId, facilityType: facilityTypeId }));
+  useSuspenseQueries({ queries: [options] });
   return children;
 }
 
