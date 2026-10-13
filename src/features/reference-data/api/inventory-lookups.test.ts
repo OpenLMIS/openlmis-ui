@@ -46,17 +46,42 @@ describe('inventory reference lookups', () => {
   });
 });
 
-it('reads all 10003 versioned summary products in one request instead of 101 id batches', async () => {
-  const identities = Array.from({ length: 10003 }, (_, i) => ({ id: `p${i}`, versionNumber: 1 }));
+it('batches versioned products, reads every page and keeps the latest across batches', async () => {
+  const identities = Array.from({ length: 250 }, (_, i) => ({ id: `p${i}`, versionNumber: 1 }));
+  identities[249] = { id: 'p0', versionNumber: 2 };
   const products = identities.map(({ id, versionNumber }) => ({ id, meta: { versionNumber } }));
-  vi.mocked(client.post).mockResolvedValue({ data: { content: products, totalPages: 1 } });
-  expect(await fetchOrderablesByIdentities([])).toEqual([]);
-  expect(await fetchOrderablesByIdentities([...identities, identities[0]])).toEqual(products);
-  expect(client.post).toHaveBeenCalledExactlyOnceWith('/orderables/search', {
-    identities,
-    page: 0,
-    size: 10003,
+  type SearchBody = { identities: typeof identities; page: number; size: number };
+  vi.mocked(client.post).mockImplementation(async (_path, body) => {
+    const { identities: batch, page } = body as SearchBody;
+    const pageIdentities = batch.slice(page * 50, (page + 1) * 50);
+    return {
+      data: {
+        content: pageIdentities.map(({ id, versionNumber }) => ({ id, meta: { versionNumber } })),
+        totalPages: Math.ceil(batch.length / 50),
+      },
+    };
   });
+  expect(await fetchOrderablesByIdentities([])).toEqual([]);
+  expect(await fetchOrderablesByIdentities([...identities, identities[0]])).toEqual([
+    products[249],
+    ...products.slice(1, 249),
+  ]);
+  expect(client.post).toHaveBeenCalledTimes(5);
+  for (const [path, body] of vi.mocked(client.post).mock.calls) {
+    expect(path).toBe('/orderables/search');
+    expect((body as SearchBody).identities.length).toBeLessThanOrEqual(100);
+    expect((body as SearchBody).size).toBe(100);
+  }
+  for (let start = 0; start < identities.length; start += 100) {
+    const batch = identities.slice(start, start + 100);
+    for (let page = 0; page < Math.ceil(batch.length / 50); page += 1) {
+      expect(client.post).toHaveBeenCalledWith('/orderables/search', {
+        identities: batch,
+        page,
+        size: 100,
+      });
+    }
+  }
   expect(client.get).not.toHaveBeenCalled();
 });
 
