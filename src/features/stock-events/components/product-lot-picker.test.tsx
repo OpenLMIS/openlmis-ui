@@ -365,6 +365,7 @@ describe('ProductLotPicker with approved products', () => {
     const add = screen.getByRole('button', { name: 'Add' });
     expect(add).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Loading Lots...');
+    expect(screen.queryByRole('textbox', { name: 'Lot Code' })).not.toBeInTheDocument();
     expect(fetchLotsByTradeItems).not.toHaveBeenCalled();
     expect(fetchEventStockOnHand).toHaveBeenCalledWith({
       facilityId: 'facility',
@@ -373,7 +374,7 @@ describe('ProductLotPicker with approved products', () => {
     });
     await act(async () => stock.resolve({}));
     await waitFor(() => expect(add).toBeEnabled());
-    expect(screen.queryByText('Loading Lots...')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
     await user.click(add);
     expect(onAdd).toHaveBeenCalledWith(
@@ -385,6 +386,25 @@ describe('ProductLotPicker with approved products', () => {
     expect(fetchLotsByTradeItems).toHaveBeenCalledWith(['trade']);
     await act(async () => lots.resolve([existingLot]));
     expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['fulfilment map', () => vi.mocked(fetchFacilityOrderableFulfills)],
+    ['fulfilling products', () => vi.mocked(fetchOrderablesByIds)],
+  ])('reports and retries a failed %s load', async (_, failing) => {
+    vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({
+      aspirin: { canFulfillForMe: ['generic'] },
+    });
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([generic]);
+    failing().mockRejectedValueOnce(new Error('Unavailable'));
+    const { user } = renderApproved();
+    expect(await screen.findByText(en['stock-events.fulfils-error-title'])).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() =>
+      expect(screen.queryByText(en['stock-events.fulfils-error-title'])).not.toBeInTheDocument(),
+    );
+    await user.click(await productBox());
+    expect(await screen.findByRole('option', { name: 'Salicylate' })).toBeInTheDocument();
   });
 
   it('retries a failed lots load', async () => {

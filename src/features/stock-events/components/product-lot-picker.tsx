@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import {
   facilityOrderableFulfillsOptions,
   lotsByTradeItemsOptions,
@@ -384,6 +385,13 @@ function ApprovedProductLotPicker({
       productHasLots,
     );
   };
+  const fulfilsFailed =
+    (fulfils.isError && fulfils.data === undefined) ||
+    (fulfilling.isError && fulfilling.data === undefined);
+  const retryFulfils = () => {
+    if (fulfils.isError) void fulfils.refetch();
+    if (fulfilling.isError) void fulfilling.refetch();
+  };
   const retry = () => {
     if (lotsFailed) void lotsQuery.refetch();
     if (stockFailed) void stockQuery.refetch();
@@ -400,6 +408,13 @@ function ApprovedProductLotPicker({
               title={t('stock-events.products-search-error-title')}
               description={t('stock-events.products-search-error-description')}
               action={<RetryButton onClick={() => void first.refetch()} />}
+            />
+          )}
+          {fulfilsFailed && (
+            <ErrorAlert
+              title={t('stock-events.fulfils-error-title')}
+              description={t('stock-events.fulfils-error-description')}
+              action={<RetryButton onClick={retryFulfils} />}
             />
           )}
           {(lotsFailed || stockFailed) && (
@@ -487,24 +502,6 @@ function ApprovedProductLotPicker({
           </Combobox>
         </Field>
       </div>
-      {loading && (
-        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
-          <p role="status" aria-live="polite" className="sr-only">
-            {t('stock-events.lots-loading')}
-          </p>
-          <Field spacing="tight">
-            <FieldLabel htmlFor={`${id}-lot-loading`}>
-              <FieldLabelText label={t('stock-events.lot-code')} required />
-            </FieldLabel>
-            <Input
-              id={`${id}-lot-loading`}
-              disabled
-              aria-required="true"
-              placeholder={t('stock-events.lots-loading')}
-            />
-          </Field>
-        </div>
-      )}
       {lotOptions.length > 1 && (
         <div className="min-w-0 flex-1 @3xl/main:max-w-md">
           <Field spacing="tight">
@@ -598,9 +595,16 @@ function ApprovedProductLotPicker({
           onClick={add}
           type="button"
         >
-          <PlusIcon data-icon="inline-start" />
+          {loading ? (
+            <Spinner aria-hidden="true" data-icon="inline-start" role="presentation" />
+          ) : (
+            <PlusIcon data-icon="inline-start" />
+          )}
           {t('stock-events.add')}
         </Button>
+        <p role="status" aria-live="polite" className="sr-only">
+          {loading ? t('stock-events.lots-loading') : ''}
+        </p>
       </div>
     </PickerPanel>
   );
