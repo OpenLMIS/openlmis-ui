@@ -130,7 +130,7 @@ export async function fetchOrderables({
 
 const BY_IDS_BATCH = 100;
 
-async function fetchIdBatches<R>(ids: readonly string[], fetch: (batch: string[]) => Promise<R>) {
+async function fetchIdBatches<T, R>(ids: readonly T[], fetch: (batch: T[]) => Promise<R>) {
   const unique = [...new Set(ids)];
   const batches = Array.from({ length: Math.ceil(unique.length / BY_IDS_BATCH) }, (_, index) => ({
     index,
@@ -193,20 +193,22 @@ export async function fetchOrderablesByIdentities(
   const unique = [
     ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
   ];
-  if (!unique.length) return [];
-  const found: Orderable[] = [];
-  for (let page = 0; ; page += 1) {
-    assertSessionScope(scope);
-    const { data } = await client.post<Page<Orderable>>('/orderables/search', {
-      identities: unique,
-      page,
-      size: unique.length,
-    });
-    assertSessionScope(scope);
-    found.push(...data.content);
-    if (page + 1 >= data.totalPages) break;
-  }
-  return latestVersions(found);
+  const batches = await fetchIdBatches(unique, async (batch) => {
+    const found: Orderable[] = [];
+    for (let page = 0; ; page += 1) {
+      assertSessionScope(scope);
+      const { data } = await client.post<Page<Orderable>>('/orderables/search', {
+        identities: batch,
+        page,
+        size: BY_IDS_BATCH,
+      });
+      assertSessionScope(scope);
+      found.push(...data.content);
+      if (page + 1 >= data.totalPages) break;
+    }
+    return found;
+  });
+  return latestVersions(batches.flat());
 }
 
 export function fetchLotsByIds(ids: readonly string[]): Promise<LotSummary[]> {
