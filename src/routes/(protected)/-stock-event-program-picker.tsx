@@ -3,7 +3,7 @@ import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon } from 'lucide-react';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '@/components/load-error';
 import { NoAccess } from '@/components/no-access-page';
@@ -35,11 +35,14 @@ import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection'
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
 
-export async function loadStockEventPrograms(queryClient: QueryClient) {
+export async function loadStockEventPrograms(
+  queryClient: QueryClient,
+  right: string = RIGHTS.stockAdjust,
+): Promise<{ userId: string; permissions: Permissions }> {
   const userId = useLoginData.getState().referenceDataUserId;
-  const permissions = await requirePermissions(queryClient, RIGHTS.stockAdjust);
+  const permissions = await requirePermissions(queryClient, right);
   if (!userId || useLoginData.getState().referenceDataUserId !== userId) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+    throw new ForbiddenError(right);
   }
   queryClient.prefetchQuery(userProgramsOptions(userId));
   queryClient.prefetchQuery(userRecordOptions(userId)).then(() => {
@@ -50,8 +53,7 @@ export async function loadStockEventPrograms(queryClient: QueryClient) {
   });
   return { userId, permissions };
 }
-function ProgramsHeader({ userId, kind }: { userId?: string; kind: ConfiguredEventKind }) {
-  const copy = EVENT_KINDS[kind].copy;
+function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy }) {
   const { t } = useTranslation();
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: Boolean(userId) });
   const homeId = user?.homeFacilityId;
@@ -64,42 +66,82 @@ function ProgramsHeader({ userId, kind }: { userId?: string; kind: ConfiguredEve
         </WorkspaceIcon>
         <WorkspaceTitle>
           {home ? (
-            t(copy.pickerTitle, { facility: recordLabel(home) })
+            t(copy.title, { facility: recordLabel(home) })
+          ) : copy.nav ? (
+            t(copy.nav)
           ) : (
             <span className="block h-5 w-64 max-w-full @xl/main:w-96">
               <Skeleton fill />
             </span>
           )}
         </WorkspaceTitle>
-        <WorkspaceDescription>{t(copy.pageDescription)}</WorkspaceDescription>
+        <WorkspaceDescription>{t(copy.description)}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
   );
 }
 
+type PickerCopy = {
+  title: ParseKeys;
+  description: ParseKeys;
+  action: ParseKeys;
+  nav?: ParseKeys;
+  status?: ParseKeys;
+  actions?: ParseKeys;
+};
+type PickerSource = { kind: ConfiguredEventKind } | { copy: PickerCopy };
+function pickerCopy(source: PickerSource): PickerCopy {
+  if ('copy' in source) return source.copy;
+  const copy = EVENT_KINDS[source.kind].copy;
+  return { title: copy.pickerTitle, description: copy.pageDescription, action: copy.make };
+}
 type PickerProps = {
   userId: string;
   permissions: Permissions;
-  kind: ConfiguredEventKind;
-  editorLink: (programId: string) => ReactElement;
+} & (
+  | { kind: ConfiguredEventKind; editorLink: (programId: string) => ReactElement }
+  | {
+      copy: PickerCopy;
+      right: string;
+      children: (table: ProgramsTableProps) => ReactNode;
+    }
+);
+
+export type ProgramsTableProps = {
+  hasHomeFacility: boolean;
+  programs: readonly NamedRecord[];
+  facilityId?: string;
 };
-export function StockEventProgramPicker({ userId, permissions, kind, editorLink }: PickerProps) {
+export function StockEventProgramPicker(props: PickerProps) {
+  const { userId, permissions } = props;
   const { t } = useTranslation();
-  const copy = EVENT_KINDS[kind].copy;
+  const copy = pickerCopy(props);
   return (
     <Workspace width="narrow">
-      <ProgramsHeader userId={userId} kind={kind} />
+      <ProgramsHeader userId={userId} copy={copy} />
       <WorkspaceContent>
         <QueryBoundary
           errorComponent={ProgramsError}
-          pendingFallback={<StockProgramPickerSkeleton actionLabel={t(copy.make)} />}
+          pendingFallback={
+            <StockProgramPickerSkeleton
+              actionLabel={t(copy.action)}
+              statusLabel={copy.status ? t(copy.status) : undefined}
+              actionsLabel={copy.actions ? t(copy.actions) : undefined}
+            />
+          }
           resetKey={userId}
         >
           <EventPrograms
             userId={userId}
             permissions={permissions}
-            action={copy.make}
-            editorLink={editorLink}
+            right={'kind' in props ? RIGHTS.stockAdjust : props.right}
+            renderTable={
+              'kind' in props
+                ? (table) => (
+                    <ProgramsTable {...table} action={copy.action} editorLink={props.editorLink} />
+                  )
+                : props.children
+            }
           />
         </QueryBoundary>
       </WorkspaceContent>
@@ -107,24 +149,21 @@ export function StockEventProgramPicker({ userId, permissions, kind, editorLink 
   );
 }
 
-type ProgramTableProps = {
-  action: ParseKeys;
-  editorLink: PickerProps['editorLink'];
+type ProgramSources = {
+  userId: string;
+  permissions: Permissions;
+  right: string;
+  renderTable: (table: ProgramsTableProps) => ReactNode;
 };
-function EventPrograms({
-  userId,
-  permissions,
-  ...table
-}: Omit<PickerProps, 'kind'> & ProgramTableProps) {
+function EventPrograms({ userId, permissions, right, renderTable }: ProgramSources) {
   const [user, programs] = useSuspenseQueries({
     queries: [userRecordOptions(userId), userProgramsOptions(userId)],
   });
-  if (!user.data.homeFacilityId)
-    return <ProgramsTable {...table} hasHomeFacility={false} programs={[]} />;
+  if (!user.data.homeFacilityId) return renderTable({ hasHomeFacility: false, programs: [] });
   return (
     <HomePrograms
-      {...table}
-      grants={programGrants(permissions, RIGHTS.stockAdjust)}
+      renderTable={renderTable}
+      grants={programGrants(permissions, right)}
       homeId={user.data.homeFacilityId}
       programs={programs.data}
     />
@@ -133,23 +172,20 @@ function EventPrograms({
 
 function HomePrograms({
   homeId,
-  action,
-  editorLink,
+  renderTable,
   ...sources
-}: ProgramTableProps & {
+}: {
   homeId: string;
   programs: readonly NamedRecord[];
   grants: readonly ProgramGrant[];
+  renderTable: ProgramSources['renderTable'];
 }) {
   const { data: homeFacility } = useSuspenseQuery(facilityOptions(homeId));
-  return (
-    <ProgramsTable
-      action={action}
-      editorLink={editorLink}
-      hasHomeFacility
-      programs={homeStockPrograms({ homeFacility, ...sources })}
-    />
-  );
+  return renderTable({
+    hasHomeFacility: true,
+    facilityId: homeId,
+    programs: homeStockPrograms({ homeFacility, ...sources }),
+  });
 }
 
 function ProgramsTable({
@@ -157,9 +193,9 @@ function ProgramsTable({
   programs,
   action,
   editorLink,
-}: ProgramTableProps & {
-  hasHomeFacility: boolean;
-  programs: readonly NamedRecord[];
+}: ProgramsTableProps & {
+  action: PickerCopy['action'];
+  editorLink: (programId: string) => ReactElement;
 }) {
   const { t } = useTranslation();
   return (
@@ -185,14 +221,18 @@ function ProgramsError({ error, reset }: ErrorComponentProps) {
   );
 }
 
-export function StockEventProgramsPending({ kind }: { kind: ConfiguredEventKind }) {
-  const copy = EVENT_KINDS[kind].copy;
+export function StockEventProgramsPending(source: PickerSource) {
   const { t } = useTranslation();
+  const copy = pickerCopy(source);
   return (
     <Workspace width="narrow">
-      <ProgramsHeader kind={kind} />
+      <ProgramsHeader copy={copy} />
       <WorkspaceContent>
-        <StockProgramPickerSkeleton actionLabel={t(copy.make)} />
+        <StockProgramPickerSkeleton
+          actionLabel={t(copy.action)}
+          statusLabel={copy.status ? t(copy.status) : undefined}
+          actionsLabel={copy.actions ? t(copy.actions) : undefined}
+        />
       </WorkspaceContent>
     </Workspace>
   );

@@ -17,6 +17,7 @@ import {
   fetchOrderableDisplayCategories,
   fetchOrderableFulfills,
   fetchOrderables,
+  fetchOrderablesByIdentities,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
   fetchOrganizations,
@@ -29,6 +30,7 @@ import {
   fetchUserRecord,
   fetchValidAssignments,
   fetchValidReasons,
+  type OrderableIdentity,
   type OrderableSearch,
   storedTimeZone,
   type ValidAssignmentsFilter,
@@ -154,6 +156,17 @@ export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =
     queryKey: queryKeys.orderables.list({ tradeItemIds: tradeItemIds.toSorted() }),
     queryFn: () => fetchOrderablesByTradeItems(tradeItemIds),
   });
+
+export const orderablesByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {
+  const unique = [
+    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
+  ].sort((a, b) => a.id.localeCompare(b.id) || a.versionNumber - b.versionNumber);
+  return queryOptions({
+    queryKey: queryKeys.orderables.list({ identities: unique }),
+    queryFn: () => fetchOrderablesByIdentities(unique),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+};
 
 export const lotsByIdsOptions = (ids: readonly string[]) =>
   queryOptions({

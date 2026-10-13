@@ -52,16 +52,17 @@ Today the new UI has these screens:
 | Stock Management / Issue | Pick a program at your home facility, add products and lots, choose a destination for each line, enter quantities and dates, then sign and submit. You can print the issue report afterwards. Needs the Adjust Stock and View Stock Cards rights for that facility and program |
 | Stock Management / Receive | Pick a program at your home facility, add the products and lots you received, choose where each line came from, enter quantities and dates, then sign and submit. Every product approved for your facility is offered, even with no stock yet. With the Manage Lots right you can add a new lot with its code and expiry date, and correct it before submitting. You can print the receive report afterwards. Needs the Adjust Stock and View Stock Cards rights for that facility and program |
 | Stock Management / Unpack | Pick a program at your home facility, add kits and lots, enter quantities and dates, then confirm. Unpacking reduces kit stock and adds the contents to stock. Needs the Adjust Stock and View Stock Cards rights for that facility and program |
+| Stock Management / Physical Inventory | Start or continue a draft at your home facility, count products and lots, record reasons for differences, save to the server, delete the draft or sign and submit it, then print the report. Changes are also saved on this device. Needs the Edit Physical Inventories and View Stock Cards rights for that facility and program; adding new lots needs Manage Lots |
 | Profile | Open it from Account in the menu at the top right. Change your name, email and phone, see your roles, set up notification digests and change your password. Every signed-in user has one |
 | Settings | Open it from Settings in the menu at the top right. Change the app name and logo, the colour theme and default appearance, and turn optional features on or off for everyone. Needs the Manage System Settings right; without it the menu leaves Settings out and the page says so |
 
 Everything else is still in the existing UI, and the new UI's menu shows only the
 screens above. More move over as they are rebuilt.
 
-## Barcode scanning on Adjustments, Issue and Receive
+## Barcode scanning on stock screens
 
-When scanning is enabled for your deployment, Adjustments, Issue and Receive show a Ready To Scan
-indicator.
+When scanning is enabled for your deployment, Adjustments, Issue, Receive and Physical Inventory
+show a Ready To Scan indicator.
 Scan a product's barcode with a hand scanner to add its product and lot. Scanning the same
 product and lot again adds one pack to its quantity. Check the reason, quantity and date before
 submitting. Scanning pauses while a dialog is open.
@@ -71,7 +72,10 @@ Issue scans match only lots with stock that have not expired, just like its prod
 If a scan is refused, the indicator explains why. Check the barcode and the selected program,
 then try again, or select the product and lot manually. Adjustments and Issue accept existing
 lots only. Receive adds a lot it does not know as a new lot, without the Manage Lots right, and
-refuses only a lot whose expiry date has passed.
+refuses only a lot whose expiry date has passed. Physical Inventory can also add a new lot with
+the Manage Lots right and confirmation. It asks before counting an expired lot and keeps the
+lot's recorded expiry date when a barcode gives a different one. Each repeated scan adds one
+pack to Current Stock.
 
 ## Signing in and out
 

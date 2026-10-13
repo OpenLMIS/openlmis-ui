@@ -9,6 +9,32 @@ const rows = [
 const linkFor = (row: { id: string }) => <a href={`/adjustments/${row.id}`}>Make Adjustments</a>;
 
 describe('StockProgramPicker', () => {
+  it('adds statuses and row action labels while retaining the default action', () => {
+    render(
+      <StockProgramPicker
+        actionLabel="Start"
+        hasHomeFacility
+        statusLabel="Status"
+        linkFor={(row) => <a href={`/inventory/${row.id}`}>{row.actionLabel ?? 'Start'}</a>}
+        rows={[
+          { ...rows[0], status: 'Draft', actionLabel: 'Continue' },
+          { ...rows[1], status: 'Not Yet Started' },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
+    expect(
+      within(screen.getByText('Essential Meds').closest('tr') as HTMLElement).getByRole('link', {
+        name: 'Continue',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByText('Family Planning').closest('tr') as HTMLElement).getByRole('link', {
+        name: 'Start',
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('lists each program with a link to its action', () => {
     render(
       <StockProgramPicker

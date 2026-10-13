@@ -22,6 +22,7 @@ import type {
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { settleFew } from '@/lib/settle-few';
 import type { Page } from '@/lib/types';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -129,6 +130,21 @@ export async function fetchOrderables({
 
 const BY_IDS_BATCH = 100;
 
+async function fetchIdBatches<R>(ids: readonly string[], fetch: (batch: string[]) => Promise<R>) {
+  const unique = [...new Set(ids)];
+  const batches = Array.from({ length: Math.ceil(unique.length / BY_IDS_BATCH) }, (_, index) => ({
+    index,
+    ids: unique.slice(index * BY_IDS_BATCH, (index + 1) * BY_IDS_BATCH),
+  }));
+  const result = await settleFew(
+    batches,
+    async (batch) => ({ index: batch.index, value: await fetch(batch.ids) }),
+    8,
+  );
+  if (result.failed.length) throw result.error;
+  return result.done.sort((a, b) => a.index - b.index).map((item) => item.value);
+}
+
 /** The records with the given ids, at most 100 ids a request and every page of each; none is sent for no ids, which would list them all. */
 async function fetchByIds<T extends { id: string }>(
   path: string,
@@ -136,10 +152,8 @@ async function fetchByIds<T extends { id: string }>(
   param = 'id',
 ) {
   const scope = getSessionScope();
-  const unique = [...new Set(ids)];
-  const found: T[] = [];
-  for (let start = 0; start < unique.length; start += BY_IDS_BATCH) {
-    const batch = unique.slice(start, start + BY_IDS_BATCH);
+  const batches = await fetchIdBatches(ids, async (batch) => {
+    const found: T[] = [];
     for (let page = 0; ; page += 1) {
       assertSessionScope(scope);
       const { data } = await client.get<Page<T>>(path, {
@@ -150,8 +164,9 @@ async function fetchByIds<T extends { id: string }>(
       found.push(...data.content);
       if (page + 1 >= data.totalPages) break;
     }
-  }
-  return found;
+    return found;
+  });
+  return batches.flat();
 }
 
 const versionOf = (orderable: Orderable) => orderable.meta?.versionNumber ?? 0;
@@ -167,6 +182,31 @@ function latestVersions(orderables: readonly Orderable[]) {
 
 export async function fetchOrderablesByIds(ids: readonly string[]): Promise<Orderable[]> {
   return latestVersions(await fetchByIds<Orderable>('/orderables', ids));
+}
+
+export type OrderableIdentity = { id: string; versionNumber: number };
+
+export async function fetchOrderablesByIdentities(
+  identities: readonly OrderableIdentity[],
+): Promise<Orderable[]> {
+  const scope = getSessionScope();
+  const unique = [
+    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
+  ];
+  if (!unique.length) return [];
+  const found: Orderable[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.post<Page<Orderable>>('/orderables/search', {
+      identities: unique,
+      page,
+      size: unique.length,
+    });
+    assertSessionScope(scope);
+    found.push(...data.content);
+    if (page + 1 >= data.totalPages) break;
+  }
+  return latestVersions(found);
 }
 
 export function fetchLotsByIds(ids: readonly string[]): Promise<LotSummary[]> {

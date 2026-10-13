@@ -22,5 +22,6 @@ export const RIGHTS = {
   lotsManage: 'LOTS_MANAGE',
   stockCardsView: 'STOCK_CARDS_VIEW',
   stockEventsCancel: 'STOCK_EVENTS_CANCEL',
+  stockInventoriesEdit: 'STOCK_INVENTORIES_EDIT',
   stockAdjust: 'STOCK_ADJUST',
 } as const;

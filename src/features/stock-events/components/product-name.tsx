@@ -6,7 +6,7 @@ export function ProductName({
   width = 'default',
 }: {
   label: string;
-  width?: 'default' | 'compact';
+  width?: 'default' | 'compact' | 'wide' | 'inventory';
 }) {
   const region = useRef<HTMLSpanElement>(null);
   const [truncated, setTruncated] = useState(false);
@@ -29,9 +29,13 @@ export function ProductName({
     <span
       ref={region}
       className={
-        width === 'compact'
-          ? 'block max-w-48 truncate font-medium'
-          : 'block w-28 truncate font-medium'
+        width === 'inventory'
+          ? 'block w-0 min-w-full max-w-full truncate font-medium'
+          : width === 'wide'
+            ? 'block w-50 truncate font-medium'
+            : width === 'compact'
+              ? 'block max-w-48 truncate font-medium'
+              : 'block w-28 truncate font-medium'
       }
     >
       {truncated || focused ? (
@@ -46,6 +50,7 @@ export function ProductName({
             render={
               <button
                 type="button"
+                dir={truncated ? 'auto' : undefined}
                 className="block w-full truncate text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             }

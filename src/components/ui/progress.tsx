@@ -13,13 +13,18 @@ function Progress({
   children,
   value,
   tone = "default",
+  layout = "default",
   ...props
-}: ProgressPrimitive.Root.Props & { tone?: keyof typeof PROGRESS_TONES }) {
+}: ProgressPrimitive.Root.Props & { tone?: keyof typeof PROGRESS_TONES; layout?: "default" | "compact" }) {
   return (
     <ProgressPrimitive.Root
       value={value}
       data-slot="progress"
-      className={cn("flex flex-wrap gap-3", className)}
+      className={cn(
+        "flex flex-wrap gap-3",
+        layout === "compact" && "grid grid-cols-1 gap-1 text-start [&>[data-slot=progress-label]]:row-start-1 [&>[data-slot=progress-label]]:text-xs [&>[data-slot=progress-track]]:row-start-2 [&>[data-slot=progress-value]]:row-start-3 [&>[data-slot=progress-value]]:ms-0 [&>[data-slot=progress-value]]:text-xs",
+        className
+      )}
       {...props}
     >
       {children}

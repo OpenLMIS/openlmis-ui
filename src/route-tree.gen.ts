@@ -36,6 +36,7 @@ import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './ro
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
 import { Route as protectedProtectedStockManagementAdjustmentsRouteImport } from './routes/(protected)/_protected.stock-management.adjustments'
 import { Route as protectedProtectedStockManagementIssueRouteImport } from './routes/(protected)/_protected.stock-management.issue'
+import { Route as protectedProtectedStockManagementPhysicalInventoryRouteImport } from './routes/(protected)/_protected.stock-management.physical-inventory'
 import { Route as protectedProtectedStockManagementReceiveRouteImport } from './routes/(protected)/_protected.stock-management.receive'
 import { Route as protectedProtectedStockManagementStockOnHandRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand'
 import { Route as protectedProtectedStockManagementTransactionHistoryRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history'
@@ -47,6 +48,7 @@ import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from '.
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementIssueProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.issue_.$programId'
+import { Route as protectedProtectedStockManagementPhysicalInventoryProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.physical-inventory_.$programId'
 import { Route as protectedProtectedStockManagementReceiveProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.receive_.$programId'
 import { Route as protectedProtectedStockManagementStockOnHandStockCardIdRouteImport } from './routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId'
 import { Route as protectedProtectedStockManagementTransactionHistoryEventIdRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history_.$eventId'
@@ -214,6 +216,12 @@ const protectedProtectedStockManagementIssueRoute =
     path: '/stock-management/issue',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedStockManagementPhysicalInventoryRoute =
+  protectedProtectedStockManagementPhysicalInventoryRouteImport.update({
+    id: '/stock-management/physical-inventory',
+    path: '/stock-management/physical-inventory',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementReceiveRoute =
   protectedProtectedStockManagementReceiveRouteImport.update({
     id: '/stock-management/receive',
@@ -280,6 +288,14 @@ const protectedProtectedStockManagementIssueProgramIdRoute =
     path: '/stock-management/issue/$programId',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedStockManagementPhysicalInventoryProgramIdRoute =
+  protectedProtectedStockManagementPhysicalInventoryProgramIdRouteImport.update(
+    {
+      id: '/stock-management/physical-inventory_/$programId',
+      path: '/stock-management/physical-inventory/$programId',
+      getParentRoute: () => protectedProtectedRoute,
+    } as any,
+  )
 const protectedProtectedStockManagementReceiveProgramIdRoute =
   protectedProtectedStockManagementReceiveProgramIdRouteImport.update({
     id: '/stock-management/receive_/$programId',
@@ -374,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
   '/stock-management/issue': typeof protectedProtectedStockManagementIssueRoute
+  '/stock-management/physical-inventory': typeof protectedProtectedStockManagementPhysicalInventoryRoute
   '/stock-management/receive': typeof protectedProtectedStockManagementReceiveRoute
   '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/stock-management/transaction-history': typeof protectedProtectedStockManagementTransactionHistoryRoute
@@ -387,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
+  '/stock-management/physical-inventory/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
   '/stock-management/receive/$programId': typeof protectedProtectedStockManagementReceiveProgramIdRoute
   '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/stock-management/transaction-history/$eventId': typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
@@ -422,6 +440,7 @@ export interface FileRoutesByTo {
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
   '/stock-management/issue': typeof protectedProtectedStockManagementIssueRoute
+  '/stock-management/physical-inventory': typeof protectedProtectedStockManagementPhysicalInventoryRoute
   '/stock-management/receive': typeof protectedProtectedStockManagementReceiveRoute
   '/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/stock-management/transaction-history': typeof protectedProtectedStockManagementTransactionHistoryRoute
@@ -434,6 +453,7 @@ export interface FileRoutesByTo {
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
+  '/stock-management/physical-inventory/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
   '/stock-management/receive/$programId': typeof protectedProtectedStockManagementReceiveProgramIdRoute
   '/stock-management/stock-on-hand/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/stock-management/transaction-history/$eventId': typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
@@ -473,6 +493,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/(protected)/_protected/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
   '/(protected)/_protected/stock-management/issue': typeof protectedProtectedStockManagementIssueRoute
+  '/(protected)/_protected/stock-management/physical-inventory': typeof protectedProtectedStockManagementPhysicalInventoryRoute
   '/(protected)/_protected/stock-management/receive': typeof protectedProtectedStockManagementReceiveRoute
   '/(protected)/_protected/stock-management/stock-on-hand': typeof protectedProtectedStockManagementStockOnHandRoute
   '/(protected)/_protected/stock-management/transaction-history': typeof protectedProtectedStockManagementTransactionHistoryRoute
@@ -486,6 +507,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/issue_/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
+  '/(protected)/_protected/stock-management/physical-inventory_/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
   '/(protected)/_protected/stock-management/receive_/$programId': typeof protectedProtectedStockManagementReceiveProgramIdRoute
   '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId': typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   '/(protected)/_protected/stock-management/transaction-history_/$eventId': typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
@@ -525,6 +547,7 @@ export interface FileRouteTypes {
     | '/settings/theme'
     | '/stock-management/adjustments'
     | '/stock-management/issue'
+    | '/stock-management/physical-inventory'
     | '/stock-management/receive'
     | '/stock-management/stock-on-hand'
     | '/stock-management/transaction-history'
@@ -538,6 +561,7 @@ export interface FileRouteTypes {
     | '/administration/reasons/new'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
+    | '/stock-management/physical-inventory/$programId'
     | '/stock-management/receive/$programId'
     | '/stock-management/stock-on-hand/$stockCardId'
     | '/stock-management/transaction-history/$eventId'
@@ -573,6 +597,7 @@ export interface FileRouteTypes {
     | '/settings/theme'
     | '/stock-management/adjustments'
     | '/stock-management/issue'
+    | '/stock-management/physical-inventory'
     | '/stock-management/receive'
     | '/stock-management/stock-on-hand'
     | '/stock-management/transaction-history'
@@ -585,6 +610,7 @@ export interface FileRouteTypes {
     | '/administration/reasons/new'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
+    | '/stock-management/physical-inventory/$programId'
     | '/stock-management/receive/$programId'
     | '/stock-management/stock-on-hand/$stockCardId'
     | '/stock-management/transaction-history/$eventId'
@@ -623,6 +649,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings/theme'
     | '/(protected)/_protected/stock-management/adjustments'
     | '/(protected)/_protected/stock-management/issue'
+    | '/(protected)/_protected/stock-management/physical-inventory'
     | '/(protected)/_protected/stock-management/receive'
     | '/(protected)/_protected/stock-management/stock-on-hand'
     | '/(protected)/_protected/stock-management/transaction-history'
@@ -636,6 +663,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/reasons_/new'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/issue_/$programId'
+    | '/(protected)/_protected/stock-management/physical-inventory_/$programId'
     | '/(protected)/_protected/stock-management/receive_/$programId'
     | '/(protected)/_protected/stock-management/stock-on-hand_/$stockCardId'
     | '/(protected)/_protected/stock-management/transaction-history_/$eventId'
@@ -848,6 +876,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedStockManagementIssueRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/stock-management/physical-inventory': {
+      id: '/(protected)/_protected/stock-management/physical-inventory'
+      path: '/stock-management/physical-inventory'
+      fullPath: '/stock-management/physical-inventory'
+      preLoaderRoute: typeof protectedProtectedStockManagementPhysicalInventoryRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/stock-management/receive': {
       id: '/(protected)/_protected/stock-management/receive'
       path: '/stock-management/receive'
@@ -923,6 +958,13 @@ declare module '@tanstack/react-router' {
       path: '/stock-management/issue/$programId'
       fullPath: '/stock-management/issue/$programId'
       preLoaderRoute: typeof protectedProtectedStockManagementIssueProgramIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/stock-management/physical-inventory_/$programId': {
+      id: '/(protected)/_protected/stock-management/physical-inventory_/$programId'
+      path: '/stock-management/physical-inventory/$programId'
+      fullPath: '/stock-management/physical-inventory/$programId'
+      preLoaderRoute: typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/stock-management/receive_/$programId': {
@@ -1087,6 +1129,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
   protectedProtectedStockManagementIssueRoute: typeof protectedProtectedStockManagementIssueRoute
+  protectedProtectedStockManagementPhysicalInventoryRoute: typeof protectedProtectedStockManagementPhysicalInventoryRoute
   protectedProtectedStockManagementReceiveRoute: typeof protectedProtectedStockManagementReceiveRoute
   protectedProtectedStockManagementStockOnHandRoute: typeof protectedProtectedStockManagementStockOnHandRoute
   protectedProtectedStockManagementTransactionHistoryRoute: typeof protectedProtectedStockManagementTransactionHistoryRoute
@@ -1098,6 +1141,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementIssueProgramIdRoute: typeof protectedProtectedStockManagementIssueProgramIdRoute
+  protectedProtectedStockManagementPhysicalInventoryProgramIdRoute: typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
   protectedProtectedStockManagementReceiveProgramIdRoute: typeof protectedProtectedStockManagementReceiveProgramIdRoute
   protectedProtectedStockManagementStockOnHandStockCardIdRoute: typeof protectedProtectedStockManagementStockOnHandStockCardIdRoute
   protectedProtectedStockManagementTransactionHistoryEventIdRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdRoute
@@ -1136,6 +1180,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedStockManagementAdjustmentsRoute,
   protectedProtectedStockManagementIssueRoute:
     protectedProtectedStockManagementIssueRoute,
+  protectedProtectedStockManagementPhysicalInventoryRoute:
+    protectedProtectedStockManagementPhysicalInventoryRoute,
   protectedProtectedStockManagementReceiveRoute:
     protectedProtectedStockManagementReceiveRoute,
   protectedProtectedStockManagementStockOnHandRoute:
@@ -1158,6 +1204,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedStockManagementAdjustmentsProgramIdRoute,
   protectedProtectedStockManagementIssueProgramIdRoute:
     protectedProtectedStockManagementIssueProgramIdRoute,
+  protectedProtectedStockManagementPhysicalInventoryProgramIdRoute:
+    protectedProtectedStockManagementPhysicalInventoryProgramIdRoute,
   protectedProtectedStockManagementReceiveProgramIdRoute:
     protectedProtectedStockManagementReceiveProgramIdRoute,
   protectedProtectedStockManagementStockOnHandStockCardIdRoute:

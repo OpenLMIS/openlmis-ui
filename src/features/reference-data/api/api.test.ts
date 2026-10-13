@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionEndedError } from '@/features/auth/lib/session';
 import {
   fetchApprovedProducts,
   fetchFacilitiesByIds,
@@ -545,3 +546,54 @@ it('stops id batches when the session changes after the first request', async ()
   await expect(fetchOrderablesByIds(ids)).rejects.toThrow('Session ended');
   expect(get).toHaveBeenCalledTimes(1);
 });
+
+for (const lookup of [fetchOrderablesByIds]) {
+  describe(`${lookup.name} batch pool`, () => {
+    it('starts eight batches, bounds concurrent requests and preserves batch order', async () => {
+      const ids = Array.from({ length: 1000 }, (_, index) => `o${index}`);
+      const gates = Array.from({ length: 10 }, () => Promise.withResolvers<void>());
+      let running = 0;
+      let most = 0;
+      get.mockImplementation(async (_path, config) => {
+        const first = ((config?.params ?? {}) as { id: string[] }).id[0];
+        const index = Number(first.slice(1)) / 100;
+        running += 1;
+        most = Math.max(most, running);
+        await gates[index].promise;
+        running -= 1;
+        return page([orderable(first)]);
+      });
+      const pending = lookup(ids);
+      expect(get).toHaveBeenCalledTimes(8);
+      for (const gate of gates.toReversed()) gate.resolve();
+      const result = await pending;
+      expect(most).toBe(8);
+      const expected = ids.filter((_, index) => index % 100 === 0);
+      expect(Array.isArray(result) ? result.map((item) => item.id) : Object.keys(result)).toEqual(
+        expected,
+      );
+    });
+    it('rejects the whole lookup if any batch fails', async () => {
+      const error = new Error('batch failed');
+      get.mockRejectedValueOnce(error).mockResolvedValue(page([]));
+      await expect(lookup(Array.from({ length: 900 }, (_, index) => `o${index}`))).rejects.toBe(
+        error,
+      );
+    });
+    it('checks scope before queued requests and rejects after an in-flight session change', async () => {
+      const gate = Promise.withResolvers<void>();
+      get.mockImplementation(async () => {
+        await gate.promise;
+        return page([]);
+      });
+      const pending = lookup(Array.from({ length: 1000 }, (_, index) => `o${index}`));
+      expect(get).toHaveBeenCalledTimes(8);
+      vi.mocked(assertSessionScope).mockImplementation(() => {
+        throw new SessionEndedError();
+      });
+      gate.resolve();
+      await expect(pending).rejects.toBeInstanceOf(SessionEndedError);
+      expect(get).toHaveBeenCalledTimes(8);
+    });
+  });
+}

@@ -23,6 +23,7 @@ export function getLocalDb(): Dexie {
   if (!database) {
     database = new Dexie(localDatabaseName({ deployment: deployment(), userId }));
     database.version(1).stores({});
+    database.version(2).stores({ physicalInventoryDrafts: 'draftId' });
   }
   return database;
 }

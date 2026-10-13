@@ -6,6 +6,7 @@ const AT_ONCE = 5;
 export async function settleFew<T, R>(
   items: readonly T[],
   task: (item: T) => Promise<R>,
+  atOnce = AT_ONCE,
 ): Promise<{ done: R[]; failed: T[]; error?: unknown }> {
   const scope = getSessionScope();
   const done: R[] = [];
@@ -31,7 +32,7 @@ export async function settleFew<T, R>(
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(AT_ONCE, items.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(atOnce, items.length) }, worker));
 
   assertSessionScope(scope);
   return { done, failed, error: firstError };
