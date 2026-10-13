@@ -80,6 +80,10 @@ export function eventFitColumns(kind: ConfiguredEventKind) {
   const keep: EventKindConfig['measuredFitKeep'] = EVENT_KINDS[kind].measuredFitKeep;
   return eventHideableColumns(kind).filter(({ id }) => !keep.includes(id));
 }
+export function usesCompactEventColumns(kind: ConfiguredEventKind, width?: number) {
+  const minimum = EVENT_KINDS[kind].twoLineSelectMinWidth;
+  return minimum !== null && width !== undefined && width >= minimum;
+}
 function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterparty']): ParseKeys {
   if (side === 'none') return key;
   if (id === 'destination') return COUNTERPARTY[side].column;
@@ -89,13 +93,54 @@ function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterp
 const NO_ASSIGNMENTS: readonly ValidAssignment[] = [];
 const helper = createColumnHelper<DataTableFeatures, EventLine>();
 const NO_SORT = { id: 'product', desc: false };
+let selectMeasureContext: CanvasRenderingContext2D | null = null;
+
+function TwoLineSelectLabel({ label }: { label: string }) {
+  const element = useRef<HTMLSpanElement>(null);
+  const [lines, setLines] = useState([label]);
+  useLayoutEffect(() => {
+    let active = true;
+    const measure = () => {
+      if (!active || !element.current) return;
+      selectMeasureContext ??= document.createElement('canvas').getContext('2d');
+      const context = selectMeasureContext;
+      if (!context) return;
+      context.font = getComputedStyle(element.current).font;
+      const words = label.trim().split(/ +/);
+      let best = context.measureText(label).width;
+      let next = [label];
+      for (let split = 1; split < words.length; split++) {
+        const candidate = [words.slice(0, split).join(' '), words.slice(split).join(' ')];
+        const width = Math.max(...candidate.map((line) => context.measureText(line).width));
+        if (width < best) {
+          best = width;
+          next = candidate;
+        }
+      }
+      setLines(next);
+    };
+    measure();
+    document.fonts.ready.then(measure);
+    document.fonts.addEventListener('loadingdone', measure);
+    return () => {
+      active = false;
+      document.fonts.removeEventListener('loadingdone', measure);
+    };
+  }, [label]);
+  return (
+    <span ref={element} className="col-start-1 row-start-1">
+      <span className="block whitespace-nowrap">{lines[0]}</span>
+      {lines[1] !== undefined && <span className="block whitespace-nowrap">{lines[1]}</span>}
+    </span>
+  );
+}
 
 function SelectSizer({
   labels,
   wrap = 'nowrap',
 }: {
   labels: readonly string[];
-  wrap?: 'nowrap' | 'wrap';
+  wrap?: 'nowrap' | 'wrap' | 'two-lines';
 }) {
   return (
     <div
@@ -106,18 +151,22 @@ function SelectSizer({
           : 'invisible grid h-0 w-max overflow-hidden pe-8 ps-2.5 text-sm'
       }
     >
-      {[...new Set(labels)].map((label) => (
-        <span
-          key={label}
-          className={
-            wrap === 'wrap'
-              ? 'col-start-1 row-start-1 whitespace-normal'
-              : 'col-start-1 row-start-1 whitespace-nowrap'
-          }
-        >
-          {label}
-        </span>
-      ))}
+      {[...new Set(labels)].map((label) =>
+        wrap === 'two-lines' ? (
+          <TwoLineSelectLabel key={label} label={label} />
+        ) : (
+          <span
+            key={label}
+            className={
+              wrap === 'wrap'
+                ? 'col-start-1 row-start-1 whitespace-normal'
+                : 'col-start-1 row-start-1 whitespace-nowrap'
+            }
+          >
+            {label}
+          </span>
+        ),
+      )}
     </div>
   );
 }
@@ -147,6 +196,7 @@ const DateSizer = memo(function DateSizer({ year, language }: { year: string; la
 type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
+  compactSelects: boolean;
   id: CellId;
   index: number;
   line: EventLine;
@@ -171,6 +221,7 @@ function revalidateMountedFields(form: EventForm) {
 const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
+  compactSelects,
   id,
   index,
   line,
@@ -244,7 +295,11 @@ const LineCell = memo(function LineCell({
       );
     case 'destination':
       return (
-        <div className="w-full whitespace-normal break-words">
+        <div
+          className={
+            compactSelects ? 'w-full whitespace-normal' : 'w-full whitespace-normal break-words'
+          }
+        >
           <div className="w-full contain-inline-size">
             <form.AppField
               name={`lines[${index}].counterparty`}
@@ -268,6 +323,7 @@ const LineCell = memo(function LineCell({
                     { value: '', label: t('stock-events.select-option') },
                     ...assignments.map((item) => ({ value: item.id, label: item.name ?? '' })),
                   ]}
+                  wrap={compactSelects ? 'two-lines' : 'nowrap'}
                   label={label(counterparty.column)}
                   layout="inline"
                   hideErrors
@@ -305,9 +361,11 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            measured
-              ? 'w-full whitespace-normal break-words'
-              : 'w-full min-w-28 whitespace-normal break-words'
+            compactSelects
+              ? 'w-full whitespace-normal'
+              : measured
+                ? 'w-full whitespace-normal break-words'
+                : 'w-full min-w-28 whitespace-normal break-words'
           }
         >
           <div className="w-full contain-inline-size">
@@ -335,7 +393,7 @@ const LineCell = memo(function LineCell({
                   hideErrors
                   required={reasonRequired}
                   size="sm"
-                  wrap={measured ? 'nowrap' : 'wrap'}
+                  wrap={compactSelects ? 'two-lines' : measured ? 'nowrap' : 'wrap'}
                 />
               )}
             </form.AppField>
@@ -528,7 +586,7 @@ function EditLotButton({
   );
 }
 
-type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
+type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'compactSelects'> & {
   lines: EventLine[];
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
@@ -558,6 +616,7 @@ export function EventLineTable({
   const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
   const measured = config.columnFit === 'measured';
+  const compactSelects = usesCompactEventColumns(kind, containerWidth);
   const lineIndex = useRef(new Map<string, number>());
   lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
   const columns = useMemo(
@@ -582,6 +641,7 @@ export function EventLineTable({
                 <div aria-hidden className="invisible h-0 overflow-hidden font-normal">
                   {id === 'destination' && (
                     <SelectSizer
+                      wrap={compactSelects ? 'two-lines' : 'nowrap'}
                       labels={[
                         t('stock-events.select-option'),
                         ...assignments.map((item) => item.name ?? ''),
@@ -590,7 +650,7 @@ export function EventLineTable({
                   )}
                   {id === 'reason' && (
                     <SelectSizer
-                      wrap={measured ? 'nowrap' : 'wrap'}
+                      wrap={compactSelects ? 'two-lines' : measured ? 'nowrap' : 'wrap'}
                       labels={[
                         ...(!reasonRequired ? [t('stock-events.select-option')] : []),
                         ...reasons.map((item) => item.name),
@@ -648,6 +708,7 @@ export function EventLineTable({
             cell: ({ row }) => (
               <LineCell
                 kind={kind}
+                compactSelects={compactSelects}
                 reasonRequired={reasonRequired}
                 id={id}
                 index={lineIndex.current.get(row.original.key) ?? -1}
@@ -668,6 +729,7 @@ export function EventLineTable({
       kind,
       config,
       measured,
+      compactSelects,
       reasonRequired,
       form,
       reasons,
