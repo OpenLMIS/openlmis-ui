@@ -99,6 +99,7 @@ function abandonBurst(
 export function reduceScanCapture(
   previous: ScanCaptureState,
   event: ScanCaptureEvent,
+  deferFieldTyping = false,
 ): ScanCaptureResult {
   const config = SCAN_CAPTURE_DEFAULTS;
   const state = { ...previous };
@@ -165,7 +166,11 @@ export function reduceScanCapture(
         'ArrowDown',
         'Home',
         'End',
-      ].includes(event.key)
+      ].includes(event.key) ||
+      (deferFieldTyping &&
+        modified &&
+        character !== undefined &&
+        state.buffer.length < config.minPayloadLength)
     ) {
       abandonBurst(state, config, effects);
     }
@@ -179,10 +184,14 @@ export function reduceScanCapture(
   }
   state.buffer += character;
   state.lastKeyTime = event.timeStamp;
-  if (state.buffer.length >= config.suppressAfter) state.suppressing = true;
+  if (deferFieldTyping || state.buffer.length >= config.suppressAfter) state.suppressing = true;
   if (state.suppressing) effects.push({ type: 'suppress' });
   state.lateTerminatorFrom = null;
-  state.timeoutAt = event.timeStamp + config.idleTimeout;
+  state.timeoutAt =
+    event.timeStamp +
+    (deferFieldTyping && state.buffer.length < config.suppressAfter
+      ? config.burstThreshold
+      : config.idleTimeout);
   effects.push({ type: 'schedule-timeout', at: state.timeoutAt });
   return result;
 }

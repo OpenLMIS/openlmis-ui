@@ -1087,6 +1087,7 @@
   "roles.view-rights": "View Rights",
   "scan.accepted": "Scan Accepted",
   "scan.confirm-expiry-mismatch": "The barcode says this lot expires {scannedDate}, but it is recorded as expiring {recordedDate}. The recorded date will be used. Continue?",
+  "scan.discarded": "Scan discarded.",
   "scan.error.expiry": "The expiry date on this barcode could not be read. Enter this item manually.",
   "scan.error.incomplete": "This scan was incomplete. Scan the barcode again.",
   "scan.error.no-product-code": "This barcode carries no product code. Enter this item manually.",

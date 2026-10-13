@@ -59,8 +59,10 @@ function writeField(
   if (!field.isConnected) return;
   const prototype =
     field instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
-  Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(field, value);
-  field.dispatchEvent(new Event('input', { bubbles: true }));
+  if (field.value !== value) {
+    Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(field, value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   if (snapshot.start !== null && start !== null && end !== null)
     field.setSelectionRange(start, end, snapshot.direction ?? undefined);
 }
@@ -149,7 +151,7 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
     }
 
     function apply(event: ScanCaptureEvent, keyboard?: KeyboardEvent) {
-      const result = reduceScanCapture(state, event);
+      const result = reduceScanCapture(state, event, !!snapshotField());
       state = result.state;
       for (const effect of result.effects) {
         switch (effect.type) {
@@ -260,10 +262,14 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
       if (next) {
         document.addEventListener('keydown', onKey, true);
         document.addEventListener('keyup', onKey, true);
+        document.addEventListener('focusout', resetCapture, true);
+        document.addEventListener('pointerdown', resetCapture, true);
         void processQueue();
       } else {
         document.removeEventListener('keydown', onKey, true);
         document.removeEventListener('keyup', onKey, true);
+        document.removeEventListener('focusout', resetCapture, true);
+        document.removeEventListener('pointerdown', resetCapture, true);
         resetCapture();
       }
     }
@@ -283,6 +289,8 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
       clearTimeout(statusTimer);
       document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('keyup', onKey, true);
+      document.removeEventListener('focusout', resetCapture, true);
+      document.removeEventListener('pointerdown', resetCapture, true);
       resetCapture();
     };
   }, [enabled]);

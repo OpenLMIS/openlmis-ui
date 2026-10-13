@@ -118,7 +118,10 @@ it('does not apply a refused confirmation or an aborted scan', async () => {
     acceptedExpiries: new Set<string>(),
     confirm: vi.fn().mockResolvedValue(false),
   };
-  expect(await resolveInventoryScan(options)).toMatchObject({ type: 'refuse' });
+  expect(await resolveInventoryScan(options)).toMatchObject({
+    type: 'refuse',
+    message: { key: 'scan.discarded' },
+  });
   const controller = new AbortController();
   controller.abort();
   expect(await resolveInventoryScan({ ...options, signal: controller.signal })).toMatchObject({
@@ -146,4 +149,18 @@ it('uses the scanned local calendar day without converting it to UTC', async () 
     type: 'line',
     line: { newLot: { expirationDate: '2027-06-15' } },
   });
+});
+
+it('reports Scan Discarded when declining a new lot without adding it', async () => {
+  expect(
+    await resolveInventoryScan({
+      scan: { ...scan, lotCode: 'New' },
+      tradeItemId: 't',
+      eligible,
+      lines: [],
+      canManageLots: true,
+      acceptedExpiries: new Set(),
+      confirm: vi.fn().mockResolvedValue(false),
+    }),
+  ).toEqual({ type: 'refuse', message: { key: 'scan.discarded' } });
 });

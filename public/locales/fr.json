@@ -1087,6 +1087,7 @@
   "roles.view-rights": "Consulter les droits",
   "scan.accepted": "Scan accepté",
   "scan.confirm-expiry-mismatch": "Le code-barres indique que ce lot expire le {scannedDate}, mais la date enregistrée est le {recordedDate}. La date enregistrée sera utilisée. Continuer ?",
+  "scan.discarded": "Scan abandonné.",
   "scan.error.expiry": "La date de péremption de ce code-barres n’a pas pu être lue. Saisissez cet article manuellement.",
   "scan.error.incomplete": "Ce scan était incomplet. Scannez à nouveau le code-barres.",
   "scan.error.no-product-code": "Ce code-barres ne contient aucun code produit. Saisissez cet article manuellement.",

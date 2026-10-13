@@ -102,6 +102,113 @@ describe('useBarcodeScan', () => {
     expect(input).toHaveValue('next');
   });
 
+  it('captures a scan in a focused count without rendering leaked keys, despite slow handling', async () => {
+    const onScan = vi.fn();
+    const changes = vi.fn();
+    function Count() {
+      const [value, setValue] = useState('32');
+      useBarcodeScan({ enabled: true, onScan });
+      return (
+        <input
+          aria-label="Count"
+          value={value}
+          onChange={(event) => {
+            changes(event.target.value);
+            setValue(event.target.value);
+          }}
+        />
+      );
+    }
+    render(<Count />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(2, 2);
+    const payload = '01095060001343521719013010LC2017A';
+    for (const character of payload) {
+      act(() => {
+        const event = key(character, 'keydown', input);
+        if (!event.defaultPrevented) {
+          fireEvent.input(input, { target: { value: input.value + character } });
+        }
+        time += 5;
+      });
+      vi.setSystemTime(Date.now() + 67);
+    }
+    act(() => key('Enter', 'keydown', input));
+    await settle();
+    expect(onScan).toHaveBeenCalledTimes(1);
+    expect(onScan).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: true, gtin: '09506000134352', lotCode: 'LC2017A' }),
+      expect.any(AbortSignal),
+    );
+    expect(input).toHaveValue('32');
+    expect(changes).not.toHaveBeenCalled();
+    expect(input.selectionStart).toBe(2);
+    expect(input.selectionEnd).toBe(2);
+  });
+
+  it('replays ordinary typing into a focused field after the detection window', () => {
+    const onScan = vi.fn();
+    renderHook(() => useBarcodeScan({ enabled: true, onScan }));
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.value = '32';
+    input.focus();
+    input.setSelectionRange(2, 2);
+    act(() => {
+      const event = key('4', 'keydown', input);
+      if (!event.defaultPrevented) input.value += '4';
+      vi.advanceTimersByTime(40);
+    });
+    expect(input.value).toBe('324');
+    expect(onScan).not.toHaveBeenCalled();
+  });
+
+  it('flushes buffered typing before focus leaves or a pointer submits the form', () => {
+    renderHook(() => useBarcodeScan({ enabled: true, onScan: vi.fn() }));
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.value = '32';
+    input.focus();
+    input.setSelectionRange(2, 2);
+    act(() => {
+      key('4', 'keydown', input);
+      input.blur();
+    });
+    expect(input.value).toBe('324');
+    input.focus();
+    input.setSelectionRange(3, 3);
+    time += 100;
+    act(() => {
+      key('5', 'keydown', input);
+      fireEvent.pointerDown(document.body);
+    });
+    expect(input.value).toBe('3245');
+  });
+
+  it('flushes ordinary typing before a modified editing shortcut', () => {
+    renderHook(() => useBarcodeScan({ enabled: true, onScan: vi.fn() }));
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.value = '32';
+    input.focus();
+    input.setSelectionRange(2, 2);
+    act(() => {
+      key('4', 'keydown', input);
+      time += 5;
+      const shortcut = new KeyboardEvent('keydown', {
+        key: 'a',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(shortcut, 'timeStamp', { value: time });
+      input.dispatchEvent(shortcut);
+      expect(shortcut.defaultPrevented).toBe(false);
+    });
+    expect(input.value).toBe('324');
+  });
+
   it('replays a short suppressed burst without duplicating leaked characters', () => {
     renderHook(() => useBarcodeScan({ enabled: true, onScan: vi.fn() }));
     const input = document.createElement('textarea');

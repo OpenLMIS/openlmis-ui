@@ -3,6 +3,7 @@ import { Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { toDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
@@ -31,6 +32,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { InventoryLotFields } from '@/features/stock-events/components/inventory-lot-fields';
+import { ProductName } from '@/features/stock-events/components/product-name';
 import { inventoryCountSchema } from '@/features/stock-events/lib/physical-inventory-form';
 import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
 import {
@@ -68,7 +70,7 @@ export function InventoryAddProductsDialog(props: Props) {
   return (
     <FormDialog
       open
-      size="xl"
+      size="2xl"
       onOpenChange={(open) => {
         if (!open) props.onClose();
       }}
@@ -216,7 +218,7 @@ function AddProductsForm({
         <FormDialogTitle>{t('physical-inventory.add-products-title')}</FormDialogTitle>
       </FormDialogHeader>
       <FormDialogBody>
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <fieldset
             onKeyDown={(event) => {
               if (
@@ -284,7 +286,9 @@ function AddProductsForm({
                   'physical-inventory.current-stock',
                   'stock-events.actions',
                 ].map((key) => (
-                  <TableHead key={key}>{t(key as 'stock-events.product')}</TableHead>
+                  <TableHead key={key}>
+                    <DataTableHeaderLabel>{t(key as 'stock-events.product')}</DataTableHeaderLabel>
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -295,7 +299,7 @@ function AddProductsForm({
                     <bdi>{line.orderable.productCode}</bdi>
                   </TableCell>
                   <TableCell>
-                    <bdi>{line.orderable.fullProductName}</bdi>
+                    <ProductName label={line.orderable.fullProductName ?? ''} width="wide" />
                   </TableCell>
                   <TableCell>
                     <bdi>{tableValue(line.orderable.netContent)}</bdi>

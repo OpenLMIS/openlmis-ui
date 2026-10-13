@@ -71,7 +71,7 @@ export async function resolveInventoryScan({
         };
       const accepted = await confirm({ type: 'new-lot', lotCode: scan.lotCode, expiryDate });
       if (signal?.aborted) return { type: 'cancelled' };
-      if (!accepted) return { type: 'refuse', message: { key: 'scan.not-resolved' } };
+      if (!accepted) return { type: 'refuse', message: { key: 'scan.discarded' } };
       line = addedInventoryLine(matches[0], quantityValue(), {
         clientId: crypto.randomUUID(),
         lotCode: scan.lotCode,
@@ -86,7 +86,7 @@ export async function resolveInventoryScan({
   if (recorded && scanned && recorded !== scanned && !acceptedExpiries.has(batch)) {
     const accepted = await confirm({ type: 'expiry', recorded, scanned });
     if (signal?.aborted) return { type: 'cancelled' };
-    if (!accepted) return { type: 'refuse', message: { key: 'scan.not-resolved' } };
+    if (!accepted) return { type: 'refuse', message: { key: 'scan.discarded' } };
     acceptedExpiries.add(batch);
   }
   return signal?.aborted ? { type: 'cancelled' } : { type: 'line', line };

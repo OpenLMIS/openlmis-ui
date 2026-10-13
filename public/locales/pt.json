@@ -1087,6 +1087,7 @@
   "roles.view-rights": "Ver Permissões",
   "scan.accepted": "Leitura aceite",
   "scan.confirm-expiry-mismatch": "O código de barras indica que este lote expira em {scannedDate}, mas está registado como expirando em {recordedDate}. Será utilizada a data registada. Continuar?",
+  "scan.discarded": "Leitura descartada.",
   "scan.error.expiry": "Não foi possível ler a data de validade deste código de barras. Introduza este artigo manualmente.",
   "scan.error.incomplete": "Esta leitura estava incompleta. Leia novamente o código de barras.",
   "scan.error.no-product-code": "Este código de barras não contém um código de produto. Introduza este artigo manualmente.",
