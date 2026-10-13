@@ -34,6 +34,7 @@ import {
   eventApprovedProductsOptions,
   eventStockCardsOptions,
 } from '@/features/stock-events/api/queries';
+import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
   EventLineTableSkeleton,
   eventHideableColumns,
@@ -48,6 +49,7 @@ import {
 } from '@/features/stock-events/lib/event-kinds';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
@@ -193,7 +195,7 @@ export function StockEventPending({
   );
 }
 
-export function useStockEventPrint({
+function useStockEventPrint({
   kind,
   userId,
   facilityId,
@@ -242,4 +244,62 @@ export function useStockEventPrint({
       />
     ),
   };
+}
+
+export function StockEventEditorPage({
+  kind,
+  defaultReasonId,
+  data: { userId, homeFacility, program, canViewStock, canManageLots },
+  search,
+}: {
+  kind: PrintableEventKind;
+  defaultReasonId: string | undefined;
+  data: Awaited<ReturnType<typeof loadStockEventEditor>>;
+  search: EventSearch;
+}) {
+  const { t } = useTranslation();
+  const { copy } = EVENT_KINDS[kind];
+  const { updateSearch } = useSearchNavigation<EventSearch>({});
+  const username = useLoginData((state) => state.username) ?? '';
+  const print = useStockEventPrint({
+    kind,
+    userId,
+    facilityId: homeFacility.id,
+    programId: program.id,
+  });
+  return (
+    <>
+      <EventEditor
+        kind={kind}
+        defaultReasonId={defaultReasonId}
+        key={`${homeFacility.id}/${program.id}`}
+        facilityId={homeFacility.id}
+        facilityTypeId={homeFacility.type.id}
+        programId={program.id}
+        username={username}
+        canViewStock={canViewStock}
+        canManageLots={canManageLots}
+        search={search}
+        onSearchChange={updateSearch}
+        onSubmitted={print.onSubmitted}
+      >
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <ClipboardPenLineIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>
+              {t(copy.editorTitle, {
+                code: homeFacility.code,
+                facility: recordLabel(homeFacility),
+                program: recordLabel(program),
+              })}
+            </WorkspaceTitle>
+            <WorkspaceDescription>{t(copy.editorDescription)}</WorkspaceDescription>
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+      </EventEditor>
+      {print.dialog}
+    </>
+  );
 }

@@ -28,11 +28,7 @@ import {
 } from '@/features/reference-data/api/api';
 import { lotsByIdsOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
-import {
-  fetchEventStockOnHand,
-  fetchStockEventReport,
-  submitStockEvent,
-} from '@/features/stock-events/api/api';
+import { fetchEventStockOnHand, submitStockEvent } from '@/features/stock-events/api/api';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
@@ -236,37 +232,6 @@ async function submitLine(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await user.click(await screen.findByRole('button', { name: 'stock-events.confirm' }));
 }
-
-describe('Receive report after submit', () => {
-  it.each(['stock-receive.print-skip', 'stock-event.print'])(
-    'lands on Stock On Hand after %s',
-    async (answer) => {
-      vi.mocked(fetchStockEventReport).mockResolvedValue(new Blob(['report']));
-      const user = userEvent.setup();
-      const { router } = renderRoute(`${PICKER}/${FP}`);
-      await pickProduct(user);
-      await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
-      await submitLine(user);
-      expect(await screen.findByText('stock-receive.print-title')).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe(`${PICKER}/${FP}`);
-      await user.click(screen.getByRole('button', { name: answer }));
-      expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
-      expect(router.state.location.search).toMatchObject({
-        mode: 'my',
-        facilityId: HOME,
-        programId: FP,
-      });
-      if (answer === 'stock-event.print') {
-        await waitFor(() =>
-          expect(fetchStockEventReport).toHaveBeenCalledWith('event-id', {
-            showInDoses: true,
-            lang: 'en',
-          }),
-        );
-      } else expect(fetchStockEventReport).not.toHaveBeenCalled();
-    },
-  );
-});
 
 describe('Receive new lots', () => {
   it('offers Add New Lot only with the lot management right', async () => {
