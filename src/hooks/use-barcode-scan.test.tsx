@@ -164,6 +164,39 @@ describe('useBarcodeScan', () => {
     expect(onScan).not.toHaveBeenCalled();
   });
 
+  it('flushes buffered typing and leaves composed or dead-key input to the browser', () => {
+    renderHook(() => useBarcodeScan({ enabled: true, onScan: vi.fn() }));
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.value = 'caf';
+    input.focus();
+    input.setSelectionRange(3, 3);
+    act(() => {
+      key('e', 'keydown', input);
+      time += 5;
+      const dead = key('Dead', 'keydown', input);
+      expect(dead.defaultPrevented).toBe(false);
+    });
+    expect(input.value).toBe('cafe');
+  });
+
+  it('keeps replayed typing within the field maxLength', () => {
+    renderHook(() => useBarcodeScan({ enabled: true, onScan: vi.fn() }));
+    const input = document.createElement('textarea');
+    input.maxLength = 3;
+    document.body.append(input);
+    input.value = '32';
+    input.focus();
+    input.setSelectionRange(2, 2);
+    act(() => {
+      key('4', 'keydown', input);
+      time += 5;
+      key('5', 'keydown', input);
+      vi.advanceTimersByTime(40);
+    });
+    expect(input.value).toBe('324');
+  });
+
   it('flushes buffered typing before focus leaves or a pointer submits the form', () => {
     renderHook(() => useBarcodeScan({ enabled: true, onScan: vi.fn() }));
     const input = document.createElement('input');

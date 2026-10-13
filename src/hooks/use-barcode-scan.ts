@@ -67,6 +67,20 @@ function writeField(
     field.setSelectionRange(start, end, snapshot.direction ?? undefined);
 }
 
+function replayField(snapshot: FieldSnapshot, text: string) {
+  const start = snapshot.start ?? snapshot.value.length;
+  const end = snapshot.end ?? start;
+  const room = snapshot.field.maxLength - (snapshot.value.length - (end - start));
+  const inserted = snapshot.field.maxLength >= 0 ? text.slice(0, Math.max(0, room)) : text;
+  const caret = start + inserted.length;
+  writeField(
+    snapshot,
+    snapshot.value.slice(0, start) + inserted + snapshot.value.slice(end),
+    caret,
+    caret,
+  );
+}
+
 function rejectedMessage(error: unknown): ScanMessage {
   if (
     typeof error === 'object' &&
@@ -167,13 +181,7 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
             snapshot = undefined;
             break;
           case 'replay':
-            if (snapshot) {
-              const start = snapshot.start ?? snapshot.value.length;
-              const end = snapshot.end ?? start;
-              const value =
-                snapshot.value.slice(0, start) + effect.text + snapshot.value.slice(end);
-              writeField(snapshot, value, start + effect.text.length, start + effect.text.length);
-            }
+            if (snapshot) replayField(snapshot, effect.text);
             snapshot = undefined;
             break;
           case 'schedule-timeout':
@@ -214,6 +222,15 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
         syncListening();
         return;
       }
+      if (
+        event.isComposing ||
+        event.keyCode === 229 ||
+        event.key === 'Dead' ||
+        event.key === 'Process'
+      ) {
+        resetCapture();
+        return;
+      }
       apply(
         {
           type: event.type === 'keyup' ? 'keyup' : 'keydown',
@@ -239,16 +256,7 @@ export function useBarcodeScan({ enabled, onScan }: UseBarcodeScanOptions): Barc
         });
         for (const effect of result.effects) {
           if (effect.type === 'restore-field') writeField(snapshot, snapshot.value);
-          if (effect.type === 'replay') {
-            const start = snapshot.start ?? snapshot.value.length;
-            const end = snapshot.end ?? start;
-            writeField(
-              snapshot,
-              snapshot.value.slice(0, start) + effect.text + snapshot.value.slice(end),
-              start + effect.text.length,
-              start + effect.text.length,
-            );
-          }
+          if (effect.type === 'replay') replayField(snapshot, effect.text);
         }
       }
       snapshot = undefined;
