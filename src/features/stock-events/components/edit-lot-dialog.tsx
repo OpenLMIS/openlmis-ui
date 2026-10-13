@@ -1,6 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DialogLoadError, FieldSkeleton } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
@@ -15,6 +14,7 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import { lotsByTradeItemsOptions } from '@/features/reference-data/api/queries';
@@ -36,16 +36,11 @@ type EditLotDialogProps = {
 export function EditLotDialog({ open, onOpenChange, ...props }: EditLotDialogProps) {
   const { t } = useTranslation();
   const title = t('stock-events.edit-lot-title');
-  const [shown, setShown] = useState(open);
-  if (open && !shown) setShown(true);
+  const { shown, close, dialogProps } = useDialogTarget(open ? props.lineKey : undefined, () =>
+    onOpenChange(false),
+  );
   return (
-    <FormDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onOpenChangeComplete={(next) => {
-        if (!next) setShown(false);
-      }}
-    >
+    <FormDialog {...dialogProps()}>
       {shown && (
         <QueryBoundary
           resetKey={props.lot.tradeItemId}
@@ -59,7 +54,7 @@ export function EditLotDialog({ open, onOpenChange, ...props }: EditLotDialogPro
             />
           )}
         >
-          <EditLotForm {...props} onDone={() => onOpenChange(false)} />
+          <EditLotForm {...props} onDone={close} />
         </QueryBoundary>
       )}
     </FormDialog>
@@ -74,7 +69,7 @@ function EditLotForm({
   today,
   onSave,
   onDone,
-}: Omit<EditLotDialogProps, 'open' | 'onOpenChange'> & { onDone: () => void }) {
+}: Omit<EditLotDialogProps, 'open' | 'onOpenChange'> & { onDone: () => boolean }) {
   const { t } = useTranslation();
   const { data: lots } = useSuspenseQuery(lotsByTradeItemsOptions([lot.tradeItemId]));
   const form = useAppForm({
@@ -82,8 +77,8 @@ function EditLotForm({
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: editLotSchema({ lot, lineKey, lots, lines, today }) },
     onSubmit: ({ value }) => {
+      if (!onDone()) return;
       onSave({ lotCode: value.lotCode, expirationDate: value.expirationDate || null });
-      onDone();
     },
   });
   return (

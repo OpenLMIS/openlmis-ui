@@ -117,6 +117,14 @@ describe('LotsToolbar', () => {
   });
 
   it('lists products afresh when reopened after a pick, not just the picked one', async () => {
+    const other = { ...acid, id: 'o2', productCode: 'C2', fullProductName: 'Glibenclamide' };
+    vi.mocked(fetchOrderables).mockImplementation(async ({ name }) => ({
+      content: name ? [acid] : [acid, other],
+      totalElements: name ? 1 : 2,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+    }));
     function Toolbar() {
       const [search, setSearch] = useState<LotsSearch>({});
       return (
@@ -131,10 +139,17 @@ describe('LotsToolbar', () => {
     const user = userEvent.setup();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
-    await user.click(product);
+    await user.type(product, 'acid');
+    await waitFor(() => expect(fetchOrderables).toHaveBeenCalledWith({ name: 'acid', code: '' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: /Glibenclamide/ })).not.toBeInTheDocument(),
+    );
     await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
     await waitFor(() => expect(product).toHaveValue('Acetylsalicylic Acid'));
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await waitFor(() => expect(product).toHaveAttribute('aria-expanded', 'false'));
+    await user.click(product);
+    expect(await screen.findByRole('option', { name: /Glibenclamide/ })).toBeInTheDocument();
+    expect(product).toHaveValue('Acetylsalicylic Acid');
 
     expect(fetchOrderables).not.toHaveBeenCalledWith({ name: 'Acetylsalicylic Acid', code: '' });
   });
@@ -166,9 +181,12 @@ describe('LotsToolbar', () => {
     await user.type(product, 'acid');
     await user.click(await screen.findByRole('option', { name: /Acetylsalicylic Acid/ }));
     await waitFor(() => expect(fetchOrderables).toHaveBeenLastCalledWith({ name: '', code: '' }));
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await user.click(product);
+    expect(await screen.findByRole('option', { name: /Glibenclamide/ })).toBeInTheDocument();
 
     expect(product).toHaveValue('Acetylsalicylic Acid');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(product).toHaveAttribute('aria-expanded', 'false'));
     expect(screen.getByRole('button', { name: /Clear/ })).toBeInTheDocument();
   });
 

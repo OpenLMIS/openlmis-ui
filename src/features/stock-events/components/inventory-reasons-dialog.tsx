@@ -39,6 +39,8 @@ const positive = wholeNumberText(
 );
 const quantitySchema = z.object({ doses: positive, packs: z.string(), remainder: z.string() });
 type Props = {
+  open?: boolean;
+  onOpenChangeComplete?: (open: boolean) => void;
   line: InventoryLine;
   reasons: readonly Reason[];
   unit: QuantityUnit;
@@ -46,7 +48,15 @@ type Props = {
   onUpdate: (adjustments: InventoryAdjustment[]) => void;
 };
 
-export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate }: Props) {
+export function InventoryReasonsDialog({
+  open = true,
+  onOpenChangeComplete,
+  line,
+  reasons,
+  unit,
+  onClose,
+  onUpdate,
+}: Props) {
   const { t, i18n } = useTranslation();
   const [confirm, setConfirm] = useState(false);
   const form = useAppForm({
@@ -113,7 +123,8 @@ export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate 
   return (
     <>
       <FormDialog
-        open
+        open={open}
+        onOpenChangeComplete={onOpenChangeComplete}
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
@@ -220,7 +231,7 @@ export function InventoryReasonsDialog({ line, reasons, unit, onClose, onUpdate 
           </FormDialogFooter>
         </FormDialogForm>
       </FormDialog>
-      <FormDialog open={confirm} onOpenChange={setConfirm}>
+      <FormDialog open={open && confirm} onOpenChange={setConfirm}>
         {confirm && (
           <FormDialogForm onSubmit={apply}>
             <FormDialogHeader>

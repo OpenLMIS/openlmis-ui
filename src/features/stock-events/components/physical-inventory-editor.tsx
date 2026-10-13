@@ -34,6 +34,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
@@ -378,20 +379,27 @@ function InventoryDraftRows({
   });
   const [dialog, setDialog] = useState<{
     type: 'reasons' | 'lot' | 'deactivate';
-    key: string;
-  } | null>(null);
+    line: InventoryLine;
+  }>();
+  const {
+    shown: shownDialog,
+    close: closeDialog,
+    dialogProps,
+  } = useDialogTarget(dialog, () => setDialog(undefined));
+  const { open: dialogOpen, onOpenChangeComplete } = dialogProps();
   const dialogLine = useStore(form.store, (state) =>
-    dialog ? state.values.lines[dialog.key] : undefined,
+    shownDialog ? (state.values.lines[shownDialog.line.key] ?? shownDialog.line) : undefined,
   );
   const online = useOnline();
   const mutation = useSessionMutation({
     retry: false,
     mutationFn: deactivateInventoryStockCard,
     onSuccess: () => {
-      if (dialogLine) {
-        focusAfterRemoval(dialogLine);
-        displayedKeys.current.delete(dialogLine.key);
-        patchLine(dialogLine.key, { active: false, isAdded: false });
+      const line = dialogLine && form.state.values.lines[dialogLine.key];
+      if (line) {
+        focusAfterRemoval(line);
+        displayedKeys.current.delete(line.key);
+        patchLine(line.key, { active: false, isAdded: false });
       }
       for (const filter of [
         ...inventoryRefreshFilters(draft),
@@ -399,7 +407,7 @@ function InventoryDraftRows({
         { queryKey: queryKeys.stockCards.all },
       ])
         void queryClient.invalidateQueries(filter);
-      setDialog(null);
+      closeDialog();
       toast.success(t('physical-inventory.deactivated-title'), {
         description: t('physical-inventory.deactivated-description'),
       });
@@ -472,10 +480,9 @@ function InventoryDraftRows({
   }, [focusTarget, actionDialog, search, deferred]);
   const patchLine = useCallback(
     (key: string, patch: Partial<InventoryLine>) => {
-      form.setFieldValue('lines', (current) => ({
-        ...current,
-        [key]: { ...current[key], ...patch },
-      }));
+      form.setFieldValue('lines', (current) =>
+        current[key] ? { ...current, [key]: { ...current[key], ...patch } } : current,
+      );
     },
     [form],
   );
@@ -486,16 +493,10 @@ function InventoryDraftRows({
     const index = keys.indexOf(line.key);
     setFocusTarget({ key: keys[index + 1] ?? keys[index - 1] ?? '__table' });
   }, []);
-  const onReasons = useCallback(
-    (line: InventoryLine) => setDialog({ type: 'reasons', key: line.key }),
-    [],
-  );
-  const onEditLot = useCallback(
-    (line: InventoryLine) => setDialog({ type: 'lot', key: line.key }),
-    [],
-  );
+  const onReasons = useCallback((line: InventoryLine) => setDialog({ type: 'reasons', line }), []);
+  const onEditLot = useCallback((line: InventoryLine) => setDialog({ type: 'lot', line }), []);
   const onDeactivate = useCallback(
-    (line: InventoryLine) => setDialog({ type: 'deactivate', key: line.key }),
+    (line: InventoryLine) => setDialog({ type: 'deactivate', line }),
     [],
   );
   const onRemove = useCallback(
@@ -607,7 +608,9 @@ function InventoryDraftRows({
           eligible={eligible.data}
           getLines={() => Object.values(form.state.values.lines)}
           canManageLots={canManageLots}
-          paused={busy || submitted || mutation.isPending || addOpen || !!dialog || actionDialog}
+          paused={
+            busy || submitted || mutation.isPending || addOpen || !!shownDialog || actionDialog
+          }
           onCount={(line) => {
             onCounted(line.key);
             form.setFieldValue('lines', (current) => ({ ...current, [line.key]: line }));
@@ -712,27 +715,25 @@ function InventoryDraftRows({
           }}
         />
       )}
-      {dialog?.type === 'reasons' &&
+      {shownDialog?.type === 'reasons' &&
         dialogLine &&
         (reasonsQuery.isSuccess ? (
           <InventoryReasonsDialog
+            key={dialogLine.key}
+            open={dialogOpen}
+            onOpenChangeComplete={onOpenChangeComplete}
             line={dialogLine}
             reasons={reasons}
             unit={quantityUnit.unit}
-            onClose={() => setDialog(null)}
+            onClose={closeDialog}
             onUpdate={(adjustments) => {
+              if (!closeDialog()) return;
               onCounted(dialogLine.key);
               patchLine(dialogLine.key, { stockAdjustments: adjustments });
-              setDialog(null);
             }}
           />
         ) : (
-          <FormDialog
-            open
-            onOpenChange={(open) => {
-              if (!open) setDialog(null);
-            }}
-          >
+          <FormDialog {...dialogProps()}>
             <FormDialogHeader>
               <FormDialogTitle>
                 {t('physical-inventory.reasons-title', {
@@ -761,25 +762,33 @@ function InventoryDraftRows({
             </FormDialogFooter>
           </FormDialog>
         ))}
-      {dialog?.type === 'lot' && dialogLine?.newLot && (
+      {shownDialog?.type === 'lot' && dialogLine?.newLot && (
         <InventoryEditLotDialog
+          key={dialogLine.key}
+          open={dialogOpen}
+          onOpenChangeComplete={onOpenChangeComplete}
           line={dialogLine}
           listed={[...(eligible.data ?? []), ...getLines()]}
-          onClose={() => setDialog(null)}
+          onClose={closeDialog}
           onUpdate={(lot) => {
-            patchLine(dialogLine.key, { newLot: lot });
-            setDialog(null);
+            if (closeDialog()) patchLine(dialogLine.key, { newLot: lot });
           }}
         />
       )}
-      {dialog?.type === 'deactivate' && dialogLine && (
+      {shownDialog?.type === 'deactivate' && dialogLine && (
         <InventoryDeactivateDialog
+          open={dialogOpen}
+          onOpenChangeComplete={onOpenChangeComplete}
           line={dialogLine}
           online={online}
           pending={mutation.isPending}
-          onClose={() => setDialog(null)}
+          onClose={closeDialog}
           onConfirm={() => {
-            if (dialogLine.stockCardId && canDeactivateInventoryLine(dialogLine, online))
+            if (
+              dialogOpen &&
+              dialogLine.stockCardId &&
+              canDeactivateInventoryLine(dialogLine, online)
+            )
               mutation.mutate(dialogLine.stockCardId);
           }}
         />

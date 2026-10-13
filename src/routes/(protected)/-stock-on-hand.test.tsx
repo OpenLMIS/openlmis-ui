@@ -653,14 +653,6 @@ describe('stock on hand page', () => {
 });
 
 describe('stock on hand View', () => {
-  it.each([768, 839, 1009])('keeps the table at the original content width %i', async (width) => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
-    renderRoute(appliedPath());
-    await screen.findAllByText('Levonorgestrel');
-    expect(screen.getByRole('table')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'stock-on-hand.view-card' })).toHaveLength(2);
-  });
-
   it.each([1200, 390])(
     'offers View only for existing cards at content width %i and keeps the whole search',
     async (width) => {

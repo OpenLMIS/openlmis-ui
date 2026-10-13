@@ -135,12 +135,12 @@ beforeEach(() => {
   ]);
 });
 
-describe('AssignmentsTable', { timeout: 10_000 }, () => {
+describe('AssignmentsTable', () => {
   it('shows the program and type names, and Unknown for a program the list does not have', async () => {
     renderTable([balaka('a1', 'p1'), balaka('a2', 'gone')]);
 
-    expect(await screen.findByText('Essential Meds', {}, { timeout: 5000 })).toBeVisible();
-    expect(await screen.findByText('Unknown', {}, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByText('Essential Meds', {})).toBeVisible();
+    expect(await screen.findByText('Unknown', {})).toBeVisible();
     expect(screen.getAllByText('Health Center')).toHaveLength(2);
   });
 
@@ -232,7 +232,7 @@ describe('AssignmentsTable', { timeout: 10_000 }, () => {
       totalPages: 2,
     });
 
-    await vi.waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: 2 }, true));
+    await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: 2 }, true));
   });
 
   it('says when nothing exists yet, with no way to clear filters', async () => {

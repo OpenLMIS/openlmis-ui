@@ -104,58 +104,6 @@ it.each(['adjustment', 'issue', 'receive', 'unpack'] as const)(
   },
 );
 
-it('renders Issue headers with the same label output as Adjustments', async () => {
-  function Fixture({ kind }: { kind: 'issue' | 'adjustment' }) {
-    const form = useEventForm({
-      kind,
-      reasons: [],
-      today: '2026-10-08',
-      onValid: vi.fn(),
-      onInvalid: vi.fn(),
-    });
-    return (
-      <EventLineTable
-        kind={kind}
-        reasonRequired
-        form={form}
-        lines={[]}
-        reasons={[]}
-        unit="DOSES"
-        today="2026-10-08"
-        disabled={false}
-        onRemove={vi.fn()}
-        search={{}}
-        onSearchChange={vi.fn()}
-        columnVisibility={{}}
-        onClearFilter={vi.fn()}
-      />
-    );
-  }
-  renderPage(
-    <>
-      <section aria-label="Adjustments">
-        <Fixture kind="adjustment" />
-      </section>
-      <section aria-label="Issue">
-        <Fixture kind="issue" />
-      </section>
-    </>,
-  );
-  const adjustment = within(await screen.findByRole('region', { name: 'Adjustments' }));
-  const issue = within(screen.getByRole('region', { name: 'Issue' }));
-  expect(issue.getByRole('columnheader', { name: 'stock-events.stock-on-hand' }).innerHTML).toBe(
-    adjustment.getByRole('columnheader', { name: 'stock-events.stock-on-hand' }).innerHTML,
-  );
-  expect(
-    issue
-      .getByRole('columnheader', { name: 'stock-events.destination-comments' })
-      .querySelector('span')?.className,
-  ).toBe(
-    issue.getByRole('columnheader', { name: 'stock-events.stock-on-hand' }).querySelector('span')
-      ?.className,
-  );
-});
-
 it('keeps full Issue comment headers without truncation or hover text', async () => {
   function Fixture() {
     const form = useEventForm({

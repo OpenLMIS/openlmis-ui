@@ -125,10 +125,12 @@ it('keeps the resize subscription on rerenders and follows independently replace
   const connected = vi.fn();
   const observed = vi.fn();
   const disconnected = vi.fn();
+  let notifyResize = () => {};
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      constructor() {
+      constructor(callback: ResizeObserverCallback) {
+        notifyResize = () => callback([], this as unknown as ResizeObserver);
         connected();
       }
       observe(element: Element) {
@@ -143,6 +145,9 @@ it('keeps the resize subscription on rerenders and follows independently replace
     const { rerender, unmount } = render(<Harness />);
     expect(connected).toHaveBeenCalledTimes(1);
     expect(observed.mock.calls.map(([element]) => element.tagName)).toEqual(['DIV', 'TABLE']);
+    required = 950;
+    act(notifyResize);
+    expect(screen.queryByRole('cell', { name: 'expiry' })).not.toBeInTheDocument();
     rerender(<Harness />);
     act(() => screen.getByRole('button', { name: 'Show Code' }).click());
     expect(connected).toHaveBeenCalledTimes(1);

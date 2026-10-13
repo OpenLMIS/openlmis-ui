@@ -80,3 +80,31 @@ it('counts two queued scans before React renders the first count', async () => {
   });
   expect(current[0].quantity.doses).toBe('20');
 });
+
+it('drops a cancelled scan when its GTIN lookup finishes', async () => {
+  const lookup = Promise.withResolvers<{ id: string }>();
+  const client = new QueryClient();
+  vi.spyOn(client, 'fetchQuery').mockImplementation(() => lookup.promise as never);
+  const onCount = vi.fn();
+  render(
+    <QueryClientProvider client={client}>
+      <InventoryScan
+        eligible={[stock]}
+        getLines={() => [addedInventoryLine(stock, quantityValue('7'))]}
+        canManageLots={false}
+        paused={false}
+        onCount={onCount}
+      />
+    </QueryClientProvider>,
+  );
+  const scan = vi.mocked(useBarcodeScan).mock.calls.at(-1)?.[0].onScan;
+  if (!scan) throw new Error('no scan');
+  const controller = new AbortController();
+  const result = scan({ ok: true, gtin: 'g', warnings: [], unparsed: {} }, controller.signal);
+  controller.abort();
+  await act(async () => {
+    lookup.resolve({ id: 't' });
+    await result;
+  });
+  expect(onCount).not.toHaveBeenCalled();
+});

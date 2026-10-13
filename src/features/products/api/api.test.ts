@@ -12,7 +12,7 @@ import {
   saveProductChange,
   updateApproval,
 } from '@/features/products/api/api';
-import type { Approval } from '@/features/products/lib/types';
+import type { Approval, ProductsQuery } from '@/features/products/lib/types';
 import { client } from '@/integrations/axios';
 
 vi.mock('@/integrations/axios', () => ({
@@ -43,9 +43,10 @@ describe('fetchProducts', () => {
       page: 2,
       size: 20,
       sort: 'fullProductName,asc',
-      q: '0363',
+      code: '0363',
+      name: 'Acetylsalicylic',
       program: 'PRG002',
-    };
+    } satisfies ProductsQuery;
     await expect(fetchProducts(query)).resolves.toEqual(page);
     expect(get).toHaveBeenCalledWith('/orderables', { params: query });
   });

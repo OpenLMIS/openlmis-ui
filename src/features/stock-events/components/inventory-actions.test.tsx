@@ -5,9 +5,11 @@ import { AxiosError } from 'axios';
 import type { ComponentProps } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { quantityValue } from '@/components/form/quantity-value';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  createPhysicalInventoryLot,
   deletePhysicalInventory,
   fetchEligibleInventoryProducts,
   fetchPhysicalInventoryDraft,
@@ -20,7 +22,11 @@ import {
 } from '@/features/stock-events/api/physical-inventory-queries';
 import { InventoryActions } from '@/features/stock-events/components/inventory-actions';
 import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
-import { clearInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
+import {
+  clearInventoryLocal,
+  writeInventoryLocal,
+} from '@/features/stock-events/lib/physical-inventory-local';
+import { addedInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   savePhysicalInventory: vi.fn(),
@@ -294,3 +300,48 @@ it.each(['save', 'delete', 'submit'] as const)(
     );
   },
 );
+
+it('retains a created lot after device persistence fails so Save can retry without recreating it', async () => {
+  const user = userEvent.setup();
+  let live = [
+    addedInventoryLine(stock, quantityValue('0'), {
+      clientId: 'new',
+      lotCode: 'NEW',
+      expirationDate: null,
+      tradeItemId: 'trade',
+    }),
+  ];
+  const created = { id: 'created', lotCode: 'NEW', expirationDate: null };
+  vi.mocked(createPhysicalInventoryLot).mockResolvedValue(created);
+  vi.mocked(writeInventoryLocal)
+    .mockRejectedValueOnce(new Error('Full'))
+    .mockResolvedValue(undefined);
+  const { onSaved } = setup({
+    getLines: () => live,
+    displayed: live,
+    onLots: (next) => {
+      live = next;
+    },
+  });
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  const failure = await screen.findByRole('alertdialog');
+  expect(createPhysicalInventoryLot).toHaveBeenCalledOnce();
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+  expect(live[0].lot).toEqual(created);
+  expect(live[0].newLot).toBeUndefined();
+  await user.click(within(failure).getByRole('button', { name: 'dialog.close' }));
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  expect(createPhysicalInventoryLot).toHaveBeenCalledOnce();
+  expect(savePhysicalInventory).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lineItems: [expect.objectContaining({ orderableId: 'p', lotId: 'created', quantity: 0 })],
+    }),
+  );
+});

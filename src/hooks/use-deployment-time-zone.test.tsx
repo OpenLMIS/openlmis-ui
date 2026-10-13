@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode, Suspense } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { client } from '@/integrations/axios';
 
@@ -21,7 +22,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  vi.useRealTimers();
+});
 
 describe('useDeploymentTimeZone', () => {
   it('reads the time zone the legacy UI shows dates in, without a token', async () => {
@@ -45,7 +49,17 @@ describe('useDeploymentTimeZone', () => {
     vi.mocked(client.get).mockRejectedValue(new Error('offline'));
     const { result } = renderHook(() => useDeploymentTimeZone(), { wrapper });
 
-    await waitFor(() => expect(result.current).toBe('Africa/Blantyre'));
+    await waitFor(() => expect(client.get).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(queryClient.getQueryState(deploymentTimeZoneOptions().queryKey)?.fetchStatus).toBe(
+        'idle',
+      ),
+    );
+    expect(queryClient.getQueryData(deploymentTimeZoneOptions().queryKey)).toEqual({
+      zone: 'Africa/Blantyre',
+      read: false,
+    });
+    expect(result.current).toBe('Africa/Blantyre');
   });
 
   it('shows the zone it read before at once, without waiting for the server', () => {
@@ -57,11 +71,12 @@ describe('useDeploymentTimeZone', () => {
   });
 
   it('asks again on the next screen after a failed read rather than keeping the fallback', async () => {
+    vi.useFakeTimers({ now: new Date(), toFake: ['Date'] });
     vi.mocked(client.get).mockRejectedValueOnce(new Error('offline'));
     const first = renderHook(() => useDeploymentTimeZone(), { wrapper });
     await waitFor(() => expect(first.result.current).toBe('UTC'));
     first.unmount();
-    await new Promise((resolve) => setTimeout(resolve, 1_100));
+    vi.setSystemTime(Date.now() + 1_100);
 
     vi.mocked(client.get).mockResolvedValue({ data: { timeZoneId: 'Africa/Blantyre' } });
     const { result } = renderHook(() => useDeploymentTimeZone(), { wrapper });

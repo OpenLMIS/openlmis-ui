@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Handler = (event?: unknown) => void;
@@ -108,7 +108,7 @@ describe('registerServiceWorker', () => {
     const install = stubRegistration();
     const { dismissUpdate, registerServiceWorker, useUpdateReady } = await load();
     registerServiceWorker({ enabled: true });
-    await vi.waitFor(() => expect(register).toHaveBeenCalled());
+    await waitFor(() => expect(register).toHaveBeenCalled());
     await Promise.resolve();
     const { result } = renderHook(() => useUpdateReady());
 
@@ -141,7 +141,7 @@ describe('registerServiceWorker', () => {
     const install = stubRegistration();
     const { registerServiceWorker, useUpdateReady } = await load();
     registerServiceWorker({ enabled: true });
-    await vi.waitFor(() => expect(register).toHaveBeenCalled());
+    await waitFor(() => expect(register).toHaveBeenCalled());
     await Promise.resolve();
     const { result } = renderHook(() => useUpdateReady());
 

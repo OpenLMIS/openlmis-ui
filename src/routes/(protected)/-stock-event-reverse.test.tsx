@@ -171,6 +171,7 @@ describe('reverse transaction', () => {
     await screen.findByRole('heading', { name: 'stock-event-reverse.title' });
     await screen.findByText('Vaccine');
     expect(screen.queryByText('Signed')).not.toBeInTheDocument();
+    expect(screen.queryByText('stock-event.signature')).not.toBeInTheDocument();
     expect(screen.getAllByRole('columnheader')).toHaveLength(14);
     const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
     expect(cells[5]?.textContent).toBe('');
@@ -271,6 +272,8 @@ describe('reverse transaction', () => {
       name: 'stock-event-reverse.summary-title',
     });
     expect(within(summary).getByText('Cancelled issue: Saved comment')).toBeInTheDocument();
+    expect(within(summary).getByRole('cell', { name: 'Vaccine (C1)' })).toBeInTheDocument();
+    expect(within(summary).getByRole('cell', { name: '80' })).toBeInTheDocument();
     expect(cancelStockEvent).toHaveBeenCalledWith('event1', {
       signature: 'Signer',
       lineItems: [{ stockEventLineItemId: 'line1', reasonId: 'cancel' }],

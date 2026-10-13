@@ -25,7 +25,11 @@ function readCatalog(language: string) {
 }
 const catalog = (language: string) => JSON.parse(readCatalog(language)) as Record<string, string>;
 
-function argumentsIn(elements: MessageFormatElement[], argumentsUsed = new Set<string>()) {
+function argumentsIn(
+  elements: MessageFormatElement[],
+  grammar: 'strict' | 'localized' = 'strict',
+  argumentsUsed = new Set<string>(),
+) {
   for (const element of elements) {
     if (
       isArgumentElement(element) ||
@@ -35,14 +39,21 @@ function argumentsIn(elements: MessageFormatElement[], argumentsUsed = new Set<s
       isPluralElement(element) ||
       isSelectElement(element)
     ) {
-      argumentsUsed.add(`${element.value}:${element.type}`);
+      const type =
+        grammar === 'localized' && (isNumberElement(element) || isPluralElement(element))
+          ? 'numeric'
+          : element.type;
+      argumentsUsed.add(`${element.value}:${type}`);
     }
     if (isSelectElement(element) || isPluralElement(element)) {
       const selectors = Object.keys(element.options)
         .filter((key) => isSelectElement(element) || key.startsWith('='))
         .sort();
-      argumentsUsed.add(`${element.value}:selectors:${selectors.join(',')}`);
-      for (const option of Object.values(element.options)) argumentsIn(option.value, argumentsUsed);
+      if (grammar === 'strict' || isSelectElement(element)) {
+        argumentsUsed.add(`${element.value}:selectors:${selectors.join(',')}`);
+      }
+      for (const option of Object.values(element.options))
+        argumentsIn(option.value, grammar, argumentsUsed);
     }
   }
   return [...argumentsUsed].sort();
@@ -76,6 +87,18 @@ describe('language catalogues', () => {
       );
     }
   });
+
+  it.each(['pt', 'ar'])(
+    '%s preserves arguments and select choices across numeric grammar',
+    (language) => {
+      const messages = catalog(language);
+      for (const [key, english] of Object.entries(catalog('en'))) {
+        expect(argumentsIn(parse(messages[key], { ignoreTag: true }), 'localized'), key).toEqual(
+          argumentsIn(parse(english, { ignoreTag: true }), 'localized'),
+        );
+      }
+    },
+  );
 
   it.each(['es', 'fr'])(
     '%s renders real named, numeric, plural and select messages',
