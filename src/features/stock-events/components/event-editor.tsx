@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
-import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
+import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +31,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -786,6 +787,9 @@ export function EventEditor({
       >
         <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
           <AlertDialogHeader>
+            <AlertDialogMedia>
+              <CircleAlertIcon className="text-destructive" />
+            </AlertDialogMedia>
             <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
