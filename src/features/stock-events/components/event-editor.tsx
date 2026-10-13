@@ -661,7 +661,7 @@ export function EventEditor({
                   />
                 )}
               <DataTableToolbar>
-                <fieldset className="w-full @xl/main:w-72" disabled={pending}>
+                <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled={pending}>
                   <DataTableSearch
                     value={keyword}
                     resetKey={`${search.page ?? 1}/${search.size ?? 10}`}
@@ -671,26 +671,26 @@ export function EventEditor({
                     }
                   />
                 </fieldset>
-                <div className="flex w-full flex-wrap items-center justify-end gap-2 @xl/main:ms-auto @xl/main:w-auto">
-                  {quantityUnit.canSwitch && (
+                {quantityUnit.canSwitch && (
+                  <div className="min-w-0 flex-1 @2xl/main:flex-none">
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
                       disabled={pending || submitted}
                     />
-                  )}
-                  <div className="shrink-0">
-                    <DataTableViewOptions
-                      {...columns}
-                      columns={hideableColumns
-                        .filter(
-                          (column) =>
-                            (column.id !== 'total' || quantityUnit.unit === 'PACKS') &&
-                            (column.id !== 'expiry' || hasLots),
-                        )
-                        .map((column) => ({ id: column.id, label: t(column.labelKey) }))}
-                    />
                   </div>
+                )}
+                <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+                  <DataTableViewOptions
+                    {...columns}
+                    columns={hideableColumns
+                      .filter(
+                        (column) =>
+                          (column.id !== 'total' || quantityUnit.unit === 'PACKS') &&
+                          (column.id !== 'expiry' || hasLots),
+                      )
+                      .map((column) => ({ id: column.id, label: t(column.labelKey) }))}
+                  />
                 </div>
               </DataTableToolbar>
               {!canViewStock ? (

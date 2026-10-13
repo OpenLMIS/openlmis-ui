@@ -173,29 +173,29 @@ export function StockEventPending({
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
             <ProductLotPickerSkeleton kind={kind} />
             <DataTableToolbar>
-              <fieldset className="w-full @xl/main:w-72" disabled>
+              <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled>
                 <DataTableSearch
                   value=""
                   placeholder={t('stock-events.keywords')}
                   onValueChange={() => {}}
                 />
               </fieldset>
-              <div className="flex w-full flex-wrap items-center justify-end gap-2 @xl/main:ms-auto @xl/main:w-auto">
-                {unit.canSwitch && (
+              {unit.canSwitch && (
+                <div className="min-w-0 flex-1 @2xl/main:flex-none">
                   <QuantityUnitToggle unit={unit.unit} onUnitChange={() => {}} disabled />
-                )}
-                <div className="shrink-0">
-                  <DataTableViewOptions
-                    disabled
-                    columns={eventHideableColumns(kind)
-                      .filter(
-                        ({ id }) => id !== 'expiry' && (id !== 'total' || unit.unit === 'PACKS'),
-                      )
-                      .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-                    visibility={visibility}
-                    onVisibilityChange={() => {}}
-                  />
                 </div>
+              )}
+              <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+                <DataTableViewOptions
+                  disabled
+                  columns={eventHideableColumns(kind)
+                    .filter(
+                      ({ id }) => id !== 'expiry' && (id !== 'total' || unit.unit === 'PACKS'),
+                    )
+                    .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+                  visibility={visibility}
+                  onVisibilityChange={() => {}}
+                />
               </div>
             </DataTableToolbar>
             <EventLineTableSkeleton kind={kind} unit={unit.unit} columnVisibility={visibility} />

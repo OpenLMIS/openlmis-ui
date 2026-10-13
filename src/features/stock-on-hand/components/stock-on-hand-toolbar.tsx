@@ -49,7 +49,7 @@ export function StockOnHandToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="basis-full @md/main:me-auto @md/main:basis-auto">
+      <div className="w-full @2xl/main:me-auto @2xl/main:w-auto">
         <Popover>
           <PopoverTrigger
             render={<Button disabled={disabled} type="button" variant="outline" width="full" />}
@@ -85,12 +85,12 @@ export function StockOnHandToolbar({
         </Popover>
       </div>
       {onUnitChange && (
-        <div className="basis-full @md/main:basis-auto">
+        <div className="flex-1 @2xl/main:flex-none">
           <QuantityUnitToggle disabled={disabled} onUnitChange={onUnitChange} unit={unit} />
         </div>
       )}
-      {view}
-      <div className="flex-1 @md/main:flex-none">{print}</div>
+      <div className={onUnitChange ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>{view}</div>
+      <div className="w-full @2xl/main:w-auto">{print}</div>
     </div>
   );
 }
