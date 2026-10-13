@@ -144,10 +144,11 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
   lookups above; Receive pages approved products and offers every lot of the picked product's
   trade item. Stock-card filters take `(cards, today)`; Unpack keeps expired kit lots.
 - Every event kind sets `columnFit`, `measuredFitKeep`, `products`, `print` and `newLots`,
-  plus `contents`, `confirmation`, `scanning`, nullable `reasons` and nullable `eventOrigin`. Components read
-  policies, never kind names. Unpack expands fresh kit contents, verifies runtime reason ids
-  against the reasons list, uses simple confirmation and omits origin/signature. Other kinds
-  keep signature confirmation; Issue and Receive retain printing and Receive retains new lots.
+  plus `contents`, `confirmation`, `scanning`, nullable `reasons` and nullable `eventOrigin`.
+  Components read policies, never kind names. Unpack expands fresh kit contents, verifies
+  runtime reason ids against the reasons list, uses simple confirmation and omits
+  origin/signature. Other kinds keep signature confirmation; Issue and Receive retain printing
+  and Receive retains new lots.
 - Picker and editor text comes from kind copy, including `noProducts`. Receive's empty unfiltered
   list describes approved products; a typed search with no hits keeps No Matching Products.
   Stock event discard guards pass `pending` during refresh and posting.

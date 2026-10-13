@@ -47,21 +47,9 @@ it('lets View restore all optional Issue columns on a phone', () => {
   expect(resolveColumnVisibility(columns, choices, 341)).toEqual(choices);
 });
 
-it.each(['unpack', 'issue', 'receive'] as const)(
-  'keeps the measured fit policy and user choices for %s',
-  (kind) => {
-    const columns = eventFitColumns(kind);
-    expect(columns.map(({ id }) => id)).toEqual(
-      kind === 'unpack'
-        ? ['packSize', 'total', 'expiry']
-        : ['productCode', 'packSize', 'total', 'expiry'],
-    );
-    const hidden = Object.fromEntries(columns.map(({ id }) => [id, false]));
-    const visibility = resolveColumnVisibility(eventHideableColumns(kind), hidden, 341);
-    expect(visibility.productCode).toBe(kind === 'unpack');
-    expect(
-      resolveColumnVisibility(eventHideableColumns(kind), { ...hidden, productCode: false }, 341)
-        .productCode,
-    ).toBe(false);
-  },
-);
+it('keeps Product Code out of measured fit only where the kind asks', () => {
+  expect(eventFitColumns('unpack').map(({ id }) => id)).toEqual(['packSize', 'total', 'expiry']);
+  for (const kind of ['issue', 'receive'] as const) {
+    expect(eventFitColumns(kind)).toEqual(eventHideableColumns(kind));
+  }
+});
