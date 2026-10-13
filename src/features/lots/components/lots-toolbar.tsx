@@ -6,7 +6,6 @@ import { DataTableComboboxFilter } from '@/components/data-table/data-table-filt
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { DatePicker } from '@/components/form/form-fields';
-import { productSearchStatus } from '@/features/lots/lib/product-search-status';
 import { LOT_HIDEABLE_COLUMNS, type LotsSearch } from '@/features/lots/lib/search';
 import {
   orderablesByIdsOptions,
@@ -16,6 +15,7 @@ import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { isOfflineError } from '@/lib/http';
+import { productSearchStatus } from '@/lib/product-search-status';
 
 const SEARCH_DELAY = 300;
 

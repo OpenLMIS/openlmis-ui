@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchApprovedProducts,
   fetchFacilitiesByIds,
   fetchFacilityOperators,
+  fetchFacilityOrderableFulfills,
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
   fetchLotsByIds,
+  fetchLotsByTradeItems,
   fetchOrderableDisplayCategories,
+  fetchOrderableFulfills,
   fetchOrderables,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
@@ -385,22 +389,24 @@ describe('fetchTradeItemByGtin', () => {
 });
 
 describe('fetchValidAssignments', () => {
-  it('reads every page of valid destinations', async () => {
-    const resource = 'validDestinations';
-    const filter = { programId: 'p1', facilityId: 'f1' };
-    get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
-    get.mockResolvedValueOnce({ data: { content: [{ id: 'a2' }], totalPages: 2 } });
-    await expect(fetchValidAssignments(resource, filter)).resolves.toEqual([
-      { id: 'a1' },
-      { id: 'a2' },
-    ]);
-    expect(get).toHaveBeenNthCalledWith(1, `/${resource}`, {
-      params: { ...filter, page: 0, size: 100 },
-    });
-    expect(get).toHaveBeenNthCalledWith(2, `/${resource}`, {
-      params: { ...filter, page: 1, size: 100 },
-    });
-  });
+  it.each(['validDestinations', 'validSources'] as const)(
+    'reads every page of %s',
+    async (resource) => {
+      const filter = { programId: 'p1', facilityId: 'f1' };
+      get.mockResolvedValueOnce({ data: { content: [{ id: 'a1' }], totalPages: 2 } });
+      get.mockResolvedValueOnce({ data: { content: [{ id: 'a2' }], totalPages: 2 } });
+      await expect(fetchValidAssignments(resource, filter)).resolves.toEqual([
+        { id: 'a1' },
+        { id: 'a2' },
+      ]);
+      expect(get).toHaveBeenNthCalledWith(1, `/${resource}`, {
+        params: { ...filter, page: 0, size: 100 },
+      });
+      expect(get).toHaveBeenNthCalledWith(2, `/${resource}`, {
+        params: { ...filter, page: 1, size: 100 },
+      });
+    },
+  );
   it('stops on an empty page and rejects a later failure without a partial list', async () => {
     const filter = { programId: 'p1', facilityId: 'f1' };
     get.mockResolvedValueOnce({ data: { content: [], totalPages: 0 } });
@@ -423,4 +429,103 @@ it('stops destination paging when the session changes between pages', async () =
     fetchValidAssignments('validDestinations', { programId: 'p1', facilityId: 'f1' }),
   ).rejects.toThrow('Session ended');
   expect(get).toHaveBeenCalledTimes(1);
+});
+
+describe('fetchApprovedProducts', () => {
+  it('searches the facility approved products by name, never only the full supply ones', async () => {
+    get.mockResolvedValueOnce(page([{ id: 'ap1', orderable: orderable('o1') }]));
+
+    await expect(
+      fetchApprovedProducts({ facilityId: 'f1', programId: 'p1', name: 'acid', page: 0, size: 50 }),
+    ).resolves.toMatchObject({ content: [{ orderable: orderable('o1') }], totalElements: 1 });
+    expect(get).toHaveBeenCalledWith('/facilities/f1/approvedProducts', {
+      params: { programId: 'p1', orderableName: 'acid', page: 0, size: 50 },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('sends a code and repeats each product id when given', async () => {
+    get.mockResolvedValueOnce(page([]));
+
+    await fetchApprovedProducts({
+      facilityId: 'f1',
+      programId: 'p1',
+      code: 'C1',
+      orderableIds: ['o1', 'o2'],
+      page: 1,
+      size: 10,
+    });
+    expect(get).toHaveBeenCalledWith('/facilities/f1/approvedProducts', {
+      params: {
+        programId: 'p1',
+        orderableCode: 'C1',
+        orderableId: ['o1', 'o2'],
+        page: 1,
+        size: 10,
+      },
+      paramsSerializer: { indexes: null },
+    });
+  });
+});
+
+describe('fetchOrderableFulfills', () => {
+  it('asks by product id, repeating the param', async () => {
+    const fulfills = { o1: { canBeFulfilledByMe: ['o2'] } };
+    get.mockResolvedValueOnce({ data: fulfills });
+
+    await expect(fetchOrderableFulfills(['o1', 'o1'])).resolves.toEqual(fulfills);
+    expect(get).toHaveBeenCalledWith('/orderableFulfills', {
+      params: { id: ['o1'] },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('asks for nothing when there are no products, since the server would answer for all', async () => {
+    await expect(fetchOrderableFulfills([])).resolves.toEqual({});
+    expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchFacilityOrderableFulfills', () => {
+  it('asks for the fulfilment map of the facility and program', async () => {
+    const fulfills = { a1: { canFulfillForMe: ['o1'] } };
+    get.mockResolvedValueOnce({ data: fulfills });
+
+    await expect(
+      fetchFacilityOrderableFulfills({ facilityId: 'f1', programId: 'p1' }),
+    ).resolves.toEqual(fulfills);
+    expect(get).toHaveBeenCalledWith('/orderableFulfills', {
+      params: { facilityId: 'f1', programId: 'p1' },
+    });
+  });
+});
+
+describe('fetchLotsByTradeItems', () => {
+  const lot = (id: string, tradeItemId: string) => ({
+    id,
+    lotCode: id.toUpperCase(),
+    expirationDate: null,
+    tradeItemId,
+  });
+
+  it('reads every page of the trade items lots, each lot once', async () => {
+    get
+      .mockResolvedValueOnce(page([lot('l1', 't1'), lot('l2', 't2')], 2))
+      .mockResolvedValueOnce(page([lot('l2', 't2'), lot('l3', 't1')], 2));
+
+    await expect(fetchLotsByTradeItems(['t1', 't2', 't1'])).resolves.toEqual([
+      lot('l1', 't1'),
+      lot('l2', 't2'),
+      lot('l3', 't1'),
+    ]);
+    expect(get).toHaveBeenLastCalledWith('/lots', {
+      params: { tradeItemId: ['t1', 't2'], page: 1, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('asks for nothing when there are no trade items', async () => {
+    await expect(fetchLotsByTradeItems([])).resolves.toEqual([]);
+    expect(get).not.toHaveBeenCalled();
+  });
 });

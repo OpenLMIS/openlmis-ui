@@ -1,15 +1,21 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  type ApprovedProductsFilter,
+  type FacilityProgramFilter,
+  fetchApprovedProducts,
   fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
+  fetchFacilityOrderableFulfills,
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
   fetchLotsByIds,
+  fetchLotsByTradeItems,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
+  fetchOrderableFulfills,
   fetchOrderables,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
@@ -156,6 +162,32 @@ export const lotsByIdsOptions = (ids: readonly string[]) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
+export const lotsByTradeItemsOptions = (tradeItemIds: readonly string[]) =>
+  queryOptions({
+    queryKey: queryKeys.lots.list({ tradeItemIds }),
+    queryFn: () => fetchLotsByTradeItems(tradeItemIds),
+  });
+
+export const approvedProductsOptions = (filter: ApprovedProductsFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'facility', filter] as const,
+    queryFn: () => fetchApprovedProducts(filter),
+  });
+
+export const orderableFulfillsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'fulfills', { ids: ids.toSorted() }] as const,
+    queryFn: () => fetchOrderableFulfills(ids),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'fulfills', filter] as const,
+    queryFn: () => fetchFacilityOrderableFulfills(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
 export const userRecordOptions = (id: string) =>
   queryOptions({
@@ -205,9 +237,18 @@ export const tradeItemByGtinOptions = (gtin: string) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
+export const validAssignmentsOptions = (
+  resource: 'validSources' | 'validDestinations',
+  filter: ValidAssignmentsFilter,
+) =>
   queryOptions({
-    queryKey: [...queryKeys.validDestinations.all, 'lookup', filter] as const,
-    queryFn: () => fetchValidAssignments('validDestinations', filter),
+    queryKey: [...queryKeys[resource].all, 'lookup', filter] as const,
+    queryFn: () => fetchValidAssignments(resource, filter),
     staleTime: LOOKUP_STALE_TIME,
   });
+
+export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
+  validAssignmentsOptions('validDestinations', filter);
+
+export const validSourcesOptions = (filter: ValidAssignmentsFilter) =>
+  validAssignmentsOptions('validSources', filter);

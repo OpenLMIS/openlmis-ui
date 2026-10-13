@@ -19,6 +19,12 @@ import { formatDateValue } from '@/components/form/date-value';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  fetchApprovedProducts,
+  fetchFacilityOrderableFulfills,
+  fetchLotsByTradeItems,
+  fetchOrderableFulfills,
+  fetchOrderablesByIds,
+  fetchOrderablesByTradeItems,
   fetchTradeItemByGtin,
   fetchValidAssignments,
   fetchValidReasons,
@@ -26,8 +32,13 @@ import {
 import {
   validDestinationsOptions,
   validReasonsOptions,
+  validSourcesOptions,
 } from '@/features/reference-data/api/queries';
-import { fetchEventStockCards, submitStockEvent } from '@/features/stock-events/api/api';
+import {
+  fetchEventStockCards,
+  fetchEventStockOnHand,
+  submitStockEvent,
+} from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
@@ -42,6 +53,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/features/stock-events/api/api', () => ({
   submitStockEvent: vi.fn(),
   fetchEventStockCards: vi.fn(),
+  fetchEventStockOnHand: vi.fn(),
 }));
 vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/lib/feature-flags', () => ({ useFlag: () => true }));
@@ -64,6 +76,12 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchTradeItemByGtin: vi.fn(async () => ({ id: 'trade' })),
   fetchValidReasons: vi.fn(),
   fetchValidAssignments: vi.fn(),
+  fetchApprovedProducts: vi.fn(),
+  fetchFacilityOrderableFulfills: vi.fn(),
+  fetchLotsByTradeItems: vi.fn(),
+  fetchOrderablesByIds: vi.fn(),
+  fetchOrderablesByTradeItems: vi.fn(),
+  fetchOrderableFulfills: vi.fn(),
 }));
 const destinations = [
   {
@@ -137,6 +155,7 @@ function setup(
   defaultReasonId?: string,
   browserHistory = false,
   kind: ConfiguredEventKind = 'adjustment',
+  canManageLots = false,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
@@ -168,6 +187,7 @@ function setup(
             kind={kind}
             defaultReasonId={defaultReasonId}
             canViewStock={canViewStock}
+            canManageLots={canManageLots}
             facilityId="facility"
             facilityTypeId="type"
             programId="program"
@@ -974,7 +994,7 @@ describe('Issue editor', () => {
     expect(destination).toHaveAttribute('aria-invalid', 'true');
     expect(destination).toHaveAccessibleDescription('This field is required');
     expect(
-      document.getElementById('lines[0].destination-error')?.closest('.sr-only'),
+      document.getElementById('lines[0].counterparty-error')?.closest('.sr-only'),
     ).not.toBeNull();
     await user.click(screen.getByRole('button', { name: /^Close$/ }));
     await waitFor(() => expect(destination).toHaveFocus());
@@ -1002,6 +1022,27 @@ describe('Issue editor', () => {
       screen.queryByRole('textbox', { name: /^Reason Comments, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
     expect(destination).toHaveTextContent('CHW');
+  });
+
+  it('clears a chosen Issue To with its comments and requires it again on Submit', async () => {
+    const { user } = issueSetup();
+    await add(user, 'OTHER');
+    const destination = screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ });
+    await user.click(destination);
+    await user.click(await screen.findByRole('option', { name: 'CHW' }));
+    await user.type(
+      screen.getByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
+      'Courier',
+    );
+    await user.click(destination);
+    await user.click(await screen.findByRole('option', { name: 'Select An Option' }));
+    expect(destination).toHaveTextContent('Select An Option');
+    expect(
+      screen.queryByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(destination).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('copies the destination comments, filters the destination name and submits its node id', async () => {
@@ -1269,4 +1310,257 @@ it('releases frozen row widths when the editor container resizes without matchin
   } finally {
     bounds.mockRestore();
   }
+});
+
+describe('Receive editor', () => {
+  const vaccine = {
+    id: 'vaccine',
+    productCode: 'V1',
+    fullProductName: 'Vaccine',
+    description: null,
+    netContent: 10,
+    extraData: { useVVM: 'true' },
+  };
+  const aspirin = { ...card.orderable, description: null };
+  beforeEach(() => {
+    vi.mocked(fetchApprovedProducts).mockResolvedValue({
+      content: [aspirin, vaccine].map((orderable) => ({
+        id: `approved-${orderable.id}`,
+        orderable,
+      })),
+      totalElements: 2,
+      totalPages: 1,
+      number: 0,
+      size: 50,
+    });
+    vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({});
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
+    vi.mocked(fetchLotsByTradeItems).mockResolvedValue([]);
+    vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+  });
+  const receiveSetup = () =>
+    setup(
+      true,
+      (client) => {
+        client.setQueryData(
+          validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
+          [
+            {
+              id: 'transfer',
+              reason: {
+                ...reason,
+                name: 'Transfer In',
+                reasonType: 'CREDIT',
+                reasonCategory: 'TRANSFER',
+              },
+              hidden: false,
+            },
+          ],
+        );
+        client.setQueryData(
+          validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+          destinations,
+        );
+      },
+      undefined,
+      false,
+      'receive',
+      true,
+    );
+  async function pick(user: ReturnType<typeof userEvent.setup>, name: string) {
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
+    await user.click(screen.getByRole('combobox', { name: 'Product' }));
+    await user.click(await screen.findByRole('option', { name }));
+  }
+  function cell(row: number, header: string) {
+    const table = screen.getByRole('table');
+    const index = within(table)
+      .getAllByRole('columnheader')
+      .findIndex((item) => item.textContent === header);
+    expect(index).toBeGreaterThan(-1);
+    return within(within(table).getAllByRole('row')[row]).getAllByRole('cell')[index];
+  }
+
+  it('shows blank stock on hand for a stockless product and VVM Status once a line uses VVM', async () => {
+    const { user } = receiveSetup();
+    await screen.findByRole('columnheader', { name: 'Lot Code' });
+    expect(screen.getByRole('columnheader', { name: 'Expiry Date' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'VVM Status' })).not.toBeInTheDocument();
+    await pick(user, 'Vaccine');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('columnheader', { name: 'VVM Status' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^VVM Status, Vaccine/ })).toBeInTheDocument();
+    expect(cell(1, 'Lot Code')).toHaveTextContent('Product Has No Lots');
+    expect(cell(1, 'Stock On Hand')).toHaveTextContent(/^$/);
+  });
+
+  it('edits a new lot from its line, applying a code to that line and an expiry to its twins', async () => {
+    const { user } = receiveSetup();
+    await pick(user, 'Aspirin');
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getAllByRole('button', { name: /^Edit Lot, Aspirin NEW-1/ })).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Lot' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('textbox', { name: 'Lot Code' })).toHaveFocus(),
+    );
+    await user.click(within(dialog).getByRole('button', { name: /^Expiration Date/ }));
+    const calendar = await screen.findByRole('dialog', { name: /Expiration Date/ });
+    await user.click(within(calendar).getByRole('button', { name: /next month/i }));
+    const next = new Date();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + 1);
+    next.setDate(15);
+    await user.click(within(calendar).getByRole('button', { name: /15th/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const editButton = screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' });
+    await waitFor(() => expect(editButton).toHaveFocus());
+    const shown = formatDateValue(
+      `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-15`,
+      'en',
+    );
+    expect(cell(1, 'Expiry Date')).toHaveTextContent(shown);
+    expect(cell(2, 'Expiry Date')).toHaveTextContent(shown);
+    await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 2' }));
+    const second = await screen.findByRole('dialog', { name: 'Edit Lot' });
+    const code = within(second).getByRole('textbox', { name: 'Lot Code' });
+    await user.clear(code);
+    await user.type(code, 'NEW-2{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(
+      screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-2, Line 2' }),
+    ).toBeInTheDocument();
+  });
+
+  describe('scanning', () => {
+    const fulfiller = {
+      ...aspirin,
+      id: 'fulfiller',
+      fullProductName: 'Aspirin Box',
+      identifiers: { tradeItem: 'box' },
+    };
+    const parsed = {
+      ok: true as const,
+      gtin: '00012345678905',
+      lotCode: 'lot-1',
+      warnings: [],
+      unparsed: {},
+    };
+    beforeEach(() => {
+      vi.mocked(fetchTradeItemByGtin).mockResolvedValue({ id: 'box' } as never);
+      vi.mocked(fetchOrderablesByTradeItems).mockResolvedValue([fulfiller]);
+      vi.mocked(fetchApprovedProducts).mockImplementation(async ({ orderableIds }) => ({
+        content: (orderableIds ?? ['product']).includes('product')
+          ? [{ id: 'approved-product', orderable: aspirin }]
+          : [],
+        totalElements: 1,
+        totalPages: 1,
+        number: 0,
+        size: 50,
+      }));
+      vi.mocked(fetchOrderableFulfills).mockResolvedValue({
+        fulfiller: { canBeFulfilledByMe: ['product'] },
+      });
+      vi.mocked(fetchLotsByTradeItems).mockResolvedValue([
+        { id: 'lot-1', lotCode: 'LOT-1', expirationDate: '2099-01-31', tradeItemId: 'box' },
+      ] as never);
+      vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+    });
+    async function scanned() {
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      let message: Awaited<ReturnType<typeof scan>>;
+      await act(async () => {
+        message = await scan(parsed, new AbortController().signal);
+      });
+      return message;
+    }
+
+    it('adds a product fulfilling an approved one with its lot and the approved stock lookup', async () => {
+      receiveSetup();
+      expect(await scanned()).toBeUndefined();
+      expect(
+        await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box LOT-1/ }),
+      ).toHaveValue('16');
+      expect(fetchOrderableFulfills).toHaveBeenCalledWith(['fulfiller']);
+      expect(fetchEventStockOnHand).toHaveBeenCalledWith(
+        expect.objectContaining({ orderableIds: ['product'] }),
+      );
+    });
+
+    it('refuses a product neither approved nor fulfilling an approved one', async () => {
+      vi.mocked(fetchOrderableFulfills).mockResolvedValue({});
+      receiveSetup();
+      const message = await scanned();
+      expect(message).toEqual({
+        key: 'scan.product-not-in-program',
+        params: { gtin: parsed.gtin },
+      });
+    });
+
+    it.each([
+      {
+        stage: 'products',
+        hold: (gate: Promise<void>) =>
+          vi.mocked(fetchOrderablesByTradeItems).mockImplementationOnce(async () => {
+            await gate;
+            return [fulfiller];
+          }),
+        later: () => expect(fetchOrderableFulfills).not.toHaveBeenCalledWith(['fulfiller']),
+      },
+      {
+        stage: 'fulfils',
+        hold: (gate: Promise<void>) =>
+          vi.mocked(fetchOrderableFulfills).mockImplementationOnce(async () => {
+            await gate;
+            return { fulfiller: { canBeFulfilledByMe: ['product'] } };
+          }),
+        later: () =>
+          expect(fetchApprovedProducts).not.toHaveBeenCalledWith(
+            expect.objectContaining({ orderableIds: ['product'] }),
+          ),
+      },
+      {
+        stage: 'lots',
+        hold: (gate: Promise<void>) =>
+          vi.mocked(fetchLotsByTradeItems).mockImplementationOnce(async () => {
+            await gate;
+            return [];
+          }),
+        later: () => {},
+      },
+    ])('applies nothing when the session changes while $stage load', async ({ hold, later }) => {
+      receiveSetup();
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      let open!: () => void;
+      hold(
+        new Promise<void>((resolve) => {
+          open = resolve;
+        }),
+      );
+      let operation!: ReturnType<typeof scan>;
+      await act(async () => {
+        operation = scan(parsed, new AbortController().signal);
+      });
+      act(() => {
+        useLoginData.setState({ referenceDataUserId: 'other-user' });
+        useLoginData.setState({ referenceDataUserId: 'ada-id' });
+      });
+      let message: Awaited<ReturnType<typeof scan>>;
+      await act(async () => {
+        open();
+        message = await operation;
+      });
+      expect(message).toBeUndefined();
+      later();
+      expect(screen.queryByRole('textbox', { name: /^Quantity/ })).not.toBeInTheDocument();
+    });
+  });
 });

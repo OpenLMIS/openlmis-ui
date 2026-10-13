@@ -22,9 +22,9 @@ export function filterEventLines(
     const fields = [
       orderable.productCode,
       unit ? `${name} - ${unit}` : name,
-      String(line.stockOnHand),
-      assignments.find((item) => item.id === line.destination)?.name,
-      line.destinationComments,
+      line.stockOnHand === null ? undefined : String(line.stockOnHand),
+      assignments.find((item) => item.id === line.counterparty)?.name,
+      line.counterpartyComments,
       reasonNames.get(line.reasonId),
       line.reasonFreeText,
       line.quantity.doses,

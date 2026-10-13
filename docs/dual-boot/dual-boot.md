@@ -50,15 +50,17 @@ Today the new UI has these screens:
 | Stock Management / Transaction History | Pick your facility, or one you supervise, and a program, then see the issues, receipts and adjustments recorded there, newest first. Filter by type, dates and document number, and open one to see every line, with packs or doses, and print it. Reverse some or all lines of an issue, receipt or adjustment from its transaction page with the Cancel Stock Events right. Needs the View Stock Cards right for that facility and program |
 | Stock Management / Adjustments | Pick a program at your home facility, add products and lots, enter reasons, quantities and dates, then confirm and optionally sign. Needs the Adjust Stock right for that facility and program; adding products also needs View Stock Cards |
 | Stock Management / Issue | Pick a program at your home facility, add products and lots, choose a destination for each line, enter quantities and dates, then sign and submit. You can print the issue report afterwards. Needs the Adjust Stock and View Stock Cards rights for that facility and program |
+| Stock Management / Receive | Pick a program at your home facility, add the products and lots you received, choose where each line came from, enter quantities and dates, then sign and submit. Every product approved for your facility is offered, even with no stock yet. With the Manage Lots right you can add a new lot with its code and expiry date, and correct it before submitting. You can print the receive report afterwards. Needs the Adjust Stock and View Stock Cards rights for that facility and program |
 | Profile | Open it from Account in the menu at the top right. Change your name, email and phone, see your roles, set up notification digests and change your password. Every signed-in user has one |
 | Settings | Open it from Settings in the menu at the top right. Change the app name and logo, the colour theme and default appearance, and turn optional features on or off for everyone. Needs the Manage System Settings right; without it the menu leaves Settings out and the page says so |
 
 Everything else is still in the existing UI, and the new UI's menu shows only the
 screens above. More move over as they are rebuilt.
 
-## Barcode scanning on Adjustments and Issue
+## Barcode scanning on Adjustments, Issue and Receive
 
-When scanning is enabled for your deployment, Adjustments and Issue show a Ready To Scan indicator.
+When scanning is enabled for your deployment, Adjustments, Issue and Receive show a Ready To Scan
+indicator.
 Scan a product's barcode with a hand scanner to add its product and lot. Scanning the same
 product and lot again adds one pack to its quantity. Check the reason, quantity and date before
 submitting. Scanning pauses while a dialog is open.
@@ -66,7 +68,9 @@ submitting. Scanning pauses while a dialog is open.
 Issue scans match only lots with stock that have not expired, just like its product picker.
 
 If a scan is refused, the indicator explains why. Check the barcode and the selected program,
-then try again, or select the product and lot manually. Both screens accept existing lots only.
+then try again, or select the product and lot manually. Adjustments and Issue accept existing
+lots only. Receive adds a lot it does not know as a new lot, without the Manage Lots right, and
+refuses only a lot whose expiry date has passed.
 
 ## Signing in and out
 

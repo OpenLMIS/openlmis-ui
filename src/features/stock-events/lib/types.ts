@@ -68,18 +68,25 @@ export type PageQuery = { page: number; size: number };
 
 export type EventStockCard = {
   id?: string;
-  stockOnHand: number;
+  stockOnHand: number | null;
   orderable: Omit<Orderable, 'description'> & { description?: string | null };
   lot: LotSummary | null;
 };
+
+export type NewLot = { lotCode: string; expirationDate: string | null; tradeItemId: string };
+
+export type EventLot = LotSummary | NewLot;
 
 export type EventStockCardsFilter = { programId: string; facilityId: string };
 
 export type StockEventLineItem = {
   destinationId?: string;
   destinationFreeText?: string;
+  sourceId?: string;
+  sourceFreeText?: string;
   orderableId: string;
   lotId?: string | null;
+  lot?: { lotCode: string; expirationDate?: string };
   quantity: number;
   occurredDate: string;
   reasonId?: string | null;

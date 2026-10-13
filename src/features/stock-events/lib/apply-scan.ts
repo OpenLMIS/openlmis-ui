@@ -1,14 +1,14 @@
 import { quantityValue } from '@/components/form/quantity-value';
 import {
   type EventLine,
-  type EventLineOptions,
+  type EventLineCandidate,
+  type NewEventLineOptions,
   newEventLine,
 } from '@/features/stock-events/lib/event-form';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { ScanResolution } from '@/lib/stock-scan';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
 
-type ScanCountDefaults = EventLineOptions & {
+type ScanCountDefaults = NewEventLineOptions & {
   today: string;
   previousLine?: EventLine;
 };
@@ -29,7 +29,7 @@ function countLine(line: EventLine): EventLine {
 
 export function applyScanCount(
   lines: readonly EventLine[],
-  resolution: ScanResolution<EventStockCard>,
+  resolution: ScanResolution<EventLineCandidate>,
   { today, previousLine = lines[0], ...options }: ScanCountDefaults,
 ): EventLine[] {
   if (resolution.type === 'add') {

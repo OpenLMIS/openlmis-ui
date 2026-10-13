@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { productSearchStatus } from '@/features/lots/lib/product-search-status';
+import { productSearchStatus } from '@/lib/product-search-status';
 
 describe('productSearchStatus', () => {
   it('tells the user to type when the first page leaves products out', () => {

@@ -19,7 +19,11 @@ import { canOpen } from '@/components/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  fetchApprovedProducts,
   fetchFacility,
+  fetchFacilityOrderableFulfills,
+  fetchLotsByTradeItems,
+  fetchOrderablesByIds,
   fetchUserPrograms,
   fetchUserRecord,
   fetchValidAssignments,
@@ -27,12 +31,14 @@ import {
 } from '@/features/reference-data/api/api';
 import { facilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
-import { fetchEventStockCards } from '@/features/stock-events/api/api';
+import { fetchEventStockCards, fetchEventStockOnHand } from '@/features/stock-events/api/api';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
 import { Route as AdjustmentEditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
 import { Route as IssuePickerRoute } from '@/routes/(protected)/_protected.stock-management.issue';
 import { Route as IssueEditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
+import { Route as ReceivePickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
+import { Route as ReceiveEditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
 import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
 import { renderPage } from '@/tests/render-page';
 
@@ -50,10 +56,15 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchUserPrograms: vi.fn(),
   fetchValidReasons: vi.fn(),
   fetchValidAssignments: vi.fn(),
+  fetchApprovedProducts: vi.fn(),
+  fetchFacilityOrderableFulfills: vi.fn(),
+  fetchOrderablesByIds: vi.fn(),
+  fetchLotsByTradeItems: vi.fn(),
 }));
 
 vi.mock('@/features/stock-events/api/api', () => ({
   fetchEventStockCards: vi.fn(),
+  fetchEventStockOnHand: vi.fn(),
   submitStockEvent: vi.fn(),
 }));
 
@@ -61,10 +72,35 @@ const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';
 const FP = 'dce17f2e-af3e-40ad-8e00-3496adef44c3';
 const EM = '10845cb9-d365-4aaa-badd-b4fa39c6a26a';
-describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
-  const PickerRoute = kind === 'issue' ? IssuePickerRoute : AdjustmentPickerRoute;
-  const EditorRoute = kind === 'issue' ? IssueEditorRoute : AdjustmentEditorRoute;
-  const copy = kind === 'issue' ? 'stock-issue' : 'stock-adjustment';
+const ASPIRIN = { id: 'product', productCode: 'C1', fullProductName: 'Aspirin', netContent: 16 };
+const KINDS = {
+  adjustments: {
+    eventKind: 'adjustment',
+    PickerRoute: AdjustmentPickerRoute,
+    EditorRoute: AdjustmentEditorRoute,
+    copy: 'stock-adjustment',
+    counterparty: null,
+    products: 'stock-cards',
+  },
+  issue: {
+    eventKind: 'issue',
+    PickerRoute: IssuePickerRoute,
+    EditorRoute: IssueEditorRoute,
+    copy: 'stock-issue',
+    counterparty: 'validDestinations',
+    products: 'stock-cards',
+  },
+  receive: {
+    eventKind: 'receive',
+    PickerRoute: ReceivePickerRoute,
+    EditorRoute: ReceiveEditorRoute,
+    copy: 'stock-receive',
+    counterparty: 'validSources',
+    products: 'approved-products',
+  },
+} as const;
+describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
+  const { eventKind, PickerRoute, EditorRoute, copy, counterparty, products } = KINDS[kind];
   const PICKER = `/stock-management/${kind}` as const;
   const grants = [`STOCK_ADJUST|${HOME}|${FP}`, `STOCK_ADJUST|${HOME}|${EM}`];
   const programs = [
@@ -141,6 +177,17 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       },
     );
     vi.mocked(fetchEventStockCards).mockResolvedValue([]);
+    vi.mocked(fetchApprovedProducts).mockResolvedValue({
+      content: [{ id: 'approved', orderable: { ...ASPIRIN, description: null } }],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 50,
+    });
+    vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({});
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
+    vi.mocked(fetchLotsByTradeItems).mockResolvedValue([]);
+    vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
     vi.mocked(fetchValidReasons).mockResolvedValue([]);
     vi.mocked(fetchValidAssignments).mockResolvedValue([
       {
@@ -284,7 +331,7 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
       const router = renderPage(
         <I18nextProvider i18n={i18n}>
-          <StockEventPending kind={kind === 'issue' ? 'issue' : 'adjustment'} programId={FP} />
+          <StockEventPending kind={eventKind} programId={FP} />
         </I18nextProvider>,
         { queryClient },
       );
@@ -310,11 +357,7 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
         }),
       );
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-      const loading = loadStockEventEditor(
-        queryClient,
-        FP,
-        kind === 'issue' ? 'issue' : 'adjustment',
-      );
+      const loading = loadStockEventEditor(queryClient, FP, eventKind);
       const started = vi.mocked(fetchUserRecord).mock.calls.length;
       finish(grants);
       await loading;
@@ -327,12 +370,7 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       vi.mocked(fetchEventStockCards).mockResolvedValue([
         {
           stockOnHand: 50,
-          orderable: {
-            id: 'product',
-            productCode: 'C1',
-            fullProductName: 'Aspirin',
-            netContent: 16,
-          },
+          orderable: ASPIRIN,
           lot: null,
         },
       ]);
@@ -382,8 +420,10 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       renderRoute(`${PICKER}/${FP}`);
       expect(await screen.findByText('stock-events.no-stock-view-description')).toBeInTheDocument();
       expect(fetchEventStockCards).not.toHaveBeenCalled();
+      expect(fetchApprovedProducts).not.toHaveBeenCalled();
       expect(fetchValidReasons).not.toHaveBeenCalled();
     });
+
     it('prefetches stock and reasons for the granted home facility and program', async () => {
       vi.mocked(fetchPermissionStrings).mockResolvedValue([
         ...grants,
@@ -391,10 +431,26 @@ describe.each(['adjustments', 'issue'] as const)('%s', (kind) => {
       ]);
       renderRoute(`${PICKER}/${FP}`);
       await screen.findByRole('heading', { name: `${copy}.editor-title` });
-      expect(fetchEventStockCards).toHaveBeenCalledWith({ facilityId: HOME, programId: FP });
+      if (products === 'stock-cards') {
+        expect(fetchEventStockCards).toHaveBeenCalledWith({ facilityId: HOME, programId: FP });
+        expect(fetchApprovedProducts).not.toHaveBeenCalled();
+      } else {
+        expect(fetchApprovedProducts).toHaveBeenCalledWith({
+          facilityId: HOME,
+          programId: FP,
+          name: '',
+          page: 0,
+          size: 50,
+        });
+        expect(fetchFacilityOrderableFulfills).toHaveBeenCalledWith({
+          facilityId: HOME,
+          programId: FP,
+        });
+        expect(fetchEventStockCards).not.toHaveBeenCalled();
+      }
       expect(fetchValidReasons).toHaveBeenCalledWith({ program: FP, facilityType: 'type' });
-      if (kind === 'issue')
-        expect(fetchValidAssignments).toHaveBeenCalledWith('validDestinations', {
+      if (counterparty)
+        expect(fetchValidAssignments).toHaveBeenCalledWith(counterparty, {
           facilityId: HOME,
           programId: FP,
         });

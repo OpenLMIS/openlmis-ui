@@ -1,6 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
+import type { ParseKeys } from 'i18next';
 import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -29,11 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
-import {
-  tradeItemByGtinOptions,
-  validDestinationsOptions,
-  validReasonsOptions,
-} from '@/features/reference-data/api/queries';
+import { tradeItemByGtinOptions, validReasonsOptions } from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
@@ -51,14 +48,25 @@ import { SignatureDialog } from '@/features/stock-events/components/signature-di
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
+  type EventLineCandidate,
   eventLinesSchema,
   eventPayload,
   eventReasonRequired,
   newEventLine,
 } from '@/features/stock-events/lib/event-form';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import {
+  COUNTERPARTY,
+  type ConfiguredEventKind,
+  type CounterpartySide,
+  counterpartyOptions,
+  EVENT_KINDS,
+} from '@/features/stock-events/lib/event-kinds';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
-import { eventProductOptions } from '@/features/stock-events/lib/products';
+import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
+import {
+  type ApprovedScanProduct,
+  approvedScanProduct,
+} from '@/features/stock-events/lib/scan-products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -75,7 +83,7 @@ import {
   isScanExpiryAcknowledged,
 } from '@/lib/scan-expiry-acknowledgements';
 import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
-import { resolveScan } from '@/lib/stock-scan';
+import { resolveScan, type ScanProduct } from '@/lib/stock-scan';
 import type { SearchChange } from '@/lib/table-search';
 
 export type EventSearch = {
@@ -92,6 +100,7 @@ type Props = {
   programId: string;
   username: string;
   canViewStock: boolean;
+  canManageLots?: boolean;
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
   onSubmitted: (eventId: string) => void | Promise<void>;
@@ -108,6 +117,7 @@ export function EventEditor({
   programId,
   username,
   canViewStock,
+  canManageLots = false,
   search,
   onSearchChange,
   onSubmitted,
@@ -116,9 +126,12 @@ export function EventEditor({
   const config = EVENT_KINDS[kind];
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
+  const { products } = config;
+  const fromCards = products.from === 'stock-cards';
   const filterCards = useCallback(
-    (cards: readonly EventStockCard[]) => config.cardFilter(cards, today),
-    [config, today],
+    (cards: readonly EventStockCard[]) =>
+      products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
+    [products, today],
   );
   const reasonsQuery = useQuery({
     ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
@@ -128,18 +141,19 @@ export function EventEditor({
     () => (reasonsQuery.data ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
     [reasonsQuery.data, config],
   );
-  const needsDestinations = config.counterparty === 'destination';
-  const destinationsQuery = useQuery({
-    ...validDestinationsOptions({ programId, facilityId }),
-    enabled: canViewStock && needsDestinations,
+  const side = config.counterparty;
+  const needsCounterparty = side !== 'none';
+  const counterpartyQuery = useQuery({
+    ...counterpartyOptions(needsCounterparty ? side : 'destination', { programId, facilityId }),
+    enabled: canViewStock && needsCounterparty,
   });
-  const destinations = destinationsQuery.data ?? EMPTY_LOOKUP;
+  const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
   const ready =
     reasonsQuery.data !== undefined &&
-    (!needsDestinations || (destinationsQuery.data !== undefined && destinations.length > 0));
+    (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...eventStockCardsOptions({ facilityId, programId }),
-    enabled: canViewStock,
+    enabled: canViewStock && fromCards,
   });
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data ?? []),
@@ -172,7 +186,7 @@ export function EventEditor({
     [measure],
   );
   const [choices, setChoices] = useStoredState(config.columnChoicesKey, columnChoicesSchema, {});
-  const lineOptions = { kind, reasons, defaultReasonId, today, assignments: destinations };
+  const lineOptions = { kind, reasons, defaultReasonId, today, assignments };
   const schema = eventLinesSchema(lineOptions);
   const form = useEventForm({
     ...lineOptions,
@@ -198,7 +212,8 @@ export function EventEditor({
     setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
-  const hasLots = offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
+  const hasLots =
+    !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
     lines.some((line) => line.useVVM);
@@ -212,10 +227,8 @@ export function EventEditor({
     [hideableColumns, quantityUnit.unit, hasLots],
   );
   const fitLineKeys = lines.map((line) => line.key).join(',');
-  const hasDestinationComments = lines.some((line) =>
-    destinations.some(
-      (destination) => destination.id === line.destination && destination.isFreeTextAllowed,
-    ),
+  const hasCounterpartyComments = lines.some((line) =>
+    assignments.some((item) => item.id === line.counterparty && item.isFreeTextAllowed),
   );
   const fitContent = useMemo(
     () => ({
@@ -224,10 +237,18 @@ export function EventEditor({
       unit: quantityUnit.unit,
       hasLots,
       hasVVM,
-      hasDestinationComments,
+      hasCounterpartyComments,
       ready,
     }),
-    [fitLineKeys, i18n.language, quantityUnit.unit, hasLots, hasVVM, hasDestinationComments, ready],
+    [
+      fitLineKeys,
+      i18n.language,
+      quantityUnit.unit,
+      hasLots,
+      hasVVM,
+      hasCounterpartyComments,
+      ready,
+    ],
   );
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
@@ -252,19 +273,20 @@ export function EventEditor({
         reasons,
         (value) => formatDateValue(value, i18n.language),
         t('stock-events.no-lot-defined'),
-        destinations,
+        assignments,
       ).map((line) => line.key),
     );
     setFilter({ keyword, lineKeys, language, matches });
   }
   const filtered = useMemo(() => lines.filter((line) => matches.has(line.key)), [lines, matches]);
+  const measured = config.columnFit === 'measured';
   const columns = useFitColumnVisibility(
-    needsDestinations ? fitColumns : hideableColumns,
+    measured ? fitColumns : hideableColumns,
     [choices, setChoices],
     region,
     width,
     fitContent,
-    needsDestinations,
+    measured,
     lines.length > 0 && filtered.length === 0,
   );
   const mutation = useSessionMutation({
@@ -281,9 +303,12 @@ export function EventEditor({
       setFocusField(null);
     }
   }, [focusField, search.keyword, search.page]);
-  const add = (card: EventStockCard) => {
+  const add = (candidate: EventLineCandidate, hasLotsOfProduct: boolean) => {
     if (!ready || submitted || pending) return;
-    const next = newEventLine(card, lastAdded.current, today, lineOptions);
+    const next = newEventLine(candidate, lastAdded.current, today, {
+      ...lineOptions,
+      productHasLots: hasLotsOfProduct,
+    });
     lastAdded.current = next;
     form.setFieldValue('lines', (current) => [next, ...current]);
     clearFilter();
@@ -320,17 +345,16 @@ export function EventEditor({
     setFailure(null);
     setUnknownOutcome(false);
     let eventId: string;
+    const payload = eventPayload({
+      kind,
+      assignments,
+      facilityId,
+      programId,
+      signature,
+      lines: form.state.values.lines,
+    });
     try {
-      eventId = await mutation.mutateAsync(
-        eventPayload({
-          kind,
-          assignments: destinations,
-          facilityId,
-          programId,
-          signature,
-          lines: form.state.values.lines,
-        }),
-      );
+      eventId = await mutation.mutateAsync(payload);
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const unknown = isAxiosError(error) && !error.response;
@@ -354,6 +378,7 @@ export function EventEditor({
       queryKeys.stockEvents.all,
       queryKeys.stockCardSummaries.all,
       queryKeys.stockCards.all,
+      ...(payload.lineItems.some((item) => item.lot) ? [queryKeys.lots.all] : []),
     ]) {
       void queryClient.invalidateQueries({ queryKey });
     }
@@ -370,27 +395,52 @@ export function EventEditor({
   ): Promise<ScanMessage | undefined> => {
     if (!ready || submitted || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
-    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+    const stale = () => signal.aborted || signing.current || !mutation.isCurrent();
+    if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
       tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
     } catch {
-      return signal.aborted || signing.current || !mutation.isCurrent()
-        ? undefined
-        : scanMessage('gtinLookupFailed');
+      return stale() ? undefined : scanMessage('gtinLookupFailed');
     }
-    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+    if (stale()) return;
     if (!tradeItem) return scanMessage('gtinNotRegistered', { gtin: parsed.gtin });
-    const cards = queryClient.getQueryData(
-      eventStockCardsOptions({ facilityId, programId }).queryKey,
-    );
-    if (!cards) return { key: 'scan.not-resolved' };
+    let scanProducts: readonly ScanProduct<EventStockCard>[];
+    let hasLotsOf: (orderableId: string) => boolean;
+    if (products.from === 'stock-cards') {
+      const cards = queryClient.getQueryData(
+        eventStockCardsOptions({ facilityId, programId }).queryKey,
+      );
+      if (!cards) return { key: 'scan.not-resolved' };
+      const offered = filterCards(cards);
+      scanProducts = eventProductOptions(offered);
+      hasLotsOf = (orderableId) => productHasLots(offered, orderableId);
+    } else {
+      let found: ApprovedScanProduct;
+      try {
+        found = await approvedScanProduct(
+          queryClient,
+          { facilityId, programId },
+          tradeItem.id,
+          stale,
+        );
+      } catch {
+        return stale() ? undefined : scanMessage('gtinLookupFailed');
+      }
+      if (found.type === 'stale' || stale()) return;
+      if (found.type === 'refuse') return scanMessage(found.reason, { gtin: parsed.gtin });
+      scanProducts = [found.product];
+      hasLotsOf = () => found.productHasLots;
+    }
     const resolution = resolveScan({
       scan: parsed,
       tradeItemId: tradeItem.id,
-      products: eventProductOptions(filterCards(cards)),
+      products: scanProducts,
       lines: form.state.values.lines,
-      policy: { allowsNewLot: false },
+      policy:
+        config.newLots === 'manual-and-scan'
+          ? { allowsNewLot: true, today }
+          : { allowsNewLot: false },
     });
     if (resolution.type === 'refuse') return scanMessage(resolution.reason, resolution.params);
     let action = resolution;
@@ -417,16 +467,17 @@ export function EventEditor({
             },
           });
         });
-        if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+        if (stale()) return;
         if (!accepted) return { key: 'scan.not-resolved' };
         acknowledgeScanExpiry(lot);
       }
       action = resolution.next;
     }
-    if (signal.aborted || signing.current || !mutation.isCurrent()) return;
+    if (stale()) return;
     const next = applyScanCount(form.state.values.lines, action, {
       ...lineOptions,
       previousLine: lastAdded.current,
+      productHasLots: action.type === 'add' && hasLotsOf(action.card.orderable.id),
     });
     const countedKey = action.type === 'count' ? action.lineKey : next[0].key;
     if (action.type === 'add') lastAdded.current = next[0];
@@ -490,7 +541,9 @@ export function EventEditor({
                     facilityId={facilityId}
                     programId={programId}
                     disabled={pending || submitted || !ready}
-                    cardFilter={filterCards}
+                    {...(fromCards
+                      ? { cardFilter: filterCards }
+                      : { from: 'approved-products' as const, canManageLots, lines })}
                     onAdd={add}
                   >
                     {scanning && <ScanStatus {...scanStatus} />}
@@ -542,7 +595,7 @@ export function EventEditor({
                   title={t('stock-events.no-stock-view-title')}
                   description={t('stock-events.no-stock-view-description')}
                 />
-              ) : cardsQuery.isError && cardsQuery.data === undefined ? (
+              ) : fromCards && cardsQuery.isError && cardsQuery.data === undefined ? (
                 <EventLineTableSkeleton
                   kind={kind}
                   unit={quantityUnit.unit}
@@ -556,10 +609,14 @@ export function EventEditor({
                   errorComponent={ReasonsError}
                 >
                   <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
-                    <StockCardsReady facilityId={facilityId} programId={programId}>
-                      <DestinationsReady
+                    <StockCardsReady
+                      needed={fromCards}
+                      facilityId={facilityId}
+                      programId={programId}
+                    >
+                      <CounterpartyReady
                         pendingFallback={tablePending}
-                        needed={needsDestinations}
+                        side={needsCounterparty ? side : null}
                         facilityId={facilityId}
                         programId={programId}
                       >
@@ -570,9 +627,8 @@ export function EventEditor({
                           reasonRequired={reasonRequired}
                           form={form}
                           lines={filtered}
-                          cards={offeredCards}
                           reasons={reasons}
-                          destinations={destinations}
+                          assignments={assignments}
                           unit={quantityUnit.unit}
                           today={today}
                           disabled={pending || submitted}
@@ -582,7 +638,7 @@ export function EventEditor({
                           columnVisibility={visibility}
                           onClearFilter={clearFilter}
                         />
-                      </DestinationsReady>
+                      </CounterpartyReady>
                     </StockCardsReady>
                   </ReasonsReady>
                 </QueryBoundary>
@@ -718,18 +774,87 @@ function ReasonsReady({
   return children;
 }
 
-function ReasonsError(props: { error: unknown; reset: () => void }) {
-  return <LookupError {...props} lookup="reasons" />;
+type ErrorProps = { error: unknown; reset: () => void };
+
+function lookupError(title: ParseKeys, description: ParseKeys) {
+  return function LookupErrorFallback(props: ErrorProps) {
+    return <LookupError {...props} title={title} description={description} />;
+  };
 }
 
-function DestinationsReady({
+const ReasonsError = lookupError(
+  'stock-events.reasons-error-title',
+  'stock-events.reasons-error-description',
+);
+
+const COUNTERPARTY_ERRORS = {
+  destination: lookupError(
+    COUNTERPARTY.destination.lookupErrorTitle,
+    COUNTERPARTY.destination.lookupErrorDescription,
+  ),
+  source: lookupError(
+    COUNTERPARTY.source.lookupErrorTitle,
+    COUNTERPARTY.source.lookupErrorDescription,
+  ),
+} satisfies Record<CounterpartySide, (props: ErrorProps) => ReactNode>;
+
+function CounterpartyReady({
   pendingFallback,
-  needed,
+  side,
   facilityId,
   programId,
   children,
 }: {
   pendingFallback: ReactNode;
+  side: CounterpartySide | null;
+  facilityId: string;
+  programId: string;
+  children: ReactNode;
+}) {
+  if (!side) return children;
+  return (
+    <QueryBoundary
+      resetKey={`${programId}/${facilityId}`}
+      pendingFallback={pendingFallback}
+      errorComponent={COUNTERPARTY_ERRORS[side]}
+    >
+      <CounterpartyLookup side={side} facilityId={facilityId} programId={programId}>
+        {children}
+      </CounterpartyLookup>
+    </QueryBoundary>
+  );
+}
+
+function CounterpartyLookup({
+  side,
+  facilityId,
+  programId,
+  children,
+}: {
+  side: CounterpartySide;
+  facilityId: string;
+  programId: string;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const { data } = useSuspenseQuery(counterpartyOptions(side, { facilityId, programId }));
+  if (!data.length)
+    return (
+      <DataTableEmpty
+        icon={<ShieldAlertIcon />}
+        title={t(COUNTERPARTY[side].noLookupTitle)}
+        description={t(COUNTERPARTY[side].noLookupDescription)}
+      />
+    );
+  return children;
+}
+
+function StockCardsReady({
+  needed,
+  facilityId,
+  programId,
+  children,
+}: {
   needed: boolean;
   facilityId: string;
   programId: string;
@@ -737,45 +862,13 @@ function DestinationsReady({
 }) {
   if (!needed) return children;
   return (
-    <QueryBoundary
-      resetKey={`${programId}/${facilityId}`}
-      pendingFallback={pendingFallback}
-      errorComponent={DestinationsError}
-    >
-      <DestinationLookup facilityId={facilityId} programId={programId}>
-        {children}
-      </DestinationLookup>
-    </QueryBoundary>
+    <StockCardsLookup facilityId={facilityId} programId={programId}>
+      {children}
+    </StockCardsLookup>
   );
 }
 
-function DestinationLookup({
-  facilityId,
-  programId,
-  children,
-}: {
-  facilityId: string;
-  programId: string;
-  children: ReactNode;
-}) {
-  const { t } = useTranslation();
-  const { data } = useSuspenseQuery(validDestinationsOptions({ facilityId, programId }));
-  if (!data.length)
-    return (
-      <DataTableEmpty
-        icon={<ShieldAlertIcon />}
-        title={t('stock-events.no-destinations-title')}
-        description={t('stock-events.no-destinations-description')}
-      />
-    );
-  return children;
-}
-
-function DestinationsError(props: { error: unknown; reset: () => void }) {
-  return <LookupError {...props} lookup="destinations" />;
-}
-
-function StockCardsReady({
+function StockCardsLookup({
   facilityId,
   programId,
   children,
@@ -791,20 +884,10 @@ function StockCardsReady({
 function LookupError({
   error,
   reset,
-  lookup,
-}: {
-  error: unknown;
-  reset: () => void;
-  lookup: 'reasons' | 'destinations';
-}) {
+  title,
+  description,
+}: ErrorProps & { title: ParseKeys; description: ParseKeys }) {
   const { t } = useTranslation();
   if (isRefused(error)) return <p>{t('no-access.description')}</p>;
-  return (
-    <LoadError
-      error={error}
-      reset={reset}
-      title={t(`stock-events.${lookup}-error-title`)}
-      description={t(`stock-events.${lookup}-error-description`)}
-    />
-  );
+  return <LoadError error={error} reset={reset} title={t(title)} description={t(description)} />;
 }

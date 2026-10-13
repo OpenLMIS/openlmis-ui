@@ -17,6 +17,7 @@ const scan = {
   serial: 'same-pack',
 };
 const first: ScanLine = { key: 'first', orderable, lot: card.lot };
+const receive = { allowsNewLot: true, today: '2026-10-12' } as const;
 const resolve = (patch: Partial<Parameters<typeof resolveScan>[0]> = {}) =>
   resolveScan({
     scan,
@@ -81,7 +82,7 @@ describe('resolveScan', () => {
       reason: 'lotNotOnScreen',
       params: { lotCode: 'NEW' },
     });
-    expect(resolve({ scan: { ...scan, lotCode: 'NEW' }, policy: { allowsNewLot: true } })).toEqual({
+    expect(resolve({ scan: { ...scan, lotCode: 'NEW' }, policy: receive })).toEqual({
       type: 'add',
       card: {
         orderable,
@@ -89,9 +90,7 @@ describe('resolveScan', () => {
         lot: { lotCode: 'NEW', expirationDate: '2027-01-31', tradeItemId: 't1' },
       },
     });
-    expect(
-      resolve({ scan: { gtin: scan.gtin, lotCode: 'NEW' }, policy: { allowsNewLot: true } }),
-    ).toMatchObject({
+    expect(resolve({ scan: { gtin: scan.gtin, lotCode: 'NEW' }, policy: receive })).toMatchObject({
       type: 'add',
       card: { lot: { expirationDate: null } },
     });
@@ -111,7 +110,7 @@ describe('resolveScan', () => {
     expect(
       resolve({
         scan: { ...scan, lotCode: 'NEW' },
-        policy: { allowsNewLot: true },
+        policy: receive,
         lines: [pending],
       }),
     ).toEqual({ type: 'count', lineKey: 'pending' });
@@ -120,7 +119,7 @@ describe('resolveScan', () => {
       card,
     });
   });
-  it('retains a pending lot expiry when a later scan disagrees, including an absent recorded expiry', () => {
+  it('counts a pending lot without asking when a later scan disagrees, including an absent expiry', () => {
     const pending = {
       ...first,
       key: 'pending',
@@ -128,19 +127,14 @@ describe('resolveScan', () => {
     };
     const decision = resolve({
       scan: { ...scan, lotCode: 'NEW', expiry: '2027-02-28' },
-      policy: { allowsNewLot: true },
+      policy: receive,
       lines: [pending],
     });
-    expect(decision).toEqual({
-      type: 'confirm-expiry',
-      recorded: '2027-01-31',
-      scanned: '2027-02-28',
-      next: { type: 'count', lineKey: 'pending' },
-    });
+    expect(decision).toEqual({ type: 'count', lineKey: 'pending' });
     expect(
       resolve({
         scan: { ...scan, lotCode: 'NEW' },
-        policy: { allowsNewLot: true },
+        policy: receive,
         lines: [{ ...pending, lot: { lotCode: 'new', expirationDate: null } }],
       }),
     ).toEqual({ type: 'count', lineKey: 'pending' });
@@ -195,6 +189,77 @@ describe('resolveScan', () => {
     expect(resolve({ policy: { allowsNewLot: false, tracksLots: false } })).toEqual({
       type: 'add',
       card: noLot,
+    });
+  });
+
+  describe('with new lots allowed', () => {
+    const stockless = {
+      orderable,
+      cards: [
+        { orderable, lot: null, stockOnHand: null },
+        {
+          orderable,
+          lot: { id: 'l1', lotCode: 'LOT-A', expirationDate: '2020-01-31' },
+          stockOnHand: null,
+        },
+      ],
+    };
+    const resolveReceive = (patch: Partial<Parameters<typeof resolveScan>[0]> = {}) =>
+      resolve({ products: [stockless], policy: receive, ...patch });
+
+    it('resolves a stockless product through its lots and no-lot entry, expired lots included', () => {
+      expect(resolveReceive({ scan: { gtin: scan.gtin } })).toEqual({
+        type: 'add',
+        card: stockless.cards[0],
+      });
+      expect(
+        resolveReceive({
+          scan: { gtin: scan.gtin },
+          lines: [{ ...first, key: 'no-lot', lot: null }],
+        }),
+      ).toEqual({ type: 'count', lineKey: 'no-lot' });
+      expect(resolveReceive({ scan: { gtin: scan.gtin, lotCode: 'lot-a' } })).toEqual({
+        type: 'add',
+        card: stockless.cards[1],
+      });
+    });
+    it('adds an unknown lot of the scanned trade item, refusing only a past expiry', () => {
+      expect(
+        resolveReceive({ scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2026-10-12' } }),
+      ).toEqual({
+        type: 'add',
+        card: {
+          orderable,
+          stockOnHand: 0,
+          lot: { lotCode: 'NEW', expirationDate: '2026-10-12', tradeItemId: 't1' },
+        },
+      });
+      expect(
+        resolveReceive({ scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2026-10-11' } }),
+      ).toEqual({
+        type: 'refuse',
+        reason: 'lotExpiryPast',
+        params: { lotCode: 'NEW' },
+      });
+    });
+    it('counts a draft new lot of the same code in any case whatever the scanned expiry', () => {
+      const pending: ScanLine = {
+        key: 'pending',
+        orderable,
+        lot: { lotCode: 'new', expirationDate: '2027-01-31' },
+      };
+      expect(
+        resolveReceive({
+          scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2026-01-01' },
+          lines: [pending],
+        }),
+      ).toEqual({ type: 'count', lineKey: 'pending' });
+      expect(
+        resolveReceive({
+          scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2026-01-01' },
+          lines: [{ ...pending, orderable: { id: 'other' } }],
+        }),
+      ).toMatchObject({ type: 'refuse', reason: 'lotExpiryPast' });
     });
   });
 });

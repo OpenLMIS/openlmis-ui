@@ -11,7 +11,6 @@ import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import { renderPage } from '@/tests/render-page';
 
-const NO_CARDS: never[] = [];
 const renders = vi.hoisted(() => vi.fn());
 vi.mock('@/components/form/form-fields', async (load) => {
   const actual = await load<typeof import('@/components/form/form-fields')>();
@@ -48,7 +47,7 @@ it('renders only the changed quantity row out of 10 visible rows', async () => {
       },
       undefined,
       '2026-10-08',
-      { kind: 'adjustment' },
+      { kind: 'adjustment', productHasLots: false },
     ),
   );
   const reasons: never[] = [];
@@ -72,7 +71,6 @@ it('renders only the changed quantity row out of 10 visible rows', async () => {
         reasonRequired
         form={form}
         lines={lines}
-        cards={NO_CARDS}
         reasons={reasons}
         unit="DOSES"
         today="2026-10-08"
@@ -113,7 +111,6 @@ it('renders Issue headers with the same label output as Adjustments', async () =
         reasonRequired
         form={form}
         lines={[]}
-        cards={NO_CARDS}
         reasons={[]}
         unit="DOSES"
         today="2026-10-08"
@@ -166,7 +163,6 @@ it('keeps full Issue comment headers without truncation or hover text', async ()
         reasonRequired
         form={form}
         lines={[]}
-        cards={NO_CARDS}
         reasons={[]}
         unit="PACKS"
         today="2026-10-09"
@@ -201,16 +197,11 @@ it.each([false, true])(
       orderable: { id: 'product', productCode: 'C1', fullProductName: 'HUMATROPE' },
       lot: null,
     };
-    const cards = [
-      card,
-      {
-        ...card,
-        orderable: { ...card.orderable, id: hasProductLots ? 'product' : 'another-product' },
-        lot: { id: 'lot', lotCode: 'LOT', expirationDate: null },
-      },
-    ];
     const seeded = Array.from({ length: 12 }, () =>
-      newEventLine(card, undefined, '2026-10-09', { kind: 'issue' }),
+      newEventLine(card, undefined, '2026-10-09', {
+        kind: 'issue',
+        productHasLots: hasProductLots,
+      }),
     );
     function Fixture() {
       const form = useEventForm({
@@ -230,7 +221,6 @@ it.each([false, true])(
           reasonRequired={false}
           form={form}
           lines={lines}
-          cards={cards}
           reasons={[]}
           unit="DOSES"
           today="2026-10-09"

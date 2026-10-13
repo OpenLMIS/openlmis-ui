@@ -142,6 +142,7 @@ export type Orderable = {
 
 /** A lot as a lookup by id lists it, enough to name it beside a stock balance. */
 export type LotSummary = {
+  tradeItemId?: string;
   id: string;
   lotCode: string;
   expirationDate: string | null;
@@ -158,3 +159,10 @@ export type ValidReasonAssignment = {
 export type ValidReasonsFilter = { program: string; facilityType: string };
 
 export type TradeItem = { id: string; gtin?: string | null };
+
+export type ApprovedProduct = { id: string; orderable: Orderable };
+
+export type OrderableFulfills = Record<
+  string,
+  { canFulfillForMe?: string[]; canBeFulfilledByMe?: string[] }
+>;

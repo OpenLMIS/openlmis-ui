@@ -30,11 +30,13 @@ fallbacks when unset, not the example file's values.
 | `VITE_AUTH_SERVER_CLIENT_ID` | - | OAuth password-grant client id, fallback when runtime config omits it |
 | `VITE_AUTH_SERVER_CLIENT_SECRET` | - | OAuth client secret, fallback when runtime config omits it |
 | `VITE_DEFAULT_ISSUE_REASON_ID` | - | Default Issue reason id, fallback when runtime config omits it |
+| `VITE_DEFAULT_RECEIVE_REASON_ID` | - | Default Receive reason id, fallback when runtime config omits it |
 | `VITE_SHOW_DEVTOOLS` | - | `true` enables TanStack devtools |
 | `VITE_BASE_PATH` | `/` | App prefix compiled into asset URLs |
 
-Containers write OAuth credentials, the default Issue reason (`DEFAULT_ISSUE_REASON_ID`) and
-deployment flags to `config.json` at startup. Feature flags have no `.env` fallback.
+Containers write OAuth credentials, the default Issue and Receive reasons
+(`DEFAULT_ISSUE_REASON_ID`, `DEFAULT_RECEIVE_REASON_ID`) and deployment flags to `config.json`
+at startup. Feature flags have no `.env` fallback.
 `VITE_BASE_PATH` remains a build input and must match container `BASE_PATH`; see the
 [deployment guide](docs/deployment/deployment.md).
 

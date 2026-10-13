@@ -15,19 +15,23 @@ export type ScanCard = {
   id?: string;
   orderable: ScanOrderable;
   lot: ScanLot | null;
-  stockOnHand: number;
+  stockOnHand: number | null;
 };
 export type ScanProduct<Card extends ScanCard = ScanCard> = {
   orderable: Card['orderable'];
   cards: readonly Card[];
 };
 export type ScanLine = { key: string; orderable: ScanOrderable; lot: ScanLot | null };
-export type ScanPolicy = { allowsNewLot: boolean; tracksLots?: boolean };
+export type ScanPolicy =
+  | { allowsNewLot: false; tracksLots?: boolean }
+  | { allowsNewLot: true; today: string; tracksLots?: boolean };
 export type ScanRefusalReason =
   | 'productNotOnScreen'
+  | 'productNotInProgram'
   | 'productAmbiguous'
   | 'lotRequired'
-  | 'lotNotOnScreen';
+  | 'lotNotOnScreen'
+  | 'lotExpiryPast';
 export type ScanAction<Card extends ScanCard = ScanCard> =
   | { type: 'count'; lineKey: string }
   | { type: 'add'; card: Card };
@@ -97,13 +101,16 @@ export function resolveScan<Card extends ScanCard>({
         !line.lot?.id &&
         line.lot?.lotCode.toLowerCase() === lotCode.toLowerCase(),
     );
-    const expiry = pending ? pending.lot?.expirationDate : scan.expiry;
+    if (pending) return { type: 'count', lineKey: pending.key };
+    const scannedExpiry = dateValue(scan.expiry);
+    if (scannedExpiry && scannedExpiry < policy.today)
+      return { type: 'refuse', reason: 'lotExpiryPast', params: { lotCode } };
     const { id: _id, lot: _lot, ...rest } = template;
     card = {
       ...rest,
       orderable: product.orderable,
       stockOnHand: 0,
-      lot: { lotCode, expirationDate: dateValue(expiry) ?? null, tradeItemId },
+      lot: { lotCode, expirationDate: scannedExpiry ?? null, tradeItemId },
     };
   }
 

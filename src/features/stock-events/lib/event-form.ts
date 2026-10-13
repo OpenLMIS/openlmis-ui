@@ -3,19 +3,31 @@ import { parseDateValue } from '@/components/form/date-value';
 import { type QuantityValue, quantityValue } from '@/components/form/quantity-value';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
+import {
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  type EventKindConfig,
+} from '@/features/stock-events/lib/event-kinds';
+import type {
+  EventLot,
+  EventStockCard,
+  NewLot,
+  StockEvent,
+  StockEventLineItem,
+} from '@/features/stock-events/lib/types';
+import { sameLotCode } from '@/lib/lot-code';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
   key: z.string(),
   orderable: z.custom<EventStockCard['orderable']>(),
-  lot: z.custom<EventStockCard['lot']>(),
-  stockOnHand: z.number(),
+  lot: z.custom<EventLot | null>(),
+  stockOnHand: z.number().nullable(),
+  productHasLots: z.boolean(),
   netContent: z.number().nullable().optional(),
   useVVM: z.boolean(),
-  destination: z.string(),
-  destinationComments: z.string(),
+  counterparty: z.string(),
+  counterpartyComments: z.string(),
   reasonId: z.string(),
   reasonFreeText: z.string(),
   quantity: z.object({ doses: z.string(), packs: z.string(), remainder: z.string() }),
@@ -35,26 +47,30 @@ export type EventSchemaOptions = {
 
 export type EventLineOptions = Pick<EventSchemaOptions, 'kind'> &
   Partial<Omit<EventSchemaOptions, 'kind' | 'today'>>;
+export type NewEventLineOptions = EventLineOptions & { productHasLots: boolean };
+
+export type EventLineCandidate = Omit<EventStockCard, 'id' | 'lot'> & { lot: EventLot | null };
 
 export function newEventLine(
-  card: EventStockCard,
+  card: EventLineCandidate,
   previousLine: EventLine | undefined,
   today: string,
-  { kind, assignments = [], reasons = [], defaultReasonId }: EventLineOptions,
+  { kind, assignments = [], reasons = [], defaultReasonId, productHasLots }: NewEventLineOptions,
 ): EventLine {
+  const hasCounterparty = EVENT_KINDS[kind].counterparty !== 'none';
   return {
     key: crypto.randomUUID(),
     orderable: card.orderable,
     lot: card.lot,
     stockOnHand: card.stockOnHand,
+    productHasLots,
     netContent: card.orderable.netContent,
     useVVM: card.orderable.extraData?.useVVM === 'true',
-    destination:
-      EVENT_KINDS[kind].counterparty === 'destination' ? (previousLine?.destination ?? '') : '',
-    destinationComments:
-      EVENT_KINDS[kind].counterparty === 'destination' &&
-      assignments.find((item) => item.id === previousLine?.destination)?.isFreeTextAllowed
-        ? (previousLine?.destinationComments ?? '')
+    counterparty: hasCounterparty ? (previousLine?.counterparty ?? '') : '',
+    counterpartyComments:
+      hasCounterparty &&
+      assignments.find((item) => item.id === previousLine?.counterparty)?.isFreeTextAllowed
+        ? (previousLine?.counterpartyComments ?? '')
         : '',
     reasonId: previousLine?.reasonId || listedDefaultReasonId(reasons, defaultReasonId),
     reasonFreeText: previousLine?.reasonFreeText ?? '',
@@ -95,13 +111,13 @@ export function eventLinesSchema({
     const reason = byId.get(line.reasonId);
     if (!reason && (eventReasonRequired(kind, reasons, defaultReasonId) || line.reasonId))
       issue(['reasonId'], 'stock-events.required');
-    if (config.counterparty === 'destination') {
-      const destination = assignments.find((item) => item.id === line.destination);
-      if (!destination) issue(['destination'], 'stock-events.required');
-      if (line.destinationComments.length > 255)
-        issue(['destinationComments'], 'stock-events.comments-too-long');
-      if (line.destinationComments.trim() && !destination?.isFreeTextAllowed)
-        issue(['destinationComments'], 'stock-events.comments-not-allowed');
+    if (config.counterparty !== 'none') {
+      const counterparty = assignments.find((item) => item.id === line.counterparty);
+      if (!counterparty) issue(['counterparty'], 'stock-events.required');
+      if (line.counterpartyComments.length > 255)
+        issue(['counterpartyComments'], 'stock-events.comments-too-long');
+      if (line.counterpartyComments.trim() && !counterparty?.isFreeTextAllowed)
+        issue(['counterpartyComments'], 'stock-events.comments-not-allowed');
     }
 
     const quantity = wholeNumberText(
@@ -117,6 +133,7 @@ export function eventLinesSchema({
     } else if (
       (config.stockOnHandCap === 'always' ||
         (config.stockOnHandCap === 'debit-reason' && reason?.reasonType === 'DEBIT')) &&
+      line.stockOnHand !== null &&
       toWholeNumber(line.quantity.doses) > line.stockOnHand
     ) {
       issue(['quantity', 'doses'], 'stock-events.quantity-greater-than-stock-on-hand');
@@ -140,10 +157,53 @@ export function eventLinesSchema({
   return z.object({ lines: z.array(row) });
 }
 
-export function changeEventDestination(line: EventLine, destination: string): EventLine {
-  return line.destination === destination
+export function changeEventCounterparty(line: EventLine, counterparty: string): EventLine {
+  return line.counterparty === counterparty
     ? line
-    : { ...line, destination, destinationComments: '' };
+    : { ...line, counterparty, counterpartyComments: '' };
+}
+
+export function isNewLot(lot: EventLot | null | undefined): lot is NewLot {
+  return !!lot && !('id' in lot);
+}
+
+export function changeEventLot(
+  lines: readonly EventLine[],
+  key: string,
+  next: Pick<NewLot, 'lotCode' | 'expirationDate'>,
+): EventLine[] {
+  const old = lines.find((line) => line.key === key)?.lot;
+  if (!isNewLot(old)) return [...lines];
+  if (old.lotCode !== next.lotCode)
+    return lines.map((line) => (line.key === key ? { ...line, lot: { ...old, ...next } } : line));
+  return lines.map((line) =>
+    isNewLot(line.lot) &&
+    sameLotCode(line.lot.lotCode, old.lotCode) &&
+    line.lot.expirationDate === old.expirationDate
+      ? { ...line, lot: { ...line.lot, expirationDate: next.expirationDate } }
+      : line,
+  );
+}
+
+function lotFields(lot: EventLot | null): Pick<StockEventLineItem, 'lotId' | 'lot'> {
+  if (!isNewLot(lot)) return { lotId: lot?.id ?? null };
+  return {
+    lot: {
+      lotCode: lot.lotCode,
+      ...(lot.expirationDate && { expirationDate: lot.expirationDate }),
+    },
+  };
+}
+
+function counterpartyFields(
+  side: EventKindConfig['counterparty'],
+  nodeId: string | undefined,
+  comments: string | undefined,
+): Partial<StockEventLineItem> {
+  if (side === 'destination')
+    return { destinationId: nodeId, ...(comments && { destinationFreeText: comments }) };
+  if (side === 'source') return { sourceId: nodeId, ...(comments && { sourceFreeText: comments }) };
+  return {};
 }
 
 export type EventPayloadOptions = {
@@ -163,21 +223,23 @@ export function eventPayload({
   signature,
   lines,
 }: EventPayloadOptions): StockEvent {
+  const { counterparty, eventOrigin } = EVENT_KINDS[kind];
   return {
     programId,
     facilityId,
     signature,
-    eventOrigin: EVENT_KINDS[kind].eventOrigin,
+    eventOrigin,
     lineItems: lines.map((line) => ({
       orderableId: line.orderable.id,
-      lotId: line.lot?.id ?? null,
+      ...lotFields(line.lot),
       quantity: toWholeNumber(line.quantity.doses),
       occurredDate: line.occurredDate,
       ...(line.reasonId && { reasonId: line.reasonId }),
-      ...(EVENT_KINDS[kind].counterparty === 'destination' && {
-        destinationId: assignments.find((item) => item.id === line.destination)?.node.id,
-        ...(line.destinationComments.trim() && { destinationFreeText: line.destinationComments }),
-      }),
+      ...counterpartyFields(
+        counterparty,
+        assignments.find((item) => item.id === line.counterparty)?.node.id,
+        line.counterpartyComments.trim() ? line.counterpartyComments : undefined,
+      ),
       ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
       extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},
     })),

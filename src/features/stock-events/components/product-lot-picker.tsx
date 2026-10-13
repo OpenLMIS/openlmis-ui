@@ -1,9 +1,11 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import type { ParseKeys, TFunction } from 'i18next';
 import { PlusIcon } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatDateValue } from '@/components/form/date-value';
-import { FieldLabelText } from '@/components/form/form-fields';
+import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
+import { formatDateValue, toDateValue } from '@/components/form/date-value';
+import { DatePicker, FieldLabelText } from '@/components/form/form-fields';
 import { ScanStatus } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,8 +16,10 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxStatus,
 } from '@/components/ui/combobox';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -24,32 +28,92 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import { Spinner } from '@/components/ui/spinner';
 import {
+  facilityOrderableFulfillsOptions,
+  lotsByTradeItemsOptions,
+  orderablesByIdsOptions,
+} from '@/features/reference-data/api/queries';
+import {
+  eventApprovedProductsOptions,
+  eventStockCardsOptions,
+  eventStockOnHandOptions,
+} from '@/features/stock-events/api/queries';
+import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
+import { type NewLotValues, newLotSchema } from '@/features/stock-events/lib/new-lot';
+import {
+  ADD_NEW_LOT,
+  type ApprovedProductOption,
+  approvedProductOptions,
   type EventCardFilter,
   type EventLotOption,
   eventLotOptions,
   eventProductOptions,
+  type ReceiveLotOption,
+  receiveLotOptions,
 } from '@/features/stock-events/lib/products';
-import type { EventStockCard, EventStockCardsFilter } from '@/features/stock-events/lib/types';
+import type { EventStockCardsFilter } from '@/features/stock-events/lib/types';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useFlag } from '@/lib/feature-flags';
+import { productSearchStatus } from '@/lib/product-search-status';
 
-type Props = EventStockCardsFilter & {
+type BaseProps = EventStockCardsFilter & {
   children?: ReactNode;
-  cardFilter: EventCardFilter;
   disabled: boolean;
-  onAdd: (card: EventStockCard) => void;
+  onAdd: (candidate: EventLineCandidate, productHasLots: boolean) => void;
 };
 
-export function ProductLotPicker({
+type Props = BaseProps &
+  (
+    | { from?: 'stock-cards'; cardFilter: EventCardFilter }
+    | {
+        from: 'approved-products';
+        canManageLots: boolean;
+        lines: readonly Pick<EventLine, 'key' | 'lot'>[];
+      }
+  );
+
+export function ProductLotPicker(props: Props) {
+  if (props.from === 'approved-products') return <ApprovedProductLotPicker {...props} />;
+  return <StockCardLotPicker {...props} />;
+}
+
+function useLotLabel() {
+  const { t, i18n } = useTranslation();
+  return (item: EventLotOption | ReceiveLotOption) => (
+    <span className="flex min-w-0 items-center gap-1">
+      <bdi>{item.labelKey ? t(item.labelKey) : item.label}</bdi>
+      {item.lot?.expirationDate && (
+        <>
+          <span>/</span>
+          <bdi>{formatDateValue(item.lot.expirationDate, i18n.language)}</bdi>
+        </>
+      )}
+    </span>
+  );
+}
+
+function lotItemLabel(
+  item: EventLotOption | ReceiveLotOption,
+  t: TFunction,
+  language: string,
+): string {
+  if (item.labelKey) return t(item.labelKey);
+  return item.lot?.expirationDate
+    ? `${item.label} / ${formatDateValue(item.lot.expirationDate, language)}`
+    : item.label;
+}
+
+function StockCardLotPicker({
   facilityId,
   programId,
   onAdd,
   disabled,
   children,
   cardFilter,
-}: Props) {
+}: BaseProps & { cardFilter: EventCardFilter }) {
   const { t, i18n } = useTranslation();
+  const lotLabel = useLotLabel();
   const id = useId();
   const { data: cards } = useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
   const products = useMemo(() => eventProductOptions(cardFilter(cards)), [cards, cardFilter]);
@@ -64,23 +128,8 @@ export function ProductLotPicker({
   const lots = eventLotOptions(product?.cards ?? []);
   const lotItems = lots.map((item) => ({
     value: item.value,
-    label: item.labelKey
-      ? t(item.labelKey)
-      : item.lot?.expirationDate
-        ? `${item.label} / ${formatDateValue(item.lot.expirationDate, i18n.language)}`
-        : item.label,
+    label: lotItemLabel(item, t, i18n.language),
   }));
-  const lotLabel = (item: EventLotOption) => (
-    <span className="flex min-w-0 items-center gap-1">
-      <bdi>{item.labelKey ? t(item.labelKey) : item.label}</bdi>
-      {item.lot?.expirationDate && (
-        <>
-          <span>/</span>
-          <bdi>{formatDateValue(item.lot.expirationDate, i18n.language)}</bdi>
-        </>
-      )}
-    </span>
-  );
   const selectedLotId = lots.length === 1 ? lots[0].value : lotId;
   if (lots.length === 1 && selectedLotId !== lotId) setLotId(selectedLotId);
   const pickedLot = lots.find((item) => item.value === selectedLotId);
@@ -163,7 +212,14 @@ export function ProductLotPicker({
           width="full"
           data-add-product=""
           disabled={disabled || !pickedCard}
-          onClick={() => pickedCard && onAdd(pickedCard)}
+          onClick={() =>
+            pickedCard &&
+            product &&
+            onAdd(
+              pickedCard,
+              product.cards.some((card) => !!card.lot),
+            )
+          }
           type="button"
         >
           <PlusIcon data-icon="inline-start" />
@@ -174,13 +230,404 @@ export function ProductLotPicker({
   );
 }
 
-function PickerPanel({ children, status }: { children: ReactNode; status?: ReactNode }) {
+const SEARCH_DELAY = 300;
+const SHOW_MORE = 'show-more';
+
+type ShowMoreItem = { value: typeof SHOW_MORE; label: string; showMore: true };
+type ProductItem = ApprovedProductOption | ShowMoreItem;
+
+const isShowMore = (item: ProductItem | null): item is ShowMoreItem => !!item && 'showMore' in item;
+
+type NewLotField = keyof NewLotValues;
+
+function ApprovedProductLotPicker({
+  facilityId,
+  programId,
+  onAdd,
+  disabled,
+  children,
+  canManageLots,
+  lines,
+}: BaseProps & {
+  canManageLots: boolean;
+  lines: readonly Pick<EventLine, 'key' | 'lot'>[];
+}) {
+  const { t, i18n } = useTranslation();
+  const id = useId();
+  const lotLabel = useLotLabel();
+  const today = toDateValue(new Date());
+  const filter = { facilityId, programId };
+  const [typed, setTyped] = useState('');
+  const query = useDebouncedValue(typed.trim(), SEARCH_DELAY);
+  const [more, setMore] = useState({ query: '', pages: 1 });
+  const pages = more.query === query ? more.pages : 1;
+  const first = useQuery({
+    ...eventApprovedProductsOptions(filter, query, 0),
+    placeholderData: keepPreviousData,
+  });
+  const next = useQueries({
+    queries: Array.from({ length: pages - 1 }, (_, index) =>
+      eventApprovedProductsOptions(filter, query, index + 1),
+    ),
+  });
+  const fulfils = useQuery(facilityOrderableFulfillsOptions(filter));
+  const fulfillingIds = useMemo(
+    () => [
+      ...new Set(Object.values(fulfils.data ?? {}).flatMap((item) => item.canFulfillForMe ?? [])),
+    ],
+    [fulfils.data],
+  );
+  const fulfilling = useQuery({
+    ...orderablesByIdsOptions(fulfillingIds),
+    enabled: fulfillingIds.length > 0,
+  });
+  const approved = [
+    ...(first.data?.content ?? []),
+    ...next.flatMap((page) => page.data?.content ?? []),
+  ];
+  const total = first.data?.totalElements ?? 0;
+  const options = approvedProductOptions(approved, fulfils.data, fulfilling.data ?? [], query);
+  const [product, setProduct] = useState<ApprovedProductOption | null>(null);
+  const [lotValue, setLotValue] = useState<string | null>(null);
+  const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });
+  const [attempted, setAttempted] = useState(false);
+  const [solePicked, setSolePicked] = useState(false);
+  const sole =
+    !query && !first.isPlaceholderData && total === 1 && approved.length === 1
+      ? options.find((item) => item.value === approved[0].orderable.id)
+      : undefined;
+  if (sole && !solePicked) {
+    setSolePicked(true);
+    setProduct(sole);
+  }
+  const searching = typed.trim() !== query || first.isFetching;
+  const loadingMore = next.some((page) => page.isPending || (page.isError && page.isFetching));
+  const failedPage = next.find((page) => page.isError && !page.isFetching);
+  const items: ProductItem[] = [
+    ...(product && !options.some((item) => item.value === product.value) ? [product] : []),
+    ...options,
+    ...(first.data && !searching && approved.length < total
+      ? [{ value: SHOW_MORE, label: t('stock-events.show-more'), showMore: true } as const]
+      : []),
+  ];
+  const status =
+    first.data && !searching
+      ? productSearchStatus({ listed: approved.length, total, typed: query !== '' })
+      : undefined;
+
+  const tradeItemId = product?.orderable.identifiers?.tradeItem;
+  const lotsQuery = useQuery({
+    ...lotsByTradeItemsOptions(tradeItemId ? [tradeItemId] : []),
+    enabled: !!tradeItemId,
+  });
+  const stockQuery = useQuery({
+    ...eventStockOnHandOptions({
+      facilityId,
+      programId,
+      orderableIds: product ? [product.approvedId] : [],
+    }),
+    enabled: !!product,
+  });
+  const lotsFailed = !!tradeItemId && lotsQuery.isError && lotsQuery.data === undefined;
+  const stockFailed = !!product && stockQuery.isError && stockQuery.data === undefined;
+  const loading = !!product && ((!!tradeItemId && lotsQuery.isPending) || stockQuery.isPending);
+  const lots = (tradeItemId && lotsQuery.data) || [];
+  const lotOptions =
+    product && !loading && !lotsFailed && !stockFailed && stockQuery.data
+      ? receiveLotOptions(product, lots, stockQuery.data, canManageLots)
+      : [];
+  const selectedLot = lotOptions.length === 1 ? lotOptions[0].value : lotValue;
+  const pickedLot = lotOptions.find((item) => item.value === selectedLot);
+  const addingNewLot = pickedLot?.value === ADD_NEW_LOT;
+  const schema = tradeItemId ? newLotSchema({ tradeItemId, lots, lines, today }) : undefined;
+  const errors: Partial<Record<NewLotField, ParseKeys>> = {};
+  if (addingNewLot && attempted && schema) {
+    for (const issue of schema.safeParse(draft).error?.issues ?? []) {
+      const field = issue.path[0] as NewLotField;
+      errors[field] ??= issue.message as ParseKeys;
+    }
+  }
+  const lotItems = lotOptions.map((item) => ({
+    value: item.value,
+    label: lotItemLabel(item, t, i18n.language),
+  }));
+
+  const pick = (item: ApprovedProductOption | null) => {
+    setProduct(item);
+    setLotValue(null);
+    setAttempted(false);
+    setDraft({ lotCode: '', expirationDate: '' });
+  };
+  const add = () => {
+    if (disabled || !product || !pickedLot) return;
+    const productHasLots = lots.length > 0;
+    if (pickedLot.card) {
+      onAdd(pickedLot.card, productHasLots);
+      return;
+    }
+    setAttempted(true);
+    const result = schema ? schema.safeParse(draft) : undefined;
+    if (!tradeItemId || !result?.success) {
+      const invalid = result?.error?.issues[0]?.path[0];
+      document.getElementById(`${id}-${invalid === 'expirationDate' ? 'expiry' : 'code'}`)?.focus();
+      return;
+    }
+    onAdd(
+      {
+        orderable: product.orderable,
+        lot: {
+          lotCode: result.data.lotCode,
+          expirationDate: result.data.expirationDate || null,
+          tradeItemId,
+        },
+        stockOnHand: 0,
+      },
+      productHasLots,
+    );
+  };
+  const fulfilsFailed =
+    (fulfils.isError && fulfils.data === undefined) ||
+    (fulfilling.isError && fulfilling.data === undefined);
+  const retryFulfils = () => {
+    if (fulfils.isError) void fulfils.refetch();
+    if (fulfilling.isError) void fulfilling.refetch();
+  };
+  const retry = () => {
+    if (lotsFailed) void lotsQuery.refetch();
+    if (stockFailed) void stockQuery.refetch();
+  };
+
+  if (first.data === undefined && first.isPending) return <ProductLotPickerSkeleton />;
+  return (
+    <PickerPanel
+      status={children}
+      alert={
+        <>
+          {first.isError && (
+            <ErrorAlert
+              title={t('stock-events.products-search-error-title')}
+              description={t('stock-events.products-search-error-description')}
+              action={<RetryButton onClick={() => void first.refetch()} />}
+            />
+          )}
+          {fulfilsFailed && (
+            <ErrorAlert
+              title={t('stock-events.fulfils-error-title')}
+              description={t('stock-events.fulfils-error-description')}
+              action={<RetryButton onClick={retryFulfils} />}
+            />
+          )}
+          {(lotsFailed || stockFailed) && (
+            <ErrorAlert
+              title={t(
+                lotsFailed
+                  ? 'stock-events.lots-error-title'
+                  : 'stock-events.stock-on-hand-error-title',
+              )}
+              description={t(
+                lotsFailed
+                  ? 'stock-events.lots-error-description'
+                  : 'stock-events.stock-on-hand-error-description',
+              )}
+              action={<RetryButton onClick={retry} />}
+            />
+          )}
+        </>
+      }
+    >
+      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+        <Field spacing="tight">
+          <FieldLabel htmlFor={`${id}-product`}>
+            <FieldLabelText label={t('stock-events.product')} required />
+          </FieldLabel>
+          <Combobox<ProductItem>
+            items={items}
+            filter={null}
+            itemToStringLabel={(item) => item.label}
+            isItemEqualToValue={(item, value) => item.value === value.value}
+            value={product as ProductItem | null}
+            onValueChange={(item, details) => {
+              if (isShowMore(item)) {
+                details.cancel();
+                if (failedPage) void failedPage.refetch();
+                else if (!loadingMore) setMore({ query, pages: pages + 1 });
+                return;
+              }
+              pick(item);
+            }}
+            onInputValueChange={(text, details) =>
+              setTyped(details.reason === 'input-change' ? text : '')
+            }
+            disabled={disabled}
+          >
+            <ComboboxInput
+              id={`${id}-product`}
+              aria-required="true"
+              aria-label={t('stock-events.product')}
+              dir="auto"
+              placeholder={t('stock-events.product')}
+              width="full"
+            />
+            <ComboboxContent>
+              <ComboboxStatus>
+                {failedPage
+                  ? t('stock-events.show-more-error')
+                  : status && t(status.key, { shown: status.shown, count: status.count })}
+              </ComboboxStatus>
+              <ComboboxEmpty>
+                {searching
+                  ? t('lots.searching')
+                  : first.isError
+                    ? t('stock-events.products-search-error-title')
+                    : t('stock-events.no-matches-title')}
+              </ComboboxEmpty>
+              <ComboboxList>
+                {(item: ProductItem) => (
+                  <ComboboxItem key={item.value} value={item}>
+                    {isShowMore(item) ? (
+                      <span className="text-muted-foreground">
+                        {loadingMore
+                          ? t('lots.searching')
+                          : failedPage
+                            ? t('error.try-again')
+                            : item.label}
+                      </span>
+                    ) : (
+                      <bdi>{item.label}</bdi>
+                    )}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </Field>
+      </div>
+      {lotOptions.length > 1 && (
+        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+          <Field spacing="tight">
+            <FieldLabel htmlFor={`${id}-lot`}>
+              <FieldLabelText label={t('stock-events.lot-code')} required />
+            </FieldLabel>
+            <Select
+              items={lotItems}
+              value={selectedLot}
+              disabled={disabled}
+              onValueChange={setLotValue}
+            >
+              <SelectTrigger
+                id={`${id}-lot`}
+                aria-required="true"
+                aria-label={t('stock-events.lot-code')}
+                width="full"
+              >
+                <SelectValue placeholder={t('stock-events.lot-code')}>
+                  {pickedLot ? lotLabel(pickedLot) : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lotOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {lotLabel(item)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      )}
+      {addingNewLot && (
+        <>
+          <div className="min-w-0 flex-1 @3xl/main:max-w-56">
+            <Field spacing="tight" data-invalid={!!errors.lotCode || undefined}>
+              <FieldLabel htmlFor={`${id}-code`}>
+                <FieldLabelText label={t('stock-events.new-lot-code')} required />
+              </FieldLabel>
+              <Input
+                id={`${id}-code`}
+                aria-required="true"
+                aria-invalid={!!errors.lotCode || undefined}
+                aria-describedby={errors.lotCode ? `${id}-code-error` : undefined}
+                dir="ltr"
+                disabled={disabled}
+                value={draft.lotCode}
+                onChange={(event) => setDraft({ ...draft, lotCode: event.target.value })}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  add();
+                }}
+              />
+              {errors.lotCode && (
+                <FieldError id={`${id}-code-error`}>{t(errors.lotCode)}</FieldError>
+              )}
+            </Field>
+          </div>
+          <div className="min-w-0 flex-1 @3xl/main:max-w-56">
+            <Field spacing="tight" data-invalid={!!errors.expirationDate || undefined}>
+              <FieldLabel htmlFor={`${id}-expiry`} id={`${id}-expiry-label`}>
+                <FieldLabelText label={t('stock-events.expiry-date')} />
+              </FieldLabel>
+              <DatePicker
+                id={`${id}-expiry`}
+                clearLabel={t('stock-events.clear-expiry-date')}
+                describedBy={errors.expirationDate ? `${id}-expiry-error` : undefined}
+                disabled={disabled}
+                earliest={today}
+                invalid={!!errors.expirationDate || undefined}
+                onValueChange={(expirationDate) => setDraft({ ...draft, expirationDate })}
+                placeholder={t('stock-events.pick-date')}
+                value={draft.expirationDate}
+              />
+              {errors.expirationDate && (
+                <FieldError id={`${id}-expiry-error`}>{t(errors.expirationDate)}</FieldError>
+              )}
+            </Field>
+          </div>
+        </>
+      )}
+      <div className="@3xl/main:w-auto">
+        <Button
+          width="full"
+          data-add-product=""
+          disabled={disabled || !pickedLot || loading}
+          onClick={add}
+          type="button"
+        >
+          {loading ? (
+            <Spinner aria-hidden="true" data-icon="inline-start" role="presentation" />
+          ) : (
+            <PlusIcon data-icon="inline-start" />
+          )}
+          {t('stock-events.add')}
+        </Button>
+        <p role="status" aria-live="polite" className="sr-only">
+          {loading ? t('stock-events.lots-loading') : ''}
+        </p>
+      </div>
+    </PickerPanel>
+  );
+}
+
+function PickerPanel({
+  children,
+  status,
+  alert,
+}: {
+  children: ReactNode;
+  status?: ReactNode;
+  alert?: ReactNode;
+}) {
   return (
     <Card>
       <CardContent>
-        <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-end">
-          {children}
-          {status && <div className="@3xl/main:max-w-56 @3xl/main:pb-1.5">{status}</div>}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-end">
+            {children}
+            {status && <div className="@3xl/main:max-w-56 @3xl/main:pb-1.5">{status}</div>}
+          </div>
+          {alert}
         </div>
       </CardContent>
     </Card>

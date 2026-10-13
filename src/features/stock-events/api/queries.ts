@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
+import { approvedProductsOptions } from '@/features/reference-data/api/queries';
 import {
   fetchAllStockEventLines,
   fetchEventStockCards,
@@ -52,3 +53,11 @@ export const eventStockOnHandOptions = (filter: EventStockOnHandFilter) =>
     queryFn: () => fetchEventStockOnHand(filter),
     staleTime: 0,
   });
+
+const APPROVED_PRODUCTS_PAGE_SIZE = 50;
+
+export const eventApprovedProductsOptions = (
+  filter: EventStockCardsFilter,
+  name: string,
+  page: number,
+) => approvedProductsOptions({ ...filter, name, page, size: APPROVED_PRODUCTS_PAGE_SIZE });

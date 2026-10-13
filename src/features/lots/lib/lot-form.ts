@@ -2,23 +2,18 @@ import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { Lot } from '@/features/lots/lib/types';
+import { lotCodeSchema } from '@/lib/lot-code';
 
 const errorKey = (key: ParseKeys) => key;
-
-const MAX_CODE_LENGTH = 20;
-
-/** The characters GS1 allows in a lot number, which the server enforces. */
-const CODE_CHARACTERS = /^[!"%&'()*+,\-./0-9:;<=>?A-Z_a-z]*$/;
 
 export function lotFormSchema(refusedCodes: readonly string[]) {
   const refused = new Set(refusedCodes.map((code) => code.toLowerCase()));
   return z.object({
-    lotCode: z
-      .string()
-      .refine((code) => code.trim().length > 0, errorKey('lots.form.code-required'))
-      .refine((code) => code.length <= MAX_CODE_LENGTH, errorKey('lots.form.code-too-long'))
-      .refine((code) => CODE_CHARACTERS.test(code), errorKey('lots.form.code-invalid'))
-      .refine((code) => !refused.has(code.toLowerCase()), errorKey('lots.form.code-taken')),
+    lotCode: lotCodeSchema({
+      required: 'lots.form.code-required',
+      tooLong: 'lots.form.code-too-long',
+      invalid: 'lots.form.code-invalid',
+    }).refine((code) => !refused.has(code.toLowerCase()), errorKey('lots.form.code-taken')),
     expirationDate: z.string(),
     manufactureDate: z.string(),
   });

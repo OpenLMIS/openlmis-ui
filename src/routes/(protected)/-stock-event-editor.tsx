@@ -1,5 +1,7 @@
 import { type QueryClient, useQuery } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { ClipboardPenLineIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -22,20 +24,34 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   facilityOptions,
+  facilityOrderableFulfillsOptions,
   userProgramsOptions,
   userRecordOptions,
-  validDestinationsOptions,
   validReasonsOptions,
 } from '@/features/reference-data/api/queries';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import { fetchStockEventReport } from '@/features/stock-events/api/api';
+import {
+  eventApprovedProductsOptions,
+  eventStockCardsOptions,
+} from '@/features/stock-events/api/queries';
+import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
   EventLineTableSkeleton,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
+import { PrintEventDialog } from '@/features/stock-events/components/print-event-dialog';
 import { ProductLotPickerSkeleton } from '@/features/stock-events/components/product-lot-picker';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import {
+  type ConfiguredEventKind,
+  counterpartyOptions,
+  EVENT_KINDS,
+  type PrintableEventKind,
+} from '@/features/stock-events/lib/event-kinds';
+import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
-import { recordLabel } from '@/lib/facility-program-selection';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
+import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
 
@@ -75,14 +91,57 @@ export async function loadStockEventEditor(
   queryClient.prefetchQuery(userProgramsOptions(userId));
   const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
   if (canViewStock) {
-    if (EVENT_KINDS[kind].counterparty === 'destination')
-      queryClient.prefetchQuery(validDestinationsOptions({ facilityId: homeId, programId }));
-    queryClient.prefetchQuery(eventStockCardsOptions({ facilityId: homeId, programId }));
+    const { counterparty, products } = EVENT_KINDS[kind];
+    const filter = { facilityId: homeId, programId };
+    if (counterparty !== 'none')
+      queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
+    if (products.from === 'stock-cards') queryClient.prefetchQuery(eventStockCardsOptions(filter));
+    if (products.from === 'approved-products') {
+      queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
+      queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
+    }
     queryClient.prefetchQuery(
       validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
     );
   }
-  return { userId, homeFacility, program, canViewStock };
+  const canManageLots = permissions.rights.has(RIGHTS.lotsManage);
+  return { userId, homeFacility, program, canViewStock, canManageLots };
+}
+
+function StockEventHeader({
+  kind,
+  facility,
+  program,
+}: {
+  kind: ConfiguredEventKind;
+  facility: NamedRecord | undefined;
+  program: NamedRecord | undefined;
+}) {
+  const { t } = useTranslation();
+  const { copy } = EVENT_KINDS[kind];
+  return (
+    <WorkspaceHeader>
+      <WorkspaceHeading>
+        <WorkspaceIcon>
+          <ClipboardPenLineIcon />
+        </WorkspaceIcon>
+        <WorkspaceTitle>
+          {facility && program ? (
+            t(copy.editorTitle, {
+              code: facility.code,
+              facility: recordLabel(facility),
+              program: recordLabel(program),
+            })
+          ) : (
+            <span className="block h-10 w-64 max-w-full @xl/main:h-5 @xl/main:w-3xl">
+              <Skeleton fill />
+            </span>
+          )}
+        </WorkspaceTitle>
+        <WorkspaceDescription>{t(copy.editorDescription)}</WorkspaceDescription>
+      </WorkspaceHeading>
+    </WorkspaceHeader>
+  );
 }
 
 export function StockEventPending({
@@ -102,32 +161,11 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
-  const prefix = kind === 'issue' ? 'stock-issue' : 'stock-adjustment';
   const visibility = { lotCode: false, expiry: false, vvm: false, total: unit.unit === 'PACKS' };
   return (
     <>
       <Workspace width={config.width}>
-        <WorkspaceHeader>
-          <WorkspaceHeading>
-            <WorkspaceIcon>
-              <ClipboardPenLineIcon />
-            </WorkspaceIcon>
-            <WorkspaceTitle>
-              {home && program ? (
-                t(`${prefix}.editor-title`, {
-                  code: home.code,
-                  facility: recordLabel(home),
-                  program: recordLabel(program),
-                })
-              ) : (
-                <span className="block h-10 w-64 max-w-full @xl/main:h-5 @xl/main:w-3xl">
-                  <Skeleton fill />
-                </span>
-              )}
-            </WorkspaceTitle>
-            <WorkspaceDescription>{t(`${prefix}.editor-description`)}</WorkspaceDescription>
-          </WorkspaceHeading>
-        </WorkspaceHeader>
+        <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
             <ProductLotPickerSkeleton />
@@ -169,6 +207,99 @@ export function StockEventPending({
           {t('stock-events.submit')}
         </Button>
       </WorkspaceFooter>
+    </>
+  );
+}
+
+function useStockEventPrint({
+  kind,
+  userId,
+  facilityId,
+  programId,
+}: {
+  kind: PrintableEventKind;
+  userId: string;
+  facilityId: string;
+  programId: string;
+}) {
+  const { t } = useTranslation();
+  const copy = EVENT_KINDS[kind].print;
+  const navigate = useNavigate();
+  const [eventId, setEventId] = useState<string | null>(null);
+  const landing = () =>
+    navigate({
+      to: '/stock-management/stock-on-hand',
+      search: { mode: 'my', facilityId, programId },
+    });
+  const print = usePrintReport({
+    userId,
+    right: RIGHTS.stockCardsView,
+    facilityId,
+    programId,
+    request: (lang) => fetchStockEventReport(eventId ?? '', { showInDoses: true, lang }),
+    onReport: () => openReport(`stock_event_${eventId}.pdf`, t(copy.loading)),
+    successTitle: t(copy.printedTitle),
+    successDescription: t(copy.printed),
+    errorTitle: t(copy.errorTitle),
+    errorDescription: t(copy.error),
+    refusedDescription: t(copy.refused),
+  });
+  return {
+    onSubmitted: setEventId,
+    dialog: (
+      <PrintEventDialog
+        copy={copy}
+        open={eventId !== null}
+        onSkip={() => {
+          void landing();
+        }}
+        onPrint={() => {
+          print.print();
+          void landing();
+        }}
+      />
+    ),
+  };
+}
+
+export function StockEventEditorPage({
+  kind,
+  defaultReasonId,
+  data: { userId, homeFacility, program, canViewStock, canManageLots },
+  search,
+}: {
+  kind: PrintableEventKind;
+  defaultReasonId: string | undefined;
+  data: Awaited<ReturnType<typeof loadStockEventEditor>>;
+  search: EventSearch;
+}) {
+  const { updateSearch } = useSearchNavigation<EventSearch>({});
+  const username = useLoginData((state) => state.username) ?? '';
+  const print = useStockEventPrint({
+    kind,
+    userId,
+    facilityId: homeFacility.id,
+    programId: program.id,
+  });
+  return (
+    <>
+      <EventEditor
+        kind={kind}
+        defaultReasonId={defaultReasonId}
+        key={`${homeFacility.id}/${program.id}`}
+        facilityId={homeFacility.id}
+        facilityTypeId={homeFacility.type.id}
+        programId={program.id}
+        username={username}
+        canViewStock={canViewStock}
+        canManageLots={canManageLots}
+        search={search}
+        onSearchChange={updateSearch}
+        onSubmitted={print.onSubmitted}
+      >
+        <StockEventHeader kind={kind} facility={homeFacility} program={program} />
+      </EventEditor>
+      {print.dialog}
     </>
   );
 }

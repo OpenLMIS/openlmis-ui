@@ -1,6 +1,7 @@
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
+import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
-import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -16,16 +17,24 @@ import { InputSizer } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
+import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
 import type { EventSearch } from '@/features/stock-events/components/event-editor';
 import { ProductName } from '@/features/stock-events/components/product-name';
 import { type EventForm, useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import {
-  changeEventDestination,
+  changeEventCounterparty,
+  changeEventLot,
   changeEventReason,
   type EventLine,
+  isNewLot,
 } from '@/features/stock-events/lib/event-form';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
+import {
+  COUNTERPARTY,
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  type EventKindConfig,
+} from '@/features/stock-events/lib/event-kinds';
+import type { NewLot } from '@/features/stock-events/lib/types';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -55,18 +64,24 @@ export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'expiry', labelKey: 'stock-events.expiry-date', hideBelow: 1250 },
   { id: 'total', labelKey: 'stock-events.total-quantity', hideBelow: 1150 },
 ] as const;
-const ISSUE_HIDEABLE_COLUMNS = [
+const MEASURED_HIDEABLE_COLUMNS = [
   { id: 'productCode', labelKey: 'stock-events.product-code' },
   { id: 'packSize', labelKey: 'stock-events.pack-size' },
   { id: 'total', labelKey: 'stock-events.total-quantity' },
   { id: 'expiry', labelKey: 'stock-events.expiry-date' },
 ] as const;
 export function eventHideableColumns(kind: ConfiguredEventKind) {
-  return EVENT_KINDS[kind].counterparty === 'destination'
-    ? ISSUE_HIDEABLE_COLUMNS
+  return EVENT_KINDS[kind].columnFit === 'measured'
+    ? MEASURED_HIDEABLE_COLUMNS
     : EVENT_HIDEABLE_COLUMNS;
 }
-const NO_DESTINATIONS: readonly ValidAssignment[] = [];
+function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterparty']): ParseKeys {
+  if (side === 'none') return key;
+  if (id === 'destination') return COUNTERPARTY[side].column;
+  if (id === 'destinationComments') return COUNTERPARTY[side].comments;
+  return key;
+}
+const NO_ASSIGNMENTS: readonly ValidAssignment[] = [];
 const helper = createColumnHelper<DataTableFeatures, EventLine>();
 const NO_SORT = { id: 'product', desc: false };
 
@@ -127,13 +142,12 @@ const DateSizer = memo(function DateSizer({ year, language }: { year: string; la
 type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
-  hasProductLots: boolean;
   id: CellId;
   index: number;
   line: EventLine;
   form: EventForm;
   reasons: readonly Reason[];
-  destinations?: readonly ValidAssignment[];
+  assignments?: readonly ValidAssignment[];
   unit: QuantityUnit;
   today: string;
   disabled: boolean;
@@ -142,13 +156,12 @@ type CellProps = {
 const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
-  hasProductLots,
   id,
   index,
   line,
   form,
   reasons,
-  destinations = NO_DESTINATIONS,
+  assignments = NO_ASSIGNMENTS,
   unit,
   today,
   disabled,
@@ -161,16 +174,18 @@ const LineCell = memo(function LineCell({
     : name;
   const lotLabel =
     line.lot?.lotCode ??
-    t(hasProductLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
+    t(line.productHasLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
   const row = t('stock-events.row-identity', { product: name, lot: lotLabel, position: index + 1 });
-  const label = (key: (typeof COLUMNS)[number][1]) =>
-    t('stock-events.field-of', { field: t(key), row });
+  const label = (key: ParseKeys) => t('stock-events.field-of', { field: t(key), row });
+  const side = EVENT_KINDS[kind].counterparty;
+  const counterparty = COUNTERPARTY[side === 'none' ? 'destination' : side];
   const reason = reasons.find((item) => item.id === line.reasonId);
+  const measured = EVENT_KINDS[kind].columnFit === 'measured';
   switch (id) {
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
-      return <ProductName label={productLabel} width={kind === 'issue' ? 'compact' : 'default'} />;
+      return <ProductName label={productLabel} width={measured ? 'compact' : 'default'} />;
     case 'packSize':
       return (
         <span className="tabular-nums">
@@ -182,7 +197,19 @@ const LineCell = memo(function LineCell({
         </span>
       );
     case 'lotCode':
-      return <bdi>{lotLabel}</bdi>;
+      return isNewLot(line.lot) ? (
+        <EditLotButton
+          line={line}
+          lot={line.lot}
+          label={t('stock-events.edit-lot', { row })}
+          product={productLabel}
+          form={form}
+          today={today}
+          disabled={disabled}
+        />
+      ) : (
+        <bdi>{lotLabel}</bdi>
+      );
     case 'expiry':
       return (
         <bdi>
@@ -204,15 +231,15 @@ const LineCell = memo(function LineCell({
         <div className="w-full whitespace-normal break-words">
           <div className="w-full contain-inline-size">
             <form.AppField
-              name={`lines[${index}].destination`}
+              name={`lines[${index}].counterparty`}
               listeners={{
                 onChange: ({ value }) => {
-                  const next = changeEventDestination(line, value ?? '');
-                  if (value == null) form.setFieldValue(`lines[${index}].destination`, '');
+                  const next = changeEventCounterparty(line, value ?? '');
+                  if (value == null) form.setFieldValue(`lines[${index}].counterparty`, '');
                   if (next !== line)
                     form.setFieldValue(
-                      `lines[${index}].destinationComments`,
-                      next.destinationComments,
+                      `lines[${index}].counterpartyComments`,
+                      next.counterpartyComments,
                     );
                 },
               }}
@@ -221,11 +248,13 @@ const LineCell = memo(function LineCell({
                 <field.SelectField
                   disabled={disabled}
                   required
-                  items={destinations.map((item) => ({ value: item.id, label: item.name ?? '' }))}
-                  label={label('stock-events.issue-to')}
+                  items={[
+                    { value: '', label: t('stock-events.select-option') },
+                    ...assignments.map((item) => ({ value: item.id, label: item.name ?? '' })),
+                  ]}
+                  label={label(counterparty.column)}
                   layout="inline"
                   hideErrors
-                  placeholder={t('stock-events.select-option')}
                   size="sm"
                 />
               )}
@@ -234,20 +263,20 @@ const LineCell = memo(function LineCell({
         </div>
       );
     case 'destinationComments':
-      return destinations.find((item) => item.id === line.destination)?.isFreeTextAllowed ? (
+      return assignments.find((item) => item.id === line.counterparty)?.isFreeTextAllowed ? (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
               : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
         >
-          <form.AppField name={`lines[${index}].destinationComments`}>
+          <form.AppField name={`lines[${index}].counterpartyComments`}>
             {(field) => (
               <field.TextareaField
                 disabled={disabled}
                 dir="auto"
-                label={label('stock-events.destination-comments')}
+                label={label(counterparty.comments)}
                 layout="inline"
                 hideErrors
                 maxLength={255}
@@ -260,7 +289,7 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full whitespace-normal break-words'
               : 'w-full min-w-28 whitespace-normal break-words'
           }
@@ -290,7 +319,7 @@ const LineCell = memo(function LineCell({
                   hideErrors
                   required={reasonRequired}
                   size="sm"
-                  wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+                  wrap={measured ? 'nowrap' : 'wrap'}
                 />
               )}
             </form.AppField>
@@ -301,7 +330,7 @@ const LineCell = memo(function LineCell({
       return reason?.isFreeTextAllowed ? (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
               : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
@@ -323,7 +352,7 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            kind === 'issue'
+            measured
               ? 'w-full contain-inline-size whitespace-normal break-words'
               : unit === 'PACKS'
                 ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
@@ -339,7 +368,7 @@ const LineCell = memo(function LineCell({
                 label={label('stock-events.quantity')}
                 layout="inline"
                 hideErrors
-                sizing={kind === 'issue' ? 'minimum' : 'full'}
+                sizing={measured ? 'minimum' : 'full'}
                 netContent={line.netContent}
                 unit={unit}
                 required
@@ -391,7 +420,7 @@ const LineCell = memo(function LineCell({
         <div className="w-full whitespace-normal break-words">
           <div
             className={
-              kind === 'issue'
+              measured
                 ? 'w-full min-w-28 contain-inline-size'
                 : 'w-full min-w-32 contain-inline-size'
             }
@@ -436,8 +465,54 @@ const LineCell = memo(function LineCell({
   }
 });
 
-type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'hasProductLots'> & {
-  cards: readonly EventStockCard[];
+function EditLotButton({
+  line,
+  lot,
+  label,
+  product,
+  form,
+  today,
+  disabled,
+}: {
+  line: EventLine;
+  lot: NewLot;
+  label: string;
+  product: string;
+  form: EventForm;
+  today: string;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        padding="none"
+        size="sm"
+        type="button"
+        variant="link"
+      >
+        <bdi>{lot.lotCode}</bdi>
+      </Button>
+      <EditLotDialog
+        open={open}
+        onOpenChange={setOpen}
+        lot={lot}
+        lineKey={line.key}
+        product={product}
+        lines={form.state.values.lines}
+        today={today}
+        onSave={(next) =>
+          form.setFieldValue('lines', (current) => changeEventLot(current, line.key, next))
+        }
+      />
+    </>
+  );
+}
+
+type Props = Omit<CellProps, 'id' | 'line' | 'index'> & {
   lines: EventLine[];
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
@@ -451,9 +526,8 @@ export function EventLineTable({
   reasonRequired,
   form,
   lines,
-  cards,
   reasons,
-  destinations = NO_DESTINATIONS,
+  assignments = NO_ASSIGNMENTS,
   unit,
   today,
   disabled,
@@ -467,21 +541,19 @@ export function EventLineTable({
 }: Props) {
   const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
+  const measured = config.columnFit === 'measured';
   const lineIndex = useRef(new Map<string, number>());
   lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
-  const productsWithLots = useMemo(
-    () => new Set(cards.filter((card) => card.lot).map((card) => card.orderable.id)),
-    [cards],
-  );
   const columns = useMemo(
     () =>
       helper.columns(
         COLUMNS.filter(
           ([id]) =>
-            config.counterparty === 'destination' ||
+            config.counterparty !== 'none' ||
             (id !== 'destination' && id !== 'destinationComments'),
-        ).map(([id, key]) =>
-          helper.display({
+        ).map(([id, columnKey]) => {
+          const key = columnLabel(id, columnKey, config.counterparty);
+          return helper.display({
             id,
             header: () => (
               <>
@@ -493,20 +565,20 @@ export function EventLineTable({
                     <SelectSizer
                       labels={[
                         t('stock-events.select-option'),
-                        ...destinations.map((item) => item.name ?? ''),
+                        ...assignments.map((item) => item.name ?? ''),
                       ]}
                     />
                   )}
                   {id === 'reason' && (
                     <SelectSizer
-                      wrap={kind === 'issue' ? 'nowrap' : 'wrap'}
+                      wrap={measured ? 'nowrap' : 'wrap'}
                       labels={[
                         ...(!reasonRequired ? [t('stock-events.select-option')] : []),
                         ...reasons.map((item) => item.name),
                       ]}
                     />
                   )}
-                  {kind === 'issue' && id === 'quantity' && (
+                  {measured && id === 'quantity' && (
                     <div
                       aria-hidden
                       className="invisible flex h-0 w-max items-center gap-1 overflow-hidden"
@@ -526,7 +598,7 @@ export function EventLineTable({
                       )}
                     </div>
                   )}
-                  {kind === 'issue' && id === 'vvm' && (
+                  {measured && id === 'vvm' && (
                     <SelectSizer
                       labels={[
                         t('stock-events.vvm-none'),
@@ -535,7 +607,7 @@ export function EventLineTable({
                       ]}
                     />
                   )}
-                  {kind === 'issue' && id === 'date' && (
+                  {measured && id === 'date' && (
                     <DateSizer
                       year={today.slice(0, 4) || String(new Date().getFullYear())}
                       language={i18n.language}
@@ -551,28 +623,27 @@ export function EventLineTable({
                 reasonRequired={reasonRequired}
                 id={id}
                 index={lineIndex.current.get(row.original.key) ?? -1}
-                hasProductLots={productsWithLots.has(row.original.orderable.id)}
                 line={row.original}
                 form={form}
                 reasons={reasons}
-                destinations={destinations}
+                assignments={assignments}
                 unit={unit}
                 today={today}
                 disabled={disabled}
                 onRemove={onRemove}
               />
             ),
-          }),
-        ),
+          });
+        }),
       ),
     [
       kind,
       config,
-      productsWithLots,
+      measured,
       reasonRequired,
       form,
       reasons,
-      destinations,
+      assignments,
       unit,
       today,
       disabled,
@@ -682,7 +753,6 @@ export function EventLineTableSkeleton({
         columnVisibility={columnVisibility}
         form={form}
         lines={[]}
-        cards={[]}
         reasons={[]}
         reasonRequired={false}
         today={today}
