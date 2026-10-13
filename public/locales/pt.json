@@ -1200,6 +1200,7 @@
   "stock-events.lot-expiry-past": "A data de validade do lote deve ser uma data futura.",
   "stock-events.lots-error-description": "Tente novamente carregar os lotes deste produto.",
   "stock-events.lots-error-title": "Não Foi Possível Carregar Os Lotes",
+  "stock-events.lots-loading": "A Carregar Lotes...",
   "stock-events.new-lot-code": "Código Do Novo Lote",
   "stock-events.no-destinations-description": "Não estão configurados destinos para este programa. Contacte um administrador.",
   "stock-events.no-destinations-title": "Nenhum Destino Configurado",

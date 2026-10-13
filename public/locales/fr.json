@@ -1200,6 +1200,7 @@
   "stock-events.lot-expiry-past": "La date d’expiration du lot doit être une date future.",
   "stock-events.lots-error-description": "Réessayez de charger les lots de ce produit.",
   "stock-events.lots-error-title": "Impossible De Charger Les Lots",
+  "stock-events.lots-loading": "Chargement Des Lots...",
   "stock-events.new-lot-code": "Code Du Nouveau Lot",
   "stock-events.no-destinations-description": "Aucune destination n’est configurée pour ce programme. Contactez un administrateur.",
   "stock-events.no-destinations-title": "Aucune Destination Configurée",

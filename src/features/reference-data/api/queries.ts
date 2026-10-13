@@ -15,6 +15,7 @@ import {
   fetchLotsByTradeItems,
   fetchMinimalFacilities,
   fetchOrderableDisplayCategories,
+  fetchOrderableFulfills,
   fetchOrderables,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
@@ -171,6 +172,13 @@ export const approvedProductsOptions = (filter: ApprovedProductsFilter) =>
   queryOptions({
     queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'facility', filter] as const,
     queryFn: () => fetchApprovedProducts(filter),
+  });
+
+export const orderableFulfillsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.orderables.all, 'fulfills', { ids: ids.toSorted() }] as const,
+    queryFn: () => fetchOrderableFulfills(ids),
+    staleTime: LOOKUP_STALE_TIME,
   });
 
 export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) =>

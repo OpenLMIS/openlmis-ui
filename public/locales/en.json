@@ -1200,6 +1200,7 @@
   "stock-events.lot-expiry-past": "Lot expiration date should be a future date.",
   "stock-events.lots-error-description": "Try again to load the lots of this product.",
   "stock-events.lots-error-title": "Could Not Load Lots",
+  "stock-events.lots-loading": "Loading Lots...",
   "stock-events.new-lot-code": "New Lot Code",
   "stock-events.no-destinations-description": "No destinations are set up for this program. Contact an administrator.",
   "stock-events.no-destinations-title": "No Destinations Configured",

@@ -1200,6 +1200,7 @@
   "stock-events.lot-expiry-past": "يجب أن يكون تاريخ انتهاء صلاحية التشغيلة تاريخًا مستقبليًا.",
   "stock-events.lots-error-description": "حاول مرة أخرى لتحميل تشغيلات هذا المنتج.",
   "stock-events.lots-error-title": "تعذر تحميل التشغيلات",
+  "stock-events.lots-loading": "جارٍ تحميل التشغيلات...",
   "stock-events.new-lot-code": "رمز التشغيلة الجديدة",
   "stock-events.no-destinations-description": "لم يتم إعداد وجهات لهذا البرنامج. تواصل مع مسؤول النظام.",
   "stock-events.no-destinations-title": "لم يتم إعداد وجهات",

@@ -286,7 +286,7 @@ function ApprovedProductLotPicker({
   ];
   const total = first.data?.totalElements ?? 0;
   const options = approvedProductOptions(approved, fulfils.data, fulfilling.data ?? [], query);
-  const [picked, setPicked] = useState<ApprovedProductOption | null>(null);
+  const [product, setProduct] = useState<ApprovedProductOption | null>(null);
   const [lotValue, setLotValue] = useState<string | null>(null);
   const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });
   const [attempted, setAttempted] = useState(false);
@@ -297,9 +297,8 @@ function ApprovedProductLotPicker({
       : undefined;
   if (sole && !solePicked) {
     setSolePicked(true);
-    setPicked(sole);
+    setProduct(sole);
   }
-  const product = picked;
   const searching = typed.trim() !== query || first.isFetching;
   const loadingMore = next.some((page) => page.isPending || (page.isError && page.isFetching));
   const failedPage = next.find((page) => page.isError && !page.isFetching);
@@ -353,7 +352,7 @@ function ApprovedProductLotPicker({
   }));
 
   const pick = (item: ApprovedProductOption | null) => {
-    setPicked(item);
+    setProduct(item);
     setLotValue(null);
     setAttempted(false);
     setDraft({ lotCode: '', expirationDate: '' });
@@ -488,6 +487,24 @@ function ApprovedProductLotPicker({
           </Combobox>
         </Field>
       </div>
+      {loading && (
+        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+          <p role="status" aria-live="polite" className="sr-only">
+            {t('stock-events.lots-loading')}
+          </p>
+          <Field spacing="tight">
+            <FieldLabel htmlFor={`${id}-lot-loading`}>
+              <FieldLabelText label={t('stock-events.lot-code')} required />
+            </FieldLabel>
+            <Input
+              id={`${id}-lot-loading`}
+              disabled
+              aria-required="true"
+              placeholder={t('stock-events.lots-loading')}
+            />
+          </Field>
+        </div>
+      )}
       {lotOptions.length > 1 && (
         <div className="min-w-0 flex-1 @3xl/main:max-w-md">
           <Field spacing="tight">

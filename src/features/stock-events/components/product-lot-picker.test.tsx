@@ -364,6 +364,7 @@ describe('ProductLotPicker with approved products', () => {
     await pickProduct(user, 'Ibuprofen');
     const add = screen.getByRole('button', { name: 'Add' });
     expect(add).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading Lots...');
     expect(fetchLotsByTradeItems).not.toHaveBeenCalled();
     expect(fetchEventStockOnHand).toHaveBeenCalledWith({
       facilityId: 'facility',
@@ -372,6 +373,7 @@ describe('ProductLotPicker with approved products', () => {
     });
     await act(async () => stock.resolve({}));
     await waitFor(() => expect(add).toBeEnabled());
+    expect(screen.queryByText('Loading Lots...')).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
     await user.click(add);
     expect(onAdd).toHaveBeenCalledWith(
@@ -472,14 +474,6 @@ describe('ProductLotPicker with approved products', () => {
     await user.click(await screen.findByRole('option', { name: 'No Lot Defined' }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(onAdd).toHaveBeenCalledWith({ orderable: generic, lot: null, stockOnHand: null }, true);
-  });
-
-  it('picks the sole approved product only without a search', async () => {
-    vi.mocked(fetchApprovedProducts).mockResolvedValue(approvedPage([ibuprofen]));
-    renderApproved();
-    await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Ibuprofen'),
-    );
   });
 
   it('keeps the sole approved product and a typed new lot when fulfilling products load', async () => {

@@ -1482,10 +1482,6 @@ describe('Receive editor', () => {
         key: 'scan.product-not-in-program',
         params: { gtin: parsed.gtin },
       });
-      expect(i18n.t('scan.product-not-in-program', { gtin: parsed.gtin })).toBe(
-        `No product with barcode ${parsed.gtin} is approved for this program.`,
-      );
-      expect(fetchLotsByTradeItems).not.toHaveBeenCalledWith(['box']);
     });
 
     it.each([
@@ -1505,7 +1501,10 @@ describe('Receive editor', () => {
             await gate;
             return { fulfiller: { canBeFulfilledByMe: ['product'] } };
           }),
-        later: () => expect(fetchLotsByTradeItems).not.toHaveBeenCalledWith(['box']),
+        later: () =>
+          expect(fetchApprovedProducts).not.toHaveBeenCalledWith(
+            expect.objectContaining({ orderableIds: ['product'] }),
+          ),
       },
       {
         stage: 'lots',

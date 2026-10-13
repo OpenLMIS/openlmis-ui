@@ -1,8 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { fetchOrderableFulfills } from '@/features/reference-data/api/api';
 import {
   approvedProductsOptions,
   lotsByTradeItemsOptions,
+  orderableFulfillsOptions,
   orderablesByTradeItemsOptions,
 } from '@/features/reference-data/api/queries';
 import type { Orderable } from '@/features/reference-data/lib/types';
@@ -31,6 +31,8 @@ export async function approvedScanProduct(
     );
     return new Set(page.content.map(({ orderable }) => orderable.id));
   };
+  const lotsRequest = queryClient.fetchQuery(lotsByTradeItemsOptions([tradeItemId]));
+  lotsRequest.catch(() => undefined);
   const orderables = await queryClient.fetchQuery(orderablesByTradeItemsOptions([tradeItemId]));
   if (stale()) return STALE;
   const approved = await approvedAmong(orderables.map(({ id }) => id));
@@ -40,7 +42,9 @@ export async function approvedScanProduct(
     .map((orderable) => ({ orderable, approvedId: orderable.id }));
   const others = orderables.filter(({ id }) => !approved.has(id));
   if (others.length) {
-    const fulfils = await fetchOrderableFulfills(others.map(({ id }) => id));
+    const fulfils = await queryClient.fetchQuery(
+      orderableFulfillsOptions(others.map(({ id }) => id)),
+    );
     if (stale()) return STALE;
     const fulfilled = (id: string) => fulfils[id]?.canBeFulfilledByMe ?? [];
     const approvedFulfilled = await approvedAmong([
@@ -56,7 +60,7 @@ export async function approvedScanProduct(
   if (candidates.length > 1) return { type: 'refuse', reason: 'productAmbiguous' };
   const [candidate] = candidates;
   const [lots, stock] = await Promise.all([
-    queryClient.fetchQuery(lotsByTradeItemsOptions([tradeItemId])),
+    lotsRequest,
     queryClient.fetchQuery(
       eventStockOnHandOptions({ ...filter, orderableIds: [candidate.approvedId] }),
     ),
