@@ -102,9 +102,9 @@ function EditLotForm({
           <form.AppField name="expirationDate">
             {(field) => (
               <field.DateField
-                clearLabel={t('stock-events.clear-expiry-date')}
+                clearLabel={t('stock-events.clear-expiration-date')}
                 earliest={today}
-                label={t('stock-events.expiry-date')}
+                label={t('stock-events.expiration-date')}
                 placeholder={t('stock-events.pick-date')}
               />
             )}
@@ -129,7 +129,7 @@ function EditLotSkeleton({ title }: { title: string }) {
       <FormDialogBody>
         <FieldGroup>
           <FieldSkeleton label={t('stock-events.lot-code')} required />
-          <FieldSkeleton label={t('stock-events.expiry-date')} />
+          <FieldSkeleton label={t('stock-events.expiration-date')} />
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>

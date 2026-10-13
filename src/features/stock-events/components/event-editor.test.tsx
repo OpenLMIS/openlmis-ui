@@ -1408,8 +1408,8 @@ describe('Receive editor', () => {
     await waitFor(() =>
       expect(within(dialog).getByRole('textbox', { name: 'Lot Code' })).toHaveFocus(),
     );
-    await user.click(within(dialog).getByRole('button', { name: /^Expiry Date/ }));
-    const calendar = await screen.findByRole('dialog', { name: /Expiry Date/ });
+    await user.click(within(dialog).getByRole('button', { name: /^Expiration Date/ }));
+    const calendar = await screen.findByRole('dialog', { name: /Expiration Date/ });
     await user.click(within(calendar).getByRole('button', { name: /next month/i }));
     const next = new Date();
     next.setDate(1);
