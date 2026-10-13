@@ -1,13 +1,14 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { Link, useRouter } from '@tanstack/react-router';
-import { AlertTriangleIcon, ChevronLeft, RotateCcwIcon } from 'lucide-react';
+import { HouseIcon, RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NoAccessPage } from '@/components/no-access-page';
 import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
+import { StatusPage } from '@/components/status-page';
 import { Button } from '@/components/ui/button';
 import {
-  Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -35,23 +36,27 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
   const parsedError = error instanceof Error ? error : new Error(String(error));
 
   return (
-    <Empty height="screen">
+    <StatusPage>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <AlertTriangleIcon />
+        <EmptyMedia size="lg" variant="icon">
+          <TriangleAlertIcon />
         </EmptyMedia>
-        <EmptyTitle>
+        <p className="font-medium text-muted-foreground text-xs uppercase tracking-label">
+          {t('error.eyebrow')}
+        </p>
+        <EmptyTitle size="lg">
           <h1>{title ?? t('error.title')}</h1>
         </EmptyTitle>
-        <EmptyDescription>{description ?? t('error.description')}</EmptyDescription>
+        <EmptyDescription size="lg">{description ?? t('error.description')}</EmptyDescription>
       </EmptyHeader>
       {import.meta.env.DEV && (
-        <div className="w-full max-w-xl overflow-hidden border bg-muted text-start">
-          <div className="border-b px-3 py-2">
-            <p className="break-words font-mono font-semibold text-destructive text-xs">
-              {parsedError.name}: {parsedError.message}
-            </p>
-          </div>
+        <div
+          className="w-full max-w-xl overflow-hidden rounded-md border bg-muted text-start"
+          dir="ltr"
+        >
+          <p className="break-words border-b px-3 py-2 font-mono font-semibold text-muted-foreground text-xs">
+            {parsedError.name}: {parsedError.message}
+          </p>
           {parsedError.stack && (
             <pre className="max-h-64 overflow-auto px-3 py-2 font-mono text-2xs text-muted-foreground leading-relaxed">
               {parsedError.stack}
@@ -59,24 +64,20 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
           )}
         </div>
       )}
-      <div className="flex items-center gap-2">
-        <Button onClick={retry} size="sm" variant="secondary">
-          <RotateCcwIcon />
-          {t('error.try-again')}
-        </Button>
-        {back ?? (
-          <Button
-            render={(props) => (
-              <Link {...props} to="/">
-                <ChevronLeft className="rtl:rotate-180" />
-                {t('not-found.back-home')}
-              </Link>
-            )}
-            nativeButton={false}
-            size="sm"
-          />
-        )}
-      </div>
-    </Empty>
+      <EmptyContent>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button onClick={retry} size="lg" variant="outline">
+            <RotateCcwIcon data-icon="inline-start" />
+            {t('error.try-again')}
+          </Button>
+          {back ?? (
+            <Button nativeButton={false} render={<Link to="/home" />} size="lg">
+              <HouseIcon data-icon="inline-start" />
+              {t('not-found.back-home')}
+            </Button>
+          )}
+        </div>
+      </EmptyContent>
+    </StatusPage>
   );
 }

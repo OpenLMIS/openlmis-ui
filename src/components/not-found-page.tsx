@@ -1,35 +1,21 @@
 import { Link, useLocation, useRouter } from '@tanstack/react-router';
 import { ArrowLeftIcon, FileQuestionIcon, HouseIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { AppShell } from '@/components/app-shell';
+import { StatusPage } from '@/components/status-page';
 import { Button } from '@/components/ui/button';
 import {
-  Empty,
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { useLoginData } from '@/features/auth/store/login-data';
 
-/** A signed-in user keeps the sidebar, so the way on is one click away; anyone else sees it alone. */
 export function NotFoundPage() {
-  const signedIn = useLoginData((state) => Boolean(state.accessToken));
-
-  if (!signedIn) {
-    return (
-      <Empty height="screen">
-        <NotFoundContent />
-      </Empty>
-    );
-  }
   return (
-    <AppShell>
-      <Empty>
-        <NotFoundContent />
-      </Empty>
-    </AppShell>
+    <StatusPage>
+      <NotFoundContent />
+    </StatusPage>
   );
 }
 

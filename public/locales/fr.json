@@ -38,6 +38,7 @@
   "discard-changes.title": "Abandonner les modifications non enregistrées ?",
   "error.check-connection": "Vérifiez votre connexion et réessayez.",
   "error.description": "Une erreur inattendue s’est produite. Veuillez réessayer.",
+  "error.eyebrow": "Erreur",
   "error.title": "Une erreur s’est produite",
   "error.try-again": "Réessayer",
   "facilities.actions": "Actions",

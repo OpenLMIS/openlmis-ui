@@ -391,6 +391,11 @@ describe('stock event detail', () => {
     });
     await screen.findByRole('heading', { name: 'stock-event.error-title' });
     const back = screen.getByRole('button', { name: 'stock-event.back' });
+    expect(back).toHaveClass('bg-primary', 'h-9');
+    expect(screen.getByRole('button', { name: 'error.try-again' })).toHaveClass(
+      'border-border',
+      'h-9',
+    );
     const url = new URL((back as HTMLAnchorElement).href);
     expect(url.pathname).toBe('/stock-management/transaction-history');
     expect(Object.fromEntries(url.searchParams)).toEqual({
@@ -414,6 +419,7 @@ describe('stock event detail', () => {
       { onCaughtError },
     );
     const back = await screen.findByRole('button', { name: 'stock-event.back' });
+    expect(back).toHaveClass('border-border', 'h-7');
     const url = new URL((back as HTMLAnchorElement).href);
     expect(url.pathname).toBe('/stock-management/transaction-history');
     expect(Object.fromEntries(url.searchParams)).toEqual({
