@@ -1,4 +1,10 @@
-import { keepPreviousData, useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import type { ParseKeys, TFunction } from 'i18next';
 import { PlusIcon } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
@@ -36,6 +42,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import {
   eventApprovedProductsOptions,
+  eventPickPreloadOptions,
   eventStockCardsOptions,
   eventStockOnHandOptions,
 } from '@/features/stock-events/api/queries';
@@ -294,6 +301,21 @@ function ApprovedProductLotPicker({
   ];
   const total = first.data?.totalElements ?? 0;
   const options = approvedProductOptions(approved, fulfils.data, fulfilling.data ?? [], query);
+  const queryClient = useQueryClient();
+  useQueries({
+    queries: [first, ...next].map((page) => {
+      const ids = new Set(page.data?.content.map(({ orderable }) => orderable.id));
+      return eventPickPreloadOptions(
+        queryClient,
+        filter,
+        options.flatMap((item) =>
+          ids.has(item.approvedId)
+            ? [{ tradeItemId: item.orderable.identifiers?.tradeItem, approvedId: item.approvedId }]
+            : [],
+        ),
+      );
+    }),
+  });
   const [product, setProduct] = useState<ApprovedProductOption | null>(null);
   const [lotValue, setLotValue] = useState<string | null>(null);
   const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });

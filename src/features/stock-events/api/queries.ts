@@ -1,5 +1,9 @@
-import { queryOptions } from '@tanstack/react-query';
-import { approvedProductsOptions } from '@/features/reference-data/api/queries';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
+import { fetchLotsByTradeItems } from '@/features/reference-data/api/api';
+import {
+  approvedProductsOptions,
+  lotsByTradeItemsOptions,
+} from '@/features/reference-data/api/queries';
 import {
   fetchAllStockEventLines,
   fetchEventStockCards,
@@ -15,6 +19,7 @@ import type {
   StockEventsQuery,
 } from '@/features/stock-events/lib/types';
 import { queryKeys } from '@/lib/key-factory';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const eventStockCardsOptions = (filter: EventStockCardsFilter) =>
   queryOptions({
@@ -61,3 +66,43 @@ export const eventApprovedProductsOptions = (
   name: string,
   page: number,
 ) => approvedProductsOptions({ ...filter, name, page, size: APPROVED_PRODUCTS_PAGE_SIZE });
+
+export const eventPickPreloadOptions = (
+  queryClient: QueryClient,
+  filter: EventStockCardsFilter,
+  products: readonly { tradeItemId: string | undefined; approvedId: string }[],
+) => {
+  const tradeItemIds = [
+    ...new Set(products.flatMap(({ tradeItemId }) => (tradeItemId ? [tradeItemId] : []))),
+  ].toSorted();
+  const orderableIds = [...new Set(products.map(({ approvedId }) => approvedId))].toSorted();
+  return queryOptions({
+    queryKey: [
+      ...queryKeys.stockCardSummaries.all,
+      'pick-preload',
+      filter,
+      tradeItemIds,
+      orderableIds,
+    ] as const,
+    queryFn: async () => {
+      const scope = getSessionScope();
+      const [lots, stock] = await Promise.all([
+        tradeItemIds.length ? fetchLotsByTradeItems(tradeItemIds) : [],
+        fetchEventStockOnHand({ ...filter, orderableIds }),
+      ]);
+      assertSessionScope(scope);
+      for (const id of tradeItemIds)
+        queryClient.setQueryData(
+          lotsByTradeItemsOptions([id]).queryKey,
+          lots.filter((lot) => lot.tradeItemId === id),
+        );
+      for (const id of orderableIds)
+        queryClient.setQueryData(
+          eventStockOnHandOptions({ ...filter, orderableIds: [id] }).queryKey,
+          stock,
+        );
+      return orderableIds.length;
+    },
+    enabled: orderableIds.length > 0,
+  });
+};
