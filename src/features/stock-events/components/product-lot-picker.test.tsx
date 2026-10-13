@@ -411,6 +411,7 @@ describe('ProductLotPicker with approved products', () => {
     await pickProduct(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    expect(screen.getByRole('button', { name: 'Expiry Date Pick A Date' })).toBeInTheDocument();
     const code = screen.getByRole('textbox', { name: 'New Lot Code' });
     await user.type(code, '{Enter}');
     expect(code).toHaveAccessibleDescription('This field is required');

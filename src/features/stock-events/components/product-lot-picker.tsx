@@ -580,7 +580,7 @@ function ApprovedProductLotPicker({
                 earliest={today}
                 invalid={!!errors.expirationDate || undefined}
                 onValueChange={(expirationDate) => setDraft({ ...draft, expirationDate })}
-                placeholder={t('stock-events.expiry-date')}
+                placeholder={t('stock-events.pick-date')}
                 value={draft.expirationDate}
               />
               {errors.expirationDate && (

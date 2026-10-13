@@ -1213,6 +1213,7 @@
   "stock-events.no-stock-view-title": "É necessária permissão para ver o stock",
   "stock-events.number-too-large": "Este número é demasiado grande",
   "stock-events.pack-size": "Tamanho da embalagem",
+  "stock-events.pick-date": "Escolher Uma Data",
   "stock-events.positive-number": "Deve introduzir um número positivo",
   "stock-events.product": "Produto",
   "stock-events.product-code": "Código do produto",

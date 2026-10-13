@@ -1213,6 +1213,7 @@
   "stock-events.no-stock-view-title": "يلزم إذن عرض المخزون",
   "stock-events.number-too-large": "هذا العدد كبير جدًا",
   "stock-events.pack-size": "حجم العبوة",
+  "stock-events.pick-date": "اختر تاريخًا",
   "stock-events.positive-number": "يجب إدخال عدد موجب",
   "stock-events.product": "المنتج",
   "stock-events.product-code": "رمز المنتج",

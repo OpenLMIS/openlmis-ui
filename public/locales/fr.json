@@ -1213,6 +1213,7 @@
   "stock-events.no-stock-view-title": "Autorisation de consultation du stock requise",
   "stock-events.number-too-large": "Ce nombre est trop grand",
   "stock-events.pack-size": "Taille du conditionnement",
+  "stock-events.pick-date": "Choisir une date",
   "stock-events.positive-number": "Vous devez saisir un nombre positif",
   "stock-events.product": "Produit",
   "stock-events.product-code": "Code du produit",
