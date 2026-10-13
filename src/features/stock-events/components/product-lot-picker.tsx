@@ -236,6 +236,7 @@ function StockCardLotPicker({
   );
 }
 
+const PICK_STALE_TIME = 60_000;
 const SEARCH_DELAY = 300;
 const SHOW_MORE = 'show-more';
 
@@ -294,6 +295,38 @@ function ApprovedProductLotPicker({
   ];
   const total = first.data?.totalElements ?? 0;
   const options = approvedProductOptions(approved, fulfils.data, fulfilling.data ?? [], query);
+  const pageOf = new Map(
+    [first, ...next].flatMap((page, index) =>
+      (page.data?.content ?? []).map(({ orderable }) => [orderable.id, index] as const),
+    ),
+  );
+  const pageProducts: ApprovedProductOption[][] = [first, ...next].map(() => []);
+  for (const item of options) pageProducts[pageOf.get(item.approvedId) ?? -1]?.push(item);
+  const pageStock = useQueries({
+    queries: [first, ...next].map((page) => {
+      const orderableIds = (page.data?.content ?? []).map(({ orderable }) => orderable.id);
+      return {
+        ...eventStockOnHandOptions({
+          facilityId,
+          programId,
+          orderableIds: orderableIds.toSorted(),
+        }),
+        enabled: orderableIds.length > 0,
+      };
+    }),
+  });
+  const pageLots = useQueries({
+    queries: pageProducts.map((items) => {
+      const tradeItemIds = [
+        ...new Set(items.flatMap((item) => item.orderable.identifiers?.tradeItem ?? [])),
+      ].toSorted();
+      return {
+        ...lotsByTradeItemsOptions(tradeItemIds),
+        enabled: tradeItemIds.length > 0,
+        placeholderData: keepPreviousData,
+      };
+    }),
+  });
   const [product, setProduct] = useState<ApprovedProductOption | null>(null);
   const [lotValue, setLotValue] = useState<string | null>(null);
   const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });
@@ -323,9 +356,15 @@ function ApprovedProductLotPicker({
       : undefined;
 
   const tradeItemId = product?.orderable.identifiers?.tradeItem;
+  const pageIndex = product ? pageOf.get(product.approvedId) : undefined;
+  const pageStockQuery = pageIndex === undefined ? undefined : pageStock[pageIndex];
+  const pageLotsQuery = pageIndex === undefined || !tradeItemId ? undefined : pageLots[pageIndex];
   const lotsQuery = useQuery({
     ...lotsByTradeItemsOptions(tradeItemId ? [tradeItemId] : []),
     enabled: !!tradeItemId,
+    staleTime: PICK_STALE_TIME,
+    initialData: pageLotsQuery?.data?.filter((lot) => lot.tradeItemId === tradeItemId),
+    initialDataUpdatedAt: pageLotsQuery?.dataUpdatedAt,
   });
   const stockQuery = useQuery({
     ...eventStockOnHandOptions({
@@ -334,14 +373,19 @@ function ApprovedProductLotPicker({
       orderableIds: product ? [product.approvedId] : [],
     }),
     enabled: !!product,
+    staleTime: PICK_STALE_TIME,
+    initialData: pageStockQuery?.data,
+    initialDataUpdatedAt: pageStockQuery?.dataUpdatedAt,
   });
-  const lotsFailed = !!tradeItemId && lotsQuery.isError && lotsQuery.data === undefined;
-  const stockFailed = !!product && stockQuery.isError && stockQuery.data === undefined;
+  const lotsData = lotsQuery.data;
+  const stock = stockQuery.data;
+  const lotsFailed = !!tradeItemId && lotsQuery.isError && lotsData === undefined;
+  const stockFailed = !!product && stockQuery.isError && stock === undefined;
   const loading = !!product && ((!!tradeItemId && lotsQuery.isPending) || stockQuery.isPending);
-  const lots = (tradeItemId && lotsQuery.data) || [];
+  const lots = (tradeItemId && lotsData) || [];
   const lotOptions =
-    product && !loading && !lotsFailed && !stockFailed && stockQuery.data
-      ? receiveLotOptions(product, lots, stockQuery.data, canManageLots)
+    product && !loading && !lotsFailed && !stockFailed && stock
+      ? receiveLotOptions(product, lots, stock, canManageLots)
       : [];
   const selectedLot = lotOptions.length === 1 ? lotOptions[0].value : lotValue;
   const pickedLot = lotOptions.find((item) => item.value === selectedLot);

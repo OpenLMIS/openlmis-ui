@@ -380,6 +380,36 @@ describe('ProductLotPicker with approved products', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
   });
 
+  it('preloads lots and stock on hand for the listed products, so a pick is ready at once', async () => {
+    vi.mocked(fetchLotsByTradeItems)
+      .mockResolvedValueOnce([existingLot])
+      .mockReturnValue(new Promise(() => {}));
+    vi.mocked(fetchEventStockOnHand)
+      .mockResolvedValueOnce({ 'aspirin/lot-a': 40 })
+      .mockReturnValue(new Promise(() => {}));
+    const { user, onAdd } = renderApproved();
+    await waitFor(() =>
+      expect(fetchEventStockOnHand).toHaveBeenCalledWith({
+        facilityId: 'facility',
+        programId: 'program',
+        orderableIds: ['aspirin', 'ibuprofen'],
+      }),
+    );
+    expect(fetchLotsByTradeItems).toHaveBeenCalledWith(['trade']);
+    await pickProduct(user, 'Aspirin');
+    await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: /^LOT-A/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onAdd).toHaveBeenCalledWith(
+      { orderable: aspirin, lot: existingLot, stockOnHand: 40 },
+      true,
+    );
+    expect(fetchEventStockOnHand).toHaveBeenCalledTimes(1);
+    expect(fetchLotsByTradeItems).toHaveBeenCalledTimes(1);
+    expect(fetchEventStockOnHand).toHaveBeenCalledTimes(1);
+    expect(fetchLotsByTradeItems).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for the picked product's lots and stock on hand before Add", async () => {
     const lots = deferred<(typeof existingLot)[]>();
     const stock = deferred<Record<string, number>>();
@@ -391,11 +421,10 @@ describe('ProductLotPicker with approved products', () => {
     expect(add).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Loading Lots...');
     expect(screen.queryByRole('textbox', { name: 'Lot Code' })).not.toBeInTheDocument();
-    expect(fetchLotsByTradeItems).not.toHaveBeenCalled();
     expect(fetchEventStockOnHand).toHaveBeenCalledWith({
       facilityId: 'facility',
       programId: 'program',
-      orderableIds: ['ibuprofen'],
+      orderableIds: ['aspirin', 'ibuprofen'],
     });
     await act(async () => stock.resolve({}));
     await waitFor(() => expect(add).toBeEnabled());
@@ -433,7 +462,9 @@ describe('ProductLotPicker with approved products', () => {
   });
 
   it('retries a failed lots load', async () => {
-    vi.mocked(fetchLotsByTradeItems).mockRejectedValueOnce(new Error('Unavailable'));
+    vi.mocked(fetchLotsByTradeItems)
+      .mockRejectedValueOnce(new Error('Unavailable'))
+      .mockRejectedValueOnce(new Error('Unavailable'));
     const { user } = renderApproved();
     await pickProduct(user, 'Aspirin');
     expect(await screen.findByText(en['stock-events.lots-error-title'])).toBeInTheDocument();

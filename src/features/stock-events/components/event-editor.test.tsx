@@ -983,6 +983,38 @@ describe('Issue editor', () => {
       'issue',
     );
 
+  it('marks Issue To on lines added after a failed Submit', async () => {
+    const { user } = issueSetup();
+    await add(user, 'OTHER');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: /^Close$/ }));
+    await add(user, 'OTHER');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: /^Close$/ }));
+    for (const destination of screen.getAllByRole('combobox', { name: /^Issue To,/ }))
+      expect(destination).toHaveAttribute('aria-invalid', 'true');
+    for (const quantity of screen.getAllByRole('textbox', { name: /^Quantity,/ }))
+      expect(quantity).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('marks Issue To and the pager on later pages after a failed Submit', async () => {
+    const { user } = issueSetup();
+    await add(user, 'OTHER');
+    act(() => {
+      for (let index = 0; index < 10; index++)
+        fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    });
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: /^Close$/ }));
+    const page2 = screen.getByRole('button', { name: 'Page 2: Contains Invalid Rows' });
+    await user.click(page2);
+    const destination = await screen.findByRole('combobox', { name: /^Issue To,/ });
+    await waitFor(() => expect(destination).toHaveAttribute('aria-invalid', 'true'));
+    await user.click(screen.getByRole('button', { name: /^Page 1/ }));
+    for (const field of await screen.findAllByRole('combobox', { name: /^Issue To,/ }))
+      await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
+  });
+
   it('leaves Issue To blank, focuses its error, clears comments on change and clears an optional reason', async () => {
     const { user } = issueSetup();
     await add(user, 'OTHER');

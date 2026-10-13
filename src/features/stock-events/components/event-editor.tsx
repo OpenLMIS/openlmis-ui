@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
-import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
+import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +31,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -370,10 +371,14 @@ export function EventEditor({
     },
     [form],
   );
+  const validateAndSubmit = async () => {
+    await form.validate('submit');
+    if (mutation.isCurrent()) await form.handleSubmit();
+  };
   const submit = async () => {
     if (!mutation.isCurrent()) return;
     if (config.contents.type !== 'kit') {
-      void form.handleSubmit();
+      void validateAndSubmit();
       return;
     }
     setRefreshing(true);
@@ -403,7 +408,7 @@ export function EventEditor({
         });
         return;
       }
-      await form.handleSubmit();
+      await validateAndSubmit();
     } catch (error) {
       if (!mutation.isCurrent()) return;
       setFailure({
@@ -614,7 +619,7 @@ export function EventEditor({
               className="flex min-w-0 flex-col gap-4"
               id={config.formId}
               noValidate
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
                 if (lines.length && ready && !submitted && !pending) void submit();
               }}
@@ -782,6 +787,9 @@ export function EventEditor({
       >
         <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
           <AlertDialogHeader>
+            <AlertDialogMedia>
+              <CircleAlertIcon className="text-destructive" />
+            </AlertDialogMedia>
             <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
