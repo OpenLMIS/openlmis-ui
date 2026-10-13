@@ -139,9 +139,18 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
   has no sort, and name and code are separate filters. `lotsByTradeItemsOptions` reads every
   lot of the given trade items. `facilityOrderableFulfillsOptions` maps a facility's products
   to those they can fulfil.
-- Stock event screens choose products through `EventKindConfig.products`: Adjustments and Issue
-  read legacy's v2 stock list and resolve its cards' products and lots through the id lookups
-  above; Receive pages approved products and offers every lot of the picked product's trade item.
+- Stock event screens choose products through `EventKindConfig.products`: Adjustments, Issue and
+  Unpack read legacy's v2 stock list and resolve its cards' products and lots through the id
+  lookups above; Receive pages approved products and offers every lot of the picked product's
+  trade item. Stock-card filters take `(cards, today)`; Unpack keeps expired kit lots.
+- Every event kind sets `columnFit`, `products`, `print` and `newLots`, plus `contents`,
+  `confirmation`, `scanning`, nullable `reasons` and nullable `eventOrigin`. Components read
+  policies, never kind names. Unpack expands fresh kit contents, verifies runtime reason ids
+  against the reasons list, uses simple confirmation and omits origin/signature. Other kinds
+  keep signature confirmation; Issue and Receive retain printing and Receive retains new lots.
+- Picker and editor text comes from kind copy, including `noProducts`. Receive's empty unfiltered
+  list describes approved products; a typed search with no hits keeps No Matching Products.
+  Stock event discard guards pass `pending` during refresh and posting.
 
 ### Internationalization (i18next)
 
@@ -398,8 +407,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
-- Issue, Receive and Unpack hide optional columns by measured fit through `columnFit: 'measured'` because
-  translated inputs make pixel thresholds language dependent. With draft lines but no filter
+- Issue, Receive and Unpack use `columnFit: 'measured'` to hide optional columns by measured fit
+  because translated inputs make pixel thresholds language dependent. With draft lines but no filter
   matches, keep fitted visibility and the last rendered column widths until rows return. Their
   quantity inputs fill their cell while reserving a character-unit minimum based only on their
   translated placeholder, with room for at least five digits; extra digits scroll inside the input.
@@ -523,7 +532,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` divides the wrapper equally while reserving the same content minimum with full input padding |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` uses Input's `full-minimum` mode to divide the wrapper equally while reserving the same content minimum with full input padding |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
@@ -755,8 +764,9 @@ See `.env.example` and [README.md](README.md#environment-variables).
 - Keep `VITE_API_BASE_URL` root-absolute (`/api`), shared with legacy outside the app prefix.
 - `VITE_BASE_PATH` is compiled at build time; follow the base-path rules above.
 - Per-environment settings use `src/lib/runtime-config.ts`, reading `config.json` written
-  at container startup so one image works everywhere. OAuth credentials and the default issue
-  and receive reasons and both kit unpack reason ids fall back to `import.meta.env` for dev; feature flags deliberately do not.
+  at container startup so one image works everywhere. OAuth credentials, default Issue and Receive
+  reasons and both kit unpack reason ids fall back to `import.meta.env` for dev; feature flags
+  deliberately do not.
   Never rely on build-time `import.meta.env` for deployment-varying runtime settings.
 
 ## Skills
