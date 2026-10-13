@@ -1268,7 +1268,7 @@
   "stock-issue.invalid-description": "La sortie contient des champs non valides.",
   "stock-issue.invalid-title": "Sortie non valide",
   "stock-issue.make": "Effectuer Une Sortie",
-  "stock-issue.no-products": "Aucun produit en stock dans ce programme.",
+  "stock-issue.no-products": "Aucun produit avec du stock non périmé dans ce programme.",
   "stock-issue.page-description": "Enregistrez le stock sorti vers une destination pour un des programmes de votre établissement d’attache.",
   "stock-issue.print-error": "Réessayez d’imprimer ce rapport de sortie de stock.",
   "stock-issue.print-error-title": "Impossible D’Imprimer Le Rapport De Sortie De Stock",

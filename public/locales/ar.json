@@ -1268,7 +1268,7 @@
   "stock-issue.invalid-description": "تحتوي عملية الصرف على حقول غير صالحة.",
   "stock-issue.invalid-title": "صرف غير صالح",
   "stock-issue.make": "إجراء صرف",
-  "stock-issue.no-products": "لا توجد منتجات لها مخزون في هذا البرنامج.",
+  "stock-issue.no-products": "لا توجد منتجات لها مخزون غير منتهي الصلاحية في هذا البرنامج.",
   "stock-issue.page-description": "سجّل المخزون المصروف إلى وجهة لأحد برامج منشأتك الرئيسية.",
   "stock-issue.print-error": "حاول طباعة تقرير صرف المخزون مرة أخرى.",
   "stock-issue.print-error-title": "تعذرت طباعة تقرير صرف المخزون",

@@ -1268,7 +1268,7 @@
   "stock-issue.invalid-description": "La salida contiene campos no válidos.",
   "stock-issue.invalid-title": "Salida no válida",
   "stock-issue.make": "Realizar Salida",
-  "stock-issue.no-products": "No hay productos con existencias en este programa.",
+  "stock-issue.no-products": "No hay productos con existencias no caducadas en este programa.",
   "stock-issue.page-description": "Seleccione un programa para registrar la salida de existencias de su establecimiento.",
   "stock-issue.print-error": "Intente de nuevo imprimir este informe de salida de existencias.",
   "stock-issue.print-error-title": "No Se Pudo Imprimir El Informe De Salida De Existencias",

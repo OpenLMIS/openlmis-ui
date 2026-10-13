@@ -1268,7 +1268,7 @@
   "stock-issue.invalid-description": "A saída contém campos inválidos.",
   "stock-issue.invalid-title": "Saída inválida",
   "stock-issue.make": "Fazer Saída",
-  "stock-issue.no-products": "Não há produtos com stock neste programa.",
+  "stock-issue.no-products": "Não há produtos com stock dentro do prazo de validade neste programa.",
   "stock-issue.page-description": "Escolha um programa para registar uma saída de stock da sua unidade de saúde.",
   "stock-issue.print-error": "Tente novamente imprimir este relatório de saída de stock.",
   "stock-issue.print-error-title": "Não Foi Possível Imprimir O Relatório De Saída De Stock",

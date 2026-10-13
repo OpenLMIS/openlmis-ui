@@ -1268,7 +1268,7 @@
   "stock-issue.invalid-description": "The issue has invalid fields.",
   "stock-issue.invalid-title": "Invalid Issue",
   "stock-issue.make": "Make Issue",
-  "stock-issue.no-products": "No products with stock in this program.",
+  "stock-issue.no-products": "No products with unexpired stock in this program.",
   "stock-issue.page-description": "Record stock issued to a destination for one of your home facility's programs.",
   "stock-issue.print-error": "Try again to print this stock issue report.",
   "stock-issue.print-error-title": "Could Not Print Stock Issue Report",
