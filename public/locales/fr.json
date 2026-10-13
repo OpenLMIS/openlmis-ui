@@ -6,6 +6,7 @@
   "auth.logout-error": "Le serveur ne l’a pas confirmé, mais vous êtes déconnecté sur cet appareil.",
   "auth.logout-error-title": "Échec de la déconnexion",
   "breadcrumbs.label": "Fil d’Ariane",
+  "breadcrumbs.show-more": "Afficher les étapes masquées du fil d’Ariane",
   "command.empty": "Aucun résultat trouvé.",
   "command.placeholder": "Rechercher des pages et des actions...",
   "command.search": "Rechercher...",

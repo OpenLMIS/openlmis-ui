@@ -6,6 +6,7 @@
   "auth.logout-error": "لم يؤكد الخادم ذلك، لكن تم تسجيل خروجك على هذا الجهاز.",
   "auth.logout-error-title": "فشل تسجيل الخروج",
   "breadcrumbs.label": "مسار التنقل",
+  "breadcrumbs.show-more": "إظهار المزيد من مسار التنقل",
   "command.empty": "لا توجد نتائج.",
   "command.placeholder": "ابحث في الصفحات والإجراءات...",
   "command.search": "بحث...",

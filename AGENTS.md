@@ -252,6 +252,7 @@ edits, which have no prop for TypeScript to detect:
 
 | File | Required customization |
 |---|---|
+| `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
@@ -370,6 +371,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 
 `Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
+- Keep breadcrumbs on one line: retain Home and the current page, collapse middle crumbs by
+  container width and truncate the current label.
 - A live nav route gets Home / Section / Page; descendants add `staticData.crumbKey`, with
   linked parents. `staticData.crumbParentSearch(search)` carries list search into the last
   linked crumb, retaining filters on reload/shared links.

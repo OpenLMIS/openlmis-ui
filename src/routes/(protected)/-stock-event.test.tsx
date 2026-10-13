@@ -455,7 +455,10 @@ describe('stock event detail', () => {
       ),
     );
     await screen.findByText('DOC-1');
-    const link = screen.getByRole('link', { name: 'nav.stock-management.transaction-history' });
+    await userEvent.click(screen.getByRole('button', { name: 'breadcrumbs.show-more' }));
+    const link = await screen.findByRole('menuitem', {
+      name: 'nav.stock-management.transaction-history',
+    });
     const url = new URL((link as HTMLAnchorElement).href);
     expect(url.pathname).toBe('/stock-management/transaction-history');
     expect(Object.fromEntries(url.searchParams)).toEqual({
