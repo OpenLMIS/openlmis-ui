@@ -441,7 +441,7 @@ export function QuantityField({
                   )}
                   <div>
                     <Input
-                      sizing={sizing}
+                      sizing={sizing === 'minimum' ? 'minimum' : 'full-minimum'}
                       controlSize={layout === 'inline' ? 'sm' : 'default'}
                       aria-describedby={state.describedBy}
                       aria-invalid={state.isInvalid}

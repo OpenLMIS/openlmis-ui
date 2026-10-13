@@ -398,14 +398,15 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
-- Event kinds with `columnFit: 'measured'` (Issue, Receive, Unpack) hide optional columns by measured fit
-  because translated inputs make pixel thresholds language dependent. With draft lines but no
-  filter matches, keep fitted visibility and the last rendered column widths until rows return.
-  Their quantity inputs fill their cell while reserving a character-unit minimum based only on
-  their translated placeholder, with room for at least five digits; extra digits scroll inside
-  the input. Their date column minimum measures all 12 months in the page language. Sizers live
-  once per column in the header. Adjustments (`'thresholds'`) keeps full-width inputs and
-  master's existing column minimums.
+- Issue, Receive and Unpack hide optional columns by measured fit through `columnFit: 'measured'` because
+  translated inputs make pixel thresholds language dependent. With draft lines but no filter
+  matches, keep fitted visibility and the last rendered column widths until rows return. Their
+  quantity inputs fill their cell while reserving a character-unit minimum based only on their
+  translated placeholder, with room for at least five digits; extra digits scroll inside the input.
+  Their date column minimum measures all 12 months in the page language. Sizers live once per
+  column in the header for every stock event layout. Adjustments keeps full-width inputs, with
+  each quantity input reserving its placeholder and at least five digits.
+  Quantity columns scroll sideways when their combined input minimums do not fit.
 
 - Tables draw vertical column dividers by default.
 
@@ -522,7 +523,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` divides the wrapper equally without placeholder minimums |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` divides the wrapper equally while reserving the same content minimum with full input padding |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |

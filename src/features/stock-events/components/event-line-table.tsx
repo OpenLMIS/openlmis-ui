@@ -581,13 +581,14 @@ export function EventLineTable({
                       ]}
                     />
                   )}
-                  {measured && id === 'quantity' && (
+                  {id === 'quantity' && (
                     <div
                       aria-hidden
                       className="invisible flex h-0 w-max items-center gap-1 overflow-hidden"
                       dir="ltr"
                     >
                       <InputSizer
+                        sizing={measured ? 'minimum' : 'full'}
                         placeholder={t(
                           unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
                         )}
@@ -595,7 +596,10 @@ export function EventLineTable({
                       {unit === 'PACKS' && (
                         <>
                           <span className="shrink-0 whitespace-nowrap">( +</span>
-                          <InputSizer placeholder={t('quantity-unit.doses')} />
+                          <InputSizer
+                            sizing={measured ? 'minimum' : 'full'}
+                            placeholder={t('quantity-unit.doses')}
+                          />
                           <span>)</span>
                         </>
                       )}
@@ -619,7 +623,12 @@ export function EventLineTable({
                 </div>
               </>
             ),
-            meta: id === 'actions' ? { className: 'w-10' } : undefined,
+            meta:
+              id === 'actions'
+                ? { className: 'w-10' }
+                : id === 'quantity' && !measured
+                  ? { className: 'w-px' }
+                  : undefined,
             cell: ({ row }) => (
               <LineCell
                 kind={kind}
