@@ -48,6 +48,7 @@ import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines
 import {
   EventLineTable,
   EventLineTableSkeleton,
+  eventFitColumns,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 import {
@@ -256,11 +257,11 @@ export function EventEditor({
   const hideableColumns = eventHideableColumns(kind);
   const fitColumns = useMemo(
     () =>
-      hideableColumns.filter(
+      eventFitColumns(kind).filter(
         ({ id }) =>
           (id !== 'total' || quantityUnit.unit === 'PACKS') && (id !== 'expiry' || hasLots),
       ),
-    [hideableColumns, quantityUnit.unit, hasLots],
+    [kind, quantityUnit.unit, hasLots],
   );
   const fitLineKeys = lines.map((line) => line.key).join(',');
   const hasCounterpartyComments = lines.some((line) =>

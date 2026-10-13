@@ -143,8 +143,8 @@ endpoint, reuse that query and widen its type, as Roles and Reasons do.
   Unpack read legacy's v2 stock list and resolve its cards' products and lots through the id
   lookups above; Receive pages approved products and offers every lot of the picked product's
   trade item. Stock-card filters take `(cards, today)`; Unpack keeps expired kit lots.
-- Every event kind sets `columnFit`, `products`, `print` and `newLots`, plus `contents`,
-  `confirmation`, `scanning`, nullable `reasons` and nullable `eventOrigin`. Components read
+- Every event kind sets `columnFit`, `measuredFitKeep`, `products`, `print` and `newLots`,
+  plus `contents`, `confirmation`, `scanning`, nullable `reasons` and nullable `eventOrigin`. Components read
   policies, never kind names. Unpack expands fresh kit contents, verifies runtime reason ids
   against the reasons list, uses simple confirmation and omits origin/signature. Other kinds
   keep signature confirmation; Issue and Receive retain printing and Receive retains new lots.
@@ -408,7 +408,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 **Responsive tables:**
 
 - Issue, Receive and Unpack use `columnFit: 'measured'` to hide optional columns by measured fit
-  because translated inputs make pixel thresholds language dependent. With draft lines but no filter
+  because translated inputs make pixel thresholds language dependent. `measuredFitKeep` lists
+  columns the fit must keep: Unpack keeps `productCode`; other kinds use `[]`. View can still
+  hide kept columns. Unpack hides Pack Size, Total Quantity and Expiry in that order, then scrolls
+  sideways if the readable columns still do not fit. With draft lines but no filter
   matches, keep fitted visibility and the last rendered column widths until rows return. Their
   quantity inputs fill their cell while reserving a character-unit minimum based only on their
   translated placeholder, with room for at least five digits; extra digits scroll inside the input.

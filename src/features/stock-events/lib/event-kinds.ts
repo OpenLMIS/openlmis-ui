@@ -80,6 +80,7 @@ export type EventKindConfig = {
   scanning: boolean;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
+  measuredFitKeep: readonly ('productCode' | 'packSize' | 'total' | 'expiry')[];
   products: EventProducts;
   print: EventPrintCopy | null;
   counterparty: 'none' | CounterpartySide;
@@ -119,6 +120,7 @@ export const EVENT_KINDS = {
     scanning: true,
     width: 'default',
     columnFit: 'thresholds',
+    measuredFitKeep: [],
     products: { from: 'stock-cards', cardFilter: allEventCards },
     print: null,
     counterparty: 'none',
@@ -156,6 +158,7 @@ export const EVENT_KINDS = {
     scanning: true,
     width: 'wide',
     columnFit: 'measured',
+    measuredFitKeep: [],
     products: { from: 'stock-cards', cardFilter: issuableCards },
     print: {
       title: 'stock-issue.print-title',
@@ -202,6 +205,7 @@ export const EVENT_KINDS = {
     scanning: true,
     width: 'wide',
     columnFit: 'measured',
+    measuredFitKeep: [],
     products: { from: 'approved-products' },
     print: {
       title: 'stock-receive.print-title',
@@ -263,6 +267,7 @@ export const EVENT_KINDS = {
     },
     scanning: false,
     columnFit: 'measured',
+    measuredFitKeep: ['productCode'],
     width: 'default',
     products: { from: 'stock-cards', cardFilter: kitCards },
     print: null,

@@ -75,6 +75,10 @@ export function eventHideableColumns(kind: ConfiguredEventKind) {
     ? MEASURED_HIDEABLE_COLUMNS
     : EVENT_HIDEABLE_COLUMNS;
 }
+export function eventFitColumns(kind: ConfiguredEventKind) {
+  const keep: EventKindConfig['measuredFitKeep'] = EVENT_KINDS[kind].measuredFitKeep;
+  return eventHideableColumns(kind).filter(({ id }) => !keep.includes(id));
+}
 function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterparty']): ParseKeys {
   if (side === 'none') return key;
   if (id === 'destination') return COUNTERPARTY[side].column;
