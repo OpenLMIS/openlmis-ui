@@ -14,6 +14,14 @@ import { getTextDirection } from '@/lib/config';
 const FIRST_STRONG_ISOLATE = '⁨';
 const POP_DIRECTIONAL_ISOLATE = '⁩';
 
+function isolate(value: string) {
+  return `${FIRST_STRONG_ISOLATE}${value}${POP_DIRECTIONAL_ISOLATE}`;
+}
+
+export function formatIsolatedList(values: readonly string[], language: string) {
+  return new Intl.ListFormat(language).format(values.map(isolate));
+}
+
 const namesByMessage = new Map<string, string[]>();
 
 function collect(elements: MessageFormatElement[], plain: Set<string>, formatted: Set<string>) {
@@ -54,10 +62,7 @@ export function isolateValues<T extends Record<string, unknown>>(message: string
     return typeof value === 'string' && value !== '';
   });
   if (names.length === 0) return values;
-  const isolated = names.map((name) => [
-    name,
-    `${FIRST_STRONG_ISOLATE}${values[name]}${POP_DIRECTIONAL_ISOLATE}`,
-  ]);
+  const isolated = names.map((name) => [name, isolate(values[name] as string)]);
   return { ...values, ...Object.fromEntries(isolated) };
 }
 

@@ -90,6 +90,7 @@ import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
+import { formatIsolatedList } from '@/lib/isolate-values';
 import { queryKeys } from '@/lib/key-factory';
 import {
   acknowledgeScanExpiry,
@@ -792,8 +793,9 @@ export function EventEditor({
               <AlertDialogTitle>{t(config.contents.copy.contentsChangedTitle)}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t(config.contents.copy.contentsChangedDescription, {
-                  kits: new Intl.ListFormat(i18n.resolvedLanguage ?? i18n.language).format(
+                  kits: formatIsolatedList(
                     contentsChangedKits,
+                    i18n.resolvedLanguage ?? i18n.language,
                   ),
                 })}
               </AlertDialogDescription>
