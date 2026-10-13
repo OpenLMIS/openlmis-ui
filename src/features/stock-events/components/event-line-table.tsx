@@ -248,11 +248,13 @@ const LineCell = memo(function LineCell({
                 <field.SelectField
                   disabled={disabled}
                   required
-                  items={assignments.map((item) => ({ value: item.id, label: item.name ?? '' }))}
+                  items={[
+                    { value: '', label: t('stock-events.select-option') },
+                    ...assignments.map((item) => ({ value: item.id, label: item.name ?? '' })),
+                  ]}
                   label={label(counterparty.column)}
                   layout="inline"
                   hideErrors
-                  placeholder={t('stock-events.select-option')}
                   size="sm"
                 />
               )}

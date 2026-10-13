@@ -1024,6 +1024,27 @@ describe('Issue editor', () => {
     expect(destination).toHaveTextContent('CHW');
   });
 
+  it('clears a chosen Issue To with its comments and requires it again on Submit', async () => {
+    const { user } = issueSetup();
+    await add(user, 'OTHER');
+    const destination = screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ });
+    await user.click(destination);
+    await user.click(await screen.findByRole('option', { name: 'CHW' }));
+    await user.type(
+      screen.getByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
+      'Courier',
+    );
+    await user.click(destination);
+    await user.click(await screen.findByRole('option', { name: 'Select An Option' }));
+    expect(destination).toHaveTextContent('Select An Option');
+    expect(
+      screen.queryByRole('textbox', { name: /^Destination Comments, Aspirin OTHER/ }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(destination).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('copies the destination comments, filters the destination name and submits its node id', async () => {
     vi.mocked(submitStockEvent).mockResolvedValue('issue-event');
     const { user, onSubmitted } = issueSetup();
