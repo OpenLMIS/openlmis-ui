@@ -1,4 +1,4 @@
-import type { Orderable } from '@/features/reference-data/lib/types';
+import type { Orderable, OrderableChild } from '@/features/reference-data/lib/types';
 
 export type Product = Orderable;
 
@@ -12,9 +12,8 @@ export type ProductDetail = Product & {
   [key: string]: unknown;
 };
 
-export type KitChild = {
+export type KitChild = OrderableChild & {
   orderable: { id: string; [key: string]: unknown };
-  quantity: number | null;
 };
 
 export type ProgramLink = {

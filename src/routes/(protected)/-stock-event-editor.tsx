@@ -25,6 +25,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import {
   facilityOptions,
   facilityOrderableFulfillsOptions,
+  reasonsOptions,
   userProgramsOptions,
   userRecordOptions,
   validReasonsOptions,
@@ -100,9 +101,11 @@ export async function loadStockEventEditor(
       queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
       queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
     }
-    queryClient.prefetchQuery(
-      validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
-    );
+    if (EVENT_KINDS[kind].contents.type === 'kit') queryClient.prefetchQuery(reasonsOptions());
+    if (EVENT_KINDS[kind].reasons !== null)
+      queryClient.prefetchQuery(
+        validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
+      );
   }
   const canManageLots = permissions.rights.has(RIGHTS.lotsManage);
   return { userId, homeFacility, program, canViewStock, canManageLots };
@@ -168,7 +171,7 @@ export function StockEventPending({
         <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
-            <ProductLotPickerSkeleton />
+            <ProductLotPickerSkeleton kind={kind} />
             <DataTableToolbar>
               <fieldset className="w-full @xl/main:w-72" disabled>
                 <DataTableSearch

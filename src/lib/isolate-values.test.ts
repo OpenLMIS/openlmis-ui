@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { IsolatingICU, isolateValues } from '@/lib/isolate-values';
+import { formatIsolatedList, IsolatingICU, isolateValues } from '@/lib/isolate-values';
 
 const isolated = (text: string) => `⁨${text}⁩`;
 
@@ -62,5 +62,13 @@ describe('IsolatingICU', () => {
     const t = await translator('en');
 
     expect(t('title', { product: '2 in 1 Dandruff' })).toBe('Edit 2 in 1 Dandruff');
+  });
+});
+
+describe('formatIsolatedList', () => {
+  it('isolates each Latin name before joining an Arabic list', () => {
+    expect(formatIsolatedList(['Kit Alpha', 'Kit Beta'], 'ar')).toBe(
+      `${isolated('Kit Alpha')} و${isolated('Kit Beta')}`,
+    );
   });
 });

@@ -25,15 +25,18 @@ import {
   fetchOrderableFulfills,
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
+  fetchReasons,
   fetchTradeItemByGtin,
   fetchValidAssignments,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
 import {
+  reasonsOptions,
   validDestinationsOptions,
   validReasonsOptions,
   validSourcesOptions,
 } from '@/features/reference-data/api/queries';
+import type { Orderable } from '@/features/reference-data/lib/types';
 import {
   fetchEventStockCards,
   fetchEventStockOnHand,
@@ -73,6 +76,7 @@ vi.mock('@/hooks/use-barcode-scan', () => ({
   },
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchReasons: vi.fn(),
   fetchTradeItemByGtin: vi.fn(async () => ({ id: 'trade' })),
   fetchValidReasons: vi.fn(),
   fetchValidAssignments: vi.fn(),
@@ -1563,4 +1567,283 @@ describe('Receive editor', () => {
       expect(screen.queryByRole('textbox', { name: /^Quantity/ })).not.toBeInTheDocument();
     });
   });
+});
+
+describe('Unpack editor', () => {
+  const kit: Orderable = {
+    ...card.orderable,
+    description: null,
+    id: 'kit',
+    fullProductName: 'Delivery Kit',
+    children: [
+      { orderable: { id: 'gloves' }, quantity: 2 },
+      { orderable: { id: 'clamps' }, quantity: 5 },
+    ],
+  };
+  const kitReasons = [
+    { ...reason, id: 'unpack', reasonCategory: 'AGGREGATION' },
+    { ...reason, id: 'contents', reasonType: 'CREDIT', reasonCategory: 'AGGREGATION' },
+  ];
+  const ids = { kitUnpackReasonId: 'unpack', unpackedFromKitReasonId: 'contents' };
+  function unpackSetup({
+    configured = true,
+    orderable = kit,
+    configure,
+  }: {
+    configured?: boolean;
+    orderable?: Orderable;
+    configure?: (client: QueryClient) => void;
+  } = {}) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(
+      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+      [{ ...card, orderable }],
+    );
+    queryClient.setQueryData(reasonsOptions().queryKey, kitReasons);
+    configure?.(queryClient);
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([kit]);
+    vi.mocked(submitStockEvent).mockResolvedValue('unpack-event');
+    const onSubmitted = vi.fn();
+    function Page() {
+      const [search, setSearch] = useState<EventSearch>({});
+      return (
+        <I18nextProvider i18n={i18n}>
+          <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
+            <EventEditor
+              kind="unpack"
+              kitUnpackReasonIds={configured ? ids : undefined}
+              canViewStock
+              facilityId="facility"
+              facilityTypeId="type"
+              programId="program"
+              username="ada"
+              search={search}
+              onSearchChange={(update) =>
+                setSearch((old) => ({
+                  ...old,
+                  ...(typeof update === 'function' ? update(old) : update),
+                }))
+              }
+              onSubmitted={onSubmitted}
+            >
+              <h1>Unpack</h1>
+            </EventEditor>
+          </FormMessagesProvider>
+        </I18nextProvider>
+      );
+    }
+    renderPage(<Page />, { queryClient });
+    return { user: userEvent.setup(), queryClient, onSubmitted };
+  }
+  async function addKit(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole('button', { name: 'Add' }));
+    const quantity = await screen.findByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ });
+    await user.type(quantity, '3');
+    return quantity;
+  }
+  const submit = () => screen.getByRole('button', { name: 'Submit' });
+
+  it('labels the picker and product column Kit and omits reasons and destinations with scanning off', async () => {
+    const { user } = unpackSetup();
+    await addKit(user);
+    expect(screen.getByRole('combobox', { name: 'Kit' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Kit' })).toBeInTheDocument();
+    for (const name of ['Reason', 'Reason Comments', 'Issue To'])
+      expect(screen.queryByRole('columnheader', { name })).not.toBeInTheDocument();
+    expect(scanningEnabled).toBe(false);
+    expect(screen.queryByText('Ready To Scan')).not.toBeInTheDocument();
+    expect(fetchValidReasons).not.toHaveBeenCalled();
+    expect(fetchValidAssignments).not.toHaveBeenCalled();
+  });
+
+  it('names the user, counts kit lines and confirms the expanded payload without another read', async () => {
+    const { user, onSubmitted } = unpackSetup();
+    await addKit(user);
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.type(
+      screen.getAllByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ })[0],
+      '2',
+    );
+    await user.click(submit());
+    const dialog = await screen.findByRole('alertdialog', { name: 'Confirm Kit Unpack' });
+    expect(dialog).toHaveTextContent('Do you, ada, wish to confirm the 2 stock unpacking events?');
+    expect(screen.queryByRole('textbox', { name: 'Signature' })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('unpack-event'));
+    expect(fetchOrderablesByIds).toHaveBeenCalledExactlyOnceWith(['kit']);
+    expect(submitStockEvent).toHaveBeenCalledOnce();
+    expect(vi.mocked(submitStockEvent).mock.calls[0][0].lineItems).toHaveLength(6);
+  });
+
+  it('keeps the draft when confirmation is cancelled', async () => {
+    const { user } = unpackSetup();
+    const quantity = await addKit(user);
+    await user.click(submit());
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+    expect(quantity).toHaveValue('3');
+    await waitFor(() => expect(submit()).toHaveFocus());
+    expect(submitStockEvent).not.toHaveBeenCalled();
+  });
+
+  it('disables Add and Submit when the reason settings are missing', async () => {
+    unpackSetup({ configured: false });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Kit Unpack Is Not Set Up');
+    expect(screen.getByRole('alert')).toHaveTextContent('KIT_UNPACK_REASON_ID');
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    expect(submit()).toBeDisabled();
+  });
+
+  it('waits for the reasons list and retries a failed load', async () => {
+    vi.mocked(fetchReasons).mockRejectedValueOnce(httpError(500)).mockResolvedValue(kitReasons);
+    const { user } = unpackSetup({
+      configure: (client) => client.removeQueries({ queryKey: reasonsOptions().queryKey }),
+    });
+    expect(await screen.findByText(en['stock-events.reasons-error-title'])).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    expect(submit()).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    expect(fetchReasons).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops for changed contents, retains the draft and submits the updated contents next time', async () => {
+    const { user } = unpackSetup();
+    const quantity = await addKit(user);
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([
+      { ...kit, children: [{ orderable: { id: 'gloves' }, quantity: 7 }] },
+    ]);
+    await user.click(submit());
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      en['stock-unpack.contents-changed-title'],
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'The contents of \u2068Delivery Kit\u2069 changed since you added them. The lines now use the new contents. Submit again to unpack them.',
+    );
+    expect(submitStockEvent).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(submit()).toHaveFocus());
+    expect(quantity).toHaveValue('3');
+    await user.click(submit());
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
+    expect(vi.mocked(submitStockEvent).mock.calls[0][0].lineItems).toEqual([
+      expect.objectContaining({ orderableId: 'kit', quantity: 3, lotId: 'lot' }),
+      expect.objectContaining({ orderableId: 'gloves', quantity: 21, lotId: null }),
+    ]);
+  });
+
+  it('uses refreshed picker contents for a newly added kit after contents change', async () => {
+    const { user } = unpackSetup();
+    await addKit(user);
+    const freshKit = { ...kit, children: [{ orderable: { id: 'gloves' }, quantity: 7 }] };
+    vi.mocked(fetchOrderablesByIds).mockResolvedValue([freshKit]);
+    vi.mocked(fetchEventStockCards).mockResolvedValue([{ ...card, orderable: freshKit }]);
+    await user.click(submit());
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(fetchEventStockCards).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.type(
+      screen.getAllByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ })[0],
+      '2',
+    );
+    await user.click(submit());
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Confirm Kit Unpack' });
+    await user.click(within(confirmation).getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
+    expect(vi.mocked(submitStockEvent).mock.calls[0][0].lineItems).toHaveLength(4);
+  });
+
+  it('keeps all draft controls pending until a slow kit refresh settles', async () => {
+    const { user } = unpackSetup();
+    await addKit(user);
+    let finish!: (value: (typeof kit)[]) => void;
+    vi.mocked(fetchOrderablesByIds).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await user.click(submit());
+    await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalledOnce());
+    const quantity = screen.getByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ });
+    expect(quantity).toBeDisabled();
+    expect(submit()).toBeDisabled();
+    for (const name of ['Add', 'Clear', /^Date, Delivery Kit/, /^Remove, Delivery Kit/])
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    await user.type(quantity, '9');
+    expect(quantity).toHaveValue('3');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await act(async () => finish([kit]));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Confirm Kit Unpack');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ })).toBeEnabled();
+    expect(submit()).toBeEnabled();
+  });
+
+  it.each(['success', 'failure'] as const)(
+    'ignores a refresh %s after switching users',
+    async (outcome) => {
+      const { user, onSubmitted } = unpackSetup();
+      const quantity = await addKit(user);
+      let finish!: () => void;
+      vi.mocked(fetchOrderablesByIds).mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          finish = () =>
+            outcome === 'success' ? resolve([{ ...kit, children: [] }]) : reject(httpError(500));
+        }),
+      );
+      await user.click(submit());
+      await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalledOnce());
+      act(() => useLoginData.setState({ referenceDataUserId: 'other-user' }));
+      await act(async () => finish());
+      await waitFor(() => expect(submit()).toBeEnabled());
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(quantity).toHaveValue('3');
+      expect(submitStockEvent).not.toHaveBeenCalled();
+      expect(onSubmitted).not.toHaveBeenCalled();
+    },
+  );
+
+  it('refreshes a broken kit before validation so the draft recovers after its count is fixed', async () => {
+    const { user } = unpackSetup({
+      orderable: {
+        ...kit,
+        children: [{ orderable: { id: 'gloves' }, quantity: null }],
+      },
+    });
+    const quantity = await addKit(user);
+    await user.click(submit());
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      en['stock-unpack.contents-changed-title'],
+    );
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(quantity).toHaveValue('3');
+    await user.click(submit());
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
+  });
+
+  it.each([httpError(500, { message: 'Cannot read kits' }), networkError()])(
+    'keeps the draft after a failed refresh',
+    async (error) => {
+      const { user } = unpackSetup();
+      const quantity = await addKit(user);
+      vi.mocked(fetchOrderablesByIds).mockRejectedValueOnce(error);
+      await user.click(submit());
+      const dialog = await screen.findByRole('alertdialog');
+      expect(dialog).toHaveTextContent(
+        error.response ? 'Cannot read kits' : en['stock-unpack.refresh-offline'],
+      );
+      expect(dialog).not.toHaveTextContent(en['stock-events.unknown-outcome-description']);
+      await user.click(screen.getByRole('button', { name: 'Close' }));
+      expect(quantity).toHaveValue('3');
+      expect(submit()).toBeEnabled();
+      expect(submitStockEvent).not.toHaveBeenCalled();
+    },
+  );
 });

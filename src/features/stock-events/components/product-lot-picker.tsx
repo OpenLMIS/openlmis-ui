@@ -40,6 +40,7 @@ import {
   eventStockOnHandOptions,
 } from '@/features/stock-events/api/queries';
 import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
+import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { type NewLotValues, newLotSchema } from '@/features/stock-events/lib/new-lot';
 import {
   ADD_NEW_LOT,
@@ -58,6 +59,7 @@ import { useFlag } from '@/lib/feature-flags';
 import { productSearchStatus } from '@/lib/product-search-status';
 
 type BaseProps = EventStockCardsFilter & {
+  kind: ConfiguredEventKind;
   children?: ReactNode;
   disabled: boolean;
   onAdd: (candidate: EventLineCandidate, productHasLots: boolean) => void;
@@ -105,6 +107,7 @@ function lotItemLabel(
 }
 
 function StockCardLotPicker({
+  kind,
   facilityId,
   programId,
   onAdd,
@@ -114,6 +117,7 @@ function StockCardLotPicker({
 }: BaseProps & { cardFilter: EventCardFilter }) {
   const { t, i18n } = useTranslation();
   const lotLabel = useLotLabel();
+  const copy = EVENT_KINDS[kind].copy;
   const id = useId();
   const { data: cards } = useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
   const products = useMemo(() => eventProductOptions(cardFilter(cards)), [cards, cardFilter]);
@@ -139,7 +143,7 @@ function StockCardLotPicker({
       <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
-            <FieldLabelText label={t('stock-events.product')} required />
+            <FieldLabelText label={t(copy.product)} required />
           </FieldLabel>
           <Combobox
             items={products}
@@ -154,13 +158,15 @@ function StockCardLotPicker({
             <ComboboxInput
               id={`${id}-product`}
               aria-required="true"
-              aria-label={t('stock-events.product')}
+              aria-label={t(copy.product)}
               dir="auto"
-              placeholder={t('stock-events.product')}
+              placeholder={t(copy.product)}
               width="full"
             />
             <ComboboxContent>
-              <ComboboxEmpty>{t('stock-events.no-matches-title')}</ComboboxEmpty>
+              <ComboboxEmpty>
+                {t(products.length === 0 ? copy.noProducts : 'stock-events.no-matches-title')}
+              </ComboboxEmpty>
               <ComboboxList>
                 {(item) => (
                   <ComboboxItem key={item.value} value={item}>
@@ -241,6 +247,7 @@ const isShowMore = (item: ProductItem | null): item is ShowMoreItem => !!item &&
 type NewLotField = keyof NewLotValues;
 
 function ApprovedProductLotPicker({
+  kind,
   facilityId,
   programId,
   onAdd,
@@ -397,7 +404,7 @@ function ApprovedProductLotPicker({
     if (stockFailed) void stockQuery.refetch();
   };
 
-  if (first.data === undefined && first.isPending) return <ProductLotPickerSkeleton />;
+  if (first.data === undefined && first.isPending) return <ProductLotPickerSkeleton kind={kind} />;
   return (
     <PickerPanel
       status={children}
@@ -438,7 +445,7 @@ function ApprovedProductLotPicker({
       <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
-            <FieldLabelText label={t('stock-events.product')} required />
+            <FieldLabelText label={t(EVENT_KINDS[kind].copy.product)} required />
           </FieldLabel>
           <Combobox<ProductItem>
             items={items}
@@ -463,9 +470,9 @@ function ApprovedProductLotPicker({
             <ComboboxInput
               id={`${id}-product`}
               aria-required="true"
-              aria-label={t('stock-events.product')}
+              aria-label={t(EVENT_KINDS[kind].copy.product)}
               dir="auto"
-              placeholder={t('stock-events.product')}
+              placeholder={t(EVENT_KINDS[kind].copy.product)}
               width="full"
             />
             <ComboboxContent>
@@ -479,7 +486,11 @@ function ApprovedProductLotPicker({
                   ? t('lots.searching')
                   : first.isError
                     ? t('stock-events.products-search-error-title')
-                    : t('stock-events.no-matches-title')}
+                    : t(
+                        !typed.trim() && total === 0
+                          ? EVENT_KINDS[kind].copy.noProducts
+                          : 'stock-events.no-matches-title',
+                      )}
               </ComboboxEmpty>
               <ComboboxList>
                 {(item: ProductItem) => (
@@ -634,9 +645,10 @@ function PickerPanel({
   );
 }
 
-export function ProductLotPickerSkeleton() {
+export function ProductLotPickerSkeleton({ kind }: { kind: ConfiguredEventKind }) {
   const { t } = useTranslation();
-  const scanning = useFlag('GS1_SCANNING');
+  const copy = EVENT_KINDS[kind].copy;
+  const scanning = useFlag('GS1_SCANNING') && EVENT_KINDS[kind].scanning;
   return (
     <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
       <p role="status" aria-live="polite" className="sr-only">
@@ -645,14 +657,14 @@ export function ProductLotPickerSkeleton() {
       <div className="min-w-0 flex-1 @3xl/main:max-w-md">
         <Field spacing="tight">
           <FieldLabel>
-            <FieldLabelText label={t('stock-events.product')} required />
+            <FieldLabelText label={t(copy.product)} required />
           </FieldLabel>
           <Combobox disabled>
             <ComboboxInput
               disabled
-              aria-label={t('stock-events.product')}
+              aria-label={t(copy.product)}
               aria-required="true"
-              placeholder={t('stock-events.product')}
+              placeholder={t(copy.product)}
               width="full"
             />
           </Combobox>

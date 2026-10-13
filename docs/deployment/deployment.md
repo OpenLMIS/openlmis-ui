@@ -74,6 +74,22 @@ If it is empty or is not one of those reasons, no reason is preselected and Reas
 `DEFAULT_RECEIVE_REASON_ID` works the same way for new Receive lines and the listed receive
 reasons.
 
+`KIT_UNPACK_REASON_ID` names the reason for taking kits out of stock. It must be a debit reason
+in the Aggregation category and match stockmanagement's `stockmanagement.kit.unpack.reasonId`.
+`UNPACKED_FROM_KIT_REASON_ID` names the reason for adding the products inside those kits to stock.
+It must be a credit reason in the Aggregation category. Keep both settings consistent with the
+reasons used by stockmanagement and the legacy UI.
+
+When either container variable is unset or empty, the container uses the standard migration ids:
+`9b4b653a-f319-4a1b-bb80-8d6b4dd6cc12` for kits and
+`0676fdea-9ba8-4e6d-ae26-bb14f0dcfecd` for their contents. They are written to `config.json` as
+`kitUnpackReasonId` and `unpackedFromKitReasonId`. For local development, use
+`VITE_KIT_UNPACK_REASON_ID` and `VITE_UNPACKED_FROM_KIT_REASON_ID` in `.env`. The app has no built-in
+reason ids: missing or incorrect reasons prevent kit unpacking and show the setting to fix.
+
+Approve a kit's contents for the facility types that unpack it. Otherwise, unpacking can add
+stock that does not appear on Stock On Hand for those facilities.
+
 ## Branding and theme
 
 The app name, logo, colour theme and default appearance come from the reference data service

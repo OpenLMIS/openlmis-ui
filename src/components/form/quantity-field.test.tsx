@@ -75,7 +75,7 @@ describe('QuantityField form wiring', () => {
     expect(screen.getByText('( +')).toBeVisible();
   });
 
-  it('switches units without changing doses and names both pack inputs for their row', async () => {
+  it('switches units without changing doses and names both pack inputs', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     const { rerender } = render(<QuantityForm onSubmit={onSubmit} unit="DOSES" />);

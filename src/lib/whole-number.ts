@@ -1,7 +1,7 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 
-const MAX_WHOLE_NUMBER = 2_147_483_647;
+export const MAX_WHOLE_NUMBER = 2_147_483_647;
 
 const ARABIC_INDIC_ZERO = 0x0660;
 const PERSIAN_ZERO = 0x06f0;

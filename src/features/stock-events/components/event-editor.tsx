@@ -1,5 +1,10 @@
 import { useStore } from '@tanstack/react-form';
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
@@ -30,7 +35,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
-import { tradeItemByGtinOptions, validReasonsOptions } from '@/features/reference-data/api/queries';
+import {
+  orderablesByIdsOptions,
+  reasonsOptions,
+  tradeItemByGtinOptions,
+  validReasonsOptions,
+} from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
@@ -38,6 +48,7 @@ import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines
 import {
   EventLineTable,
   EventLineTableSkeleton,
+  eventFitColumns,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 import {
@@ -45,6 +56,7 @@ import {
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
+import { SubmitConfirmDialog } from '@/features/stock-events/components/submit-confirm-dialog';
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
@@ -60,7 +72,13 @@ import {
   type CounterpartySide,
   counterpartyOptions,
   EVENT_KINDS,
+  type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
+import {
+  type KitUnpackReasonIds,
+  refreshKitContents,
+  unpackReasons,
+} from '@/features/stock-events/lib/kit-unpack';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
 import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
 import {
@@ -76,7 +94,8 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
-import { isRefused } from '@/lib/http';
+import { isOfflineError, isRefused } from '@/lib/http';
+import { formatIsolatedList } from '@/lib/isolate-values';
 import { queryKeys } from '@/lib/key-factory';
 import {
   acknowledgeScanExpiry,
@@ -94,6 +113,7 @@ export type EventSearch = {
 type Props = {
   kind: ConfiguredEventKind;
   defaultReasonId?: string;
+  kitUnpackReasonIds?: KitUnpackReasonIds;
   children: ReactNode;
   facilityId: string;
   facilityTypeId: string;
@@ -111,6 +131,7 @@ const EMPTY_LOOKUP: never[] = [];
 export function EventEditor({
   kind,
   defaultReasonId,
+  kitUnpackReasonIds,
   children,
   facilityId,
   facilityTypeId,
@@ -123,7 +144,7 @@ export function EventEditor({
   onSubmitted,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const config = EVENT_KINDS[kind];
+  const config: EventKindConfig = EVENT_KINDS[kind];
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
   const { products } = config;
@@ -133,14 +154,23 @@ export function EventEditor({
       products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
     [products, today],
   );
+  const needsKitContents = config.contents.type === 'kit';
+  const reasonOptions = needsKitContents
+    ? reasonsOptions()
+    : validReasonsOptions({ program: programId, facilityType: facilityTypeId });
   const reasonsQuery = useQuery({
     ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
-    enabled: canViewStock,
+    enabled: canViewStock && !needsKitContents && config.reasons !== null,
   });
   const reasons = useMemo(
-    () => (reasonsQuery.data ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
+    () => (reasonsQuery.data && config.reasons ? config.reasons(reasonsQuery.data) : EMPTY_LOOKUP),
     [reasonsQuery.data, config],
   );
+  const kitReasonsQuery = useQuery({
+    ...reasonsOptions(),
+    enabled: canViewStock && needsKitContents,
+  });
+  const kitReasons = unpackReasons(kitReasonsQuery.data, kitUnpackReasonIds ?? {});
   const side = config.counterparty;
   const needsCounterparty = side !== 'none';
   const counterpartyQuery = useQuery({
@@ -149,7 +179,8 @@ export function EventEditor({
   });
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
   const ready =
-    reasonsQuery.data !== undefined &&
+    (config.reasons === null || reasonsQuery.data !== undefined) &&
+    (!needsKitContents || kitReasons.ok) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...eventStockCardsOptions({ facilityId, programId }),
@@ -161,18 +192,22 @@ export function EventEditor({
   );
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
   const quantityUnit = useQuantityUnit();
-  const scanning = useFlag('GS1_SCANNING');
+  const scanning = useFlag('GS1_SCANNING') && config.scanning;
   const [submitted, setSubmitted] = useState(false);
-  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [failure, setFailure] = useState<{ unknown: boolean; description: string } | null>(null);
+  const [failure, setFailure] = useState<{
+    title: ParseKeys;
+    description: string;
+  } | null>(null);
   const [unknownOutcome, setUnknownOutcome] = useState(false);
   const [validationOpen, setValidationOpen] = useState(false);
   const alertTarget = useRef<{ name: string; page: number } | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
-  const signing = useRef(false);
-  signing.current = signatureOpen;
+  const confirming = useRef(false);
+  confirming.current = confirmationOpen;
   const lastAdded = useRef<ReturnType<typeof newEventLine> | undefined>(undefined);
   const leaving = useRef(false);
   const posting = useRef(false);
@@ -191,9 +226,11 @@ export function EventEditor({
   const form = useEventForm({
     ...lineOptions,
     onValid: () => {
-      if (form.state.values.lines.length) setSignatureOpen(true);
+      if (mutation.isCurrent() && form.state.values.lines.length) setConfirmationOpen(true);
     },
-    onInvalid: () => showInvalid(),
+    onInvalid: () => {
+      if (mutation.isCurrent()) showInvalid();
+    },
   });
   const showInvalid = () => {
     const issue = schema.safeParse(form.state.values).error?.issues[0];
@@ -220,11 +257,11 @@ export function EventEditor({
   const hideableColumns = eventHideableColumns(kind);
   const fitColumns = useMemo(
     () =>
-      hideableColumns.filter(
+      eventFitColumns(kind).filter(
         ({ id }) =>
           (id !== 'total' || quantityUnit.unit === 'PACKS') && (id !== 'expiry' || hasLots),
       ),
-    [hideableColumns, quantityUnit.unit, hasLots],
+    [kind, quantityUnit.unit, hasLots],
   );
   const fitLineKeys = lines.map((line) => line.key).join(',');
   const hasCounterpartyComments = lines.some((line) =>
@@ -252,9 +289,6 @@ export function EventEditor({
   );
   const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
   if (latestAdded) lastAdded.current = latestAdded;
-  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
-    allowLeave: () => leaving.current,
-  });
   const keyword = search.keyword ?? '';
   const lineKeys = JSON.stringify(lines.map((line) => line.key));
   const language = i18n.language;
@@ -293,7 +327,11 @@ export function EventEditor({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
   });
-  const pending = mutation.isPending;
+  const pending = refreshing || mutation.isPending;
+  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
+    allowLeave: () => leaving.current,
+    pending,
+  });
   const clearFilter = () => onSearchChange({ keyword: undefined, page: undefined }, true);
   useEffect(() => {
     if (!focusField || search.keyword || (search.page ?? 1) !== focusField.page) return;
@@ -332,10 +370,56 @@ export function EventEditor({
     },
     [form],
   );
-  const confirmSubmit = async (signature: string) => {
-    if (posting.current) return;
+  const submit = async () => {
+    if (!mutation.isCurrent()) return;
+    if (config.contents.type !== 'kit') {
+      void form.handleSubmit();
+      return;
+    }
+    setRefreshing(true);
+    try {
+      const currentLines = form.state.values.lines;
+      const kitIds = [...new Set(currentLines.map((line) => line.orderable.id))];
+      const fresh = await queryClient.fetchQuery({
+        ...orderablesByIdsOptions(kitIds),
+        staleTime: 0,
+      });
+      if (!mutation.isCurrent()) return;
+      const refreshed = refreshKitContents(currentLines, fresh);
+      form.setFieldValue('lines', refreshed.lines);
+      if (refreshed.changed.length) {
+        setFailure({
+          title: config.contents.copy.contentsChangedTitle,
+          description: t(config.contents.copy.contentsChangedDescription, {
+            kits: formatIsolatedList(
+              refreshed.changed.map((kit) => kit.fullProductName || kit.productCode),
+              i18n.resolvedLanguage ?? i18n.language,
+            ),
+          }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: eventStockCardsOptions({ facilityId, programId }).queryKey,
+          exact: true,
+        });
+        return;
+      }
+      await form.handleSubmit();
+    } catch (error) {
+      if (!mutation.isCurrent()) return;
+      setFailure({
+        title: config.copy.submitErrorTitle,
+        description: isOfflineError(error)
+          ? t(config.contents.copy.refreshOffline)
+          : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const confirmSubmit = async (signature?: string) => {
+    if (posting.current || !mutation.isCurrent() || (needsKitContents && !kitReasons.ok)) return;
     if (!schema.safeParse(form.state.values).success) {
-      setSignatureOpen(false);
+      setConfirmationOpen(false);
       await form.validate('submit');
       if (!mutation.isCurrent()) return;
       showInvalid();
@@ -351,6 +435,7 @@ export function EventEditor({
       facilityId,
       programId,
       signature,
+      kitReasons: needsKitContents && kitReasons.ok ? kitReasons : undefined,
       lines: form.state.values.lines,
     });
     try {
@@ -361,14 +446,17 @@ export function EventEditor({
       const description = unknown
         ? t('stock-events.unknown-outcome-description')
         : (serverMessage(error) ?? t(config.copy.submitErrorDescription));
-      setFailure({ unknown, description });
+      setFailure({
+        title: unknown ? 'stock-events.unknown-outcome-title' : config.copy.submitErrorTitle,
+        description,
+      });
       setUnknownOutcome(unknown);
-      setSignatureOpen(false);
+      setConfirmationOpen(false);
       posting.current = false;
       return;
     }
     if (!mutation.isCurrent()) return;
-    setSignatureOpen(false);
+    setConfirmationOpen(false);
     leaving.current = true;
     flushSync(() => setSubmitted(true));
     toast.success(t(config.copy.submittedTitle), {
@@ -395,7 +483,7 @@ export function EventEditor({
   ): Promise<ScanMessage | undefined> => {
     if (!ready || submitted || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
-    const stale = () => signal.aborted || signing.current || !mutation.isCurrent();
+    const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
@@ -501,7 +589,7 @@ export function EventEditor({
       ready &&
       !submitted &&
       !pending &&
-      !signatureOpen &&
+      !confirmationOpen &&
       !validationOpen &&
       !failure,
     onScan,
@@ -528,16 +616,17 @@ export function EventEditor({
               noValidate
               onSubmit={(event) => {
                 event.preventDefault();
-                if (lines.length && ready && !submitted && !pending) void form.handleSubmit();
+                if (lines.length && ready && !submitted && !pending) void submit();
               }}
             >
               {canViewStock && (
                 <QueryBoundary
                   resetKey={`${facilityId}/${programId}`}
-                  pendingFallback={<ProductLotPickerSkeleton />}
+                  pendingFallback={<ProductLotPickerSkeleton kind={kind} />}
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
+                    kind={kind}
                     facilityId={facilityId}
                     programId={programId}
                     disabled={pending || submitted || !ready}
@@ -556,6 +645,16 @@ export function EventEditor({
                   description={t('stock-events.unknown-outcome-description')}
                 />
               )}
+              {config.contents.type === 'kit' &&
+                kitReasonsQuery.data !== undefined &&
+                !kitReasons.ok && (
+                  <ErrorAlert
+                    title={t(config.contents.copy.notSetUpTitle)}
+                    description={t(config.contents.copy.notSetUpDescription, {
+                      setting: kitReasons.setting,
+                    })}
+                  />
+                )}
               <DataTableToolbar>
                 <fieldset className="w-full @xl/main:w-72" disabled={pending}>
                   <DataTableSearch
@@ -605,10 +704,10 @@ export function EventEditor({
               ) : (
                 <QueryBoundary
                   resetKey={`${programId}/${facilityTypeId}`}
-                  pendingFallback={tablePending}
                   errorComponent={ReasonsError}
+                  pendingFallback={tablePending}
                 >
-                  <ReasonsReady programId={programId} facilityTypeId={facilityTypeId}>
+                  <ReasonsReady options={reasonOptions}>
                     <StockCardsReady
                       needed={fromCards}
                       facilityId={facilityId}
@@ -670,7 +769,7 @@ export function EventEditor({
       <AlertDialog
         open={validationOpen || !!failure}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !pending) {
             setValidationOpen(false);
             setFailure(null);
           }
@@ -683,25 +782,18 @@ export function EventEditor({
       >
         <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t(
-                failure
-                  ? failure.unknown
-                    ? 'stock-events.unknown-outcome-title'
-                    : config.copy.submitErrorTitle
-                  : config.copy.invalidTitle,
-              )}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <ClearLinesDialog
+        kind={kind}
         open={clearOpen}
         onOpenChange={setClearOpen}
         restoreFocus={() => region.current?.querySelector<HTMLInputElement>('[role="combobox"]')}
@@ -711,13 +803,27 @@ export function EventEditor({
           form.setFieldValue('lines', (current) => current.filter((line) => !keys.has(line.key)));
         }}
       />
-      <SignatureDialog
-        open={signatureOpen}
-        onOpenChange={setSignatureOpen}
-        username={username}
-        pending={pending}
-        onConfirm={confirmSubmit}
-      />
+      {config.confirmation.type === 'signature' ? (
+        <SignatureDialog
+          open={confirmationOpen}
+          onOpenChange={setConfirmationOpen}
+          username={username}
+          pending={pending}
+          onConfirm={confirmSubmit}
+        />
+      ) : (
+        <SubmitConfirmDialog
+          finalFocus={submitButton}
+          open={confirmationOpen}
+          onOpenChange={setConfirmationOpen}
+          username={username}
+          count={lines.length}
+          title={config.confirmation.title}
+          description={config.confirmation.description}
+          pending={pending}
+          onConfirm={() => confirmSubmit()}
+        />
+      )}
       <DiscardChangesDialog {...guard.dialog} description={t('stock-events.discard-description')} />
       <AlertDialog
         open={!!expiryPrompt}
@@ -762,15 +868,13 @@ function StockCardsError({ error, reset }: { error: unknown; reset: () => void }
 }
 
 function ReasonsReady({
-  programId,
-  facilityTypeId,
+  options,
   children,
 }: {
-  programId: string;
-  facilityTypeId: string;
+  options: ReturnType<typeof reasonsOptions> | ReturnType<typeof validReasonsOptions>;
   children: ReactNode;
 }) {
-  useSuspenseQuery(validReasonsOptions({ program: programId, facilityType: facilityTypeId }));
+  useSuspenseQueries({ queries: [options] });
   return children;
 }
 

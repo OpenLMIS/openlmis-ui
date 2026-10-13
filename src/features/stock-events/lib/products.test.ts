@@ -6,6 +6,7 @@ import {
   eventLotOptions,
   eventProductOptions,
   issuableCards,
+  kitCards,
   receiveLotOptions,
 } from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
@@ -187,5 +188,18 @@ describe('receiveLotOptions', () => {
         card: { orderable: orderable('o2', 'Plain'), lot: null, stockOnHand: null },
       },
     ]);
+  });
+});
+
+describe('kitCards', () => {
+  it('keeps only nonzero kit stock, including negative balances and expired lots', () => {
+    const kit = { ...product, children: [{ orderable: { id: 'child' }, quantity: 2 }] };
+    const negative = { ...card('negative', null, -1), orderable: kit };
+    const expired = { ...card('expired', early, 10), orderable: kit };
+    const zero = { ...card('zero', null), orderable: kit };
+    const empty = { ...card('empty', null, 1), orderable: { ...kit, children: [] } };
+    const input = Object.freeze([negative, expired, zero, empty, card('non-kit', null, 1)]);
+    expect(kitCards(input)).toEqual([negative, expired]);
+    expect(kitCards([])).toEqual([]);
   });
 });

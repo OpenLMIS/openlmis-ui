@@ -3,7 +3,7 @@ import type { ValidAssignmentsFilter } from '@/features/reference-data/api/api';
 import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
-import { allEventCards, issuableCards } from '@/features/stock-events/lib/products';
+import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 
 type EventProducts =
@@ -57,17 +57,45 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 }
 
 export type EventKindConfig = {
-  eventOrigin: StockEvent['eventOrigin'];
+  eventOrigin: NonNullable<StockEvent['eventOrigin']> | null;
+  contents:
+    | { type: 'none' }
+    | {
+        type: 'kit';
+        copy: Record<
+          | 'notSetUpTitle'
+          | 'notSetUpDescription'
+          | 'contentsChangedTitle'
+          | 'contentsChangedDescription'
+          | 'refreshOffline'
+          | 'notAKit'
+          | 'contentsInvalid'
+          | 'contentsTooLarge',
+          ParseKeys
+        >;
+      };
+  confirmation:
+    | { type: 'signature' }
+    | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
+  scanning: boolean;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
+  measuredFitKeep: readonly ('productCode' | 'packSize' | 'total' | 'expiry')[];
   products: EventProducts;
   print: EventPrintCopy | null;
   counterparty: 'none' | CounterpartySide;
   reasonRequired: boolean;
-  reasons: (assignments: readonly ValidReasonAssignment[]) => Reason[];
+  reasons: ((assignments: readonly ValidReasonAssignment[]) => Reason[]) | null;
   stockOnHandCap: 'debit-reason' | 'always' | 'never';
   newLots: 'none' | 'manual-and-scan';
   copy: Record<
+    | 'pickerTitle'
+    | 'make'
+    | 'pageDescription'
+    | 'product'
+    | 'noProducts'
+    | 'clearTitle'
+    | 'clearDescription'
     | 'editorTitle'
     | 'editorDescription'
     | 'emptyTitle'
@@ -78,7 +106,7 @@ export type EventKindConfig = {
     | 'submitErrorDescription'
     | 'submittedTitle'
     | 'submittedDescription',
-    string
+    ParseKeys
   >;
   columnChoicesKey: string;
   formId: string;
@@ -87,8 +115,12 @@ export type EventKindConfig = {
 export const EVENT_KINDS = {
   adjustment: {
     eventOrigin: 'ADJUSTMENT',
+    contents: { type: 'none' },
+    confirmation: { type: 'signature' },
+    scanning: true,
     width: 'default',
     columnFit: 'thresholds',
+    measuredFitKeep: [],
     products: { from: 'stock-cards', cardFilter: allEventCards },
     print: null,
     counterparty: 'none',
@@ -98,6 +130,13 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'debit-reason',
     newLots: 'none',
     copy: {
+      pickerTitle: 'stock-adjustment.title',
+      make: 'stock-adjustment.make',
+      pageDescription: 'stock-adjustment.page-description',
+      product: 'stock-events.product',
+      noProducts: 'stock-adjustment.no-products',
+      clearTitle: 'stock-events.clear-title',
+      clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-adjustment.editor-title',
       editorDescription: 'stock-adjustment.editor-description',
       emptyTitle: 'stock-adjustment.empty-title',
@@ -114,8 +153,12 @@ export const EVENT_KINDS = {
   },
   issue: {
     eventOrigin: 'ISSUE',
+    contents: { type: 'none' },
+    confirmation: { type: 'signature' },
+    scanning: true,
     width: 'wide',
     columnFit: 'measured',
+    measuredFitKeep: [],
     products: { from: 'stock-cards', cardFilter: issuableCards },
     print: {
       title: 'stock-issue.print-title',
@@ -134,6 +177,13 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     newLots: 'none',
     copy: {
+      pickerTitle: 'stock-issue.title',
+      make: 'stock-issue.make',
+      pageDescription: 'stock-issue.page-description',
+      product: 'stock-events.product',
+      noProducts: 'stock-issue.no-products',
+      clearTitle: 'stock-events.clear-title',
+      clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-issue.editor-title',
       editorDescription: 'stock-issue.editor-description',
       emptyTitle: 'stock-issue.empty-title',
@@ -150,8 +200,12 @@ export const EVENT_KINDS = {
   },
   receive: {
     eventOrigin: 'RECEIVE',
+    contents: { type: 'none' },
+    confirmation: { type: 'signature' },
+    scanning: true,
     width: 'wide',
     columnFit: 'measured',
+    measuredFitKeep: [],
     products: { from: 'approved-products' },
     print: {
       title: 'stock-receive.print-title',
@@ -170,6 +224,13 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'never',
     newLots: 'manual-and-scan',
     copy: {
+      pickerTitle: 'stock-receive.title',
+      make: 'stock-receive.make',
+      pageDescription: 'stock-receive.page-description',
+      noProducts: 'stock-receive.no-products',
+      product: 'stock-events.product',
+      clearTitle: 'stock-events.clear-title',
+      clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-receive.editor-title',
       editorDescription: 'stock-receive.editor-description',
       emptyTitle: 'stock-receive.empty-title',
@@ -184,7 +245,60 @@ export const EVENT_KINDS = {
     columnChoicesKey: 'receive-columns',
     formId: 'receive-form',
   },
-} as const satisfies Record<'adjustment' | 'issue' | 'receive', EventKindConfig>;
+  unpack: {
+    eventOrigin: null,
+    contents: {
+      type: 'kit',
+      copy: {
+        notSetUpTitle: 'stock-unpack.not-set-up-title',
+        notSetUpDescription: 'stock-unpack.not-set-up-description',
+        contentsChangedTitle: 'stock-unpack.contents-changed-title',
+        contentsChangedDescription: 'stock-unpack.contents-changed-description',
+        refreshOffline: 'stock-unpack.refresh-offline',
+        notAKit: 'stock-unpack.not-a-kit',
+        contentsInvalid: 'stock-unpack.contents-invalid',
+        contentsTooLarge: 'stock-unpack.contents-too-large',
+      },
+    },
+    confirmation: {
+      type: 'confirm',
+      title: 'stock-unpack.confirm-title',
+      description: 'stock-unpack.confirm-description',
+    },
+    scanning: false,
+    columnFit: 'measured',
+    measuredFitKeep: ['productCode'],
+    width: 'default',
+    products: { from: 'stock-cards', cardFilter: kitCards },
+    print: null,
+    newLots: 'none',
+    counterparty: 'none',
+    reasonRequired: false,
+    reasons: null,
+    stockOnHandCap: 'always',
+    copy: {
+      pickerTitle: 'stock-unpack.title',
+      make: 'stock-unpack.make',
+      pageDescription: 'stock-unpack.page-description',
+      editorTitle: 'stock-unpack.editor-title',
+      editorDescription: 'stock-unpack.editor-description',
+      product: 'stock-unpack.kit',
+      noProducts: 'stock-unpack.no-kits',
+      clearTitle: 'stock-unpack.clear-title',
+      clearDescription: 'stock-unpack.clear-description',
+      emptyTitle: 'stock-unpack.empty-title',
+      emptyDescription: 'stock-unpack.empty-description',
+      invalidTitle: 'stock-unpack.invalid-title',
+      invalidDescription: 'stock-unpack.invalid-description',
+      submitErrorTitle: 'stock-unpack.submit-error-title',
+      submitErrorDescription: 'stock-unpack.submit-error-description',
+      submittedTitle: 'stock-unpack.submitted-title',
+      submittedDescription: 'stock-unpack.submitted-description',
+    },
+    columnChoicesKey: 'unpack-columns',
+    formId: 'unpack-form',
+  },
+} as const satisfies Record<'adjustment' | 'issue' | 'receive' | 'unpack', EventKindConfig>;
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 

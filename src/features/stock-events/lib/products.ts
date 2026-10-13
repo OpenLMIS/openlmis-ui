@@ -155,3 +155,7 @@ export function issuableCards(cards: readonly EventStockCard[], today: string): 
 export function productHasLots(cards: readonly EventStockCard[], orderableId: string): boolean {
   return cards.some((card) => card.orderable.id === orderableId && !!card.lot);
 }
+
+export function kitCards(cards: readonly EventStockCard[], _today?: string): EventStockCard[] {
+  return cards.filter((card) => !!card.orderable.children?.length && card.stockOnHand !== 0);
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveColumnVisibility } from '@/components/data-table/responsive-columns';
 import {
   EVENT_HIDEABLE_COLUMNS,
+  eventFitColumns,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 
@@ -44,4 +45,11 @@ it('lets View restore all optional Issue columns on a phone', () => {
   const columns = eventHideableColumns('issue');
   const choices = Object.fromEntries(columns.map(({ id }) => [id, true]));
   expect(resolveColumnVisibility(columns, choices, 341)).toEqual(choices);
+});
+
+it('keeps Product Code out of measured fit only where the kind asks', () => {
+  expect(eventFitColumns('unpack').map(({ id }) => id)).toEqual(['packSize', 'total', 'expiry']);
+  for (const kind of ['issue', 'receive'] as const) {
+    expect(eventFitColumns(kind)).toEqual(eventHideableColumns(kind));
+  }
 });

@@ -32,69 +32,77 @@ beforeEach(() => {
     },
   );
 });
-it('renders only the changed quantity row out of 10 visible rows', async () => {
-  const seeded = Array.from({ length: 10 }, (_, index) =>
-    newEventLine(
-      {
-        stockOnHand: 50,
-        orderable: {
-          id: String(index),
-          productCode: `C${index}`,
-          fullProductName: `Product ${index}`,
-          netContent: 16,
+it.each(['adjustment', 'issue', 'receive', 'unpack'] as const)(
+  'renders only the changed quantity row out of 10 visible %s rows',
+  async (kind) => {
+    const seeded = Array.from({ length: 10 }, (_, index) =>
+      newEventLine(
+        {
+          stockOnHand: 50,
+          orderable: {
+            id: String(index),
+            productCode: `C${index}`,
+            fullProductName: `Product ${index}`,
+            netContent: 16,
+          },
+          lot: null,
         },
-        lot: null,
-      },
-      undefined,
-      '2026-10-08',
-      { kind: 'adjustment', productHasLots: false },
-    ),
-  );
-  const reasons: never[] = [];
-  const onRemove = vi.fn();
-  const onSearchChange = vi.fn();
-  function Fixture() {
-    const form = useEventForm({
-      kind: 'adjustment',
-      reasons,
-      today: '2026-10-08',
-      onValid: vi.fn(),
-      onInvalid: vi.fn(),
-    });
-    useEffect(() => {
-      form.setFieldValue('lines', seeded);
-    }, [form]);
-    const lines = useStore(form.store, (state) => state.values.lines);
-    return (
-      <EventLineTable
-        kind="adjustment"
-        reasonRequired
-        form={form}
-        lines={lines}
-        reasons={reasons}
-        unit="DOSES"
-        today="2026-10-08"
-        disabled={false}
-        onRemove={onRemove}
-        search={{ size: 10 }}
-        onSearchChange={onSearchChange}
-        columnVisibility={{}}
-        onClearFilter={vi.fn()}
-      />
+        undefined,
+        '2026-10-08',
+        { kind, productHasLots: false },
+      ),
     );
-  }
-  renderPage(<Fixture />);
-  await waitFor(() =>
-    expect(document.querySelector('[name="lines[0].quantity.doses"]')).toBeInTheDocument(),
-  );
-  renders.mockClear();
-  fireEvent.change(document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement, {
-    target: { value: '2' },
-  });
-  expect(renders).toHaveBeenCalled();
-  expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(new Set(['lines[0].quantity']));
-  expect(screen.getAllByRole('textbox')).toHaveLength(10);
-});
+    const reasons: never[] = [];
+    const onRemove = vi.fn();
+    const onSearchChange = vi.fn();
+    function Fixture() {
+      const form = useEventForm({
+        kind,
+        reasons,
+        today: '2026-10-08',
+        onValid: vi.fn(),
+        onInvalid: vi.fn(),
+      });
+      useEffect(() => {
+        form.setFieldValue('lines', seeded);
+      }, [form]);
+      const lines = useStore(form.store, (state) => state.values.lines);
+      return (
+        <EventLineTable
+          kind={kind}
+          reasonRequired
+          form={form}
+          lines={lines}
+          reasons={reasons}
+          unit="DOSES"
+          today="2026-10-08"
+          disabled={false}
+          onRemove={onRemove}
+          search={{ size: 10 }}
+          onSearchChange={onSearchChange}
+          columnVisibility={{}}
+          onClearFilter={vi.fn()}
+        />
+      );
+    }
+    renderPage(<Fixture />);
+    await waitFor(() =>
+      expect(document.querySelector('[name="lines[0].quantity.doses"]')).toBeInTheDocument(),
+    );
+    renders.mockClear();
+    fireEvent.change(
+      document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
+      {
+        target: { value: '2' },
+      },
+    );
+    expect(renders).toHaveBeenCalled();
+    expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(
+      new Set(['lines[0].quantity']),
+    );
+    expect(screen.getAllByRole('textbox')).toHaveLength(10);
+  },
+);
 
 it('renders Issue headers with the same label output as Adjustments', async () => {
   function Fixture({ kind }: { kind: 'issue' | 'adjustment' }) {

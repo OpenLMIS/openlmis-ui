@@ -75,6 +75,10 @@ export function eventHideableColumns(kind: ConfiguredEventKind) {
     ? MEASURED_HIDEABLE_COLUMNS
     : EVENT_HIDEABLE_COLUMNS;
 }
+export function eventFitColumns(kind: ConfiguredEventKind) {
+  const keep: EventKindConfig['measuredFitKeep'] = EVENT_KINDS[kind].measuredFitKeep;
+  return eventHideableColumns(kind).filter(({ id }) => !keep.includes(id));
+}
 function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterparty']): ParseKeys {
   if (side === 'none') return key;
   if (id === 'destination') return COUNTERPARTY[side].column;
@@ -549,8 +553,9 @@ export function EventLineTable({
       helper.columns(
         COLUMNS.filter(
           ([id]) =>
-            config.counterparty !== 'none' ||
-            (id !== 'destination' && id !== 'destinationComments'),
+            (config.counterparty !== 'none' ||
+              (id !== 'destination' && id !== 'destinationComments')) &&
+            (config.reasons !== null || (id !== 'reason' && id !== 'comments')),
         ).map(([id, columnKey]) => {
           const key = columnLabel(id, columnKey, config.counterparty);
           return helper.display({
@@ -558,7 +563,9 @@ export function EventLineTable({
             header: () => (
               <>
                 <span className={id === 'actions' ? 'sr-only' : undefined}>
-                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                  <DataTableHeaderLabel>
+                    {t(id === 'product' ? config.copy.product : key)}
+                  </DataTableHeaderLabel>
                 </span>
                 <div aria-hidden className="invisible h-0 overflow-hidden font-normal">
                   {id === 'destination' && (
@@ -578,13 +585,14 @@ export function EventLineTable({
                       ]}
                     />
                   )}
-                  {measured && id === 'quantity' && (
+                  {id === 'quantity' && (
                     <div
                       aria-hidden
                       className="invisible flex h-0 w-max items-center gap-1 overflow-hidden"
                       dir="ltr"
                     >
                       <InputSizer
+                        sizing={measured ? 'minimum' : 'full-minimum'}
                         placeholder={t(
                           unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
                         )}
@@ -592,7 +600,10 @@ export function EventLineTable({
                       {unit === 'PACKS' && (
                         <>
                           <span className="shrink-0 whitespace-nowrap">( +</span>
-                          <InputSizer placeholder={t('quantity-unit.doses')} />
+                          <InputSizer
+                            sizing={measured ? 'minimum' : 'full-minimum'}
+                            placeholder={t('quantity-unit.doses')}
+                          />
                           <span>)</span>
                         </>
                       )}
@@ -616,7 +627,12 @@ export function EventLineTable({
                 </div>
               </>
             ),
-            meta: id === 'actions' ? { className: 'w-10' } : undefined,
+            meta:
+              id === 'actions'
+                ? { className: 'w-10' }
+                : id === 'quantity' && !measured
+                  ? { className: 'w-px' }
+                  : undefined,
             cell: ({ row }) => (
               <LineCell
                 kind={kind}

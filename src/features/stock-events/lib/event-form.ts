@@ -8,6 +8,12 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
+import {
+  contentTotalsTooLarge,
+  expandKitLines,
+  type KitReasons,
+  kitContentsProblem,
+} from '@/features/stock-events/lib/kit-unpack';
 import type {
   EventLot,
   EventStockCard,
@@ -16,7 +22,7 @@ import type {
   StockEventLineItem,
 } from '@/features/stock-events/lib/types';
 import { sameLotCode } from '@/lib/lot-code';
-import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
+import { MAX_WHOLE_NUMBER, toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
   key: z.string(),
@@ -105,6 +111,14 @@ export function eventLinesSchema({
 }: EventSchemaOptions) {
   const byId = new Map(reasons.map((reason) => [reason.id, reason]));
   const config = EVENT_KINDS[kind];
+  const quantitySchema = wholeNumberText(
+    {
+      required: 'stock-events.required',
+      invalid: 'stock-events.positive-number',
+      tooLarge: 'stock-events.number-too-large',
+    },
+    { min: { value: 1, tooSmall: 'stock-events.positive-number' } },
+  );
   const row = lineFields.superRefine((line, context) => {
     const issue = (path: string[], message: string) =>
       context.addIssue({ code: 'custom', path, message });
@@ -120,14 +134,7 @@ export function eventLinesSchema({
         issue(['counterpartyComments'], 'stock-events.comments-not-allowed');
     }
 
-    const quantity = wholeNumberText(
-      {
-        required: 'stock-events.required',
-        invalid: 'stock-events.positive-number',
-        tooLarge: 'stock-events.number-too-large',
-      },
-      { min: { value: 1, tooSmall: 'stock-events.positive-number' } },
-    ).safeParse(line.quantity.doses);
+    const quantity = quantitySchema.safeParse(line.quantity.doses);
     if (!quantity.success) {
       for (const error of quantity.error.issues) issue(['quantity', 'doses'], error.message);
     } else if (
@@ -137,6 +144,20 @@ export function eventLinesSchema({
       toWholeNumber(line.quantity.doses) > line.stockOnHand
     ) {
       issue(['quantity', 'doses'], 'stock-events.quantity-greater-than-stock-on-hand');
+    }
+
+    if (config.contents.type === 'kit') {
+      const problem = kitContentsProblem(line.orderable);
+      if (problem) {
+        issue(
+          ['quantity', 'doses'],
+          problem === 'not-a-kit'
+            ? config.contents.copy.notAKit
+            : config.contents.copy.contentsInvalid,
+        );
+      } else if (quantity.success && expandedQuantityTooLarge(line)) {
+        issue(['quantity', 'doses'], config.contents.copy.contentsTooLarge);
+      }
     }
 
     if (!line.occurredDate.trim()) issue(['occurredDate'], 'stock-events.required');
@@ -154,7 +175,30 @@ export function eventLinesSchema({
     }
     if (line.vvmStatus && !line.useVVM) issue(['vvmStatus'], 'stock-events.vvm-not-allowed');
   });
-  return z.object({ lines: z.array(row) });
+  const lines = z.array(row).superRefine((lines, context) => {
+    if (config.contents.type !== 'kit') return;
+    const contents = lines.map((line) => ({
+      quantity:
+        quantitySchema.safeParse(line.quantity.doses).success && !expandedQuantityTooLarge(line)
+          ? toWholeNumber(line.quantity.doses)
+          : 0,
+      children: kitContentsProblem(line.orderable) ? undefined : line.orderable.children,
+    }));
+    for (const index of contentTotalsTooLarge(contents)) {
+      context.addIssue({
+        code: 'custom',
+        path: [index, 'quantity', 'doses'],
+        message: config.contents.copy.contentsTooLarge,
+      });
+    }
+  });
+  return z.object({ lines });
+}
+
+function expandedQuantityTooLarge(line: EventLine): boolean {
+  return !!line.orderable.children?.some(
+    (child) => toWholeNumber(line.quantity.doses) * (child.quantity ?? 0) > MAX_WHOLE_NUMBER,
+  );
 }
 
 export function changeEventCounterparty(line: EventLine, counterparty: string): EventLine {
@@ -211,7 +255,8 @@ export type EventPayloadOptions = {
   assignments?: readonly ValidAssignment[];
   programId: string;
   facilityId: string;
-  signature: string;
+  signature?: string;
+  kitReasons?: KitReasons;
   lines: readonly EventLine[];
 };
 
@@ -221,27 +266,37 @@ export function eventPayload({
   programId,
   facilityId,
   signature,
+  kitReasons,
   lines,
 }: EventPayloadOptions): StockEvent {
-  const { counterparty, eventOrigin } = EVENT_KINDS[kind];
+  const config = EVENT_KINDS[kind];
+  let lineItems: StockEvent['lineItems'] = lines.map((line) => ({
+    orderableId: line.orderable.id,
+    ...lotFields(line.lot),
+    quantity: toWholeNumber(line.quantity.doses),
+    occurredDate: line.occurredDate,
+    ...(line.reasonId && { reasonId: line.reasonId }),
+    ...counterpartyFields(
+      config.counterparty,
+      assignments.find((item) => item.id === line.counterparty)?.node.id,
+      line.counterpartyComments.trim() ? line.counterpartyComments : undefined,
+    ),
+    ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
+    extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},
+  }));
+  if (config.contents.type === 'kit') {
+    if (!kitReasons) throw new Error('Kit unpack reasons are required');
+    lineItems = expandKitLines(
+      lineItems,
+      lines.map((line) => line.orderable.children),
+      kitReasons,
+    );
+  }
   return {
     programId,
     facilityId,
-    signature,
-    eventOrigin,
-    lineItems: lines.map((line) => ({
-      orderableId: line.orderable.id,
-      ...lotFields(line.lot),
-      quantity: toWholeNumber(line.quantity.doses),
-      occurredDate: line.occurredDate,
-      ...(line.reasonId && { reasonId: line.reasonId }),
-      ...counterpartyFields(
-        counterparty,
-        assignments.find((item) => item.id === line.counterparty)?.node.id,
-        line.counterpartyComments.trim() ? line.counterpartyComments : undefined,
-      ),
-      ...(line.reasonFreeText.trim() && { reasonFreeText: line.reasonFreeText }),
-      extraData: line.vvmStatus ? { vvmStatus: line.vvmStatus } : {},
-    })),
+    ...(config.confirmation.type === 'signature' && signature !== undefined && { signature }),
+    ...(config.eventOrigin !== null && { eventOrigin: config.eventOrigin }),
+    lineItems,
   };
 }
