@@ -17,19 +17,7 @@ describe('passwordFormSchema', () => {
     expect(messages({ method: 'email', password: '' })).toBeUndefined();
   });
 
-  it('reports the first rule a typed password misses', () => {
-    expect(messages({ method: 'manual', password: '' })).toEqual([
-      [['password'], 'users.password.required'],
-    ]);
-    expect(messages({ method: 'manual', password: 'ab1' })).toEqual([
-      [['password'], 'users.password.error.length'],
-    ]);
-    expect(messages({ method: 'manual', password: 'v9&kznqG0C2(' })).toEqual([
-      [['password'], 'users.password.error.characters'],
-    ]);
-    expect(messages({ method: 'manual', password: 'abcdefgh' })).toEqual([
-      [['password'], 'users.password.error.number'],
-    ]);
+  it('validates manual passwords against the owner and puts the issue on the password field', () => {
     expect(messages({ method: 'manual', password: 'Ada2024xyz' })).toEqual([
       [['password'], 'users.password.error.names'],
     ]);

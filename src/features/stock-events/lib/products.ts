@@ -74,10 +74,14 @@ export function approvedProductOptions(
   };
   const term = search.trim().toLowerCase();
   if (term) {
+    const approvedByFulfiller = new Map<string, string>();
+    for (const [approvedId, { canFulfillForMe = [] }] of Object.entries(fulfils ?? {})) {
+      for (const id of canFulfillForMe) {
+        if (!approvedByFulfiller.has(id)) approvedByFulfiller.set(id, approvedId);
+      }
+    }
     for (const orderable of fulfillingOrderables) {
-      const approvedId = Object.keys(fulfils ?? {}).find((id) =>
-        fulfils?.[id]?.canFulfillForMe?.includes(orderable.id),
-      );
+      const approvedId = approvedByFulfiller.get(orderable.id);
       if (approvedId && orderable.fullProductName?.toLowerCase().includes(term))
         place(orderable, approvedId);
     }

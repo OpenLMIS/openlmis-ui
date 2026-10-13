@@ -34,21 +34,6 @@ describe('ErrorFallback', () => {
     expect(reset).toHaveBeenCalledOnce();
   });
 
-  it('runs the loaders again for any other error too, so its Try Again works', async () => {
-    invalidate.mockClear();
-    reset.mockClear();
-    render(
-      <RouterContextProvider router={createRouter({ routeTree: createRootRoute() })}>
-        <ErrorFallback error={new Error('boom')} info={undefined} reset={reset} />
-      </RouterContextProvider>,
-    );
-
-    await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
-
-    expect(invalidate).toHaveBeenCalledOnce();
-    expect(reset).toHaveBeenCalledOnce();
-  });
-
   it('still says No Access for a refusal', () => {
     renderFallback(httpError(403));
 

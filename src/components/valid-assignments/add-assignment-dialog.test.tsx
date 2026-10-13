@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -67,9 +67,7 @@ beforeEach(() => {
 
 async function pickProgramAndType() {
   const user = userEvent.setup();
-  await user.click(
-    await screen.findByRole('combobox', { name: /valid-assignments.program/ }, { timeout: 10_000 }),
-  );
+  await user.click(await screen.findByRole('combobox', { name: /valid-assignments.program/ }));
   await user.click(await screen.findByRole('option', { name: 'EPI' }));
   await user.click(screen.getByRole('combobox', { name: /valid-assignments.facility-type/ }));
   await user.click(await screen.findByRole('option', { name: 'Health Center' }));
@@ -79,17 +77,15 @@ async function pickProgramAndType() {
 const submit = (user: ReturnType<typeof userEvent.setup>) =>
   user.click(screen.getByRole('button', { name: 'valid-assignments.form.create' }));
 
-describe('AddAssignmentDialog', { timeout: 20_000 }, () => {
+describe('AddAssignmentDialog', () => {
   it('asks for the program, the facility type and the facility before sending anything', async () => {
     renderPage(<AddAssignmentDialog api={api} canPickOrganizations onClose={vi.fn()} open />);
     const user = userEvent.setup();
 
-    await screen.findByRole('combobox', { name: /valid-assignments.program/ }, { timeout: 10_000 });
+    await screen.findByRole('combobox', { name: /valid-assignments.program/ });
     await submit(user);
 
-    expect(
-      await screen.findByText('valid-assignments.form.program-required', {}, { timeout: 5000 }),
-    ).toBeVisible();
+    expect(await screen.findByText('valid-assignments.form.program-required', {})).toBeVisible();
     expect(screen.getByText('valid-assignments.form.facility-type-required')).toBeVisible();
     expect(screen.getByText('valid-assignments.form.facility-required')).toBeVisible();
     expect(create).not.toHaveBeenCalled();
@@ -105,12 +101,10 @@ describe('AddAssignmentDialog', { timeout: 20_000 }, () => {
       screen.getByRole('combobox', { name: /^valid-assignments.facility(?!-)/ }),
       'Comfort',
     );
-    await user.click(
-      await screen.findByRole('option', { name: /Comfort Health Clinic/ }, { timeout: 5000 }),
-    );
+    await user.click(await screen.findByRole('option', { name: /Comfort Health Clinic/ }));
     await submit(user);
 
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled(), { timeout: 5000 });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(create).toHaveBeenCalledWith({
       programId: 'p1',
       facilityTypeId: 't1',
@@ -128,16 +122,12 @@ describe('AddAssignmentDialog', { timeout: 20_000 }, () => {
     const user = await pickProgramAndType();
     await user.click(screen.getByRole('radio', { name: /valid-assignments.organization/ }));
     await user.click(
-      await screen.findByRole(
-        'combobox',
-        { name: /valid-assignments.organization/ },
-        { timeout: 5000 },
-      ),
+      await screen.findByRole('combobox', { name: /valid-assignments.organization/ }),
     );
     await user.click(await screen.findByRole('option', { name: 'NGO' }));
     await submit(user);
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(create).toHaveBeenCalledWith({
         programId: 'p1',
         facilityTypeId: 't1',
@@ -151,7 +141,7 @@ describe('AddAssignmentDialog', { timeout: 20_000 }, () => {
       <AddAssignmentDialog api={api} canPickOrganizations={false} onClose={vi.fn()} open />,
     );
 
-    await screen.findByRole('combobox', { name: /valid-assignments.program/ }, { timeout: 10_000 });
+    await screen.findByRole('combobox', { name: /valid-assignments.program/ });
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
     expect(fetchOrganizations).not.toHaveBeenCalled();
   });
@@ -165,12 +155,10 @@ describe('AddAssignmentDialog', { timeout: 20_000 }, () => {
       screen.getByRole('combobox', { name: /^valid-assignments.facility(?!-)/ }),
       'Comfort',
     );
-    await user.click(
-      await screen.findByRole('option', { name: /Comfort Health Clinic/ }, { timeout: 5000 }),
-    );
+    await user.click(await screen.findByRole('option', { name: /Comfort Health Clinic/ }));
     await submit(user);
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(toast.info).toHaveBeenCalledWith('valid-assignments.form.exists-title', {
         description: 'valid-assignments.form.exists',
       }),
@@ -190,9 +178,7 @@ describe('AddAssignmentDialog', { timeout: 20_000 }, () => {
       screen.getByRole('combobox', { name: /^valid-assignments.facility(?!-)/ }),
       'Comfort',
     );
-    await user.click(
-      await screen.findByRole('option', { name: /Comfort Health Clinic/ }, { timeout: 5000 }),
-    );
+    await user.click(await screen.findByRole('option', { name: /Comfort Health Clinic/ }));
     await submit(user);
 
     expect(await screen.findByText('Program with ID p1 can not be found')).toBeVisible();

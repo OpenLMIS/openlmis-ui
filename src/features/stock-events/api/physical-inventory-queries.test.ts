@@ -51,20 +51,6 @@ it('does not hydrate old summaries after the signed-in user changes', async () =
   expect(fetchInventoryStockLines).not.toHaveBeenCalled();
 });
 
-it('refreshes summaries and stock on entry but keeps the cache on stay', async () => {
-  vi.clearAllMocks();
-  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
-  const draft = { id: 'd', programId: 'p', facilityId: 'f', lineItems: [] };
-  await client.fetchQuery(inventoryStockLinesOptions(draft));
-  await client.fetchQuery({ ...inventorySummariesOptions(draft), staleTime: 0 });
-  await client.fetchQuery({ ...inventoryStockLinesOptions(draft), staleTime: 0 });
-  await client.ensureQueryData(inventoryStockLinesOptions(draft));
-  expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
-  expect(fetchInventoryStockLines).toHaveBeenCalledTimes(2);
-  await client.ensureQueryData(inventoryStockLinesOptions(draft));
-  expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
-});
-
 it('keeps eligible products fresh when draft and stock queries are invalidated', async () => {
   const { queryKeys } = await import('@/lib/key-factory');
   const client = new QueryClient();

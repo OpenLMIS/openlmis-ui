@@ -23,12 +23,21 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 
 type Props = {
+  open?: boolean;
+  onOpenChangeComplete?: (open: boolean) => void;
   line: InventoryLine;
   listed: readonly InventoryStockLine[];
   onClose: () => void;
   onUpdate: (lot: NonNullable<InventoryLine['newLot']>) => void;
 };
-export function InventoryEditLotDialog({ line, listed, onClose, onUpdate }: Props) {
+export function InventoryEditLotDialog({
+  open = true,
+  onOpenChangeComplete,
+  line,
+  listed,
+  onClose,
+  onUpdate,
+}: Props) {
   const { t } = useTranslation();
   const today = toDateValue(new Date());
   const form = useAppForm({
@@ -56,7 +65,8 @@ export function InventoryEditLotDialog({ line, listed, onClose, onUpdate }: Prop
   });
   return (
     <FormDialog
-      open
+      open={open}
+      onOpenChangeComplete={onOpenChangeComplete}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}

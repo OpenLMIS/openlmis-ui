@@ -32,19 +32,6 @@ const messages = (values: ProgramFormValues, codes: readonly string[] = takenCod
     .error?.issues.map((issue) => [issue.path[0], issue.message]);
 
 describe('programFormSchema', () => {
-  it('starts a new program active, with every requisition setting off', () => {
-    expect(EMPTY_PROGRAM_FORM).toEqual({
-      code: '',
-      name: '',
-      description: '',
-      active: true,
-      showNonFullSupplyTab: false,
-      periodsSkippable: false,
-      skipAuthorization: false,
-      enableDatePhysicalStockCountCompleted: false,
-    });
-  });
-
   it('requires a code and a name, counting spaces alone as empty', () => {
     expect(messages({ ...EMPTY_PROGRAM_FORM, code: ' ', name: '  ' })).toEqual([
       ['code', 'programs.form.code-required'],

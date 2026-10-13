@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -64,7 +64,7 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe('DeleteAssignmentsDialog', { timeout: 10_000 }, () => {
+describe('DeleteAssignmentsDialog', () => {
   it("shows the server's reason when it refuses every delete", async () => {
     remove.mockRejectedValue(httpError(403, { message: 'You do not have the right.' }));
     renderPage(<Harness onDeleted={vi.fn()} />);
@@ -81,11 +81,11 @@ describe('DeleteAssignmentsDialog', { timeout: 10_000 }, () => {
 
     await confirmDelete();
 
-    await vi.waitFor(() => expect(onDeleted).toHaveBeenCalledWith(['a', 'b']));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(['a', 'b']));
     expect(toast.success).toHaveBeenCalledWith('valid-assignments.deleted-title', {
       description: 'valid-assignments.deleted',
     });
-    await vi.waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
   it('keeps focus on the list once the button that opened it is gone', async () => {
@@ -94,7 +94,7 @@ describe('DeleteAssignmentsDialog', { timeout: 10_000 }, () => {
 
     await confirmDelete();
 
-    await vi.waitFor(() => expect(screen.getByTestId('list')).toHaveFocus());
+    await waitFor(() => expect(screen.getByTestId('list')).toHaveFocus());
   });
 
   it('reports the rows that could not be deleted apart from the ones that were', async () => {
@@ -106,7 +106,7 @@ describe('DeleteAssignmentsDialog', { timeout: 10_000 }, () => {
 
     await confirmDelete();
 
-    await vi.waitFor(() => expect(onDeleted).toHaveBeenCalledWith(['a']));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(['a']));
     expect(toast.error).toHaveBeenCalledWith('valid-assignments.partly-deleted-title', {
       description: 'valid-assignments.partly-deleted',
     });

@@ -15,12 +15,16 @@ import { canDeactivateInventoryLine } from '@/features/stock-events/lib/physical
 import type { InventoryLine } from '@/features/stock-events/lib/physical-inventory-types';
 
 export function InventoryDeactivateDialog({
+  open = true,
+  onOpenChangeComplete,
   line,
   pending,
   online,
   onClose,
   onConfirm,
 }: {
+  open?: boolean;
+  onOpenChangeComplete?: (open: boolean) => void;
   line: InventoryLine;
   pending: boolean;
   online: boolean;
@@ -30,7 +34,8 @@ export function InventoryDeactivateDialog({
   const { t } = useTranslation();
   return (
     <FormDialog
-      open
+      open={open}
+      onOpenChangeComplete={onOpenChangeComplete}
       closeButton={!pending}
       onOpenChange={(open) => {
         if (!open && !pending) onClose();

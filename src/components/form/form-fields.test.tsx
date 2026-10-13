@@ -1,11 +1,16 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { createInstance } from 'i18next';
+import { I18nextProvider, initReactI18next } from 'react-i18next';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
 import { DatePicker } from '@/components/form/form-fields';
 import { FormMessagesProvider } from '@/components/form/form-messages';
+import { TranslatedFormMessages } from '@/components/translated-form-messages';
+
+afterEach(() => vi.useRealTimers());
 
 const schema = z.object({
   name: z.string().min(1, 'name.required'),
@@ -32,7 +37,15 @@ const rights = [
   { value: 'r3', label: 'Transfer Orders' },
 ];
 
-function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => void }) {
+type FieldName = keyof z.infer<typeof schema>;
+
+function TestForm({
+  fields,
+  onSubmit,
+}: {
+  fields: readonly FieldName[];
+  onSubmit: (value: z.infer<typeof schema>) => void;
+}) {
   const form = useAppForm({
     defaultValues: {
       name: '',
@@ -59,82 +72,110 @@ function TestForm({ onSubmit }: { onSubmit: (value: z.infer<typeof schema>) => v
         form.handleSubmit();
       }}
     >
-      <form.AppField name="name">
-        {(field) => <field.TextField description="As on the ID card" label="Name" required />}
-      </form.AppField>
-      <form.AppField name="facility">
-        {(field) => (
-          <field.ComboboxField
-            clearLabel="Clear Facility"
-            emptyMessage="None found"
-            items={facilities}
-            label="Facility"
-          />
-        )}
-      </form.AppField>
-      <form.AppField name="active">{(field) => <field.SwitchField label="Active" />}</form.AppField>
-      <form.AppField name="method">
-        {(field) => (
-          <field.RadioGroupField
-            label="Method"
-            options={[
-              { value: 'email', label: 'Email' },
-              { value: 'manual', label: 'Manual' },
-              { value: 'post', label: 'Post', disabled: true },
-            ]}
-          />
-        )}
-      </form.AppField>
-      <form.AppField name="secret">
-        {(field) => (
-          <field.PasswordField
-            action={<a href="/forgot">Forgot?</a>}
-            describedBy="secret-rules"
-            hideLabel="Hide"
-            label="Secret"
-            showLabel="Show"
-          />
-        )}
-      </form.AppField>
-      <form.AppField name="notes">{(field) => <field.TextareaField label="Notes" />}</form.AppField>
-      <form.AppField name="rights">
-        {(field) => (
-          <field.MultiComboboxField
-            emptyMessage="None found"
-            items={rights}
-            label="Rights"
-            removeLabel={(label) => `Remove ${label}`}
-          />
-        )}
-      </form.AppField>
-      <form.AppField name="channel">
-        {(field) => (
-          <field.SelectField
-            description="How messages reach you"
-            items={[
-              { value: 'EMAIL', label: 'Email' },
-              { value: 'SMS', label: 'SMS' },
-              { value: 'FAX', label: 'Fax', disabled: true },
-            ]}
-            label="Channel"
-          />
-        )}
-      </form.AppField>
-      <form.AppField name="code">
-        {(field) => <field.TextField dir="ltr" label="Code" />}
-      </form.AppField>
-      <form.AppField name="order">{(field) => <field.NumberField label="Order" />}</form.AppField>
-      <form.AppField name="price">{(field) => <field.DecimalField label="Price" />}</form.AppField>
+      {fields.includes('name') && (
+        <form.AppField name="name">
+          {(field) => <field.TextField description="As on the ID card" label="Name" required />}
+        </form.AppField>
+      )}
+      {fields.includes('facility') && (
+        <form.AppField name="facility">
+          {(field) => (
+            <field.ComboboxField
+              clearLabel="Clear Facility"
+              emptyMessage="None found"
+              items={facilities}
+              label="Facility"
+            />
+          )}
+        </form.AppField>
+      )}
+      {fields.includes('active') && (
+        <form.AppField name="active">
+          {(field) => <field.SwitchField label="Active" />}
+        </form.AppField>
+      )}
+      {fields.includes('method') && (
+        <form.AppField name="method">
+          {(field) => (
+            <field.RadioGroupField
+              label="Method"
+              options={[
+                { value: 'email', label: 'Email' },
+                { value: 'manual', label: 'Manual' },
+                { value: 'post', label: 'Post', disabled: true },
+              ]}
+            />
+          )}
+        </form.AppField>
+      )}
+      {fields.includes('secret') && (
+        <form.AppField name="secret">
+          {(field) => (
+            <field.PasswordField
+              action={<a href="/forgot">Forgot?</a>}
+              describedBy="secret-rules"
+              hideLabel="Hide"
+              label="Secret"
+              showLabel="Show"
+            />
+          )}
+        </form.AppField>
+      )}
+      {fields.includes('notes') && (
+        <form.AppField name="notes">
+          {(field) => <field.TextareaField label="Notes" />}
+        </form.AppField>
+      )}
+      {fields.includes('rights') && (
+        <form.AppField name="rights">
+          {(field) => (
+            <field.MultiComboboxField
+              emptyMessage="None found"
+              items={rights}
+              label="Rights"
+              removeLabel={(label) => `Remove ${label}`}
+            />
+          )}
+        </form.AppField>
+      )}
+      {fields.includes('channel') && (
+        <form.AppField name="channel">
+          {(field) => (
+            <field.SelectField
+              description="How messages reach you"
+              items={[
+                { value: 'EMAIL', label: 'Email' },
+                { value: 'SMS', label: 'SMS' },
+                { value: 'FAX', label: 'Fax', disabled: true },
+              ]}
+              label="Channel"
+            />
+          )}
+        </form.AppField>
+      )}
+      {fields.includes('code') && (
+        <form.AppField name="code">
+          {(field) => <field.TextField dir="ltr" label="Code" />}
+        </form.AppField>
+      )}
+      {fields.includes('order') && (
+        <form.AppField name="order">{(field) => <field.NumberField label="Order" />}</form.AppField>
+      )}
+      {fields.includes('price') && (
+        <form.AppField name="price">
+          {(field) => <field.DecimalField label="Price" />}
+        </form.AppField>
+      )}
       <button type="submit">Save</button>
     </form>
   );
 }
 
-function renderForm() {
+function renderForm(fields: readonly FieldName[]) {
   const onSubmit = vi.fn();
   render(
     <FormMessagesProvider formatError={(message) => `translated:${message}`}>
-      <TestForm onSubmit={onSubmit} />
+      <TestForm fields={fields} onSubmit={onSubmit} />
     </FormMessagesProvider>,
   );
   return { onSubmit };
@@ -143,11 +184,14 @@ function renderForm() {
 describe('form fields', () => {
   it('shows formatted errors after submit and clears them as the field is fixed', async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderForm();
+    const { onSubmit } = renderForm(['name']);
 
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    expect(name).toHaveAccessibleDescription('As on the ID card');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(screen.getByRole('alert')).toHaveTextContent('translated:name.required');
+    expect(name).toHaveAccessibleDescription('As on the ID card translated:name.required');
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveAttribute('aria-invalid', 'true');
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
@@ -157,7 +201,7 @@ describe('form fields', () => {
 
   it('keeps a disabled option from being picked, leaving the others open', async () => {
     const user = userEvent.setup();
-    renderForm();
+    renderForm(['method']);
 
     await user.click(screen.getByRole('radio', { name: 'Post' }));
 
@@ -166,15 +210,10 @@ describe('form fields', () => {
     expect(screen.getByRole('radio', { name: 'Manual' })).not.toHaveAttribute('aria-disabled');
   });
 
-  it('names the radio group by its label', () => {
-    renderForm();
-
-    expect(screen.getByRole('radiogroup', { name: 'Method' })).toBeInTheDocument();
-  });
-
   it('stores the picked item by value, the switched-off setting and the chosen option', async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderForm();
+    const { onSubmit } = renderForm(['name', 'facility', 'active', 'method']);
+    expect(screen.getByRole('radiogroup', { name: 'Method' })).toBeInTheDocument();
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
     await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
@@ -200,7 +239,7 @@ describe('form fields', () => {
 
   it('keeps the values of the picked items and drops one when its chip is removed', async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderForm();
+    const { onSubmit } = renderForm(['name', 'notes', 'rights']);
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
     await user.type(screen.getByLabelText('Notes'), 'Night shift');
@@ -216,7 +255,7 @@ describe('form fields', () => {
 
   it('keeps the picked items when Escape is pressed with the list closed', async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderForm();
+    const { onSubmit } = renderForm(['name', 'facility', 'rights']);
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Ada');
     await user.type(screen.getByRole('combobox', { name: 'Facility' }), 'kankao');
@@ -234,7 +273,7 @@ describe('form fields', () => {
 
   it('reveals the password and names the button for what it will do', async () => {
     const user = userEvent.setup();
-    renderForm();
+    renderForm(['secret']);
     const secret = screen.getByLabelText('Secret');
 
     expect(secret).toHaveAttribute('type', 'password');
@@ -245,7 +284,7 @@ describe('form fields', () => {
   });
 
   it('reaches the action of a stacked field after its input, so Tab goes from label to input', () => {
-    renderForm();
+    renderForm(['secret']);
     const label = screen.getByText('Secret').closest('label') as HTMLElement;
     const input = screen.getByLabelText('Secret');
     const action = screen.getByRole('link', { name: 'Forgot?' });
@@ -256,10 +295,11 @@ describe('form fields', () => {
 
   it('shows the chosen item by its label and stores it by value', async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderForm();
+    const { onSubmit } = renderForm(['name', 'channel']);
 
     const channel = screen.getByRole('combobox', { name: 'Channel' });
     expect(channel).toHaveTextContent('Email');
+    expect(channel).toHaveAccessibleDescription('How messages reach you');
     await user.click(channel);
     expect(await screen.findByRole('option', { name: 'Fax' })).toHaveAttribute(
       'aria-disabled',
@@ -273,12 +313,12 @@ describe('form fields', () => {
   });
 
   it('keeps a code-like value left to right in any language', () => {
-    renderForm();
+    renderForm(['code']);
     expect(screen.getByRole('textbox', { name: 'Code' })).toHaveAttribute('dir', 'ltr');
   });
 
   it('offers a keypad with a decimal mark for a decimal, read left to right', () => {
-    renderForm();
+    renderForm(['price']);
     const price = screen.getByRole('textbox', { name: 'Price' });
 
     expect(price).toHaveAttribute('inputmode', 'decimal');
@@ -287,7 +327,7 @@ describe('form fields', () => {
 
   it('offers a number keypad for a number, read left to right, and keeps it as typed', async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderForm();
+    const { onSubmit } = renderForm(['name', 'order']);
     const order = screen.getByRole('textbox', { name: 'Order' });
 
     expect(order).toHaveAttribute('inputmode', 'numeric');
@@ -298,25 +338,40 @@ describe('form fields', () => {
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ order: '1.5' }));
   });
+});
 
-  it('tells screen readers what a field is for and, after a failed submit, what is wrong', async () => {
-    const user = userEvent.setup();
-    renderForm();
-    const described = (element: HTMLElement) =>
-      (element.getAttribute('aria-describedby') ?? '')
-        .split(' ')
-        .map((id) => document.getElementById(id)?.textContent)
-        .join(' | ');
-
-    const name = screen.getByRole('textbox', { name: 'Name' });
-    expect(described(name)).toBe('As on the ID card');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(described(name)).toBe('As on the ID card | translated:name.required');
-
-    expect(described(screen.getByRole('combobox', { name: 'Channel' }))).toBe(
-      'How messages reach you',
-    );
+it('updates existing validation errors after a language change without losing the draft', async () => {
+  const i18n = createInstance();
+  await i18n.use(initReactI18next).init({
+    lng: 'en',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: {
+      en: { translation: { 'name.required': 'Name Required' } },
+      pt: { translation: { 'name.required': 'Nome Obrigatório' } },
+    },
   });
+  const user = userEvent.setup();
+  render(
+    <I18nextProvider i18n={i18n}>
+      <TranslatedFormMessages>
+        <TestForm fields={['name', 'notes']} onSubmit={vi.fn()} />
+      </TranslatedFormMessages>
+    </I18nextProvider>,
+  );
+  const notes = screen.getByRole('textbox', { name: 'Notes' });
+  await user.type(notes, 'Unsaved note');
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Name Required');
+  const name = screen.getByRole('textbox', { name: 'Name' });
+  expect(name).toHaveAccessibleDescription('As on the ID card Name Required');
+
+  await act(() => i18n.changeLanguage('pt'));
+
+  expect(screen.getByRole('alert')).toHaveTextContent('Nome Obrigatório');
+  expect(name).toHaveAccessibleDescription('As on the ID card Nome Obrigatório');
+  expect(screen.getByRole('textbox', { name: 'Notes' })).toBe(notes);
+  expect(notes).toHaveValue('Unsaved note');
 });
 
 function LayoutForm() {
@@ -489,6 +544,7 @@ const openCalendar = async (user: ReturnType<typeof userEvent.setup>, name: RegE
 
 describe('date field', () => {
   it('names the picker by its label and its day, and stores the picked day as yyyy-MM-dd', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 13), toFake: ['Date'] });
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<DateForm onSubmit={onSubmit} />);
@@ -503,6 +559,17 @@ describe('date field', () => {
     expect(screen.getByRole('button', { name: /^Started/ })).toHaveAccessibleDescription(
       'started.required',
     );
+
+    const startedCalendar = await openCalendar(user, /^Started/);
+    await user.click(
+      await within(startedCalendar).findByRole('button', { name: /October 16th, 2026/ }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      opened: '2026-10-15',
+      kept: '2026-10-01',
+      started: '2026-10-16',
+    });
   });
 
   it('moves through the days by keyboard and picks the one in focus', async () => {
@@ -613,6 +680,7 @@ describe('date picker', () => {
   );
 
   it('is named by its label, then by its date once one is picked', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 13), toFake: ['Date'] });
     const user = userEvent.setup();
     const onValueChange = vi.fn();
     const { rerender } = render(
