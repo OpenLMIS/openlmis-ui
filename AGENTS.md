@@ -403,10 +403,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   matches, keep fitted visibility and the last rendered column widths until rows return. Their
   quantity inputs fill their cell while reserving a character-unit minimum based only on their
   translated placeholder, with room for at least five digits; extra digits scroll inside the input.
-  Their date column minimum measures all 12 months in the page language. Sizers live once per
-  column in the header for every stock event layout. Adjustments keeps full-width inputs, with
-  each quantity input reserving its placeholder and at least five digits.
-  Quantity columns scroll sideways when their combined input minimums do not fit.
+  Their date column minimum measures all 12 months in the page language. Quantity sizers live
+  once in the column header for every stock event layout; VVM and date sizers only serve measured
+  layouts. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
+  and at least five digits. The table scrolls sideways when its column minimums do not fit.
 
 - Tables draw vertical column dividers by default.
 
