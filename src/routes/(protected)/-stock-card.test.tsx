@@ -7,16 +7,26 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -29,6 +39,8 @@ vi.mock('@/lib/open-report', () => ({ openReport: vi.fn(() => ({ deliver, close:
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 
+const CARD_MATCH_ID =
+  '/(protected)/_protected/stock-management/stock-on-hand/$stockCardId/stock-management/stock-on-hand/card1';
 const USER = 'user1';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';
 const FP = 'dce17f2e-af3e-40ad-8e00-3496adef44c3';
@@ -56,7 +68,11 @@ const appQueryClient = () =>
   });
 const path = (extra = '') => `/stock-management/stock-on-hand/card1${extra}`;
 
-function renderRoute(location = path(), queryClient = appQueryClient()) {
+function renderRoute(
+  location = path(),
+  queryClient = appQueryClient(),
+  renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -81,6 +97,7 @@ function renderRoute(location = path(), queryClient = appQueryClient()) {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    renderOptions,
   );
   return { router, queryClient, unmount: view.unmount };
 }
@@ -92,6 +109,7 @@ beforeEach(() => {
   vi.mocked(fetchStockCard).mockResolvedValue(card);
 });
 afterEach(() => {
+  cleanup();
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
@@ -99,7 +117,12 @@ afterEach(() => {
 
 describe('stock card route', () => {
   it.each([true, false])('rechecks the card for a changed user, grant=%s', async (allowed) => {
-    renderRoute();
+    const assertRouteWarning = allowed ? undefined : expectRouteWarning(CARD_MATCH_ID);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
+    renderRoute(path(), undefined, allowed ? {} : { onCaughtError });
     await screen.findByText('Vaccine - each');
     vi.mocked(fetchPermissionStrings).mockResolvedValue(allowed ? grants : []);
     vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 999 });
@@ -109,6 +132,8 @@ describe('stock card route', () => {
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
     expect(fetchPermissionStrings).toHaveBeenCalledWith('other');
     expect(fetchStockCard).toHaveBeenCalledTimes(2);
+    if (!allowed) expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning?.();
   });
 
   it('loads for the new user when the first load fails after a user change', async () => {
@@ -130,8 +155,15 @@ describe('stock card route', () => {
   });
 
   it('returns from Not Found with the same list search as the breadcrumb', async () => {
-    vi.mocked(fetchStockCard).mockRejectedValue(httpError(404));
-    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&productCode=C1&page=7&cardPage=2`));
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const failure = httpError(404);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockCard).mockRejectedValue(failure);
+    renderRoute(
+      path(`?facilityId=${HOME}&programId=${FP}&productCode=C1&page=7&cardPage=2`),
+      undefined,
+      { onCaughtError },
+    );
     const back = await screen.findByRole('button', { name: 'stock-card.back' });
     expect(back).toHaveAttribute(
       'href',
@@ -141,6 +173,8 @@ describe('stock card route', () => {
         })
         .getAttribute('href'),
     );
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('opens an inactive card when the exact facility and program grant exists', async () => {
@@ -151,10 +185,17 @@ describe('stock card route', () => {
   });
 
   it('checks the card pair rather than the facility and program in the return search', async () => {
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     vi.mocked(fetchStockCard).mockResolvedValue({ ...card, program: { ...card.program, id: EM } });
-    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&mode=my`));
+    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&mode=my`), undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
     expect(screen.queryByText('Vaccine - each')).not.toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it.each([
@@ -162,31 +203,53 @@ describe('stock card route', () => {
     { permissions: ['STOCK_CARDS_VIEW'] },
     { permissions: [`STOCK_CARDS_VIEW|another-facility|${FP}`] },
   ])('refuses missing or differently scoped grants: %j', async ({ permissions }) => {
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     vi.mocked(fetchPermissionStrings).mockResolvedValue(permissions);
-    renderRoute();
+    renderRoute(path(), undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
     expect(screen.queryByText('Vaccine - each')).not.toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it.each([400, 404])('shows Not Found for status %i', async (status) => {
-    vi.mocked(fetchStockCard).mockRejectedValue(httpError(status));
-    renderRoute();
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const failure = httpError(status);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockCard).mockRejectedValue(failure);
+    renderRoute(path(), undefined, { onCaughtError });
     expect(await screen.findByText('stock-card.not-found-title')).toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('shows No Access for a server refusal', async () => {
-    vi.mocked(fetchStockCard).mockRejectedValue(httpError(403));
-    renderRoute();
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const failure = httpError(403);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockCard).mockRejectedValue(failure);
+    renderRoute(path(), undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('shows a load failure with retry for other server errors', async () => {
-    vi.mocked(fetchStockCard).mockRejectedValue(httpError(500));
-    renderRoute();
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const failure = httpError(500);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockCard).mockRejectedValue(failure);
+    renderRoute(path(), undefined, { onCaughtError });
     expect(
       await screen.findByRole('heading', { name: 'stock-card.error-title' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'error.try-again' })).toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('starts the card request while permissions are still loading', async () => {
@@ -204,19 +267,26 @@ describe('stock card route', () => {
   });
 
   it('does not reveal a late card after the user changes', async () => {
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     let release = () => {};
     vi.mocked(fetchStockCard).mockReturnValue(
       new Promise((resolve) => {
         release = () => resolve(card);
       }),
     );
-    const { router } = renderRoute();
+    const { router } = renderRoute(path(), undefined, { onCaughtError });
     await waitFor(() => expect(fetchStockCard).toHaveBeenCalled());
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
     await act(async () => release());
     await waitFor(() => expect(router.state.status).toBe('idle'));
     expect(screen.queryByText('Vaccine - each')).not.toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 });
 
@@ -499,17 +569,22 @@ describe('stock card return breadcrumbs', () => {
 
 describe('stock card freshness', () => {
   it('fetches fresh on Try Again after a failed entry with an old cached balance', async () => {
+    const assertRouteWarning = expectRouteWarning(CARD_MATCH_ID);
+    const failure = httpError(500);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
     const queryClient = appQueryClient();
     const first = renderRoute(path(), queryClient);
     await screen.findByText('Vaccine - each');
     first.unmount();
-    vi.mocked(fetchStockCard).mockRejectedValueOnce(httpError(500));
-    renderRoute(path(), queryClient);
+    vi.mocked(fetchStockCard).mockRejectedValueOnce(failure);
+    renderRoute(path(), queryClient, { onCaughtError });
     await screen.findByRole('heading', { name: 'stock-card.error-title' });
     vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 999 });
     await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
     expect(await screen.findByText('999')).toBeInTheDocument();
     expect(fetchStockCard).toHaveBeenCalledTimes(3);
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it.each(['stale', 'invalidated', 'fresh'])('reloads a %s cached card on entry', async (state) => {

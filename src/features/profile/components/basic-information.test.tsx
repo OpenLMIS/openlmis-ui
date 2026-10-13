@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchProfile, saveProfile } from '@/features/profile/api/api';
 import { profileOptions } from '@/features/profile/api/queries';
 import {
@@ -43,6 +43,11 @@ function FromCache() {
   const { data } = useSuspenseQuery(profileOptions('u1'));
   return <BasicInformation onSaved={vi.fn()} profile={data} />;
 }
+
+beforeEach(() => {
+  vi.mocked(saveProfile).mockReset().mockResolvedValue();
+  vi.mocked(fetchProfile).mockReset().mockResolvedValue(profile);
+});
 
 describe('BasicInformation', () => {
   it('refreshes the profile after a save that failed part way, since part of it may be stored', async () => {

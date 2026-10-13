@@ -7,12 +7,22 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ErrorFallback } from '@/components/error-fallback';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { permissionsOptions } from '@/features/auth/api/queries';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchLotsByIds,
@@ -26,6 +36,7 @@ import type { StockCardSummary } from '@/features/stock-on-hand/lib/types';
 import { downloadFile } from '@/lib/download-file';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -85,7 +96,12 @@ const page = (content: StockCardSummary[]) => ({
 const appQueryClient = () =>
   new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } });
 
-function renderRoute(path: string, queryClient = appQueryClient(), pendingMs?: number) {
+function renderRoute(
+  path: string,
+  queryClient = appQueryClient(),
+  pendingMs?: number,
+  renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -104,12 +120,14 @@ function renderRoute(path: string, queryClient = appQueryClient(), pendingMs?: n
     ] as never),
     context: { queryClient },
     defaultPendingMs: pendingMs,
+    defaultErrorComponent: ErrorFallback,
     history: createMemoryHistory({ initialEntries: [path] }),
   } as never) as AnyRouter;
   const view = render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    renderOptions,
   );
   return { router, queryClient, unmount: view.unmount };
 }
@@ -154,6 +172,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
@@ -346,11 +365,20 @@ describe('stock on hand page', () => {
   });
 
   it('keeps the page closed to a user without the right', async () => {
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     vi.mocked(fetchPermissionStrings).mockResolvedValue(['USERS_MANAGE']);
-    const { router } = renderRoute(appliedPath());
+    const matchId = `/(protected)/_protected/stock-management/stock-on-hand/stock-management/stock-on-hand${JSON.stringify({ search: { mode: 'my', programId: FP, facilityId: HOME } })}`;
+    const assertRouteWarning = expectRouteWarning(matchId);
+    const { router } = renderRoute(appliedPath(), undefined, undefined, { onCaughtError });
 
+    expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
     await waitFor(() => expect(router.state.matches.at(-1)?.status).toBe('error'));
     expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('searches the picked facility and program, keeping them in the address', async () => {

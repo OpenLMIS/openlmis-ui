@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
@@ -214,7 +214,10 @@ beforeEach(async () => {
   vi.mocked(fetchFacility).mockResolvedValue(homeFacility);
 });
 
-afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+afterEach(() => {
+  cleanup();
+  useLoginData.setState({ referenceDataUserId: null });
+});
 
 async function pickProduct(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() =>

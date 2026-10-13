@@ -7,7 +7,8 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -159,10 +160,11 @@ it('blocks sign out while saving without allowing discard', async () => {
 });
 
 it('hides an already blocked dialog once leaving is allowed', async () => {
+  const user = userEvent.setup();
   const router = await renderAt(true);
   act(() => void router.navigate({ to: '/profile/roles' }));
   await screen.findByText('asking');
-  fireEvent.click(screen.getByRole('button', { name: 'Allow leaving' }));
+  await user.click(screen.getByRole('button', { name: 'Allow leaving' }));
   expect(guard.dialog.open).toBe(false);
 });
 it('does not ask before unload once leaving is allowed', async () => {

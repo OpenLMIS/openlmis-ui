@@ -23,7 +23,7 @@ describe('useDialogTarget', () => {
     result.current.dialogProps(true).onOpenChange(false);
     expect(onClose).not.toHaveBeenCalled();
 
-    result.current.dialogProps(false).onOpenChange(false);
+    act(() => result.current.dialogProps(false).onOpenChange(false));
     expect(onClose).toHaveBeenCalledOnce();
   });
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -37,7 +37,7 @@ describe('TextDirectionProvider', () => {
     render(<TextDirectionProvider>content</TextDirectionProvider>);
     expect(document.documentElement.dir).toBe('rtl');
 
-    await i18n.changeLanguage('pt');
+    await act(() => i18n.changeLanguage('pt'));
     expect(document.documentElement.dir).toBe('ltr');
     expect(document.documentElement.lang).toBe('pt');
   });

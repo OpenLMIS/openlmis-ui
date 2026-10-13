@@ -37,9 +37,15 @@ const acid = {
   identifiers: { tradeItem: 't1' },
 };
 
-function renderDialog(onClose = vi.fn()) {
+function renderDialog({
+  onClose = vi.fn(),
+  onCaughtError,
+}: {
+  onClose?: () => void;
+  onCaughtError?: (error: unknown) => void;
+} = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  renderPage(<LotFormDialog onClose={onClose} target="l1" />, { queryClient });
+  renderPage(<LotFormDialog onClose={onClose} target="l1" />, { queryClient, onCaughtError });
   return queryClient;
 }
 
@@ -87,7 +93,7 @@ describe('LotFormDialog', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     vi.mocked(updateLot).mockImplementation(async (body) => body);
-    const queryClient = renderDialog(onClose);
+    const queryClient = renderDialog({ onClose });
     const list = lotsListOptions({ page: 0, size: 10, tradeItemIdIgnored: true });
     queryClient.setQueryData(list.queryKey, {
       content: [],
@@ -143,9 +149,12 @@ describe('LotFormDialog', () => {
   });
 
   it('says when the lot no longer exists', async () => {
-    vi.mocked(fetchLot).mockRejectedValue(httpError(404));
-    renderDialog();
+    const missing = httpError(404);
+    const onCaughtError = vi.fn();
+    vi.mocked(fetchLot).mockRejectedValue(missing);
+    renderDialog({ onCaughtError });
 
     expect(await screen.findByText('lots.form.not-found')).toBeInTheDocument();
+    expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([missing]);
   });
 });

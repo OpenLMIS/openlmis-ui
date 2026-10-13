@@ -11,9 +11,11 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
@@ -25,7 +27,8 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 const ada = { referenceDataUserId: 'ada', username: 'ada', accessToken: 'ada-token' };
 const alan = { referenceDataUserId: 'alan', username: 'alan', accessToken: 'alan-token' };
 const loader = vi.fn(async () => {
-  if (useLoginData.getState().referenceDataUserId === 'alan') throw new Error('No Access');
+  if (useLoginData.getState().referenceDataUserId === 'alan')
+    throw new ForbiddenError('USERS_MANAGE');
   return 'saved';
 });
 
@@ -48,7 +51,7 @@ const draft = createRoute({
 });
 const tree = root.addChildren([Route.addChildren([draft])]);
 
-async function openDraft() {
+async function openDraft(onCaughtError?: (error: unknown) => void) {
   const queryClient = new QueryClient();
   const router = createRouter({
     routeTree: tree,
@@ -59,6 +62,7 @@ async function openDraft() {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    { onCaughtError },
   );
   await userEvent.setup().type(await screen.findByLabelText('Draft'), ' changed');
   return router;
@@ -67,7 +71,8 @@ async function openDraft() {
 beforeEach(() => {
   loader.mockReset();
   loader.mockImplementation(async () => {
-    if (useLoginData.getState().referenceDataUserId === 'alan') throw new Error('No Access');
+    if (useLoginData.getState().referenceDataUserId === 'alan')
+      throw new ForbiddenError('USERS_MANAGE');
     return 'saved';
   });
   useLoginData.getState().setLoginData(ada);
@@ -75,12 +80,15 @@ beforeEach(() => {
 
 describe('protected session identity', () => {
   it('drops the old draft while rechecking the next user rights', async () => {
-    await openDraft();
+    const denial = new ForbiddenError('USERS_MANAGE');
+    const onCaughtError = vi.fn();
+    const assertRouteWarning = expectRouteWarning('/(protected)/_protected/draft/draft');
+    await openDraft(onCaughtError);
     let release = () => {};
     loader.mockImplementationOnce(
       () =>
         new Promise((_, reject) => {
-          release = () => reject(new Error('No Access'));
+          release = () => reject(denial);
         }),
     );
     act(() => useLoginData.getState().setLoginData(alan));
@@ -88,6 +96,9 @@ describe('protected session identity', () => {
     expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument();
     await act(async () => release());
     expect(await screen.findByText('No Access')).toBeInTheDocument();
+    expect(onCaughtError.mock.calls.map(([error]) => error)).toEqual([denial]);
+    expect(onCaughtError.mock.calls[0]?.[0]).toBeInstanceOf(ForbiddenError);
+    assertRouteWarning();
   });
 
   it('starts a fresh draft when the next user can open the page', async () => {

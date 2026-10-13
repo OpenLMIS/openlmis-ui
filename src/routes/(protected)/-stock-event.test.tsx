@@ -7,11 +7,20 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatTimestamp } from '@/components/form/date-value';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchStockEvent,
@@ -22,6 +31,7 @@ import type { StockEventLine, StockEventSummary } from '@/features/stock-events/
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history_.$eventId';
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -39,6 +49,10 @@ vi.mock('@/features/reference-data/api/api', () => ({
   storedTimeZone: vi.fn(() => null),
 }));
 
+const EVENT_MATCH_ID =
+  '/(protected)/_protected/stock-management/transaction-history/$eventId/stock-management/transaction-history/event1';
+const MISSING_MATCH_ID =
+  '/(protected)/_protected/stock-management/transaction-history/$eventId/stock-management/transaction-history/missing{}';
 const USER = 'user1';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';
 const FP = 'dce17f2e-af3e-40ad-8e00-3496adef44c3';
@@ -100,7 +114,11 @@ const appQueryClient = () =>
   });
 const path = (extra = '') => `/stock-management/transaction-history/event1${extra}`;
 
-function renderRoute(location = path(), queryClient = appQueryClient()) {
+function renderRoute(
+  location = path(),
+  queryClient = appQueryClient(),
+  renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -126,6 +144,7 @@ function renderRoute(location = path(), queryClient = appQueryClient()) {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    renderOptions,
   );
   return { router, queryClient, unmount: view.unmount, container: view.container };
 }
@@ -141,6 +160,7 @@ beforeEach(() => {
   } as DOMRect);
 });
 afterEach(() => {
+  cleanup();
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
@@ -332,13 +352,16 @@ describe('stock event detail', () => {
   });
 
   it('retries a lines failure inside its boundary while keeping the header', async () => {
-    vi.mocked(fetchStockEventLines).mockRejectedValue(httpError(500));
-    renderRoute();
+    const failure = httpError(500);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockEventLines).mockRejectedValue(failure);
+    renderRoute(path(), undefined, { onCaughtError });
     await screen.findByText('stock-event.lines-error-title');
     expect(screen.getByText('DOC-1')).toBeInTheDocument();
     vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage());
     await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
     await screen.findByText('Vaccine (C1)');
+    expect(onCaughtError).toHaveBeenCalled();
   });
 
   it('prints using the selected unit and language and opens the report', async () => {
@@ -359,8 +382,13 @@ describe('stock event detail', () => {
   });
 
   it('offers the way back to the filtered list when the event fails to load', async () => {
-    vi.mocked(fetchStockEvent).mockRejectedValue(httpError(500));
-    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&type=issue&page=7`));
+    const assertRouteWarning = expectRouteWarning(`${EVENT_MATCH_ID}{}`);
+    const failure = httpError(500);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockEvent).mockRejectedValue(failure);
+    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&type=issue&page=7`), undefined, {
+      onCaughtError,
+    });
     await screen.findByRole('heading', { name: 'stock-event.error-title' });
     const back = screen.getByRole('button', { name: 'stock-event.back' });
     const url = new URL((back as HTMLAnchorElement).href);
@@ -371,11 +399,20 @@ describe('stock event detail', () => {
       type: 'issue',
       page: '7',
     });
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it.each([400, 404])('shows Not Found with the return list search for %s', async (status) => {
-    vi.mocked(fetchStockEvent).mockRejectedValue(httpError(status));
-    renderRoute(path(`?facilityId=${HOME}&programId=${FP}&type=issue&page=7&detailPage=2`));
+    const assertRouteWarning = expectRouteWarning(`${EVENT_MATCH_ID}{"detailPage":2}`);
+    const failure = httpError(status);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockEvent).mockRejectedValue(failure);
+    renderRoute(
+      path(`?facilityId=${HOME}&programId=${FP}&type=issue&page=7&detailPage=2`),
+      undefined,
+      { onCaughtError },
+    );
     const back = await screen.findByRole('button', { name: 'stock-event.back' });
     const url = new URL((back as HTMLAnchorElement).href);
     expect(url.pathname).toBe('/stock-management/transaction-history');
@@ -385,6 +422,8 @@ describe('stock event detail', () => {
       type: 'issue',
       page: '7',
     });
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it.each([
@@ -393,27 +432,51 @@ describe('stock event detail', () => {
     { permissions: [`STOCK_CARDS_VIEW|other|${FP}`] },
     { permissions: [`STOCK_CARDS_VIEW|${HOME}|${EM}`] },
   ])('refuses an inexact grant %j', async ({ permissions }) => {
+    const assertRouteWarning = expectRouteWarning(`${EVENT_MATCH_ID}{}`);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     vi.mocked(fetchPermissionStrings).mockResolvedValue(permissions);
-    renderRoute();
+    renderRoute(path(), undefined, { onCaughtError });
     await screen.findByRole('heading', { name: 'no-access.title' });
     expect(fetchStockEventLines).not.toHaveBeenCalled();
     expect(screen.queryByText('DOC-1')).not.toBeInTheDocument();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('checks the event pair instead of the pair in return search', async () => {
+    const assertRouteWarning = expectRouteWarning(`${EVENT_MATCH_ID}{}`);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, programId: EM });
-    renderRoute(path(`?facilityId=${HOME}&programId=${FP}`));
+    renderRoute(path(`?facilityId=${HOME}&programId=${FP}`), undefined, { onCaughtError });
     await screen.findByRole('heading', { name: 'no-access.title' });
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('shows No Access for a server 403', async () => {
-    vi.mocked(fetchStockEvent).mockRejectedValue(httpError(403));
-    renderRoute();
+    const assertRouteWarning = expectRouteWarning(`${EVENT_MATCH_ID}{}`);
+    const failure = httpError(403);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+    vi.mocked(fetchStockEvent).mockRejectedValue(failure);
+    renderRoute(path(), undefined, { onCaughtError });
     await screen.findByRole('heading', { name: 'no-access.title' });
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it.each([true, false])('reloads for a changed user with access=%s', async (allowed) => {
-    renderRoute();
+    const assertRouteWarning = allowed ? undefined : expectRouteWarning(`${EVENT_MATCH_ID}{}`);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
+    renderRoute(path(), undefined, allowed ? {} : { onCaughtError });
     await screen.findByText('DOC-1');
     vi.mocked(fetchPermissionStrings).mockResolvedValue(allowed ? grants : []);
     vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, documentNumber: 'NEW-DOC' });
@@ -422,6 +485,8 @@ describe('stock event detail', () => {
     else await screen.findByRole('heading', { name: 'no-access.title' });
     expect(fetchPermissionStrings).toHaveBeenCalledWith('other');
     expect(fetchStockEvent).toHaveBeenCalledTimes(2);
+    if (!allowed) expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning?.();
   });
 
   it('preserves list search and page size and resets the detail page in reversal links', async () => {
@@ -560,11 +625,14 @@ describe('stock event detail', () => {
   });
 
   it('reads an event fresh on the way back from one that failed to load', async () => {
+    const assertRouteWarning = expectRouteWarning(MISSING_MATCH_ID);
+    const failure = httpError(404);
+    const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
     vi.mocked(fetchStockEvent).mockImplementation(async (id) => {
-      if (id === 'missing') throw httpError(404);
+      if (id === 'missing') throw failure;
       return { ...event, id };
     });
-    const { router } = renderRoute();
+    const { router } = renderRoute(path(), undefined, { onCaughtError });
     await screen.findByText('DOC-1');
     await act(() =>
       router.navigate({
@@ -576,16 +644,23 @@ describe('stock event detail', () => {
     vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, documentNumber: 'DOC-1-NEW' });
     await act(() => router.history.back());
     await screen.findByText('DOC-1-NEW');
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('does not reveal a late event after a user change', async () => {
+    const assertRouteWarning = expectRouteWarning(`${EVENT_MATCH_ID}{}`);
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_CARDS_VIEW');
+    });
     let release = () => {};
     vi.mocked(fetchStockEvent).mockReturnValueOnce(
       new Promise((resolve) => {
         release = () => resolve(event);
       }),
     );
-    renderRoute();
+    renderRoute(path(), undefined, { onCaughtError });
     await waitFor(() => expect(fetchStockEvent).toHaveBeenCalled());
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
@@ -593,6 +668,8 @@ describe('stock event detail', () => {
     await screen.findByRole('heading', { name: 'no-access.title' });
     expect(screen.queryByText('DOC-1')).not.toBeInTheDocument();
     expect(fetchStockEventLines).not.toHaveBeenCalled();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
 
   it('shows Reverse when the loader allows cancellation', async () => {

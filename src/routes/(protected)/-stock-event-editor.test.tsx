@@ -7,7 +7,16 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
@@ -17,6 +26,7 @@ import en from '@/../public/locales/en.json';
 import { ErrorFallback } from '@/components/error-fallback';
 import { canOpen } from '@/components/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchApprovedProducts,
@@ -48,6 +58,7 @@ import { Route as ReceiveEditorRoute } from '@/routes/(protected)/_protected.sto
 import { Route as UnpackPickerRoute } from '@/routes/(protected)/_protected.stock-management.unpack';
 import { Route as UnpackEditorRoute } from '@/routes/(protected)/_protected.stock-management.unpack_.$programId';
 import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/components/app-shell', () => ({
@@ -149,7 +160,10 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
 
   const renderedRoutes: { router: AnyRouter; queryClient: QueryClient; unmount: () => void }[] = [];
 
-  function renderRoute(path: string = PICKER) {
+  function renderRoute(
+    path: string = PICKER,
+    renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+  ) {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { staleTime: Infinity, retry: false } },
     });
@@ -188,6 +202,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
+      renderOptions,
     );
     renderedRoutes.push({ router, queryClient, unmount: view.unmount });
     return { router, queryClient, ...view };
@@ -250,10 +265,13 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         expect(router.state.status).toBe('idle');
         expect(router.state.isLoading).toBe(false);
       });
-      unmount();
-      await queryClient.cancelQueries();
-      queryClient.clear();
+      await act(async () => {
+        unmount();
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      });
     }
+    cleanup();
     useLoginData.setState({ referenceDataUserId: null });
   });
 
@@ -282,13 +300,22 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     });
 
     it('refuses the page before fetching lookups when the right is absent', async () => {
+      const assertRouteWarning = expectRouteWarning(
+        `/(protected)/_protected/stock-management/${kind}${PICKER}`,
+      );
+      const onCaughtError = vi.fn((caught: unknown) => {
+        expect(caught).toBeInstanceOf(ForbiddenError);
+        expect(caught).toHaveProperty('message', 'Missing right STOCK_ADJUST');
+      });
       vi.mocked(fetchPermissionStrings).mockResolvedValue(['STOCK_CARDS_VIEW']);
-      renderRoute();
+      renderRoute(PICKER, { onCaughtError });
 
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
       expect(fetchUserRecord).not.toHaveBeenCalled();
       expect(fetchUserPrograms).not.toHaveBeenCalled();
       expect(fetchFacility).not.toHaveBeenCalled();
+      expect(onCaughtError).toHaveBeenCalled();
+      assertRouteWarning();
     });
 
     it(`hides the ${kind} navigation entry without the adjustment right`, () => {
@@ -315,15 +342,18 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     });
 
     it('shows a retryable load error inside the page', async () => {
-      vi.mocked(fetchFacility).mockRejectedValueOnce(new Error('Unavailable'));
+      const failure = new Error('Unavailable');
+      const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
+      vi.mocked(fetchFacility).mockRejectedValueOnce(failure);
       const user = userEvent.setup();
-      renderRoute();
+      renderRoute(PICKER, { onCaughtError });
 
       expect(await screen.findByText('stock-programs.load-error-title')).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Try Again' }));
 
       expect(await screen.findByText('Family Planning')).toBeInTheDocument();
+      expect(onCaughtError).toHaveBeenCalled();
     });
 
     it('renders the heading and loading table while the facility request is pending', async () => {
@@ -431,7 +461,14 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     });
 
     it('drops the old loader scope and rechecks rights after a user change', async () => {
-      renderRoute(`${PICKER}/${FP}`);
+      const assertRouteWarning = expectRouteWarning(
+        `/(protected)/_protected/stock-management/${kind}_/$programId${PICKER}/${FP}`,
+      );
+      const onCaughtError = vi.fn((caught: unknown) => {
+        expect(caught).toBeInstanceOf(ForbiddenError);
+        expect(caught).toHaveProperty('message', 'Missing right STOCK_ADJUST');
+      });
+      renderRoute(`${PICKER}/${FP}`, { onCaughtError });
       await screen.findByRole('heading', { name: `${copy}.editor-title` });
       vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
       act(() => useLoginData.setState({ referenceDataUserId: 'other' }));
@@ -440,6 +477,8 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       ).not.toBeInTheDocument();
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
       await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('other'));
+      expect(onCaughtError).toHaveBeenCalled();
+      assertRouteWarning();
     });
 
     it('explains missing scoped stock view access without loading stock cards', async () => {
@@ -492,21 +531,46 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       ['a grant at another facility', [`STOCK_ADJUST|away|${FP}`]],
       ['a grant for another program', [`STOCK_ADJUST|${HOME}|${EM}`]],
     ])('shows No Access for %s', async (_name, permissions) => {
+      const assertRouteWarning = expectRouteWarning(
+        `/(protected)/_protected/stock-management/${kind}_/$programId${PICKER}/${FP}`,
+      );
+      const onCaughtError = vi.fn((caught: unknown) => {
+        expect(caught).toBeInstanceOf(ForbiddenError);
+        expect(caught).toHaveProperty('message', 'Missing right STOCK_ADJUST');
+      });
       vi.mocked(fetchPermissionStrings).mockResolvedValue(permissions);
-      renderRoute(`${PICKER}/${FP}`);
+      renderRoute(`${PICKER}/${FP}`, { onCaughtError });
 
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
       expect(screen.queryByText(`${copy}.editor-title`)).not.toBeInTheDocument();
+      expect(onCaughtError).toHaveBeenCalled();
+      assertRouteWarning();
     });
 
     it('shows No Access for a program the home facility does not support', async () => {
+      const assertRouteWarning = expectRouteWarning(
+        `/(protected)/_protected/stock-management/${kind}_/$programId${PICKER}/${FP}`,
+      );
+      const onCaughtError = vi.fn((caught: unknown) => {
+        expect(caught).toBeInstanceOf(ForbiddenError);
+        expect(caught).toHaveProperty('message', 'Missing right STOCK_ADJUST');
+      });
       vi.mocked(fetchFacility).mockResolvedValue({ ...homeFacility, supportedPrograms: [] });
-      renderRoute(`${PICKER}/${FP}`);
+      renderRoute(`${PICKER}/${FP}`, { onCaughtError });
 
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+      expect(onCaughtError).toHaveBeenCalled();
+      assertRouteWarning();
     });
 
     it('shows No Access without a home facility', async () => {
+      const assertRouteWarning = expectRouteWarning(
+        `/(protected)/_protected/stock-management/${kind}_/$programId${PICKER}/${FP}`,
+      );
+      const onCaughtError = vi.fn((caught: unknown) => {
+        expect(caught).toBeInstanceOf(ForbiddenError);
+        expect(caught).toHaveProperty('message', 'Missing right STOCK_ADJUST');
+      });
       vi.mocked(fetchUserRecord).mockResolvedValue({
         id: USER,
         username: 'administrator',
@@ -516,10 +580,12 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         homeFacilityId: null,
         roleAssignments: [],
       });
-      renderRoute(`${PICKER}/${FP}`);
+      renderRoute(`${PICKER}/${FP}`, { onCaughtError });
 
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
       expect(fetchFacility).not.toHaveBeenCalled();
+      expect(onCaughtError).toHaveBeenCalled();
+      assertRouteWarning();
     });
 
     it('keeps valid paging and keyword state in the URL', async () => {
@@ -587,7 +653,10 @@ describe('Unpack policies', () => {
     vi.mocked(fetchReasons).mockResolvedValue([]);
     vi.mocked(fetchEventStockCards).mockResolvedValue([]);
   });
-  afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+  afterEach(() => {
+    cleanup();
+    useLoginData.setState({ referenceDataUserId: null });
+  });
 
   it('prefetches stock cards and the reasons list without valid reasons or destinations', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -697,9 +766,11 @@ describe('Unpack policies', () => {
       });
       expect(submitStockEvent).toHaveBeenCalledOnce();
     } finally {
-      unmount();
-      await queryClient.cancelQueries();
-      queryClient.clear();
+      await act(async () => {
+        unmount();
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      });
     }
   });
 });

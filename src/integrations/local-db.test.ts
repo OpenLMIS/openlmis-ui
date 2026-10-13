@@ -8,12 +8,6 @@ const signIn = (referenceDataUserId: string) =>
     .getState()
     .setLoginData({ referenceDataUserId, username: referenceDataUserId, accessToken: 'token' });
 
-function withProbeTable(name: string) {
-  const db = new Dexie(name);
-  db.version(2).stores({ probe: 'id' });
-  return db;
-}
-
 beforeEach(() => useLoginData.getState().clearLoginData());
 afterEach(() => useLoginData.getState().clearLoginData());
 
@@ -79,15 +73,14 @@ describe('getLocalDb', () => {
 
   it('never shows one user what another user stored', async () => {
     signIn('ada');
-    const asAda = withProbeTable(getLocalDb().name);
-    await asAda.table('probe').put({ id: 1 });
-    asAda.close();
+    const draft = { draftId: 'identity-probe', lines: [] };
+    await getLocalDb().table('physicalInventoryDrafts').put(draft);
 
     signIn('alan');
-    const asAlan = withProbeTable(getLocalDb().name);
+    expect(await getLocalDb().table('physicalInventoryDrafts').get(draft.draftId)).toBeUndefined();
 
-    expect(await asAlan.table('probe').count()).toBe(0);
-    asAlan.close();
+    signIn('ada');
+    expect(await getLocalDb().table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
   });
 
   it('closes the database on sign-out', async () => {

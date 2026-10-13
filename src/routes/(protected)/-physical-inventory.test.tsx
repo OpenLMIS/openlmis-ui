@@ -7,13 +7,22 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  type RenderOptions,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { canOpen } from '@/components/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchFacility,
@@ -37,6 +46,8 @@ import { buildInventoryLines } from '@/features/stock-events/lib/physical-invent
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory_.$programId';
+
+import { expectRouteWarning } from '@/tests/expect-route-warning';
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
@@ -87,7 +98,11 @@ const homeFacility: Facility = {
   })),
 };
 
-function renderRoute(path = PICKER, seed?: (client: QueryClient) => void) {
+function renderRoute(
+  path = PICKER,
+  seed?: (client: QueryClient) => void,
+  renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -127,6 +142,7 @@ function renderRoute(path = PICKER, seed?: (client: QueryClient) => void) {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
+    renderOptions,
   );
   return { router, queryClient, ...view };
 }
@@ -169,7 +185,10 @@ beforeEach(() => {
   vi.mocked(fetchFacility).mockResolvedValue(homeFacility);
 });
 
-afterEach(() => useLoginData.setState({ referenceDataUserId: null }));
+afterEach(() => {
+  cleanup();
+  useLoginData.setState({ referenceDataUserId: null });
+});
 
 describe('physical inventory routes', () => {
   it('shows per-program status and starts a new draft before opening it', async () => {
@@ -210,18 +229,36 @@ describe('physical inventory routes', () => {
     expect(fetchPhysicalInventoryDraft).toHaveBeenCalledWith({ programId: EM, facilityId: HOME });
   });
   it('refuses missing rights before lookups and hides navigation', async () => {
+    const assertRouteWarning = expectRouteWarning(
+      `/(protected)/_protected/stock-management/physical-inventory${PICKER}`,
+    );
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_INVENTORIES_EDIT');
+    });
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
-    renderRoute();
+    renderRoute(PICKER, undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
     expect(fetchUserRecord).not.toHaveBeenCalled();
     expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
     expect(canOpen(PICKER, new Set(['STOCK_INVENTORIES_EDIT']))).toBe(true);
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
   it('refuses an unsupported program', async () => {
+    const assertRouteWarning = expectRouteWarning(
+      `/(protected)/_protected/stock-management/physical-inventory_/$programId${PICKER}/${FP}`,
+    );
+    const onCaughtError = vi.fn((caught: unknown) => {
+      expect(caught).toBeInstanceOf(ForbiddenError);
+      expect(caught).toHaveProperty('message', 'Missing right STOCK_INVENTORIES_EDIT');
+    });
     vi.mocked(fetchFacility).mockResolvedValue({ ...homeFacility, supportedPrograms: [] });
-    renderRoute(`${PICKER}/${FP}`);
+    renderRoute(`${PICKER}/${FP}`, undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
     expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
+    expect(onCaughtError).toHaveBeenCalled();
+    assertRouteWarning();
   });
   it('explains a missing draft and does not load stock', async () => {
     renderRoute(`${PICKER}/${EM}`);
@@ -447,18 +484,20 @@ it.each([1, 2])('focuses the first invalid count after Close from page %s', asyn
 });
 
 it('renders the editor header during stock loading and retries a summaries failure in place', async () => {
+  const failure = new AxiosError('Failed', undefined, undefined, undefined, {
+    status: 500,
+  } as never);
+  const onCaughtError = vi.fn((caught: unknown) => expect(caught).toBe(failure));
   vi.mocked(fetchPermissionStrings).mockResolvedValue([
     ...grants,
     `STOCK_CARDS_VIEW|${HOME}|${FP}`,
   ]);
   const summaries = Promise.withResolvers<[]>();
   vi.mocked(fetchInventorySummaries).mockReturnValue(summaries.promise);
-  renderRoute(`${PICKER}/${FP}`);
+  renderRoute(`${PICKER}/${FP}`, undefined, { onCaughtError });
   await screen.findByRole('heading', { name: 'physical-inventory.editor-title' });
   expect(screen.queryByRole('textbox', { name: 'stock-events.field-of' })).not.toBeInTheDocument();
-  summaries.reject(
-    new AxiosError('Failed', undefined, undefined, undefined, { status: 500 } as never),
-  );
+  summaries.reject(failure);
   await screen.findByText('physical-inventory.load-error-description');
   expect(
     screen.getByRole('heading', { name: 'physical-inventory.editor-title' }),
@@ -466,6 +505,7 @@ it('renders the editor header during stock loading and retries a summaries failu
   vi.mocked(fetchInventorySummaries).mockResolvedValue([]);
   await userEvent.setup().click(screen.getByRole('button', { name: 'Try Again' }));
   await screen.findByText('physical-inventory.empty-description');
+  expect(onCaughtError).toHaveBeenCalled();
 });
 
 it('keeps cached stock out of the form until fresh entry stock resolves', async () => {
