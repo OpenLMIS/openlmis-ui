@@ -19,7 +19,7 @@ import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
-import { allEventCards } from '@/features/stock-events/lib/products';
+import { allEventCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventLot, EventStockCard } from '@/features/stock-events/lib/types';
 import { renderPage } from '@/tests/render-page';
 
@@ -283,6 +283,27 @@ describe('ProductLotPicker with approved products', () => {
     vi.mocked(fetchEventStockOnHand).mockResolvedValue({ 'aspirin/lot-a': 40 });
   });
 
+  it('distinguishes no approved products from a server search with no matches', async () => {
+    vi.mocked(fetchApprovedProducts).mockResolvedValue(approvedPage([]));
+    const { user } = renderApproved();
+    const product = await productBox();
+    await user.click(product);
+    expect(
+      await screen.findByText('No products are approved for this program at this facility.'),
+    ).toBeVisible();
+    expect(screen.queryByText(en['stock-events.no-matches-title'])).not.toBeInTheDocument();
+    await user.type(product, 'missing');
+    await waitFor(() =>
+      expect(fetchApprovedProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'missing' }),
+      ),
+    );
+    expect(await screen.findByText(en['stock-events.no-matches-title'])).toBeVisible();
+    expect(
+      screen.queryByText('No products are approved for this program at this facility.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('searches by name, reports the count and keeps the picked product across searches', async () => {
     const { user, onAdd } = renderApproved();
     const product = await productBox();
@@ -536,4 +557,43 @@ describe('ProductLotPicker with approved products', () => {
       expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin'),
     );
   });
+});
+
+it('distinguishes an empty kit list from a search with no matching kits', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  const queryKey = eventStockCardsOptions({
+    facilityId: 'facility',
+    programId: 'program',
+  }).queryKey;
+  queryClient.setQueryData(queryKey, [card]);
+  const user = userEvent.setup();
+  renderPage(
+    <I18nextProvider i18n={i18n}>
+      <ProductLotPicker
+        kind="unpack"
+        facilityId="facility"
+        programId="program"
+        disabled={false}
+        cardFilter={kitCards}
+        onAdd={vi.fn()}
+      />
+    </I18nextProvider>,
+    { queryClient },
+  );
+  const picker = await screen.findByRole('combobox', { name: 'Kit' });
+  await user.click(picker);
+  expect(await screen.findByText('No kits with stock in this program.')).toBeVisible();
+  expect(screen.queryByText(en['stock-events.no-matches-title'])).not.toBeInTheDocument();
+  await act(async () =>
+    queryClient.setQueryData(queryKey, [
+      {
+        ...card,
+        orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity: 1 }] },
+      },
+    ]),
+  );
+  await user.clear(picker);
+  await user.type(picker, 'missing kit');
+  expect(await screen.findByText(en['stock-events.no-matches-title'])).toBeVisible();
+  expect(screen.queryByText('No kits with stock in this program.')).not.toBeInTheDocument();
 });

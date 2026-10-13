@@ -92,6 +92,7 @@ export type EventKindConfig = {
     | 'make'
     | 'pageDescription'
     | 'product'
+    | 'noProducts'
     | 'clearTitle'
     | 'clearDescription'
     | 'editorTitle'
@@ -131,6 +132,7 @@ export const EVENT_KINDS = {
       make: 'stock-adjustment.make',
       pageDescription: 'stock-adjustment.page-description',
       product: 'stock-events.product',
+      noProducts: 'stock-adjustment.no-products',
       clearTitle: 'stock-events.clear-title',
       clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-adjustment.editor-title',
@@ -176,6 +178,7 @@ export const EVENT_KINDS = {
       make: 'stock-issue.make',
       pageDescription: 'stock-issue.page-description',
       product: 'stock-events.product',
+      noProducts: 'stock-issue.no-products',
       clearTitle: 'stock-events.clear-title',
       clearDescription: 'stock-events.clear-description',
       editorTitle: 'stock-issue.editor-title',
@@ -220,6 +223,7 @@ export const EVENT_KINDS = {
       pickerTitle: 'stock-receive.title',
       make: 'stock-receive.make',
       pageDescription: 'stock-receive.page-description',
+      noProducts: 'stock-receive.no-products',
       product: 'stock-events.product',
       clearTitle: 'stock-events.clear-title',
       clearDescription: 'stock-events.clear-description',
@@ -274,6 +278,7 @@ export const EVENT_KINDS = {
       editorTitle: 'stock-unpack.editor-title',
       editorDescription: 'stock-unpack.editor-description',
       product: 'stock-unpack.kit',
+      noProducts: 'stock-unpack.no-kits',
       clearTitle: 'stock-unpack.clear-title',
       clearDescription: 'stock-unpack.clear-description',
       emptyTitle: 'stock-unpack.empty-title',
