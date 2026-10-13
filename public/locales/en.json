@@ -6,6 +6,7 @@
   "auth.logout-error": "The server did not confirm it, but you are signed out on this device.",
   "auth.logout-error-title": "Sign Out Failed",
   "breadcrumbs.label": "Breadcrumb",
+  "breadcrumbs.show-more": "Show more breadcrumbs",
   "command.empty": "No results found.",
   "command.placeholder": "Search pages and actions...",
   "command.search": "Search...",

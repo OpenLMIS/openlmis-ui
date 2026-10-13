@@ -6,6 +6,7 @@
   "auth.logout-error": "O servidor não confirmou, mas a sessão foi terminada neste dispositivo.",
   "auth.logout-error-title": "Falha ao Terminar Sessão",
   "breadcrumbs.label": "Navegação estrutural",
+  "breadcrumbs.show-more": "Mostrar mais elementos do caminho de navegação",
   "command.empty": "Nenhum resultado encontrado.",
   "command.placeholder": "Pesquisar páginas e ações...",
   "command.search": "Pesquisar...",
