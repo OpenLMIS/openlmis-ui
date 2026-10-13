@@ -5,7 +5,7 @@ const MAX_LOT_CODE_LENGTH = 20;
 
 const LOT_CODE_CHARACTERS = /^[!"%&'()*+,\-./0-9:;<=>?A-Z_a-z]*$/;
 
-export type LotCodeMessages = {
+type LotCodeMessages = {
   required: ParseKeys;
   tooLong: ParseKeys;
   invalid: ParseKeys;

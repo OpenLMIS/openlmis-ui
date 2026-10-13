@@ -50,7 +50,7 @@ import {
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { recordLabel } from '@/lib/facility-program-selection';
+import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
@@ -108,6 +108,42 @@ export async function loadStockEventEditor(
   return { userId, homeFacility, program, canViewStock, canManageLots };
 }
 
+function StockEventHeader({
+  kind,
+  facility,
+  program,
+}: {
+  kind: ConfiguredEventKind;
+  facility: NamedRecord | undefined;
+  program: NamedRecord | undefined;
+}) {
+  const { t } = useTranslation();
+  const { copy } = EVENT_KINDS[kind];
+  return (
+    <WorkspaceHeader>
+      <WorkspaceHeading>
+        <WorkspaceIcon>
+          <ClipboardPenLineIcon />
+        </WorkspaceIcon>
+        <WorkspaceTitle>
+          {facility && program ? (
+            t(copy.editorTitle, {
+              code: facility.code,
+              facility: recordLabel(facility),
+              program: recordLabel(program),
+            })
+          ) : (
+            <span className="block h-10 w-64 max-w-full @xl/main:h-5 @xl/main:w-3xl">
+              <Skeleton fill />
+            </span>
+          )}
+        </WorkspaceTitle>
+        <WorkspaceDescription>{t(copy.editorDescription)}</WorkspaceDescription>
+      </WorkspaceHeading>
+    </WorkspaceHeader>
+  );
+}
+
 export function StockEventPending({
   kind,
   programId,
@@ -129,27 +165,7 @@ export function StockEventPending({
   return (
     <>
       <Workspace width={config.width}>
-        <WorkspaceHeader>
-          <WorkspaceHeading>
-            <WorkspaceIcon>
-              <ClipboardPenLineIcon />
-            </WorkspaceIcon>
-            <WorkspaceTitle>
-              {home && program ? (
-                t(config.copy.editorTitle, {
-                  code: home.code,
-                  facility: recordLabel(home),
-                  program: recordLabel(program),
-                })
-              ) : (
-                <span className="block h-10 w-64 max-w-full @xl/main:h-5 @xl/main:w-3xl">
-                  <Skeleton fill />
-                </span>
-              )}
-            </WorkspaceTitle>
-            <WorkspaceDescription>{t(config.copy.editorDescription)}</WorkspaceDescription>
-          </WorkspaceHeading>
-        </WorkspaceHeader>
+        <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
             <ProductLotPickerSkeleton />
@@ -257,8 +273,6 @@ export function StockEventEditorPage({
   data: Awaited<ReturnType<typeof loadStockEventEditor>>;
   search: EventSearch;
 }) {
-  const { t } = useTranslation();
-  const { copy } = EVENT_KINDS[kind];
   const { updateSearch } = useSearchNavigation<EventSearch>({});
   const username = useLoginData((state) => state.username) ?? '';
   const print = useStockEventPrint({
@@ -283,21 +297,7 @@ export function StockEventEditorPage({
         onSearchChange={updateSearch}
         onSubmitted={print.onSubmitted}
       >
-        <WorkspaceHeader>
-          <WorkspaceHeading>
-            <WorkspaceIcon>
-              <ClipboardPenLineIcon />
-            </WorkspaceIcon>
-            <WorkspaceTitle>
-              {t(copy.editorTitle, {
-                code: homeFacility.code,
-                facility: recordLabel(homeFacility),
-                program: recordLabel(program),
-              })}
-            </WorkspaceTitle>
-            <WorkspaceDescription>{t(copy.editorDescription)}</WorkspaceDescription>
-          </WorkspaceHeading>
-        </WorkspaceHeader>
+        <StockEventHeader kind={kind} facility={homeFacility} program={program} />
       </EventEditor>
       {print.dialog}
     </>

@@ -6,7 +6,7 @@ import type { Reason, ValidReasonAssignment } from '@/features/reference-data/li
 import { allEventCards, issuableCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 
-export type EventProducts =
+type EventProducts =
   | {
       from: 'stock-cards';
       cardFilter: (cards: readonly EventStockCard[], today: string) => readonly EventStockCard[];
