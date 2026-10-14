@@ -46,3 +46,6 @@ tsconfig.tsbuildinfo
 .agents/*
 !.agents/skills/
 public/config.json
+
+# Offline browser artifacts and measurement reports
+.offline/

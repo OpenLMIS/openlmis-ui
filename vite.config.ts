@@ -70,7 +70,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     test: {
-      exclude: [...configDefaults.exclude, '**/.screenshots/**'],
+      exclude: [...configDefaults.exclude, '**/.screenshots/**', 'tests/offline/**'],
       environment: 'happy-dom',
       globals: true,
       setupFiles: ['./src/tests/setup.ts'],
