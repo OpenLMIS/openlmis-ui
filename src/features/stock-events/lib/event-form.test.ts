@@ -9,6 +9,7 @@ import {
   eventLinesSchema,
   eventPayload,
   newEventLine,
+  refreshStockEventLines,
 } from '@/features/stock-events/lib/event-form';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 
@@ -801,4 +802,13 @@ describe('unpack form', () => {
       ['lines.1.quantity.doses', 'stock-events.positive-number'],
     ]);
   });
+});
+
+it('refreshes expiry validity using each kind card policy and retains missing-card problems', () => {
+  const lines = [line()];
+  const adjusted = refreshStockEventLines(lines, [card], today, 'adjustment');
+  expect(adjusted[0].stockProblem).toBeUndefined();
+  expect(schema.safeParse({ lines: adjusted }).success).toBe(true);
+  expect(refreshStockEventLines(lines, [card], today, 'issue')[0].stockProblem).toBe('expired');
+  expect(refreshStockEventLines(lines, [], today, 'adjustment')[0].stockProblem).toBe('missing');
 });

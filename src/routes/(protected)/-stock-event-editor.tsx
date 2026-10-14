@@ -23,6 +23,7 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  deploymentTimeZoneOptions,
   facilityOrderableFulfillsOptions,
   homeFacilityOptions,
   reasonsOptions,
@@ -91,6 +92,7 @@ export async function loadStockEventEditor(
     throw new ForbiddenError(RIGHTS.stockAdjust);
   }
   queryClient.prefetchQuery(userProgramsOptions(userId));
+  if (EVENT_KINDS[kind].drafts === 'device') queryClient.prefetchQuery(deploymentTimeZoneOptions());
   const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
   if (canViewStock) {
     const { counterparty, products } = EVENT_KINDS[kind];

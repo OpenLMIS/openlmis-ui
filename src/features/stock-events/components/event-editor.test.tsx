@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import fr from '@/../public/locales/fr.json';
-import { formatDateValue } from '@/components/form/date-value';
+import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -40,6 +40,7 @@ import {
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
 import {
+  deploymentTimeZoneOptions,
   reasonsOptions,
   validDestinationsOptions,
   validSourcesOptions,
@@ -245,6 +246,7 @@ function setup(
     validDestinationsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
     destinations,
   );
+  queryClient.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
   configure?.(queryClient);
   const onSubmitted = vi.fn();
   let navigateSearch!: (search: EventSearch) => void;
@@ -1720,6 +1722,7 @@ describe('Unpack editor', () => {
     });
     queryClient.setQueryData(editorStockOptions('unpack').queryKey, [{ ...card, orderable }]);
     queryClient.setQueryData(reasonsOptions().queryKey, kitReasons);
+    queryClient.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     configure?.(queryClient);
     vi.mocked(fetchOrderablesByIds).mockResolvedValue([kit]);
     vi.mocked(submitStockEvent).mockResolvedValue('unpack-event');
@@ -2139,7 +2142,7 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
   expect(submitStockEvent).not.toHaveBeenCalled();
 });
 
-it.each(['missing', 'expired'])(
+it.each(['missing'])(
   'keeps a resumed %s stock line highlighted and explains why it cannot submit',
   async (problem) => {
     const { user } = setup();
@@ -2169,7 +2172,12 @@ it.each(['missing', 'expired'])(
 );
 
 it('restores an archived copy, retains the replaced draft, and requires confirmation before deleting it', async () => {
-  const { user } = setup();
+  const { user } = setup(true, (client) =>
+    client.setQueryData(deploymentTimeZoneOptions().queryKey, {
+      zone: 'Pacific/Auckland',
+      read: true,
+    }),
+  );
   await validLine(user);
   await screen.findByText('Saved on this device');
   const context = createStockEventContext({
@@ -2180,17 +2188,25 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
   const active = await readStockEventDraft(context);
   if (!active) throw new Error('Missing test draft');
   await act(async () => {
-    await archiveStockEventCopy(context, [
+    const copy = await archiveStockEventCopy(context, [
       { ...active.lines[0], quantity: { doses: '0030', packs: '01', remainder: '14' } },
     ]);
+    await context.db
+      .table('stockEventDrafts')
+      .put({ ...copy, savedAt: Date.parse('2026-10-14T23:30:00Z') });
   });
   await user.click(await screen.findByRole('button', { name: 'Archived Copies' }));
   let dialog = await screen.findByRole('dialog', { name: 'Archived Copies' });
+  expect(dialog).toHaveTextContent(
+    formatTimestamp('2026-10-14T23:30:00Z', 'en', { time: true, timeZone: 'Pacific/Auckland' }),
+  );
   await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));
   await user.click(await screen.findByRole('menuitem', { name: 'Restore' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('0030');
   expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
+  expect((await readStockEventDraft(context))?.revision).toBe(2);
+  expect(screen.queryByText('Saving on this device')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Archived Copies' }));
   dialog = await screen.findByRole('dialog', { name: 'Archived Copies' });
   await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));
@@ -2202,7 +2218,7 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
   expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
 });
 
-it('shows a submission warning on reopening if accepted-draft deletion and archival both fail', async () => {
+it('shows an unknown outcome on reopening an interrupted submission', async () => {
   const context = createStockEventContext({
     kind: 'adjustment',
     facilityId: 'facility',
@@ -2257,4 +2273,151 @@ it('keeps resumed lines when cold stock and reason lookups finish after the devi
   );
   await screen.findByText('Saved on this device');
   expect((await readStockEventDraft(context))?.lines[0].stockOnHand).toBe(5);
+});
+
+it.each(['no stock rights', 'failed read'])(
+  'leaves Adjustments without a writer after %s',
+  async (condition) => {
+    if (condition === 'failed read') {
+      vi.spyOn(getLocalDb().table('stockEventDrafts'), 'where').mockImplementationOnce(() => {
+        throw new Error('Device read failed');
+      });
+    }
+    window.history.replaceState(null, '', '/');
+    const { router } = setup(condition !== 'no stock rights', undefined, { browserHistory: true });
+    if (!router) throw new Error('Missing test router');
+    try {
+      if (condition === 'failed read') await screen.findByText(en['stock-events.draft-failed']);
+      else await screen.findByText(en['stock-events.no-stock-view-title']);
+      await act(async () => router.navigate({ to: '/settings' }));
+      expect(router.state.location.pathname).toBe('/settings');
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    } finally {
+      router.history.destroy();
+    }
+  },
+);
+
+it('allows a resumed expired-lot Adjustment to submit', async () => {
+  const { user } = setup();
+  await validLine(user);
+  await screen.findByText('Saved on this device');
+  cleanup();
+  const next = setup(true, (client) =>
+    client.setQueryData(editorStockOptions().queryKey, [
+      { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
+      other,
+    ]),
+  );
+  const quantity = await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
+  expect(quantity).toHaveValue('17');
+  expect(quantity.closest('tr')).not.toHaveAttribute('aria-invalid', 'true');
+  await next.user.click(screen.getByRole('button', { name: 'Submit' }));
+  await next.user.click(await screen.findByRole('button', { name: 'Confirm' }));
+  await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
+});
+
+it('reports accepted cleanup failure and blocks resubmission on reopen until Clear', async () => {
+  vi.mocked(submitStockEvent).mockResolvedValueOnce('recorded-event');
+  const { user, onSubmitted } = setup();
+  await validLine(user);
+  await user.click(screen.getByRole('button', { name: 'Submit' }));
+  const table = getLocalDb().table('stockEventDrafts');
+  const put = table.put.bind(table);
+  vi.spyOn(table, 'put').mockImplementationOnce(put).mockRejectedValue(new Error('storage'));
+  vi.spyOn(table, 'delete').mockRejectedValue(new Error('storage'));
+  await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+  await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('recorded-event'));
+  expect(toast.success).toHaveBeenLastCalledWith(en['stock-adjustment.submitted-title'], {
+    description: en['stock-events.draft-recorded-not-cleared'],
+  });
+  cleanup();
+  vi.restoreAllMocks();
+  const next = setup();
+  const warning = await screen.findByRole('alert');
+  expect(warning).toHaveTextContent(en['stock-events.draft-already-recorded-description']);
+  expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+  expect(scanningEnabled).toBe(false);
+  await next.user.click(within(warning).getByRole('button', { name: 'Clear' }));
+  const clear = await screen.findByRole('alertdialog');
+  await next.user.click(within(clear).getByRole('button', { name: 'Clear' }));
+  await waitFor(async () => expect(await table.count()).toBe(0));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  await validLine(next.user);
+  expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
+  expect(submitStockEvent).toHaveBeenCalledOnce();
+});
+
+it.each(['same editor', 'reopened editor'])(
+  'preserves an earlier unknown submission after a later refusal in the %s',
+  async (mode) => {
+    vi.mocked(submitStockEvent)
+      .mockRejectedValueOnce(networkError())
+      .mockRejectedValueOnce(httpError(400));
+    const initial = setup();
+    await validLine(initial.user);
+    await initial.user.click(screen.getByRole('button', { name: 'Submit' }));
+    await initial.user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    const failure = await screen.findByRole('alertdialog');
+    await initial.user.click(within(failure).getByRole('button', { name: 'Close' }));
+    let next = initial;
+    if (mode === 'reopened editor') {
+      cleanup();
+      next = setup();
+      await screen.findByRole('alert');
+    }
+    await next.user.click(screen.getByRole('button', { name: 'Submit' }));
+    await next.user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    const refusal = await screen.findByRole('alertdialog');
+    await next.user.click(within(refusal).getByRole('button', { name: 'Close' }));
+    const context = createStockEventContext({
+      kind: 'adjustment',
+      facilityId: 'facility',
+      programId: 'program',
+    });
+    await waitFor(async () =>
+      expect((await readStockEventDraft(context))?.submissionAttempted).toBe(true),
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      en['stock-events.unknown-outcome-description'],
+    );
+  },
+);
+
+it('keeps delete failures out of Archived Copies and restore failures out of Delete', async () => {
+  const { user } = setup();
+  await validLine(user);
+  await screen.findByText('Saved on this device');
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'facility',
+    programId: 'program',
+  });
+  const active = await readStockEventDraft(context);
+  if (!active) throw new Error('Missing draft');
+  await act(async () => {
+    await archiveStockEventCopy(context, active.lines);
+  });
+  await user.click(await screen.findByRole('button', { name: 'Archived Copies' }));
+  const copies = await screen.findByRole('dialog', { name: 'Archived Copies' });
+  const actions = () => within(copies).getByRole('button', { name: /^Actions For Copy/ });
+  await user.click(actions());
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+  const deletion = await screen.findByRole('alertdialog');
+  vi.spyOn(context.db.table('stockEventDrafts'), 'delete').mockRejectedValueOnce(
+    new Error('storage'),
+  );
+  await user.click(within(deletion).getByRole('button', { name: 'Delete' }));
+  await within(deletion).findByRole('alert');
+  expect(within(copies).queryByRole('alert')).not.toBeInTheDocument();
+  await user.click(within(deletion).getByRole('button', { name: 'Cancel' }));
+  await user.click(actions());
+  vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('storage'));
+  await user.click(await screen.findByRole('menuitem', { name: 'Restore' }));
+  await within(copies).findByRole('alert');
+  await user.click(actions());
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+  expect(
+    within(await screen.findByRole('alertdialog')).queryByRole('alert'),
+  ).not.toBeInTheDocument();
 });

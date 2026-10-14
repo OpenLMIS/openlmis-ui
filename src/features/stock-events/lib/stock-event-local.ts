@@ -15,6 +15,7 @@ export type StockEventDraft = StockEventSelection & {
   revision: number;
   state: 'editing' | 'archived' | 'accepted';
   submissionAttempted?: boolean;
+  submissionAccepted?: boolean;
   lines: EventLine[];
   savedAt: number;
   updatedAt: number;
@@ -44,6 +45,17 @@ const editingKey = (context: StockEventSelection) => [
   context.programId,
   'editing',
 ];
+const acceptanceKey = (context: StockEventContext, draft: StockEventDraft) =>
+  `${context.db.name}:stock-event-accepted:${draft.draftId}`;
+
+export function rememberStockEventAcceptance(
+  context: StockEventContext,
+  draft: StockEventDraft | undefined,
+) {
+  assertSessionScope(context.sessionScope);
+  if (draft) localStorage.setItem(acceptanceKey(context, draft), 'accepted');
+}
+
 export async function readStockEventDraft(context: StockEventContext) {
   assertSessionScope(context.sessionScope);
   const result = await context.db
@@ -52,6 +64,12 @@ export async function readStockEventDraft(context: StockEventContext) {
     .equals(editingKey(context))
     .first();
   assertSessionScope(context.sessionScope);
+  try {
+    if (result && localStorage.getItem(acceptanceKey(context, result)) === 'accepted')
+      return { ...result, submissionAccepted: true };
+  } catch {
+    // The IndexedDB marker remains usable when localStorage is unavailable.
+  }
   return result;
 }
 function record(
@@ -79,38 +97,54 @@ export async function saveStockEventDraft(
   lines: EventLine[],
   downloadGeneration?: string,
   submissionAttempted = expected?.submissionAttempted,
+  submissionAccepted = expected?.submissionAccepted,
 ): Promise<StockEventDraft | undefined> {
   assertSessionScope(context.sessionScope);
   const table = context.db.table<StockEventDraft>('stockEventDrafts');
-  return context.db.transaction('rw', table, context.db.table('adjustmentDownloads'), async () => {
-    const stored = await readStockEventDraft(context);
-    if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
-      throw new DraftConflictError(stored);
-    if (!lines.length) {
-      if (stored) {
-        await table.delete(stored.draftId);
-        assertSessionScope(context.sessionScope);
+  const saved = await context.db.transaction(
+    'rw',
+    table,
+    context.db.table('adjustmentDownloads'),
+    async () => {
+      const stored = await readStockEventDraft(context);
+      if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
+        throw new DraftConflictError(stored);
+      if (!lines.length) {
+        if (stored) {
+          await table.delete(stored.draftId);
+          assertSessionScope(context.sessionScope);
+        }
+        return undefined;
       }
-      return undefined;
+      const bundle = await context.db
+        .table('adjustmentDownloads')
+        .get([context.facilityId, context.programId]);
+      assertSessionScope(context.sessionScope);
+      const next: StockEventDraft = {
+        ...record(
+          context,
+          lines,
+          stored?.downloadGeneration ?? downloadGeneration ?? bundle?.generation,
+        ),
+        draftId: stored?.draftId ?? crypto.randomUUID(),
+        revision: (stored?.revision ?? 0) + 1,
+        submissionAttempted,
+        submissionAccepted,
+      };
+      await table.put(next);
+      assertSessionScope(context.sessionScope);
+      return next;
+    },
+  );
+  assertSessionScope(context.sessionScope);
+  if (!saved && expected) {
+    try {
+      localStorage.removeItem(acceptanceKey(context, expected));
+    } catch {
+      // A marker for a deleted draft cannot affect a new draft.
     }
-    const bundle = await context.db
-      .table('adjustmentDownloads')
-      .get([context.facilityId, context.programId]);
-    assertSessionScope(context.sessionScope);
-    const next: StockEventDraft = {
-      ...record(
-        context,
-        lines,
-        stored?.downloadGeneration ?? downloadGeneration ?? bundle?.generation,
-      ),
-      draftId: stored?.draftId ?? crypto.randomUUID(),
-      revision: (stored?.revision ?? 0) + 1,
-      submissionAttempted,
-    };
-    await table.put(next);
-    assertSessionScope(context.sessionScope);
-    return next;
-  });
+  }
+  return saved;
 }
 export async function archiveStockEventCopy(
   context: StockEventContext,

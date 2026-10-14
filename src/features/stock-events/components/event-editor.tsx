@@ -278,6 +278,7 @@ export function EventEditor({
     cardsQuery.data,
     today,
   );
+  const acceptedDraft = draft.submissionNotice === 'accepted';
   const hasLots =
     !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
   const hasVVM =
@@ -359,7 +360,7 @@ export function EventEditor({
   const pending =
     refreshing ||
     mutation.isPending ||
-    (config.drafts === 'device' && (draft.loading || draft.busy));
+    (config.drafts === 'device' && canViewStock && (draft.loading || draft.busy));
   const guard = useDiscardGuard(
     (config.drafts === 'device' ? draft.protected : lines.length > 0) && !submitted,
     {
@@ -378,7 +379,7 @@ export function EventEditor({
     }
   }, [focusField, search.keyword, search.page]);
   const add = (candidate: EventLineCandidate, hasLotsOfProduct: boolean) => {
-    if (!ready || submitted || pending) return;
+    if (!ready || submitted || acceptedDraft || pending) return;
     const next = newEventLine(candidate, lastAdded.current, today, {
       ...lineOptions,
       productHasLots: hasLotsOfProduct,
@@ -411,7 +412,7 @@ export function EventEditor({
     if (mutation.isCurrent()) await form.handleSubmit();
   };
   const submit = async () => {
-    if (!mutation.isCurrent()) return;
+    if (!mutation.isCurrent() || acceptedDraft) return;
     if (config.drafts === 'device') {
       const saved = await draft.flush();
       if (!mutation.isCurrent()) return;
@@ -468,7 +469,13 @@ export function EventEditor({
     }
   };
   const confirmSubmit = async (signature?: string) => {
-    if (posting.current || !mutation.isCurrent() || (needsKitContents && !kitReasons.ok)) return;
+    if (
+      posting.current ||
+      acceptedDraft ||
+      !mutation.isCurrent() ||
+      (needsKitContents && !kitReasons.ok)
+    )
+      return;
     if (!schema.safeParse(form.state.values).success) {
       setConfirmationOpen(false);
       await form.validate('submit');
@@ -477,6 +484,7 @@ export function EventEditor({
       return;
     }
     posting.current = true;
+    const ownsAttemptMarker = !unknownOutcome && draft.submissionNotice !== 'unknown';
     if (config.drafts === 'device') {
       setRefreshing(true);
       if (!(await draft.markSubmission(true))) {
@@ -515,9 +523,10 @@ export function EventEditor({
         title: unknown ? 'stock-events.unknown-outcome-title' : config.copy.submitErrorTitle,
         description,
       });
-      if (config.drafts === 'device' && !unknown) await draft.markSubmission(false);
+      if (config.drafts === 'device' && !unknown && ownsAttemptMarker)
+        await draft.markSubmission(false);
       if (!mutation.isCurrent()) return;
-      setUnknownOutcome(unknown);
+      setUnknownOutcome(unknown || !ownsAttemptMarker);
       setConfirmationOpen(false);
       posting.current = false;
       setRefreshing(false);
@@ -525,14 +534,16 @@ export function EventEditor({
     }
     if (!mutation.isCurrent()) return;
     flushSync(() => setSubmitted(true));
-    if (config.drafts === 'device') await draft.retire();
+    const retired = config.drafts !== 'device' || (await draft.retire());
     if (!mutation.isCurrent()) return;
     if (bundleScope) refreshOfflineProgram({ facilityId, programId });
     setConfirmationOpen(false);
     leaving.current = true;
     setRefreshing(false);
     toast.success(t(config.copy.submittedTitle), {
-      description: t(config.copy.submittedDescription),
+      description: t(
+        retired ? config.copy.submittedDescription : 'stock-events.draft-recorded-not-cleared',
+      ),
     });
     for (const queryKey of [
       queryKeys.stockEvents.all,
@@ -553,7 +564,7 @@ export function EventEditor({
     parsed: Gs1Result,
     signal: AbortSignal,
   ): Promise<ScanMessage | undefined> => {
-    if (!ready || submitted || pending) return;
+    if (!ready || submitted || acceptedDraft || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
     const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
@@ -666,6 +677,7 @@ export function EventEditor({
       canViewStock &&
       ready &&
       !submitted &&
+      !acceptedDraft &&
       !pending &&
       !confirmationOpen &&
       !validationOpen &&
@@ -708,7 +720,7 @@ export function EventEditor({
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted || !ready}
+                    disabled={pending || submitted || acceptedDraft || !ready}
                     {...(fromCards
                       ? { cardFilter: filterCards }
                       : { from: 'approved-products' as const, canManageLots, lines })}
@@ -727,15 +739,35 @@ export function EventEditor({
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted}
+                    disabled={pending || submitted || acceptedDraft}
                     onRestore={draft.restore}
                   />
                 </div>
               )}
               {(unknownOutcome || draft.submissionNotice) && (
                 <ErrorAlert
-                  title={t('stock-events.unknown-outcome-title')}
-                  description={t('stock-events.unknown-outcome-description')}
+                  title={t(
+                    acceptedDraft
+                      ? 'stock-events.draft-already-recorded-title'
+                      : 'stock-events.unknown-outcome-title',
+                  )}
+                  description={t(
+                    acceptedDraft
+                      ? 'stock-events.draft-already-recorded-description'
+                      : 'stock-events.unknown-outcome-description',
+                  )}
+                  action={
+                    acceptedDraft && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => setClearOpen(true)}
+                      >
+                        {t('stock-events.clear')}
+                      </Button>
+                    )
+                  }
                 />
               )}
               {config.contents.type === 'kit' &&
@@ -764,7 +796,7 @@ export function EventEditor({
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
-                      disabled={pending || submitted}
+                      disabled={pending || submitted || acceptedDraft}
                     />
                   </div>
                 )}
@@ -819,7 +851,7 @@ export function EventEditor({
                           assignments={assignments}
                           unit={quantityUnit.unit}
                           today={today}
-                          disabled={pending || submitted}
+                          disabled={pending || submitted || acceptedDraft}
                           onRemove={remove}
                           search={search}
                           onSearchChange={onSearchChange}
@@ -837,7 +869,7 @@ export function EventEditor({
       </Workspace>
       <WorkspaceFooter width={config.width}>
         <Button
-          disabled={!filtered.length || pending || submitted}
+          disabled={!(acceptedDraft ? lines : filtered).length || pending || submitted}
           onClick={() => setClearOpen(true)}
           size="lg"
           variant="outline"
@@ -845,7 +877,7 @@ export function EventEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
-          disabled={!lines.length || pending || submitted || !ready}
+          disabled={!lines.length || pending || submitted || acceptedDraft || !ready}
           ref={submitButton}
           form={config.formId}
           size="lg"
@@ -889,11 +921,14 @@ export function EventEditor({
         open={clearOpen}
         onOpenChange={setClearOpen}
         restoreFocus={() => region.current?.querySelector<HTMLInputElement>('[role="combobox"]')}
-        count={filtered.length}
+        count={(acceptedDraft ? lines : filtered).length}
         onClear={() => {
-          const keys = new Set(filtered.map((line) => line.key));
+          const keys = new Set((acceptedDraft ? lines : filtered).map((line) => line.key));
           if (config.drafts === 'device') {
-            void draft.clear(keys);
+            void draft.clear(keys).then((cleared) => {
+              if (cleared && mutation.isCurrent() && !form.state.values.lines.length)
+                setUnknownOutcome(false);
+            });
             return;
           }
           form.setFieldValue('lines', (current) => current.filter((line) => !keys.has(line.key)));

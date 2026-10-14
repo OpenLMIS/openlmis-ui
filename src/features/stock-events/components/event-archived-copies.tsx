@@ -9,6 +9,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { ErrorAlert } from '@/components/dialog-parts';
+import { formatTimestamp } from '@/components/form/date-value';
 import {
   FormDialog,
   FormDialogBody,
@@ -41,6 +42,7 @@ import {
   type StockEventDraft,
   type StockEventSelection,
 } from '@/features/stock-events/lib/stock-event-local';
+import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { getSessionScope } from '@/lib/session-scope';
 
@@ -51,44 +53,51 @@ type Props = StockEventSelection & {
 
 export function EventArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Props) {
   const { t, i18n } = useTranslation();
+  const timeZone = useDeploymentTimeZone();
   const restoreRef = useRef(onRestore);
   restoreRef.current = onRestore;
   const [copies, setCopies] = useState<StockEventDraft[]>([]);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<StockEventDraft | null>(null);
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [readFailed, setReadFailed] = useState(false);
+  const [restoreFailed, setRestoreFailed] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
   useEffect(() => {
     const context = createStockEventContext({ kind, facilityId, programId });
     const subscription = liveQuery(() => readArchivedStockEvents(context)).subscribe({
       next: (rows) => {
-        if (context.sessionScope === getSessionScope()) setCopies(rows);
+        if (context.sessionScope === getSessionScope()) {
+          setCopies(rows);
+          setReadFailed(false);
+        }
       },
       error: () => {
-        if (context.sessionScope === getSessionScope()) setFailed(true);
+        if (context.sessionScope === getSessionScope()) setReadFailed(true);
       },
     });
     return () => subscription.unsubscribe();
   }, [kind, facilityId, programId]);
   const savedTime = useCallback(
     (copy: StockEventDraft) =>
-      new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(
-        copy.savedAt,
-      ),
-    [i18n.language],
+      formatTimestamp(new Date(copy.savedAt).toISOString(), i18n.language, {
+        time: true,
+        timeZone,
+      }),
+    [i18n.language, timeZone],
   );
   const restore = useCallback(async (copy: StockEventDraft) => {
     setPending(true);
-    setFailed(false);
+    setRestoreFailed(false);
     const scope = getSessionScope();
     try {
       if (await restoreRef.current(copy)) {
         if (scope !== getSessionScope()) return;
         announceDeviceSave('stock-events.draft-restored');
         setOpen(false);
-      } else if (scope === getSessionScope()) setFailed(true);
+      } else if (scope === getSessionScope()) setRestoreFailed(true);
     } catch {
-      if (scope === getSessionScope()) setFailed(true);
+      if (scope === getSessionScope()) setRestoreFailed(true);
     } finally {
       if (scope === getSessionScope()) setPending(false);
     }
@@ -97,12 +106,12 @@ export function EventArchivedCopies({ kind, facilityId, programId, disabled, onR
     if (!deleting || pending) return;
     const context = createStockEventContext({ kind, facilityId, programId });
     setPending(true);
-    setFailed(false);
+    setDeleteFailed(false);
     try {
       await deleteStockEventCopy(context, deleting);
       if (context.sessionScope === getSessionScope()) setDeleting(null);
     } catch {
-      if (context.sessionScope === getSessionScope()) setFailed(true);
+      if (context.sessionScope === getSessionScope()) setDeleteFailed(true);
     } finally {
       if (context.sessionScope === getSessionScope()) setPending(false);
     }
@@ -114,16 +123,7 @@ export function EventArchivedCopies({ kind, facilityId, programId, disabled, onR
         header: t('stock-events.draft-saved-at'),
         cell: ({ row }) => (
           <time dateTime={new Date(row.original.savedAt).toISOString()}>
-            <span className="block">
-              {new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short' }).format(
-                row.original.savedAt,
-              )}
-            </span>
-            <span className="block text-xs text-muted-foreground">
-              {new Intl.DateTimeFormat(i18n.language, { timeStyle: 'short' }).format(
-                row.original.savedAt,
-              )}
-            </span>
+            <span className="block whitespace-normal">{savedTime(row.original)}</span>
           </time>
         ),
       },
@@ -156,7 +156,13 @@ export function EventArchivedCopies({ kind, facilityId, programId, disabled, onR
               <DropdownMenuItem onClick={() => void restore(row.original)}>
                 {t('stock-events.draft-restore')}
               </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={() => setDeleting(row.original)}>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  setDeleteFailed(false);
+                  setDeleting(row.original);
+                }}
+              >
                 {t('stock-events.draft-delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -174,7 +180,7 @@ export function EventArchivedCopies({ kind, facilityId, programId, disabled, onR
     manualPagination: true,
     rowCount: copies.length,
   });
-  if (!copies.length && !open && !failed) return null;
+  if (!copies.length && !open && !readFailed) return null;
   return (
     <>
       <Button size="sm" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
@@ -188,7 +194,7 @@ export function EventArchivedCopies({ kind, facilityId, programId, disabled, onR
           </FormDialogDescription>
         </FormDialogHeader>
         <FormDialogBody>
-          {failed && (
+          {(readFailed || restoreFailed) && (
             <ErrorAlert
               title={t('stock-events.draft-recovery-error-title')}
               description={t('stock-events.draft-recovery-error-description')}
@@ -211,7 +217,7 @@ export function EventArchivedCopies({ kind, facilityId, programId, disabled, onR
               {t('stock-events.draft-delete-description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {failed && (
+          {deleteFailed && (
             <ErrorAlert
               title={t('stock-events.draft-recovery-error-title')}
               description={t('stock-events.draft-recovery-error-description')}

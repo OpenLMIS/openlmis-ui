@@ -307,7 +307,12 @@ export function refreshStockEventLines(
   lines: EventLine[],
   cards: readonly EventStockCard[],
   today: string,
+  kind: ConfiguredEventKind,
 ): EventLine[] {
+  const products = EVENT_KINDS[kind].products;
+  const allowed = new Set(
+    products.from === 'stock-cards' ? products.cardFilter(cards, today) : cards,
+  );
   const key = (id: string, lotId?: string) => JSON.stringify([id, lotId ?? null]);
   const byProductLot = new Map(cards.map((card) => [key(card.orderable.id, card.lot?.id), card]));
   const productsWithLots = new Set(
@@ -320,7 +325,7 @@ export function refreshStockEventLines(
     );
     const stockProblem = !card
       ? 'missing'
-      : card.lot?.expirationDate && card.lot.expirationDate < today
+      : !allowed.has(card) && card.lot?.expirationDate && card.lot.expirationDate < today
         ? 'expired'
         : undefined;
     const next: EventLine = card
