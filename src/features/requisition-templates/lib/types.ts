@@ -28,17 +28,22 @@ export type ColumnDefinition = {
   options: readonly ColumnOption[];
 };
 
+export type TemplateColumnDefinition = Pick<
+  ColumnDefinition,
+  'id' | 'name' | 'canChangeOrder' | 'isDisplayRequired' | 'supportsTag' | 'sources' | 'options'
+>;
+
 export type TemplateColumn = {
   name: string;
   label: string;
   indicator: string;
-  definition: string;
+  definition: string | null | undefined;
   displayOrder: number;
   isDisplayed: boolean;
-  source: ColumnSource;
+  source: ColumnSource | null;
   option?: ColumnOption | null;
   tag?: string | null;
-  columnDefinition: ColumnDefinition;
+  columnDefinition: TemplateColumnDefinition;
 };
 
 export type RequisitionTemplate = {
@@ -52,7 +57,7 @@ export type RequisitionTemplate = {
   populateStockOnHandFromStockCards: boolean;
   rejectionReasonWindowVisible: boolean;
   patientsTabEnabled: boolean;
-  numberOfPeriodsToAverage: number;
+  numberOfPeriodsToAverage: number | null;
   enableAvgConsumptionForCurrentPeriod?: boolean;
   columnsMap: Record<string, TemplateColumn>;
 };
