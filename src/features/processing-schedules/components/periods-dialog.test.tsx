@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatDateValue } from '@/components/form/date-value';
 import {
@@ -10,6 +11,7 @@ import {
   fetchProcessingSchedule,
 } from '@/features/processing-schedules/api/api';
 import { PeriodsDialog } from '@/features/processing-schedules/components/periods-dialog';
+import type { SchedulesSearch } from '@/features/processing-schedules/lib/search';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
@@ -56,6 +58,51 @@ beforeEach(() => {
 });
 
 describe('PeriodsDialog', () => {
+  it('resets table scrolling on paging while keeping keyboard focus on Next', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchProcessingPeriodsPage).mockImplementation(async ({ page }) => ({
+      ...latest,
+      content: [{ ...period, id: `p${page}`, name: ['January', 'February', 'March'][page] }],
+      totalElements: 30,
+      totalPages: 3,
+      number: page,
+      size: 10,
+    }));
+    function PagedDialog() {
+      const [search, setSearch] = useState<SchedulesSearch>({});
+      return (
+        <PeriodsDialog
+          target={schedule.id}
+          search={search}
+          onSearchChange={(update) =>
+            setSearch((previous) => ({
+              ...previous,
+              ...(typeof update === 'function' ? update(previous) : update),
+            }))
+          }
+          onAdded={vi.fn()}
+          onClose={vi.fn()}
+        />
+      );
+    }
+    renderPage(<PagedDialog />);
+    await screen.findByRole('cell', { name: 'January' });
+    const table = screen.getByRole('table');
+    const scroller = table.parentElement;
+    if (!scroller) throw new Error('Missing table scroll container');
+    scroller.scrollTop = 100;
+    scroller.scrollLeft = 50;
+    const next = screen.getByRole('button', { name: 'Next Page' });
+    next.focus();
+    await user.keyboard('{Enter}');
+    await screen.findByRole('cell', { name: 'February' });
+    expect(next).toHaveFocus();
+    expect(scroller.scrollTop).toBe(0);
+    expect(scroller.scrollLeft).toBe(50);
+    await user.keyboard('{Enter}');
+    expect(await screen.findByRole('cell', { name: 'March' })).toBeInTheDocument();
+  });
+
   it('starts the period reads while the schedule detail is still loading', async () => {
     let resolveSchedule!: (value: typeof schedule) => void;
     vi.mocked(fetchProcessingSchedule).mockImplementation(

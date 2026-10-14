@@ -15,7 +15,7 @@ import {
   ChevronsUpDownIcon,
   ChevronUpIcon,
 } from 'lucide-react';
-import type { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, useLayoutEffect, useRef } from 'react';
 import { useDataTableLabels } from '@/components/data-table/data-table-labels';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { Button } from '@/components/ui/button';
@@ -84,6 +84,15 @@ export function DataTable<TData extends RowData>({
 }: DataTableProps<TData>) {
   const rows = table.getRowModel().rows;
   const columns = table.getVisibleLeafColumns();
+  const tableRef = useRef<HTMLTableElement>(null);
+  const pageIndex = table.state.pagination.pageIndex;
+  const previousPage = useRef(pageIndex);
+  useLayoutEffect(() => {
+    if (pageIndex === previousPage.current) return;
+    previousPage.current = pageIndex;
+    const scroller = tableRef.current?.parentElement;
+    if (height === 'fill' && scroller) scroller.scrollTop = 0;
+  }, [height, pageIndex]);
 
   return (
     <DataTableCard height={height}>
@@ -102,6 +111,7 @@ export function DataTable<TData extends RowData>({
         }
       >
         <Table
+          ref={tableRef}
           density={density}
           layout={layout}
           scroll={height === 'fill' ? 'both' : 'x'}

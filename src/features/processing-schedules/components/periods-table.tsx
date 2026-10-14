@@ -216,7 +216,6 @@ export function PeriodsTable({
 
   return (
     <DataTable
-      key={deferredSearch.periodsPage ?? 1}
       density="compact"
       height="fill"
       empty={
