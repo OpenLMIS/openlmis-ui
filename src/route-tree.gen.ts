@@ -26,6 +26,7 @@ import { Route as protectedProtectedAdministrationProgramsRouteImport } from './
 import { Route as protectedProtectedAdministrationReasonsRouteImport } from './routes/(protected)/_protected.administration.reasons'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
+import { Route as protectedProtectedAdministrationSupervisoryNodesRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
 import { Route as protectedProtectedAdministrationValidDestinationsRouteImport } from './routes/(protected)/_protected.administration.valid-destinations'
 import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
@@ -47,6 +48,7 @@ import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } fro
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
+import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementIssueProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.issue_.$programId'
 import { Route as protectedProtectedStockManagementPhysicalInventoryProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.physical-inventory_.$programId'
@@ -155,6 +157,12 @@ const protectedProtectedAdministrationServiceAccountsRoute =
   protectedProtectedAdministrationServiceAccountsRouteImport.update({
     id: '/administration/service-accounts',
     path: '/administration/service-accounts',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationSupervisoryNodesRoute =
+  protectedProtectedAdministrationSupervisoryNodesRouteImport.update({
+    id: '/administration/supervisory-nodes',
+    path: '/administration/supervisory-nodes',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationUsersRoute =
@@ -283,6 +291,12 @@ const protectedProtectedAdministrationReasonsNewRoute =
     path: '/administration/reasons/new',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedAdministrationSupervisoryNodesIdRoute =
+  protectedProtectedAdministrationSupervisoryNodesIdRouteImport.update({
+    id: '/administration/supervisory-nodes_/$id',
+    path: '/administration/supervisory-nodes/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementAdjustmentsProgramIdRoute =
   protectedProtectedStockManagementAdjustmentsProgramIdRouteImport.update({
     id: '/stock-management/adjustments_/$programId',
@@ -389,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
+  '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
@@ -410,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
   '/stock-management/physical-inventory/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -440,6 +456,7 @@ export interface FileRoutesByTo {
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
+  '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
@@ -460,6 +477,7 @@ export interface FileRoutesByTo {
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
   '/stock-management/physical-inventory/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -494,6 +512,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
+  '/(protected)/_protected/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/(protected)/_protected/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
@@ -515,6 +534,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/issue_/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
   '/(protected)/_protected/stock-management/physical-inventory_/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -549,6 +569,7 @@ export interface FileRouteTypes {
     | '/administration/reasons'
     | '/administration/roles'
     | '/administration/service-accounts'
+    | '/administration/supervisory-nodes'
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
@@ -570,6 +591,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/administration/supervisory-nodes/$id'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
     | '/stock-management/physical-inventory/$programId'
@@ -600,6 +622,7 @@ export interface FileRouteTypes {
     | '/administration/reasons'
     | '/administration/roles'
     | '/administration/service-accounts'
+    | '/administration/supervisory-nodes'
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
@@ -620,6 +643,7 @@ export interface FileRouteTypes {
     | '/administration/facilities/new'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/administration/supervisory-nodes/$id'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
     | '/stock-management/physical-inventory/$programId'
@@ -653,6 +677,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/reasons'
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
+    | '/(protected)/_protected/administration/supervisory-nodes'
     | '/(protected)/_protected/administration/users'
     | '/(protected)/_protected/administration/valid-destinations'
     | '/(protected)/_protected/administration/valid-sources'
@@ -674,6 +699,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id'
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
+    | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/issue_/$programId'
     | '/(protected)/_protected/stock-management/physical-inventory_/$programId'
@@ -817,6 +843,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/service-accounts'
       fullPath: '/administration/service-accounts'
       preLoaderRoute: typeof protectedProtectedAdministrationServiceAccountsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/supervisory-nodes': {
+      id: '/(protected)/_protected/administration/supervisory-nodes'
+      path: '/administration/supervisory-nodes'
+      fullPath: '/administration/supervisory-nodes'
+      preLoaderRoute: typeof protectedProtectedAdministrationSupervisoryNodesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/users': {
@@ -964,6 +997,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/reasons/new'
       fullPath: '/administration/reasons/new'
       preLoaderRoute: typeof protectedProtectedAdministrationReasonsNewRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/supervisory-nodes_/$id': {
+      id: '/(protected)/_protected/administration/supervisory-nodes_/$id'
+      path: '/administration/supervisory-nodes/$id'
+      fullPath: '/administration/supervisory-nodes/$id'
+      preLoaderRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/stock-management/adjustments_/$programId': {
@@ -1145,6 +1185,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationReasonsRoute: typeof protectedProtectedAdministrationReasonsRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
+  protectedProtectedAdministrationSupervisoryNodesRoute: typeof protectedProtectedAdministrationSupervisoryNodesRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
@@ -1160,6 +1201,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
+  protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementIssueProgramIdRoute: typeof protectedProtectedStockManagementIssueProgramIdRoute
   protectedProtectedStockManagementPhysicalInventoryProgramIdRoute: typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -1193,6 +1235,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationRolesRoute,
   protectedProtectedAdministrationServiceAccountsRoute:
     protectedProtectedAdministrationServiceAccountsRoute,
+  protectedProtectedAdministrationSupervisoryNodesRoute:
+    protectedProtectedAdministrationSupervisoryNodesRoute,
   protectedProtectedAdministrationUsersRoute:
     protectedProtectedAdministrationUsersRoute,
   protectedProtectedAdministrationValidDestinationsRoute:
@@ -1223,6 +1267,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsIdRoute,
   protectedProtectedAdministrationReasonsNewRoute:
     protectedProtectedAdministrationReasonsNewRoute,
+  protectedProtectedAdministrationSupervisoryNodesIdRoute:
+    protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedStockManagementAdjustmentsProgramIdRoute:
     protectedProtectedStockManagementAdjustmentsProgramIdRoute,
   protectedProtectedStockManagementIssueProgramIdRoute:
