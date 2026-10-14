@@ -99,10 +99,22 @@ function ViewGroupPending() {
 }
 function ViewGroupError(props: ErrorComponentProps) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const listSearch = router.state.location.state.requisitionGroupsListSearch ?? {};
+  const back = (
+    <Button
+      nativeButton={false}
+      render={<Link to="/administration/requisition-groups" search={listSearch} />}
+      variant="outline"
+    >
+      {t('requisition-groups.form.back')}
+    </Button>
+  );
   if (!isNotFound(props.error))
     return (
       <ErrorFallback
         {...props}
+        back={back}
         title={t('requisition-groups.form.load-group-error-title')}
         description={t('requisition-groups.form.load-group-error-description')}
       />
@@ -120,15 +132,7 @@ function ViewGroupError(props: ErrorComponentProps) {
               {t('requisition-groups.form.not-found-description')}
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
-            <Button
-              nativeButton={false}
-              render={<Link to="/administration/requisition-groups" />}
-              variant="outline"
-            >
-              {t('requisition-groups.form.back')}
-            </Button>
-          </EmptyContent>
+          <EmptyContent>{back}</EmptyContent>
         </Empty>
       </WorkspaceContent>
     </Workspace>

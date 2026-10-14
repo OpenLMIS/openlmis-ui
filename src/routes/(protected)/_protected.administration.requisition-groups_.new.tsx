@@ -1,8 +1,9 @@
-import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorFallback } from '@/components/error-fallback';
+import { Button } from '@/components/ui/button';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
@@ -82,9 +83,21 @@ function AddGroupPending() {
 }
 function AddGroupError(props: ErrorComponentProps) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const listSearch = router.state.location.state.requisitionGroupsListSearch ?? {};
+  const back = (
+    <Button
+      nativeButton={false}
+      render={<Link to="/administration/requisition-groups" search={listSearch} />}
+      variant="outline"
+    >
+      {t('requisition-groups.form.back')}
+    </Button>
+  );
   return (
     <ErrorFallback
       {...props}
+      back={back}
       title={t('requisition-groups.form.load-group-error-title')}
       description={t('requisition-groups.form.load-group-error-description')}
     />

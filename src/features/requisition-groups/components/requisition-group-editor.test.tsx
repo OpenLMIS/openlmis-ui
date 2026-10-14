@@ -1,9 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchFacility } from '@/features/reference-data/api/api';
 import type { Facility } from '@/features/reference-data/lib/types';
 import {
@@ -139,14 +140,14 @@ beforeEach(() => {
   vi.mocked(updateRequisitionGroup).mockResolvedValue(group);
 });
 describe('RequisitionGroupEditor', () => {
-  it('opens the first error tab and focuses the required general field', async () => {
+  it('keeps the current tab and focuses the required general field', async () => {
     renderEditor({ initialSearch: { tab: 'facilities' } });
     await click('requisition-groups.form.save');
     expect(await screen.findByText('requisition-groups.form.name-required')).toBeVisible();
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: 'requisition-groups.form.name' })).toHaveFocus(),
     );
-    expect(screen.getByRole('tab', { name: /requisition-groups.form.programs/ })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: /requisition-groups.form.facilities/ })).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -267,6 +268,35 @@ describe('RequisitionGroupEditor', () => {
         }),
       ),
     );
+  });
+  it('ignores a facility read that completes after the session changes', async () => {
+    let resolve!: (facility: Facility) => void;
+    vi.mocked(fetchFacility).mockImplementation(
+      () =>
+        new Promise<Facility>((done) => {
+          resolve = done;
+        }),
+    );
+    renderEditor({ saved: group, initialSearch: { tab: 'facilities' } });
+    await click('requisition-groups.form.add-facility');
+    const dialog = await screen.findByRole('dialog');
+    await pick(dialog, 'facility', 'Second Facility');
+    await userEvent
+      .setup()
+      .click(within(dialog).getByRole('button', { name: 'requisition-groups.form.add' }));
+    await waitFor(() => expect(fetchFacility).toHaveBeenCalledWith('f2'));
+    const previous = useLoginData.getState().referenceDataUserId;
+    try {
+      await act(async () => {
+        useLoginData.setState({ referenceDataUserId: 'another-user' });
+        resolve(pickedFacility);
+      });
+      expect(screen.getByRole('dialog')).toBeVisible();
+      expect(screen.queryByRole('cell', { name: 'Second Facility' })).toBeNull();
+      expect(screen.queryByText('requisition-groups.form.facility-error-title')).toBeNull();
+    } finally {
+      act(() => useLoginData.setState({ referenceDataUserId: previous }));
+    }
   });
   it('keeps both edited collections through tab, filter, sort and page changes, reusing a saved row without drop-off', async () => {
     vi.mocked(fetchFacility).mockResolvedValue(pickedFacility);

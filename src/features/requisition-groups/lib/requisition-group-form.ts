@@ -71,8 +71,9 @@ export function availablePrograms<T extends { id: string; name?: string | null }
 }
 export type RequisitionGroupTab = 'programs' | 'facilities';
 export function tabWithFirstError(fields: readonly string[]): RequisitionGroupTab | undefined {
-  if (!fields.length) return undefined;
-  return fields.some((name) => !name.startsWith('members')) ? 'programs' : 'facilities';
+  if (fields.some((name) => name.startsWith('schedules'))) return 'programs';
+  if (fields.some((name) => name.startsWith('members'))) return 'facilities';
+  return undefined;
 }
 export function toRequisitionGroupBody(
   values: RequisitionGroupFormValues,

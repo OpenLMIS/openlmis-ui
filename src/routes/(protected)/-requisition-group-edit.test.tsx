@@ -1,11 +1,14 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  RouterProvider,
 } from '@tanstack/react-router';
+import { render, screen } from '@testing-library/react';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
 import { fetchRequisitionGroup } from '@/features/requisition-groups/api/api';
@@ -15,7 +18,9 @@ import { Route as ViewRoute } from '@/routes/(protected)/_protected.administrati
 import { Route as EditRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id_.edit';
 import { Route as AddRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.new';
 
-vi.mock('@/features/auth/lib/access', () => ({
+vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/features/auth/lib/access', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/auth/lib/access')>()),
   requireRight: vi.fn(async () => new Set(['REQUISITION_GROUPS_MANAGE'])),
 }));
 vi.mock('@/features/requisition-groups/api/api', () => ({
@@ -91,5 +96,49 @@ describe('requisition group edit loader', () => {
       });
       expect(requireRight).toHaveBeenCalledWith(queryClient, 'REQUISITION_GROUPS_MANAGE');
     }
+  });
+});
+
+describe('requisition group error navigation', () => {
+  it.each([
+    ['edit not found', EditRoute, 404],
+    ['view not found', ViewRoute, 404],
+    ['edit load error', EditRoute, 500],
+    ['view load error', ViewRoute, 500],
+    ['add load error', AddRoute, 500],
+  ] as const)('preserves the list search on %s', async (_name, route, status) => {
+    const ErrorPage = route.options.errorComponent;
+    if (!ErrorPage) throw new Error('Missing error page');
+    await ErrorPage.preload?.();
+    const error = new AxiosError('Load failed', String(status), undefined, undefined, {
+      status,
+      statusText: 'Load failed',
+      data: {},
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    });
+    const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+      component: () => <ErrorPage error={error} reset={vi.fn()} />,
+    });
+    const history = createMemoryHistory({ initialEntries: ['/'] });
+    history.replace('/', {
+      requisitionGroupsListSearch: { page: 3, size: 20, name: 'Family', sort: 'code,desc' },
+    });
+    const queryClient = new QueryClient();
+    const router = createRouter({ routeTree: root, context: { queryClient }, history });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    const link = await screen.findByRole('button', { name: 'requisition-groups.form.back' });
+    const url = new URL(link.getAttribute('href') ?? '', 'http://localhost');
+    expect(url.pathname).toBe('/administration/requisition-groups');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      page: '3',
+      size: '20',
+      name: 'Family',
+      sort: 'code,desc',
+    });
   });
 });

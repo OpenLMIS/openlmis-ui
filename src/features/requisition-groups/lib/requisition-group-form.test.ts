@@ -121,10 +121,12 @@ describe('requisition group form', () => {
     });
   });
 
-  it('opens the first error tab, with general fields taking precedence', () => {
+  it('chooses tabs only for collection errors, with programs taking precedence', () => {
     expect(tabWithFirstError([])).toBeUndefined();
     expect(tabWithFirstError(['members[0].code'])).toBe('facilities');
     expect(tabWithFirstError(['schedules[0].program.id'])).toBe('programs');
-    expect(tabWithFirstError(['members[0].code', 'name'])).toBe('programs');
+    expect(tabWithFirstError(['name', 'code', 'nodeId'])).toBeUndefined();
+    expect(tabWithFirstError(['members[0].code', 'name'])).toBe('facilities');
+    expect(tabWithFirstError(['members[0].code', 'schedules[0].program.id'])).toBe('programs');
   });
 });

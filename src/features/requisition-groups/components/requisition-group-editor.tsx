@@ -101,6 +101,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { queryKeys } from '@/lib/key-factory';
+import { getSessionScope } from '@/lib/session-scope';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
 export const REQUISITION_GROUP_LOOKUPS = {
@@ -278,14 +279,20 @@ function EditorDiscardGuard({
     />
   );
 }
-function EditorHeader({ title, description }: { title: string; description: string }) {
+function EditorHeader({ title, description }: { title?: string; description: string }) {
   return (
     <WorkspaceHeader>
       <WorkspaceHeading>
         <WorkspaceIcon>
           <NetworkIcon />
         </WorkspaceIcon>
-        <WorkspaceTitle>{title}</WorkspaceTitle>
+        <WorkspaceTitle>
+          {title ?? (
+            <span aria-hidden="true" className="block h-5 w-64 max-w-full">
+              <Skeleton fill />
+            </span>
+          )}
+        </WorkspaceTitle>
         <WorkspaceDescription>{description}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
@@ -927,25 +934,28 @@ function useFacilityForm(
   queryClient: QueryClient,
   onError: (error: unknown) => void,
 ) {
+  const [scope] = useState(getSessionScope);
+  const isCurrent = () => scope === getSessionScope();
   return useAppForm({
     defaultValues: { facilityId: null as string | null },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: addFacilitySchema },
     onSubmit: async ({ value }) => {
-      if (!value.facilityId) return;
+      if (!value.facilityId || !isCurrent()) return;
       onError(undefined);
       onPending(true);
       try {
         const facility = await queryClient.fetchQuery(facilityOptions(value.facilityId));
+        if (!isCurrent()) return;
         onAdd({
           ...facility,
           name: facility.name ?? facility.code,
           type: { ...facility.type, name: facility.type.name ?? undefined },
         });
       } catch (error) {
-        onError(error);
+        if (isCurrent()) onError(error);
       } finally {
-        onPending(false);
+        if (isCurrent()) onPending(false);
       }
     },
   });
@@ -1027,7 +1037,7 @@ export function RequisitionGroupEditorSkeleton({
   description,
   readOnly = false,
 }: {
-  title: string;
+  title?: string;
   description: string;
   readOnly?: boolean;
 }) {
