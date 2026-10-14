@@ -67,7 +67,7 @@ function SchedulesPage() {
   }, []);
 
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <SchedulesHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6">
@@ -114,7 +114,7 @@ function SchedulesHeader() {
 
 function SchedulesPagePending() {
   return (
-    <Workspace>
+    <Workspace width="narrow">
       <SchedulesHeader />
       <WorkspaceContent>
         <SchedulesTableSkeleton search={{}} />
