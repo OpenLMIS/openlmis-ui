@@ -45,7 +45,7 @@ import {
 } from '@/features/reference-data/api/api';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
-import { isDeviceAccess, withOfflineAccess } from '@/lib/offline-access';
+import { offlineAccessStaleTime, withOfflineAccess } from '@/lib/offline-access';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -73,7 +73,8 @@ export const homeFacilityOptions = (id: string) =>
         (saved) => (saved.homeFacility?.id === id ? saved.homeFacility : undefined),
       ),
     structuralSharing: false,
-    staleTime: (query) => (isDeviceAccess(query.state.data) ? 0 : LOOKUP_STALE_TIME),
+    refetchOnReconnect: true,
+    staleTime: (query) => offlineAccessStaleTime(query.state.data, LOOKUP_STALE_TIME),
   });
 
 export const facilitiesByIdsOptions = (ids: readonly string[]) =>
@@ -260,7 +261,8 @@ export const userRecordOptions = (id: string) =>
         (saved) => (saved.userId === id ? saved.user : undefined),
       ),
     structuralSharing: false,
-    staleTime: (query) => (isDeviceAccess(query.state.data) ? 0 : LOOKUP_STALE_TIME),
+    refetchOnReconnect: true,
+    staleTime: (query) => offlineAccessStaleTime(query.state.data, LOOKUP_STALE_TIME),
   });
 
 export const userProgramsOptions = (id: string) =>
@@ -272,7 +274,8 @@ export const userProgramsOptions = (id: string) =>
         (saved) => (saved.userId === id ? saved.programs : undefined),
       ),
     structuralSharing: false,
-    staleTime: (query) => (isDeviceAccess(query.state.data) ? 0 : LOOKUP_STALE_TIME),
+    refetchOnReconnect: true,
+    staleTime: (query) => offlineAccessStaleTime(query.state.data, LOOKUP_STALE_TIME),
   });
 
 type DeploymentTimeZone = { zone: string; read: boolean };

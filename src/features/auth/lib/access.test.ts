@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError, isForbidden, requireRight } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { queryClient } from '@/integrations/tanstack-query';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 
@@ -41,6 +42,27 @@ describe('requireRight', () => {
       requireRight(new QueryClient(), ['ORDERABLES_MANAGE', 'FACILITY_APPROVED_ORDERABLES_MANAGE']),
     ).rejects.toThrow('Missing right ORDERABLES_MANAGE or FACILITY_APPROVED_ORDERABLES_MANAGE');
   });
+
+  it.each([false, true])(
+    'checks the new identity when rights finish after a user change (cache cleared: %s)',
+    async (clearCache) => {
+      let release!: (rights: string[]) => void;
+      permissionStrings.mockReturnValueOnce(
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+      );
+      permissionStrings.mockResolvedValueOnce(['USERS_MANAGE']);
+      const client = clearCache ? queryClient : new QueryClient();
+      const pending = requireRight(client, 'USERS_MANAGE');
+      useLoginData.setState({ referenceDataUserId: 'u2' });
+      release(['USERS_MANAGE', 'STOCK_ADJUST|old-home|old-program']);
+
+      await expect(pending).resolves.toEqual(new Set(['USERS_MANAGE']));
+      expect(permissionStrings.mock.calls.map(([id]) => id)).toEqual(['u1', 'u2']);
+      client.clear();
+    },
+  );
 
   it('throws without asking the server when nobody is signed in', async () => {
     useLoginData.setState({ referenceDataUserId: null });
