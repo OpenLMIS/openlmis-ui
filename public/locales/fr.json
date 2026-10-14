@@ -526,6 +526,7 @@
   "offline.download.finished": "Téléchargement Hors Ligne Terminé",
   "offline.download.incomplete": "Téléchargement Hors Ligne Incomplet",
   "offline.download.locks-required": "Ce navigateur ne peut pas coordonner les téléchargements hors ligne. Utilisez un navigateur prenant en charge Web Locks.",
+  "offline.download.needs-refresh": "Actualisation Nécessaire",
   "offline.download.not-downloaded": "Non Téléchargé",
   "offline.download.readiness": "Disponibilité Hors Ligne",
   "offline.download.ready": "Disponible Hors Ligne",

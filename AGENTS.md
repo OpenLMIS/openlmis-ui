@@ -988,8 +988,9 @@ return data, unavailable or a handled error; local absence is never a server 404
   Background reads retain session-scope checks even with `session: false`.
 
 - Adjustments reads and downloads share `src/lib/adjustment-bundle.ts`; online queries never
-  persist bundles. Foreground reads coalesce independently of coordinator signals and retain
-  normal session renewal/replay. Only coordinator downloads use fail-fast `backgroundRead`.
+  persist bundles. Foreground reads join matching coordinator downloads, restart independently
+  after cancellation or background 401, and retain normal session renewal/replay. Only coordinator
+  downloads use fail-fast `backgroundRead`.
   Bundle cards/reasons use scoped keys from `adjustmentBundleKeys`; pass the same scope to the
   picker. Online scans retain `tradeItemByGtinOptions`; only unreachable/offline reads consult
   saved mappings. Missing mappings in a complete scan-enabled bundle mean not in local stock,

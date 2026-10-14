@@ -124,7 +124,7 @@ async function fetchBundle(
     assertSessionScope(sessionScope);
     config.signal?.throwIfAborted();
     if (config.backgroundRead && (!isOnline() || useLoginData.getState().expired))
-      throw new Error('Download stopped.');
+      throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
   const summaries: Summary[] = [];
@@ -238,8 +238,6 @@ async function fetchBundle(
     ? await read(() => fetchTradeItemsByIds(tradeIds, config))
     : [];
   check();
-  if (filter.scanning && tradeIds.some((id) => !tradeItems.some((item) => item.id === id)))
-    throw new Error('Stock card trade item not found');
   return {
     ...filter,
     userId,
@@ -269,17 +267,9 @@ async function fetchBundle(
 }
 
 const inFlight = new Map<string, Promise<AdjustmentBundle>>();
-export function fetchAdjustmentBundle(filter: AdjustmentScope, signal?: AbortSignal) {
-  return fetchBundle(filter, {
-    session: false,
-    backgroundRead: true,
-    signal,
-    sessionScope: getSessionScope(),
-  });
-}
-
-function fetchForegroundBundle(filter: AdjustmentScope) {
-  const requestKey = JSON.stringify([
+const downloads = new Map<string, Promise<AdjustmentBundle>>();
+const requestKeyFor = (filter: AdjustmentScope) =>
+  JSON.stringify([
     getSessionScope(),
     useLoginData.getState().accessToken,
     filter.facilityId,
@@ -287,9 +277,42 @@ function fetchForegroundBundle(filter: AdjustmentScope) {
     filter.facilityTypeId,
     filter.scanning,
   ]);
+
+export function fetchAdjustmentBundle(filter: AdjustmentScope, signal?: AbortSignal) {
+  const requestKey = requestKeyFor(filter);
+  const pending = fetchBundle(filter, {
+    session: false,
+    backgroundRead: true,
+    signal,
+    sessionScope: getSessionScope(),
+  }).finally(() => {
+    if (downloads.get(requestKey) === pending) downloads.delete(requestKey);
+  });
+  downloads.set(requestKey, pending);
+  return pending;
+}
+
+function fetchForegroundBundle(filter: AdjustmentScope) {
+  const requestKey = requestKeyFor(filter);
   const existing = inFlight.get(requestKey);
   if (existing) return existing;
-  const pending = fetchBundle(filter, { sessionScope: getSessionScope() }).finally(() => {
+  const scope = getSessionScope();
+  const fetch = () => fetchBundle({ ...filter, scanning: false }, { sessionScope: scope });
+  const download = downloads.get(requestKey);
+  const pending = (
+    download
+      ? download.catch((error: unknown) => {
+          assertSessionScope(scope);
+          if (
+            (isAxiosError(error) &&
+              (error.code === AxiosError.ERR_CANCELED || error.response?.status === 401)) ||
+            (error instanceof DOMException && error.name === 'AbortError')
+          )
+            return fetch();
+          throw error;
+        })
+      : fetch()
+  ).finally(() => {
     if (inFlight.get(requestKey) === pending) inFlight.delete(requestKey);
   });
   inFlight.set(requestKey, pending);

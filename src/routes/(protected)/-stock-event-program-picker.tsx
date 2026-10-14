@@ -256,7 +256,9 @@ function DownloadedProgramsTable({
           label: recordLabel(program),
           status: bundle ? (
             <div className="flex flex-col gap-1">
-              <span>{t('offline.download.ready')}</span>
+              <span>
+                {t(bundle.stale ? 'offline.download.needs-refresh' : 'offline.download.ready')}
+              </span>
               <span className="text-xs text-muted-foreground">
                 {t('offline.download.downloaded-at', {
                   date: formatTimestamp(new Date(bundle.fetchedAt).toISOString(), i18n.language, {

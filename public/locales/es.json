@@ -526,6 +526,7 @@
   "offline.download.finished": "Descarga Sin Conexión Completada",
   "offline.download.incomplete": "Descarga Sin Conexión Incompleta",
   "offline.download.locks-required": "Este navegador no puede coordinar las descargas sin conexión. Utilice un navegador compatible con Web Locks.",
+  "offline.download.needs-refresh": "Necesita Actualización",
   "offline.download.not-downloaded": "No Descargado",
   "offline.download.readiness": "Disponibilidad Sin Conexión",
   "offline.download.ready": "Disponible Sin Conexión",
