@@ -20,6 +20,7 @@ import { Route as protectedProtectedSettingsRouteImport } from './routes/(protec
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
 import { Route as protectedProtectedAdministrationLotsRouteImport } from './routes/(protected)/_protected.administration.lots'
+import { Route as protectedProtectedAdministrationProcessingSchedulesRouteImport } from './routes/(protected)/_protected.administration.processing-schedules'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
 import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
 import { Route as protectedProtectedAdministrationReasonsRouteImport } from './routes/(protected)/_protected.administration.reasons'
@@ -43,6 +44,7 @@ import { Route as protectedProtectedStockManagementTransactionHistoryRouteImport
 import { Route as protectedProtectedStockManagementUnpackRouteImport } from './routes/(protected)/_protected.stock-management.unpack'
 import { Route as protectedProtectedAdministrationFacilitiesIdRouteImport } from './routes/(protected)/_protected.administration.facilities_.$id'
 import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } from './routes/(protected)/_protected.administration.facilities_.new'
+import { Route as protectedProtectedAdministrationProcessingSchedulesIdRouteImport } from './routes/(protected)/_protected.administration.processing-schedules_.$id'
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
@@ -118,6 +120,12 @@ const protectedProtectedAdministrationLotsRoute =
   protectedProtectedAdministrationLotsRouteImport.update({
     id: '/administration/lots',
     path: '/administration/lots',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationProcessingSchedulesRoute =
+  protectedProtectedAdministrationProcessingSchedulesRouteImport.update({
+    id: '/administration/processing-schedules',
+    path: '/administration/processing-schedules',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationProductsRoute =
@@ -258,6 +266,12 @@ const protectedProtectedAdministrationFacilitiesNewRoute =
     path: '/administration/facilities/new',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedAdministrationProcessingSchedulesIdRoute =
+  protectedProtectedAdministrationProcessingSchedulesIdRouteImport.update({
+    id: '/administration/processing-schedules_/$id',
+    path: '/administration/processing-schedules/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationProductsIdRoute =
   protectedProtectedAdministrationProductsIdRouteImport.update({
     id: '/administration/products_/$id',
@@ -376,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
+  '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
@@ -399,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
+  '/administration/processing-schedules/$id': typeof protectedProtectedAdministrationProcessingSchedulesIdRoute
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
@@ -426,6 +442,7 @@ export interface FileRoutesByTo {
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
+  '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
@@ -449,6 +466,7 @@ export interface FileRoutesByTo {
   '/settings': typeof protectedProtectedSettingsIndexRoute
   '/administration/facilities/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
+  '/administration/processing-schedules/$id': typeof protectedProtectedAdministrationProcessingSchedulesIdRoute
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
@@ -479,6 +497,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/(protected)/_protected/administration/lots': typeof protectedProtectedAdministrationLotsRoute
+  '/(protected)/_protected/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/(protected)/_protected/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
@@ -502,6 +521,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings/': typeof protectedProtectedSettingsIndexRoute
   '/(protected)/_protected/administration/facilities_/$id': typeof protectedProtectedAdministrationFacilitiesIdRoute
   '/(protected)/_protected/administration/facilities_/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
+  '/(protected)/_protected/administration/processing-schedules_/$id': typeof protectedProtectedAdministrationProcessingSchedulesIdRoute
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
@@ -533,6 +553,7 @@ export interface FileRouteTypes {
     | '/administration/facilities'
     | '/administration/facility-types'
     | '/administration/lots'
+    | '/administration/processing-schedules'
     | '/administration/products'
     | '/administration/programs'
     | '/administration/reasons'
@@ -556,6 +577,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/administration/facilities/$id'
     | '/administration/facilities/new'
+    | '/administration/processing-schedules/$id'
     | '/administration/products/$id'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
@@ -583,6 +605,7 @@ export interface FileRouteTypes {
     | '/administration/facilities'
     | '/administration/facility-types'
     | '/administration/lots'
+    | '/administration/processing-schedules'
     | '/administration/products'
     | '/administration/programs'
     | '/administration/reasons'
@@ -606,6 +629,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/administration/facilities/$id'
     | '/administration/facilities/new'
+    | '/administration/processing-schedules/$id'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
     | '/stock-management/adjustments/$programId'
@@ -635,6 +659,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/facilities'
     | '/(protected)/_protected/administration/facility-types'
     | '/(protected)/_protected/administration/lots'
+    | '/(protected)/_protected/administration/processing-schedules'
     | '/(protected)/_protected/administration/products'
     | '/(protected)/_protected/administration/programs'
     | '/(protected)/_protected/administration/reasons'
@@ -658,6 +683,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings/'
     | '/(protected)/_protected/administration/facilities_/$id'
     | '/(protected)/_protected/administration/facilities_/new'
+    | '/(protected)/_protected/administration/processing-schedules_/$id'
     | '/(protected)/_protected/administration/products_/$id'
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
@@ -762,6 +788,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/lots'
       fullPath: '/administration/lots'
       preLoaderRoute: typeof protectedProtectedAdministrationLotsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/processing-schedules': {
+      id: '/(protected)/_protected/administration/processing-schedules'
+      path: '/administration/processing-schedules'
+      fullPath: '/administration/processing-schedules'
+      preLoaderRoute: typeof protectedProtectedAdministrationProcessingSchedulesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/products': {
@@ -923,6 +956,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/facilities/new'
       fullPath: '/administration/facilities/new'
       preLoaderRoute: typeof protectedProtectedAdministrationFacilitiesNewRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/processing-schedules_/$id': {
+      id: '/(protected)/_protected/administration/processing-schedules_/$id'
+      path: '/administration/processing-schedules/$id'
+      fullPath: '/administration/processing-schedules/$id'
+      preLoaderRoute: typeof protectedProtectedAdministrationProcessingSchedulesIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/products_/$id': {
@@ -1119,6 +1159,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
   protectedProtectedAdministrationLotsRoute: typeof protectedProtectedAdministrationLotsRoute
+  protectedProtectedAdministrationProcessingSchedulesRoute: typeof protectedProtectedAdministrationProcessingSchedulesRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
   protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
   protectedProtectedAdministrationReasonsRoute: typeof protectedProtectedAdministrationReasonsRoute
@@ -1136,6 +1177,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedStockManagementUnpackRoute: typeof protectedProtectedStockManagementUnpackRoute
   protectedProtectedAdministrationFacilitiesIdRoute: typeof protectedProtectedAdministrationFacilitiesIdRoute
   protectedProtectedAdministrationFacilitiesNewRoute: typeof protectedProtectedAdministrationFacilitiesNewRoute
+  protectedProtectedAdministrationProcessingSchedulesIdRoute: typeof protectedProtectedAdministrationProcessingSchedulesIdRoute
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
@@ -1160,6 +1202,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilityTypesRoute,
   protectedProtectedAdministrationLotsRoute:
     protectedProtectedAdministrationLotsRoute,
+  protectedProtectedAdministrationProcessingSchedulesRoute:
+    protectedProtectedAdministrationProcessingSchedulesRoute,
   protectedProtectedAdministrationProductsRoute:
     protectedProtectedAdministrationProductsRoute,
   protectedProtectedAdministrationProgramsRoute:
@@ -1194,6 +1238,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilitiesIdRoute,
   protectedProtectedAdministrationFacilitiesNewRoute:
     protectedProtectedAdministrationFacilitiesNewRoute,
+  protectedProtectedAdministrationProcessingSchedulesIdRoute:
+    protectedProtectedAdministrationProcessingSchedulesIdRoute,
   protectedProtectedAdministrationProductsIdRoute:
     protectedProtectedAdministrationProductsIdRouteWithChildren,
   protectedProtectedAdministrationReasonsIdRoute:
