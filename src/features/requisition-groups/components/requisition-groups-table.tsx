@@ -147,7 +147,8 @@ function RequisitionGroupActions({
             <DropdownMenuItem
               render={
                 <Link
-                  to={`/administration/requisition-groups/${group.id}/edit` as string}
+                  to="/administration/requisition-groups/$id/edit"
+                  params={{ id: group.id }}
                   state={{ requisitionGroupsListSearch: search }}
                 />
               }

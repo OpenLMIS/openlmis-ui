@@ -94,7 +94,7 @@ export function RequisitionGroupsToolbar({
         <Button
           render={
             <Link
-              to={'/administration/requisition-groups/new' as string}
+              to="/administration/requisition-groups/new"
               state={{ requisitionGroupsListSearch: search }}
             />
           }
