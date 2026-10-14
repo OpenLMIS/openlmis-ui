@@ -943,7 +943,8 @@ return data, unavailable or a handled error; local absence is never a server 404
 
 ### Stock event device drafts
 
-- Dexie v4 adds only `stockEventDrafts`; queue, error and receipt tables need later versions.
+- Dexie v4 adds `stockEventDrafts`; v5 adds the queue, error and receipt tables.
+  Error and receipt tables are reserved for stage 7 sync.
   The kind's `drafts` policy enables device autosave only for Adjustments. Other event kinds
   keep their existing leave guards and online behavior.
 - `stock-event-local.ts` captures the owning database and session scope. Check scope after
@@ -968,14 +969,18 @@ return data, unavailable or a handled error; local absence is never a server 404
   revision-checks both records and atomically archives the active draft before promoting the
   copy. Delete requires confirmation and a revision/scope check. Memoize its table columns
   and use draft ids for rows so save notifications cannot remount open action menus.
-- Before direct online submission, persist `submissionAttempted` without changing the form.
-  Clear it after a definitive refusal only if that attempt set it. After acceptance, retire the
-  expected draft before navigating, without status callbacks or form writes. If deletion fails,
-  mark it accepted in a second transaction. Persist acceptance before retirement, with a deployment/user/draft-scoped
-  localStorage marker if IndexedDB fails. Accepted copies left in editing show Already Recorded
-  and disable edits/Submit until confirmed Clear removes them. Accepted rows are excluded from
-  editing and archived-copy recovery.
+- Offline-capable kinds never POST directly from the editor. Flush and validate, collect the
+  signature, then revision-check and atomically freeze the editing draft as queued and insert
+  its immutable queue row. Keep the exact POST body without `documentNumber`, display snapshots
+  and a unique `localEventId`. Success and navigation follow commit; failed writes roll back
+  both records. Repeated confirmation reuses the same event, never another queue row.
+- Queued drafts cannot autosave, clear, discard or restore. Opening the editor starts a new
+  editing draft. The per-user queue survives sign-out and identity checks inside the transaction
+  prevent obsolete enqueue writes. Business outcomes belong in Dexie, never localStorage.
+- Stage 6 deliberately disables upload, including connected Adjustments Submit. Both Submit
+  and Submit Offline enqueue and land on the Adjustments list with a saved-device toast.
+  Device Events reads the queue locally with URL paging and a rights-gated sidebar count.
+  Stage 7 adds ordered sending, receipts and recovery; stage 6 cannot ship independently.
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
-  Stage 6 must replace direct submission and its temporary attempt marker with revision-checked
-  durable enqueue and queue retirement; stage 5 alone is not releasable.
+  Announce committed queue counts through the same shell status region.

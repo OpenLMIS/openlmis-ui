@@ -325,13 +325,17 @@ export function refreshStockEventLines(
     );
     const stockProblem = !card
       ? 'missing'
-      : !allowed.has(card) && card.lot?.expirationDate && card.lot.expirationDate < today
-        ? 'expired'
-        : !allowed.has(card)
-          ? card.stockOnHand === 0
-            ? 'zero-stock'
-            : 'excluded'
-          : undefined;
+      : allowed.has(card)
+        ? undefined
+        : card.stockOnHand === 0
+          ? 'zero-stock'
+          : card.lot?.expirationDate &&
+              card.lot.expirationDate < today &&
+              products.from === 'stock-cards' &&
+              products.cardFilter([{ ...card, lot: { ...card.lot, expirationDate: today } }], today)
+                .length
+            ? 'expired'
+            : 'excluded';
     const next: EventLine = card
       ? {
           ...line,

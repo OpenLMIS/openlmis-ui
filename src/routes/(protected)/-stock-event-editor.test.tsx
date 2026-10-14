@@ -396,7 +396,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   });
 
   if (kind === 'adjustments') {
-    it('submits with a signature and lands directly on Stock On Hand without offering print', async () => {
+    it('queues with a signature and returns to Adjustments without offering print', async () => {
       vi.mocked(fetchPermissionStrings).mockResolvedValue([
         ...grants,
         `STOCK_CARDS_VIEW|${HOME}|${FP}`,
@@ -436,15 +436,9 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         'Ada',
       );
       await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-      expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
-      expect(router.state.location.search).toMatchObject({
-        mode: 'my',
-        facilityId: HOME,
-        programId: FP,
-      });
-      expect(submitStockEvent).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ signature: 'Ada', eventOrigin: 'ADJUSTMENT' }),
-      );
+      await waitFor(() => expect(router.state.location.pathname).toBe(PICKER));
+      expect(submitStockEvent).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   }
 

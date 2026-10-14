@@ -39,7 +39,7 @@ describe('getLocalDb', () => {
 
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     if (version === 1) await db.table('physicalInventoryDrafts').put(draft);
     expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
     expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
@@ -101,4 +101,48 @@ describe('getLocalDb', () => {
 
     expect(adas.isOpen()).toBe(false);
   });
+});
+
+it('upgrades v4 keeping drafts, bundles, access and PI rows while retiring temporary attempt markers', async () => {
+  signIn('queue-upgrade-v4');
+  const old = new Dexie(getLocalDb().name);
+  old.version(1).stores({});
+  old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+  old.version(3).stores({ offlineAccess: 'userId', adjustmentDownloads: '[facilityId+programId]' });
+  old
+    .version(4)
+    .stores({ stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt' });
+  const records = {
+    physicalInventoryDrafts: { draftId: 'pi', lines: [{ quantity: '12' }] },
+    offlineAccess: { userId: 'queue-upgrade-v4', generation: 'access' },
+    adjustmentDownloads: { facilityId: 'facility', programId: 'program', generation: 'bundle' },
+    stockEventDrafts: {
+      draftId: 'draft',
+      state: 'editing',
+      revision: 7,
+      lines: [{ quantity: '0012' }],
+      submissionAttempted: true,
+    },
+  };
+  for (const [name, row] of Object.entries(records)) await old.table(name).put(row);
+  await old
+    .table('stockEventDrafts')
+    .put({ ...records.stockEventDrafts, draftId: 'accepted', submissionAccepted: true });
+  old.close();
+  localStorage.setItem(`${getLocalDb().name}:stock-event-accepted:accepted`, 'accepted');
+  const db = getLocalDb();
+  await db.open();
+  for (const name of ['physicalInventoryDrafts', 'offlineAccess', 'adjustmentDownloads'])
+    expect(await db.table(name).toArray()).toEqual([records[name as keyof typeof records]]);
+  expect(await db.table('stockEventDrafts').get('draft')).toMatchObject({
+    draftId: 'draft',
+    revision: 7,
+    lines: records.stockEventDrafts.lines,
+  });
+  expect(await db.table('stockEventDrafts').get('draft')).not.toHaveProperty('submissionAttempted');
+  expect((await db.table('stockEventDrafts').get('accepted')).state).toBe('accepted');
+  expect(localStorage.getItem(`${db.name}:stock-event-accepted:accepted`)).toBeNull();
+  expect(db.tables.map((table) => table.name)).toEqual(
+    expect.arrayContaining(['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts']),
+  );
 });

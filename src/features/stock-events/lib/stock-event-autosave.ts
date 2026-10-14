@@ -1,15 +1,19 @@
 import type { EventLine } from '@/features/stock-events/lib/event-form';
 import {
-  acceptStockEventDraft,
   archiveStockEventCopy,
   DraftConflictError,
   readStockEventDraft,
-  rememberStockEventAcceptance,
   restoreStockEventCopy,
   type StockEventContext,
   type StockEventDraft,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
+import {
+  enqueueStockEvent,
+  type QueuedStockEvent,
+  type StockEventDisplay,
+} from '@/features/stock-events/lib/stock-event-queue';
+import type { StockEvent } from '@/features/stock-events/lib/types';
 import { assertSessionScope } from '@/lib/session-scope';
 
 export type StockEventSaveState = {
@@ -28,6 +32,8 @@ export function createStockEventWriter(
   let running: Promise<void> | undefined;
   let stopped = false;
   let conflict = false;
+  let frozen = false;
+  let submitting: Promise<QueuedStockEvent> | undefined;
   async function drain() {
     while (latest && !stopped) {
       const next = latest;
@@ -50,6 +56,7 @@ export function createStockEventWriter(
     });
   }
   function stage(lines: EventLine[]) {
+    if (frozen || submitting) return;
     current = lines;
     latest = lines;
     if (!stopped) onStatus({ status: 'saving' });
@@ -76,6 +83,7 @@ export function createStockEventWriter(
       start();
     },
     async replace(lines: EventLine[]) {
+      if (frozen || submitting) return false;
       await running;
       if (conflict) return false;
       latest = lines;
@@ -88,53 +96,28 @@ export function createStockEventWriter(
       else latest = current;
       return !stopped;
     },
-    async markSubmission(attempted: boolean) {
-      await running;
-      if (stopped) return false;
-      try {
-        expected = await saveStockEventDraft(context, expected, current, generation?.(), attempted);
-        return true;
-      } catch (error) {
-        stopped = true;
-        conflict = error instanceof DraftConflictError;
-        onStatus({ status: conflict ? 'conflict' : 'failed', error });
-        return false;
-      }
-    },
-    async retire() {
-      await running;
-      stopped = true;
-      latest = undefined;
-      try {
-        rememberStockEventAcceptance(context, expected);
-      } catch {
-        // IndexedDB can retain acceptance when the independent marker cannot be written.
-      }
-      try {
-        expected = await saveStockEventDraft(
-          context,
-          expected,
-          current,
-          generation?.(),
-          true,
-          true,
-        );
-      } catch {
-        // Retirement still runs after an acceptance-marker failure.
-      }
-      try {
-        await saveStockEventDraft(context, expected, []);
-        return true;
-      } catch {
+    submit(payload: StockEvent, display: StockEventDisplay) {
+      submitting ??= (async () => {
+        if (!(await this.flush()) || !expected) throw new Error('The draft is not saved');
         try {
-          await acceptStockEventDraft(context, expected);
-          return true;
-        } catch {
-          return false;
+          const queued = await enqueueStockEvent(context, expected, payload, display);
+          frozen = true;
+          latest = undefined;
+          return queued;
+        } catch (error) {
+          latest ??= current;
+          stopped = true;
+          conflict = error instanceof DraftConflictError;
+          onStatus({ status: conflict ? 'conflict' : 'failed', error });
+          throw error;
         }
-      }
+      })().finally(() => {
+        if (!frozen) submitting = undefined;
+      });
+      return submitting;
     },
     async restore(copy: StockEventDraft) {
+      if (frozen || submitting) return undefined;
       if (!(await this.flush())) return undefined;
       try {
         expected = await restoreStockEventCopy(context, expected, copy);
@@ -150,6 +133,7 @@ export function createStockEventWriter(
       }
     },
     async discard() {
+      if (frozen || submitting) return false;
       await running;
       try {
         expected = await saveStockEventDraft(context, expected, []);
@@ -167,6 +151,7 @@ export function createStockEventWriter(
       }
     },
     async resolve(choice: 'load' | 'copy') {
+      if (frozen || submitting) return expected;
       await running;
       assertSessionScope(context.sessionScope);
       const stored = await context.db.transaction('rw', 'stockEventDrafts', async () => {

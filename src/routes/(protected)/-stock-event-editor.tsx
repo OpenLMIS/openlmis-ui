@@ -54,6 +54,7 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
+import { useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
@@ -166,6 +167,7 @@ export function StockEventPending({
 }) {
   const { t } = useTranslation();
   const config = EVENT_KINDS[kind];
+  const online = useOnline();
   const unit = useQuantityUnit();
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: false });
@@ -217,7 +219,11 @@ export function StockEventPending({
           {t('stock-events.clear')}
         </Button>
         <Button disabled size="lg">
-          {t('stock-events.submit')}
+          {t(
+            config.drafts === 'device' && !online
+              ? 'stock-events.submit-offline'
+              : 'stock-events.submit',
+          )}
         </Button>
       </WorkspaceFooter>
     </>
@@ -292,10 +298,12 @@ export function StockEventEditorPage(props: StockEventEditorPageProps) {
     <StockEventEditorContent
       {...props}
       onSubmitted={() =>
-        navigate({
-          to: '/stock-management/stock-on-hand',
-          search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
-        })
+        EVENT_KINDS[props.kind].drafts === 'device'
+          ? navigate({ to: '/stock-management/adjustments' })
+          : navigate({
+              to: '/stock-management/stock-on-hand',
+              search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+            })
       }
     />
   );
@@ -347,6 +355,7 @@ function StockEventEditorContent({
       search={search}
       onSearchChange={updateSearch}
       onSubmitted={onSubmitted}
+      deviceDisplay={{ facility: homeFacility, program }}
     >
       <StockEventHeader kind={kind} facility={homeFacility} program={program} />
     </EventEditor>

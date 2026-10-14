@@ -10,6 +10,12 @@ import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
 
+vi.mock('@tanstack/react-router', async (original) => ({
+  ...(await original<typeof import('@tanstack/react-router')>()),
+  useNavigate: () => vi.fn(),
+}));
+vi.mock('@/components/nav-access', () => ({ useHasRight: () => false }));
+
 const worker = vi.hoisted(() => ({ waiting: () => {} }));
 
 vi.mock('workbox-window', () => ({

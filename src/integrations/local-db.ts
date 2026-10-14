@@ -36,6 +36,33 @@ export function getLocalDb(): Dexie {
     database.version(4).stores({
       stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt',
     });
+    const name = database.name;
+    database
+      .version(5)
+      .stores({
+        stockEventQueue: '++sequence, &localEventId, draftId, [status+sequence]',
+        stockEventSyncErrors: '&localEventId, [facilityId+programId], failedAt',
+        stockEventReceipts: '[draftId+revision], &localEventId, serverEventId',
+      })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table('stockEventDrafts')
+          .toCollection()
+          .modify((draft) => {
+            const key = `${name}:stock-event-accepted:${draft.draftId}`;
+            let accepted = draft.submissionAccepted || draft.state === 'accepted';
+            try {
+              accepted ||= localStorage.getItem(key) === 'accepted';
+              localStorage.removeItem(key);
+            } catch {
+              // Retain the IndexedDB state when legacy marker cleanup is unavailable.
+            }
+            if (accepted) draft.state = 'accepted';
+            delete draft.submissionAttempted;
+            delete draft.submissionAccepted;
+            draft.localEventId ??= crypto.randomUUID();
+          });
+      });
   }
   return database;
 }
