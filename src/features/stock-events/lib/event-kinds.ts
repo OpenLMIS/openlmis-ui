@@ -79,6 +79,7 @@ export type EventKindConfig = {
     | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
   scanning: boolean;
   download: 'adjustment' | null;
+  drafts: 'device' | null;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
   twoLineSelectMinWidth: number | null;
@@ -118,6 +119,7 @@ export type EventKindConfig = {
 export const EVENT_KINDS = {
   adjustment: {
     download: 'adjustment',
+    drafts: 'device',
     eventOrigin: 'ADJUSTMENT',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -159,6 +161,7 @@ export const EVENT_KINDS = {
   },
   issue: {
     download: null,
+    drafts: null,
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -209,6 +212,7 @@ export const EVENT_KINDS = {
   },
   receive: {
     download: null,
+    drafts: null,
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -259,6 +263,7 @@ export const EVENT_KINDS = {
   },
   unpack: {
     download: null,
+    drafts: null,
     eventOrigin: null,
     contents: {
       type: 'kit',

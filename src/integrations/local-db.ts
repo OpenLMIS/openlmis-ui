@@ -16,9 +16,14 @@ function deployment() {
 
 let database: Dexie | null = null;
 
-export function getLocalDb(): Dexie {
+export function getLocalDbUserId() {
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new Error('No one is signed in, so there is no local database to open.');
+  return userId;
+}
+
+export function getLocalDb(): Dexie {
+  const userId = getLocalDbUserId();
 
   if (!database) {
     database = new Dexie(localDatabaseName({ deployment: deployment(), userId }));
@@ -27,6 +32,9 @@ export function getLocalDb(): Dexie {
     database.version(3).stores({
       offlineAccess: 'userId',
       adjustmentDownloads: '[facilityId+programId]',
+    });
+    database.version(4).stores({
+      stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt',
     });
   }
   return database;

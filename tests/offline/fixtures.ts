@@ -1,0 +1,134 @@
+import type { BrowserContext, Page } from '@playwright/test';
+
+const programs = ['program', 'never'].map((id) => ({
+  id,
+  code: id,
+  name: id === 'program' ? 'Fixture Medicines' : 'Never Downloaded',
+  active: true,
+}));
+export async function stub(context: BrowserContext, stock: () => Promise<'finish' | 'fail'>) {
+  await context.route('**/api{,/**,?*}', async (route) => {
+    const url = new URL(route.request().url());
+    const fixtures: Record<string, unknown> = {
+      '/api/oauth/token': {
+        referenceDataUserId: 'download-user',
+        username: 'download-user',
+        access_token: 'fixture-token',
+        expires_in: 1800,
+      },
+      '/api/users/download-user/permissionStrings': programs.flatMap(({ id }) => [
+        `STOCK_ADJUST|home|${id}`,
+        `STOCK_CARDS_VIEW|home|${id}`,
+      ]),
+      '/api/users/download-user': {
+        id: 'download-user',
+        username: 'download-user',
+        firstName: 'Download',
+        lastName: 'User',
+        active: true,
+        homeFacilityId: 'home',
+        roleAssignments: [],
+      },
+      '/api/users/download-user/programs': programs,
+      '/api/facilities/home': {
+        id: 'home',
+        code: 'HOME',
+        name: 'Fixture Clinic',
+        active: true,
+        enabled: true,
+        type: { id: 'type', code: 'CLINIC', name: 'Clinic' },
+        geographicZone: { id: 'zone', code: 'ZONE', name: 'Zone', level: { name: 'District' } },
+        supportedPrograms: programs.map((program) => ({
+          ...program,
+          supportActive: true,
+          supportLocallyFulfilled: true,
+        })),
+      },
+      '/api/orderables/search': {
+        content: [
+          {
+            id: 'product',
+            productCode: 'MED',
+            fullProductName: 'Fixture Product',
+            description: null,
+            netContent: 10,
+            meta: { versionNumber: 1 },
+          },
+        ],
+        totalPages: 1,
+      },
+      '/api/validReasons': [
+        {
+          hidden: false,
+          reason: {
+            id: 'reason',
+            name: 'Damaged',
+            reasonType: 'DEBIT',
+            reasonCategory: 'ADJUSTMENT',
+            isFreeTextAllowed: true,
+            tags: [],
+          },
+        },
+      ],
+    };
+    if (url.pathname === '/api/v2/stockCardSummaries') {
+      if (url.searchParams.get('programId') === 'never')
+        return route.fulfill({ status: 503, json: { message: 'Unavailable program' } });
+      if ((await stock()) === 'fail') return route.abort('timedout');
+      return route
+        .fulfill({
+          json: {
+            content: [
+              {
+                orderable: { id: 'product', versionNumber: 1 },
+                canFulfillForMe: [
+                  {
+                    stockCard: { id: 'card' },
+                    orderable: { id: 'product' },
+                    lot: null,
+                    stockOnHand: 20,
+                  },
+                ],
+              },
+            ],
+            totalPages: 1,
+          },
+        })
+        .catch(() => undefined);
+    }
+    return route.fulfill(
+      url.pathname in fixtures ? { json: fixtures[url.pathname] } : { status: 404, json: {} },
+    );
+  });
+  await context.route('**/localeSettings{,/**,?*}', (route) =>
+    route.fulfill({ json: { timeZoneId: 'UTC' } }),
+  );
+}
+export async function login(page: Page) {
+  await page.goto('http://127.0.0.1:9165/v2/login?redirect=%2Fstock-management%2Fadjustments');
+  await page.getByRole('textbox', { name: 'Username', exact: true }).fill('download-user');
+  await page.getByLabel('Password', { exact: true }).fill('fixture-password');
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+}
+export async function generation(page: Page) {
+  return page.evaluate(async () => {
+    const name = (await indexedDB.databases()).find((db) =>
+      db.name?.endsWith(':download-user'),
+    )?.name;
+    if (!name) return null;
+    return new Promise<string | null>((resolve) => {
+      const request = indexedDB.open(name);
+      request.onsuccess = () => {
+        const db = request.result;
+        const read = db
+          .transaction('adjustmentDownloads')
+          .objectStore('adjustmentDownloads')
+          .get(['home', 'program']);
+        read.onsuccess = () => {
+          db.close();
+          resolve(read.result?.generation ?? null);
+        };
+      };
+    });
+  });
+}

@@ -39,7 +39,7 @@ describe('getLocalDb', () => {
 
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     if (version === 1) await db.table('physicalInventoryDrafts').put(draft);
     expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
     expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
