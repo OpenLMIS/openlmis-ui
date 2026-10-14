@@ -22,7 +22,7 @@ import {
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
-import { useQueuedAnnouncement } from '@/lib/device-event-status';
+import { useQueuedAnnouncement, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
@@ -51,6 +51,21 @@ function useNotices(): Notice[] {
   const navigate = useNavigate();
   const canAdjust = useHasRight(RIGHTS.stockAdjust);
   const { events } = useDeviceEvents(canAdjust);
+  const ownPhase = useSyncPhase();
+  const phase =
+    ownPhase === 'idle' && events?.some((event) => event.status === 'sending')
+      ? 'syncing'
+      : ownPhase;
+  const waiting =
+    events?.filter((event) => ['queued', 'sending', 'uncertain'].includes(event.status)).length ??
+    0;
+  const uncertain = events?.filter((event) => event.status === 'uncertain').length ?? 0;
+  const refused =
+    events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt).length ?? 0;
+  const review = {
+    label: t('device-events.review'),
+    onClick: () => void navigate({ to: '/stock-management/device-events' }),
+  };
   const online = useOnline();
   const backOnline = useBackOnline();
   const updateReady = useUpdateReady();
@@ -124,17 +139,69 @@ function useNotices(): Notice[] {
       action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
     });
   }
-  if (events?.length)
+  if (waiting)
     notices.push({
       id: 'device-events-waiting',
       closesSidebar: true,
       variant: 'info',
       Icon: ListChecksIcon,
-      title: t('device-events.waiting', { count: events.length }),
+      title: t('device-events.waiting', { count: waiting }),
       action: {
         label: t('device-events.review'),
         onClick: () => void navigate({ to: '/stock-management/device-events' }),
       },
+    });
+  if (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
+    notices.push({
+      id: 'device-events-sync',
+      variant: phase === 'syncing' ? 'info' : 'warning',
+      Icon: phase === 'syncing' ? LoaderCircleIcon : AlertTriangleIcon,
+      spinning: phase === 'syncing',
+      title: t(
+        phase === 'syncing'
+          ? 'device-events.syncing'
+          : phase === 'session'
+            ? 'device-events.sign-in'
+            : 'device-events.receipt-write',
+      ),
+      description: phase === 'receipt' ? t('device-events.receipt-write-description') : undefined,
+      action: review,
+      closesSidebar: true,
+    });
+  if (canAdjust && phase === 'unsupported')
+    notices.push({
+      id: 'device-events-sync',
+      variant: 'warning',
+      Icon: AlertTriangleIcon,
+      title: t('device-events.sync-unavailable'),
+      description: t('device-events.locks-required'),
+    });
+  if (canAdjust && waiting && phase === 'failed')
+    notices.push({
+      id: 'device-events-sync',
+      variant: 'warning',
+      Icon: AlertTriangleIcon,
+      title: t('device-events.sync-failed'),
+      description: t('device-events.sync-failed-description'),
+      action: { label: t('device-events.retry'), onClick: wakeStockEventSync },
+    });
+  if (uncertain)
+    notices.push({
+      id: 'device-events-uncertain',
+      variant: 'warning',
+      Icon: AlertTriangleIcon,
+      title: t('device-events.uncertain-count', { count: uncertain }),
+      action: review,
+      closesSidebar: true,
+    });
+  if (refused)
+    notices.push({
+      id: 'device-events-refused',
+      variant: 'warning',
+      Icon: AlertTriangleIcon,
+      title: t('device-events.refused-count', { count: refused }),
+      action: review,
+      closesSidebar: true,
     });
   return notices;
 }
@@ -245,7 +312,9 @@ export function StatusAnnouncer() {
         ...(queued ? [t('device-events.waiting', { count: queued.count })] : []),
         ...(deviceSave ? [t(deviceSave)] : []),
         ...(download.phase === 'complete' ? [t('offline.download.finished')] : []),
-      ].join('. ')}
+      ]
+        .filter(Boolean)
+        .join('. ')}
     </div>
   );
 }

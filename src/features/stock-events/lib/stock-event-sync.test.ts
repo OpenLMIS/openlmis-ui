@@ -264,6 +264,9 @@ it('typed not-sent and service 401 return to queued without a worker retry loop'
     .mockResolvedValueOnce(response(201, id));
   const deps = dependencies(send);
   await syncStockEvents(getLocalDb(), event.userId, deps);
+  expect(
+    (await getLocalDb().table('stockEventQueue').get(event.sequence)).attemptId,
+  ).toBeUndefined();
   expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('queued');
   await syncStockEvents(getLocalDb(), event.userId, deps);
   expect(send).toHaveBeenCalledTimes(2);

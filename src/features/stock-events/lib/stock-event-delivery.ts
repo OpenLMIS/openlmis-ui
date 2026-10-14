@@ -15,6 +15,7 @@ export function waitForStockEventReceipt(
   const scope = getSessionScope();
   foregroundStockEvents.add(event.localEventId);
   return new Promise((resolve) => {
+    let sending = false;
     const finish = (receipt?: StockEventReceipt) => {
       clearTimeout(timer);
       subscription.unsubscribe();
@@ -33,7 +34,12 @@ export function waitForStockEventReceipt(
       return { receipt, row };
     }).subscribe({
       next: ({ receipt, row }) => {
-        if (receipt || !row || row.status === 'uncertain') finish(receipt);
+        if (receipt || !row || row.status === 'uncertain' || (sending && row.status === 'queued')) {
+          finish(receipt);
+        } else if (row.status === 'sending') {
+          sending = true;
+          clearTimeout(timer);
+        }
       },
       error: () => finish(),
     });

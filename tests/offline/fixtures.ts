@@ -1,12 +1,16 @@
 import type { BrowserContext, Page } from '@playwright/test';
 
-const programs = ['program', 'never'].map((id) => ({
-  id,
-  code: id,
-  name: id === 'program' ? 'Fixture Medicines' : 'Never Downloaded',
-  active: true,
-}));
-export async function stub(context: BrowserContext, stock: () => Promise<'finish' | 'fail'>) {
+export async function stub(
+  context: BrowserContext,
+  stock: () => Promise<'finish' | 'fail'>,
+  ids = { home: 'home', program: 'program' },
+) {
+  const programs = [ids.program, 'never'].map((id) => ({
+    id,
+    code: id,
+    name: id === ids.program ? 'Fixture Medicines' : 'Never Downloaded',
+    active: true,
+  }));
   await context.route('**/api{,/**,?*}', async (route) => {
     const url = new URL(route.request().url());
     const fixtures: Record<string, unknown> = {
@@ -17,8 +21,8 @@ export async function stub(context: BrowserContext, stock: () => Promise<'finish
         expires_in: 1800,
       },
       '/api/users/download-user/permissionStrings': programs.flatMap(({ id }) => [
-        `STOCK_ADJUST|home|${id}`,
-        `STOCK_CARDS_VIEW|home|${id}`,
+        `STOCK_ADJUST|${ids.home}|${id}`,
+        `STOCK_CARDS_VIEW|${ids.home}|${id}`,
       ]),
       '/api/users/download-user': {
         id: 'download-user',
@@ -26,12 +30,12 @@ export async function stub(context: BrowserContext, stock: () => Promise<'finish
         firstName: 'Download',
         lastName: 'User',
         active: true,
-        homeFacilityId: 'home',
+        homeFacilityId: ids.home,
         roleAssignments: [],
       },
       '/api/users/download-user/programs': programs,
-      '/api/facilities/home': {
-        id: 'home',
+      [`/api/facilities/${ids.home}`]: {
+        id: ids.home,
         code: 'HOME',
         name: 'Fixture Clinic',
         active: true,
@@ -44,6 +48,12 @@ export async function stub(context: BrowserContext, stock: () => Promise<'finish
           supportLocallyFulfilled: true,
         })),
       },
+      '/api/facilities/minimal': {
+        content: [
+          { id: ids.home, code: 'HOME', name: 'Fixture Clinic', supportedPrograms: programs },
+        ],
+      },
+      '/api/stockCardSummaries': { content: [], totalElements: 0, totalPages: 0 },
       '/api/orderables/search': {
         content: [
           {

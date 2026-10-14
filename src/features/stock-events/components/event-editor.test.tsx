@@ -72,6 +72,10 @@ import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('@/features/stock-events/lib/stock-event-delivery', () => ({
+  waitForStockEventReceipt: vi.fn(async () => undefined),
+}));
+
 vi.mock('@/lib/offline-download-status', () => ({ refreshOfflineProgram: vi.fn() }));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

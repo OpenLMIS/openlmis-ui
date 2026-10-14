@@ -297,8 +297,8 @@ export function StockEventEditorPage(props: StockEventEditorPageProps) {
   ) : (
     <StockEventEditorContent
       {...props}
-      onSubmitted={() =>
-        EVENT_KINDS[props.kind].drafts === 'device'
+      onSubmitted={(_eventId, synced) =>
+        !synced && EVENT_KINDS[props.kind].drafts === 'device'
           ? navigate({ to: '/stock-management/adjustments' })
           : navigate({
               to: '/stock-management/stock-on-hand',
