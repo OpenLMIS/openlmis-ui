@@ -26,7 +26,7 @@ import { ForbiddenError, isForbidden, requirePermissions } from '@/features/auth
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  facilityOptions,
+  homeFacilityOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
@@ -48,7 +48,7 @@ export async function loadStockEventPrograms(
   queryClient.prefetchQuery(userRecordOptions(userId)).then(() => {
     const user = queryClient.getQueryData(userRecordOptions(userId).queryKey);
     if (user?.homeFacilityId && useLoginData.getState().referenceDataUserId === userId) {
-      queryClient.prefetchQuery(facilityOptions(user.homeFacilityId));
+      queryClient.prefetchQuery(homeFacilityOptions(user.homeFacilityId));
     }
   });
   return { userId, permissions };
@@ -57,7 +57,10 @@ function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy })
   const { t } = useTranslation();
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: Boolean(userId) });
   const homeId = user?.homeFacilityId;
-  const { data: home } = useQuery({ ...facilityOptions(homeId ?? ''), enabled: Boolean(homeId) });
+  const { data: home } = useQuery({
+    ...homeFacilityOptions(homeId ?? ''),
+    enabled: Boolean(homeId),
+  });
   return (
     <WorkspaceHeader>
       <WorkspaceHeading>
@@ -180,7 +183,7 @@ function HomePrograms({
   grants: readonly ProgramGrant[];
   renderTable: ProgramSources['renderTable'];
 }) {
-  const { data: homeFacility } = useSuspenseQuery(facilityOptions(homeId));
+  const { data: homeFacility } = useSuspenseQuery(homeFacilityOptions(homeId));
   return renderTable({
     hasHomeFacility: true,
     facilityId: homeId,

@@ -1,7 +1,14 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/integrations/axios';
-import { getIfExists, isConflict, isNotFound, isOfflineError, isRefused } from '@/lib/http';
+import {
+  getIfExists,
+  isAccessFallbackError,
+  isConflict,
+  isNotFound,
+  isOfflineError,
+  isRefused,
+} from '@/lib/http';
 import { networkError } from '@/tests/http-error';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
@@ -9,7 +16,7 @@ vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 const get = vi.mocked(client.get);
 
 const failed = (status: number) =>
-  new AxiosError('failed', String(status), undefined, undefined, {
+  new AxiosError<unknown>('failed', String(status), undefined, undefined, {
     status,
     statusText: '',
     data: {},
@@ -53,6 +60,30 @@ describe('isOfflineError', () => {
     expect(isOfflineError(failed(401))).toBe(false);
     expect(isOfflineError(new AxiosError('timeout', AxiosError.ECONNABORTED))).toBe(false);
     expect(isOfflineError(new Error('Network Error'))).toBe(false);
+  });
+});
+
+describe('isAccessFallbackError', () => {
+  it('allows unreachable reads but preserves definitive service errors and cancellation', () => {
+    expect(isAccessFallbackError(networkError())).toBe(true);
+    expect(isAccessFallbackError(new AxiosError('timeout', AxiosError.ECONNABORTED))).toBe(true);
+    expect(isAccessFallbackError(new AxiosError('canceled', AxiosError.ERR_CANCELED))).toBe(false);
+    expect(isAccessFallbackError(new Error('Network Error'))).toBe(false);
+    for (const status of [400, 401, 403, 404, 500]) {
+      expect(isAccessFallbackError(failed(status))).toBe(false);
+    }
+    for (const status of [502, 503, 504]) {
+      for (const data of [undefined, '', '<html>Gateway unavailable</html>']) {
+        const error = failed(status);
+        if (error.response) error.response.data = data;
+        expect(isAccessFallbackError(error)).toBe(true);
+      }
+      for (const data of [{ messageKey: 'service.error', message: 'Unavailable' }, {}]) {
+        const error = failed(status);
+        if (error.response) error.response.data = data;
+        expect(isAccessFallbackError(error)).toBe(false);
+      }
+    }
   });
 });
 

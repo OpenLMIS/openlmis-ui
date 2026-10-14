@@ -12,6 +12,14 @@ export const isOfflineError = (error: unknown) =>
   error instanceof LocalDataUnavailableError ||
   (isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED);
 
+export function isAccessFallbackError(error: unknown) {
+  if (!isAxiosError(error)) return false;
+  if (!error.response) return error.code !== AxiosError.ERR_CANCELED;
+  const { status, data } = error.response;
+  const serviceError = typeof data === 'object' && data !== null;
+  return [502, 503, 504].includes(status) && !serviceError;
+}
+
 export const isUnauthorized = (error: unknown) =>
   isAxiosError(error) && error.response?.status === 401;
 

@@ -52,7 +52,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     queryClient.prefetchQuery(systemNotificationsOptions());
 
     // What to load depends on the user's rights, so the page waits for those, as for any permission check.
-    const access = toAccess((await queryClient.ensureQueryData(permissionsOptions(userId))).rights);
+    const access = toAccess((await queryClient.fetchQuery(permissionsOptions(userId))).rights);
     if (access.approve) queryClient.prefetchQuery(approvalsOptions());
     if (access.convert) queryClient.prefetchQuery(convertCountOptions());
     if (access.orders) queryClient.prefetchQuery(openOrdersCountOptions());

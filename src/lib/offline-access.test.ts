@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -18,6 +18,7 @@ import {
 } from '@/features/reference-data/api/api';
 import {
   facilityOptions,
+  homeFacilityOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
@@ -128,7 +129,7 @@ describe('durable access', () => {
     await expect(requireRight(client, 'USERS_MANAGE')).rejects.toBeInstanceOf(ForbiddenError);
     const savedUser = await client.fetchQuery(userRecordOptions('ada'));
     const savedPrograms = await client.fetchQuery(userProgramsOptions('ada'));
-    const savedHome = await client.fetchQuery(facilityOptions(savedUser.homeFacilityId ?? ''));
+    const savedHome = await client.fetchQuery(homeFacilityOptions(savedUser.homeFacilityId ?? ''));
     expect(
       homeStockPrograms({
         homeFacility: savedHome,
@@ -136,6 +137,37 @@ describe('durable access', () => {
         grants: programGrants(permissions, 'STOCK_ADJUST'),
       }),
     ).toEqual(programs);
+  });
+
+  it('never supplies a device home lookup to a whole-record facility read', async () => {
+    await bootstrapOfflineAccess(readers());
+    const client = queryClient();
+    await client.fetchQuery(homeFacilityOptions('home'));
+    await expect(client.fetchQuery(facilityOptions('home'))).rejects.toBe(offline);
+    expect(client.getQueryData(facilityOptions('home').queryKey)).toBeUndefined();
+  });
+
+  it('refreshes device access before a route can reuse revoked rights after reconnect', async () => {
+    await bootstrapOfflineAccess(readers());
+    const client = queryClient();
+    client.setQueryData(userProgramsOptions('ada').queryKey, programs, { updatedAt: 1 });
+    onlineManager.setOnline(false);
+    await requireRight(client, 'STOCK_ADJUST');
+    await client.fetchQuery(userRecordOptions('ada'));
+    await client.fetchQuery(userProgramsOptions('ada'));
+    await client.fetchQuery(homeFacilityOptions('home'));
+
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+    vi.mocked(fetchUserRecord).mockResolvedValue({ ...user, homeFacilityId: null });
+    vi.mocked(fetchUserPrograms).mockResolvedValue([]);
+    vi.mocked(fetchFacility).mockResolvedValue({ ...home, supportedPrograms: [] });
+    onlineManager.setOnline(true);
+
+    await expect(requireRight(client, 'STOCK_ADJUST')).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await client.fetchQuery(userRecordOptions('ada'))).homeFacilityId).toBeNull();
+    expect(await client.fetchQuery(userProgramsOptions('ada'))).toEqual([]);
+    expect((await client.fetchQuery(homeFacilityOptions('home'))).supportedPrograms).toEqual([]);
+    expect(fetchPermissionStrings).toHaveBeenCalledTimes(2);
   });
 
   it('missing access is an offline failure, never a forbidden or not-found result', async () => {
@@ -225,7 +257,7 @@ describe('durable access', () => {
       await expect(requireRight(client, 'STOCK_ADJUST')).rejects.toBe(failure);
       await expect(client.fetchQuery(userRecordOptions('ada'))).rejects.toBe(failure);
       await expect(client.fetchQuery(userProgramsOptions('ada'))).rejects.toBe(failure);
-      await expect(client.fetchQuery(facilityOptions('home'))).rejects.toBe(failure);
+      await expect(client.fetchQuery(homeFacilityOptions('home'))).rejects.toBe(failure);
     },
   );
 
@@ -246,7 +278,7 @@ describe('durable access', () => {
       await requireRight(client, 'STOCK_ADJUST');
       await client.fetchQuery(userRecordOptions('ada'));
       await client.fetchQuery(userProgramsOptions('ada'));
-      await client.fetchQuery(facilityOptions('home'));
+      await client.fetchQuery(homeFacilityOptions('home'));
       expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
     },
   );

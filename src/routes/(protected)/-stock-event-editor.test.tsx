@@ -40,7 +40,7 @@ import {
   fetchValidAssignments,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
-import { facilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
+import { homeFacilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
 import {
   fetchEventStockCards,
@@ -448,7 +448,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         roleAssignments: [],
         homeFacilityId: HOME,
       });
-      queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
+      queryClient.setQueryData(homeFacilityOptions(HOME).queryKey, homeFacility);
       const router = renderPage(
         <I18nextProvider i18n={i18n}>
           <StockEventPending kind={eventKind} programId={FP} />
