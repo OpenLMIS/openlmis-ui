@@ -5,6 +5,7 @@ import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatTimestamp } from '@/components/form/date-value';
 import { LoadError } from '@/components/load-error';
 import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -31,6 +32,8 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import { useAdjustmentReadiness } from '@/hooks/use-adjustment-readiness';
+import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
@@ -96,7 +99,12 @@ type PickerSource = { kind: ConfiguredEventKind } | { copy: PickerCopy };
 function pickerCopy(source: PickerSource): PickerCopy {
   if ('copy' in source) return source.copy;
   const copy = EVENT_KINDS[source.kind].copy;
-  return { title: copy.pickerTitle, description: copy.pageDescription, action: copy.make };
+  return {
+    title: copy.pickerTitle,
+    description: copy.pageDescription,
+    action: copy.make,
+    status: EVENT_KINDS[source.kind].download ? 'offline.download.readiness' : undefined,
+  };
 }
 type PickerProps = {
   userId: string;
@@ -140,9 +148,20 @@ export function StockEventProgramPicker(props: PickerProps) {
             right={'kind' in props ? RIGHTS.stockAdjust : props.right}
             renderTable={
               'kind' in props
-                ? (table) => (
-                    <ProgramsTable {...table} action={copy.action} editorLink={props.editorLink} />
-                  )
+                ? (table) =>
+                    EVENT_KINDS[props.kind].download ? (
+                      <DownloadedProgramsTable
+                        {...table}
+                        action={copy.action}
+                        editorLink={props.editorLink}
+                      />
+                    ) : (
+                      <ProgramsTable
+                        {...table}
+                        action={copy.action}
+                        editorLink={props.editorLink}
+                      />
+                    )
                 : props.children
             }
           />
@@ -207,6 +226,51 @@ function ProgramsTable({
       hasHomeFacility={hasHomeFacility}
       linkFor={(row) => editorLink(row.id)}
       rows={programs.map((program) => ({ id: program.id, label: recordLabel(program) }))}
+    />
+  );
+}
+
+function DownloadedProgramsTable({
+  hasHomeFacility,
+  programs,
+  facilityId,
+  action,
+  editorLink,
+}: ProgramsTableProps & {
+  action: PickerCopy['action'];
+  editorLink: (programId: string) => ReactElement;
+}) {
+  const { t, i18n } = useTranslation();
+  const bundles = useAdjustmentReadiness(facilityId);
+  const timeZone = useDeploymentTimeZone();
+  return (
+    <StockProgramPicker
+      actionLabel={t(action)}
+      hasHomeFacility={hasHomeFacility}
+      statusLabel={t('offline.download.readiness')}
+      linkFor={(row) => editorLink(row.id)}
+      rows={programs.map((program) => {
+        const bundle = bundles.find((bundle) => bundle.programId === program.id);
+        return {
+          id: program.id,
+          label: recordLabel(program),
+          status: bundle ? (
+            <div className="flex flex-col gap-1">
+              <span>{t('offline.download.ready')}</span>
+              <span className="text-xs text-muted-foreground">
+                {t('offline.download.downloaded-at', {
+                  date: formatTimestamp(new Date(bundle.fetchedAt).toISOString(), i18n.language, {
+                    time: true,
+                    timeZone,
+                  }),
+                })}
+              </span>
+            </div>
+          ) : (
+            t('offline.download.not-downloaded')
+          ),
+        };
+      })}
     />
   );
 }

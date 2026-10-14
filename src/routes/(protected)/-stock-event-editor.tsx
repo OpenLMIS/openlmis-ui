@@ -28,12 +28,13 @@ import {
   reasonsOptions,
   userProgramsOptions,
   userRecordOptions,
-  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import {
+  adjustmentScope,
   eventApprovedProductsOptions,
   eventStockCardsOptions,
+  eventValidReasonsOptions,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
@@ -97,7 +98,11 @@ export async function loadStockEventEditor(
     const filter = { facilityId: homeId, programId };
     if (counterparty !== 'none')
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
-    if (products.from === 'stock-cards') queryClient.prefetchQuery(eventStockCardsOptions(filter));
+    const bundleScope = EVENT_KINDS[kind].download
+      ? adjustmentScope(filter, homeFacility.type.id)
+      : undefined;
+    if (products.from === 'stock-cards')
+      queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
     if (products.from === 'approved-products') {
       queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
       queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
@@ -105,7 +110,10 @@ export async function loadStockEventEditor(
     if (EVENT_KINDS[kind].contents.type === 'kit') queryClient.prefetchQuery(reasonsOptions());
     if (EVENT_KINDS[kind].reasons !== null)
       queryClient.prefetchQuery(
-        validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
+        eventValidReasonsOptions(
+          { program: programId, facilityType: homeFacility.type.id },
+          bundleScope,
+        ),
       );
   }
   const canManageLots = permissions.rights.has(RIGHTS.lotsManage);

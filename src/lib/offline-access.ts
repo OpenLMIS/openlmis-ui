@@ -1,9 +1,9 @@
-import { onlineManager } from '@tanstack/react-query';
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
 import { isAccessFallbackError } from '@/lib/http';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { getConnectionGeneration } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -39,17 +39,11 @@ export async function readOfflineAccess() {
 
 const DEVICE_ACCESS_FRESH_FOR = 30_000;
 const deviceResults = new WeakMap<object, number>();
-let connectionGeneration = 0;
-
-onlineManager.subscribe((online) => {
-  if (online) connectionGeneration += 1;
-});
-
 export function offlineAccessStaleTime(value: unknown, serverStaleTime: number) {
   const generation =
     typeof value === 'object' && value !== null ? deviceResults.get(value) : undefined;
   if (generation === undefined) return serverStaleTime;
-  return generation === connectionGeneration ? DEVICE_ACCESS_FRESH_FOR : 0;
+  return generation === getConnectionGeneration() ? DEVICE_ACCESS_FRESH_FOR : 0;
 }
 
 export async function withOfflineAccess<T extends object>(
@@ -68,7 +62,7 @@ export async function withOfflineAccess<T extends object>(
     assertSessionScope(scope);
     const result = select(saved);
     if (result === undefined) throw new LocalDataUnavailableError();
-    deviceResults.set(result, connectionGeneration);
+    deviceResults.set(result, getConnectionGeneration());
     return result;
   }
 }
@@ -136,36 +130,44 @@ export async function bootstrapOfflineAccess(readers: AccessReaders) {
         if (useLoginData.getState().expired) throw new Error('The download session expired.');
       };
       check();
-      const permissionStrings = await readers.permissions(userId);
-      check();
-      const user = await readers.user(userId);
-      check();
-      if (user.id !== userId) throw new Error('The downloaded user does not match the session.');
-      const programs = await readers.programs(userId);
-      check();
-      const home = user.homeFacilityId ? await readers.home(user.homeFacilityId) : null;
-      check();
-      if (home && home.id !== user.homeFacilityId) {
-        throw new Error('The downloaded home facility does not match the user.');
-      }
-      const snapshot: OfflineAccess = {
-        userId,
-        permissionStrings: [...permissionStrings],
-        user: snapshotUser(user),
-        programs: programs.map(({ id, code, name, active }) => ({ id, code, name, active })),
-        homeFacility: home ? snapshotHome(home) : null,
-        fetchedAt: Date.now(),
-        generation: crypto.randomUUID(),
-        formatVersion: 1,
-      };
-      const table = db.table<OfflineAccess>('offlineAccess');
-      await db.transaction('rw', table, async () => {
-        check();
-        await table.put(snapshot);
-        check();
-      });
-      check();
-      return snapshot;
+      return refreshOfflineAccess(readers, check);
     },
   );
+}
+
+export async function refreshOfflineAccess(readers: AccessReaders, check: () => void) {
+  const userId = useLoginData.getState().referenceDataUserId;
+  if (!userId) throw new LocalDataUnavailableError();
+  const db = getLocalDb();
+  check();
+  const permissionStrings = await readers.permissions(userId);
+  check();
+  const user = await readers.user(userId);
+  check();
+  if (user.id !== userId) throw new Error('The downloaded user does not match the session.');
+  const programs = await readers.programs(userId);
+  check();
+  const home = user.homeFacilityId ? await readers.home(user.homeFacilityId) : null;
+  check();
+  if (home && home.id !== user.homeFacilityId) {
+    throw new Error('The downloaded home facility does not match the user.');
+  }
+  const snapshot: OfflineAccess = {
+    userId,
+    permissionStrings: [...permissionStrings],
+    user: snapshotUser(user),
+    programs: programs.map(({ id, code, name, active }) => ({ id, code, name, active })),
+    homeFacility: home ? snapshotHome(home) : null,
+    fetchedAt: Date.now(),
+    generation: crypto.randomUUID(),
+    formatVersion: 1,
+  };
+  const table = db.table<OfflineAccess>('offlineAccess');
+  await db.transaction('rw', table, async () => {
+    check();
+    await table.put(snapshot);
+    check();
+  });
+  check();
+  return snapshot;
 }

@@ -62,13 +62,32 @@ import { renderPage } from '@/tests/render-page';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+vi.mock('@/lib/adjustment-bundle', async (original) => ({
+  ...(await original<typeof import('@/lib/adjustment-bundle')>()),
+  getAdjustmentBundle: async (filter: {
+    facilityId: string;
+    programId: string;
+    facilityTypeId: string;
+  }) => ({
+    cards: await fetchEventStockCards({
+      facilityId: filter.facilityId,
+      programId: filter.programId,
+    }),
+    reasons: await fetchValidReasons({
+      program: filter.programId,
+      facilityType: filter.facilityTypeId,
+    }),
+    tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
+  }),
+}));
+
 vi.mock('@/features/stock-events/api/api', () => ({
   submitStockEvent: vi.fn(),
   fetchEventStockCards: vi.fn(),
   fetchEventStockOnHand: vi.fn(),
 }));
 vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
-vi.mock('@/lib/feature-flags', () => ({ useFlag: () => true }));
+vi.mock('@/lib/feature-flags', () => ({ useFlag: () => true, getFlag: () => true }));
 vi.mock('@/hooks/use-quantity-unit', () => ({
   useQuantityUnit: () => {
     const [unit, setUnit] = useState<'PACKS' | 'DOSES'>('DOSES');
@@ -475,9 +494,9 @@ describe('EventEditor', () => {
     const { user } = setup();
     await validLine(user);
     let finish!: (value: { id: string }) => void;
-    vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
+    vi.mocked(fetchEventStockCards).mockReturnValueOnce(
       new Promise((resolve) => {
-        finish = resolve;
+        finish = () => resolve([card, other]);
       }),
     );
     let operation: ReturnType<typeof scan>;
@@ -552,9 +571,9 @@ describe('EventEditor', () => {
     await validLine(user);
     const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
     let resolve!: (value: { id: string }) => void;
-    vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
+    vi.mocked(fetchEventStockCards).mockReturnValueOnce(
       new Promise((done) => {
-        resolve = done;
+        resolve = () => done([card, other]);
       }),
     );
     let operation: ReturnType<typeof scan>;

@@ -21,6 +21,7 @@ import {
   fetchReasons,
   fetchSupervisedFacilities,
   fetchTradeItemByGtin,
+  fetchTradeItemsByIds,
   fetchUserPrograms,
   fetchUserRecord,
   fetchValidAssignments,
@@ -615,6 +616,26 @@ it('reads every processing schedules lookup page', async () => {
     params: { page: 1, size: 100 },
   });
 });
+
+it.each([fetchOrderablesByIds, fetchLotsByIds, fetchTradeItemsByIds])(
+  '%s keeps background cancellation and session policy across ID batches and pages',
+  async (lookup) => {
+    const signal = new AbortController().signal;
+    const config = { backgroundRead: true, signal };
+    get.mockResolvedValue({ data: { content: [], totalPages: 2 } });
+
+    await lookup(
+      Array.from({ length: 101 }, (_, index) => `id${index}`),
+      config,
+    );
+
+    expect(get).toHaveBeenCalledTimes(4);
+    for (const [, request] of get.mock.calls) {
+      expect(request).toMatchObject({ backgroundRead: true });
+      expect(request?.signal).toBe(signal);
+    }
+  },
+);
 
 it('batches saved facilities at 100 ids so hydration cannot exceed URL limits', async () => {
   get.mockResolvedValue(page([]));

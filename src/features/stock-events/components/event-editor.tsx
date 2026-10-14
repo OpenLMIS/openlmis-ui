@@ -39,11 +39,15 @@ import {
   orderablesByIdsOptions,
   reasonsOptions,
   tradeItemByGtinOptions,
-  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  adjustmentScope,
+  adjustmentTradeItemOptions,
+  eventStockCardsOptions,
+  eventValidReasonsOptions,
+} from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
 import {
@@ -164,12 +168,18 @@ export function EventEditor({
       products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
     [products, today],
   );
+  const bundleScope = config.download
+    ? adjustmentScope({ facilityId, programId }, facilityTypeId)
+    : undefined;
+  const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);
+  const validOptions = eventValidReasonsOptions(
+    { program: programId, facilityType: facilityTypeId },
+    bundleScope,
+  );
   const needsKitContents = config.contents.type === 'kit';
-  const reasonOptions = needsKitContents
-    ? reasonsOptions()
-    : validReasonsOptions({ program: programId, facilityType: facilityTypeId });
+  const reasonOptions = needsKitContents ? reasonsOptions() : validOptions;
   const reasonsQuery = useQuery({
-    ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
+    ...validOptions,
     enabled: canViewStock && !needsKitContents && config.reasons !== null,
   });
   const reasons = useMemo(
@@ -193,7 +203,7 @@ export function EventEditor({
     (!needsKitContents || kitReasons.ok) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
-    ...eventStockCardsOptions({ facilityId, programId }),
+    ...stockOptions,
     enabled: canViewStock && fromCards,
   });
   const offeredCards = useMemo(
@@ -418,7 +428,7 @@ export function EventEditor({
           }),
         });
         queryClient.invalidateQueries({
-          queryKey: eventStockCardsOptions({ facilityId, programId }).queryKey,
+          queryKey: stockOptions.queryKey,
           exact: true,
         });
         return;
@@ -507,7 +517,9 @@ export function EventEditor({
     if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
-      tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
+      tradeItem = bundleScope
+        ? await queryClient.fetchQuery(adjustmentTradeItemOptions(bundleScope, parsed.gtin))
+        : await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
     } catch {
       return stale() ? undefined : scanMessage('gtinLookupFailed');
     }
@@ -516,9 +528,7 @@ export function EventEditor({
     let scanProducts: readonly ScanProduct<EventStockCard>[];
     let hasLotsOf: (orderableId: string) => boolean;
     if (products.from === 'stock-cards') {
-      const cards = queryClient.getQueryData(
-        eventStockCardsOptions({ facilityId, programId }).queryKey,
-      );
+      const cards = queryClient.getQueryData(stockOptions.queryKey);
       if (!cards) return { key: 'scan.not-resolved' };
       const offered = filterCards(cards);
       scanProducts = eventProductOptions(offered);
@@ -738,11 +748,7 @@ export function EventEditor({
                   pendingFallback={tablePending}
                 >
                   <ReasonsReady options={reasonOptions}>
-                    <StockCardsReady
-                      needed={fromCards}
-                      facilityId={facilityId}
-                      programId={programId}
-                    >
+                    <StockCardsReady needed={fromCards} options={stockOptions}>
                       <CounterpartyReady
                         pendingFallback={tablePending}
                         side={needsCounterparty ? side : null}
@@ -920,7 +926,7 @@ function ReasonsReady({
   options,
   children,
 }: {
-  options: ReturnType<typeof reasonsOptions> | ReturnType<typeof validReasonsOptions>;
+  options: ReturnType<typeof reasonsOptions> | ReturnType<typeof eventValidReasonsOptions>;
   children: ReactNode;
 }) {
   useSuspenseQueries({ queries: [options] });
@@ -1004,33 +1010,25 @@ function CounterpartyLookup({
 
 function StockCardsReady({
   needed,
-  facilityId,
-  programId,
+  options,
   children,
 }: {
   needed: boolean;
-  facilityId: string;
-  programId: string;
+  options: ReturnType<typeof eventStockCardsOptions>;
   children: ReactNode;
 }) {
   if (!needed) return children;
-  return (
-    <StockCardsLookup facilityId={facilityId} programId={programId}>
-      {children}
-    </StockCardsLookup>
-  );
+  return <StockCardsLookup options={options}>{children}</StockCardsLookup>;
 }
 
 function StockCardsLookup({
-  facilityId,
-  programId,
+  options,
   children,
 }: {
-  facilityId: string;
-  programId: string;
+  options: ReturnType<typeof eventStockCardsOptions>;
   children: ReactNode;
 }) {
-  useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
+  useSuspenseQuery(options);
   return children;
 }
 

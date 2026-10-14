@@ -8,6 +8,7 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** `false` for signing in and out, whose refusal is never an expired session. */
     session?: boolean;
+    backgroundRead?: boolean;
     sessionScope?: number;
     /** The user the request was sent for, so a refusal is never resent as someone else. */
     sentFor?: string | null;
@@ -42,6 +43,7 @@ client.interceptors.request.use(async (config) => {
     assertSessionScope(config.sessionScope);
     if (config.sentFor !== referenceDataUserId) throw new SessionEndedError();
   }
+  if (config.backgroundRead && expired) throw new Error('The download session expired.');
   if (config.headers.Authorization || config.anonymous) return config;
 
   const token =
@@ -69,6 +71,11 @@ client.interceptors.response.use(
       assertSessionScope(config.sessionScope ?? getSessionScope());
     }
     const { isAuthenticated, accessToken, expired, referenceDataUserId } = useLoginData.getState();
+    if (config?.backgroundRead && error.response?.status === 401) {
+      if (config.headers.Authorization === bearer(accessToken))
+        useLoginData.getState().expireSession();
+      throw error;
+    }
     if (
       error.response?.status !== 401 ||
       !config ||
