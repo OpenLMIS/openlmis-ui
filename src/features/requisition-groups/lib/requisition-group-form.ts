@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { programName } from '@/features/reference-data/lib/programs';
 import type {
   MemberFacility,
   ProgramSchedule,
@@ -60,16 +61,16 @@ export function toFormValues(saved?: RequisitionGroup): RequisitionGroupFormValu
     members: saved?.memberFacilities ?? [],
   };
 }
-export function availablePrograms<T extends { id: string; name?: string | null }>(
+export function availablePrograms<T extends { id: string; code: string; name: string | null }>(
   programs: readonly T[],
   rows: readonly ProgramSchedule[],
 ) {
   const listed = new Set(rows.map((row) => row.program.id));
   return programs
     .filter((program) => !listed.has(program.id))
-    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+    .sort((a, b) => programName(a).localeCompare(programName(b)));
 }
-export type RequisitionGroupTab = 'programs' | 'facilities';
+type RequisitionGroupTab = 'programs' | 'facilities';
 export function tabWithFirstError(fields: readonly string[]): RequisitionGroupTab | undefined {
   if (fields.some((name) => name.startsWith('schedules'))) return 'programs';
   if (fields.some((name) => name.startsWith('members'))) return 'facilities';
@@ -78,7 +79,6 @@ export function tabWithFirstError(fields: readonly string[]): RequisitionGroupTa
 export function toRequisitionGroupBody(
   values: RequisitionGroupFormValues,
   saved?: RequisitionGroup,
-  pathId = saved?.id,
 ): RequisitionGroupBody {
   const savedIds = new Map(
     saved?.requisitionGroupProgramSchedules.map((row) => [row.program.id, row.id]),
@@ -94,7 +94,7 @@ export function toRequisitionGroupBody(
     };
   });
   return {
-    ...(saved && pathId && { id: pathId }),
+    ...(saved && { id: saved.id }),
     ...(saved?.description !== undefined && { description: saved.description }),
     name: values.name.trim(),
     code: values.code.trim(),

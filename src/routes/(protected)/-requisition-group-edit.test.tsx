@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
@@ -44,14 +44,15 @@ const version = (name: string) => ({
 });
 function editRouter(queryClient: QueryClient, route: typeof EditRoute | typeof ViewRoute) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
-  const edit = createRoute({
+  const edit = route.update({
     getParentRoute: () => root,
+    id:
+      route === EditRoute
+        ? '/(protected)/_protected/administration/requisition-groups_/$id_/edit'
+        : '/(protected)/_protected/administration/requisition-groups_/$id',
     path: '/groups/$id/edit',
-    loader: route.options.loader as never,
-    preload: route.options.preload,
-    validateSearch: route.options.validateSearch,
-  });
-  const list = createRoute({ getParentRoute: () => root, path: '/' });
+  } as never);
+  const list = createRoute({ getParentRoute: () => root, path: '/', component: () => <p>List</p> });
   return createRouter({
     routeTree: root.addChildren([list, edit] as never),
     context: { queryClient },
@@ -84,6 +85,37 @@ describe('requisition group edit loader', () => {
         search: { tab: 'facilities' },
       } as never);
       expect(fetchRequisitionGroup).not.toHaveBeenCalled();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>,
+      );
+      const label =
+        route === EditRoute ? 'requisition-groups.form.name' : 'requisition-groups.form.view-name';
+      expect(await screen.findByRole('textbox', { name: label })).toHaveValue('New');
+      await act(async () => {
+        await router.navigate({ to: '/' } as never);
+      });
+      await screen.findByText('List');
+      let resolveRead!: (value: ReturnType<typeof version>) => void;
+      vi.mocked(fetchRequisitionGroup).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveRead = resolve;
+          }),
+      );
+      let navigation!: Promise<void>;
+      act(() => {
+        navigation = router.navigate({ to: '/groups/$id/edit', params: { id: 'rg' } } as never);
+      });
+      await waitFor(() => expect(fetchRequisitionGroup).toHaveBeenCalled());
+      await act(async () => {
+        resolveRead(version('Newer'));
+        await navigation;
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: label })).toHaveValue('Newer'),
+      );
     },
   );
   it('checks the manage right on list, add, edit and view', async () => {

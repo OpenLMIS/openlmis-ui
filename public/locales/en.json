@@ -1040,6 +1040,7 @@
   "requisition-groups.form.node-required": "Supervisory node is required",
   "requisition-groups.form.not-found-description": "This requisition group may have been removed.",
   "requisition-groups.form.not-found-title": "Requisition Group Not Found",
+  "requisition-groups.form.open-error-title": "Could Not Open Requisition Group Form",
   "requisition-groups.form.pick-facility": "Select A Facility",
   "requisition-groups.form.pick-node": "Select A Supervisory Node",
   "requisition-groups.form.pick-program": "Select A Program",

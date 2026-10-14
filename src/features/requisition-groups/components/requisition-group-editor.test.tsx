@@ -17,6 +17,7 @@ import {
 } from '@/features/requisition-groups/components/requisition-group-editor';
 import type { RequisitionGroupEditorSearch } from '@/features/requisition-groups/lib/members';
 import type { RequisitionGroup } from '@/features/requisition-groups/lib/types';
+import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 import { renderPage } from '@/tests/render-page';
 
@@ -114,8 +115,8 @@ function Editor({
     />
   );
 }
-const renderEditor = (props: Parameters<typeof Editor>[0] = {}) =>
-  renderPage(<Editor {...props} />, { queryClient: seededClient() });
+const renderEditor = (props: Parameters<typeof Editor>[0] = {}, queryClient = seededClient()) =>
+  renderPage(<Editor {...props} />, { queryClient });
 const click = async (name: string) =>
   userEvent.setup().click(await screen.findByRole('button', { name }));
 async function pick(dialog: HTMLElement, field: string, option: string) {
@@ -387,7 +388,11 @@ describe('RequisitionGroupEditor', () => {
         resolveSave = resolve;
       }),
     );
-    renderEditor({ saved: group });
+    const queryClient = seededClient();
+    const listKey = queryKeys.requisitionGroups.list({ page: 0, size: 10 });
+    queryClient.setQueryData(listKey, { content: [group] });
+    queryClient.setQueryData(queryKeys.requisitionGroups.detail(group.id), group);
+    renderEditor({ saved: group }, queryClient);
     await click('requisition-groups.form.save');
     await waitFor(() => expect(updateRequisitionGroup).toHaveBeenCalled());
     expect(screen.getByRole('tablist').closest('[inert]')).not.toBeNull();
@@ -398,6 +403,8 @@ describe('RequisitionGroupEditor', () => {
         screen.getByRole('button', { name: 'requisition-groups.form.cancel' }),
       ).not.toBeDisabled(),
     );
+    expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(queryKeys.requisitionGroups.detail(group.id))).toBeUndefined();
   });
   it('disables the legacy view fields without required marks and keeps member filtering and paging available', async () => {
     renderEditor({

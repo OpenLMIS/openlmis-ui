@@ -58,8 +58,8 @@ describe('requisition group form', () => {
     expect(
       availablePrograms(
         [
-          { id: 'p1', name: 'One' },
-          { id: 'p3', name: 'Three' },
+          { id: 'p1', code: 'P1', name: 'One' },
+          { id: 'p3', code: 'P3', name: 'Three' },
         ],
         saved.requisitionGroupProgramSchedules,
       ).map((program) => program.id),
@@ -77,9 +77,9 @@ describe('requisition group form', () => {
         row('p2', 'row2'),
       ],
     };
-    const body = toRequisitionGroupBody(values, saved, 'path-id');
+    const body = toRequisitionGroupBody(values, saved);
     expect(body).toEqual({
-      id: 'path-id',
+      id: saved.id,
       name: 'Group',
       code: 'RG',
       description: ' Keep this ',

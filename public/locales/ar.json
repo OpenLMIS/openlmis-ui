@@ -1040,6 +1040,7 @@
   "requisition-groups.form.node-required": "عقدة الإشراف مطلوبة",
   "requisition-groups.form.not-found-description": "ربما تمت إزالة مجموعة الطلبات هذه.",
   "requisition-groups.form.not-found-title": "مجموعة الطلبات غير موجودة",
+  "requisition-groups.form.open-error-title": "تعذر فتح نموذج مجموعة الطلبات",
   "requisition-groups.form.pick-facility": "اختر منشأة",
   "requisition-groups.form.pick-node": "اختر عقدة إشراف",
   "requisition-groups.form.pick-program": "اختر برنامجًا",

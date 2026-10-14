@@ -1,9 +1,6 @@
-import { createFileRoute, type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorFallback } from '@/components/error-fallback';
-import { Button } from '@/components/ui/button';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
@@ -11,11 +8,11 @@ import {
   RequisitionGroupEditor,
   RequisitionGroupEditorSkeleton,
 } from '@/features/requisition-groups/components/requisition-group-editor';
+import { requisitionGroupEditorSearchSchema } from '@/features/requisition-groups/lib/members';
 import {
-  type RequisitionGroupEditorSearch,
-  requisitionGroupEditorSearchSchema,
-} from '@/features/requisition-groups/lib/members';
-import type { SearchChange } from '@/lib/table-search';
+  AddRequisitionGroupRouteError,
+  useRequisitionGroupNavigation,
+} from '@/routes/(protected)/-requisition-group-route';
 
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/requisition-groups_/new',
@@ -27,35 +24,13 @@ export const Route = createFileRoute(
     prefetchRequisitionGroupLookups(queryClient);
   },
   pendingComponent: AddGroupPending,
-  errorComponent: AddGroupError,
+  errorComponent: AddRequisitionGroupRouteError,
   component: AddGroupPage,
 });
 function AddGroupPage() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const navigate = Route.useNavigate();
   const search = Route.useSearch();
-  const [listSearch] = useState(
-    () => router.state.location.state.requisitionGroupsListSearch ?? {},
-  );
-  const backToList = useCallback(
-    () => navigate({ to: '/administration/requisition-groups', search: listSearch }),
-    [navigate, listSearch],
-  );
-  const onSearchChange = useCallback<SearchChange<RequisitionGroupEditorSearch>>(
-    (update, replace = false, options) => {
-      void navigate({
-        search: (previous) => ({
-          ...previous,
-          ...(typeof update === 'function' ? update(previous) : update),
-        }),
-        state: (previous) => previous,
-        replace,
-        resetScroll: options?.resetScroll ?? false,
-      });
-    },
-    [navigate],
-  );
+  const { backToList, onSearchChange } = useRequisitionGroupNavigation(Route.fullPath);
   return (
     <RequisitionGroupEditor
       title={t('requisition-groups.form.add-title')}
@@ -78,28 +53,6 @@ function AddGroupPending() {
     <RequisitionGroupEditorSkeleton
       title={t('requisition-groups.form.add-title')}
       description={t('requisition-groups.form.add-description')}
-    />
-  );
-}
-function AddGroupError(props: ErrorComponentProps) {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const listSearch = router.state.location.state.requisitionGroupsListSearch ?? {};
-  const back = (
-    <Button
-      nativeButton={false}
-      render={<Link to="/administration/requisition-groups" search={listSearch} />}
-      variant="outline"
-    >
-      {t('requisition-groups.form.back')}
-    </Button>
-  );
-  return (
-    <ErrorFallback
-      {...props}
-      back={back}
-      title={t('requisition-groups.form.load-group-error-title')}
-      description={t('requisition-groups.form.load-group-error-description')}
     />
   );
 }

@@ -1040,6 +1040,7 @@
   "requisition-groups.form.node-required": "Le nœud de supervision est obligatoire",
   "requisition-groups.form.not-found-description": "Ce groupe de réquisitions a peut-être été supprimé.",
   "requisition-groups.form.not-found-title": "Groupe De Réquisitions Introuvable",
+  "requisition-groups.form.open-error-title": "Impossible D’ouvrir Le Formulaire Du Groupe De Réquisitions",
   "requisition-groups.form.pick-facility": "Sélectionnez Un Établissement",
   "requisition-groups.form.pick-node": "Sélectionnez Un Nœud De Supervision",
   "requisition-groups.form.pick-program": "Sélectionnez Un Programme",

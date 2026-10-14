@@ -1,6 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import {
   type QueryClient,
+  useIsMutating,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
@@ -15,7 +16,7 @@ import {
   SearchXIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -52,9 +53,9 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Workspace,
@@ -102,7 +103,6 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { tableValue } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
-import { getSessionScope } from '@/lib/session-scope';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
 export const REQUISITION_GROUP_LOOKUPS = {
@@ -139,7 +139,6 @@ function useGroupForm(
 type GroupForm = ReturnType<typeof useGroupForm>;
 type EditorProps = {
   saved?: RequisitionGroup;
-  id?: string;
   readOnly?: boolean;
   title: string;
   description: string;
@@ -150,7 +149,6 @@ type EditorProps = {
 };
 export function RequisitionGroupEditor({
   saved,
-  id = saved?.id,
   readOnly = false,
   title,
   description,
@@ -166,11 +164,13 @@ export function RequisitionGroupEditor({
   const [initialValues] = useState(() => toFormValues(saved));
   const mutation = useSessionMutation({
     mutationFn: (values: RequisitionGroupFormValues) => {
-      const body = toRequisitionGroupBody(values, saved, id);
-      return saved && id ? updateRequisitionGroup(id, body) : createRequisitionGroup(body);
+      const body = toRequisitionGroupBody(values, saved);
+      return saved ? updateRequisitionGroup(saved.id, body) : createRequisitionGroup(body);
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.requisitionGroups.list() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.requisitionGroups.list().slice(0, 2),
+      });
       queryClient.removeQueries({
         queryKey: queryKeys.requisitionGroups.detail(result.id),
         exact: true,
@@ -182,7 +182,6 @@ export function RequisitionGroupEditor({
   const form = useGroupForm(
     initialValues,
     async (values) => {
-      if (readOnly) return;
       await mutation.mutateAsync(values).catch(() => undefined);
     },
     (fields) => {
@@ -291,13 +290,7 @@ function EditorHeader({ title, description }: { title?: string; description: str
         <WorkspaceIcon>
           <NetworkIcon />
         </WorkspaceIcon>
-        <WorkspaceTitle>
-          {title ?? (
-            <span aria-hidden="true" className="block h-5 w-64 max-w-full">
-              <Skeleton fill />
-            </span>
-          )}
-        </WorkspaceTitle>
+        <WorkspaceTitle>{title ?? <Block className="h-5 w-64 max-w-full" />}</WorkspaceTitle>
         <WorkspaceDescription>{description}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
@@ -322,6 +315,18 @@ function LookupField(props: { label: string; required?: boolean; children: React
     />
   );
 }
+const GENERAL_FIELDS = {
+  edit: [
+    { name: 'name', labelKey: 'requisition-groups.form.name' },
+    { name: 'code', labelKey: 'requisition-groups.form.code' },
+    { name: 'nodeId', labelKey: 'requisition-groups.form.node' },
+  ],
+  view: [
+    { name: 'code', labelKey: 'requisition-groups.form.view-code' },
+    { name: 'name', labelKey: 'requisition-groups.form.view-name' },
+    { name: 'nodeId', labelKey: 'requisition-groups.form.node' },
+  ],
+} as const;
 function GeneralFields({
   form,
   readOnly,
@@ -332,38 +337,33 @@ function GeneralFields({
   saved?: RequisitionGroup;
 }) {
   const { t } = useTranslation();
-  const fields = readOnly ? (['code', 'name'] as const) : (['name', 'code'] as const);
+  const fields = GENERAL_FIELDS[readOnly ? 'view' : 'edit'];
   return (
     <FieldGroup>
       <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-        {fields.map((name) => (
-          <form.AppField key={name} name={name}>
-            {(field) => (
-              <field.TextField
-                autoComplete="off"
-                dir={name === 'code' ? 'ltr' : 'auto'}
-                disabled={readOnly}
-                label={t(
-                  readOnly
-                    ? name === 'code'
-                      ? 'requisition-groups.form.view-code'
-                      : 'requisition-groups.form.view-name'
-                    : name === 'code'
-                      ? 'requisition-groups.form.code'
-                      : 'requisition-groups.form.name',
-                )}
-                required={!readOnly}
-              />
-            )}
-          </form.AppField>
-        ))}
-        <LookupField label={t('requisition-groups.form.node')} required={!readOnly}>
-          {readOnly ? (
-            <NodeControl form={form} readOnly nodes={saved ? [saved.supervisoryNode] : []} />
+        {fields.map(({ name, labelKey }) =>
+          name === 'nodeId' ? (
+            <LookupField key={name} label={t(labelKey)} required={!readOnly}>
+              {readOnly ? (
+                <NodeControl form={form} readOnly nodes={saved ? [saved.supervisoryNode] : []} />
+              ) : (
+                <NodeField form={form} saved={saved} />
+              )}
+            </LookupField>
           ) : (
-            <NodeField form={form} saved={saved} />
-          )}
-        </LookupField>
+            <form.AppField key={name} name={name}>
+              {(field) => (
+                <field.TextField
+                  autoComplete="off"
+                  dir={name === 'code' ? 'ltr' : 'auto'}
+                  disabled={readOnly}
+                  label={t(labelKey)}
+                  required={!readOnly}
+                />
+              )}
+            </form.AppField>
+          ),
+        )}
       </div>
     </FieldGroup>
   );
@@ -446,19 +446,14 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
 function DropOffName({ id }: { id: string | undefined }) {
   const { data, isPending } = useQuery(REQUISITION_GROUP_LOOKUPS.facilities);
   if (!id) return null;
-  if (isPending)
-    return (
-      <div className="h-4 w-24">
-        <Skeleton fill />
-      </div>
-    );
+  if (isPending) return <Block className="h-4 w-24" />;
   return (
     <span className="whitespace-normal break-words" dir="auto">
       {tableValue(data?.find((facility) => facility.id === id)?.name)}
     </span>
   );
 }
-function programColumns(t: TFunction, remove?: (row: ProgramSchedule) => void) {
+function programColumns(t: TFunction, remove?: (index: number) => void) {
   return programColumn.columns([
     programColumn.accessor((row) => tableValue(row.program.name), {
       id: 'program',
@@ -514,7 +509,7 @@ function programColumns(t: TFunction, remove?: (row: ProgramSchedule) => void) {
                 label={t('requisition-groups.form.remove-program', {
                   program: row.original.program.name ?? row.original.program.id,
                 })}
-                onClick={() => remove(row.original)}
+                onClick={() => remove(row.index)}
               />
             ),
           }),
@@ -522,24 +517,58 @@ function programColumns(t: TFunction, remove?: (row: ProgramSchedule) => void) {
       : []),
   ]);
 }
-function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly: boolean }) {
-  const { t } = useTranslation();
-  const rows = useStore(form.store, (state) => state.values.schedules);
-  const tableRef = useRef<HTMLDivElement>(null);
-  const addRef = useRef<HTMLButtonElement>(null);
-  const [adding, setAdding] = useState(false);
+function useProgramColumnView() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const view = useColumnVisibility(
     PROGRAM_COLUMNS,
     useStoredState('requisition-group-programs.column-visibility', visibilitySchema, {}),
     width,
   );
+  return { measure, view };
+}
+function ProgramsToolbar({
+  view,
+  readOnly,
+  disabled = false,
+  addRef,
+  onAdd,
+}: {
+  view: ReturnType<typeof useColumnVisibility>;
+  readOnly: boolean;
+  disabled?: boolean;
+  addRef?: Ref<HTMLButtonElement>;
+  onAdd?: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <DataTableToolbar>
+      <div className="ms-auto">
+        <DataTableViewOptions
+          columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          disabled={disabled}
+          visibility={view.visibility}
+          onVisibilityChange={view.onVisibilityChange}
+          onReset={view.onReset}
+        />
+      </div>
+      {!readOnly && (
+        <Button ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+          <PlusIcon data-icon="inline-start" />
+          {t('requisition-groups.form.add-program')}
+        </Button>
+      )}
+    </DataTableToolbar>
+  );
+}
+function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly: boolean }) {
+  const { t } = useTranslation();
+  const rows = useStore(form.store, (state) => state.values.schedules);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+  const [adding, setAdding] = useState(false);
+  const { measure, view } = useProgramColumnView();
   const remove = useCallback(
-    (row: ProgramSchedule) => {
-      const index = form.state.values.schedules.findIndex(
-        (item) => item.program.id === row.program.id,
-      );
-      if (index < 0) return;
+    (index: number) => {
       form.removeFieldValue('schedules', index);
       focusAfterRemove(tableRef.current, index, addRef.current);
     },
@@ -559,22 +588,12 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
   });
   return (
     <div className="flex flex-col gap-4" ref={measure}>
-      <DataTableToolbar>
-        <div className="ms-auto">
-          <DataTableViewOptions
-            columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-            visibility={view.visibility}
-            onVisibilityChange={view.onVisibilityChange}
-            onReset={view.onReset}
-          />
-        </div>
-        {!readOnly && (
-          <Button ref={addRef} variant="outline" onClick={() => setAdding(true)}>
-            <PlusIcon data-icon="inline-start" />
-            {t('requisition-groups.form.add-program')}
-          </Button>
-        )}
-      </DataTableToolbar>
+      <ProgramsToolbar
+        view={view}
+        readOnly={readOnly}
+        addRef={addRef}
+        onAdd={() => setAdding(true)}
+      />
       {!readOnly && (
         <AddProgramScheduleDialog
           open={adding}
@@ -597,7 +616,7 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
     </div>
   );
 }
-function memberColumns(t: TFunction, remove?: (row: MemberFacility) => void) {
+function memberColumns(t: TFunction, remove?: (id: string, visible: number) => void) {
   return memberColumn.columns([
     memberColumn.accessor('name', {
       cell: ({ getValue }) => (
@@ -650,7 +669,7 @@ function memberColumns(t: TFunction, remove?: (row: MemberFacility) => void) {
                 label={t('requisition-groups.form.remove-facility', {
                   facility: row.original.name,
                 })}
-                onClick={() => remove(row.original)}
+                onClick={() => remove(row.original.id, row.index)}
               />
             ),
           }),
@@ -682,14 +701,13 @@ function MembersFields({
   );
   const page = useMemo(() => memberPage(rows, search), [rows, search]);
   const remove = useCallback(
-    (row: MemberFacility) => {
-      const index = form.state.values.members.findIndex((item) => item.id === row.id);
-      const visible = page.data.findIndex((item) => item.id === row.id);
+    (id: string, visible: number) => {
+      const index = form.state.values.members.findIndex((item) => item.id === id);
       if (index < 0) return;
       form.removeFieldValue('members', index);
       focusAfterRemove(tableRef.current, visible, addRef.current);
     },
-    [form, page.data],
+    [form],
   );
   const columns = useMemo(
     () => memberColumns(t, readOnly ? undefined : remove),
@@ -948,6 +966,7 @@ function DropOffPicker({ form }: { form: ProgramForm }) {
     </form.AppField>
   );
 }
+const ADD_FACILITY_KEY = [...queryKeys.requisitionGroups.all, 'add-facility'];
 type AddFacilityProps = {
   open: boolean;
   rows: MemberFacility[];
@@ -956,13 +975,12 @@ type AddFacilityProps = {
 };
 function AddFacilityDialog({ open, rows, onClose, onAdd }: AddFacilityProps) {
   const { shown, close, dialogProps } = useDialogTarget(open ? 'new' : undefined, onClose);
-  const [pending, setPending] = useState(false);
+  const pending = useIsMutating({ mutationKey: ADD_FACILITY_KEY }) > 0;
   return (
     <FormDialog {...dialogProps(pending)} closeButton={!pending}>
       {shown && (
         <AddFacilityForm
           rows={rows}
-          onPending={setPending}
           onAdd={(row) => {
             if (close()) onAdd(row);
           }}
@@ -974,48 +992,31 @@ function AddFacilityDialog({ open, rows, onClose, onAdd }: AddFacilityProps) {
 const addFacilitySchema = z.object({
   facilityId: z.string().nullable().refine(Boolean, 'requisition-groups.form.facility-required'),
 });
-function useFacilityForm(
-  onAdd: (row: MemberFacility) => void,
-  onPending: (pending: boolean) => void,
-  queryClient: QueryClient,
-  onError: (error: unknown) => void,
-) {
-  const [scope] = useState(getSessionScope);
-  const isCurrent = () => scope === getSessionScope();
-  return useAppForm({
+function useFacilityForm(onAdd: (row: MemberFacility) => void, queryClient: QueryClient) {
+  const mutation = useSessionMutation({
+    mutationKey: ADD_FACILITY_KEY,
+    mutationFn: (id: string) => queryClient.fetchQuery(facilityOptions(id)),
+    onSuccess: (facility) =>
+      onAdd({
+        ...facility,
+        name: facility.name ?? facility.code,
+        type: { ...facility.type, name: facility.type.name ?? undefined },
+      }),
+  });
+  const form = useAppForm({
     defaultValues: { facilityId: null as string | null },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: addFacilitySchema },
-    onSubmit: async ({ value }) => {
-      if (!value.facilityId || !isCurrent()) return;
-      onError(undefined);
-      onPending(true);
-      try {
-        const facility = await queryClient.fetchQuery(facilityOptions(value.facilityId));
-        if (!isCurrent()) return;
-        onAdd({
-          ...facility,
-          name: facility.name ?? facility.code,
-          type: { ...facility.type, name: facility.type.name ?? undefined },
-        });
-      } catch (error) {
-        if (isCurrent()) onError(error);
-      } finally {
-        if (isCurrent()) onPending(false);
-      }
-    },
+    onSubmit: ({ value }) =>
+      value.facilityId ? mutation.mutateAsync(value.facilityId).catch(() => undefined) : undefined,
   });
+  return { form, mutation };
 }
-type FacilityForm = ReturnType<typeof useFacilityForm>;
-function AddFacilityForm({
-  rows,
-  onAdd,
-  onPending,
-}: Pick<AddFacilityProps, 'rows' | 'onAdd'> & { onPending: (pending: boolean) => void }) {
+type FacilityForm = ReturnType<typeof useFacilityForm>['form'];
+function AddFacilityForm({ rows, onAdd }: Pick<AddFacilityProps, 'rows' | 'onAdd'>) {
   const { t } = useTranslation();
-  const [error, setError] = useState<unknown>();
-  const form = useFacilityForm(onAdd, onPending, useQueryClient(), setError);
-  const busy = useStore(form.store, (state) => state.isSubmitting);
+  const { form, mutation } = useFacilityForm(onAdd, useQueryClient());
+  const busy = mutation.isPending;
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
       <FormDialogHeader>
@@ -1025,10 +1026,12 @@ function AddFacilityForm({
         </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
-        {error !== undefined && (
+        {mutation.isError && (
           <ErrorAlert
             title={t('requisition-groups.form.facility-error-title')}
-            description={serverMessage(error) ?? t('requisition-groups.form.facility-error')}
+            description={
+              serverMessage(mutation.error) ?? t('requisition-groups.form.facility-error')
+            }
           />
         )}
         <FieldGroup>
@@ -1093,12 +1096,7 @@ export function RequisitionGroupEditorSkeleton({
   readOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const view = useColumnVisibility(
-    PROGRAM_COLUMNS,
-    useStoredState('requisition-group-programs.column-visibility', visibilitySchema, {}),
-    width,
-  );
+  const { measure, view } = useProgramColumnView();
   const columns = useMemo(() => programColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
   const table = useTable({
     features: dataTableFeatures,
@@ -1115,45 +1113,16 @@ export function RequisitionGroupEditorSkeleton({
           <div className="flex flex-col gap-6">
             <FieldGroup>
               <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-                <FieldSkeleton
-                  label={t(
-                    readOnly ? 'requisition-groups.form.view-code' : 'requisition-groups.form.name',
-                  )}
-                  required={!readOnly}
-                />
-                <FieldSkeleton
-                  label={t(
-                    readOnly ? 'requisition-groups.form.view-name' : 'requisition-groups.form.code',
-                  )}
-                  required={!readOnly}
-                />
-                <FieldSkeleton label={t('requisition-groups.form.node')} required={!readOnly} />
+                {GENERAL_FIELDS[readOnly ? 'view' : 'edit'].map(({ name, labelKey }) => (
+                  <FieldSkeleton key={name} label={t(labelKey)} required={!readOnly} />
+                ))}
               </div>
             </FieldGroup>
             <Tabs spacing="page" value="programs">
               <EditorTabs />
               <TabsContent value="programs">
                 <div className="flex flex-col gap-4" ref={measure}>
-                  <DataTableToolbar>
-                    <div className="ms-auto">
-                      <DataTableViewOptions
-                        columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({
-                          id,
-                          label: t(labelKey),
-                        }))}
-                        disabled
-                        visibility={view.visibility}
-                        onVisibilityChange={() => {}}
-                        onReset={() => {}}
-                      />
-                    </div>
-                    {!readOnly && (
-                      <Button disabled variant="outline">
-                        <PlusIcon data-icon="inline-start" />
-                        {t('requisition-groups.form.add-program')}
-                      </Button>
-                    )}
-                  </DataTableToolbar>
+                  <ProgramsToolbar view={view} readOnly={readOnly} disabled />
                   <DataTableSkeleton table={table} rowCount={3} />
                 </div>
               </TabsContent>

@@ -1040,6 +1040,7 @@
   "requisition-groups.form.node-required": "El nodo de supervisión es obligatorio",
   "requisition-groups.form.not-found-description": "Es posible que este grupo de requisiciones se haya eliminado.",
   "requisition-groups.form.not-found-title": "Grupo De Requisiciones No Encontrado",
+  "requisition-groups.form.open-error-title": "No Se Pudo Abrir El Formulario De Grupo De Requisiciones",
   "requisition-groups.form.pick-facility": "Seleccione Un Establecimiento",
   "requisition-groups.form.pick-node": "Seleccione Un Nodo De Supervisión",
   "requisition-groups.form.pick-program": "Seleccione Un Programa",

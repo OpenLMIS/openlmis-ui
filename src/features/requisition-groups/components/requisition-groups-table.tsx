@@ -15,6 +15,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { ListError } from '@/components/list-error';
+import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
 import {
   requisitionGroupNodeFacilityIds,
@@ -57,7 +57,7 @@ function createColumns(
           {getValue()}
         </span>
       ),
-      meta: { className: '@xl/main:w-2/5 @5xl/main:w-1/4' },
+      meta: { className: 'w-3/5 @xl/main:w-2/5 @5xl/main:w-1/4' },
     }),
     columnHelper.display({
       id: 'program',
@@ -72,6 +72,11 @@ function createColumns(
       ),
     }),
     columnHelper.accessor('code', {
+      cell: ({ getValue }) => (
+        <span className="whitespace-normal break-words" dir="auto">
+          {getValue()}
+        </span>
+      ),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.code')} />
       ),
@@ -90,13 +95,7 @@ function createColumns(
       cell: ({ row }) => {
         const facilityId = row.original.supervisoryNode.facility?.id;
         if (!facilityId) return null;
-        return zonesPending ? (
-          <div className="h-4 w-24">
-            <Skeleton fill />
-          </div>
-        ) : (
-          (zones.get(facilityId) ?? null)
-        );
+        return zonesPending ? <Block className="h-4 w-24" /> : (zones.get(facilityId) ?? null);
       },
     }),
     columnHelper.accessor((group) => group.memberFacilities.length, {

@@ -3,7 +3,7 @@ import type { MemberFacility } from '@/features/requisition-groups/lib/types';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
 import { fold } from '@/lib/text';
 
-export const MEMBER_SORT_FIELDS = ['name', 'zone', 'type', 'enabled'] as const;
+const MEMBER_SORT_FIELDS = ['name', 'zone', 'type', 'enabled'] as const;
 export const requisitionGroupEditorSearchSchema = tableSearchSchema(MEMBER_SORT_FIELDS).extend({
   tab: z.literal('facilities').optional().catch(undefined),
   q: textFilterSchema,
