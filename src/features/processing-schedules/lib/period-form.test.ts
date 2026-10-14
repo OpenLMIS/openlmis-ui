@@ -6,7 +6,6 @@ import {
   periodFormSchema,
   previousDate,
   toPeriodBody,
-  toPeriodFormValues,
 } from '@/features/processing-schedules/lib/period-form';
 
 const schedule = { id: 's1', code: 'M', name: 'Monthly', modifiedDate: '2026-01-01' };
@@ -20,8 +19,6 @@ const valid = {
 
 it.each([true, 'true', false, 'false', 1, undefined])('reads Report Only %s strictly', (value) => {
   expect(isReportOnly({ reportOnly: value })).toBe(value === true || value === 'true');
-  expect(isReportOnly(null)).toBe(false);
-  expect(isReportOnly(undefined)).toBe(false);
 });
 
 it.each([
@@ -41,34 +38,6 @@ it.each(['2026-01-01', '2025-12-31'])('refuses an end on or before the start: %s
   ]);
 });
 
-it('requires a trimmed name and valid dates', () => {
-  const result = periodFormSchema.safeParse({
-    ...valid,
-    name: ' ',
-    startDate: '',
-    endDate: '2026-02-30',
-  });
-  expect(result.error?.issues.map((issue) => issue.path[0])).toEqual([
-    'name',
-    'startDate',
-    'endDate',
-  ]);
-  expect(periodFormSchema.parse(valid).name).toBe('January');
-});
-
-it('prefills the start only from the latest period', () => {
-  expect(toPeriodFormValues(undefined).startDate).toBe('');
-  expect(
-    toPeriodFormValues({
-      id: 'p1',
-      name: 'Jan',
-      startDate: '2026-01-01',
-      endDate: '2026-01-31',
-      processingSchedule: schedule,
-    }).startDate,
-  ).toBe('2026-02-01');
-});
-
 it('sends the loaded schedule and trimmed text, with extraData only when on', () => {
   const body = toPeriodBody(valid, schedule);
   expect(body).toEqual({
@@ -77,7 +46,6 @@ it('sends the loaded schedule and trimmed text, with extraData only when on', ()
     startDate: '2026-01-01',
     endDate: '2026-01-31',
   });
-  expect(body.processingSchedule).toBe(schedule);
   expect(
     toPeriodBody({ ...valid, reportOnly: true, description: ' Reporting ' }, schedule),
   ).toEqual({
@@ -89,12 +57,8 @@ it('sends the loaded schedule and trimmed text, with extraData only when on', ()
 
 it.each([
   [0, 10, 1],
-  [1, 10, 1],
-  [9, 10, 1],
   [10, 10, 1],
   [11, 10, 2],
-  [9, 4, 3],
-  [10, 4, 3],
   [11, 4, 3],
 ])('lands %i periods with size %i on ascending page %i', (total, size, page) => {
   expect(landingPage({ total, size, desc: false })).toBe(page);

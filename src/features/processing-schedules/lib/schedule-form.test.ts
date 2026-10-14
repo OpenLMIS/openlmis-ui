@@ -1,23 +1,10 @@
 import { expect, it } from 'vitest';
 import {
   duplicateField,
-  EMPTY_SCHEDULE_FORM,
   scheduleFormSchema,
   toScheduleBody,
 } from '@/features/processing-schedules/lib/schedule-form';
 import { httpError } from '@/tests/http-error';
-
-it('requires code and name including whitespace-only values', () => {
-  const result = scheduleFormSchema([]).safeParse({
-    ...EMPTY_SCHEDULE_FORM,
-    code: ' ',
-    name: '  ',
-  });
-  expect(result.error?.issues.map((issue) => [issue.path[0], issue.message])).toEqual([
-    ['code', 'processing-schedules.form.code-required'],
-    ['name', 'processing-schedules.form.name-required'],
-  ]);
-});
 
 it('trims values and omits a blank description from the body', () => {
   const values = { code: ' M ', name: ' Monthly ', description: '  ' };

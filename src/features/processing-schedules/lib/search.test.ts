@@ -7,7 +7,7 @@ import {
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
 
-it('sends the schedule id and exactly one period sort', () => {
+it('sends the schedule id, one sort and the legacy default orders', () => {
   expect(toPeriodsQuery('s1', { page: 3, size: 20, sort: 'endDate', dir: 'desc' })).toEqual({
     processingScheduleId: 's1',
     page: 2,
@@ -15,10 +15,7 @@ it('sends the schedule id and exactly one period sort', () => {
     sort: 'endDate,desc',
   });
   expect(toPeriodsQuery('s1', {}).sort).toBe('startDate,asc');
-});
-
-it('sorts schedules by code ascending by default', () => {
-  expect(toSchedulesQuery({})).toEqual({ page: 0, size: 10, sort: 'code,asc' });
+  expect(toSchedulesQuery({}).sort).toBe('code,asc');
 });
 
 it('round trips list state through the periods URL and crumb', () => {

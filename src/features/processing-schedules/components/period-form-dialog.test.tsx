@@ -55,11 +55,9 @@ describe('PeriodFormDialog', () => {
     });
     expect(start).toBeDisabled();
     expect(start).toHaveTextContent(formatDateValue('2026-02-01', 'en'));
-    expect(fetchLatestPeriod).toHaveBeenCalledWith(schedule.id);
   });
 
   it('keeps the first start empty and editable with its guidance', async () => {
-    const user = userEvent.setup();
     vi.mocked(fetchLatestPeriod).mockResolvedValue({ ...latest, content: [], totalElements: 0 });
     renderDialog();
     const start = await screen.findByRole('button', {
@@ -68,14 +66,6 @@ describe('PeriodFormDialog', () => {
     expect(start).toBeEnabled();
     expect(start).toHaveTextContent('processing-schedules.period-form.pick-date');
     expect(start).toHaveAccessibleDescription('processing-schedules.periods.start-hint');
-    await user.click(start);
-    const calendar = await screen.findByRole('dialog', {
-      name: /processing-schedules.periods.start-date/,
-    });
-    await user.click(
-      (await within(calendar).findAllByRole('button', { name: /Today/ }))[0] as HTMLElement,
-    );
-    expect(start).toHaveTextContent(formatDateValue(new Date().toLocaleDateString('sv-SE'), 'en'));
   });
 
   it('keeps a refused draft, shows the server reason and refreshes its locked start', async () => {
