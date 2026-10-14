@@ -1,6 +1,8 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
   fetchAvailableColumns,
+  fetchReasonTags,
+  fetchRequisitionTemplate,
   fetchRequisitionTemplates,
 } from '@/features/requisition-templates/api/api';
 import { queryKeys } from '@/lib/key-factory';
@@ -18,5 +20,19 @@ export const availableColumnsOptions = () =>
   queryOptions({
     queryKey: queryKeys.availableRequisitionColumns.list(),
     queryFn: fetchAvailableColumns,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const requisitionTemplateOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.requisitionTemplates.detail(id),
+    queryFn: () => fetchRequisitionTemplate(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const templateReasonTagsOptions = () =>
+  queryOptions({
+    queryKey: [...queryKeys.reasons.all, 'tags'],
+    queryFn: fetchReasonTags,
     staleTime: LOOKUP_STALE_TIME,
   });

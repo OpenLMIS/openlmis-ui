@@ -59,11 +59,11 @@ function TableHeader({
   )
 }
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+function TableBody({ className, divided = false, ...props }: React.ComponentProps<"tbody"> & { divided?: boolean }) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn(!divided && "[&_tr:last-child]:border-0", className)}
       {...props}
     />
   )
@@ -85,13 +85,15 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
 function TableRow({
   className,
   surface = "default",
+  drag = false,
   ...props
-}: React.ComponentProps<"tr"> & { surface?: "default" | "muted" | "primary" }) {
+}: React.ComponentProps<"tr"> & { surface?: "default" | "muted" | "primary"; drag?: boolean }) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        drag && "relative [transform:var(--row-transform)] [transition:var(--row-transition)] data-[dragging=true]:z-10 data-[dragging=true]:bg-background data-[dragging=true]:shadow-sm",
         surface === "muted" && "bg-muted/30 font-medium has-aria-expanded:bg-muted/30",
         surface === "primary" && "bg-primary text-primary-foreground font-medium hover:bg-primary has-aria-expanded:bg-primary data-[state=selected]:bg-primary",
         className

@@ -86,6 +86,7 @@ type FieldProps = {
   disabled?: boolean;
   layout?: FieldLayout;
   hideErrors?: boolean;
+  errorDescriptionId?: string;
 };
 
 type FieldFrameProps = FieldProps & {
@@ -107,6 +108,7 @@ function useFieldErrors(
   extraDescribedBy?: string,
   badge?: ReactNode,
   nestedErrors: readonly unknown[] = [],
+  errorDescriptionId?: string,
 ) {
   const field = useFieldContext<unknown>();
   const formatError = useFormatError();
@@ -118,7 +120,7 @@ function useFieldErrors(
           ? formatError(String(error.message))
           : undefined,
   }));
-  const isInvalid = errors.length > 0;
+  const isInvalid = errors.length > 0 || Boolean(errorDescriptionId);
   const descriptionId = `${field.name}-description`;
   const errorId = `${field.name}-error`;
   const badgeId = `${field.name}-badge`;
@@ -128,11 +130,19 @@ function useFieldErrors(
       badge ? badgeId : '',
       description ? descriptionId : '',
       extraDescribedBy ?? '',
-      isInvalid ? errorId : '',
+      isInvalid ? (errorDescriptionId ?? errorId) : '',
     ]
       .filter(Boolean)
       .join(' ') || undefined;
-  return { errors, isInvalid, descriptionId, errorId, badgeId, describedBy };
+  return {
+    errors,
+    isInvalid,
+    descriptionId,
+    errorId,
+    badgeId,
+    describedBy,
+    externalError: Boolean(errorDescriptionId),
+  };
 }
 
 /** A label's text with the required mark, for any label, including a skeleton's. */
@@ -181,7 +191,7 @@ function FieldFrame({
   description,
   required,
   disabled,
-  state: { errors, isInvalid, descriptionId, errorId, badgeId },
+  state: { errors, isInvalid, descriptionId, errorId, badgeId, externalError },
   errorAlign,
   children,
 }: FieldFrameProps) {
@@ -195,6 +205,7 @@ function FieldFrame({
     <>
       {layout === 'inline' ? <HiddenFromView>{descriptionNode}</HiddenFromView> : descriptionNode}
       {isInvalid &&
+        !externalError &&
         (hideErrors ? (
           <HiddenFromView>
             <FieldError errors={errors} id={errorId} />
@@ -219,7 +230,7 @@ function FieldFrame({
           value="control"
         >
           {children}
-          {isInvalid && (
+          {isInvalid && !externalError && (
             <div className={errorAlign === 'end' ? 'text-end' : undefined}>
               <FieldError errors={errors} id={errorId} />
             </div>
@@ -238,9 +249,9 @@ function FieldFrame({
         </HiddenFromView>
         {hideErrors ? (
           <Tooltip
-            disabled={!isInvalid}
+            disabled={!isInvalid || externalError}
             triggerId={`${field.name}-error-trigger`}
-            open={isInvalid && errorOpen}
+            open={!externalError && isInvalid && errorOpen}
             onOpenChange={setErrorOpen}
           >
             <TooltipTrigger
@@ -307,8 +318,10 @@ type TextFieldProps = FieldProps &
 export function TextField({
   label,
   layout,
+  hideErrors,
   badge,
   description,
+  errorDescriptionId,
   required,
   disabled,
   type = 'text',
@@ -319,7 +332,7 @@ export function TextField({
   inputMode,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
-  const state = useFieldErrors(description, undefined, badge);
+  const state = useFieldErrors(description, undefined, badge, [], errorDescriptionId);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
@@ -329,6 +342,7 @@ export function TextField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >
@@ -336,6 +350,7 @@ export function TextField({
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         aria-required={required}
+        controlSize={layout === 'inline' ? 'sm' : 'default'}
         autoComplete={autoComplete}
         dir={dir}
         disabled={disabled}
@@ -501,6 +516,7 @@ export function TextareaField({
   layout,
   hideErrors,
   description,
+  errorDescriptionId,
   required,
   disabled,
   placeholder,
@@ -508,7 +524,7 @@ export function TextareaField({
   dir,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
-  const state = useFieldErrors(description);
+  const state = useFieldErrors(description, undefined, undefined, [], errorDescriptionId);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
@@ -996,6 +1012,7 @@ type SelectFieldProps = FieldProps &
 export function SelectField({
   label,
   description,
+  errorDescriptionId,
   required,
   disabled,
   layout,
@@ -1007,7 +1024,7 @@ export function SelectField({
   wrap,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
-  const state = useFieldErrors(description);
+  const state = useFieldErrors(description, undefined, undefined, [], errorDescriptionId);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
 
   return (
