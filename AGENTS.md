@@ -714,7 +714,9 @@ home facility, user programs, all facilities and page grants, following legacy:
 router navigation. It registers `useLeaveGuard` for exits outside the router; sign-out,
 password changes and other deliberate sign-outs call `whenLeaveAllowed` before acting.
 Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
-during a save without offering Discard. Reload/tab close uses only the
+during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
+before navigation/sign-out; only a failed flush asks first, and sign-out retains saved work.
+Reload/tab close uses only the
 browser's native prompt. External identity changes follow Authentication below.
 
 **Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,
@@ -954,8 +956,22 @@ return data, unavailable or a handled error; local absence is never a server 404
 - `use-stock-event-autosave` debounces edits for 350 ms and uses one serial writer. Stage edits
   immediately for leave protection, and flush before subsequent durable transitions. Only show
   Saved On This Device after transaction commit; failures stay visible with Retry, including
-  while retrying. Keep committed drafts on navigation and resume them before enabling edits.
+  while retrying. Flush before navigation/sign-out and on unmount while the owning session is
+  current. Sign-out never discards a device draft; failed flushes explain that only unsaved edits
+  will be lost. Keep committed drafts on navigation and resume them before enabling edits.
+- Refresh resumed product/lot snapshots and stock on hand from current cards by product/lot id.
+  Preserve all typed text. Keep missing-card and expired-lot lines, highlight their rows and
+  explain them in the invalid-submit dialog, with no error text beneath inline fields.
+- Archived Copies lists saved time and line count for the current kind/facility/program. Restore
+  revision-checks both records and atomically archives the active draft before promoting the
+  copy. Delete requires confirmation and a revision/scope check. Memoize its table columns
+  and use draft ids for rows so save notifications cannot remount open action menus.
+- Before direct online submission, persist `submissionAttempted` without changing the form.
+  Clear it after a definitive refusal. After acceptance, retire the expected draft before
+  navigating, without status callbacks or form writes. If deletion fails, mark it accepted in
+  a second transaction. If both writes fail, the durable marker shows a stock-card warning on
+  reopen. Accepted rows are excluded from editing and archived-copy recovery.
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
-  Stage 6 must replace the existing direct submission path with revision-checked durable enqueue
-  and retire its editing draft; stage 5 alone is not releasable.
+  Stage 6 must replace direct submission and its temporary attempt marker with revision-checked
+  durable enqueue and queue retirement; stage 5 alone is not releasable.

@@ -57,7 +57,7 @@ export function EventDraftStatus({ status, error, onRetry, onResolve }: Props) {
         )}
         {status === 'failed' && (
           <Button size="sm" variant="outline" onClick={onRetry}>
-            {t('offline.download.retry')}
+            {t('stock-events.draft-retry')}
           </Button>
         )}
       </div>

@@ -26,6 +26,7 @@ import { MAX_WHOLE_NUMBER, toWholeNumber, wholeNumberText } from '@/lib/whole-nu
 
 const lineFields = z.object({
   key: z.string(),
+  stockProblem: z.enum(['missing', 'expired']).optional(),
   orderable: z.custom<EventStockCard['orderable']>(),
   lot: z.custom<EventLot | null>(),
   stockOnHand: z.number().nullable(),
@@ -123,6 +124,7 @@ export function eventLinesSchema({
     const issue = (path: string[], message: string) =>
       context.addIssue({ code: 'custom', path, message });
     const reason = byId.get(line.reasonId);
+    if (line.stockProblem) issue(['quantity', 'doses'], 'stock-events.draft-stock-invalid');
     if (!reason && (eventReasonRequired(kind, reasons, defaultReasonId) || line.reasonId))
       issue(['reasonId'], 'stock-events.required');
     if (config.counterparty !== 'none') {
@@ -299,4 +301,43 @@ export function eventPayload({
     ...(config.eventOrigin !== null && { eventOrigin: config.eventOrigin }),
     lineItems,
   };
+}
+
+export function refreshStockEventLines(
+  lines: EventLine[],
+  cards: readonly EventStockCard[],
+  today: string,
+): EventLine[] {
+  const key = (id: string, lotId?: string) => JSON.stringify([id, lotId ?? null]);
+  const byProductLot = new Map(cards.map((card) => [key(card.orderable.id, card.lot?.id), card]));
+  const productsWithLots = new Set(
+    cards.filter((card) => card.lot).map((card) => card.orderable.id),
+  );
+  let changed = false;
+  const refreshed = lines.map((line) => {
+    const card = byProductLot.get(
+      key(line.orderable.id, isNewLot(line.lot) ? undefined : line.lot?.id),
+    );
+    const stockProblem = !card
+      ? 'missing'
+      : card.lot?.expirationDate && card.lot.expirationDate < today
+        ? 'expired'
+        : undefined;
+    const next: EventLine = card
+      ? {
+          ...line,
+          stockProblem,
+          orderable: card.orderable,
+          lot: card.lot,
+          stockOnHand: card.stockOnHand,
+          netContent: card.orderable.netContent,
+          useVVM: card.orderable.extraData?.useVVM === 'true',
+          productHasLots: productsWithLots.has(card.orderable.id),
+        }
+      : { ...line, stockProblem, stockOnHand: null };
+    if (JSON.stringify(next) === JSON.stringify(line)) return line;
+    changed = true;
+    return next;
+  });
+  return changed ? refreshed : lines;
 }

@@ -145,3 +145,30 @@ it('Retry after a failed confirmed Clear saves the lines still displayed by the 
   expect(status.mock.lastCall?.[0].status).toBe('saved');
   expect((await readStockEventDraft(context))?.lines).toEqual([line]);
 });
+
+it.each([false, true])(
+  'retires accepted submissions without status callbacks, archive failure %s',
+  async (archiveFails) => {
+    const context = createStockEventContext(selection);
+    const initial = await saveStockEventDraft(context, undefined, [line]);
+    const status = vi.fn();
+    const writer = createStockEventWriter(context, initial, status);
+    expect(await writer.markSubmission(true)).toBe(true);
+    vi.spyOn(context.db.table('stockEventDrafts'), 'delete').mockRejectedValueOnce(
+      new Error('storage'),
+    );
+    if (archiveFails)
+      vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValueOnce(
+        new Error('storage'),
+      );
+    expect(await writer.retire()).toBe(!archiveFails);
+    writer.stage([{ ...line, reasonFreeText: 'late change' }]);
+    writer.start();
+    await writer.flush();
+    expect(status).not.toHaveBeenCalled();
+    const rows = await context.db.table('stockEventDrafts').toArray();
+    expect(rows[0].submissionAttempted).toBe(true);
+    expect(rows[0].state).toBe(archiveFails ? 'editing' : 'accepted');
+    expect(rows[0].lines[0].reasonFreeText).toBe('');
+  },
+);

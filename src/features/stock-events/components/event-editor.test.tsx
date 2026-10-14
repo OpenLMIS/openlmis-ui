@@ -55,7 +55,14 @@ import {
   eventValidReasonsOptions,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
+import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
+import {
+  archiveStockEventCopy,
+  createStockEventContext,
+  readStockEventDraft,
+  saveStockEventDraft,
+} from '@/features/stock-events/lib/stock-event-local';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
@@ -179,7 +186,7 @@ const card: EventStockCard = {
     netContent: 16,
     identifiers: { tradeItem: 'trade' },
   },
-  lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' },
+  lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2099-01-30' },
 };
 const other: EventStockCard = {
   ...card,
@@ -391,7 +398,7 @@ describe('EventEditor', () => {
     async (language) => {
       const { user } = setup();
       await add(user);
-      await filter(user, formatDateValue('2019-01-30', language));
+      await filter(user, formatDateValue('2099-01-30', language));
       expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
         language === 'en' ? 1 : 0,
       );
@@ -501,7 +508,7 @@ describe('EventEditor', () => {
       await validLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-      expect(submitStockEvent).toHaveBeenCalledOnce();
+      await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
       act(() => useLoginData.setState({ referenceDataUserId: 'other-user' }));
       await act(async () => finish());
       expect(onSubmitted).not.toHaveBeenCalled();
@@ -730,7 +737,7 @@ describe('EventEditor', () => {
     await user.type(await screen.findByRole('textbox', { name: 'Signature' }), 'Ada');
     const confirm = screen.getByRole('button', { name: 'Confirm' });
     await user.dblClick(confirm);
-    expect(submitStockEvent).toHaveBeenCalledOnce();
+    await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
     expect(submitStockEvent).toHaveBeenCalledWith({
       facilityId: 'facility',
       programId: 'program',
@@ -747,6 +754,7 @@ describe('EventEditor', () => {
         },
       ],
     });
+    await waitFor(() => expect(finish).toBeTypeOf('function'));
     await act(async () => finish('event'));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
     for (const key of ['stockEvents', 'stockCards', 'stockCardSummaries'])
@@ -787,6 +795,7 @@ describe('EventEditor', () => {
         await user.click(screen.getByRole('button', { name: 'Submit' }));
         await user.click(await screen.findByRole('button', { name: 'Confirm' }));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        await waitFor(() => expect(finish).toBeTypeOf('function'));
         await act(async () => finish('event'));
         await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
       }
@@ -968,9 +977,15 @@ it.each(['success', 'failure'])(
     expect(unload.defaultPrevented).toBe(false);
     const leave = vi.fn();
     act(() => whenLeaveAllowed(leave));
-    expect(leave).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
     if (outcome === 'success') {
       expect(onSubmitted).toHaveBeenCalledWith('new-event');
+      expect(
+        await getLocalDb()
+          .table('stockEventDrafts')
+          .filter((draft) => draft.state === 'editing')
+          .count(),
+      ).toBe(0);
       expect(refreshOfflineProgram).toHaveBeenCalledWith({
         facilityId: 'facility',
         programId: 'program',
@@ -992,7 +1007,11 @@ it('uses Issue stock eligibility for both the picker and scan resolver and prese
   const { user } = setup(
     true,
     (client) => {
-      client.setQueryData(editorStockOptions('issue').queryKey, [card, zero, other]);
+      client.setQueryData(editorStockOptions('issue').queryKey, [
+        { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
+        zero,
+        other,
+      ]);
       client.setQueryData(editorReasonsOptions('issue').queryKey, [
         { reason: { ...reason, reasonCategory: 'TRANSFER' }, hidden: false },
       ]);
@@ -1996,7 +2015,7 @@ it('resumes exact typed quantities and lines after the editor remounts without a
   await screen.findByText('Saved on this device');
   const leave = vi.fn();
   act(() => whenLeaveAllowed(leave));
-  expect(leave).toHaveBeenCalledOnce();
+  await waitFor(() => expect(leave).toHaveBeenCalledOnce());
   cleanup();
   setup();
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
@@ -2004,34 +2023,238 @@ it('resumes exact typed quantities and lines after the editor remounts without a
   );
 });
 
-it.each([false, true])(
-  'revision-checks a confirmed navigation discard when stale=%s',
-  async (stale) => {
-    const { user } = setup();
+it('keeps committed lines when signing out after a failed device save', async () => {
+  const { user } = setup();
+  await add(user);
+  await screen.findByText('Saved on this device');
+  const table = getLocalDb().table('stockEventDrafts');
+  const before = await table.toArray();
+  vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
+  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
+  await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+  const leave = vi.fn();
+  act(() => whenLeaveAllowed(leave));
+  await user.click(await screen.findByRole('button', { name: 'Sign Out' }));
+  await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+  expect(await table.toArray()).toEqual(before);
+});
+
+it('commits the final debounced edit when the editor unmounts', async () => {
+  const { user } = setup();
+  await add(user);
+  await screen.findByText('Saved on this device');
+  fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
+    target: { value: '0019' },
+  });
+  cleanup();
+  await waitFor(async () => {
+    const [saved] = await getLocalDb().table('stockEventDrafts').toArray();
+    expect(saved.lines[0].quantity.doses).toBe('0019');
+  });
+});
+
+it.each(['navigation', 'sign-out'])(
+  'flushes an Adjustment edit during the debounce before %s',
+  async (destination) => {
+    const { user, router } = setup(true, undefined, { browserHistory: true });
     await add(user);
     await screen.findByText('Saved on this device');
-    const table = getLocalDb().table('stockEventDrafts');
-    vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
-    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
-    await screen.findByText('Could not save on this device. Your latest edits are not saved.');
-    if (stale) {
-      const stored = (await table.toArray())[0];
-      await table.put({ ...stored, revision: stored.revision + 1 });
-    }
+    fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
+      target: { value: '0018' },
+    });
+    expect(screen.getByText('Saving on this device')).toBeVisible();
+    if (!router) throw new Error('Missing test router');
     const leave = vi.fn();
-    act(() => whenLeaveAllowed(leave));
-    await user.click(await screen.findByRole('button', { name: 'Discard And Sign Out' }));
-    if (stale) {
-      await screen.findByText('Draft Changed In Another Tab');
-      expect(leave).not.toHaveBeenCalled();
-      await user.click(screen.getByRole('button', { name: 'Keep An Archived Copy' }));
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-      const rows = await table.toArray();
-      expect(rows.find((draft) => draft.state === 'archived').lines[0].quantity.doses).toBe('0012');
-      expect(rows.find((draft) => draft.state === 'editing').lines[0].quantity.doses).toBe('');
-    } else {
+    if (destination === 'navigation')
+      await act(async () => {
+        await router.navigate({ to: '/settings' });
+      });
+    else {
+      act(() => whenLeaveAllowed(leave));
       await waitFor(() => expect(leave).toHaveBeenCalledOnce());
-      expect(await table.count()).toBe(0);
     }
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    const [stored] = await getLocalDb().table('stockEventDrafts').toArray();
+    expect(stored.lines[0].quantity.doses).toBe('0018');
+    if (destination === 'navigation') expect(router.state.location.pathname).toBe('/settings');
+    router.history.destroy();
   },
 );
+
+it('explains a failed device flush when Submit is clicked', async () => {
+  const { user } = setup();
+  await validLine(user);
+  await screen.findByText('Saved on this device');
+  vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
+  fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
+    target: { value: '18' },
+  });
+  await user.click(screen.getByRole('button', { name: 'Submit' }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('Could Not Save Draft');
+  expect(submitStockEvent).not.toHaveBeenCalled();
+});
+
+it('refreshes resumed stock and product snapshots while keeping typed values and enforcing the new debit cap', async () => {
+  const { user } = setup();
+  await validLine(user);
+  await screen.findByText('Saved on this device');
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'facility',
+    programId: 'program',
+  });
+  const previous = await readStockEventDraft(context);
+  cleanup();
+  const fresh = {
+    ...card,
+    stockOnHand: 5,
+    orderable: { ...card.orderable, fullProductName: 'Fresh Aspirin' },
+    lot: { id: 'lot', lotCode: 'FRESH', expirationDate: '2099-01-30' },
+  };
+  const next = setup(true, (client) =>
+    client.setQueryData(editorStockOptions().queryKey, [fresh, other]),
+  );
+  expect(
+    await screen.findByRole('textbox', { name: /^Quantity, Fresh Aspirin FRESH/ }),
+  ).toHaveValue('17');
+  await screen.findByText('Saved on this device');
+  const saved = await readStockEventDraft(context);
+  expect(saved?.lines[0]).toMatchObject({
+    orderable: fresh.orderable,
+    lot: fresh.lot,
+    stockOnHand: 5,
+    quantity: previous?.lines[0].quantity,
+    reasonId: previous?.lines[0].reasonId,
+    occurredDate: previous?.lines[0].occurredDate,
+  });
+  await next.user.click(screen.getByRole('button', { name: 'Submit' }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    en['stock-adjustment.invalid-title'],
+  );
+  await next.user.click(screen.getByRole('button', { name: /^Close$/ }));
+  expect(screen.getByRole('textbox', { name: /^Quantity, Fresh Aspirin FRESH/ })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(submitStockEvent).not.toHaveBeenCalled();
+});
+
+it.each(['missing', 'expired'])(
+  'keeps a resumed %s stock line highlighted and explains why it cannot submit',
+  async (problem) => {
+    const { user } = setup();
+    await validLine(user);
+    await screen.findByText('Saved on this device');
+    cleanup();
+    const next = setup(true, (client) =>
+      client.setQueryData(
+        editorStockOptions().queryKey,
+        problem === 'missing'
+          ? [other]
+          : [{ ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } }, other],
+      ),
+    );
+    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+      '17',
+    );
+    expect(
+      screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }).closest('tr'),
+    ).toHaveAttribute('aria-invalid', 'true');
+    await next.user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      en['stock-events.draft-stock-invalid'],
+    );
+    expect(submitStockEvent).not.toHaveBeenCalled();
+  },
+);
+
+it('restores an archived copy, retains the replaced draft, and requires confirmation before deleting it', async () => {
+  const { user } = setup();
+  await validLine(user);
+  await screen.findByText('Saved on this device');
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'facility',
+    programId: 'program',
+  });
+  const active = await readStockEventDraft(context);
+  if (!active) throw new Error('Missing test draft');
+  await act(async () => {
+    await archiveStockEventCopy(context, [
+      { ...active.lines[0], quantity: { doses: '0030', packs: '01', remainder: '14' } },
+    ]);
+  });
+  await user.click(await screen.findByRole('button', { name: 'Archived Copies' }));
+  let dialog = await screen.findByRole('dialog', { name: 'Archived Copies' });
+  await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Restore' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('0030');
+  expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
+  await user.click(screen.getByRole('button', { name: 'Archived Copies' }));
+  dialog = await screen.findByRole('dialog', { name: 'Archived Copies' });
+  await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+  const confirmation = await screen.findByRole('alertdialog');
+  expect(await getLocalDb().table('stockEventDrafts').count()).toBe(2);
+  await user.click(within(confirmation).getByRole('button', { name: 'Delete' }));
+  await waitFor(async () => expect(await getLocalDb().table('stockEventDrafts').count()).toBe(1));
+  expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
+});
+
+it('shows a submission warning on reopening if accepted-draft deletion and archival both fail', async () => {
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'facility',
+    programId: 'program',
+  });
+  const line = newEventLine(card, undefined, '2026-10-14', {
+    kind: 'adjustment',
+    productHasLots: true,
+  });
+  await saveStockEventDraft(context, undefined, [line], undefined, true);
+  setup();
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    en['stock-events.unknown-outcome-description'],
+  );
+});
+
+it('keeps resumed lines when cold stock and reason lookups finish after the device read', async () => {
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'facility',
+    programId: 'program',
+  });
+  const line = newEventLine(card, undefined, '2026-10-14', {
+    kind: 'adjustment',
+    productHasLots: true,
+  });
+  line.quantity = { doses: '0012', packs: '00', remainder: '12' };
+  await saveStockEventDraft(context, undefined, [line]);
+  let finishCards!: (cards: EventStockCard[]) => void;
+  let finishReasons!: (reasons: { reason: typeof reason; hidden: boolean }[]) => void;
+  vi.mocked(fetchEventStockCards).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishCards = resolve;
+    }),
+  );
+  vi.mocked(fetchValidReasons).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishReasons = resolve;
+    }),
+  );
+  setup(true, (client) => {
+    client.removeQueries({ queryKey: editorStockOptions().queryKey });
+    client.removeQueries({ queryKey: editorReasonsOptions().queryKey });
+  });
+  await screen.findByText('Saved on this device');
+  await act(async () => {
+    finishReasons([{ reason, hidden: false }]);
+    finishCards([{ ...card, stockOnHand: 5 }, other]);
+  });
+  expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+    '0012',
+  );
+  await screen.findByText('Saved on this device');
+  expect((await readStockEventDraft(context))?.lines[0].stockOnHand).toBe(5);
+});
