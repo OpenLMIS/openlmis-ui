@@ -1,5 +1,12 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
-import { ClockIcon, ListChecksIcon, MoreHorizontalIcon } from 'lucide-react';
+import {
+  AlertTriangleIcon,
+  CheckIcon,
+  CircleXIcon,
+  ClockIcon,
+  ListChecksIcon,
+  MoreHorizontalIcon,
+} from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -70,6 +77,7 @@ const kindLabels = {
   receive: 'nav.stock-management.receive',
   unpack: 'nav.stock-management.unpack',
 } as const;
+type EventRow = DeviceEvent & { lineIndex: number };
 const defaultSort = { id: 'queuedAt', desc: false };
 
 export function DeviceEventsPage({
@@ -98,7 +106,7 @@ export function DeviceEventsPage({
             <ListChecksIcon />
           </WorkspaceIcon>
           <WorkspaceTitle>{t('device-events.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('device-events.description')}</WorkspaceDescription>
+          <WorkspaceDescription>{t('device-events.retained-description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
@@ -170,52 +178,45 @@ function DeviceEventsTable({
   const local = useDeviceEvents(!loading);
   const [selected, setSelected] = useState<DeviceEvent | null>(null);
   const deferred = useDeferredValue(search);
-  const columns = useMemo<ColumnDef<DataTableFeatures, DeviceEvent>[]>(
+  const columns = useMemo<ColumnDef<DataTableFeatures, EventRow>[]>(
     () => [
       {
         accessorKey: 'kind',
         header: t('device-events.type'),
-        cell: ({ row }) => t(kindLabels[row.original.kind]),
+        cell: ({ row }) => (row.original.lineIndex === 0 ? t(kindLabels[row.original.kind]) : null),
         meta: { className: 'w-32' },
       },
       {
         id: 'facility',
         header: t('facility-program.facility'),
-        cell: ({ row }) => (
-          <span dir="auto">{row.original.facility.name || row.original.facility.code}</span>
-        ),
+        cell: ({ row }) =>
+          row.original.lineIndex === 0 ? (
+            <span dir="auto">{row.original.facility.name || row.original.facility.code}</span>
+          ) : null,
       },
       {
         id: 'program',
         header: t('facility-program.program'),
-        cell: ({ row }) => (
-          <span dir="auto">{row.original.program.name || row.original.program.code}</span>
-        ),
+        cell: ({ row }) =>
+          row.original.lineIndex === 0 ? (
+            <span dir="auto">{row.original.program.name || row.original.program.code}</span>
+          ) : null,
       },
       {
         id: 'products',
         header: t('device-events.products'),
         cell: ({ row }) => (
-          <div className="flex min-w-48 flex-col gap-1">
-            {row.original.lines.map((line) => (
-              <span key={line.key} dir="auto">
-                {line.orderable.fullProductName || line.orderable.productCode}
-              </span>
-            ))}
-          </div>
+          <span className="block min-w-48 whitespace-normal" dir="auto">
+            {row.original.lines[row.original.lineIndex]?.orderable.fullProductName ||
+              row.original.lines[row.original.lineIndex]?.orderable.productCode}
+          </span>
         ),
       },
       {
         id: 'lots',
         header: t('device-events.lots'),
         cell: ({ row }) => (
-          <div className="flex flex-col gap-1">
-            {row.original.lines.map((line) => (
-              <span key={line.key} dir="auto">
-                {line.lot?.lotCode}
-              </span>
-            ))}
-          </div>
+          <span dir="auto">{row.original.lines[row.original.lineIndex]?.lot?.lotCode}</span>
         ),
       },
       {
@@ -223,53 +224,78 @@ function DeviceEventsTable({
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('device-events.queued-at')} />
         ),
-        cell: ({ row }) => (
-          <time dateTime={new Date(row.original.queuedAt).toISOString()}>
-            <span className="block whitespace-normal">
-              {formatTimestamp(new Date(row.original.queuedAt).toISOString(), i18n.language, {
-                time: true,
-                timeZone,
-              })}
-            </span>
-          </time>
-        ),
+        cell: ({ row }) =>
+          row.original.lineIndex === 0 ? (
+            <time dateTime={new Date(row.original.queuedAt).toISOString()}>
+              <span className="block whitespace-normal">
+                {formatTimestamp(new Date(row.original.queuedAt).toISOString(), i18n.language, {
+                  time: true,
+                  timeZone,
+                })}
+              </span>
+            </time>
+          ) : null,
       },
       {
         accessorKey: 'status',
         header: t('device-events.status'),
-        cell: ({ row }) => (
-          <Badge variant="secondary">
-            <ClockIcon data-icon="inline-start" />
-            {t(
-              row.original.receipt?.source === 'user'
-                ? 'device-events.recorded-by-you'
-                : `device-events.status-${row.original.status}`,
-            )}
-          </Badge>
-        ),
+        cell: ({ row }) =>
+          row.original.lineIndex === 0 ? (
+            <Badge
+              variant={
+                row.original.status === 'uncertain'
+                  ? 'warning'
+                  : row.original.status === 'refused'
+                    ? 'destructive'
+                    : row.original.status === 'accepted'
+                      ? 'success'
+                      : 'secondary'
+              }
+            >
+              {row.original.status === 'uncertain' ? (
+                <AlertTriangleIcon data-icon="inline-start" />
+              ) : row.original.status === 'refused' ? (
+                <CircleXIcon data-icon="inline-start" />
+              ) : row.original.status === 'accepted' ? (
+                <CheckIcon data-icon="inline-start" />
+              ) : (
+                <ClockIcon data-icon="inline-start" />
+              )}
+              {t(
+                row.original.receipt?.source === 'user'
+                  ? 'device-events.recorded-by-you'
+                  : `device-events.status-${row.original.status}`,
+              )}
+            </Badge>
+          ) : null,
         meta: { className: 'w-36' },
       },
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="icon" aria-label={t('device-events.review-event')} />
-              }
-            >
-              <MoreHorizontalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setSelected(row.original)}>
-                  {t('device-events.review-event')}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+        cell: ({ row }) =>
+          row.original.lineIndex === 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t('device-events.review-event')}
+                  />
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setSelected(row.original)}>
+                    {t('device-events.review-event')}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null,
         meta: { className: 'w-12' },
       },
     ],
@@ -287,10 +313,17 @@ function DeviceEventsTable({
   const pagination = toPaginationState(deferred);
   const data = useMemo(
     () =>
-      sorted.slice(
-        pagination.pageIndex * pagination.pageSize,
-        (pagination.pageIndex + 1) * pagination.pageSize,
-      ),
+      sorted
+        .slice(
+          pagination.pageIndex * pagination.pageSize,
+          (pagination.pageIndex + 1) * pagination.pageSize,
+        )
+        .flatMap((event) =>
+          Array.from({ length: Math.max(1, event.lines.length) }, (_, lineIndex) => ({
+            ...event,
+            lineIndex,
+          })),
+        ),
     [sorted, pagination.pageIndex, pagination.pageSize],
   );
   const searchState = useTableSearchState({ search: deferred, defaultSort, onSearchChange });
@@ -298,7 +331,7 @@ function DeviceEventsTable({
     features: dataTableFeatures,
     columns,
     data,
-    getRowId: (event) => event.localEventId,
+    getRowId: (event) => `${event.localEventId}:${event.lineIndex}`,
     rowCount: sorted.length,
     manualPagination: true,
     manualSorting: true,
@@ -346,8 +379,8 @@ function DeviceEventsTable({
         empty={
           <DataTableEmpty
             icon={<ListChecksIcon />}
-            title={t('device-events.empty-title')}
-            description={t('device-events.empty-description')}
+            title={t('device-events.no-events-title')}
+            description={t('device-events.no-events-description')}
           />
         }
         footer={sorted.length > 0 && <DataTablePagination table={table} />}

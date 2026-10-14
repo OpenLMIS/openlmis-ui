@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
@@ -19,7 +20,7 @@ vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
 }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/lib/device-event-status', () => ({
   wakeStockEventSync: vi.fn(),
   announceQueuedEvents: vi.fn(),
@@ -114,4 +115,22 @@ it('no-view It Was Recorded records the exact user-confirmed receipt without net
   expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
   expect(client.get).not.toHaveBeenCalled();
   expect(client.post).not.toHaveBeenCalled();
+});
+
+it('a stale recovery choice explains that the event changed without repeating it', async () => {
+  const { uncertain, onClose } = await open();
+  await getLocalDb()
+    .table('stockEventQueue')
+    .update(uncertain.sequence, { attemptId: 'new-attempt' });
+  await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await waitFor(() =>
+    expect(toast.warning).toHaveBeenCalledWith('device-events.changed-title', {
+      description: 'device-events.changed-description',
+    }),
+  );
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+  expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).attemptId).toBe(
+    'new-attempt',
+  );
 });
