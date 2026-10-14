@@ -1,5 +1,6 @@
 /** The rights the new UI checks; OpenLMIS has many more, this lists the ones a screen here asks about. */
 export const RIGHTS = {
+  requisitionTemplatesManage: 'REQUISITION_TEMPLATES_MANAGE',
   requisitionView: 'REQUISITION_VIEW',
   requisitionApprove: 'REQUISITION_APPROVE',
   ordersEdit: 'ORDERS_EDIT',
