@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   type CompleteSelection,
@@ -249,22 +249,21 @@ type SelectorFrameProps = {
 
 function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
   return (
-    <Card>
-      <CardContent>
-        <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-start">
-          <div className="shrink-0">{mode}</div>
-          {Children.map(children, (field) => (
-            <div className="min-w-0 flex-1">{field}</div>
-          ))}
-          <div className="flex flex-col gap-1">
-            <span aria-hidden className="invisible hidden text-sm leading-snug @3xl/main:block">
-              &nbsp;
-            </span>
-            {search}
-          </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-start">
+        <div className="min-w-0 flex-1 @3xl/main:max-w-96">{mode}</div>
+        {Children.map(children, (field) => (
+          <div className="min-w-0 flex-1 @3xl/main:max-w-96">{field}</div>
+        ))}
+        <div className="flex flex-col gap-1">
+          <span aria-hidden className="invisible hidden text-sm leading-snug @3xl/main:block">
+            &nbsp;
+          </span>
+          {search}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      <Separator />
+    </div>
   );
 }
 
@@ -286,7 +285,7 @@ export function FacilityProgramSelectorSkeleton() {
         mode={
           <div className="flex flex-col gap-1">
             <span className="font-medium text-sm leading-snug">{t('facility-program.mode')}</span>
-            <div className="h-8 w-64">
+            <div className="h-8 w-full">
               <Skeleton fill />
             </div>
           </div>

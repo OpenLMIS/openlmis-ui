@@ -1,14 +1,14 @@
 import { keepPreviousData, useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import type { ParseKeys, TFunction } from 'i18next';
-import { PlusIcon } from 'lucide-react';
-import { type ReactNode, useId, useMemo, useState } from 'react';
+import { PackageIcon, PlusIcon } from 'lucide-react';
+import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { DatePicker, FieldLabelText } from '@/components/form/form-fields';
+import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
 import { ScanStatus } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Combobox,
   ComboboxContent,
@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import {
   facilityOrderableFulfillsOptions,
@@ -42,6 +43,10 @@ import {
 import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { type NewLotValues, newLotSchema } from '@/features/stock-events/lib/new-lot';
+import {
+  rememberedPickerLayout,
+  rememberPickerLayout,
+} from '@/features/stock-events/lib/picker-layout';
 import {
   ADD_NEW_LOT,
   type ApprovedProductOption,
@@ -138,23 +143,80 @@ function StockCardLotPicker({
   if (lots.length === 1 && selectedLotId !== lotId) setLotId(selectedLotId);
   const pickedLot = lots.find((item) => item.value === selectedLotId);
   const pickedCard = pickedLot?.card;
+  const joined = !products.some((item) => item.cards.some((card) => card.lot !== null));
+  useEffect(() => {
+    rememberPickerLayout(kind, programId, joined ? 'joined' : 'labelled');
+  }, [kind, programId, joined]);
+  const add = () =>
+    pickedCard &&
+    product &&
+    onAdd(
+      pickedCard,
+      product.cards.some((card) => !!card.lot),
+    );
+  const field = useRef<HTMLDivElement>(null);
+  const productCombobox = (input: ReactNode, anchor?: RefObject<HTMLDivElement | null>) => (
+    <Combobox
+      items={products}
+      itemToStringLabel={(item) => item.label}
+      value={product ?? null}
+      onValueChange={(item) => {
+        setProductId(item?.value ?? null);
+        setLotId(null);
+      }}
+      disabled={disabled}
+    >
+      {input}
+      <ComboboxContent anchor={anchor}>
+        <ComboboxEmpty>
+          {t(products.length === 0 ? copy.noProducts : 'stock-events.no-matches-title')}
+        </ComboboxEmpty>
+        <ComboboxList>
+          {(item) => (
+            <ComboboxItem key={item.value} value={item}>
+              <bdi>{item.label}</bdi>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+  if (joined) {
+    return (
+      <PickerPanel status={children}>
+        <PickerAdd>
+          {productCombobox(
+            <PickerAddField ref={field}>
+              <ComboboxInput
+                id={`${id}-product`}
+                aria-required="true"
+                aria-label={t(copy.product)}
+                dir="auto"
+                placeholder={t(copy.productPlaceholder)}
+                width="full"
+              >
+                <PickerAddIcon>
+                  <PackageIcon />
+                </PickerAddIcon>
+              </ComboboxInput>
+            </PickerAddField>,
+            field,
+          )}
+          <PickerAddButton data-add-product="" disabled={disabled || !pickedCard} onClick={add}>
+            {t('stock-events.add')}
+          </PickerAddButton>
+        </PickerAdd>
+      </PickerPanel>
+    );
+  }
   return (
     <PickerPanel status={children}>
-      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+      <div className="min-w-0 flex-1 @3xl/main:max-w-96">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
             <FieldLabelText label={t(copy.product)} required />
           </FieldLabel>
-          <Combobox
-            items={products}
-            itemToStringLabel={(item) => item.label}
-            value={product ?? null}
-            onValueChange={(item) => {
-              setProductId(item?.value ?? null);
-              setLotId(null);
-            }}
-            disabled={disabled}
-          >
+          {productCombobox(
             <ComboboxInput
               id={`${id}-product`}
               aria-required="true"
@@ -162,24 +224,12 @@ function StockCardLotPicker({
               dir="auto"
               placeholder={t(copy.product)}
               width="full"
-            />
-            <ComboboxContent>
-              <ComboboxEmpty>
-                {t(products.length === 0 ? copy.noProducts : 'stock-events.no-matches-title')}
-              </ComboboxEmpty>
-              <ComboboxList>
-                {(item) => (
-                  <ComboboxItem key={item.value} value={item}>
-                    <bdi>{item.label}</bdi>
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
+            />,
+          )}
         </Field>
       </div>
       {product?.cards.some((card) => card.lot !== null) && (
-        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+        <div className="min-w-0 flex-1 @3xl/main:max-w-96">
           <Field spacing="tight">
             <FieldLabel htmlFor={`${id}-lot`}>
               <FieldLabelText label={t('stock-events.lot-code')} required />
@@ -218,14 +268,7 @@ function StockCardLotPicker({
           width="full"
           data-add-product=""
           disabled={disabled || !pickedCard}
-          onClick={() =>
-            pickedCard &&
-            product &&
-            onAdd(
-              pickedCard,
-              product.cards.some((card) => !!card.lot),
-            )
-          }
+          onClick={add}
           type="button"
         >
           <PlusIcon data-icon="inline-start" />
@@ -486,7 +529,7 @@ function ApprovedProductLotPicker({
         </>
       }
     >
-      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+      <div className="min-w-0 flex-1 @3xl/main:max-w-96">
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
             <FieldLabelText label={t(EVENT_KINDS[kind].copy.product)} required />
@@ -558,7 +601,7 @@ function ApprovedProductLotPicker({
         </Field>
       </div>
       {lotOptions.length > 1 && (
-        <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+        <div className="min-w-0 flex-1 @3xl/main:max-w-96">
           <Field spacing="tight">
             <FieldLabel htmlFor={`${id}-lot`}>
               <FieldLabelText label={t('stock-events.lot-code')} required />
@@ -594,7 +637,7 @@ function ApprovedProductLotPicker({
       )}
       {addingNewLot && (
         <>
-          <div className="min-w-0 flex-1 @3xl/main:max-w-56">
+          <div className="min-w-0 flex-1 @3xl/main:max-w-96">
             <Field spacing="tight" data-invalid={!!errors.lotCode || undefined}>
               <FieldLabel htmlFor={`${id}-code`}>
                 <FieldLabelText label={t('stock-events.new-lot-code')} required />
@@ -619,7 +662,7 @@ function ApprovedProductLotPicker({
               )}
             </Field>
           </div>
-          <div className="min-w-0 flex-1 @3xl/main:max-w-56">
+          <div className="min-w-0 flex-1 @3xl/main:max-w-96">
             <Field spacing="tight" data-invalid={!!errors.expirationDate || undefined}>
               <FieldLabel htmlFor={`${id}-expiry`} id={`${id}-expiry-label`}>
                 <FieldLabelText label={t('stock-events.expiry-date')} />
@@ -675,30 +718,61 @@ function PickerPanel({
   alert?: ReactNode;
 }) {
   return (
-    <Card>
-      <CardContent>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-end">
-            {children}
-            {status && <div className="@3xl/main:max-w-56 @3xl/main:pb-1.5">{status}</div>}
-          </div>
-          {alert}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-end">
+        {children}
+        {status && <div className="@3xl/main:max-w-56 @3xl/main:pb-1.5">{status}</div>}
+      </div>
+      {alert}
+      <Separator />
+    </div>
   );
 }
 
-export function ProductLotPickerSkeleton({ kind }: { kind: ConfiguredEventKind }) {
+export function ProductLotPickerSkeleton({
+  kind,
+  programId,
+}: {
+  kind: ConfiguredEventKind;
+  programId?: string;
+}) {
   const { t } = useTranslation();
   const copy = EVENT_KINDS[kind].copy;
   const scanning = useFlag('GS1_SCANNING') && EVENT_KINDS[kind].scanning;
+  const loading = (
+    <p role="status" aria-live="polite" className="sr-only">
+      {t('stock-events.products-loading')}
+    </p>
+  );
+  if (rememberedPickerLayout(kind, programId) === 'joined') {
+    return (
+      <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
+        {loading}
+        <PickerAdd>
+          <PickerAddField>
+            <Combobox disabled>
+              <ComboboxInput
+                disabled
+                aria-label={t(copy.product)}
+                aria-required="true"
+                placeholder={t(copy.productPlaceholder)}
+                width="full"
+              >
+                <PickerAddIcon>
+                  <PackageIcon />
+                </PickerAddIcon>
+              </ComboboxInput>
+            </Combobox>
+          </PickerAddField>
+          <PickerAddButton disabled>{t('stock-events.add')}</PickerAddButton>
+        </PickerAdd>
+      </PickerPanel>
+    );
+  }
   return (
     <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
-      <p role="status" aria-live="polite" className="sr-only">
-        {t('stock-events.products-loading')}
-      </p>
-      <div className="min-w-0 flex-1 @3xl/main:max-w-md">
+      {loading}
+      <div className="min-w-0 flex-1 @3xl/main:max-w-96">
         <Field spacing="tight">
           <FieldLabel>
             <FieldLabelText label={t(copy.product)} required />

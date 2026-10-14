@@ -22,7 +22,7 @@ function Progress({
       data-slot="progress"
       className={cn(
         "flex flex-wrap gap-3",
-        layout === "compact" && "grid grid-cols-1 gap-1 text-start [&>[data-slot=progress-label]]:row-start-1 [&>[data-slot=progress-label]]:text-xs [&>[data-slot=progress-track]]:row-start-2 [&>[data-slot=progress-value]]:row-start-3 [&>[data-slot=progress-value]]:ms-0 [&>[data-slot=progress-value]]:text-xs",
+        layout === "compact" && "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 text-start [&>[data-slot=progress-label]]:row-start-1 [&>[data-slot=progress-label]]:text-xs [&>[data-slot=progress-track]]:col-span-2 [&>[data-slot=progress-track]]:row-start-2 [&>[data-slot=progress-value]]:col-start-2 [&>[data-slot=progress-value]]:row-start-1 [&>[data-slot=progress-value]]:text-xs",
         className
       )}
       {...props}

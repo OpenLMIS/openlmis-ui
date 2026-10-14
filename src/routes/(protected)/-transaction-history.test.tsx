@@ -177,12 +177,8 @@ describe('transaction history page', () => {
     const user = userEvent.setup();
     const { router } = renderRoute('/stock-management/transaction-history');
 
-    await user.click(await screen.findByRole('button', { name: /transaction-history.filter/ }));
-    expect(
-      screen.queryByText('transaction-history.search-document-number'),
-    ).not.toBeInTheDocument();
     await user.type(
-      screen.getByRole('textbox', { name: 'transaction-history.search-document-number' }),
+      await screen.findByRole('textbox', { name: 'transaction-history.search-document-number' }),
       'HC01{Enter}',
     );
 
@@ -224,7 +220,8 @@ describe('transaction history page', () => {
   });
 
   it('sends every filter and the page from the link to the server', async () => {
-    renderRoute(
+    const user = userEvent.setup();
+    const { router } = renderRoute(
       appliedPath(
         '&type=adjustment&startDate=2026-10-01&endDate=2026-10-31&documentNumber=FM71&page=2',
       ),
@@ -242,15 +239,22 @@ describe('transaction history page', () => {
         size: 20,
       }),
     );
-    const filter = await screen.findByRole('button', { name: /transaction-history.filter/ });
-    expect(filter).toHaveTextContent('4');
+    const filter = await screen.findByRole('button', { name: /^Filters/ });
+    expect(filter).toHaveTextContent('3');
+    await user.click(filter);
+    await user.click(await screen.findByRole('button', { name: 'Clear Filters' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('type'));
+    expect(router.state.location.search).not.toHaveProperty('startDate');
+    expect(router.state.location.search).not.toHaveProperty('endDate');
+    expect(router.state.location.search).not.toHaveProperty('page');
+    expect(router.state.location.search).toMatchObject({ documentNumber: 'FM71' });
   });
 
   it('offers All before the types, as legacy, and All clears the type', async () => {
     const user = userEvent.setup();
     const { router } = renderRoute(appliedPath('&type=issue'));
 
-    await user.click(await screen.findByRole('button', { name: /transaction-history.filter/ }));
+    await user.click(await screen.findByRole('button', { name: /^Filters/ }));
     await user.click(await screen.findByRole('combobox', { name: 'transaction-history.type' }));
     const options = await screen.findAllByRole('option');
     expect(options.map((option) => option.textContent)).toEqual([

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
@@ -34,29 +35,32 @@ export function ProductsToolbar({
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-56">
-        <DataTableSearch
-          onValueChange={(code) => onFilterChange({ code: code || undefined, page: undefined })}
-          placeholder={t('products.search-code')}
-          value={search.code ?? ''}
-        />
-      </div>
-      <div className="w-full @2xl/main:w-56">
+      <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('products.search-name')}
           value={search.name ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-72 @2xl/main:flex-none">
-        <DataTableSelectFilter
-          label={t('products.program')}
-          onValueChange={(program) =>
-            onFilterChange({ program: program || undefined, page: undefined })
-          }
-          options={programFilter.options}
-          value={programFilter.value}
-        />
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={[search.code, search.program].filter(Boolean).length}
+          onClear={() => onFilterChange({ code: undefined, program: undefined, page: undefined })}
+        >
+          <DataTableSearch
+            onValueChange={(code) => onFilterChange({ code: code || undefined, page: undefined })}
+            placeholder={t('products.search-code')}
+            value={search.code ?? ''}
+          />
+          <DataTableSelectFilter
+            label={t('products.program')}
+            onValueChange={(program) =>
+              onFilterChange({ program: program || undefined, page: undefined })
+            }
+            options={programFilter.options}
+            value={programFilter.value}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions

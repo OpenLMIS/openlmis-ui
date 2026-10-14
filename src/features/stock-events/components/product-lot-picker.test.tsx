@@ -49,7 +49,7 @@ describe('ProductLotPicker', () => {
   it('keeps the product field label while announcing loading only to screen readers', async () => {
     renderPage(
       <I18nextProvider i18n={i18n}>
-        <ProductLotPickerSkeleton kind="adjustment" />
+        <ProductLotPickerSkeleton kind="receive" />
       </I18nextProvider>,
     );
     const label = await screen.findByText('Product');
@@ -150,6 +150,7 @@ it.each([true, false])(
       { queryClient },
     );
     expect(await screen.findByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin');
+    expect(screen.queryByText('Product') === null).toBe(noLot);
     if (noLot) expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
     else expect(screen.getByRole('combobox', { name: 'Lot Code' })).toHaveTextContent('LOT');
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -619,6 +620,7 @@ it('distinguishes an empty kit list from a search with no matching kits', async 
     queryClient.setQueryData(queryKey, [
       {
         ...card,
+        lot: null,
         orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity: 1 }] },
       },
     ]),

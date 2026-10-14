@@ -184,16 +184,23 @@ describe('stock on hand page', () => {
 
     expect(await screen.findByText('stock-on-hand.pick-title')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toBeChecked();
+    expect(screen.getByRole('button', { name: /^Filters/ })).toBeEnabled();
+    expect(
+      screen.getByRole('textbox', { name: 'stock-on-hand.search-product-name' }),
+    ).toBeEnabled();
     expect(fetchStockCardSummaries).not.toHaveBeenCalled();
   });
 
   it('lays out the results while a searched link loads, before the picker has its options', async () => {
     vi.mocked(fetchMinimalFacilities).mockReturnValue(new Promise(() => {}));
-    renderRoute(appliedPath(HOME, FP, 'my', '&productCode=C1'), undefined, 0);
+    renderRoute(appliedPath(HOME, FP, 'my', '&productName=Acid&lotCode=L'), undefined, 0);
 
-    const filter = await screen.findByRole('button', { name: /stock-on-hand.filter/ });
+    const filter = await screen.findByRole('button', { name: /^Filters/ });
     expect(filter).toBeDisabled();
     expect(filter).toHaveTextContent('1');
+    expect(screen.getByRole('textbox', { name: 'stock-on-hand.search-product-name' })).toHaveValue(
+      'Acid',
+    );
     expect(screen.getByRole('button', { name: 'stock-on-hand.print' })).toBeDisabled();
     expect(screen.getAllByText('stock-on-hand.lot-code')).not.toHaveLength(0);
   });
@@ -203,7 +210,7 @@ describe('stock on hand page', () => {
     renderRoute('/stock-management/stock-on-hand', undefined, 0);
 
     expect(await screen.findByText('facility-program.mode')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /stock-on-hand.filter/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Filters/ })).not.toBeInTheDocument();
   });
 
   it('keeps a product folded away after the page is opened again', async () => {
@@ -408,26 +415,33 @@ describe('stock on hand page', () => {
     expect(screen.getByText('stock-on-hand.search-pending-title')).toBeInTheDocument();
   });
 
-  it('filters from a popover that counts the filters in use, each cleared by its own button', async () => {
+  it('keeps the product name search out of the filters, which clear only themselves', async () => {
     const user = userEvent.setup();
-    const { router } = renderRoute(appliedPath(HOME, FP, 'my', '&productCode=C1&lotCode=L'));
+    const { router } = renderRoute(
+      appliedPath(
+        HOME,
+        FP,
+        'my',
+        '&productName=Acid&productCode=C1&lotCode=L&includeInactive=false&page=2',
+      ),
+    );
 
-    const filter = await screen.findByRole('button', { name: /stock-on-hand.filter/ });
-    expect(filter).toHaveTextContent('2');
-    expect(filter).toHaveAccessibleName('stock-on-hand.filter stock-on-hand.active-filters');
+    expect(
+      await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-name' }),
+    ).toHaveValue('Acid');
+    const filter = screen.getByRole('button', { name: /^Filters/ });
+    expect(filter).toHaveTextContent('3');
     await user.click(filter);
-    expect(await screen.findByRole('dialog', { name: 'stock-on-hand.filter' })).toBeInTheDocument();
     expect(
       await screen.findByRole('textbox', { name: 'stock-on-hand.search-product-code' }),
     ).toHaveValue('C1');
-    expect(
-      screen.queryByRole('button', { name: 'stock-on-hand.clear-filters' }),
-    ).not.toBeInTheDocument();
-    await user.click(screen.getAllByRole('button', { name: 'Clear Search' })[0] as HTMLElement);
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
 
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('productCode'));
-    expect(router.state.location.search).toMatchObject({ lotCode: 'L' });
-    expect(filter).toHaveTextContent('1');
+    expect(router.state.location.search).not.toHaveProperty('lotCode');
+    expect(router.state.location.search).not.toHaveProperty('includeInactive');
+    expect(router.state.location.search).not.toHaveProperty('page');
+    expect(router.state.location.search).toMatchObject({ productName: 'Acid' });
   });
 
   it('hides inactive cards without asking the server again', async () => {
@@ -435,7 +449,7 @@ describe('stock on hand page', () => {
     const { router } = renderRoute(appliedPath());
 
     await screen.findByText('stock-on-hand.no-lot');
-    await user.click(screen.getByRole('button', { name: /stock-on-hand.filter/ }));
+    await user.click(screen.getByRole('button', { name: /^Filters/ }));
     await user.click(
       await screen.findByRole('checkbox', { name: 'stock-on-hand.include-inactive' }),
     );

@@ -23,6 +23,9 @@ export type DataTableLabels = {
   selectRow: (row: string) => string;
   selectedCount: (count: number) => string;
   clearSelection: string;
+  filters: string;
+  activeFilters: (count: number) => string;
+  clearFilters: string;
 };
 
 export const defaultDataTableLabels: DataTableLabels = {
@@ -47,6 +50,10 @@ export const defaultDataTableLabels: DataTableLabels = {
   selectRow: (row) => `Select ${row}`,
   selectedCount: (count) => `${count.toLocaleString()} Selected`,
   clearSelection: 'Clear Selection',
+  filters: 'Filters',
+  activeFilters: (count) =>
+    count === 1 ? '1 active filter' : `${count.toLocaleString()} active filters`,
+  clearFilters: 'Clear Filters',
 };
 
 const DataTableLabelsContext = createContext<DataTableLabels>(defaultDataTableLabels);

@@ -25,6 +25,11 @@ const columnView = {
   onReset: vi.fn(),
 };
 
+async function openFilters(user = userEvent.setup()) {
+  await user.click(await screen.findByRole('button', { name: /^Filters/ }));
+  return user;
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchOrderables).mockResolvedValue({
@@ -40,7 +45,7 @@ beforeEach(() => {
 describe('LotsToolbar', () => {
   it('searches for products only once the product filter is opened', async () => {
     renderPage(<LotsToolbar columnView={columnView} onFilterChange={vi.fn()} search={{}} />);
-    const user = userEvent.setup();
+    const user = await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
     expect(fetchOrderables).not.toHaveBeenCalled();
@@ -58,7 +63,7 @@ describe('LotsToolbar', () => {
       size: 20,
     }));
     renderPage(<LotsToolbar columnView={columnView} onFilterChange={vi.fn()} search={{}} />);
-    const user = userEvent.setup();
+    const user = await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
     await user.click(product);
@@ -73,7 +78,7 @@ describe('LotsToolbar', () => {
     renderPage(
       <LotsToolbar columnView={columnView} onFilterChange={onFilterChange} search={{ page: 2 }} />,
     );
-    const user = userEvent.setup();
+    const user = await openFilters();
 
     await user.type(await screen.findByRole('combobox', { name: 'lots.product' }), 'acid');
     await waitFor(() => expect(fetchOrderables).toHaveBeenCalledWith({ name: 'acid', code: '' }));
@@ -90,6 +95,7 @@ describe('LotsToolbar', () => {
         search={{ product: acid.id }}
       />,
     );
+    await openFilters();
 
     expect(await screen.findByDisplayValue('Acetylsalicylic Acid')).toBeInTheDocument();
     expect(fetchOrderablesByIds).toHaveBeenCalledWith([acid.id]);
@@ -104,10 +110,10 @@ describe('LotsToolbar', () => {
         search={{ expiryTo: '2019-01-20' }}
       />,
     );
-    const user = userEvent.setup();
+    const user = await openFilters();
 
     await user.click(await screen.findByRole('button', { name: 'lots.earliest-expiry' }));
-    const calendar = await screen.findByRole('dialog');
+    const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
     expect(
       await within(calendar).findByRole('button', { name: /January 21st, 2019/ }),
     ).toBeDisabled();
@@ -136,7 +142,7 @@ describe('LotsToolbar', () => {
       );
     }
     renderPage(<Toolbar />);
-    const user = userEvent.setup();
+    const user = await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
     await user.type(product, 'acid');
@@ -175,7 +181,7 @@ describe('LotsToolbar', () => {
       );
     }
     renderPage(<Toolbar />);
-    const user = userEvent.setup();
+    const user = await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
     await user.type(product, 'acid');
@@ -187,7 +193,7 @@ describe('LotsToolbar', () => {
     expect(product).toHaveValue('Acetylsalicylic Acid');
     await user.keyboard('{Escape}');
     await waitFor(() => expect(product).toHaveAttribute('aria-expanded', 'false'));
-    expect(screen.getByRole('button', { name: /Clear/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear lots.product' })).toBeInTheDocument();
   });
 
   it('shows no made-up name while a linked product is still being looked up', async () => {
@@ -199,6 +205,7 @@ describe('LotsToolbar', () => {
         search={{ product: acid.id }}
       />,
     );
+    await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
     expect(product).toHaveValue('');
@@ -213,6 +220,7 @@ describe('LotsToolbar', () => {
         search={{ product: acid.id }}
       />,
     );
+    await openFilters();
 
     expect(await screen.findByDisplayValue('lots.unknown-product')).toBeInTheDocument();
   });
@@ -225,6 +233,7 @@ describe('LotsToolbar', () => {
         search={{ expiryFrom: '2019-01-10', expiryTo: '2019-01-20' }}
       />,
     );
+    await openFilters();
 
     expect(await screen.findByRole('button', { name: /^lots.earliest-expiry/ })).toHaveTextContent(
       'lots.earliest-expiry',

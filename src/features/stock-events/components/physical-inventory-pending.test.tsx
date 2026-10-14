@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
@@ -20,7 +20,7 @@ vi.mock('react-i18next', () => ({
 
 const quantityUnit = { unit: 'DOSES' as const, canSwitch: true, setUnit: vi.fn() };
 
-it('counts live filters and keeps keyword history replacement and page resets', async () => {
+it('keeps keyword history replacement and page resets, clearing both filters', async () => {
   const user = userEvent.setup();
   const change = vi.fn();
   function Toolbar() {
@@ -46,23 +46,22 @@ it('counts live filters and keeps keyword history replacement and page resets', 
     );
   }
   render(<Toolbar />);
-  const filter = screen.getByRole('button', { name: 'stock-on-hand.filter' });
-  expect(within(filter).queryByText('1')).not.toBeInTheDocument();
-  await user.click(filter);
-  const keyword = screen.getByRole('textbox', { name: 'stock-events.keywords' });
-  expect(keyword).toHaveAttribute('placeholder', 'stock-events.keywords');
+  await user.click(screen.getByRole('button', { name: /^Filters/ }));
+  const keyword = await screen.findByRole('textbox', { name: 'stock-events.keywords' });
+  expect(keyword).toHaveAttribute('maxLength', '50');
   await user.type(keyword, 'A');
-  expect(change).toHaveBeenLastCalledWith({ keyword: 'A', page: undefined }, true);
-  expect(within(filter).getByText('1')).toHaveAttribute('aria-hidden', 'true');
-  expect(filter).toHaveAccessibleName('stock-on-hand.filter stock-on-hand.active-filters:1');
-  await user.click(screen.getByRole('switch', { name: 'physical-inventory.include-inactive' }));
+  await waitFor(() =>
+    expect(change).toHaveBeenLastCalledWith({ keyword: 'A', page: undefined }, true),
+  );
+  await user.click(
+    await screen.findByRole('switch', { name: 'physical-inventory.include-inactive' }),
+  );
   expect(change).toHaveBeenLastCalledWith({ includeInactive: true, page: undefined }, undefined);
-  expect(within(filter).getByText('2')).toBeInTheDocument();
-  await user.clear(keyword);
-  expect(change).toHaveBeenLastCalledWith({ keyword: undefined, page: undefined }, true);
-  expect(within(filter).getByText('1')).toBeInTheDocument();
-  await user.click(screen.getByRole('switch', { name: 'physical-inventory.include-inactive' }));
-  expect(within(filter).queryByText('1')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+  expect(change).toHaveBeenLastCalledWith(
+    { keyword: undefined, includeInactive: undefined, page: undefined },
+    undefined,
+  );
 });
 
 it('keeps loading controls and footer actions disabled with the chosen grid columns', () => {
@@ -89,7 +88,9 @@ it('keeps loading controls and footer actions disabled with the chosen grid colu
   ]) {
     expect(screen.getByRole('button', { name })).toBeDisabled();
   }
-  expect(screen.getByRole('button', { name: /stock-on-hand.filter/ })).toBeDisabled();
+  const filters = screen.getByRole('button', { name: /^Filters/ });
+  expect(filters).toBeDisabled();
+  expect(filters).toHaveTextContent('1');
   expect(screen.getByRole('radio', { name: 'quantity-unit.packs' })).toHaveAttribute(
     'aria-disabled',
     'true',
