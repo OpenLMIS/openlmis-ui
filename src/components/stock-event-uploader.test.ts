@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { startStockEventUploader } from '@/components/stock-event-uploader';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -10,6 +10,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { getLocalDb } from '@/integrations/local-db';
+import { useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import type { OfflineAccess } from '@/lib/offline-access';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
@@ -138,23 +139,31 @@ it('fails closed without Web Locks and does not request access or send', async (
   vi.stubGlobal('navigator', {});
   const access = vi.fn(async () => snapshot);
   const send = vi.fn();
+  const phase = renderHook(() => useSyncPhase());
   stops.push(startStockEventUploader({ access, send }));
   onlineManager.setOnline(true);
+  await waitFor(() => expect(phase.result.current).toBe('unsupported'));
   expect(access).not.toHaveBeenCalled();
   expect(send).not.toHaveBeenCalled();
 });
-it('revoked fresh grants keep a local refusal without dispatch', async () => {
+it('missing fresh grants pause the queue without dispatch or fake refusals, then recover', async () => {
   const event = await enqueue();
-  const send = vi.fn();
-  stops.push(
-    startStockEventUploader({ access: async () => ({ ...snapshot, permissionStrings: [] }), send }),
-  );
+  const send = vi.fn(async () => accepted);
+  const access = vi.fn(async () => ({ ...snapshot, permissionStrings: [] as string[] }));
+  stops.push(startStockEventUploader({ access, send }));
   onlineManager.setOnline(true);
   await waitFor(async () =>
-    expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(1),
+    expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).pauseReason).toBe(
+      'access-changed',
+    ),
   );
   expect(send).not.toHaveBeenCalled();
-  expect(
-    (await getLocalDb().table('stockEventSyncErrors').get(event.localEventId)).event.postBody,
-  ).toBe(event.postBody);
+  expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(0);
+  expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).postBody).toBe(
+    event.postBody,
+  );
+  access.mockResolvedValue(snapshot);
+  wakeStockEventSync();
+  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  expect(send).toHaveBeenCalledOnce();
 });

@@ -362,3 +362,19 @@ it('queue transport retains response identity errors as potentially dispatched',
   await expect(request).rejects.toBeInstanceOf(SessionEndedError);
   expect(adapter).toHaveBeenCalledTimes(1);
 });
+
+it('queue 201 after identity change exposes its receipt only through the owner-bound error', async () => {
+  const data = '11111111-1111-4111-8111-111111111111';
+  const adapter = vi.fn(async (config) => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+    return { status: 201, statusText: 'Created', data, headers: {}, config };
+  });
+  client.defaults.adapter = adapter;
+  const { QueueReceiptError } = await import('@/lib/queue-transport');
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  await expect(request).rejects.toBeInstanceOf(QueueReceiptError);
+  await expect(request).rejects.toMatchObject({ response: { status: 201, data } });
+  expect(adapter).toHaveBeenCalledOnce();
+});

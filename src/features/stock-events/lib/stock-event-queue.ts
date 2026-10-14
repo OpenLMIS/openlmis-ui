@@ -30,6 +30,7 @@ export type QueuedStockEvent = Pick<
     attemptId?: string;
     attemptStartedAt?: number;
     lastFailure?: string;
+    pauseReason?: 'access-changed' | 'draft-changed';
   };
 
 export async function enqueueStockEvent(
@@ -104,7 +105,9 @@ export async function enqueueStockEvent(
   });
   assertSessionScope(context.sessionScope);
   if (inserted) {
-    const count = await queue.count();
+    const count = await queue
+      .filter((event) => event.status === 'queued' || event.status === 'sending')
+      .count();
     assertSessionScope(context.sessionScope);
     announceQueuedEvents(count);
   }
