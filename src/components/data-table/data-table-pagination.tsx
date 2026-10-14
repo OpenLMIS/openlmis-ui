@@ -31,10 +31,13 @@ export function DataTablePagination<TData extends RowData>({
   table,
   disabled = false,
   isPageInvalid,
+  layout = 'default',
 }: {
   table: DataTableInstance<TData>;
   disabled?: boolean;
   isPageInvalid?: (pageIndex: number) => boolean;
+  /** `centered` drops the page size picker and centres the range and pages, for a fixed-size list. */
+  layout?: 'default' | 'centered';
 }) {
   const labels = useDataTableLabels();
   const pageSizeId = useId();
@@ -68,6 +71,7 @@ export function DataTablePagination<TData extends RowData>({
 
   return (
     <PaginationLayout
+      layout={layout}
       controls={
         <div className="flex items-center gap-1">
           {controls.slice(0, 2).map(({ label, icon: Icon, enabled, go }) => (
@@ -171,9 +175,14 @@ export function DataTablePagination<TData extends RowData>({
   );
 }
 
-export function DataTablePaginationSkeleton() {
+export function DataTablePaginationSkeleton({
+  layout = 'default',
+}: {
+  layout?: 'default' | 'centered';
+}) {
   return (
     <PaginationLayout
+      layout={layout}
       controls={<SkeletonBlock className="h-7 w-40 @md/table:w-96" />}
       pageSize={<SkeletonBlock className="h-7 w-16 @md/table:w-36" />}
       range={
@@ -197,9 +206,23 @@ type PaginationLayoutProps = {
   pageSize: ReactNode;
   range: ReactNode;
   controls: ReactNode;
+  layout?: 'default' | 'centered';
 };
 
-function PaginationLayout({ pageSize, range, controls }: PaginationLayoutProps) {
+function PaginationLayout({
+  pageSize,
+  range,
+  controls,
+  layout = 'default',
+}: PaginationLayoutProps) {
+  if (layout === 'centered') {
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+        {range}
+        {controls}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
       {pageSize}

@@ -12,6 +12,7 @@ import type {
   OrderableDisplayCategory,
   OrderableFulfills,
   Organization,
+  ProcessingSchedule,
   Program,
   Reason,
   Role,
@@ -358,4 +359,19 @@ export async function fetchValidAssignments(
     if (page + 1 >= data.totalPages) break;
   }
   return assignments;
+}
+
+export async function fetchProcessingSchedules(): Promise<ProcessingSchedule[]> {
+  const scope = getSessionScope();
+  const schedules: ProcessingSchedule[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<ProcessingSchedule>>('/processingSchedules', {
+      params: { page, size: 100 },
+    });
+    assertSessionScope(scope);
+    schedules.push(...data.content);
+    if (page + 1 >= data.totalPages) break;
+  }
+  return schedules;
 }

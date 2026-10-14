@@ -24,14 +24,14 @@ export function useSearchNavigation<TSearch extends object>(closedDialogs: Parti
   const withSearch = useCallback(
     (
       search: (previous: TSearch) => TSearch,
-      options: { replace?: boolean; mark?: boolean; resetScroll?: boolean },
+      options: { replace?: boolean; mark?: boolean; resetScroll?: boolean; keepState?: boolean },
     ) =>
       navigate({
         to: '.',
         search: search as never,
         replace: options.replace,
         resetScroll: options.resetScroll,
-        state: options.mark ? markDialogOpened : undefined,
+        state: options.mark ? markDialogOpened : options.keepState || undefined,
       }),
     [navigate],
   );
@@ -43,7 +43,7 @@ export function useSearchNavigation<TSearch extends object>(closedDialogs: Parti
           ...previous,
           ...(typeof update === 'function' ? update(previous) : update),
         }),
-        { replace, resetScroll: options?.resetScroll },
+        { replace, resetScroll: options?.resetScroll, keepState: options?.keepState },
       ),
     [withSearch],
   );

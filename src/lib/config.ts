@@ -130,7 +130,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.lots', to: '/administration/lots' },
           { titleKey: 'nav.administration.one-network-integration', to: '#' },
           { titleKey: 'nav.administration.products', to: '/administration/products' },
-          { titleKey: 'nav.administration.processing-schedules', to: '#' },
+          {
+            titleKey: 'nav.administration.processing-schedules',
+            to: '/administration/processing-schedules',
+          },
           { titleKey: 'nav.administration.programs', to: '/administration/programs' },
           { titleKey: 'nav.administration.reasons', to: '/administration/reasons' },
           { titleKey: 'nav.administration.rejection-reason-category', to: '#' },

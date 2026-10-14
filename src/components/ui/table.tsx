@@ -6,16 +6,21 @@ function Table({
   density = "default",
   layout = "auto",
   width = "full",
+  scroll = "x",
   ...props
 }: React.ComponentProps<"table"> & {
   density?: "default" | "comfortable" | "compact"
   layout?: "auto" | "fixed"
   width?: "full" | "measured"
+  scroll?: "x" | "both"
 }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn(
+        "relative w-full",
+        scroll === "x" ? "overflow-x-auto" : "h-full overflow-auto"
+      )}
     >
       <table
         data-slot="table"
@@ -26,6 +31,8 @@ function Table({
             "[&_td]:h-12 [&_td]:px-4 [&_td]:py-1.5 [&_th]:h-10 [&_th]:px-4",
           density === "compact" && "[&_td]:px-1.5 [&_th]:px-1.5",
           layout === "fixed" && "table-fixed [&_td]:truncate",
+          scroll === "both" &&
+            "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead]:shadow-[inset_0_-1px_0_var(--color-border)] [&_thead_tr]:bg-muted/50",
           className
         )}
         {...props}

@@ -120,7 +120,7 @@ shared folder, or compose features in `src/routes/` and pass data as props. Rout
 any feature.
 
 `src/features/reference-data/` contains lookups for facilities, facility types, programs,
-supervisory nodes, roles, products, stock organizations and reasons. It imports no other
+supervisory nodes, roles, products, stock organizations, reasons and processing schedules. It imports no other
 feature. Keep management screens in their own features. When their list uses a lookup's
 endpoint, reuse that query and widen its type, as Roles and Reasons do.
 
@@ -240,7 +240,8 @@ wrapper. Skeleton sizes always belong to the surrounding layout. Existing varian
 are defined in the typed components; reuse them before adding another. `TabsList wrap="column"`
 fits odd tab counts; `wrap="md"` fits short labels. `Button variant="destructive-solid"` and
 `"destructive-outline"` mark the current and other invalid pages in the pager.
-`DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns.
+`DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns;
+`size="table"` (36rem) fits a short form above a compact five-column table.
 
 `src/components/ui/` defines the variants and is excluded from design-system and Biome
 linting. Editing these generated files is expected here.
@@ -492,7 +493,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
-  `Table density/layout/width`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `Table density/layout/width/scroll`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `PopoverContent width`, `Skeleton fill`,
   `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
   `className`s in the registry. `selectionColumn` ships the checkbox's indeterminate-minus

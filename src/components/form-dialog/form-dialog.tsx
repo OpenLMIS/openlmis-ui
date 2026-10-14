@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 type FormDialogProps = {
   open: boolean;
@@ -19,7 +20,7 @@ type FormDialogProps = {
   /** `false` for a dialog the user must answer, which has no close button. */
   closeButton?: boolean;
   /** `xl` for a dialog holding a table, such as a list to pick from. */
-  size?: 'lg' | 'xl' | '2xl';
+  size?: 'lg' | 'table' | 'xl' | '2xl';
   /** `fixed` keeps the same height whatever the body shows, such as a table as it is filtered. */
   height?: 'auto' | 'fixed';
   children: ReactNode;
@@ -172,10 +173,22 @@ export function FormDialogDescription({ children }: { children: ReactNode }) {
 }
 
 /** Scrolls on its own, so the header and footer stay in view on a short screen. */
-export function FormDialogBody({ children }: { children: ReactNode }) {
+export function FormDialogBody({
+  children,
+  layout = 'default',
+}: {
+  children: ReactNode;
+  layout?: 'default' | 'table';
+}) {
   // Bleeds to the dialog's edges, so focus rings are not clipped and the scrollbar sits at the edge.
   return (
-    <div className="-mx-4 min-h-0 flex-1 overflow-y-auto px-4 py-1" data-slot="form-dialog-body">
+    <div
+      className={cn(
+        '-mx-4 min-h-0 flex-1 overflow-y-auto px-4 py-1',
+        layout === 'table' && 'flex flex-col gap-4',
+      )}
+      data-slot="form-dialog-body"
+    >
       {children}
     </div>
   );

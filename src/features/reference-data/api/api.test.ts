@@ -16,6 +16,7 @@ import {
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
   fetchOrganizations,
+  fetchProcessingSchedules,
   fetchReasons,
   fetchTradeItemByGtin,
   fetchUserPrograms,
@@ -597,3 +598,17 @@ for (const lookup of [fetchOrderablesByIds]) {
     });
   });
 }
+
+it('reads every processing schedules lookup page', async () => {
+  const first = { id: 's1', code: 'M', name: 'Monthly' };
+  const second = { id: 's2', code: 'Q', name: 'Quarterly' };
+  get.mockResolvedValueOnce({ data: { content: [first], totalPages: 2 } });
+  get.mockResolvedValueOnce({ data: { content: [second], totalPages: 2 } });
+  await expect(fetchProcessingSchedules()).resolves.toEqual([first, second]);
+  expect(get).toHaveBeenNthCalledWith(1, '/processingSchedules', {
+    params: { page: 0, size: 100 },
+  });
+  expect(get).toHaveBeenNthCalledWith(2, '/processingSchedules', {
+    params: { page: 1, size: 100 },
+  });
+});

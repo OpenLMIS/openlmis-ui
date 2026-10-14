@@ -98,4 +98,14 @@ describe('useSearchNavigation', () => {
     await screen.findByText('{}');
     expect(router.history.length).toBe(1);
   });
+
+  it('still steps back after replacing search inside an opened dialog', async () => {
+    const router = await renderList('/users?q=ada');
+    await act(() => actions.openDialog({ user: 'u1' }));
+    await act(() => actions.updateSearch({ page: 2 }, true, { keepState: true }));
+
+    act(() => actions.closeDialog());
+    await screen.findByText('{"q":"ada"}');
+    expect(router.history.location.state.__TSR_index).toBe(0);
+  });
 });
