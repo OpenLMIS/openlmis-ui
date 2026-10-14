@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 
 type DiscardChangesDialogProps = {
   open: boolean;
+  title?: string;
+  actionLabel?: string;
   pending?: boolean;
   /** What is about to be lost, e.g. how many changes to whose roles. */
   description: string;
@@ -23,6 +25,8 @@ type DiscardChangesDialogProps = {
 
 export function DiscardChangesDialog({
   open,
+  title,
+  actionLabel,
   pending = false,
   description,
   signingOut,
@@ -34,7 +38,7 @@ export function DiscardChangesDialog({
     <AlertDialog onOpenChange={(next) => !next && !pending && onKeepEditing()} open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('discard-changes.title')}</AlertDialogTitle>
+          <AlertDialogTitle>{title ?? t('discard-changes.title')}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -42,7 +46,8 @@ export function DiscardChangesDialog({
             {t('discard-changes.keep-editing')}
           </AlertDialogCancel>
           <Button disabled={pending} onClick={onDiscard} variant="destructive">
-            {t(signingOut ? 'discard-changes.discard-sign-out' : 'discard-changes.discard')}
+            {actionLabel ??
+              t(signingOut ? 'discard-changes.discard-sign-out' : 'discard-changes.discard')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

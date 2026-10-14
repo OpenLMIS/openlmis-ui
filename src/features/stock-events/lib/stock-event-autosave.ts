@@ -1,8 +1,10 @@
 import type { EventLine } from '@/features/stock-events/lib/event-form';
 import {
+  acceptStockEventDraft,
   archiveStockEventCopy,
   DraftConflictError,
   readStockEventDraft,
+  restoreStockEventCopy,
   type StockEventContext,
   type StockEventDraft,
   saveStockEventDraft,
@@ -84,6 +86,50 @@ export function createStockEventWriter(
       if (!stopped) current = lines;
       else latest = current;
       return !stopped;
+    },
+    async markSubmission(attempted: boolean) {
+      await running;
+      if (stopped) return false;
+      try {
+        expected = await saveStockEventDraft(context, expected, current, generation?.(), attempted);
+        return true;
+      } catch (error) {
+        stopped = true;
+        conflict = error instanceof DraftConflictError;
+        onStatus({ status: conflict ? 'conflict' : 'failed', error });
+        return false;
+      }
+    },
+    async retire() {
+      await running;
+      stopped = true;
+      latest = undefined;
+      try {
+        await saveStockEventDraft(context, expected, []);
+        return true;
+      } catch {
+        try {
+          await acceptStockEventDraft(context, expected);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    },
+    async restore(copy: StockEventDraft) {
+      if (!(await this.flush())) return undefined;
+      try {
+        expected = await restoreStockEventCopy(context, expected, copy);
+        current = expected.lines;
+        latest = undefined;
+        onStatus({ status: 'saved' });
+        return expected;
+      } catch (error) {
+        stopped = true;
+        conflict = error instanceof DraftConflictError;
+        onStatus({ status: conflict ? 'conflict' : 'failed', error });
+        return undefined;
+      }
     },
     async discard() {
       await running;

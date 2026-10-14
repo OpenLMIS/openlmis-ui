@@ -13,7 +13,8 @@ export type StockEventDraft = StockEventSelection & {
   userId: string;
   draftId: string;
   revision: number;
-  state: 'editing' | 'archived';
+  state: 'editing' | 'archived' | 'accepted';
+  submissionAttempted?: boolean;
   lines: EventLine[];
   savedAt: number;
   updatedAt: number;
@@ -77,6 +78,7 @@ export async function saveStockEventDraft(
   expected: StockEventDraft | undefined,
   lines: EventLine[],
   downloadGeneration?: string,
+  submissionAttempted = expected?.submissionAttempted,
 ): Promise<StockEventDraft | undefined> {
   assertSessionScope(context.sessionScope);
   const table = context.db.table<StockEventDraft>('stockEventDrafts');
@@ -103,6 +105,7 @@ export async function saveStockEventDraft(
       ),
       draftId: stored?.draftId ?? crypto.randomUUID(),
       revision: (stored?.revision ?? 0) + 1,
+      submissionAttempted,
     };
     await table.put(next);
     assertSessionScope(context.sessionScope);
@@ -122,5 +125,79 @@ export async function archiveStockEventCopy(
     await table.add(copy);
     assertSessionScope(context.sessionScope);
     return copy;
+  });
+}
+
+export async function acceptStockEventDraft(
+  context: StockEventContext,
+  expected: StockEventDraft | undefined,
+) {
+  assertSessionScope(context.sessionScope);
+  const table = context.db.table<StockEventDraft>('stockEventDrafts');
+  await context.db.transaction('rw', table, async () => {
+    const stored = await readStockEventDraft(context);
+    if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
+      throw new DraftConflictError(stored);
+    if (stored) await table.put({ ...stored, state: 'accepted' });
+    assertSessionScope(context.sessionScope);
+  });
+}
+
+export async function readArchivedStockEvents(context: StockEventContext) {
+  assertSessionScope(context.sessionScope);
+  const copies = await context.db
+    .table<StockEventDraft>('stockEventDrafts')
+    .where('[kind+facilityId+programId+state]')
+    .equals([context.kind, context.facilityId, context.programId, 'archived'])
+    .toArray();
+  assertSessionScope(context.sessionScope);
+  return copies.sort((a, b) => b.savedAt - a.savedAt);
+}
+
+async function checkedCopy(context: StockEventContext, copy: StockEventDraft) {
+  const stored = await context.db.table<StockEventDraft>('stockEventDrafts').get(copy.draftId);
+  assertSessionScope(context.sessionScope);
+  if (
+    !stored ||
+    stored.revision !== copy.revision ||
+    stored.state !== 'archived' ||
+    stored.kind !== context.kind ||
+    stored.facilityId !== context.facilityId ||
+    stored.programId !== context.programId
+  )
+    throw new DraftConflictError(stored);
+  return stored;
+}
+
+export async function restoreStockEventCopy(
+  context: StockEventContext,
+  expected: StockEventDraft | undefined,
+  copy: StockEventDraft,
+) {
+  const table = context.db.table<StockEventDraft>('stockEventDrafts');
+  return context.db.transaction('rw', table, async () => {
+    const stored = await readStockEventDraft(context);
+    if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
+      throw new DraftConflictError(stored);
+    const archived = await checkedCopy(context, copy);
+    if (stored) await table.put({ ...stored, state: 'archived', revision: stored.revision + 1 });
+    const restored: StockEventDraft = {
+      ...archived,
+      state: 'editing',
+      revision: archived.revision + 1,
+      updatedAt: Date.now(),
+    };
+    await table.put(restored);
+    assertSessionScope(context.sessionScope);
+    return restored;
+  });
+}
+
+export async function deleteStockEventCopy(context: StockEventContext, copy: StockEventDraft) {
+  const table = context.db.table<StockEventDraft>('stockEventDrafts');
+  await context.db.transaction('rw', table, async () => {
+    await checkedCopy(context, copy);
+    await table.delete(copy.draftId);
+    assertSessionScope(context.sessionScope);
   });
 }

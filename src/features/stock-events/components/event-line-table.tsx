@@ -798,7 +798,10 @@ export function EventLineTable({
       isPageInvalid={(index) =>
         lines
           .slice(index * size, (index + 1) * size)
-          .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
+          .some(
+            (line) =>
+              !!line.stockProblem || invalidIndexes.has(lineIndex.current.get(line.key) ?? -1),
+          )
       }
     />
   );
@@ -835,6 +838,7 @@ export function EventLineTable({
               : undefined
           }
           table={table}
+          isRowInvalid={(line) => !!line.stockProblem}
           density="compact"
           layout="auto"
           empty={empty}

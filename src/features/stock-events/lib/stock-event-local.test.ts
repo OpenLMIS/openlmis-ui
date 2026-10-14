@@ -6,7 +6,10 @@ import {
   archiveStockEventCopy,
   createStockEventContext,
   DraftConflictError,
+  deleteStockEventCopy,
+  readArchivedStockEvents,
   readStockEventDraft,
+  restoreStockEventCopy,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { getLocalDb } from '@/integrations/local-db';
@@ -118,4 +121,25 @@ it('upgrades v3 retaining inventory rows, access and bundles', async () => {
   expect(await db.table('offlineAccess').get('draft-upgrade')).toEqual(access);
   expect(await db.table('adjustmentDownloads').get(['facility', 'program'])).toEqual(bundle);
   expect(await db.table('stockEventDrafts').count()).toBe(0);
+});
+
+it('restores an archived copy atomically, archives the active draft, and rejects stale restores and deletes', async () => {
+  const context = createStockEventContext(selection);
+  const current = await saveStockEventDraft(context, undefined, [line]);
+  const copy = await archiveStockEventCopy(context, [{ ...line, reasonFreeText: 'archived' }]);
+  const restored = await restoreStockEventCopy(context, current, copy);
+  expect((await readStockEventDraft(context))?.lines[0].reasonFreeText).toBe('archived');
+  const [archived] = await readArchivedStockEvents(context);
+  expect(archived.draftId).toBe(current?.draftId);
+  await expect(restoreStockEventCopy(context, current, archived)).rejects.toBeInstanceOf(
+    DraftConflictError,
+  );
+  await expect(deleteStockEventCopy(context, copy)).rejects.toBeInstanceOf(DraftConflictError);
+  await expect(
+    deleteStockEventCopy({ ...context, facilityId: 'other' }, archived),
+  ).rejects.toBeInstanceOf(DraftConflictError);
+  expect(await readStockEventDraft(context)).toEqual(restored);
+  await deleteStockEventCopy(context, archived);
+  expect(await readArchivedStockEvents(context)).toEqual([]);
+  expect(await readStockEventDraft(context)).toEqual(restored);
 });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
+import { refreshStockEventLines } from '@/features/stock-events/lib/event-form';
 import {
   createStockEventWriter,
   type StockEventSaveState,
@@ -7,8 +8,10 @@ import {
 import {
   createStockEventContext,
   readStockEventDraft,
+  type StockEventDraft,
   type StockEventSelection,
 } from '@/features/stock-events/lib/stock-event-local';
+import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { getSessionScope } from '@/lib/session-scope';
 
@@ -16,10 +19,15 @@ export function useStockEventAutosave(
   enabled: boolean,
   selection: StockEventSelection,
   form: EventForm,
+  cards: readonly EventStockCard[] | undefined,
+  today: string,
   generation: () => string | undefined = () => undefined,
 ) {
   const [state, setState] = useState<StockEventSaveState>({ status: 'loading' });
   const [busy, setBusy] = useState(false);
+  const [submissionNotice, setSubmissionNotice] = useState(false);
+  const snapshots = useRef({ cards, today });
+  snapshots.current = { cards, today };
   const [retryLoad, setRetryLoad] = useState(0);
   const opening = useRef(retryLoad);
   opening.current = retryLoad;
@@ -57,13 +65,20 @@ export function useStockEventAutosave(
       .then((draft) => {
         if (!current()) return;
         restoring.current = true;
-        form.setFieldValue('lines', draft?.lines ?? []);
+        const restored = draft?.lines ?? [];
+        const currentCards = snapshots.current.cards;
+        const lines = currentCards
+          ? refreshStockEventLines(restored, currentCards, snapshots.current.today)
+          : restored;
+        form.setFieldValue('lines', lines);
+        setSubmissionNotice(!!draft?.submissionAttempted);
         restoring.current = false;
         const serial = createStockEventWriter(context, draft, onStatus, () =>
           generationRef.current(),
         );
         writer.current = serial;
         setState({ status: 'saved' });
+        if (lines !== restored) serial.enqueue(lines);
         let previous = form.state.values.lines;
         subscription = form.store.subscribe((value) => {
           if (value.values.lines === previous) return;
@@ -78,14 +93,22 @@ export function useStockEventAutosave(
         onStatus({ status: 'failed', error });
       });
     return () => {
-      active = false;
       clearTimeout(timer.current);
+      if (current()) writer.current?.start();
+      active = false;
       subscription?.unsubscribe();
       writer.current = undefined;
     };
   }, [enabled, kind, facilityId, programId, form, retryLoad]);
+  useEffect(() => {
+    if (!enabled || !cards || !writer.current) return;
+    const current = form.state.values.lines;
+    const refreshed = refreshStockEventLines(current, cards, today);
+    if (refreshed !== current) form.setFieldValue('lines', refreshed);
+  }, [enabled, cards, today, form]);
   return {
     ...state,
+    submissionNotice,
     busy,
     protected:
       enabled &&
@@ -119,6 +142,38 @@ export function useStockEventAutosave(
         if (scope === getSessionScope() && serial === writer.current) setBusy(false);
       }
     },
+    async markSubmission(attempted: boolean) {
+      clearTimeout(timer.current);
+      const serial = writer.current;
+      if (!serial || !(await serial.flush())) return false;
+      return serial.markSubmission(attempted);
+    },
+    async retire() {
+      clearTimeout(timer.current);
+      return (await writer.current?.retire()) ?? false;
+    },
+    async restore(copy: StockEventDraft) {
+      clearTimeout(timer.current);
+      const serial = writer.current;
+      const scope = getSessionScope();
+      if (!serial) return false;
+      setBusy(true);
+      try {
+        const restored = await serial.restore(copy);
+        if (!restored || scope !== getSessionScope() || serial !== writer.current) return false;
+        const currentCards = snapshots.current.cards;
+        form.setFieldValue(
+          'lines',
+          currentCards
+            ? refreshStockEventLines(restored.lines, currentCards, snapshots.current.today)
+            : restored.lines,
+        );
+        setSubmissionNotice(!!restored.submissionAttempted);
+        return true;
+      } finally {
+        if (scope === getSessionScope() && serial === writer.current) setBusy(false);
+      }
+    },
     async discard() {
       clearTimeout(timer.current);
       const serial = writer.current;
@@ -139,8 +194,15 @@ export function useStockEventAutosave(
         const draft = await serial.resolve(choice);
         if (scope !== getSessionScope() || serial !== writer.current) return;
         restoring.current = true;
-        form.setFieldValue('lines', draft?.lines ?? []);
+        const restored = draft?.lines ?? [];
+        const currentCards = snapshots.current.cards;
+        const lines = currentCards
+          ? refreshStockEventLines(restored, currentCards, snapshots.current.today)
+          : restored;
+        form.setFieldValue('lines', lines);
+        setSubmissionNotice(!!draft?.submissionAttempted);
         restoring.current = false;
+        if (lines !== restored) serial.enqueue(lines);
         if (choice === 'copy') announceDeviceSave('stock-events.draft-copy-saved');
       } catch (error) {
         if (scope !== getSessionScope() || serial !== writer.current) return;

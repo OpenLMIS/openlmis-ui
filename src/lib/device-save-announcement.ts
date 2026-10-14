@@ -2,7 +2,11 @@ import { useSyncExternalStore } from 'react';
 import { getSessionScope } from '@/lib/session-scope';
 
 type Announcement = {
-  key: 'stock-events.draft-failed' | 'stock-events.draft-saved' | 'stock-events.draft-copy-saved';
+  key:
+    | 'stock-events.draft-failed'
+    | 'stock-events.draft-saved'
+    | 'stock-events.draft-copy-saved'
+    | 'stock-events.draft-restored';
   scope: number;
 } | null;
 let announcement: Announcement = null;

@@ -66,6 +66,7 @@ type DataTableProps<TData extends RowData> = {
   layout?: 'fixed' | 'auto';
   /** Rendered across the whole body when there are no rows. */
   empty?: ReactNode;
+  isRowInvalid?: (row: TData) => boolean;
   /** Dims the rows while the next page is loading in the background. */
   isStale?: boolean;
   /** Rendered inside the card below the rows, e.g. `DataTablePagination`. */
@@ -78,6 +79,7 @@ export function DataTable<TData extends RowData>({
   table,
   columnWidths,
   empty,
+  isRowInvalid,
   isStale = false,
   footer,
   density = 'comfortable',
@@ -123,7 +125,11 @@ export function DataTable<TData extends RowData>({
           <TableBody>
             {rows.length > 0 ? (
               rows.map((row) => (
-                <TableRow data-state={row.getIsSelected() ? 'selected' : undefined} key={row.id}>
+                <TableRow
+                  aria-invalid={isRowInvalid?.(row.original) || undefined}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  key={row.id}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       <FlexRender cell={cell} />

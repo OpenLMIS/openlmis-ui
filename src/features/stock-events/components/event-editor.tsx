@@ -50,6 +50,7 @@ import {
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
+import { EventArchivedCopies } from '@/features/stock-events/components/event-archived-copies';
 import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import {
   EventLineTable,
@@ -201,7 +202,7 @@ export function EventEditor({
     enabled: canViewStock && needsCounterparty,
   });
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
-  const ready =
+  const lookupsReady =
     (config.reasons === null || reasonsQuery.data !== undefined) &&
     (!needsKitContents || kitReasons.ok) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
@@ -209,6 +210,7 @@ export function EventEditor({
     ...stockOptions,
     enabled: canViewStock && fromCards,
   });
+  const ready = lookupsReady && (config.drafts !== 'device' || cardsQuery.data !== undefined);
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data ?? []),
     [cardsQuery.data, filterCards],
@@ -276,6 +278,11 @@ export function EventEditor({
       },
       true,
     );
+    if (issue.message === 'stock-events.draft-stock-invalid')
+      setFailure({
+        title: config.copy.invalidTitle,
+        description: t('stock-events.draft-stock-invalid'),
+      });
     setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
@@ -283,6 +290,8 @@ export function EventEditor({
     config.drafts === 'device' && canViewStock,
     { kind, facilityId, programId },
     form,
+    cardsQuery.data,
+    today,
   );
   const hasLots =
     !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
@@ -370,8 +379,8 @@ export function EventEditor({
     (config.drafts === 'device' ? draft.protected : lines.length > 0) && !submitted,
     {
       allowLeave: () => leaving.current,
-      pending:
-        (!draft.readFailed && pending) || (config.drafts === 'device' && draft.status === 'saving'),
+      pending: !draft.readFailed && pending,
+      flushBeforeLeave: config.drafts === 'device' ? draft.flush : undefined,
     },
   );
   const clearFilter = () => onSearchChange({ keyword: undefined, page: undefined }, true);
@@ -419,7 +428,15 @@ export function EventEditor({
   const submit = async () => {
     if (!mutation.isCurrent()) return;
     if (config.drafts === 'device') {
-      if (!(await draft.flush()) || !mutation.isCurrent()) return;
+      const saved = await draft.flush();
+      if (!mutation.isCurrent()) return;
+      if (!saved) {
+        setFailure({
+          title: 'stock-events.draft-save-error-title',
+          description: t('stock-events.draft-failed'),
+        });
+        return;
+      }
     }
     if (config.contents.type !== 'kit') {
       void validateAndSubmit();
@@ -475,6 +492,20 @@ export function EventEditor({
       return;
     }
     posting.current = true;
+    if (config.drafts === 'device') {
+      setRefreshing(true);
+      if (!(await draft.markSubmission(true))) {
+        posting.current = false;
+        setRefreshing(false);
+        setConfirmationOpen(false);
+        setFailure({
+          title: 'stock-events.draft-save-error-title',
+          description: t('stock-events.draft-failed'),
+        });
+        return;
+      }
+      if (!mutation.isCurrent()) return;
+    }
     setFailure(null);
     setUnknownOutcome(false);
     let eventId: string;
@@ -499,16 +530,22 @@ export function EventEditor({
         title: unknown ? 'stock-events.unknown-outcome-title' : config.copy.submitErrorTitle,
         description,
       });
+      if (config.drafts === 'device' && !unknown) await draft.markSubmission(false);
+      if (!mutation.isCurrent()) return;
       setUnknownOutcome(unknown);
       setConfirmationOpen(false);
       posting.current = false;
+      setRefreshing(false);
       return;
     }
+    if (!mutation.isCurrent()) return;
+    flushSync(() => setSubmitted(true));
+    if (config.drafts === 'device') await draft.retire();
     if (!mutation.isCurrent()) return;
     if (bundleScope) refreshOfflineProgram({ facilityId, programId });
     setConfirmationOpen(false);
     leaving.current = true;
-    flushSync(() => setSubmitted(true));
+    setRefreshing(false);
     toast.success(t(config.copy.submittedTitle), {
       description: t(config.copy.submittedDescription),
     });
@@ -701,10 +738,21 @@ export function EventEditor({
                   </ProductLotPicker>
                 </QueryBoundary>
               )}
-              {config.drafts === 'device' && (lines.length > 0 || draft.status !== 'saved') && (
-                <EventDraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
+              {config.drafts === 'device' && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(lines.length > 0 || draft.status !== 'saved') && (
+                    <EventDraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
+                  )}
+                  <EventArchivedCopies
+                    kind={kind}
+                    facilityId={facilityId}
+                    programId={programId}
+                    disabled={pending || submitted}
+                    onRestore={draft.restore}
+                  />
+                </div>
               )}
-              {unknownOutcome && (
+              {(unknownOutcome || draft.submissionNotice) && (
                 <ErrorAlert
                   title={t('stock-events.unknown-outcome-title')}
                   description={t('stock-events.unknown-outcome-description')}
@@ -916,10 +964,26 @@ export function EventEditor({
       <DiscardChangesDialog
         {...guard.dialog}
         pending={discarding}
-        description={t('stock-events.discard-description')}
+        title={config.drafts === 'device' ? t('stock-events.draft-leave-title') : undefined}
+        actionLabel={
+          config.drafts === 'device'
+            ? t(
+                guard.dialog.signingOut
+                  ? 'stock-events.draft-sign-out'
+                  : 'stock-events.draft-leave',
+              )
+            : undefined
+        }
+        description={t(
+          config.drafts === 'device'
+            ? guard.dialog.signingOut
+              ? 'stock-events.draft-sign-out-description'
+              : 'stock-events.draft-leave-description'
+            : 'stock-events.discard-description',
+        )}
         onDiscard={async () => {
           if (discarding) return;
-          if (config.drafts === 'device') {
+          if (config.drafts === 'device' && !guard.dialog.signingOut) {
             setDiscarding(true);
             const discarded = await draft.discard();
             if (!mutation.isCurrent()) return;
