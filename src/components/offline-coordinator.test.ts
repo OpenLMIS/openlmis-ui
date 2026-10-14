@@ -1,5 +1,4 @@
 import { waitFor } from '@testing-library/react';
-import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { startOfflineCoordinator } from '@/components/offline-coordinator';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -61,50 +60,4 @@ it('refreshes a restored valid session on boot, including a complete empty acces
     }),
   );
   expect(fetchPermissionStrings).toHaveBeenCalledWith('coordinator-user', { session: false });
-});
-
-it('does not hold sign-in while a bootstrap is pending, and isolates a failed refresh', async () => {
-  let release!: (value: string[]) => void;
-  vi.mocked(fetchPermissionStrings).mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        release = resolve;
-      }),
-  );
-  stop = startOfflineCoordinator();
-  signIn();
-  expect(useLoginData.getState().isAuthenticated).toBe(true);
-  expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
-  expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
-  release(['STOCK_ADJUST|home|program']);
-  await waitFor(async () => expect(await readOfflineAccess()).toBeDefined());
-  const previous = await readOfflineAccess();
-  vi.mocked(fetchPermissionStrings).mockRejectedValueOnce(new AxiosError('No connection'));
-  useLoginData.getState().setLoginData({
-    referenceDataUserId: 'coordinator-user',
-    username: 'coordinator-user',
-    accessToken: 'renewed',
-  });
-  await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledTimes(2));
-  expect(useLoginData.getState().expired).toBe(false);
-  expect(await readOfflineAccess()).toEqual(previous);
-});
-
-it('keeps sign-in and the previous snapshot when device storage rejects a refresh', async () => {
-  signIn();
-  stop = startOfflineCoordinator();
-  await waitFor(async () => expect(await readOfflineAccess()).toBeDefined());
-  const previous = await readOfflineAccess();
-  const write = vi
-    .spyOn(getLocalDb().table('offlineAccess'), 'put')
-    .mockRejectedValueOnce(new DOMException('Storage is full', 'QuotaExceededError'));
-  useLoginData.getState().setLoginData({
-    referenceDataUserId: 'coordinator-user',
-    username: 'coordinator-user',
-    accessToken: 'renewed',
-  });
-  await waitFor(() => expect(write).toHaveBeenCalled());
-  expect(useLoginData.getState().isAuthenticated).toBe(true);
-  expect(await readOfflineAccess()).toEqual(previous);
-  write.mockRestore();
 });

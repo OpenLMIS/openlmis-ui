@@ -19,7 +19,7 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  facilityOptions,
+  homeFacilityOptions,
   userRecordOptions,
   validReasonsOptions,
 } from '@/features/reference-data/api/queries';
@@ -58,13 +58,13 @@ export const Route = createFileRoute(
       if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
       const [permissions, user] = await Promise.all([
         requirePermissions(queryClient, RIGHTS.stockInventoriesEdit),
-        queryClient.ensureQueryData(userRecordOptions(userId)),
+        queryClient.fetchQuery(userRecordOptions(userId)),
       ]);
       assertSessionScope(session);
       const homeId = user.homeFacilityId;
       if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
         throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
-      const homeFacility = await queryClient.ensureQueryData(facilityOptions(homeId));
+      const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));
       assertSessionScope(session);
       const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
       if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
@@ -196,7 +196,7 @@ function InventoryPending() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: false });
   const { data: home } = useQuery({
-    ...facilityOptions(user?.homeFacilityId ?? ''),
+    ...homeFacilityOptions(user?.homeFacilityId ?? ''),
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);

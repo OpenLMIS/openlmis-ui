@@ -1,7 +1,7 @@
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
-import { isOfflineError } from '@/lib/http';
+import { isAccessFallbackError } from '@/lib/http';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
@@ -36,7 +36,12 @@ export async function readOfflineAccess() {
   return saved;
 }
 
-export async function withOfflineAccess<T>(
+const deviceResults = new WeakSet<object>();
+
+export const isDeviceAccess = (value: unknown) =>
+  typeof value === 'object' && value !== null && deviceResults.has(value);
+
+export async function withOfflineAccess<T extends object>(
   online: () => Promise<T>,
   select: (saved: OfflineAccess) => T | undefined,
 ): Promise<T> {
@@ -47,11 +52,12 @@ export async function withOfflineAccess<T>(
     return result;
   } catch (error) {
     assertSessionScope(scope);
-    if (!isOfflineError(error)) throw error;
+    if (!isAccessFallbackError(error)) throw error;
     const saved = await readOfflineAccess();
     assertSessionScope(scope);
     const result = select(saved);
     if (result === undefined) throw new LocalDataUnavailableError();
+    deviceResults.add(result);
     return result;
   }
 }

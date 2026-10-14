@@ -23,8 +23,8 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  facilityOptions,
   facilityOrderableFulfillsOptions,
+  homeFacilityOptions,
   reasonsOptions,
   userProgramsOptions,
   userRecordOptions,
@@ -78,13 +78,13 @@ export async function loadStockEventEditor(
   }
   const [permissions, user] = await Promise.all([
     requirePermissions(queryClient, RIGHTS.stockAdjust),
-    queryClient.ensureQueryData(userRecordOptions(userId)),
+    queryClient.fetchQuery(userRecordOptions(userId)),
   ]);
   const homeId = user.homeFacilityId;
   if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockAdjust, homeId, programId)) {
     throw new ForbiddenError(RIGHTS.stockAdjust);
   }
-  const homeFacility = await queryClient.ensureQueryData(facilityOptions(homeId));
+  const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));
   const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
   if (!program) {
     throw new ForbiddenError(RIGHTS.stockAdjust);
@@ -160,7 +160,7 @@ export function StockEventPending({
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: false });
   const { data: home } = useQuery({
-    ...facilityOptions(user?.homeFacilityId ?? ''),
+    ...homeFacilityOptions(user?.homeFacilityId ?? ''),
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);

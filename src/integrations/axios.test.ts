@@ -63,6 +63,21 @@ describe('client', () => {
     expect(sent).toEqual([]);
   });
 
+  it('does not send a queued background read with the next user token', async () => {
+    const { sent } = serve('alan-token');
+    const request = client.get('/users/ada-id/permissionStrings', {
+      session: false,
+    });
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual([]);
+    expect(useLoginData.getState().expired).toBe(false);
+  });
+
   it('rejects a stale successful read before a save can continue as another user', async () => {
     let release = () => {};
     const sent: string[] = [];

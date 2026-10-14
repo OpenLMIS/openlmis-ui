@@ -912,5 +912,10 @@ return data, unavailable or a handled error; local absence is never a server 404
 `fake-indexeddb`; `src/tests/setup.ts` restores online state after each test.
 
 - Only the shell bootstrap coordinator writes `offlineAccess`, as one complete snapshot after
-  all reads and identity checks. Queries fetch online or read it only after no-response failures;
-  server responses never fall back to saved access. Missing local data uses `LocalDataUnavailableError`.
+  all reads and identity checks. Access lookups fall back after no-response failures, timeouts
+  or 502/503/504 without a JSON body; treat JSON objects conservatively as service errors.
+  Definitive service errors and cancellation never fall back. Missing local data uses
+  `LocalDataUnavailableError`. Device results are immediately stale; access-sensitive loaders
+  use `fetchQuery` to refresh them before checking access. Only `homeFacilityOptions` reads
+  the stripped facility snapshot; `facilityOptions` stays online-only for whole-record saves.
+  Background reads retain session-scope checks even with `session: false`.

@@ -37,7 +37,7 @@ const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined)
 client.interceptors.request.use(async (config) => {
   const { accessToken, expired, referenceDataUserId } = useLoginData.getState();
   config.sentFor ??= referenceDataUserId;
-  if (config.session !== false && !config.anonymous) {
+  if (!config.anonymous) {
     config.sessionScope ??= getSessionScope();
     assertSessionScope(config.sessionScope);
     if (config.sentFor !== referenceDataUserId) throw new SessionEndedError();
@@ -48,7 +48,7 @@ client.interceptors.request.use(async (config) => {
     expired && referenceDataUserId && config.session !== false
       ? await waitForSession(referenceDataUserId)
       : accessToken;
-  if (config.session !== false) assertSessionScope(config.sessionScope ?? getSessionScope());
+  if (!config.anonymous) assertSessionScope(config.sessionScope ?? getSessionScope());
   const authorization = bearer(token);
   if (authorization) config.headers.Authorization = authorization;
 
@@ -58,14 +58,14 @@ client.interceptors.request.use(async (config) => {
 // A refused token keeps the page as it is: the request waits for a new session, then is sent again.
 client.interceptors.response.use(
   (response) => {
-    if (response.config.session !== false && !response.config.anonymous) {
+    if (!response.config.anonymous) {
       assertSessionScope(response.config.sessionScope ?? getSessionScope());
     }
     return response;
   },
   async (error) => {
     const config = isAxiosError(error) ? error.config : undefined;
-    if (config && config.session !== false && !config.anonymous) {
+    if (config && !config.anonymous) {
       assertSessionScope(config.sessionScope ?? getSessionScope());
     }
     const { isAuthenticated, accessToken, expired, referenceDataUserId } = useLoginData.getState();

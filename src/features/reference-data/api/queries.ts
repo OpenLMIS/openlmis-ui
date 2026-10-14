@@ -45,7 +45,7 @@ import {
 } from '@/features/reference-data/api/api';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
-import { withOfflineAccess } from '@/lib/offline-access';
+import { isDeviceAccess, withOfflineAccess } from '@/lib/offline-access';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -60,12 +60,20 @@ export const minimalFacilitiesOptions = () =>
 export const facilityOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.facilities.detail(id),
+    queryFn: () => fetchFacility(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const homeFacilityOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.facilities.all, 'home', id] as const,
     queryFn: () =>
       withOfflineAccess(
         () => fetchFacility(id),
         (saved) => (saved.homeFacility?.id === id ? saved.homeFacility : undefined),
       ),
-    staleTime: LOOKUP_STALE_TIME,
+    structuralSharing: false,
+    staleTime: (query) => (isDeviceAccess(query.state.data) ? 0 : LOOKUP_STALE_TIME),
   });
 
 export const facilitiesByIdsOptions = (ids: readonly string[]) =>
@@ -251,7 +259,8 @@ export const userRecordOptions = (id: string) =>
         () => fetchUserRecord(id),
         (saved) => (saved.userId === id ? saved.user : undefined),
       ),
-    staleTime: LOOKUP_STALE_TIME,
+    structuralSharing: false,
+    staleTime: (query) => (isDeviceAccess(query.state.data) ? 0 : LOOKUP_STALE_TIME),
   });
 
 export const userProgramsOptions = (id: string) =>
@@ -262,7 +271,8 @@ export const userProgramsOptions = (id: string) =>
         () => fetchUserPrograms(id),
         (saved) => (saved.userId === id ? saved.programs : undefined),
       ),
-    staleTime: LOOKUP_STALE_TIME,
+    structuralSharing: false,
+    staleTime: (query) => (isDeviceAccess(query.state.data) ? 0 : LOOKUP_STALE_TIME),
   });
 
 type DeploymentTimeZone = { zone: string; read: boolean };
