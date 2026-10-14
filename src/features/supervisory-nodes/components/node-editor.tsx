@@ -36,6 +36,7 @@ import {
   SupervisoryNodeConflictError,
   saveSupervisoryNodeChange,
 } from '@/features/supervisory-nodes/api/api';
+import { NodeLinksTable } from '@/features/supervisory-nodes/components/node-links-table';
 import {
   type NodeDraft,
   nodeFormSchema,
@@ -78,6 +79,15 @@ export function NodeEditor({
   const { t } = useTranslation();
   const [saved] = useState(loaded);
   const [initial] = useState(() => toDraft(saved));
+  const [savedIds] = useState(() =>
+    [
+      ...new Set([
+        ...saved.childNodes.map(({ id }) => id),
+        ...saved.partnerNodes.map(({ id }) => id),
+        ...(saved.parentNode ? [saved.parentNode.id] : []),
+      ]),
+    ].sort(),
+  );
   const [alert, setAlert] = useState<'invalid' | 'failure' | 'conflict' | null>(null);
   const [reloading, setReloading] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
@@ -105,6 +115,7 @@ export function NodeEditor({
     },
   );
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
+  const draft = useStore(form.store, (state) => state.values);
   const pending = mutation.isPending || reloading;
   const guard = useDiscardGuard(changed, { allowLeave: () => leaving.current, pending });
   return (
@@ -162,6 +173,24 @@ export function NodeEditor({
                   )}
                 </form.AppField>
               </div>
+              <NodeLinksTable
+                kind="child"
+                selfId={saved.id}
+                savedIds={savedIds}
+                draft={draft}
+                disabled={pending}
+                onAdd={(node) => form.pushFieldValue('children', node)}
+                onRemove={(index) => form.removeFieldValue('children', index)}
+              />
+              <NodeLinksTable
+                kind="partner"
+                selfId={saved.id}
+                savedIds={savedIds}
+                draft={draft}
+                disabled={pending}
+                onAdd={(node) => form.pushFieldValue('partners', node)}
+                onRemove={(index) => form.removeFieldValue('partners', index)}
+              />
             </FieldGroup>
           </form>
           <DiscardChangesDialog

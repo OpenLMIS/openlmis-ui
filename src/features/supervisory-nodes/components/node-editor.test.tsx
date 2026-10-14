@@ -6,7 +6,9 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
 import { NodeEditor } from '@/features/supervisory-nodes/components/node-editor';
+import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
 import { client } from '@/integrations/axios';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -19,15 +21,30 @@ vi.mock('@/features/reference-data/api/api', () => ({
 }));
 
 const saved = { id: 'node', code: 'SN', name: 'Original', childNodes: [], partnerNodes: [] };
-function renderEditor() {
+function renderEditor(node: SupervisoryNode = saved, path = '/') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const ids = [
+    ...new Set([
+      ...node.childNodes.map(({ id }) => id),
+      ...node.partnerNodes.map(({ id }) => id),
+      ...(node.parentNode ? [node.parentNode.id] : []),
+    ]),
+  ].sort();
+  queryClient.setQueryData(
+    supervisoryNodesByIdsOptions(ids).queryKey,
+    ids.map((id) => ({ id, code: id, name: `Child ${id}`, childNodes: [], partnerNodes: [] })),
+  );
   const onSaved = vi.fn();
   const onReload = vi.fn();
   const router = renderPage(
     <TranslatedFormMessages>
-      <NodeEditor saved={saved} onCancel={vi.fn()} onSaved={onSaved} onReload={onReload} />
+      <NodeEditor saved={node} onCancel={vi.fn()} onSaved={onSaved} onReload={onReload} />
     </TranslatedFormMessages>,
     {
-      queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+      queryClient,
+      path,
     },
   );
   return { router, onSaved, onReload, user: userEvent.setup() };
@@ -51,6 +68,25 @@ beforeEach(() => {
 });
 
 describe('supervisory node editor', () => {
+  it('returns to the previous page and focuses its last row after removing the last page row', async () => {
+    const node = {
+      ...saved,
+      childNodes: Array.from({ length: 11 }, (_, index) => ({ id: String(index + 1) })),
+    };
+    const { user, router } = renderEditor(node, '/?childPage=2');
+    const section = await screen.findByRole('region', { name: 'Child Nodes' });
+    await user.click(await within(section).findByRole('button', { name: 'Actions For Child 11' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove Child Node' }));
+    const alert = await screen.findByRole('alertdialog', { name: 'Remove Child Node' });
+    await user.click(within(alert).getByRole('button', { name: 'Remove Child Node' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('childPage'));
+    await waitFor(() =>
+      expect(within(section).getByRole('button', { name: 'Actions For Child 10' })).toHaveFocus(),
+    );
+    expect(within(section).queryByText('Child 11')).not.toBeInTheDocument();
+    expect(client.put).not.toHaveBeenCalled();
+  });
+
   it('keeps the draft and location when saving fails and shows the server message', async () => {
     vi.mocked(client.put).mockRejectedValue(httpError(400, { message: 'Code already exists' }));
     const { user, router, onSaved } = renderEditor();
