@@ -268,6 +268,7 @@ edits, which have no prop for TypeScript to detect:
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
+| `table.tsx` | Preserve TableRow `aria-invalid:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 
@@ -1027,17 +1028,20 @@ return data, unavailable or a handled error; local absence is never a server 404
   current. Sign-out never discards a device draft; failed flushes explain that only unsaved edits
   will be lost. Keep committed drafts on navigation and resume them before enabling edits.
 - Refresh resumed product/lot snapshots and stock on hand from current cards by product/lot id.
-  Preserve all typed text. Keep missing-card and expired-lot lines, highlight their rows and
-  explain them in the invalid-submit dialog, with no error text beneath inline fields.
+  Preserve all typed text. Highlight missing cards and expired lots excluded by the kind's card
+  policy, explaining them in the invalid-submit dialog without inline error text. Adjustments
+  allow expired lots for write-offs.
 - Archived Copies lists saved time and line count for the current kind/facility/program. Restore
   revision-checks both records and atomically archives the active draft before promoting the
   copy. Delete requires confirmation and a revision/scope check. Memoize its table columns
   and use draft ids for rows so save notifications cannot remount open action menus.
 - Before direct online submission, persist `submissionAttempted` without changing the form.
-  Clear it after a definitive refusal. After acceptance, retire the expected draft before
-  navigating, without status callbacks or form writes. If deletion fails, mark it accepted in
-  a second transaction. If both writes fail, the durable marker shows a stock-card warning on
-  reopen. Accepted rows are excluded from editing and archived-copy recovery.
+  Clear it after a definitive refusal only if that attempt set it. After acceptance, retire the
+  expected draft before navigating, without status callbacks or form writes. If deletion fails,
+  mark it accepted in a second transaction. Persist acceptance before retirement, with a deployment/user/draft-scoped
+  localStorage marker if IndexedDB fails. Accepted copies left in editing show Already Recorded
+  and disable edits/Submit until confirmed Clear removes them. Accepted rows are excluded from
+  editing and archived-copy recovery.
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
   Stage 6 must replace direct submission and its temporary attempt marker with revision-checked

@@ -4,6 +4,7 @@ import {
   archiveStockEventCopy,
   DraftConflictError,
   readStockEventDraft,
+  rememberStockEventAcceptance,
   restoreStockEventCopy,
   type StockEventContext,
   type StockEventDraft,
@@ -104,6 +105,23 @@ export function createStockEventWriter(
       await running;
       stopped = true;
       latest = undefined;
+      try {
+        rememberStockEventAcceptance(context, expected);
+      } catch {
+        // IndexedDB can retain acceptance when the independent marker cannot be written.
+      }
+      try {
+        expected = await saveStockEventDraft(
+          context,
+          expected,
+          current,
+          generation?.(),
+          true,
+          true,
+        );
+      } catch {
+        // Retirement still runs after an acceptance-marker failure.
+      }
       try {
         await saveStockEventDraft(context, expected, []);
         return true;

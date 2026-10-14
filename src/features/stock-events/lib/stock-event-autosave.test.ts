@@ -26,6 +26,7 @@ beforeEach(async () => {
     .getState()
     .setLoginData({ referenceDataUserId: 'writer-user', username: 'user', accessToken: 'token' });
   await getLocalDb().table('stockEventDrafts').clear();
+  localStorage.clear();
 });
 it('serializes edits during a commit, coalesces them, and advances the expected revision', async () => {
   const context = createStockEventContext(selection);
@@ -158,9 +159,7 @@ it.each([false, true])(
       new Error('storage'),
     );
     if (archiveFails)
-      vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValueOnce(
-        new Error('storage'),
-      );
+      vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValue(new Error('storage'));
     expect(await writer.retire()).toBe(!archiveFails);
     writer.stage([{ ...line, reasonFreeText: 'late change' }]);
     writer.start();
@@ -168,6 +167,10 @@ it.each([false, true])(
     expect(status).not.toHaveBeenCalled();
     const rows = await context.db.table('stockEventDrafts').toArray();
     expect(rows[0].submissionAttempted).toBe(true);
+    expect((await readStockEventDraft(context))?.submissionAccepted).toBe(
+      archiveFails ? true : undefined,
+    );
+    vi.restoreAllMocks();
     expect(rows[0].state).toBe(archiveFails ? 'editing' : 'accepted');
     expect(rows[0].lines[0].reasonFreeText).toBe('');
   },
