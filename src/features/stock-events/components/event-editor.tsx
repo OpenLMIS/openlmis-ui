@@ -100,6 +100,7 @@ import {
   type ApprovedScanProduct,
   approvedScanProduct,
 } from '@/features/stock-events/lib/scan-products';
+import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
@@ -143,7 +144,7 @@ type Props = {
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
   deviceDisplay?: StockEventDisplay;
-  onSubmitted: (eventId: string) => void | Promise<void>;
+  onSubmitted: (eventId: string, synced?: boolean) => void | Promise<void>;
 };
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 const EMPTY_LOOKUP: never[] = [];
@@ -374,16 +375,28 @@ export function EventEditor({
   const mutation = useSessionMutation({
     mutationFn: async (body: Parameters<typeof submitStockEvent>[0]) => {
       if (config.drafts === 'device') {
-        const queued = await draft.submit(
-          body,
-          deviceDisplay ?? {
+        const queued = await draft.submit(body, {
+          ...(deviceDisplay ?? {
             facility: { id: facilityId, code: facilityId, name: null },
             program: { id: programId, code: programId, name: null },
-          },
-        );
-        return queued.localEventId;
+          }),
+          stockCards: (queryClient.getQueryData(stockOptions.queryKey) ?? [])
+            .filter((card) =>
+              body.lineItems.some(
+                (item) =>
+                  item.orderableId === card.orderable.id &&
+                  (item.lotId ?? null) === (card.lot?.id ?? null),
+              ),
+            )
+            .flatMap((card) =>
+              card.id ? [{ id: card.id, orderableId: card.orderable.id, lotId: card.lot?.id }] : [],
+            ),
+          reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
+        });
+        const receipt = await waitForStockEventReceipt(queued);
+        return { eventId: receipt?.serverEventId ?? queued.localEventId, synced: !!receipt };
       }
-      return submitStockEvent(body);
+      return { eventId: await submitStockEvent(body), synced: true };
     },
     retry: false,
   });
@@ -512,6 +525,7 @@ export function EventEditor({
     setFailure(null);
     setUnknownOutcome(false);
     let eventId: string;
+    let synced = false;
     const payload = eventPayload({
       kind,
       assignments,
@@ -522,7 +536,9 @@ export function EventEditor({
       lines: form.state.values.lines,
     });
     try {
-      eventId = await mutation.mutateAsync(payload);
+      const result = await mutation.mutateAsync(payload);
+      eventId = result.eventId;
+      synced = result.synced;
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const local = config.drafts === 'device';
@@ -551,10 +567,12 @@ export function EventEditor({
     leaving.current = true;
     setRefreshing(false);
     if (config.drafts === 'device') {
-      toast.success(t('stock-events.queued-title'), {
-        description: t('stock-events.queued-description'),
+      toast.success(t(synced ? 'device-events.synced' : 'stock-events.queued-title'), {
+        description: t(
+          synced ? config.copy.submittedDescription : 'stock-events.queued-description',
+        ),
       });
-      if (!guard.leaveIfAsked()) await onSubmitted(eventId);
+      if (!guard.leaveIfAsked()) await onSubmitted(eventId, synced);
       return;
     }
     toast.success(t(config.copy.submittedTitle), {

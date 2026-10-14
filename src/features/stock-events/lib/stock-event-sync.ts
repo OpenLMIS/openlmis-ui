@@ -257,16 +257,25 @@ async function beginAttempt(db: Dexie, event: QueuedStockEvent, check: () => voi
     return sending;
   });
 }
-async function returnQueued(db: Dexie, event: QueuedStockEvent, check: () => void) {
+async function returnQueued(
+  db: Dexie,
+  event: QueuedStockEvent,
+  check: () => void,
+  notSent = false,
+) {
   await db.transaction('rw', tables(db), async () => {
     const matched = await matching(db, event, 'sending', check);
     if (!matched) return;
-    await db.table('stockEventQueue').put({ ...matched.row, status: 'queued' });
+    await db.table('stockEventQueue').put({
+      ...matched.row,
+      status: 'queued',
+      ...(notSent ? { attemptId: undefined, attemptStartedAt: undefined } : {}),
+    });
     check();
     await db.table('stockEventDrafts').put({
       ...matched.draft,
       state: 'queued',
-      history: history(matched.draft, event, 'not-committed'),
+      history: history(matched.draft, event, notSent ? 'not-sent' : 'not-committed'),
     });
     check();
   });
@@ -317,7 +326,7 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
     }
     deps.check();
     if (error instanceof QueueNotSentError) {
-      await returnQueued(db, event, deps.check);
+      await returnQueued(db, event, deps.check, true);
       return;
     }
     const outcome = response ? classifyUpload(response) : { kind: 'uncertain' as const };

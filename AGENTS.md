@@ -1001,7 +1001,7 @@ return data, unavailable or a handled error; local absence is never a server 404
   never globally unregistered.
 - Only the shell coordinator publishes complete generations under the database's
   `offline-download` Web Lock. Accepted online Adjustments request a nonblocking scoped refresh;
-  mark that bundle stale under the lock before downloading. Keep the future upload lock
+  mark that bundle stale under the lock before downloading. Keep the upload lock
   separate and retain previous bundles on refresh failure. Exclude programs without stock
   viewing rights from downloads/failures. Passive tabs observe lock release to clear orphaned
   progress. Fresh boots publish no download transition. Sidebar notices use stable ids, never
@@ -1011,7 +1011,7 @@ return data, unavailable or a handled error; local absence is never a server 404
 ### Stock event device drafts
 
 - Dexie v4 adds `stockEventDrafts`; v5 adds the queue, error and receipt tables.
-  Error and receipt tables are reserved for stage 7 sync.
+  Queue outcomes use the error and receipt tables atomically.
   The kind's `drafts` policy enables device autosave only for Adjustments. Other event kinds
   keep their existing leave guards and online behavior.
 - `stock-event-local.ts` captures the owning database and session scope. Check scope after
@@ -1044,10 +1044,47 @@ return data, unavailable or a handled error; local absence is never a server 404
 - Queued drafts cannot autosave, clear, discard or restore. Opening the editor starts a new
   editing draft. The per-user queue survives sign-out and identity checks inside the transaction
   prevent obsolete enqueue writes. Business outcomes belong in Dexie, never localStorage.
-- Stage 6 deliberately disables upload, including connected Adjustments Submit. Both Submit
-  and Submit Offline enqueue and land on the Adjustments list with a saved-device toast.
-  Device Events reads the queue locally with URL paging and a rights-gated sidebar count.
-  Stage 7 adds ordered sending, receipts and recovery; stage 6 cannot ship independently.
+- One app-level uploader starts at boot and observes committed queue changes, reconnect and
+  same-user renewal. A database-scoped `offline-upload` Web Lock serializes every POST and
+  stays separate from `offline-download`. Without Web Locks automatic sync is disabled, with
+  an explanation. Never replace it with a timeout lease.
+- Upload waits for a fresh coordinator-owned access snapshot for the current identity,
+  session and connection generation. Use the typed Axios `queueTransport` policy, never
+  `session: false`. Expired or mismatched sessions reject before dispatch with
+  `QueueNotSentError`; queue requests never wait for renewal or replay a 401. Keep mutation
+  retries off and retain response identity checks.
+- Commit queued to sending, its attempt UUID/time and frozen body before dispatch. Send the
+  oldest eligible sequence, one POST at a time. Sending or uncertain work blocks later work
+  in its facility/program; other scopes remain eligible. Recover orphaned sending rows as
+  uncertain only while owning the upload lock, including offline boot.
+- A verified 201 UUID commits the exact revision's receipt, accepted state and queue removal
+  together. Refresh stock independently afterward. Receipt-write failures hold the lock and
+  UUID in memory and retry only local storage, never POST. A crash before that commit remains
+  uncertain. Service JSON 400/403/404 moves the full original and error to sync errors and
+  permits later events; negative-stock refusals are Stock Changed. A recognized service/OAuth
+  401 returns to queued and pauses until same-user renewal and fresh grants. Timeout, abort,
+  gateway HTML, 5xx, unrecognized responses and post-dispatch scope failures stay uncertain.
+- Connected Adjustments Submit gives queued work 1.5 seconds to start, then awaits an active
+  attempt's recorded outcome. Acceptance
+  shows Synced and opens Stock on Hand for the same facility/program. Otherwise it shows the
+  saved-device toast and opens the program list; later acceptance announces Synced there.
+  Offline Submit uses that program-list landing until Stock on Hand's offline pass.
+- Device Events shows pending events, retained refusals and 30-day receipts. Keep Facility,
+  Program, Products and Lots in separate columns, hiding optional columns by container width.
+  Recovery exposes signed details and full refusal reasons. Copy For Correction requires
+  review, creates a new editing draft and archives existing edits without deleting the original.
+- Unknown-result recovery uses exact owner/revision/status/attempt checks in a transaction.
+  It Was Recorded writes a user-confirmed receipt labelled Marked As Recorded By You without
+  POST. Send Again requires the duplicate warning, preserves body/sequence and attempt history,
+  and returns that same event to queued. Stale/repeated choices do nothing. Resolve linked
+  errors without deleting them. Only queued events with no attempted send may be removed,
+  with confirmation; sending/uncertain events cannot be removed as unsent.
+- Show history links only for the exact STOCK_CARDS_VIEW grant, with no preloading or protected
+  history calls from recovery. Explain that the links need a connection. Without viewing
+  rights retain both choices and explain that someone with access must check first.
+- Prune receipts and accepted draft rows after 30 days. Never prune queue rows, sync errors,
+  refused originals or archived copies. Pending/refusal/uncertainty sidebar notes have stable
+  ids; only the shell StatusAnnouncer announces meaningful transitions, including acceptance.
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
   Announce committed queue counts through the same shell status region.

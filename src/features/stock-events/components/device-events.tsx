@@ -1,6 +1,6 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
-import { ClockIcon, ListChecksIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { ClockIcon, ListChecksIcon, MoreHorizontalIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -19,6 +19,14 @@ import { formatTimestamp } from '@/components/form/date-value';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Workspace,
   WorkspaceContent,
@@ -28,10 +36,12 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
-import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { hasProgramGrant, type Permissions } from '@/lib/permissions';
 import {
   type SearchChange,
   type TableSearch,
@@ -49,7 +59,7 @@ export const deviceEventsSearchSchema = tableSearchSchema(['queuedAt']).pick({
 const choicesSchema = z.record(z.string(), z.boolean());
 const hideable = [
   { id: 'program', labelKey: 'facility-program.program', hideBelow: 'xl' },
-  { id: 'lots', labelKey: 'lots.title', hideBelow: '2xl' },
+  { id: 'lots', labelKey: 'device-events.lots', hideBelow: '2xl' },
   { id: 'kind', labelKey: 'device-events.type', hideBelow: 'xl' },
   { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: '3xl' },
   { id: 'status', labelKey: 'device-events.status', hideBelow: '2xl' },
@@ -65,7 +75,11 @@ const defaultSort = { id: 'queuedAt', desc: false };
 export function DeviceEventsPage({
   search,
   onSearchChange,
+  permissions,
+  permissionsUpdatedAt,
 }: {
+  permissions: Permissions;
+  permissionsUpdatedAt: number;
   search: TableSearch;
   onSearchChange: SearchChange<TableSearch>;
 }) {
@@ -101,6 +115,8 @@ export function DeviceEventsPage({
             resetKey="device-events"
             pendingFallback={
               <DeviceEventsTable
+                permissions={permissions}
+                permissionsUpdatedAt={permissionsUpdatedAt}
                 search={search}
                 onSearchChange={onSearchChange}
                 columnVisibility={view.visibility}
@@ -117,6 +133,8 @@ export function DeviceEventsPage({
             )}
           >
             <DeviceEventsReady
+              permissions={permissions}
+              permissionsUpdatedAt={permissionsUpdatedAt}
               search={search}
               onSearchChange={onSearchChange}
               columnVisibility={view.visibility}
@@ -137,7 +155,11 @@ function DeviceEventsTable({
   columnVisibility,
   timeZone,
   loading = false,
+  permissions,
+  permissionsUpdatedAt,
 }: {
+  permissions: Permissions;
+  permissionsUpdatedAt: number;
   search: TableSearch;
   onSearchChange: SearchChange<TableSearch>;
   columnVisibility: Record<string, boolean>;
@@ -146,8 +168,9 @@ function DeviceEventsTable({
 }) {
   const { t, i18n } = useTranslation();
   const local = useDeviceEvents(!loading);
+  const [selected, setSelected] = useState<DeviceEvent | null>(null);
   const deferred = useDeferredValue(search);
-  const columns = useMemo<ColumnDef<DataTableFeatures, QueuedStockEvent>[]>(
+  const columns = useMemo<ColumnDef<DataTableFeatures, DeviceEvent>[]>(
     () => [
       {
         accessorKey: 'kind',
@@ -171,7 +194,7 @@ function DeviceEventsTable({
       },
       {
         id: 'products',
-        header: t('stock-events.product'),
+        header: t('device-events.products'),
         cell: ({ row }) => (
           <div className="flex min-w-48 flex-col gap-1">
             {row.original.lines.map((line) => (
@@ -184,7 +207,7 @@ function DeviceEventsTable({
       },
       {
         id: 'lots',
-        header: t('lots.title'),
+        header: t('device-events.lots'),
         cell: ({ row }) => (
           <div className="flex flex-col gap-1">
             {row.original.lines.map((line) => (
@@ -217,10 +240,37 @@ function DeviceEventsTable({
         cell: ({ row }) => (
           <Badge variant="secondary">
             <ClockIcon data-icon="inline-start" />
-            {t(`device-events.status-${row.original.status}`)}
+            {t(
+              row.original.receipt?.source === 'user'
+                ? 'device-events.recorded-by-you'
+                : `device-events.status-${row.original.status}`,
+            )}
           </Badge>
         ),
         meta: { className: 'w-36' },
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon" aria-label={t('device-events.review-event')} />
+              }
+            >
+              <MoreHorizontalIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setSelected(row.original)}>
+                  {t('device-events.review-event')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+        meta: { className: 'w-12' },
       },
     ],
     [t, i18n.language, timeZone],
@@ -273,18 +323,35 @@ function DeviceEventsTable({
   if (loading || !local.events)
     return <DataTableSkeleton table={table} rowCount={pagination.pageSize} />;
   return (
-    <DataTable
-      table={table}
-      layout="auto"
-      isStale={search !== deferred}
-      empty={
-        <DataTableEmpty
-          icon={<ListChecksIcon />}
-          title={t('device-events.empty-title')}
-          description={t('device-events.empty-description')}
+    <>
+      {selected && (
+        <DeviceEventRecovery
+          event={selected}
+          canView={hasProgramGrant(
+            (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
+              ? (local.permissions ?? permissions)
+              : permissions,
+            'STOCK_CARDS_VIEW',
+            selected.facilityId,
+            selected.programId,
+          )}
+          timeZone={timeZone}
+          onClose={() => setSelected(null)}
         />
-      }
-      footer={sorted.length > 0 && <DataTablePagination table={table} />}
-    />
+      )}
+      <DataTable
+        table={table}
+        layout="auto"
+        isStale={search !== deferred}
+        empty={
+          <DataTableEmpty
+            icon={<ListChecksIcon />}
+            title={t('device-events.empty-title')}
+            description={t('device-events.empty-description')}
+          />
+        }
+        footer={sorted.length > 0 && <DataTablePagination table={table} />}
+      />
+    </>
   );
 }
