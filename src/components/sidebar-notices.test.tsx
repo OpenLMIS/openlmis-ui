@@ -1,11 +1,17 @@
 import { onlineManager } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
+import ICU from 'i18next-icu';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
 import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sidebar-notices';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
+import { setSyncPhase } from '@/lib/device-event-status';
 import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
@@ -14,7 +20,11 @@ vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
 }));
-vi.mock('@/components/nav-access', () => ({ useHasRight: () => false }));
+const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[] }));
+vi.mock('@/components/nav-access', () => ({ useHasRight: () => device.allowed }));
+vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
+  useDeviceEvents: () => ({ events: device.events }),
+}));
 
 const worker = vi.hoisted(() => ({ waiting: () => {} }));
 
@@ -67,6 +77,9 @@ afterEach(() => {
     dismissBackOnline();
     dismissUpdate();
     setDownloadStatus({ phase: 'idle', failed: [] });
+    setSyncPhase('idle');
+    device.allowed = false;
+    device.events = [];
   });
 });
 
@@ -226,4 +239,62 @@ it('clears the completed download announcement before later notices change', () 
   showUpdate();
   expect(screen.getByRole('status')).toHaveTextContent('update.title');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
+});
+
+it('announces only the changed notice while concurrent warnings stay visible', () => {
+  onlineManager.setOnline(false);
+  renderNotices();
+  expect(screen.getByRole('status')).toHaveTextContent('offline.title');
+  act(() => setDownloadStatus({ phase: 'running', failed: [] }));
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.fetching');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
+  expect(screen.getAllByRole('note')).toHaveLength(2);
+  act(() => setDownloadStatus({ phase: 'failed', failed: [], reason: 'timeout' }));
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
+});
+
+it('uncertain events stay out of Waiting To Sync and stacked notices offer review once', async () => {
+  device.allowed = true;
+  device.events = [
+    { status: 'queued' },
+    { status: 'sending' },
+    { status: 'uncertain' },
+    { status: 'refused' },
+  ] as DeviceEvent[];
+  const language = createInstance();
+  await language.use(ICU).init({
+    lng: 'en',
+    resources: { en: { translation: en } },
+    keySeparator: false,
+    nsSeparator: false,
+  });
+  render(
+    <I18nextProvider i18n={language}>
+      <TooltipProvider>
+        <SidebarProvider>
+          <SidebarNotices />
+          <StatusAnnouncer />
+        </SidebarProvider>
+      </TooltipProvider>
+    </I18nextProvider>,
+  );
+  expect(screen.getByText('2 Events Waiting To Sync')).toBeVisible();
+  expect(screen.getAllByRole('button', { name: 'Review Device Events' })).toHaveLength(1);
+  device.events = [{ status: 'uncertain' }] as DeviceEvent[];
+  act(() => setSyncPhase('failed'));
+  expect(screen.queryByText(/Waiting To Sync/)).not.toBeInTheDocument();
+  expect(screen.getByText('1 Event Needs Review')).toBeVisible();
+});
+it('Sign In To Sync has no review action of its own', () => {
+  device.allowed = true;
+  device.events = [{ status: 'queued' }] as DeviceEvent[];
+  setSyncPhase('session');
+  renderNotices();
+  const notice = screen
+    .getAllByRole('note')
+    .find((note) => note.textContent?.includes('device-events.sign-in'));
+  expect(notice).toBeDefined();
+  expect(notice?.querySelector('button')).toBeNull();
+  expect(screen.getAllByRole('button', { name: 'device-events.review' })).toHaveLength(1);
 });

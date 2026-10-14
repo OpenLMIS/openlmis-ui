@@ -9,6 +9,7 @@ import {
   WifiOffIcon,
   XIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHasRight } from '@/components/nav-access';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -27,6 +28,7 @@ import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
+import { useSessionScope } from '@/lib/session-scope';
 
 type Notice = {
   id: string;
@@ -57,8 +59,7 @@ function useNotices(): Notice[] {
       ? 'syncing'
       : ownPhase;
   const waiting =
-    events?.filter((event) => ['queued', 'sending', 'uncertain'].includes(event.status)).length ??
-    0;
+    events?.filter((event) => ['queued', 'sending'].includes(event.status)).length ?? 0;
   const uncertain = events?.filter((event) => event.status === 'uncertain').length ?? 0;
   const refused =
     events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt).length ?? 0;
@@ -146,10 +147,7 @@ function useNotices(): Notice[] {
       variant: 'info',
       Icon: ListChecksIcon,
       title: t('device-events.waiting', { count: waiting }),
-      action: {
-        label: t('device-events.review'),
-        onClick: () => void navigate({ to: '/stock-management/device-events' }),
-      },
+      action: review,
     });
   if (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
     notices.push({
@@ -165,7 +163,7 @@ function useNotices(): Notice[] {
             : 'device-events.receipt-write',
       ),
       description: phase === 'receipt' ? t('device-events.receipt-write-description') : undefined,
-      action: review,
+      action: phase === 'session' ? undefined : review,
       closesSidebar: true,
     });
   if (canAdjust && phase === 'unsupported')
@@ -203,6 +201,25 @@ function useNotices(): Notice[] {
       action: review,
       closesSidebar: true,
     });
+  for (const reason of ['access-changed', 'draft-changed'] as const) {
+    if (events?.some((event) => event.pauseReason === reason))
+      notices.push({
+        id: `device-events-${reason}`,
+        variant: 'warning',
+        Icon: AlertTriangleIcon,
+        title: t(`device-events.${reason}`),
+        description: t(`device-events.${reason}-description`),
+        action: review,
+        closesSidebar: true,
+      });
+  }
+  let offeredReview = false;
+  for (const notice of notices) {
+    if (notice.action === review) {
+      if (offeredReview) notice.action = undefined;
+      else offeredReview = true;
+    }
+  }
   return notices;
 }
 
@@ -298,23 +315,37 @@ export function StatusAnnouncer() {
   const download = useDownloadStatus();
   const queued = useQueuedAnnouncement();
   const deviceSave = useDeviceSaveAnnouncement();
+  const scope = useSessionScope();
   const { t } = useTranslation();
+  const current: Record<string, string> = {};
+  for (const { id, title, description } of notices) {
+    if (id !== 'device-events-waiting')
+      current[id] = description ? `${title}. ${description}` : title;
+  }
+  if (queued) current.queued = t('device-events.waiting', { count: queued.count });
+  if (deviceSave) current.save = t(deviceSave);
+  if (download.phase === 'complete') current.download = t('offline.download.finished');
+  const signature = JSON.stringify(current);
+  const [announced, setAnnounced] = useState<{
+    scope: number;
+    signature: string;
+    notices: Record<string, string>;
+    message: string;
+  }>({ scope, signature: '', notices: {}, message: '' });
+  if (announced.signature !== signature || announced.scope !== scope) {
+    setAnnounced({
+      scope,
+      signature,
+      notices: current,
+      message: Object.entries(current)
+        .filter(([id, text]) => announced.scope !== scope || announced.notices[id] !== text)
+        .map(([, text]) => text)
+        .join('. '),
+    });
+  }
   return (
     <div className="sr-only" role="status">
-      {[
-        ...notices.map(({ title, description, id }) =>
-          id === 'device-events-waiting'
-            ? ''
-            : id === 'offline-download' && description
-              ? `${title}. ${description}`
-              : title,
-        ),
-        ...(queued ? [t('device-events.waiting', { count: queued.count })] : []),
-        ...(deviceSave ? [t(deviceSave)] : []),
-        ...(download.phase === 'complete' ? [t('offline.download.finished')] : []),
-      ]
-        .filter(Boolean)
-        .join('. ')}
+      {announced.message}
     </div>
   );
 }

@@ -51,11 +51,13 @@ export function DeviceEventRecovery({
   canView,
   timeZone,
   onClose,
+  onCopied,
 }: {
   event: DeviceEvent;
   canView: boolean;
   timeZone?: string;
   onClose: () => void;
+  onCopied?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const online = useOnline();
@@ -91,12 +93,18 @@ export function DeviceEventRecovery({
         if (choice === 'resend') announceDeviceSave('device-events.status-queued');
         if (choice === 'remove') announceDeviceSave('device-events.removed');
         onClose();
-        if (choice === 'copy')
+        if (choice === 'copy' && onCopied) onCopied();
+        else if (choice === 'copy')
           await navigate({
             to: '/stock-management/adjustments/$programId',
             params: { programId: event.programId },
           });
-      } else onClose();
+      } else {
+        toast.warning(t('device-events.changed-title'), {
+          description: t('device-events.changed-description'),
+        });
+        onClose();
+      }
     } catch {
       if (!operation.isCurrent()) return;
       toast.error(t('device-events.action-failed'), {
@@ -130,6 +138,12 @@ export function DeviceEventRecovery({
           <div className="flex min-w-0 flex-col gap-4 overflow-y-auto">
             <dl className="grid grid-cols-2 gap-3 text-sm">
               {[
+                [
+                  t('device-events.type'),
+                  t(
+                    `nav.stock-management.${event.kind === 'adjustment' ? 'adjustments' : event.kind}`,
+                  ),
+                ],
                 [t('facility-program.facility'), event.facility.name || event.facility.code],
                 [t('facility-program.program'), event.program.name || event.program.code],
                 [
@@ -211,6 +225,24 @@ export function DeviceEventRecovery({
                   {JSON.stringify(event.error?.response, null, 2)}
                 </pre>
               </div>
+            )}
+            {event.pauseReason && (
+              <Alert variant="warning">
+                <AlertTitle>
+                  {t(
+                    event.pauseReason === 'access-changed'
+                      ? 'device-events.access-changed'
+                      : 'device-events.draft-changed',
+                  )}
+                </AlertTitle>
+                <AlertDescription>
+                  {t(
+                    event.pauseReason === 'access-changed'
+                      ? 'device-events.access-changed-description'
+                      : 'device-events.draft-changed-description',
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
             {event.status === 'uncertain' && (
               <>

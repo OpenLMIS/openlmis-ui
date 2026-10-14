@@ -943,7 +943,8 @@ return data, unavailable or a handled error; local absence is never a server 404
 
 ### Stock event device drafts
 
-- Dexie v4 adds `stockEventDrafts`; v5 adds the queue, error and receipt tables.
+- Dexie v4 adds `stockEventDrafts`; v5 adds the queue, error and receipt tables; v6
+  initializes retained sync-error history without replacing existing error data.
   Queue outcomes use the error and receipt tables atomically.
   The kind's `drafts` policy enables device autosave only for Adjustments. Other event kinds
   keep their existing leave guards and online behavior.
@@ -985,39 +986,54 @@ return data, unavailable or a handled error; local absence is never a server 404
   session and connection generation. Use the typed Axios `queueTransport` policy, never
   `session: false`. Expired or mismatched sessions reject before dispatch with
   `QueueNotSentError`; queue requests never wait for renewal or replay a 401. Keep mutation
-  retries off and retain response identity checks.
+  retries off and retain response identity checks. Missing fresh grants pause the scope with
+  queued events and an access-changed notice; only server answers create refusals.
 - Commit queued to sending, its attempt UUID/time and frozen body before dispatch. Send the
   oldest eligible sequence, one POST at a time. Sending or uncertain work blocks later work
   in its facility/program; other scopes remain eligible. Recover orphaned sending rows as
-  uncertain only while owning the upload lock, including offline boot.
+  uncertain only while owning the upload lock, including offline boot. A queued row whose
+  draft no longer matches pauses its scope for review instead of spinning.
 - A verified 201 UUID commits the exact revision's receipt, accepted state and queue removal
-  together. Refresh stock independently afterward. Receipt-write failures hold the lock and
+  together. A scope change still permits owner-bound receipt persistence in the original
+  database, never UI callbacks for the next user. Typed not-sent cleanup uses the same owner
+  check before session checks. Refresh stock independently afterward. Receipt-write failures
+  hold the lock and
   UUID in memory and retry only local storage, never POST. A crash before that commit remains
   uncertain. Service JSON 400/403/404 moves the full original and error to sync errors and
   permits later events; negative-stock refusals are Stock Changed. A recognized service/OAuth
   401 returns to queued and pauses until same-user renewal and fresh grants. Timeout, abort,
   gateway HTML, 5xx, unrecognized responses and post-dispatch scope failures stay uncertain.
-- Connected Adjustments Submit gives queued work 1.5 seconds to start, then awaits an active
-  attempt's recorded outcome. Acceptance
-  shows Synced and opens Stock on Hand for the same facility/program. Otherwise it shows the
-  saved-device toast and opens the program list; later acceptance announces Synced there.
-  Offline Submit uses that program-list landing until Stock on Hand's offline pass.
+- Connected Adjustments Submit gives queued work 1.5 seconds to start and caps the total wait
+  at 65 seconds without interrupting receipt-only retries. Its typed outcome distinguishes
+  accepted, refused, uncertain, blocked and still queued. Acceptance shows Synced and opens
+  Stock on Hand. Refusal retains the frozen editor with the server message, Review Device Events
+  and Copy For Correction in the failure dialog; correction opens the full review and copy
+  confirmation before reloading a new editing draft. Uncertain/blocked outcomes warn with a
+  review action and open the program list; queued/offline outcomes use the device-saved toast.
 - Device Events shows pending events, retained refusals and 30-day receipts. Keep Facility,
   Program, Products and Lots in separate columns, hiding optional columns by container width.
+  Each product/lot pair occupies one row; event metadata and actions appear on its first line.
+  Page size counts events. Status badges use distinct icons and semantic variants.
   Recovery exposes signed details and full refusal reasons. Copy For Correction requires
   review, creates a new editing draft and archives existing edits without deleting the original.
 - Unknown-result recovery uses exact owner/revision/status/attempt checks in a transaction.
   It Was Recorded writes a user-confirmed receipt labelled Marked As Recorded By You without
   POST. Send Again requires the duplicate warning, preserves body/sequence and attempt history,
-  and returns that same event to queued. Stale/repeated choices do nothing. Resolve linked
-  errors without deleting them. Only queued events with no attempted send may be removed,
+  and returns that same event to queued. Stale choices do nothing and explain that the event
+  changed. Resolve linked
+  errors without deleting them. Preserve each previous error, including message/status/response
+  and resolution time, in the error record history before replacing its current attempt.
+  Only queued events with no attempted send may be removed,
   with confirmation; sending/uncertain events cannot be removed as unsent.
 - Show history links only for the exact STOCK_CARDS_VIEW grant, with no preloading or protected
   history calls from recovery. Explain that the links need a connection. Without viewing
   rights retain both choices and explain that someone with access must check first.
 - Prune receipts and accepted draft rows after 30 days. Never prune queue rows, sync errors,
   refused originals or archived copies. Pending/refusal/uncertainty sidebar notes have stable
-  ids; only the shell StatusAnnouncer announces meaningful transitions, including acceptance.
+  ids; only the shell StatusAnnouncer announces changed notices/counts, including acceptance.
+  Waiting To Sync counts queued/sending only. Offer Review Device Events once across stacked
+  notices; Sign In To Sync has no action because SessionExpiredDialog owns reauthentication.
+  Prune at most once per uploader session for each owner database.
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
   Announce committed queue counts through the same shell status region.

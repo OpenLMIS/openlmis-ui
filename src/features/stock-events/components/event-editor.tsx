@@ -5,6 +5,7 @@ import {
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
@@ -24,6 +25,7 @@ import { LoadError } from '@/components/load-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { ScanStatus } from '@/components/scan-status';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -50,6 +52,7 @@ import {
   fetchAdjustmentTradeItem,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
+import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { EventArchivedCopies } from '@/features/stock-events/components/event-archived-copies';
 import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import {
@@ -93,8 +96,12 @@ import {
   type ApprovedScanProduct,
   approvedScanProduct,
 } from '@/features/stock-events/lib/scan-products';
-import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
+import {
+  type StockEventDelivery,
+  waitForStockEventReceipt,
+} from '@/features/stock-events/lib/stock-event-delivery';
 import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
+import type { StockEventSyncError } from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -214,6 +221,9 @@ export function EventEditor({
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
   const quantityUnit = useQuantityUnit();
   const scanning = useFlag('GS1_SCANNING') && config.scanning;
+  const navigate = useNavigate();
+  const [refusal, setRefusal] = useState<StockEventSyncError | null>(null);
+  const [reviewRefusal, setReviewRefusal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -378,10 +388,17 @@ export function EventEditor({
             ),
           reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
         });
-        const receipt = await waitForStockEventReceipt(queued);
-        return { eventId: receipt?.serverEventId ?? queued.localEventId, synced: !!receipt };
+        const delivery = await waitForStockEventReceipt(queued);
+        return {
+          eventId:
+            delivery.kind === 'accepted'
+              ? (delivery.receipt.serverEventId ?? queued.localEventId)
+              : queued.localEventId,
+          synced: delivery.kind === 'accepted',
+          delivery,
+        };
       }
-      return { eventId: await submitStockEvent(body), synced: true };
+      return { eventId: await submitStockEvent(body), synced: true, delivery: undefined };
     },
     retry: false,
   });
@@ -407,7 +424,7 @@ export function EventEditor({
     }
   }, [focusField, search.keyword, search.page]);
   const add = (candidate: EventLineCandidate, hasLotsOfProduct: boolean) => {
-    if (!ready || submitted || pending) return;
+    if (!ready || submitted || refusal || pending) return;
     const next = newEventLine(candidate, lastAdded.current, today, {
       ...lineOptions,
       productHasLots: hasLotsOfProduct,
@@ -511,6 +528,7 @@ export function EventEditor({
     setUnknownOutcome(false);
     let eventId: string;
     let synced = false;
+    let delivery: StockEventDelivery | undefined;
     const payload = eventPayload({
       kind,
       assignments,
@@ -524,6 +542,7 @@ export function EventEditor({
       const result = await mutation.mutateAsync(payload);
       eventId = result.eventId;
       synced = result.synced;
+      delivery = result.delivery;
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const local = config.drafts === 'device';
@@ -547,16 +566,44 @@ export function EventEditor({
       return;
     }
     if (!mutation.isCurrent()) return;
+    if (delivery?.kind === 'refused') {
+      setRefusal(delivery.error);
+      setFailure({ title: config.copy.submitErrorTitle, description: delivery.error.message });
+      setConfirmationOpen(false);
+      posting.current = false;
+      setRefreshing(false);
+      return;
+    }
     flushSync(() => setSubmitted(true));
     setConfirmationOpen(false);
     leaving.current = true;
     setRefreshing(false);
     if (config.drafts === 'device') {
-      toast.success(t(synced ? 'device-events.synced' : 'stock-events.queued-title'), {
-        description: t(
-          synced ? config.copy.submittedDescription : 'stock-events.queued-description',
-        ),
-      });
+      if (delivery?.kind === 'uncertain' || delivery?.kind === 'blocked') {
+        toast.warning(
+          t(
+            delivery.kind === 'uncertain'
+              ? 'device-events.needs-review'
+              : 'device-events.blocked-title',
+          ),
+          {
+            description: t(
+              delivery.kind === 'uncertain'
+                ? 'device-events.needs-review-description'
+                : 'device-events.blocked-description',
+            ),
+            action: {
+              label: t('device-events.review'),
+              onClick: () => void navigate({ to: '/stock-management/device-events' }),
+            },
+          },
+        );
+      } else
+        toast.success(t(synced ? 'device-events.synced' : 'stock-events.queued-title'), {
+          description: t(
+            synced ? config.copy.submittedDescription : 'stock-events.queued-description',
+          ),
+        });
       if (!guard.leaveIfAsked()) await onSubmitted(eventId, synced);
       return;
     }
@@ -582,7 +629,7 @@ export function EventEditor({
     parsed: Gs1Result,
     signal: AbortSignal,
   ): Promise<ScanMessage | undefined> => {
-    if (!ready || submitted || pending) return;
+    if (!ready || submitted || refusal || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
     const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
@@ -695,6 +742,7 @@ export function EventEditor({
       canViewStock &&
       ready &&
       !submitted &&
+      !refusal &&
       !pending &&
       !confirmationOpen &&
       !validationOpen &&
@@ -717,13 +765,24 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
+            {refusal && (
+              <Alert variant="destructive">
+                <AlertTitle>{t(config.copy.submitErrorTitle)}</AlertTitle>
+                <AlertDescription>
+                  {refusal.message}
+                  <Button variant="outline" onClick={() => setReviewRefusal(true)}>
+                    {t('device-events.copy')}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <form
               className="flex min-w-0 flex-col gap-4"
               id={config.formId}
               noValidate
               onSubmit={async (event) => {
                 event.preventDefault();
-                if (lines.length && ready && !submitted && !pending) void submit();
+                if (lines.length && ready && !submitted && !refusal && !pending) void submit();
               }}
             >
               {canViewStock && (
@@ -737,7 +796,7 @@ export function EventEditor({
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted || !ready}
+                    disabled={pending || submitted || !!refusal || !ready}
                     {...(fromCards
                       ? { cardFilter: filterCards }
                       : { from: 'approved-products' as const, canManageLots, lines })}
@@ -756,7 +815,7 @@ export function EventEditor({
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted}
+                    disabled={pending || submitted || !!refusal}
                     onRestore={draft.restore}
                   />
                 </div>
@@ -793,7 +852,7 @@ export function EventEditor({
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
-                      disabled={pending || submitted}
+                      disabled={pending || submitted || !!refusal}
                     />
                   </div>
                 )}
@@ -848,7 +907,7 @@ export function EventEditor({
                           assignments={assignments}
                           unit={quantityUnit.unit}
                           today={today}
-                          disabled={pending || submitted}
+                          disabled={pending || submitted || !!refusal}
                           onRemove={remove}
                           search={search}
                           onSearchChange={onSearchChange}
@@ -866,7 +925,7 @@ export function EventEditor({
       </Workspace>
       <WorkspaceFooter width={config.width}>
         <Button
-          disabled={!filtered.length || pending || submitted}
+          disabled={!filtered.length || pending || submitted || !!refusal}
           onClick={() => setClearOpen(true)}
           size="lg"
           variant="outline"
@@ -874,7 +933,7 @@ export function EventEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
-          disabled={!lines.length || pending || submitted || !ready}
+          disabled={!lines.length || pending || submitted || !!refusal || !ready}
           ref={submitButton}
           form={config.formId}
           size="lg"
@@ -913,10 +972,42 @@ export function EventEditor({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+            <div className={refusal ? 'flex w-full flex-col gap-2' : 'contents'}>
+              {refusal && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => void navigate({ to: '/stock-management/device-events' })}
+                  >
+                    {t('device-events.review')}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setFailure(null);
+                      setReviewRefusal(true);
+                    }}
+                  >
+                    {t('device-events.copy')}
+                  </Button>
+                </>
+              )}
+              <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {refusal && reviewRefusal && (
+        <DeviceEventRecovery
+          event={{ ...refusal.event, status: 'refused', error: refusal }}
+          canView={canViewStock}
+          onClose={() => setReviewRefusal(false)}
+          onCopied={() => {
+            setRefusal(null);
+            posting.current = false;
+            draft.reload();
+          }}
+        />
+      )}
       <ClearLinesDialog
         kind={kind}
         open={clearOpen}

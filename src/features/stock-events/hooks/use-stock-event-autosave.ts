@@ -115,6 +115,7 @@ export function useStockEventAutosave(
       state.status !== 'loading',
     readFailed: enabled && state.status === 'failed' && writer.current === undefined,
     loading: enabled && (state.status === 'loading' || !writer.current),
+    reload: () => setRetryLoad((value) => value + 1),
     retry: () => {
       if (writer.current) writer.current.retry();
       else setRetryLoad((value) => value + 1);

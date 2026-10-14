@@ -58,12 +58,14 @@ import {
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
+import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import {
   archiveStockEventCopy,
   createStockEventContext,
   readStockEventDraft,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
+import { syncStockEvents } from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
@@ -73,12 +75,12 @@ import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/stock-events/lib/stock-event-delivery', () => ({
-  waitForStockEventReceipt: vi.fn(async () => undefined),
+  waitForStockEventReceipt: vi.fn(async () => ({ kind: 'queued' })),
 }));
 
 vi.mock('@/lib/offline-download-status', () => ({ refreshOfflineProgram: vi.fn() }));
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
 vi.mock('@/lib/adjustment-bundle', async (original) => ({
   ...(await original<typeof import('@/lib/adjustment-bundle')>()),
@@ -165,6 +167,7 @@ beforeAll(() =>
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
+  vi.mocked(waitForStockEventReceipt).mockReset().mockResolvedValue({ kind: 'queued' });
   scanningEnabled = false;
   vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
   vi.mocked(fetchValidReasons)
@@ -174,6 +177,8 @@ beforeEach(async () => {
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
   await getLocalDb().table('stockEventDrafts').clear();
   await getLocalDb().table('stockEventQueue').clear();
+  await getLocalDb().table('stockEventSyncErrors').clear();
+  await getLocalDb().table('stockEventReceipts').clear();
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -766,6 +771,102 @@ describe('EventEditor', () => {
     expect(toast.success).toHaveBeenLastCalledWith(en['stock-events.queued-title'], {
       description: en['stock-events.queued-description'],
     });
+  });
+  it('accepted device delivery shows Synced and uses the online landing', async () => {
+    vi.mocked(waitForStockEventReceipt).mockImplementationOnce(async (event) => ({
+      kind: 'accepted',
+      receipt: {
+        draftId: event.draftId,
+        revision: event.revision,
+        localEventId: event.localEventId,
+        acceptedAt: Date.now(),
+        source: 'server',
+        serverEventId: 'accepted-event',
+        event,
+      },
+    }));
+    const { user, onSubmitted } = setup();
+    await validLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('accepted-event', true));
+    expect(toast.success).toHaveBeenLastCalledWith(en['device-events.synced'], {
+      description: en['stock-adjustment.submitted-description'],
+    });
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+  it.each(['uncertain', 'blocked'] as const)(
+    '%s delivery warns with review and uses the program-list landing',
+    async (kind) => {
+      vi.mocked(waitForStockEventReceipt).mockResolvedValueOnce({ kind });
+      const { user, onSubmitted } = setup();
+      await validLine(user);
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+      await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith(expect.any(String), false));
+      expect(toast.warning).toHaveBeenCalledWith(
+        en[kind === 'uncertain' ? 'device-events.needs-review' : 'device-events.blocked-title'],
+        {
+          description:
+            en[
+              kind === 'uncertain'
+                ? 'device-events.needs-review-description'
+                : 'device-events.blocked-description'
+            ],
+          action: { label: en['device-events.review'], onClick: expect.any(Function) },
+        },
+      );
+      expect(toast.success).not.toHaveBeenCalled();
+    },
+  );
+  it('online refusal stays in the editor with the server message and safely reopens a corrected copy', async () => {
+    vi.mocked(waitForStockEventReceipt).mockImplementationOnce(async (event) => {
+      await syncStockEvents(getLocalDb(), event.userId, {
+        check: () => {},
+        canSend: () => true,
+        permitted: () => true,
+        send: async () => ({
+          status: 400,
+          data: { messageKey: 'stock-changed', message: 'Backdated stock would be negative' },
+        }),
+        retryReceipt: async () => {},
+        accepted: () => {},
+      });
+      return {
+        kind: 'refused',
+        error: await getLocalDb().table('stockEventSyncErrors').get(event.localEventId),
+      };
+    });
+    const { user, onSubmitted } = setup();
+    await validLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    const failure = await screen.findByRole('alertdialog');
+    expect(failure).toHaveTextContent('Backdated stock would be negative');
+    expect(within(failure).getByRole('button', { name: 'Review Device Events' })).toBeEnabled();
+    expect(
+      screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/, hidden: true }),
+    ).toHaveValue('17');
+    expect(screen.getByRole('button', { name: 'Submit', hidden: true })).toBeDisabled();
+    expect(onSubmitted).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    await user.click(within(failure).getByRole('button', { name: 'Copy For Correction' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Copy For Correction',
+      }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Copy For Correction',
+      }),
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled());
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
+    const drafts = await getLocalDb().table('stockEventDrafts').toArray();
+    expect(drafts.map((row) => row.state).sort()).toEqual(['editing', 'refused']);
+    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect(onSubmitted).not.toHaveBeenCalled();
   });
   it('failed local enqueue never shows success or freezes the draft', async () => {
     const { user, onSubmitted } = setup();
