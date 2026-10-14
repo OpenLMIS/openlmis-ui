@@ -1072,7 +1072,7 @@
   "requisition-groups.page-description": "أدر مجموعات الطلبات وبرامجها والمنشآت الأعضاء فيها.",
   "requisition-groups.program": "البرنامج",
   "requisition-groups.program-count": "{count, plural, zero {# برامج} one {# برنامج} two {برنامجان} few {# برامج} many {# برنامجًا} other {# برنامج}}",
-  "requisition-groups.program-count-for": "{count} برامج في {name}",
+  "requisition-groups.program-count-for": "{count, plural, zero {# برامج في {name}} one {# برنامج في {name}} two {برنامجان في {name}} few {# برامج في {name}} many {# برنامجًا في {name}} other {# برنامج في {name}}}",
   "requisition-groups.supervisory-node": "عقدة الإشراف",
   "requisition-groups.title": "مجموعات الطلبات",
   "requisition-groups.unknown-zone": "منطقة جغرافية غير معروفة",

@@ -338,6 +338,7 @@ function GeneralFields({
 }) {
   const { t } = useTranslation();
   const fields = GENERAL_FIELDS[readOnly ? 'view' : 'edit'];
+  const savedNodes = useMemo(() => (saved ? [saved.supervisoryNode] : []), [saved]);
   return (
     <FieldGroup>
       <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
@@ -345,7 +346,7 @@ function GeneralFields({
           name === 'nodeId' ? (
             <LookupField key={name} label={t(labelKey)} required={!readOnly}>
               {readOnly ? (
-                <NodeControl form={form} readOnly nodes={saved ? [saved.supervisoryNode] : []} />
+                <NodeControl form={form} readOnly nodes={savedNodes} />
               ) : (
                 <NodeField form={form} saved={saved} />
               )}
@@ -370,10 +371,13 @@ function GeneralFields({
 }
 function NodeField({ form, saved }: { form: GroupForm; saved?: RequisitionGroup }) {
   const { data } = useSuspenseQuery(REQUISITION_GROUP_LOOKUPS.nodes);
-  const nodes =
-    saved && !data.some((node) => node.id === saved.supervisoryNode.id)
-      ? [...data, saved.supervisoryNode]
-      : data;
+  const nodes = useMemo(
+    () =>
+      saved && !data.some((node) => node.id === saved.supervisoryNode.id)
+        ? [...data, saved.supervisoryNode]
+        : data,
+    [data, saved],
+  );
   return <NodeControl form={form} readOnly={false} nodes={nodes} />;
 }
 function NodeControl({
@@ -895,6 +899,14 @@ function AddProgramForm({ rows, onAdd }: Pick<AddProgramProps, 'rows' | 'onAdd'>
 function ProgramPicker({ form, rows }: { form: ProgramForm; rows: ProgramSchedule[] }) {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(REQUISITION_GROUP_LOOKUPS.programs);
+  const items = useMemo(
+    () =>
+      availablePrograms(data, rows).map((program) => ({
+        value: program.id,
+        label: programName(program),
+      })),
+    [data, rows],
+  );
   return (
     <form.AppField name="programId">
       {(field) => (
@@ -904,10 +916,7 @@ function ProgramPicker({ form, rows }: { form: ProgramForm; rows: ProgramSchedul
           placeholder={t('requisition-groups.form.pick-program')}
           clearLabel={t('requisition-groups.form.clear-program')}
           emptyMessage={t('requisition-groups.form.no-options')}
-          items={availablePrograms(data, rows).map((program) => ({
-            value: program.id,
-            label: programName(program),
-          }))}
+          items={items}
         />
       )}
     </form.AppField>
