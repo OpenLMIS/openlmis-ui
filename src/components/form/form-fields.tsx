@@ -86,7 +86,6 @@ type FieldProps = {
   disabled?: boolean;
   layout?: FieldLayout;
   hideErrors?: boolean;
-  errorDescriptionId?: string;
 };
 
 type FieldFrameProps = FieldProps & {
@@ -306,6 +305,8 @@ function FieldFrame({
 
 type TextFieldProps = FieldProps &
   Pick<FieldFrameProps, 'badge'> & {
+    errorDescriptionId?: string;
+    controlSize?: 'sm' | 'default';
     type?: 'text' | 'email' | 'tel' | 'time';
     autoComplete?: string;
     placeholder?: string;
@@ -318,7 +319,6 @@ type TextFieldProps = FieldProps &
 export function TextField({
   label,
   layout,
-  hideErrors,
   badge,
   description,
   errorDescriptionId,
@@ -330,6 +330,7 @@ export function TextField({
   maxLength,
   dir,
   inputMode,
+  controlSize,
 }: TextFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description, undefined, badge, [], errorDescriptionId);
@@ -342,7 +343,6 @@ export function TextField({
       disabled={disabled}
       label={label}
       layout={layout}
-      hideErrors={hideErrors}
       required={required}
       state={state}
     >
@@ -350,7 +350,7 @@ export function TextField({
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         aria-required={required}
-        controlSize={layout === 'inline' ? 'sm' : 'default'}
+        controlSize={controlSize}
         autoComplete={autoComplete}
         dir={dir}
         disabled={disabled}
@@ -368,7 +368,9 @@ export function TextField({
   );
 }
 
-export function NumberField(props: FieldProps) {
+export function NumberField(
+  props: Pick<TextFieldProps, keyof FieldProps | 'errorDescriptionId' | 'controlSize'>,
+) {
   return <TextField {...props} autoComplete="off" dir="ltr" inputMode="numeric" />;
 }
 
@@ -505,6 +507,8 @@ export function DecimalField(props: FieldProps) {
 }
 
 type TextareaFieldProps = FieldProps & {
+  errorDescriptionId?: string;
+  describedBy?: string;
   hideErrors?: boolean;
   maxLength?: number;
   placeholder?: string;
@@ -522,6 +526,7 @@ export function TextareaField({
   placeholder,
   maxLength,
   dir,
+  describedBy,
 }: TextareaFieldProps) {
   const field = useFieldContext<string>();
   const state = useFieldErrors(description, undefined, undefined, [], errorDescriptionId);
@@ -542,7 +547,7 @@ export function TextareaField({
         rows={layout === 'inline' ? 1 : undefined}
         size={layout === 'inline' ? 'inline' : 'default'}
         dir={dir}
-        aria-describedby={ariaDescribedBy}
+        aria-describedby={[ariaDescribedBy, describedBy].filter(Boolean).join(' ') || undefined}
         aria-invalid={isInvalid}
         aria-required={required}
         disabled={disabled}
@@ -1002,6 +1007,7 @@ export type SelectFieldItem = {
 
 type SelectFieldProps = FieldProps &
   Pick<FieldFrameProps, 'action' | 'hideErrors'> & {
+    errorDescriptionId?: string;
     placeholder?: string;
     items: readonly SelectFieldItem[];
     size?: 'sm' | 'default';
@@ -1079,6 +1085,8 @@ export type ComboboxFieldItem = {
 };
 
 type ComboboxFieldProps = FieldProps & {
+  invalid?: boolean;
+  describedBy?: string;
   items: readonly ComboboxFieldItem[];
   placeholder?: string;
   emptyMessage: ReactNode;
@@ -1099,6 +1107,8 @@ export function ComboboxField({
   placeholder,
   emptyMessage,
   clearLabel,
+  invalid,
+  describedBy,
   limit = 50,
 }: ComboboxFieldProps) {
   const field = useFieldContext<string | null>();
@@ -1132,8 +1142,8 @@ export function ComboboxField({
         value={selected}
       >
         <ComboboxInput
-          aria-describedby={ariaDescribedBy}
-          aria-invalid={isInvalid}
+          aria-describedby={[ariaDescribedBy, describedBy].filter(Boolean).join(' ') || undefined}
+          aria-invalid={isInvalid || invalid}
           aria-required={required}
           clearLabel={clearLabel}
           disabled={disabled}

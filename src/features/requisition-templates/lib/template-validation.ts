@@ -10,7 +10,14 @@ export type TemplateError = {
   values?: Record<string, string>;
 };
 export type RowError = TemplateError & {
-  field: 'label' | 'definition' | 'source' | 'option' | 'display' | 'periods' | 'tag';
+  field:
+    | 'label'
+    | 'definition'
+    | 'source'
+    | 'optionId'
+    | 'isDisplayed'
+    | 'numberOfPeriodsToAverage'
+    | 'tag';
 };
 
 const UTF8_REGEX =
@@ -82,10 +89,13 @@ function columnRule(
   if (name === 'averageConsumption') {
     const result = periodsSchema.safeParse(draft.numberOfPeriodsToAverage);
     if (!result.success)
-      return { field: 'periods', key: result.error.issues[0].message as ParseKeys };
+      return {
+        field: 'numberOfPeriodsToAverage',
+        key: result.error.issues[0].message as ParseKeys,
+      };
     const periods = toWholeNumber(draft.numberOfPeriodsToAverage);
-    if (!periods) return { field: 'periods', key: `${PREFIX}periods-required` };
-    if (periods < 2) return { field: 'periods', key: `${PREFIX}periods-minimum` };
+    if (!periods) return { field: 'numberOfPeriodsToAverage', key: `${PREFIX}periods-required` };
+    if (periods < 2) return { field: 'numberOfPeriodsToAverage', key: `${PREFIX}periods-minimum` };
   }
   const paired: Record<string, string> = {
     requestedQuantity: 'requestedQuantityExplanation',
@@ -94,14 +104,18 @@ function columnRule(
   };
   const other = columns[paired[name]];
   if (column.isDisplayed && other && !other.isDisplayed) {
-    return { field: 'display', key: `${PREFIX}display-mismatch`, values: { column: other.label } };
+    return {
+      field: 'isDisplayed',
+      key: `${PREFIX}display-mismatch`,
+      values: { column: other.label },
+    };
   }
   if (name === 'totalStockoutDays' && !draft.patientsTabEnabled && !column.isDisplayed) {
     for (const dependency of ['adjustedConsumption', 'averageConsumption']) {
       const other = columns[dependency];
       if (other?.isDisplayed && other.source === 'CALCULATED') {
         return {
-          field: 'display',
+          field: 'isDisplayed',
           key: `${PREFIX}calculated-display`,
           values: { column: other.label },
         };
@@ -118,7 +132,7 @@ function columnRule(
     const explanation = columns.requestedQuantityExplanation;
     if (requested && explanation && (!requested.isDisplayed || !explanation.isDisplayed)) {
       return {
-        field: 'display',
+        field: 'isDisplayed',
         key: `${PREFIX}requested-display`,
         values: {
           calculatedOrderQuantity: column.label,
@@ -140,7 +154,7 @@ function rowError(key: string, draft: TemplateDraft, columns: NamedColumns): Row
     return { field: 'definition', key: `${PREFIX}definition-long` };
   if (empty(column.source)) return { field: 'source', key: `${PREFIX}source-required` };
   if (column.isDisplayed && definition.options.length && !column.optionId)
-    return { field: 'option', key: `${PREFIX}option-required` };
+    return { field: 'optionId', key: `${PREFIX}option-required` };
   if (column.source === 'CALCULATED') {
     const dependencies = circularDependencies(definition.name, columns);
     if (dependencies.length)
@@ -157,7 +171,7 @@ function rowError(key: string, draft: TemplateDraft, columns: NamedColumns): Row
     column.source === 'USER_INPUT' &&
     definition.sources.length > 1
   )
-    return { field: 'display', key: `${PREFIX}user-input-display` };
+    return { field: 'isDisplayed', key: `${PREFIX}user-input-display` };
   const specific = columnRule(definition.name, column, draft, columns);
   if (specific) return specific;
   if (draft.populateStockOnHandFromStockCards && definition.supportsTag && empty(column.tag))
@@ -166,13 +180,21 @@ function rowError(key: string, draft: TemplateDraft, columns: NamedColumns): Row
     return { field: 'source', key: `${PREFIX}stock-cards` };
 }
 
-export function getRowErrors(draft: TemplateDraft): Record<string, RowError> {
-  const columns = Object.fromEntries(
+function namedColumns(draft: TemplateDraft) {
+  return Object.fromEntries(
     Object.entries(draft.columns).map(([key, column]) => [
       draft.columnDefinitions[key].name,
       column,
     ]),
   );
+}
+
+export function getRowError(draft: TemplateDraft, key: string) {
+  return rowError(key, draft, namedColumns(draft));
+}
+
+export function getRowErrors(draft: TemplateDraft): Record<string, RowError> {
+  const columns = namedColumns(draft);
   const errors: Record<string, RowError> = {};
   for (const key of draft.order) {
     const error = rowError(key, draft, columns);
@@ -184,8 +206,4 @@ export function getRowErrors(draft: TemplateDraft): Record<string, RowError> {
 export function getNameError(draft: Pick<TemplateDraft, 'name'>): TemplateError | undefined {
   if (!draft.name.trim()) return { key: 'requisition-templates.form.name-required' };
   if (draft.name.length > 255) return { key: 'requisition-templates.form.name-too-long' };
-}
-
-export function isDraftValid(draft: TemplateDraft) {
-  return !getNameError(draft) && Object.keys(getRowErrors(draft)).length === 0;
 }

@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useStore } from '@tanstack/react-form';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { GripVerticalIcon, LockKeyholeIcon } from 'lucide-react';
-import { type CSSProperties, memo, useState } from 'react';
+import { type CSSProperties, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LookupBoundary } from '@/components/dialog-parts';
 import { Badge } from '@/components/ui/badge';
@@ -13,22 +13,17 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { templateReasonTagsOptions } from '@/features/requisition-templates/api/queries';
 import type { TemplateEditorForm } from '@/features/requisition-templates/components/template-editor';
 import { OPTION_KEYS, SOURCE_KEYS } from '@/features/requisition-templates/lib/column-labels';
-import { setDisplayed, tagChoices } from '@/features/requisition-templates/lib/template-draft';
 import {
-  getRowErrors,
+  STOCK_COLUMNS,
+  setDisplayed,
+  tagChoices,
+} from '@/features/requisition-templates/lib/template-draft';
+import {
+  getRowError,
   type RowError,
 } from '@/features/requisition-templates/lib/template-validation';
 import type { TemplateColumn } from '@/features/requisition-templates/lib/types';
 
-const STOCK_COLUMNS = new Set([
-  'beginningBalance',
-  'stockOnHand',
-  'totalLossesAndAdjustments',
-  'totalConsumedQuantity',
-  'totalReceivedQuantity',
-  'totalStockoutDays',
-  'averageConsumption',
-]);
 type Props = { form: TemplateEditorForm; column: TemplateColumn };
 
 export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
@@ -38,15 +33,14 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
   const draft = useStore(form.store, (state) => state.values.columns[key]);
   const stock = useStore(form.store, (state) => state.values.populateStockOnHandFromStockCards);
   const errorText = useStore(form.store, (state) =>
-    JSON.stringify(getRowErrors(state.values)[key] ?? null),
+    JSON.stringify(getRowError(state.values, key) ?? null),
   );
   const error = JSON.parse(errorText) as RowError | null;
   const errorId = `template-row-${key}-error`;
   const describedBy = (field: RowError['field']) => (error?.field === field ? errorId : undefined);
-  const [focused, setFocused] = useState(false);
-  const sortable = useSortable({ id: key, disabled: !definition.canChangeOrder });
+  const sortable = useSortable({ id: key, disabled: { draggable: !definition.canChangeOrder } });
   const canChangeSource =
-    definition.sources.length > 1 && !(stock && STOCK_COLUMNS.has(definition.name));
+    definition.sources.length > 1 && !(stock && STOCK_COLUMNS.includes(definition.name));
   const option = definition.options.find((option) => option.id === draft.optionId);
   const optionName = (name: string) => (OPTION_KEYS[name] ? t(OPTION_KEYS[name]) : name);
   const named = (field: string) =>
@@ -80,7 +74,7 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
           </div>
         ) : (
           <LockKeyholeIcon
-            aria-label={t('requisition-templates.configure.fixed')}
+            aria-label={t('requisition-templates.configure.fixed', { label: draft.label })}
             role="img"
             className="mx-auto size-4 text-muted-foreground"
           />
@@ -96,8 +90,8 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
                 aria-label={t('requisition-templates.configure.display-label', {
                   label: draft.label,
                 })}
-                aria-invalid={error?.field === 'display'}
-                aria-describedby={describedBy('display')}
+                aria-invalid={error?.field === 'isDisplayed'}
+                aria-describedby={describedBy('isDisplayed')}
                 onBlur={field.handleBlur}
                 onCheckedChange={(value) => {
                   const next = setDisplayed(form.state.values, key, value);
@@ -116,7 +110,8 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
           {(field) => (
             <field.TextField
               layout="inline"
-              hideErrors
+              controlSize="sm"
+              dir="auto"
               errorDescriptionId={describedBy('label')}
               label={named(t('requisition-templates.configure.label'))}
             />
@@ -124,32 +119,28 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
         </form.AppField>
       </TableCell>
       <TableCell>
-        <fieldset
-          className="min-w-0 whitespace-normal"
-          onFocus={() => setFocused(true)}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
-          }}
-        >
+        <div className="group min-w-0 whitespace-normal">
           <form.AppField name={`columns.${key}.definition`}>
             {(field) => (
               <field.TextareaField
                 layout="inline"
-                hideErrors
                 errorDescriptionId={describedBy('definition')}
+                dir="auto"
+                describedBy={`template-row-${key}-counter`}
                 maxLength={140}
                 label={named(t('requisition-templates.configure.definition'))}
               />
             )}
           </form.AppField>
-          {focused && (
-            <p className="mt-1 text-muted-foreground text-xs">
-              {t('requisition-templates.configure.characters-left', {
-                count: 140 - (draft.definition?.length ?? 0),
-              })}
-            </p>
-          )}
-        </fieldset>
+          <p
+            id={`template-row-${key}-counter`}
+            className="mt-1 hidden text-muted-foreground text-xs group-focus-within:block"
+          >
+            {t('requisition-templates.configure.characters-left', {
+              count: 140 - (draft.definition?.length ?? 0),
+            })}
+          </p>
+        </div>
       </TableCell>
       <TableCell>
         <div className="whitespace-normal">
@@ -158,7 +149,6 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
               {(field) => (
                 <field.SelectField
                   layout="inline"
-                  hideErrors
                   size="sm"
                   errorDescriptionId={describedBy('source')}
                   label={named(t('requisition-templates.configure.source'))}
@@ -187,8 +177,8 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
                 {(field) => (
                   <field.NumberField
                     layout="inline"
-                    hideErrors
-                    errorDescriptionId={describedBy('periods')}
+                    controlSize="sm"
+                    errorDescriptionId={describedBy('numberOfPeriodsToAverage')}
                     label={named(t('requisition-templates.configure.periods'))}
                   />
                 )}
@@ -201,9 +191,8 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
                 {(field) => (
                   <field.SelectField
                     layout="inline"
-                    hideErrors
                     size="sm"
-                    errorDescriptionId={describedBy('option')}
+                    errorDescriptionId={describedBy('optionId')}
                     label={named(t('requisition-templates.configure.additional-options'))}
                     items={definition.options.map((option) => ({
                       value: option.id,
@@ -223,7 +212,12 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
               errorTitle={t('requisition-templates.form.lookup-error')}
               errorDescription={t('error.check-connection')}
             >
-              <TagField form={form} column={column} describedBy={describedBy('tag')} />
+              <TagField
+                label={draft.label}
+                form={form}
+                column={column}
+                describedBy={describedBy('tag')}
+              />
             </LookupBoundary>
           )}
           {error && (
@@ -237,7 +231,12 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
   );
 });
 
-function TagField({ form, column, describedBy }: Props & { describedBy: string | undefined }) {
+function TagField({
+  form,
+  column,
+  describedBy,
+  label,
+}: Props & { describedBy: string | undefined; label: string }) {
   const { t } = useTranslation();
   const { data: tags } = useSuspenseQuery(templateReasonTagsOptions());
   const key = column.columnDefinition.id;
@@ -245,7 +244,6 @@ function TagField({ form, column, describedBy }: Props & { describedBy: string |
     JSON.stringify(tagChoices(state.values, key, tags)),
   );
   const choices = JSON.parse(choicesText) as string[];
-  const label = useStore(form.store, (state) => state.values.columns[key].label);
   return (
     <div className="flex flex-col gap-1">
       <span aria-hidden="true" className="text-sm">
@@ -255,7 +253,6 @@ function TagField({ form, column, describedBy }: Props & { describedBy: string |
         {(field) => (
           <field.SelectField
             layout="inline"
-            hideErrors
             size="sm"
             errorDescriptionId={describedBy}
             label={t('requisition-templates.configure.row-label', {

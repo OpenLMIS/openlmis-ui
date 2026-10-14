@@ -23,7 +23,6 @@ export function addTemplateFormSchema(refusedNames: readonly string[]) {
     facilityTypeIds: z
       .array(z.string())
       .min(1, errorKey('requisition-templates.form.facility-types-required')),
-    facilityTypeId: z.string().nullable(),
   });
 }
 
@@ -34,7 +33,6 @@ export const EMPTY_ADD_TEMPLATE_FORM: AddTemplateFormValues = {
   programId: null,
   requisitionReportOnly: false,
   facilityTypeIds: [],
-  facilityTypeId: null,
 };
 
 export function isDuplicateName(error: unknown) {

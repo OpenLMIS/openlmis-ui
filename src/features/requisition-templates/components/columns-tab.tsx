@@ -18,17 +18,14 @@ import {
 import { useStore } from '@tanstack/react-form';
 import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { DataTableCard } from '@/components/data-table/data-table';
 import { SettingsList } from '@/components/form/settings-list';
 import { Table, TableBody } from '@/components/ui/table';
 import { ColumnRow } from '@/features/requisition-templates/components/column-row';
 import { TemplateColumnsHeader } from '@/features/requisition-templates/components/template-columns-header';
 import type { TemplateEditorForm } from '@/features/requisition-templates/components/template-editor';
-import {
-  movableRuns,
-  moveColumn,
-  sortColumns,
-} from '@/features/requisition-templates/lib/column-order';
+import { movableRuns, moveColumn } from '@/features/requisition-templates/lib/column-order';
 import { setStockFlag } from '@/features/requisition-templates/lib/template-draft';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
 
@@ -50,10 +47,15 @@ export function ColumnsTab({
         .filter((column) => column !== undefined),
     [order, saved],
   );
-  const runs = useMemo(
-    () => movableRuns(rows).map((run) => run.map((row) => row.columnDefinition.id)),
-    [rows],
-  );
+  const orderRows = () =>
+    Object.entries(form.state.values.columns)
+      .map(([id, column]) => ({
+        id,
+        canChangeOrder: form.state.values.columnDefinitions[id].canChangeOrder,
+        displayOrder: column.displayOrder,
+      }))
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+  const runs = movableRuns(orderRows()).map((run) => run.map((row) => row.id));
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
@@ -67,7 +69,9 @@ export function ColumnsTab({
         run.includes(String(container.id)),
       ),
     };
-    return args.pointerCoordinates ? pointerWithin(filtered) : closestCenter(filtered);
+    const hits = args.pointerCoordinates ? pointerWithin(args) : [];
+    if (hits.length) return hits;
+    return closestCenter(filtered);
   };
   const label = (id: string | number) => form.state.values.columns[String(id)]?.label ?? '';
   const position = (id: string | number) => order.indexOf(String(id)) + 1;
@@ -120,20 +124,15 @@ export function ColumnsTab({
           },
         }}
         onDragEnd={({ active, over }) => {
-          if (!over || active.id === over.id) return;
-          const run = runs.find((run) => run.includes(String(active.id)));
-          if (!run?.includes(String(over.id))) return;
-          const draft = form.state.values;
-          const currentRows = sortColumns(
-            Object.fromEntries(
-              Object.entries(saved.columnsMap).map(([name, column]) => [
-                name,
-                { ...column, displayOrder: draft.columns[column.columnDefinition.id].displayOrder },
-              ]),
-            ),
-          );
-          const moved = moveColumn(currentRows, String(active.id), String(over.id));
-          if (!moved) return;
+          if (active.id === over?.id) return;
+          const currentRows = orderRows();
+          const moved = over ? moveColumn(currentRows, String(active.id), String(over.id)) : null;
+          if (!moved) {
+            toast.error(t('requisition-templates.configure.drop-refused-title'), {
+              description: t('requisition-templates.configure.drop-refused'),
+            });
+            return;
+          }
           form.setFieldValue('columns', (columns) =>
             Object.fromEntries(
               Object.entries(columns).map(([key, column]) => [
@@ -144,9 +143,7 @@ export function ColumnsTab({
           );
           form.setFieldValue(
             'order',
-            currentRows
-              .toSorted((a, b) => moved[a.columnDefinition.id] - moved[b.columnDefinition.id])
-              .map((column) => column.columnDefinition.id),
+            currentRows.toSorted((a, b) => moved[a.id] - moved[b.id]).map((column) => column.id),
           );
         }}
       >
@@ -157,18 +154,14 @@ export function ColumnsTab({
             style={{ '--table-width': '88rem' } as React.CSSProperties}
           >
             <TemplateColumnsHeader />
-            {rows.map((row) => {
-              const key = row.columnDefinition.id;
-              if (!row.columnDefinition.canChangeOrder)
-                return (
-                  <TableBody divided key={key}>
-                    <ColumnRow form={form} column={row} />
-                  </TableBody>
-                );
-              const run = runs.find((run) => run[0] === key);
-              return run ? (
-                <SortableContext key={key} items={run} strategy={verticalListSortingStrategy}>
-                  <TableBody divided>
+            <TableBody>
+              {rows.map((row) => {
+                const key = row.columnDefinition.id;
+                if (!row.columnDefinition.canChangeOrder)
+                  return <ColumnRow key={key} form={form} column={row} />;
+                const run = runs.find((run) => run[0] === key);
+                return run ? (
+                  <SortableContext key={key} items={run} strategy={verticalListSortingStrategy}>
                     {run.map((id) => (
                       <ColumnRow
                         key={id}
@@ -176,12 +169,12 @@ export function ColumnsTab({
                         column={rows.find((row) => row.columnDefinition.id === id) ?? row}
                       />
                     ))}
-                  </TableBody>
-                </SortableContext>
-              ) : (
-                <Fragment key={key} />
-              );
-            })}
+                  </SortableContext>
+                ) : (
+                  <Fragment key={key} />
+                );
+              })}
+            </TableBody>
           </Table>
         </DataTableCard>
       </DndContext>

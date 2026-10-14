@@ -103,7 +103,7 @@ export function applyDraft(latest: RequisitionTemplate, draft: TemplateDraft): R
   };
 }
 
-const STOCK_COLUMNS = [
+export const STOCK_COLUMNS = [
   'beginningBalance',
   'stockOnHand',
   'totalLossesAndAdjustments',

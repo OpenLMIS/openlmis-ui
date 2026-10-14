@@ -9,6 +9,8 @@ import { liveTemplates } from '@/features/requisition-templates/lib/test-templat
 function rows() {
   const sample = Object.values(liveTemplates[0].columnsMap)[0];
   return [0, 1, 3, 4, 6, 7, 8].map((displayOrder) => ({
+    id: `${displayOrder}`,
+    canChangeOrder: ![1, 6].includes(displayOrder),
     ...sample,
     name: `${displayOrder}`,
     displayOrder,
@@ -51,7 +53,7 @@ it('refuses locked rows, crossing locks, missing targets and the legacy zero low
     expect(moveColumn(rows(), from, to)).toBeNull();
   const columns = rows().map((column) => ({
     ...column,
-    columnDefinition: { ...column.columnDefinition, canChangeOrder: true },
+    canChangeOrder: true,
   }));
   expect(moveColumn(columns, '3', '0')).toBeNull();
 });
@@ -66,6 +68,7 @@ it('shifts every intervening row by one and leaves other runs unchanged', () => 
   const extra = {
     ...columns[3],
     name: '5',
+    id: '5',
     displayOrder: 5,
     columnDefinition: { ...columns[3].columnDefinition, id: '5' },
   };

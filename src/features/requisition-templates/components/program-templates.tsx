@@ -34,16 +34,17 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
               {getValue()}
             </span>
           ),
-          meta: { className: 'w-1/3' },
+          meta: { className: 'min-w-56 w-1/3' },
         }),
         helper.display({
           id: 'facilityTypes',
           header: t('requisition-templates.facility-type'),
           cell: ({ row }) => <FacilityTypesCell template={row.original} types={types} />,
-          meta: { className: 'w-1/4' },
+          meta: { className: 'min-w-48 w-1/4' },
         }),
         helper.accessor('requisitionReportOnly', {
           header: t('requisition-templates.report-only'),
+          meta: { className: 'min-w-32' },
           cell: ({ getValue }) =>
             getValue() ? (
               t('requisition-templates.yes')
@@ -54,7 +55,7 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         helper.display({
           id: 'actions',
           header: t('requisition-templates.action'),
-          meta: { className: 'w-32' },
+          meta: { className: 'min-w-36 w-36' },
           cell: ({ row }) => (
             <Link
               className={buttonVariants({ size: 'sm', variant: 'outline' })}
@@ -94,10 +95,12 @@ function ProgramTemplates({
         {programName(program)}
       </h2>
       <DataTable
+        layout="auto"
         table={table}
         empty={
           <DataTableEmpty
             title={t('requisition-templates.empty-program', { program: programName(program) })}
+            description={t('requisition-templates.empty-program-description')}
           />
         }
       />
@@ -111,7 +114,13 @@ export function ProgramTemplateSections() {
   const { data: templates } = useSuspenseQuery(requisitionTemplatesOptions());
   const { data: types } = useSuspenseQuery(facilityTypesOptions());
   const groups = groupTemplatesByProgram(programs, templates);
-  if (!groups.length) return <DataTableEmpty title={t('requisition-templates.no-programs')} />;
+  if (!groups.length)
+    return (
+      <DataTableEmpty
+        title={t('requisition-templates.no-programs')}
+        description={t('requisition-templates.no-programs-description')}
+      />
+    );
   return (
     <div className="flex min-w-0 flex-col gap-6">
       {groups.map(({ program, templates }) => (

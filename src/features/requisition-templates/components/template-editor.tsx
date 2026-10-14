@@ -43,7 +43,6 @@ import {
 import {
   getNameError,
   getRowErrors,
-  type RowError,
 } from '@/features/requisition-templates/lib/template-validation';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -51,24 +50,15 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
 export type TemplateTab = 'columns' | 'settings';
-export const ROW_ERROR_FIELDS: Record<RowError['field'], string> = {
-  label: 'label',
-  definition: 'definition',
-  source: 'source',
-  option: 'optionId',
-  display: 'isDisplayed',
-  periods: 'numberOfPeriodsToAverage',
-  tag: 'tag',
-};
 const schema = z.custom<TemplateDraft>().superRefine((draft, context) => {
   for (const [key, error] of Object.entries(getRowErrors(draft))) {
     context.addIssue({
       code: 'custom',
       message: error.key,
       path:
-        error.field === 'periods'
+        error.field === 'numberOfPeriodsToAverage'
           ? ['numberOfPeriodsToAverage']
-          : ['columns', key, ROW_ERROR_FIELDS[error.field]],
+          : ['columns', key, error.field],
     });
   }
   const error = getNameError(draft);
@@ -112,9 +102,11 @@ export function TemplateEditor({
   const [initialValues] = useState(() => draftFromTemplate(saved));
   const [confirmation, setConfirmation] = useState<TemplateDraft | null>(null);
   const leaving = useRef(false);
+  const editorRef = useRef<HTMLFormElement>(null);
+  const [invalidTab, setInvalidTab] = useState<TemplateTab | null>(null);
   const save = useSessionMutation({
     mutationFn: (draft: TemplateDraft): Promise<RequisitionTemplate> =>
-      saveRequisitionTemplate(saved.id, draft, save.isCurrent),
+      saveRequisitionTemplate(saved.id, draft),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.requisitionTemplates.all });
       if (!save.isCurrent()) return;
@@ -140,7 +132,9 @@ export function TemplateEditor({
     initialValues,
     (draft) => setConfirmation(structuredClone(draft)),
     () => {
-      onTabChange(Object.keys(getRowErrors(form.state.values)).length ? 'columns' : 'settings');
+      const nextTab = Object.keys(getRowErrors(form.state.values)).length ? 'columns' : 'settings';
+      setInvalidTab(nextTab);
+      onTabChange(nextTab);
       toast.error(t('requisition-templates.configure.invalid-title'), {
         description: t('requisition-templates.configure.invalid'),
       });
@@ -149,6 +143,18 @@ export function TemplateEditor({
   useEffect(() => {
     void form.validate('change');
   }, [form]);
+  useEffect(() => {
+    if (invalidTab !== tab) return;
+    const frame = requestAnimationFrame(() => {
+      editorRef.current
+        ?.querySelector<HTMLElement>(
+          `[data-template-tab="${tab}"]:not([hidden]) [aria-invalid="true"]`,
+        )
+        ?.focus();
+      setInvalidTab(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [invalidTab, tab]);
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
   const guard = useDiscardGuard(changed, {
     pending: save.isPending,
@@ -175,6 +181,7 @@ export function TemplateEditor({
         </WorkspaceHeader>
         <WorkspaceContent>
           <form
+            ref={editorRef}
             id="template-editor"
             noValidate
             onSubmit={(event) => {
@@ -196,10 +203,10 @@ export function TemplateEditor({
                     {t('requisition-templates.configure.settings')}
                   </TabsTrigger>
                 </TabsList>
-                <TabsContent keepMounted value="columns">
+                <TabsContent data-template-tab="columns" keepMounted value="columns">
                   <ColumnsTab form={form} saved={saved} />
                 </TabsContent>
-                <TabsContent keepMounted value="settings">
+                <TabsContent data-template-tab="settings" keepMounted value="settings">
                   <SettingsTab form={form} saved={saved} />
                 </TabsContent>
               </Tabs>

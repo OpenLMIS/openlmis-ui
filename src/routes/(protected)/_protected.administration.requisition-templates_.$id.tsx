@@ -28,8 +28,7 @@ export const Route = createFileRoute(
   preload: false,
   validateSearch: z.object({ tab: z.literal('settings').optional().catch(undefined) }),
   loader: async ({ context: { queryClient }, params, cause }) => {
-    if (!z.uuid().safeParse(params.id).success) throw notFound();
-    await requireRight(queryClient, RIGHTS.requisitionTemplatesManage);
+    if (!z.guid().safeParse(params.id).success) throw notFound();
     const detail = requisitionTemplateOptions(params.id);
     try {
       const [template, programs] = await Promise.all([
@@ -37,6 +36,7 @@ export const Route = createFileRoute(
           ? queryClient.ensureQueryData(detail)
           : queryClient.fetchQuery({ ...detail, staleTime: 0 }),
         queryClient.ensureQueryData(programsOptions()),
+        requireRight(queryClient, RIGHTS.requisitionTemplatesManage),
       ]);
       if (!template.program?.id) throw notFound();
       queryClient.prefetchQuery(templateReasonTagsOptions());
@@ -55,9 +55,12 @@ export const Route = createFileRoute(
 });
 
 function ConfigurePage() {
-  const router = useRouter();
-  const navigate = Route.useNavigate();
   const loaded = Route.useLoaderData();
+  return <ConfigureRecord key={loaded.template.id} loaded={loaded} />;
+}
+
+function ConfigureRecord({ loaded }: { loaded: ReturnType<typeof Route.useLoaderData> }) {
+  const navigate = Route.useNavigate();
   const [saved] = useState(loaded);
   const { tab } = Route.useSearch();
   return (
@@ -77,7 +80,6 @@ function ConfigurePage() {
       onSaved={() => {
         void navigate({ to: '/administration/requisition-templates', search: {}, replace: true });
       }}
-      key={`${saved.template.id}-${router.state.location.pathname}`}
     />
   );
 }
@@ -85,7 +87,26 @@ function ConfigurePage() {
 function ConfigurePending() {
   const router = useRouter();
   const search = router.state.location.search as { tab?: 'settings' };
-  return <TemplateEditorSkeleton tab={search.tab ?? 'columns'} />;
+  const { t } = useTranslation();
+  const { queryClient } = router.options.context;
+  const id = router.state.location.pathname.split('/').at(-1) ?? '';
+  const template = queryClient.getQueryData(requisitionTemplateOptions(id).queryKey);
+  const program = queryClient
+    .getQueryData(programsOptions().queryKey)
+    ?.find((program) => program.id === template?.program?.id);
+  return (
+    <TemplateEditorSkeleton
+      tab={search.tab ?? 'columns'}
+      title={
+        template
+          ? t('requisition-templates.configure.title', {
+              template: template.name,
+              program: program ? programName(program) : '',
+            })
+          : undefined
+      }
+    />
+  );
 }
 
 function ConfigureError(props: ErrorComponentProps) {

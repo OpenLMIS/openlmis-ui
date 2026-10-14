@@ -122,6 +122,7 @@ describe('TemplateEditor', () => {
     const invalidField = screen.getAllByRole('textbox', {
       name: 'requisition-templates.configure.row-label',
     })[0];
+    await waitFor(() => expect(invalidField).toHaveFocus());
     expect(invalidField).toHaveAttribute('aria-invalid', 'true');
     expect(invalidField).toHaveAccessibleDescription(
       'requisition-templates.configure.validation.label-required',

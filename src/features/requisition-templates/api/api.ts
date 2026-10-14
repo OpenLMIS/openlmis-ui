@@ -30,7 +30,7 @@ export async function createRequisitionTemplate(
 
 export class ReplacedTemplateError extends Error {
   constructor() {
-    super('This template has been replaced. Open it again from the list.');
+    super();
     this.name = 'ReplacedTemplateError';
   }
 }
@@ -42,18 +42,16 @@ export async function fetchRequisitionTemplate(id: string): Promise<RequisitionT
 
 export async function fetchReasonTags(): Promise<string[]> {
   const { data } = await client.get<string[]>('/stockCardLineItemReasonTags');
-  return data;
+  return data.toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
 export async function saveRequisitionTemplate(
   id: string,
   draft: TemplateDraft,
-  isCurrent: () => boolean = () => true,
 ): Promise<RequisitionTemplate> {
   const scope = getSessionScope();
   const latest = await fetchRequisitionTemplate(id);
   assertSessionScope(scope);
-  if (!isCurrent()) throw new Error('The session has changed.');
   if (!latest.program?.id) throw new ReplacedTemplateError();
   const { data } = await client.put<RequisitionTemplate>(
     `/requisitionTemplates/${id}`,

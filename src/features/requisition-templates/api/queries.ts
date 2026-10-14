@@ -34,5 +34,4 @@ export const templateReasonTagsOptions = () =>
   queryOptions({
     queryKey: [...queryKeys.reasons.all, 'tags'],
     queryFn: fetchReasonTags,
-    staleTime: LOOKUP_STALE_TIME,
   });

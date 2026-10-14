@@ -1,15 +1,9 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  DataTableCard,
-  DataTableEmpty,
-  DataTableHeaderLabel,
-} from '@/components/data-table/data-table';
 import { ErrorAlert, LookupBoundary, serverMessage } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { useFormatError } from '@/components/form/form-messages';
@@ -35,24 +29,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { FieldError, FieldGroup } from '@/components/ui/field';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { FieldGroup } from '@/components/ui/field';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
-import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import { createRequisitionTemplate } from '@/features/requisition-templates/api/api';
 import {
   availableColumnsOptions,
   requisitionTemplatesOptions,
 } from '@/features/requisition-templates/api/queries';
+import { FacilityTypesFields } from '@/features/requisition-templates/components/facility-types-fields';
 import {
   type AddTemplateFormValues,
   addTemplateFormSchema,
@@ -145,7 +130,6 @@ function AddTemplateForm() {
   const queryClient = useQueryClient();
   const clearTypes = () => {
     form.setFieldValue('facilityTypeIds', []);
-    form.setFieldValue('facilityTypeId', null);
   };
   const program = queryClient
     .getQueryData(programsOptions().queryKey)
@@ -172,6 +156,7 @@ function AddTemplateForm() {
             <form.AppField name="name">
               {(field) => (
                 <field.TextField
+                  dir="auto"
                   autoComplete="off"
                   label={t('requisition-templates.form.name')}
                   required
@@ -194,7 +179,7 @@ function AddTemplateForm() {
               errorTitle={t('requisition-templates.form.lookup-error')}
               errorDescription={t('error.check-connection')}
             >
-              <FacilityTypesFields form={form} />
+              <AddFacilityTypes form={form} />
             </LookupBoundary>
           </FieldGroup>
         </FormDialogBody>
@@ -251,140 +236,49 @@ function ProgramField({ form, clearTypes }: { form: TemplateForm; clearTypes: ()
   );
 }
 
-function FacilityTypesFields({ form }: { form: TemplateForm }) {
+function AddFacilityTypes({ form }: { form: TemplateForm }) {
   const { t } = useTranslation();
   const { data: types } = useSuspenseQuery(facilityTypesOptions({ active: true }));
   const { data: templates } = useSuspenseQuery(requisitionTemplatesOptions());
   const values = useStore(form.store, (state) => state.values);
   const formatError = useFormatError();
-  const options = eligibleForNewTemplate(
-    types,
-    templates,
-    values.programId,
-    values.requisitionReportOnly,
-    values.facilityTypeIds,
-  );
-  const rows = types
-    .filter(({ id }) => values.facilityTypeIds.includes(id))
-    .sort((a, b) => facilityTypeName(a).localeCompare(facilityTypeName(b)));
-  const tableRef = useRef<HTMLDivElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const remove = (id: string, index: number) => {
-    form.setFieldValue(
-      'facilityTypeIds',
-      values.facilityTypeIds.filter((value) => value !== id),
-    );
-    requestAnimationFrame(() => {
-      const buttons = tableRef.current?.querySelectorAll<HTMLButtonElement>('[data-remove-type]');
-      const next = buttons?.[Math.min(index, buttons.length - 1)];
-      (next ?? pickerRef.current?.querySelector<HTMLInputElement>('input'))?.focus();
-    });
-  };
-  const picked = options.some(({ id }) => id === values.facilityTypeId);
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-48 flex-1" ref={pickerRef}>
-          <form.AppField name="facilityTypeId">
-            {(field) => (
-              <field.ComboboxField
-                clearLabel={t('requisition-templates.form.clear-facility-type')}
-                disabled={!values.programId || !options.length}
-                description={
-                  !values.programId
-                    ? t('requisition-templates.form.select-program-first')
-                    : undefined
-                }
-                emptyMessage={t('requisition-templates.form.no-types-left')}
-                items={options.map((type) => ({ value: type.id, label: facilityTypeName(type) }))}
-                label={t('requisition-templates.form.facility-type')}
-                placeholder={t(
-                  values.programId && !options.length
-                    ? 'requisition-templates.form.no-types-left'
-                    : 'requisition-templates.form.pick-facility-type',
-                )}
-              />
-            )}
-          </form.AppField>
-        </div>
-        <Button
-          disabled={!picked}
-          onClick={() => {
-            if (!values.facilityTypeId || !picked) return;
-            form.pushFieldValue('facilityTypeIds', values.facilityTypeId);
-            form.setFieldValue('facilityTypeId', null);
+    <form.AppField name="facilityTypeIds">
+      {(field) => (
+        <FacilityTypesFields
+          key={`${values.programId}-${values.requisitionReportOnly}`}
+          label={t('requisition-templates.form.facility-type')}
+          addLabel={t('requisition-templates.form.add-facility-type')}
+          options={eligibleForNewTemplate(
+            types,
+            templates,
+            values.programId,
+            values.requisitionReportOnly,
+            values.facilityTypeIds,
+          )}
+          types={types}
+          selected={values.facilityTypeIds}
+          onChange={(ids) => {
+            field.handleChange(ids);
+            field.handleBlur();
           }}
-          type="button"
-          variant="outline"
-        >
-          <PlusIcon data-icon="inline-start" />
-          {t('requisition-templates.form.add-facility-type')}
-        </Button>
-      </div>
-      <div ref={tableRef}>
-        <DataTableCard>
-          <Table density="comfortable" layout="auto">
-            <TableHeader surface="muted">
-              <TableRow>
-                <TableHead>
-                  <DataTableHeaderLabel>
-                    {t('requisition-templates.form.facility-type-name')}
-                  </DataTableHeaderLabel>
-                </TableHead>
-                <TableHead>
-                  <DataTableHeaderLabel>{t('requisition-templates.action')}</DataTableHeaderLabel>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length ? (
-                rows.map((type, index) => (
-                  <TableRow key={type.id}>
-                    <TableCell>
-                      <span dir="auto">{facilityTypeName(type)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end">
-                        <Button
-                          aria-label={t('requisition-templates.form.remove-type', {
-                            type: facilityTypeName(type),
-                          })}
-                          data-remove-type
-                          onClick={() => remove(type.id, index)}
-                          size="icon-sm"
-                          type="button"
-                          variant="destructive"
-                        >
-                          <Trash2Icon />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={2}>
-                    <DataTableEmpty title={t('requisition-templates.form.no-types')} />
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </DataTableCard>
-      </div>
-      <form.AppField name="facilityTypeIds">
-        {(field) =>
-          field.state.meta.isTouched && field.state.meta.errors.length ? (
-            <FieldError>
-              {field.state.meta.errors
-                .map((error) =>
-                  formatError(typeof error === 'string' ? error : (error?.message ?? '')),
-                )
-                .join(' ')}
-            </FieldError>
-          ) : null
-        }
-      </form.AppField>
-    </div>
+          disabled={!values.programId}
+          description={
+            !values.programId ? t('requisition-templates.form.select-program-first') : undefined
+          }
+          error={
+            field.state.meta.isTouched && field.state.meta.errors.length
+              ? field.state.meta.errors
+                  .map((error) =>
+                    formatError(typeof error === 'string' ? error : (error?.message ?? '')),
+                  )
+                  .join(' ')
+              : undefined
+          }
+          emptyTitle={t('requisition-templates.form.no-types')}
+          emptyDescription={t('requisition-templates.form.no-types-description')}
+        />
+      )}
+    </form.AppField>
   );
 }

@@ -5,1929 +5,1329 @@ import type {
   TemplateColumnDefinition,
 } from '@/features/requisition-templates/lib/types';
 
-export const liveCatalog: ColumnDefinition[] = [
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '4a2e9fd3-1127-4b68-9912-84a5c00f6999',
-    name: 'requestedQuantity',
-    sources: ['USER_INPUT'],
-    options: [],
-    label: 'Requested quantity',
-    indicator: 'J',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Requested override of calculated quantity. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '33b2d2e9-3167-46b0-95d4-1295be9afc22',
-    name: 'beginningBalance',
-    sources: ['STOCK_CARDS', 'USER_INPUT'],
-    options: [],
-    label: 'Beginning balance',
-    indicator: 'A',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Based on the Stock On Hand from the previous period. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '752cda76-0db5-4b6e-bb79-0f531ab78e2c',
-    name: 'stockOnHand',
-    sources: ['STOCK_CARDS', 'USER_INPUT', 'CALCULATED'],
-    options: [],
-    label: 'Stock on hand',
-    indicator: 'E',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Current physical count of stock on hand. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'TEXT',
-    id: '6b8d331b-a0dd-4a1f-aafb-40e6a72ab9f5',
-    name: 'requestedQuantityExplanation',
-    sources: ['USER_INPUT'],
-    options: [],
-    label: 'Requested quantity explanation',
-    indicator: 'W',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Explanation of request for a quantity other than calculated order quantity.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'TEXT',
-    id: '2ed8c74a-f424-4742-bd14-cfbe67b6e7be',
-    name: 'remarks',
-    sources: ['USER_INPUT'],
-    options: [],
-    label: 'Remarks',
-    indicator: 'L',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Any additional remarks.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'a62a5fed-c0b6-4d49-8a96-c631da0d0113',
-    name: 'approvedQuantity',
-    sources: ['USER_INPUT'],
-    options: [],
-    label: 'Approved quantity',
-    indicator: 'K',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Final approved quantity. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '750b9359-c097-4612-8328-d21671f88920',
-    name: 'totalStockoutDays',
-    sources: ['STOCK_CARDS', 'USER_INPUT'],
-    options: [],
-    label: 'Total stockout days',
-    indicator: 'X',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Total number of days facility was out of stock.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'ef524868-9d0a-11e6-80f5-76304dec7eb7',
-    name: 'total',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Total',
-    indicator: 'Y',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Total of beginning balance and quantity received.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'dc9dde56-593d-4929-81be-d1faec7025a8',
-    name: 'packsToShip',
-    sources: ['CALCULATED'],
-    options: [
-      {
-        id: 'dcf41f06-3000-4af6-acf5-5de4fffc966f',
-        optionName: 'showPackToShipInAllPages',
-        optionLabel: 'requisitionConstants.showPackToShipInAllPages',
-      },
-      {
-        id: 'd1ff8f6f-5bbb-4b0e-8dd2-3835bfc03629',
-        optionName: 'showPackToShipInApprovalPage',
-        optionLabel: 'requisitionConstants.showPackToShipInApprovalPage',
-      },
-    ],
-    label: 'Packs to ship',
-    indicator: 'V',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Total packs to be shipped based on pack size and applying rounding rules.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'CURRENCY',
-    id: 'df524868-9d0a-18e6-80f5-76304ded7ab9',
-    name: 'pricePerPack',
-    sources: ['REFERENCE_DATA'],
-    options: [],
-    label: 'Price per pack',
-    indicator: 'T',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Price per pack. Will be blank if price is not defined.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '5708ebf9-9317-4420-85aa-71b2ae92643d',
-    name: 'numberOfNewPatientsAdded',
-    sources: ['USER_INPUT'],
-    options: [
-      {
-        id: '4957ebb4-297c-459e-a291-812e72286eff',
-        optionName: 'dispensingUnitsForNewPatients',
-        optionLabel: 'requisitionConstants.dispensingUnitsForNewPatients',
-      },
-      {
-        id: '34b8e763-71a0-41f1-86b4-1829963f0704',
-        optionName: 'newPatientCount',
-        optionLabel: 'requisitionConstants.newPatientCount',
-      },
-    ],
-    label: 'Number of new patients added',
-    indicator: 'F',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'New patients data.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'CURRENCY',
-    id: 'e3a0c1fc-c2d5-11e6-af2d-3417eb83144e',
-    name: 'totalCost',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Total cost',
-    indicator: 'Q',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Total cost of the product based on quantity requested. Will be blank if price is not defined.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '720dd95b-b765-4afb-b7f2-7b22261c32f3',
-    name: 'adjustedConsumption',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Adjusted consumption',
-    indicator: 'N',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Total consumed quantity after adjusting for stockout days. Quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '89113ec3-40e9-4d81-9516-b56adba7f8cd',
-    name: 'averageConsumption',
-    sources: ['STOCK_CARDS', 'CALCULATED'],
-    options: [],
-    label: 'Average consumption',
-    indicator: 'P',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Average consumption over a specified number of periods/months. Quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '913e1a4f-f3b0-40c6-a422-2f73608c6f3d',
-    name: 'maximumStockQuantity',
-    sources: ['CALCULATED'],
-    options: [
-      {
-        id: 'ff2b350c-37f2-4801-b21e-27ca12c12b3c',
-        optionName: 'default',
-        optionLabel: 'requisitionConstants.default',
-      },
-    ],
-    label: 'Maximum stock quantity',
-    indicator: 'H',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Maximum stock calculated based on consumption and max stock amounts. Quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '5528576b-b1e7-48d9-bf32-fd0eefefaa9a',
-    name: 'calculatedOrderQuantity',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Calculated order quantity',
-    indicator: 'I',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Actual quantity needed after deducting stock in hand. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'aa0a1a7e-e5cb-4385-b781-943316fa116a',
-    name: 'idealStockAmount',
-    sources: ['REFERENCE_DATA'],
-    options: [],
-    label: 'Ideal Stock Amount',
-    indicator: 'G',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition:
-      'The Ideal Stock Amount is the target quantity for a specific commodity type, facility, and period.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '9ac91518-38c7-494c-95d9-c37ef2ffff81',
-    name: 'calculatedOrderQuantityIsa',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Calc Order Qty ISA',
-    indicator: 'S',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition:
-      'Calculated Order Quantity ISA is based on an ISA configured by commodity type, and several trade items may fill for one commodity type.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '5ba8b72d-277a-4da8-b10a-23f0cda23cb4',
-    name: 'totalReceivedQuantity',
-    sources: ['STOCK_CARDS', 'USER_INPUT'],
-    options: [],
-    label: 'Total received quantity',
-    indicator: 'B',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: true,
-    definition:
-      'Total quantity received in the reporting period. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '9e825396-269d-4873-baa4-89054e2722f4',
-    name: 'totalConsumedQuantity',
-    sources: ['STOCK_CARDS', 'USER_INPUT', 'CALCULATED'],
-    options: [],
-    label: 'Total consumed quantity',
-    indicator: 'C',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: true,
-    definition:
-      'Quantity dispensed/consumed in the reporting period. This is quantified in dispensing units.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'cd57f329-f549-4717-882e-ecbf98122c38',
-    name: 'totalLossesAndAdjustments',
-    sources: ['STOCK_CARDS', 'USER_INPUT'],
-    options: [],
-    label: 'Total losses and adjustments',
-    indicator: 'D',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: true,
-    definition: 'All kind of losses/adjustments made at the facility.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '90a84767-1009-4d8e-be13-f006fce2a002',
-    name: 'additionalQuantityRequired',
-    sources: ['USER_INPUT'],
-    options: [],
-    label: 'Additional quantity required',
-    indicator: 'Z',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'Additional quantity required for new patients',
-  },
-  {
-    canChangeOrder: false,
-    columnType: 'BOOLEAN',
-    id: 'c6dffdee-3813-40d9-8737-f531d5adf420',
-    name: 'skipped',
-    sources: ['PREVIOUS_REQUISITION', 'USER_INPUT'],
-    options: [
-      {
-        id: '17d6e860-a746-4500-a0fa-afc84d799dca',
-        optionName: 'disableSkippedLineItems',
-        optionLabel: 'requisitionConstants.disableSkippedLineItems',
-      },
-      {
-        id: '488e6882-563d-4b69-b7eb-fd59e7772a41',
-        optionName: 'hideSkippedLineItems',
-        optionLabel: 'requisitionConstants.hideSkippedLineItems',
-      },
-    ],
-    label: 'Skip',
-    indicator: 'S',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Select the check box below to skip a single product. Remove all data from the row prior to selection.',
-  },
-  {
-    canChangeOrder: false,
-    columnType: 'TEXT',
-    id: 'bde01507-3837-47b7-ae08-cec92c0c3cd2',
-    name: 'orderable.productCode',
-    sources: ['REFERENCE_DATA'],
-    options: [],
-    label: 'Product code',
-    indicator: 'O',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Unique identifier for each commodity/product.',
-  },
-  {
-    canChangeOrder: false,
-    columnType: 'TEXT',
-    id: 'e53e80de-fc63-4ecb-b6b2-ef376b34c926',
-    name: 'orderable.fullProductName',
-    sources: ['REFERENCE_DATA'],
-    options: [],
-    label: 'Product',
-    indicator: 'R',
-    mandatory: false,
-    isDisplayRequired: true,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Primary name of the product.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'TEXT',
-    id: '61e6d059-10ef-40c4-a6e3-fa7b9ad741ec',
-    name: 'orderable.dispensable.displayUnit',
-    sources: ['REFERENCE_DATA'],
-    options: [],
-    label: 'Unit/unit of issue',
-    indicator: 'U',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition: 'Dispensing unit for this product.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'ef7c65c6-1be3-410b-9a2e-8b9f68221e82',
-    name: 'numberOfPatientsOnTreatmentNextMonth',
-    sources: ['USER_INPUT', 'CALCULATED'],
-    options: [],
-    label: 'No of Patients on Treatment next month (C)',
-    indicator: 'TC',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'The number of patients who will be treated in the next month.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '7563a92f-2c07-4b09-a88e-d0faa0baee93',
-    name: 'totalRequirement',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Total Requirement (E) E = C * D',
-    indicator: 'TE',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'Product requirement for all patients.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'd58e83a3-78ee-4657-b3d9-7b1adc983837',
-    name: 'totalQuantityNeededByHf',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Total Quantity Needed by HF (F) F = E * 2',
-    indicator: 'TF',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'Total quantity of product needed by Health Facility.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '421cd415-f127-4683-a396-a10a7bfdc384',
-    name: 'quantityToIssue',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Quantity to issue (G) G = F - A',
-    indicator: 'TG',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'Number of products to be issued.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: 'd173872d-f5e7-48a2-b0a7-c7fcae4208d4',
-    name: 'convertedQuantityToIssue',
-    sources: ['CALCULATED'],
-    options: [],
-    label: 'Quantity to issue (converted to unit of measure) G/U',
-    indicator: 'TH',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'Quantity to issue expressed in the units in which it is measured.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '3efdf855-cc03-4ccc-97f2-60108bc4b7a3',
-    name: 'dosesPerPatient',
-    sources: ['REFERENCE_DATA'],
-    options: [],
-    label: 'Individual Monthly Requirement (D)',
-    indicator: 'TD',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: true,
-    supportsTag: false,
-    definition: 'The amount of product for single patient.',
-  },
-  {
-    canChangeOrder: true,
-    columnType: 'NUMERIC',
-    id: '1a079695-9f34-4339-850c-1fc0d9675314',
-    name: 'supplyingFacilityStockOnHand',
-    sources: ['SUPPLYING_FACILITY_STOCK'],
-    options: [],
-    label: 'Supplying facility stock on hand',
-    indicator: 'SF',
-    mandatory: false,
-    isDisplayRequired: false,
-    canBeChangedByUser: false,
-    supportsTag: false,
-    definition:
-      'Stock on hand at the supplying facility for this product, displayed during approval',
-  },
+type CatalogRow = [
+  string,
+  string,
+  string,
+  string,
+  string,
+  ColumnDefinition['sources'],
+  Partial<ColumnDefinition>,
+];
+const catalogRows: CatalogRow[] = [
+  [
+    '4a2e9fd3-1127-4b68-9912-84a5c00f6999',
+    'requestedQuantity',
+    'Requested quantity',
+    'J',
+    'Requested override of calculated quantity. This is quantified in dispensing units.',
+    ['USER_INPUT'],
+    {},
+  ],
+  [
+    '33b2d2e9-3167-46b0-95d4-1295be9afc22',
+    'beginningBalance',
+    'Beginning balance',
+    'A',
+    'Based on the Stock On Hand from the previous period. This is quantified in dispensing units.',
+    ['STOCK_CARDS', 'USER_INPUT'],
+    {},
+  ],
+  [
+    '752cda76-0db5-4b6e-bb79-0f531ab78e2c',
+    'stockOnHand',
+    'Stock on hand',
+    'E',
+    'Current physical count of stock on hand. This is quantified in dispensing units.',
+    ['STOCK_CARDS', 'USER_INPUT', 'CALCULATED'],
+    {},
+  ],
+  [
+    '6b8d331b-a0dd-4a1f-aafb-40e6a72ab9f5',
+    'requestedQuantityExplanation',
+    'Requested quantity explanation',
+    'W',
+    'Explanation of request for a quantity other than calculated order quantity.',
+    ['USER_INPUT'],
+    {
+      columnType: 'TEXT',
+    },
+  ],
+  [
+    '2ed8c74a-f424-4742-bd14-cfbe67b6e7be',
+    'remarks',
+    'Remarks',
+    'L',
+    'Any additional remarks.',
+    ['USER_INPUT'],
+    {
+      columnType: 'TEXT',
+    },
+  ],
+  [
+    'a62a5fed-c0b6-4d49-8a96-c631da0d0113',
+    'approvedQuantity',
+    'Approved quantity',
+    'K',
+    'Final approved quantity. This is quantified in dispensing units.',
+    ['USER_INPUT'],
+    {},
+  ],
+  [
+    '750b9359-c097-4612-8328-d21671f88920',
+    'totalStockoutDays',
+    'Total stockout days',
+    'X',
+    'Total number of days facility was out of stock.',
+    ['STOCK_CARDS', 'USER_INPUT'],
+    {},
+  ],
+  [
+    'ef524868-9d0a-11e6-80f5-76304dec7eb7',
+    'total',
+    'Total',
+    'Y',
+    'Total of beginning balance and quantity received.',
+    ['CALCULATED'],
+    {},
+  ],
+  [
+    'dc9dde56-593d-4929-81be-d1faec7025a8',
+    'packsToShip',
+    'Packs to ship',
+    'V',
+    'Total packs to be shipped based on pack size and applying rounding rules.',
+    ['CALCULATED'],
+    {
+      options: [
+        {
+          id: 'dcf41f06-3000-4af6-acf5-5de4fffc966f',
+          optionName: 'showPackToShipInAllPages',
+          optionLabel: 'requisitionConstants.showPackToShipInAllPages',
+        },
+        {
+          id: 'd1ff8f6f-5bbb-4b0e-8dd2-3835bfc03629',
+          optionName: 'showPackToShipInApprovalPage',
+          optionLabel: 'requisitionConstants.showPackToShipInApprovalPage',
+        },
+      ],
+    },
+  ],
+  [
+    'df524868-9d0a-18e6-80f5-76304ded7ab9',
+    'pricePerPack',
+    'Price per pack',
+    'T',
+    'Price per pack. Will be blank if price is not defined.',
+    ['REFERENCE_DATA'],
+    {
+      columnType: 'CURRENCY',
+    },
+  ],
+  [
+    '5708ebf9-9317-4420-85aa-71b2ae92643d',
+    'numberOfNewPatientsAdded',
+    'Number of new patients added',
+    'F',
+    'New patients data.',
+    ['USER_INPUT'],
+    {
+      options: [
+        {
+          id: '4957ebb4-297c-459e-a291-812e72286eff',
+          optionName: 'dispensingUnitsForNewPatients',
+          optionLabel: 'requisitionConstants.dispensingUnitsForNewPatients',
+        },
+        {
+          id: '34b8e763-71a0-41f1-86b4-1829963f0704',
+          optionName: 'newPatientCount',
+          optionLabel: 'requisitionConstants.newPatientCount',
+        },
+      ],
+    },
+  ],
+  [
+    'e3a0c1fc-c2d5-11e6-af2d-3417eb83144e',
+    'totalCost',
+    'Total cost',
+    'Q',
+    'Total cost of the product based on quantity requested. Will be blank if price is not defined.',
+    ['CALCULATED'],
+    {
+      columnType: 'CURRENCY',
+    },
+  ],
+  [
+    '720dd95b-b765-4afb-b7f2-7b22261c32f3',
+    'adjustedConsumption',
+    'Adjusted consumption',
+    'N',
+    'Total consumed quantity after adjusting for stockout days. Quantified in dispensing units.',
+    ['CALCULATED'],
+    {},
+  ],
+  [
+    '89113ec3-40e9-4d81-9516-b56adba7f8cd',
+    'averageConsumption',
+    'Average consumption',
+    'P',
+    'Average consumption over a specified number of periods/months. Quantified in dispensing units.',
+    ['STOCK_CARDS', 'CALCULATED'],
+    {},
+  ],
+  [
+    '913e1a4f-f3b0-40c6-a422-2f73608c6f3d',
+    'maximumStockQuantity',
+    'Maximum stock quantity',
+    'H',
+    'Maximum stock calculated based on consumption and max stock amounts. Quantified in dispensing units.',
+    ['CALCULATED'],
+    {
+      options: [
+        {
+          id: 'ff2b350c-37f2-4801-b21e-27ca12c12b3c',
+          optionName: 'default',
+          optionLabel: 'requisitionConstants.default',
+        },
+      ],
+    },
+  ],
+  [
+    '5528576b-b1e7-48d9-bf32-fd0eefefaa9a',
+    'calculatedOrderQuantity',
+    'Calculated order quantity',
+    'I',
+    'Actual quantity needed after deducting stock in hand. This is quantified in dispensing units.',
+    ['CALCULATED'],
+    {},
+  ],
+  [
+    'aa0a1a7e-e5cb-4385-b781-943316fa116a',
+    'idealStockAmount',
+    'Ideal Stock Amount',
+    'G',
+    'The Ideal Stock Amount is the target quantity for a specific commodity type, facility, and period.',
+    ['REFERENCE_DATA'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    '9ac91518-38c7-494c-95d9-c37ef2ffff81',
+    'calculatedOrderQuantityIsa',
+    'Calc Order Qty ISA',
+    'S',
+    'Calculated Order Quantity ISA is based on an ISA configured by commodity type, and several trade items may fill for one commodity type.',
+    ['CALCULATED'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    '5ba8b72d-277a-4da8-b10a-23f0cda23cb4',
+    'totalReceivedQuantity',
+    'Total received quantity',
+    'B',
+    'Total quantity received in the reporting period. This is quantified in dispensing units.',
+    ['STOCK_CARDS', 'USER_INPUT'],
+    {
+      supportsTag: true,
+    },
+  ],
+  [
+    '9e825396-269d-4873-baa4-89054e2722f4',
+    'totalConsumedQuantity',
+    'Total consumed quantity',
+    'C',
+    'Quantity dispensed/consumed in the reporting period. This is quantified in dispensing units.',
+    ['STOCK_CARDS', 'USER_INPUT', 'CALCULATED'],
+    {
+      supportsTag: true,
+    },
+  ],
+  [
+    'cd57f329-f549-4717-882e-ecbf98122c38',
+    'totalLossesAndAdjustments',
+    'Total losses and adjustments',
+    'D',
+    'All kind of losses/adjustments made at the facility.',
+    ['STOCK_CARDS', 'USER_INPUT'],
+    {
+      supportsTag: true,
+    },
+  ],
+  [
+    '90a84767-1009-4d8e-be13-f006fce2a002',
+    'additionalQuantityRequired',
+    'Additional quantity required',
+    'Z',
+    'Additional quantity required for new patients',
+    ['USER_INPUT'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    'c6dffdee-3813-40d9-8737-f531d5adf420',
+    'skipped',
+    'Skip',
+    'S',
+    'Select the check box below to skip a single product. Remove all data from the row prior to selection.',
+    ['PREVIOUS_REQUISITION', 'USER_INPUT'],
+    {
+      canChangeOrder: false,
+      columnType: 'BOOLEAN',
+      options: [
+        {
+          id: '17d6e860-a746-4500-a0fa-afc84d799dca',
+          optionName: 'disableSkippedLineItems',
+          optionLabel: 'requisitionConstants.disableSkippedLineItems',
+        },
+        {
+          id: '488e6882-563d-4b69-b7eb-fd59e7772a41',
+          optionName: 'hideSkippedLineItems',
+          optionLabel: 'requisitionConstants.hideSkippedLineItems',
+        },
+      ],
+    },
+  ],
+  [
+    'bde01507-3837-47b7-ae08-cec92c0c3cd2',
+    'orderable.productCode',
+    'Product code',
+    'O',
+    'Unique identifier for each commodity/product.',
+    ['REFERENCE_DATA'],
+    {
+      canChangeOrder: false,
+      columnType: 'TEXT',
+    },
+  ],
+  [
+    'e53e80de-fc63-4ecb-b6b2-ef376b34c926',
+    'orderable.fullProductName',
+    'Product',
+    'R',
+    'Primary name of the product.',
+    ['REFERENCE_DATA'],
+    {
+      canChangeOrder: false,
+      columnType: 'TEXT',
+      isDisplayRequired: true,
+    },
+  ],
+  [
+    '61e6d059-10ef-40c4-a6e3-fa7b9ad741ec',
+    'orderable.dispensable.displayUnit',
+    'Unit/unit of issue',
+    'U',
+    'Dispensing unit for this product.',
+    ['REFERENCE_DATA'],
+    {
+      columnType: 'TEXT',
+    },
+  ],
+  [
+    'ef7c65c6-1be3-410b-9a2e-8b9f68221e82',
+    'numberOfPatientsOnTreatmentNextMonth',
+    'No of Patients on Treatment next month (C)',
+    'TC',
+    'The number of patients who will be treated in the next month.',
+    ['USER_INPUT', 'CALCULATED'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    '7563a92f-2c07-4b09-a88e-d0faa0baee93',
+    'totalRequirement',
+    'Total Requirement (E) E = C * D',
+    'TE',
+    'Product requirement for all patients.',
+    ['CALCULATED'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    'd58e83a3-78ee-4657-b3d9-7b1adc983837',
+    'totalQuantityNeededByHf',
+    'Total Quantity Needed by HF (F) F = E * 2',
+    'TF',
+    'Total quantity of product needed by Health Facility.',
+    ['CALCULATED'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    '421cd415-f127-4683-a396-a10a7bfdc384',
+    'quantityToIssue',
+    'Quantity to issue (G) G = F - A',
+    'TG',
+    'Number of products to be issued.',
+    ['CALCULATED'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    'd173872d-f5e7-48a2-b0a7-c7fcae4208d4',
+    'convertedQuantityToIssue',
+    'Quantity to issue (converted to unit of measure) G/U',
+    'TH',
+    'Quantity to issue expressed in the units in which it is measured.',
+    ['CALCULATED'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    '3efdf855-cc03-4ccc-97f2-60108bc4b7a3',
+    'dosesPerPatient',
+    'Individual Monthly Requirement (D)',
+    'TD',
+    'The amount of product for single patient.',
+    ['REFERENCE_DATA'],
+    {
+      canBeChangedByUser: true,
+    },
+  ],
+  [
+    '1a079695-9f34-4339-850c-1fc0d9675314',
+    'supplyingFacilityStockOnHand',
+    'Supplying facility stock on hand',
+    'SF',
+    'Stock on hand at the supplying facility for this product, displayed during approval',
+    ['SUPPLYING_FACILITY_STOCK'],
+    {},
+  ],
 ];
 
-const definitions: Record<string, TemplateColumnDefinition> = Object.fromEntries(
-  liveCatalog.map(
-    ({ id, name, canChangeOrder, isDisplayRequired, supportsTag, sources, options }) => [
-      id,
-      { id, name, canChangeOrder, isDisplayRequired, supportsTag, sources, options },
-    ],
-  ),
+export const liveCatalog: ColumnDefinition[] = catalogRows.map(
+  ([id, name, label, indicator, definition, sources, overrides]) => ({
+    canChangeOrder: true,
+    columnType: 'NUMERIC',
+    mandatory: false,
+    isDisplayRequired: false,
+    canBeChangedByUser: false,
+    supportsTag: false,
+    options: [],
+    id,
+    name,
+    label,
+    indicator,
+    definition,
+    sources,
+    ...overrides,
+  }),
 );
 
-const columns: Record<string, TemplateColumn> = {
+const columnOverrides: Record<string, Partial<TemplateColumn>> = {
   numberOfNewPatientsAdded: {
-    ...{
-      name: 'numberOfNewPatientsAdded',
-      label: 'Number of new patients added',
-      indicator: 'F',
-      displayOrder: 20,
-      isDisplayed: false,
-      source: 'USER_INPUT',
-      option: {
-        id: '34b8e763-71a0-41f1-86b4-1829963f0704',
-        optionName: 'newPatientCount',
-        optionLabel: 'requisitionConstants.newPatientCount',
-      },
-      definition: 'New patients data.',
-      tag: null,
+    isDisplayed: false,
+    option: {
+      id: '34b8e763-71a0-41f1-86b4-1829963f0704',
+      optionName: 'newPatientCount',
+      optionLabel: 'requisitionConstants.newPatientCount',
     },
-    columnDefinition: definitions['5708ebf9-9317-4420-85aa-71b2ae92643d'],
   },
-  adjustedConsumption: {
-    ...{
-      name: 'adjustedConsumption',
-      label: 'Adjusted consumption',
-      indicator: 'N',
-      displayOrder: 22,
-      isDisplayed: true,
-      source: 'CALCULATED',
-      option: null,
-      definition:
-        'Total consumed quantity after adjusting for stockout days. Quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['720dd95b-b765-4afb-b7f2-7b22261c32f3'],
-  },
+  adjustedConsumption: {},
   quantityToIssue: {
-    ...{
-      name: 'quantityToIssue',
-      label: 'Quantity to issue (G) G = F - A',
-      indicator: 'TG',
-      displayOrder: 11,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition: 'Number of products to be issued.',
-      tag: null,
-    },
-    columnDefinition: definitions['421cd415-f127-4683-a396-a10a7bfdc384'],
+    isDisplayed: false,
   },
   totalLossesAndAdjustments: {
-    ...{
-      name: 'totalLossesAndAdjustments',
-      label: 'Total losses and adjustments',
-      indicator: 'D',
-      displayOrder: 7,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition: 'All kind of losses/adjustments made at the facility.',
-      tag: null,
-    },
-    columnDefinition: definitions['cd57f329-f549-4717-882e-ecbf98122c38'],
+    source: 'USER_INPUT',
   },
   totalStockoutDays: {
-    ...{
-      name: 'totalStockoutDays',
-      label: 'Total stockout days',
-      indicator: 'X',
-      displayOrder: 8,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition: 'Total number of days facility was out of stock.',
-      tag: null,
-    },
-    columnDefinition: definitions['750b9359-c097-4612-8328-d21671f88920'],
+    source: 'USER_INPUT',
   },
   packsToShip: {
-    ...{
-      name: 'packsToShip',
-      label: 'Packs to ship',
-      indicator: 'V',
-      displayOrder: 13,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: {
-        id: 'dcf41f06-3000-4af6-acf5-5de4fffc966f',
-        optionName: 'showPackToShipInAllPages',
-        optionLabel: 'requisitionConstants.showPackToShipInAllPages',
-      },
-      definition: 'Total packs to be shipped based on pack size and applying rounding rules.',
-      tag: null,
+    isDisplayed: false,
+    option: {
+      id: 'dcf41f06-3000-4af6-acf5-5de4fffc966f',
+      optionName: 'showPackToShipInAllPages',
+      optionLabel: 'requisitionConstants.showPackToShipInAllPages',
     },
-    columnDefinition: definitions['dc9dde56-593d-4929-81be-d1faec7025a8'],
   },
   skipped: {
-    ...{
-      name: 'skipped',
-      label: 'Skip',
-      indicator: 'S',
-      displayOrder: 1,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: {
-        id: '17d6e860-a746-4500-a0fa-afc84d799dca',
-        optionName: 'disableSkippedLineItems',
-        optionLabel: 'requisitionConstants.disableSkippedLineItems',
-      },
-      definition:
-        'Select the check box below to skip a single product. Remove all data from the row prior to selection.',
-      tag: null,
+    source: 'USER_INPUT',
+    option: {
+      id: '17d6e860-a746-4500-a0fa-afc84d799dca',
+      optionName: 'disableSkippedLineItems',
+      optionLabel: 'requisitionConstants.disableSkippedLineItems',
     },
-    columnDefinition: definitions['c6dffdee-3813-40d9-8737-f531d5adf420'],
   },
-  'orderable.productCode': {
-    ...{
-      name: 'orderable.productCode',
-      label: 'Product code',
-      indicator: 'O',
-      displayOrder: 2,
-      isDisplayed: true,
-      source: 'REFERENCE_DATA',
-      option: null,
-      definition: 'Unique identifier for each commodity/product.',
-      tag: null,
-    },
-    columnDefinition: definitions['bde01507-3837-47b7-ae08-cec92c0c3cd2'],
-  },
+  'orderable.productCode': {},
   total: {
-    ...{
-      name: 'total',
-      label: 'Total',
-      indicator: 'Y',
-      displayOrder: 19,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition: 'Total of beginning balance and quantity received.',
-      tag: null,
-    },
-    columnDefinition: definitions['ef524868-9d0a-11e6-80f5-76304dec7eb7'],
+    isDisplayed: false,
   },
   totalConsumedQuantity: {
-    ...{
-      name: 'totalConsumedQuantity',
-      label: 'Total consumed quantity',
-      indicator: 'C',
-      displayOrder: 6,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition:
-        'Quantity dispensed/consumed in the reporting period. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['9e825396-269d-4873-baa4-89054e2722f4'],
+    source: 'USER_INPUT',
   },
   stockOnHand: {
-    ...{
-      name: 'stockOnHand',
-      label: 'Stock on hand',
-      indicator: 'E',
-      displayOrder: 9,
-      isDisplayed: true,
-      source: 'CALCULATED',
-      option: null,
-      definition:
-        'Current physical count of stock on hand. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['752cda76-0db5-4b6e-bb79-0f531ab78e2c'],
+    source: 'CALCULATED',
   },
-  requestedQuantity: {
-    ...{
-      name: 'requestedQuantity',
-      label: 'Requested quantity',
-      indicator: 'J',
-      displayOrder: 15,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition:
-        'Requested override of calculated quantity. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['4a2e9fd3-1127-4b68-9912-84a5c00f6999'],
-  },
+  requestedQuantity: {},
   totalQuantityNeededByHf: {
-    ...{
-      name: 'totalQuantityNeededByHf',
-      label: 'Total Quantity Needed by HF (F) F = E * 2',
-      indicator: 'TF',
-      displayOrder: 10,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition: 'Total quantity of product needed by Health Facility.',
-      tag: null,
-    },
-    columnDefinition: definitions['d58e83a3-78ee-4657-b3d9-7b1adc983837'],
+    isDisplayed: false,
   },
   beginningBalance: {
-    ...{
-      name: 'beginningBalance',
-      label: 'Beginning balance',
-      indicator: 'A',
-      displayOrder: 4,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition:
-        'Based on the Stock On Hand from the previous period. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['33b2d2e9-3167-46b0-95d4-1295be9afc22'],
+    source: 'USER_INPUT',
   },
   dosesPerPatient: {
-    ...{
-      name: 'dosesPerPatient',
-      label: 'Individual Monthly Requirement (D)',
-      indicator: 'TD',
-      displayOrder: 8,
-      isDisplayed: false,
-      source: 'REFERENCE_DATA',
-      option: null,
-      definition: 'The amount of product for single patient.',
-      tag: null,
-    },
-    columnDefinition: definitions['3efdf855-cc03-4ccc-97f2-60108bc4b7a3'],
+    isDisplayed: false,
   },
   convertedQuantityToIssue: {
-    ...{
-      name: 'convertedQuantityToIssue',
-      label: 'Quantity to issue (converted to unit of measure) G/U',
-      indicator: 'TH',
-      displayOrder: 12,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition: 'Quantity to issue expressed in the units in which it is measured.',
-      tag: null,
-    },
-    columnDefinition: definitions['d173872d-f5e7-48a2-b0a7-c7fcae4208d4'],
+    isDisplayed: false,
   },
   'orderable.dispensable.displayUnit': {
-    ...{
-      name: 'orderable.dispensable.displayUnit',
-      label: 'Display Unit',
-      indicator: 'U',
-      displayOrder: 14,
-      isDisplayed: true,
-      source: 'REFERENCE_DATA',
-      option: null,
-      definition: 'Display unit for this product.',
-      tag: null,
-    },
-    columnDefinition: definitions['61e6d059-10ef-40c4-a6e3-fa7b9ad741ec'],
+    label: 'Display Unit',
+    definition: 'Display unit for this product.',
   },
   totalReceivedQuantity: {
-    ...{
-      name: 'totalReceivedQuantity',
-      label: 'Total received quantity',
-      indicator: 'B',
-      displayOrder: 5,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition:
-        'Total quantity received in the reporting period. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['5ba8b72d-277a-4da8-b10a-23f0cda23cb4'],
+    source: 'USER_INPUT',
   },
-  approvedQuantity: {
-    ...{
-      name: 'approvedQuantity',
-      label: 'Approved quantity',
-      indicator: 'K',
-      displayOrder: 17,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition: 'Final approved quantity. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['a62a5fed-c0b6-4d49-8a96-c631da0d0113'],
-  },
-  'orderable.fullProductName': {
-    ...{
-      name: 'orderable.fullProductName',
-      label: 'Product',
-      indicator: 'R',
-      displayOrder: 3,
-      isDisplayed: true,
-      source: 'REFERENCE_DATA',
-      option: null,
-      definition: 'Primary name of the product.',
-      tag: null,
-    },
-    columnDefinition: definitions['e53e80de-fc63-4ecb-b6b2-ef376b34c926'],
-  },
+  approvedQuantity: {},
+  'orderable.fullProductName': {},
   supplyingFacilityStockOnHand: {
-    ...{
-      name: 'supplyingFacilityStockOnHand',
-      label: 'Supplying facility stock on hand',
-      indicator: 'SF',
-      displayOrder: 25,
-      isDisplayed: false,
-      source: 'SUPPLYING_FACILITY_STOCK',
-      option: null,
-      definition:
-        'Stock on hand at the supplying facility for this product, displayed during approval',
-      tag: null,
-    },
-    columnDefinition: definitions['1a079695-9f34-4339-850c-1fc0d9675314'],
+    isDisplayed: false,
   },
-  pricePerPack: {
-    ...{
-      name: 'pricePerPack',
-      label: 'Price per pack',
-      indicator: 'T',
-      displayOrder: 12,
-      isDisplayed: true,
-      source: 'REFERENCE_DATA',
-      option: null,
-      definition: 'Price per pack. Will be blank if price is not defined.',
-      tag: null,
-    },
-    columnDefinition: definitions['df524868-9d0a-18e6-80f5-76304ded7ab9'],
-  },
+  pricePerPack: {},
   numberOfPatientsOnTreatmentNextMonth: {
-    ...{
-      name: 'numberOfPatientsOnTreatmentNextMonth',
-      label: 'No of Patients on Treatment next month (C)',
-      indicator: 'TC',
-      displayOrder: 7,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition: 'The number of patients who will be treated in the next month.',
-      tag: null,
-    },
-    columnDefinition: definitions['ef7c65c6-1be3-410b-9a2e-8b9f68221e82'],
+    isDisplayed: false,
+    source: 'CALCULATED',
   },
   averageConsumption: {
-    ...{
-      name: 'averageConsumption',
-      label: 'Average consumption',
-      indicator: 'P',
-      displayOrder: 10,
-      isDisplayed: true,
-      source: 'CALCULATED',
-      option: null,
-      definition:
-        'Average consumption over a specified number of periods/months. Quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['89113ec3-40e9-4d81-9516-b56adba7f8cd'],
+    source: 'CALCULATED',
   },
-  requestedQuantityExplanation: {
-    ...{
-      name: 'requestedQuantityExplanation',
-      label: 'Requested quantity explanation',
-      indicator: 'W',
-      displayOrder: 16,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition: 'Explanation of request for a quantity other than calculated order quantity.',
-      tag: null,
-    },
-    columnDefinition: definitions['6b8d331b-a0dd-4a1f-aafb-40e6a72ab9f5'],
-  },
-  calculatedOrderQuantity: {
-    ...{
-      name: 'calculatedOrderQuantity',
-      label: 'Calculated order quantity',
-      indicator: 'I',
-      displayOrder: 11,
-      isDisplayed: true,
-      source: 'CALCULATED',
-      option: null,
-      definition:
-        'Actual quantity needed after deducting stock in hand. This is quantified in dispensing units.',
-      tag: null,
-    },
-    columnDefinition: definitions['5528576b-b1e7-48d9-bf32-fd0eefefaa9a'],
-  },
+  requestedQuantityExplanation: {},
+  calculatedOrderQuantity: {},
   totalRequirement: {
-    ...{
-      name: 'totalRequirement',
-      label: 'Total Requirement (E) E = C * D',
-      indicator: 'TE',
-      displayOrder: 9,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition: 'Product requirement for all patients.',
-      tag: null,
-    },
-    columnDefinition: definitions['7563a92f-2c07-4b09-a88e-d0faa0baee93'],
+    isDisplayed: false,
   },
-  remarks: {
-    ...{
-      name: 'remarks',
-      label: 'Remarks',
-      indicator: 'L',
-      displayOrder: 18,
-      isDisplayed: true,
-      source: 'USER_INPUT',
-      option: null,
-      definition: 'Any additional remarks.',
-      tag: null,
-    },
-    columnDefinition: definitions['2ed8c74a-f424-4742-bd14-cfbe67b6e7be'],
-  },
+  remarks: {},
   totalCost: {
-    ...{
-      name: 'totalCost',
-      label: 'Total cost',
-      indicator: 'Q',
-      displayOrder: 21,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: null,
-      definition:
-        'Total cost of the product based on quantity requested. Will be blank if price is not defined.',
-      tag: null,
-    },
-    columnDefinition: definitions['e3a0c1fc-c2d5-11e6-af2d-3417eb83144e'],
+    isDisplayed: false,
   },
   maximumStockQuantity: {
-    ...{
-      name: 'maximumStockQuantity',
-      label: 'Maximum stock quantity',
-      indicator: 'H',
-      displayOrder: 23,
-      isDisplayed: false,
-      source: 'CALCULATED',
-      option: {
-        id: 'ff2b350c-37f2-4801-b21e-27ca12c12b3c',
-        optionName: 'default',
-        optionLabel: 'requisitionConstants.default',
-      },
-      definition:
-        'Maximum stock calculated based on consumption and max stock amounts. Quantified in dispensing units.',
-      tag: null,
+    isDisplayed: false,
+    option: {
+      id: 'ff2b350c-37f2-4801-b21e-27ca12c12b3c',
+      optionName: 'default',
+      optionLabel: 'requisitionConstants.default',
     },
-    columnDefinition: definitions['913e1a4f-f3b0-40c6-a422-2f73608c6f3d'],
   },
   additionalQuantityRequired: {
-    ...{
-      name: 'additionalQuantityRequired',
-      label: 'Additional quantity required',
-      indicator: 'Z',
-      displayOrder: 24,
-      isDisplayed: false,
-      source: 'USER_INPUT',
-      option: null,
-      definition: 'Additional quantity required for new patients',
-      tag: null,
-    },
-    columnDefinition: definitions['90a84767-1009-4d8e-be13-f006fce2a002'],
+    isDisplayed: false,
   },
-  idealStockAmount: {
-    ...{
-      name: 'idealStockAmount',
-      label: 'Ideal Stock Amount',
-      indicator: 'G',
-      displayOrder: 10,
-      isDisplayed: true,
-      source: 'REFERENCE_DATA',
-      option: null,
-      definition:
-        'The Ideal Stock Amount is the target quantity for a specific commodity type, facility, and period.',
-      tag: null,
-    },
-    columnDefinition: definitions['aa0a1a7e-e5cb-4385-b781-943316fa116a'],
-  },
-  calculatedOrderQuantityIsa: {
-    ...{
-      name: 'calculatedOrderQuantityIsa',
-      label: 'Calc Order Qty ISA',
-      indicator: 'S',
-      displayOrder: 11,
-      isDisplayed: true,
-      source: 'CALCULATED',
-      option: null,
-      definition:
-        'Calculated Order Quantity ISA is based on an ISA configured by commodity type, and several trade items may fill for one commodity type.',
-      tag: null,
-    },
-    columnDefinition: definitions['9ac91518-38c7-494c-95d9-c37ef2ffff81'],
-  },
+  idealStockAmount: {},
+  calculatedOrderQuantityIsa: {},
 };
 
-export const liveTemplates: RequisitionTemplate[] = [
-  {
-    ...{
-      id: '5a268780-fafd-4243-9551-5c7daa824913',
-      numberOfPeriodsToAverage: 3,
-      name: 'Family Planning',
-      populateStockOnHandFromStockCards: false,
-      program: {
-        id: 'dce17f2e-af3e-40ad-8e00-3496adef44c3',
-        href: 'https://test.openlmis.org/api/programs/dce17f2e-af3e-40ad-8e00-3496adef44c3',
+const columns: Record<string, Omit<TemplateColumn, 'displayOrder'>> = Object.fromEntries(
+  liveCatalog.map((column) => {
+    const {
+      id,
+      name,
+      label,
+      indicator,
+      definition,
+      canChangeOrder,
+      isDisplayRequired,
+      supportsTag,
+      sources,
+      options,
+    } = column;
+    const columnDefinition: TemplateColumnDefinition = {
+      id,
+      name,
+      canChangeOrder,
+      isDisplayRequired,
+      supportsTag,
+      sources,
+      options,
+    };
+    return [
+      name,
+      {
+        name,
+        label,
+        indicator,
+        definition,
+        isDisplayed: true,
+        source: sources[0],
+        option: null,
+        tag: null,
+        columnDefinition,
+        ...columnOverrides[name],
       },
-      facilityTypes: [
-        {
-          id: '5fc213c6-1bd7-46f0-9883-57c05250ca90',
-          href: 'https://test.openlmis.org/api/facilityTypes/5fc213c6-1bd7-46f0-9883-57c05250ca90',
-        },
-        {
-          id: '663b1d34-cc17-4d60-9619-e553e45aa441',
-          href: 'https://test.openlmis.org/api/facilityTypes/663b1d34-cc17-4d60-9619-e553e45aa441',
-        },
-        {
-          id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
-          href: 'https://test.openlmis.org/api/facilityTypes/ac1d268b-ce10-455f-bf87-9c667da8f060',
-        },
-        {
-          id: 'caecea08-6b2f-4ba9-98b2-b87702ba57ba',
-          href: 'https://test.openlmis.org/api/facilityTypes/caecea08-6b2f-4ba9-98b2-b87702ba57ba',
-        },
-      ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: false,
-      enableAvgConsumptionForCurrentPeriod: false,
+    ];
+  }),
+);
+
+type Fixture = Omit<RequisitionTemplate, 'columnsMap'> & {
+  rows: [string, number, Partial<TemplateColumn>?][];
+};
+const fixtures: Fixture[] = [
+  {
+    id: '5a268780-fafd-4243-9551-5c7daa824913',
+    numberOfPeriodsToAverage: 3,
+    name: 'Family Planning',
+    populateStockOnHandFromStockCards: false,
+    program: {
+      id: 'dce17f2e-af3e-40ad-8e00-3496adef44c3',
     },
-    columnsMap: {
-      numberOfNewPatientsAdded: { ...columns.numberOfNewPatientsAdded },
-      adjustedConsumption: { ...columns.adjustedConsumption },
-      quantityToIssue: { ...columns.quantityToIssue },
-      totalLossesAndAdjustments: { ...columns.totalLossesAndAdjustments },
-      totalStockoutDays: { ...columns.totalStockoutDays },
-      packsToShip: { ...columns.packsToShip },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': { ...columns['orderable.productCode'] },
-      total: { ...columns.total },
-      totalConsumedQuantity: { ...columns.totalConsumedQuantity },
-      stockOnHand: { ...columns.stockOnHand },
-      requestedQuantity: { ...columns.requestedQuantity },
-      totalQuantityNeededByHf: { ...columns.totalQuantityNeededByHf },
-      beginningBalance: { ...columns.beginningBalance },
-      dosesPerPatient: { ...columns.dosesPerPatient },
-      convertedQuantityToIssue: { ...columns.convertedQuantityToIssue },
-      'orderable.dispensable.displayUnit': { ...columns['orderable.dispensable.displayUnit'] },
-      totalReceivedQuantity: { ...columns.totalReceivedQuantity },
-      approvedQuantity: { ...columns.approvedQuantity },
-      'orderable.fullProductName': { ...columns['orderable.fullProductName'] },
-      supplyingFacilityStockOnHand: { ...columns.supplyingFacilityStockOnHand },
-      pricePerPack: { ...columns.pricePerPack },
-      numberOfPatientsOnTreatmentNextMonth: { ...columns.numberOfPatientsOnTreatmentNextMonth },
-      averageConsumption: { ...columns.averageConsumption },
-      requestedQuantityExplanation: { ...columns.requestedQuantityExplanation },
-      calculatedOrderQuantity: { ...columns.calculatedOrderQuantity },
-      totalRequirement: { ...columns.totalRequirement },
-      remarks: { ...columns.remarks },
-      totalCost: { ...columns.totalCost },
-      maximumStockQuantity: { ...columns.maximumStockQuantity },
-      additionalQuantityRequired: { ...columns.additionalQuantityRequired },
-    },
+    facilityTypes: [
+      {
+        id: '5fc213c6-1bd7-46f0-9883-57c05250ca90',
+      },
+      {
+        id: '663b1d34-cc17-4d60-9619-e553e45aa441',
+      },
+      {
+        id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
+      },
+      {
+        id: 'caecea08-6b2f-4ba9-98b2-b87702ba57ba',
+      },
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: false,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      ['numberOfNewPatientsAdded', 20],
+      ['adjustedConsumption', 22],
+      ['quantityToIssue', 11],
+      ['totalLossesAndAdjustments', 7],
+      ['totalStockoutDays', 8],
+      ['packsToShip', 13],
+      ['skipped', 1],
+      ['orderable.productCode', 2],
+      ['total', 19],
+      ['totalConsumedQuantity', 6],
+      ['stockOnHand', 9],
+      ['requestedQuantity', 15],
+      ['totalQuantityNeededByHf', 10],
+      ['beginningBalance', 4],
+      ['dosesPerPatient', 8],
+      ['convertedQuantityToIssue', 12],
+      ['orderable.dispensable.displayUnit', 14],
+      ['totalReceivedQuantity', 5],
+      ['approvedQuantity', 17],
+      ['orderable.fullProductName', 3],
+      ['supplyingFacilityStockOnHand', 25],
+      ['pricePerPack', 12],
+      ['numberOfPatientsOnTreatmentNextMonth', 7],
+      ['averageConsumption', 10],
+      ['requestedQuantityExplanation', 16],
+      ['calculatedOrderQuantity', 11],
+      ['totalRequirement', 9],
+      ['remarks', 18],
+      ['totalCost', 21],
+      ['maximumStockQuantity', 23],
+      ['additionalQuantityRequired', 24],
+    ],
   },
   {
-    ...{
-      id: '4b30f6c9-b84b-4f17-8173-852101a5ea29',
-      numberOfPeriodsToAverage: 3,
-      name: 'Essential Meds',
-      populateStockOnHandFromStockCards: false,
-      program: {
-        id: '10845cb9-d365-4aaa-badd-b4fa39c6a26a',
-        href: 'https://test.openlmis.org/api/programs/10845cb9-d365-4aaa-badd-b4fa39c6a26a',
+    id: '4b30f6c9-b84b-4f17-8173-852101a5ea29',
+    numberOfPeriodsToAverage: 3,
+    name: 'Essential Meds',
+    populateStockOnHandFromStockCards: false,
+    program: {
+      id: '10845cb9-d365-4aaa-badd-b4fa39c6a26a',
+    },
+    facilityTypes: [
+      {
+        id: '5fc213c6-1bd7-46f0-9883-57c05250ca90',
       },
-      facilityTypes: [
+      {
+        id: '663b1d34-cc17-4d60-9619-e553e45aa441',
+      },
+      {
+        id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
+      },
+      {
+        id: 'caecea08-6b2f-4ba9-98b2-b87702ba57ba',
+      },
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: false,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      ['numberOfNewPatientsAdded', 21],
+      [
+        'adjustedConsumption',
+        11,
         {
-          id: '5fc213c6-1bd7-46f0-9883-57c05250ca90',
-          href: 'https://test.openlmis.org/api/facilityTypes/5fc213c6-1bd7-46f0-9883-57c05250ca90',
-        },
-        {
-          id: '663b1d34-cc17-4d60-9619-e553e45aa441',
-          href: 'https://test.openlmis.org/api/facilityTypes/663b1d34-cc17-4d60-9619-e553e45aa441',
-        },
-        {
-          id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
-          href: 'https://test.openlmis.org/api/facilityTypes/ac1d268b-ce10-455f-bf87-9c667da8f060',
-        },
-        {
-          id: 'caecea08-6b2f-4ba9-98b2-b87702ba57ba',
-          href: 'https://test.openlmis.org/api/facilityTypes/caecea08-6b2f-4ba9-98b2-b87702ba57ba',
+          label: 'Adj consumption',
         },
       ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: false,
-      enableAvgConsumptionForCurrentPeriod: false,
-    },
-    columnsMap: {
-      numberOfNewPatientsAdded: {
-        ...columns.numberOfNewPatientsAdded,
-        ...{
-          displayOrder: 21,
-        },
-      },
-      adjustedConsumption: {
-        ...columns.adjustedConsumption,
-        ...{
-          label: 'Adj consumption',
-          displayOrder: 11,
-        },
-      },
-      quantityToIssue: { ...columns.quantityToIssue },
-      totalLossesAndAdjustments: {
-        ...columns.totalLossesAndAdjustments,
-        ...{
+      ['quantityToIssue', 11],
+      [
+        'totalLossesAndAdjustments',
+        6,
+        {
           label: 'Loss/adj',
-          displayOrder: 6,
           definition: 'All losses/adjustments made at the facility.',
         },
-      },
-      totalStockoutDays: {
-        ...columns.totalStockoutDays,
-        ...{
+      ],
+      [
+        'totalStockoutDays',
+        8,
+        {
           label: 'SOD',
         },
-      },
-      packsToShip: {
-        ...columns.packsToShip,
-        ...{
+      ],
+      [
+        'packsToShip',
+        18,
+        {
           label: 'Packs CMST',
-          displayOrder: 18,
           isDisplayed: true,
         },
-      },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': {
-        ...columns['orderable.productCode'],
-        ...{
+      ],
+      ['skipped', 1],
+      [
+        'orderable.productCode',
+        2,
+        {
           label: 'Code',
         },
-      },
-      total: {
-        ...columns.total,
-        ...{
-          displayOrder: 20,
-        },
-      },
-      totalConsumedQuantity: {
-        ...columns.totalConsumedQuantity,
-        ...{
+      ],
+      ['total', 20],
+      [
+        'totalConsumedQuantity',
+        7,
+        {
           label: 'Qty used',
-          displayOrder: 7,
         },
-      },
-      stockOnHand: {
-        ...columns.stockOnHand,
-        ...{
+      ],
+      [
+        'stockOnHand',
+        5,
+        {
           label: 'Close bal',
-          displayOrder: 5,
           source: 'USER_INPUT',
           definition: 'Stock on hand. This is quantified in dispensing units.',
         },
-      },
-      requestedQuantity: {
-        ...columns.requestedQuantity,
-        ...{
+      ],
+      [
+        'requestedQuantity',
+        13,
+        {
           label: 'Qty req',
-          displayOrder: 13,
         },
-      },
-      totalQuantityNeededByHf: { ...columns.totalQuantityNeededByHf },
-      beginningBalance: {
-        ...columns.beginningBalance,
-        ...{
+      ],
+      ['totalQuantityNeededByHf', 10],
+      [
+        'beginningBalance',
+        10,
+        {
           label: 'Open bal',
-          displayOrder: 10,
         },
-      },
-      dosesPerPatient: { ...columns.dosesPerPatient },
-      convertedQuantityToIssue: { ...columns.convertedQuantityToIssue },
-      'orderable.dispensable.displayUnit': {
-        ...columns['orderable.dispensable.displayUnit'],
-        ...{
+      ],
+      ['dosesPerPatient', 8],
+      ['convertedQuantityToIssue', 12],
+      [
+        'orderable.dispensable.displayUnit',
+        4,
+        {
           label: 'UoI',
-          displayOrder: 4,
         },
-      },
-      totalReceivedQuantity: {
-        ...columns.totalReceivedQuantity,
-        ...{
+      ],
+      [
+        'totalReceivedQuantity',
+        9,
+        {
           label: 'Qty rec',
-          displayOrder: 9,
         },
-      },
-      approvedQuantity: {
-        ...columns.approvedQuantity,
-        ...{
+      ],
+      [
+        'approvedQuantity',
+        15,
+        {
           label: 'Qty approved',
-          displayOrder: 15,
         },
-      },
-      'orderable.fullProductName': {
-        ...columns['orderable.fullProductName'],
-        ...{
+      ],
+      [
+        'orderable.fullProductName',
+        3,
+        {
           label: 'Product name',
         },
-      },
-      supplyingFacilityStockOnHand: { ...columns.supplyingFacilityStockOnHand },
-      pricePerPack: {
-        ...columns.pricePerPack,
-        ...{
-          displayOrder: 18,
+      ],
+      ['supplyingFacilityStockOnHand', 25],
+      [
+        'pricePerPack',
+        18,
+        {
           isDisplayed: false,
         },
-      },
-      numberOfPatientsOnTreatmentNextMonth: { ...columns.numberOfPatientsOnTreatmentNextMonth },
-      averageConsumption: {
-        ...columns.averageConsumption,
-        ...{
-          displayOrder: 17,
+      ],
+      ['numberOfPatientsOnTreatmentNextMonth', 7],
+      [
+        'averageConsumption',
+        17,
+        {
           isDisplayed: false,
         },
-      },
-      requestedQuantityExplanation: {
-        ...columns.requestedQuantityExplanation,
-        ...{
+      ],
+      [
+        'requestedQuantityExplanation',
+        14,
+        {
           label: 'Qty req exp',
-          displayOrder: 14,
         },
-      },
-      calculatedOrderQuantity: {
-        ...columns.calculatedOrderQuantity,
-        ...{
+      ],
+      [
+        'calculatedOrderQuantity',
+        12,
+        {
           label: 'Order qty',
-          displayOrder: 12,
           definition:
             'Order quantity to top up to 3 months of stock (average consumption for past 3 months - stock on hand)',
         },
-      },
-      totalRequirement: { ...columns.totalRequirement },
-      remarks: {
-        ...columns.remarks,
-        ...{
-          displayOrder: 16,
-        },
-      },
-      totalCost: {
-        ...columns.totalCost,
-        ...{
-          displayOrder: 22,
-        },
-      },
-      maximumStockQuantity: { ...columns.maximumStockQuantity },
-      additionalQuantityRequired: { ...columns.additionalQuantityRequired },
-    },
+      ],
+      ['totalRequirement', 9],
+      ['remarks', 16],
+      ['totalCost', 22],
+      ['maximumStockQuantity', 23],
+      ['additionalQuantityRequired', 24],
+    ],
   },
   {
-    ...{
-      id: '6c4b004b-b7c9-46f0-bb1b-bd128d36729f',
-      numberOfPeriodsToAverage: 3,
-      name: 'EPI',
-      populateStockOnHandFromStockCards: true,
-      program: {
-        id: '418bdc1d-c303-4bd0-b2d3-d8901150a983',
-        href: 'https://test.openlmis.org/api/programs/418bdc1d-c303-4bd0-b2d3-d8901150a983',
-      },
-      facilityTypes: [
-        {
-          id: '5fc213c6-1bd7-46f0-9883-57c05250ca90',
-          href: 'https://test.openlmis.org/api/facilityTypes/5fc213c6-1bd7-46f0-9883-57c05250ca90',
-        },
-        {
-          id: 'caecea08-6b2f-4ba9-98b2-b87702ba57ba',
-          href: 'https://test.openlmis.org/api/facilityTypes/caecea08-6b2f-4ba9-98b2-b87702ba57ba',
-        },
-      ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: false,
-      enableAvgConsumptionForCurrentPeriod: false,
+    id: '6c4b004b-b7c9-46f0-bb1b-bd128d36729f',
+    numberOfPeriodsToAverage: 3,
+    name: 'EPI',
+    populateStockOnHandFromStockCards: true,
+    program: {
+      id: '418bdc1d-c303-4bd0-b2d3-d8901150a983',
     },
-    columnsMap: {
-      numberOfNewPatientsAdded: {
-        ...columns.numberOfNewPatientsAdded,
-        ...{
+    facilityTypes: [
+      {
+        id: '5fc213c6-1bd7-46f0-9883-57c05250ca90',
+      },
+      {
+        id: 'caecea08-6b2f-4ba9-98b2-b87702ba57ba',
+      },
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: false,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      [
+        'numberOfNewPatientsAdded',
+        20,
+        {
           isDisplayed: true,
         },
-      },
-      adjustedConsumption: { ...columns.adjustedConsumption },
-      quantityToIssue: { ...columns.quantityToIssue },
-      totalLossesAndAdjustments: {
-        ...columns.totalLossesAndAdjustments,
-        ...{
+      ],
+      ['adjustedConsumption', 22],
+      ['quantityToIssue', 11],
+      [
+        'totalLossesAndAdjustments',
+        7,
+        {
           source: 'STOCK_CARDS',
           tag: 'adjustment',
         },
-      },
-      totalStockoutDays: {
-        ...columns.totalStockoutDays,
-        ...{
+      ],
+      [
+        'totalStockoutDays',
+        8,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      packsToShip: {
-        ...columns.packsToShip,
-        ...{
-          displayOrder: 14,
-        },
-      },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': { ...columns['orderable.productCode'] },
-      idealStockAmount: { ...columns.idealStockAmount },
-      total: {
-        ...columns.total,
-        ...{
+      ],
+      ['packsToShip', 14],
+      ['skipped', 1],
+      ['orderable.productCode', 2],
+      ['idealStockAmount', 10],
+      [
+        'total',
+        19,
+        {
           isDisplayed: true,
         },
-      },
-      totalConsumedQuantity: {
-        ...columns.totalConsumedQuantity,
-        ...{
+      ],
+      [
+        'totalConsumedQuantity',
+        6,
+        {
           source: 'STOCK_CARDS',
           tag: 'consumed',
         },
-      },
-      stockOnHand: {
-        ...columns.stockOnHand,
-        ...{
+      ],
+      [
+        'stockOnHand',
+        9,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      requestedQuantity: { ...columns.requestedQuantity },
-      totalQuantityNeededByHf: { ...columns.totalQuantityNeededByHf },
-      beginningBalance: {
-        ...columns.beginningBalance,
-        ...{
+      ],
+      ['requestedQuantity', 15],
+      ['totalQuantityNeededByHf', 10],
+      [
+        'beginningBalance',
+        4,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      dosesPerPatient: { ...columns.dosesPerPatient },
-      convertedQuantityToIssue: { ...columns.convertedQuantityToIssue },
-      'orderable.dispensable.displayUnit': {
-        ...columns['orderable.dispensable.displayUnit'],
-        ...{
-          displayOrder: 24,
-        },
-      },
-      totalReceivedQuantity: {
-        ...columns.totalReceivedQuantity,
-        ...{
+      ],
+      ['dosesPerPatient', 8],
+      ['convertedQuantityToIssue', 12],
+      ['orderable.dispensable.displayUnit', 24],
+      [
+        'totalReceivedQuantity',
+        5,
+        {
           source: 'STOCK_CARDS',
           tag: 'received',
         },
-      },
-      approvedQuantity: { ...columns.approvedQuantity },
-      'orderable.fullProductName': { ...columns['orderable.fullProductName'] },
-      supplyingFacilityStockOnHand: {
-        ...columns.supplyingFacilityStockOnHand,
-        ...{
-          displayOrder: 26,
-        },
-      },
-      pricePerPack: {
-        ...columns.pricePerPack,
-        ...{
-          displayOrder: 23,
-        },
-      },
-      calculatedOrderQuantityIsa: { ...columns.calculatedOrderQuantityIsa },
-      numberOfPatientsOnTreatmentNextMonth: { ...columns.numberOfPatientsOnTreatmentNextMonth },
-      averageConsumption: {
-        ...columns.averageConsumption,
-        ...{
-          displayOrder: 12,
+      ],
+      ['approvedQuantity', 17],
+      ['orderable.fullProductName', 3],
+      ['supplyingFacilityStockOnHand', 26],
+      ['pricePerPack', 23],
+      ['calculatedOrderQuantityIsa', 11],
+      ['numberOfPatientsOnTreatmentNextMonth', 7],
+      [
+        'averageConsumption',
+        12,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      requestedQuantityExplanation: { ...columns.requestedQuantityExplanation },
-      calculatedOrderQuantity: {
-        ...columns.calculatedOrderQuantity,
-        ...{
-          displayOrder: 13,
-        },
-      },
-      totalRequirement: { ...columns.totalRequirement },
-      remarks: { ...columns.remarks },
-      totalCost: {
-        ...columns.totalCost,
-        ...{
-          displayOrder: 25,
-          isDisplayed: true,
-        },
-      },
-      maximumStockQuantity: {
-        ...columns.maximumStockQuantity,
-        ...{
-          displayOrder: 21,
-          isDisplayed: true,
-        },
-      },
-      additionalQuantityRequired: { ...columns.additionalQuantityRequired },
-    },
-  },
-  {
-    ...{
-      id: '37f29736-f0db-4de3-98ad-f8d85c848711',
-      numberOfPeriodsToAverage: 3,
-      name: 'Vaccine Stock-Based R&R Template',
-      populateStockOnHandFromStockCards: true,
-      program: {
-        id: '418bdc1d-c303-4bd0-b2d3-d8901150a983',
-        href: 'https://test.openlmis.org/api/programs/418bdc1d-c303-4bd0-b2d3-d8901150a983',
-      },
-      facilityTypes: [
+      ],
+      ['requestedQuantityExplanation', 16],
+      ['calculatedOrderQuantity', 13],
+      ['totalRequirement', 9],
+      ['remarks', 18],
+      [
+        'totalCost',
+        25,
         {
-          id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
-          href: 'https://test.openlmis.org/api/facilityTypes/ac1d268b-ce10-455f-bf87-9c667da8f060',
+          isDisplayed: true,
         },
       ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: false,
-      enableAvgConsumptionForCurrentPeriod: false,
-    },
-    columnsMap: {
-      numberOfNewPatientsAdded: {
-        ...columns.numberOfNewPatientsAdded,
-        ...{
+      [
+        'maximumStockQuantity',
+        21,
+        {
           isDisplayed: true,
         },
+      ],
+      ['additionalQuantityRequired', 24],
+    ],
+  },
+  {
+    id: '37f29736-f0db-4de3-98ad-f8d85c848711',
+    numberOfPeriodsToAverage: 3,
+    name: 'Vaccine Stock-Based R&R Template',
+    populateStockOnHandFromStockCards: true,
+    program: {
+      id: '418bdc1d-c303-4bd0-b2d3-d8901150a983',
+    },
+    facilityTypes: [
+      {
+        id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
       },
-      adjustedConsumption: { ...columns.adjustedConsumption },
-      quantityToIssue: { ...columns.quantityToIssue },
-      totalLossesAndAdjustments: {
-        ...columns.totalLossesAndAdjustments,
-        ...{
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: false,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      [
+        'numberOfNewPatientsAdded',
+        20,
+        {
+          isDisplayed: true,
+        },
+      ],
+      ['adjustedConsumption', 22],
+      ['quantityToIssue', 11],
+      [
+        'totalLossesAndAdjustments',
+        7,
+        {
           source: 'STOCK_CARDS',
           tag: 'adjustment',
         },
-      },
-      totalStockoutDays: {
-        ...columns.totalStockoutDays,
-        ...{
+      ],
+      [
+        'totalStockoutDays',
+        8,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      packsToShip: {
-        ...columns.packsToShip,
-        ...{
-          displayOrder: 14,
-        },
-      },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': { ...columns['orderable.productCode'] },
-      idealStockAmount: { ...columns.idealStockAmount },
-      total: {
-        ...columns.total,
-        ...{
+      ],
+      ['packsToShip', 14],
+      ['skipped', 1],
+      ['orderable.productCode', 2],
+      ['idealStockAmount', 10],
+      [
+        'total',
+        19,
+        {
           isDisplayed: true,
         },
-      },
-      totalConsumedQuantity: {
-        ...columns.totalConsumedQuantity,
-        ...{
+      ],
+      [
+        'totalConsumedQuantity',
+        6,
+        {
           source: 'STOCK_CARDS',
           tag: 'consumed',
         },
-      },
-      stockOnHand: {
-        ...columns.stockOnHand,
-        ...{
+      ],
+      [
+        'stockOnHand',
+        9,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      requestedQuantity: { ...columns.requestedQuantity },
-      totalQuantityNeededByHf: { ...columns.totalQuantityNeededByHf },
-      beginningBalance: {
-        ...columns.beginningBalance,
-        ...{
+      ],
+      ['requestedQuantity', 15],
+      ['totalQuantityNeededByHf', 10],
+      [
+        'beginningBalance',
+        4,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      dosesPerPatient: { ...columns.dosesPerPatient },
-      convertedQuantityToIssue: { ...columns.convertedQuantityToIssue },
-      'orderable.dispensable.displayUnit': {
-        ...columns['orderable.dispensable.displayUnit'],
-        ...{
-          displayOrder: 24,
-        },
-      },
-      totalReceivedQuantity: {
-        ...columns.totalReceivedQuantity,
-        ...{
+      ],
+      ['dosesPerPatient', 8],
+      ['convertedQuantityToIssue', 12],
+      ['orderable.dispensable.displayUnit', 24],
+      [
+        'totalReceivedQuantity',
+        5,
+        {
           source: 'STOCK_CARDS',
           tag: 'received',
         },
-      },
-      approvedQuantity: { ...columns.approvedQuantity },
-      'orderable.fullProductName': { ...columns['orderable.fullProductName'] },
-      supplyingFacilityStockOnHand: {
-        ...columns.supplyingFacilityStockOnHand,
-        ...{
-          displayOrder: 26,
-        },
-      },
-      pricePerPack: {
-        ...columns.pricePerPack,
-        ...{
-          displayOrder: 23,
-        },
-      },
-      calculatedOrderQuantityIsa: { ...columns.calculatedOrderQuantityIsa },
-      numberOfPatientsOnTreatmentNextMonth: { ...columns.numberOfPatientsOnTreatmentNextMonth },
-      averageConsumption: {
-        ...columns.averageConsumption,
-        ...{
-          displayOrder: 12,
+      ],
+      ['approvedQuantity', 17],
+      ['orderable.fullProductName', 3],
+      ['supplyingFacilityStockOnHand', 26],
+      ['pricePerPack', 23],
+      ['calculatedOrderQuantityIsa', 11],
+      ['numberOfPatientsOnTreatmentNextMonth', 7],
+      [
+        'averageConsumption',
+        12,
+        {
           source: 'STOCK_CARDS',
         },
-      },
-      requestedQuantityExplanation: { ...columns.requestedQuantityExplanation },
-      calculatedOrderQuantity: {
-        ...columns.calculatedOrderQuantity,
-        ...{
-          displayOrder: 13,
-        },
-      },
-      totalRequirement: { ...columns.totalRequirement },
-      remarks: { ...columns.remarks },
-      totalCost: {
-        ...columns.totalCost,
-        ...{
-          displayOrder: 25,
+      ],
+      ['requestedQuantityExplanation', 16],
+      ['calculatedOrderQuantity', 13],
+      ['totalRequirement', 9],
+      ['remarks', 18],
+      [
+        'totalCost',
+        25,
+        {
           isDisplayed: true,
         },
-      },
-      maximumStockQuantity: {
-        ...columns.maximumStockQuantity,
-        ...{
-          displayOrder: 21,
+      ],
+      [
+        'maximumStockQuantity',
+        21,
+        {
           isDisplayed: true,
         },
-      },
-      additionalQuantityRequired: { ...columns.additionalQuantityRequired },
-    },
+      ],
+      ['additionalQuantityRequired', 24],
+    ],
   },
   {
-    ...{
-      id: '6fa1a58c-960b-4835-be22-05be5f7357e2',
-      numberOfPeriodsToAverage: 3,
-      name: 'CHAZ',
-      populateStockOnHandFromStockCards: false,
-      program: {
-        id: 'ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a',
-        href: 'https://test.openlmis.org/api/programs/ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a',
+    id: '6fa1a58c-960b-4835-be22-05be5f7357e2',
+    numberOfPeriodsToAverage: 3,
+    name: 'CHAZ',
+    populateStockOnHandFromStockCards: false,
+    program: {
+      id: 'ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a',
+    },
+    facilityTypes: [
+      {
+        id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
       },
-      facilityTypes: [
-        {
-          id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
-          href: 'https://test.openlmis.org/api/facilityTypes/ac1d268b-ce10-455f-bf87-9c667da8f060',
-        },
-      ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: false,
-      enableAvgConsumptionForCurrentPeriod: false,
-    },
-    columnsMap: {
-      numberOfNewPatientsAdded: { ...columns.numberOfNewPatientsAdded },
-      adjustedConsumption: { ...columns.adjustedConsumption },
-      quantityToIssue: { ...columns.quantityToIssue },
-      totalLossesAndAdjustments: { ...columns.totalLossesAndAdjustments },
-      totalStockoutDays: { ...columns.totalStockoutDays },
-      packsToShip: { ...columns.packsToShip },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': { ...columns['orderable.productCode'] },
-      total: { ...columns.total },
-      totalConsumedQuantity: { ...columns.totalConsumedQuantity },
-      stockOnHand: { ...columns.stockOnHand },
-      requestedQuantity: { ...columns.requestedQuantity },
-      totalQuantityNeededByHf: { ...columns.totalQuantityNeededByHf },
-      beginningBalance: { ...columns.beginningBalance },
-      dosesPerPatient: { ...columns.dosesPerPatient },
-      convertedQuantityToIssue: { ...columns.convertedQuantityToIssue },
-      'orderable.dispensable.displayUnit': { ...columns['orderable.dispensable.displayUnit'] },
-      totalReceivedQuantity: { ...columns.totalReceivedQuantity },
-      approvedQuantity: { ...columns.approvedQuantity },
-      'orderable.fullProductName': { ...columns['orderable.fullProductName'] },
-      supplyingFacilityStockOnHand: { ...columns.supplyingFacilityStockOnHand },
-      pricePerPack: { ...columns.pricePerPack },
-      numberOfPatientsOnTreatmentNextMonth: { ...columns.numberOfPatientsOnTreatmentNextMonth },
-      averageConsumption: { ...columns.averageConsumption },
-      requestedQuantityExplanation: { ...columns.requestedQuantityExplanation },
-      calculatedOrderQuantity: { ...columns.calculatedOrderQuantity },
-      totalRequirement: { ...columns.totalRequirement },
-      remarks: { ...columns.remarks },
-      totalCost: { ...columns.totalCost },
-      maximumStockQuantity: { ...columns.maximumStockQuantity },
-      additionalQuantityRequired: { ...columns.additionalQuantityRequired },
-    },
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: false,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      ['numberOfNewPatientsAdded', 20],
+      ['adjustedConsumption', 22],
+      ['quantityToIssue', 11],
+      ['totalLossesAndAdjustments', 7],
+      ['totalStockoutDays', 8],
+      ['packsToShip', 13],
+      ['skipped', 1],
+      ['orderable.productCode', 2],
+      ['total', 19],
+      ['totalConsumedQuantity', 6],
+      ['stockOnHand', 9],
+      ['requestedQuantity', 15],
+      ['totalQuantityNeededByHf', 10],
+      ['beginningBalance', 4],
+      ['dosesPerPatient', 8],
+      ['convertedQuantityToIssue', 12],
+      ['orderable.dispensable.displayUnit', 14],
+      ['totalReceivedQuantity', 5],
+      ['approvedQuantity', 17],
+      ['orderable.fullProductName', 3],
+      ['supplyingFacilityStockOnHand', 25],
+      ['pricePerPack', 12],
+      ['numberOfPatientsOnTreatmentNextMonth', 7],
+      ['averageConsumption', 10],
+      ['requestedQuantityExplanation', 16],
+      ['calculatedOrderQuantity', 11],
+      ['totalRequirement', 9],
+      ['remarks', 18],
+      ['totalCost', 21],
+      ['maximumStockQuantity', 23],
+      ['additionalQuantityRequired', 24],
+    ],
   },
   {
-    ...{
-      id: '14e756d2-60a6-45fd-b135-3caff3f328cd',
-      numberOfPeriodsToAverage: 3,
-      name: 'Lab program',
-      populateStockOnHandFromStockCards: false,
-      program: {
-        id: '8a0cf9c6-0591-4ce1-bbbb-ae55553db0dc',
-        href: 'https://test.openlmis.org/api/programs/8a0cf9c6-0591-4ce1-bbbb-ae55553db0dc',
+    id: '14e756d2-60a6-45fd-b135-3caff3f328cd',
+    numberOfPeriodsToAverage: 3,
+    name: 'Lab program',
+    populateStockOnHandFromStockCards: false,
+    program: {
+      id: '8a0cf9c6-0591-4ce1-bbbb-ae55553db0dc',
+    },
+    facilityTypes: [
+      {
+        id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
       },
-      facilityTypes: [
-        {
-          id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
-          href: 'https://test.openlmis.org/api/facilityTypes/ac1d268b-ce10-455f-bf87-9c667da8f060',
-        },
-      ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: false,
-      enableAvgConsumptionForCurrentPeriod: false,
-    },
-    columnsMap: {
-      numberOfNewPatientsAdded: { ...columns.numberOfNewPatientsAdded },
-      adjustedConsumption: { ...columns.adjustedConsumption },
-      quantityToIssue: { ...columns.quantityToIssue },
-      totalLossesAndAdjustments: { ...columns.totalLossesAndAdjustments },
-      totalStockoutDays: { ...columns.totalStockoutDays },
-      packsToShip: { ...columns.packsToShip },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': { ...columns['orderable.productCode'] },
-      total: { ...columns.total },
-      totalConsumedQuantity: { ...columns.totalConsumedQuantity },
-      stockOnHand: { ...columns.stockOnHand },
-      requestedQuantity: { ...columns.requestedQuantity },
-      totalQuantityNeededByHf: { ...columns.totalQuantityNeededByHf },
-      beginningBalance: { ...columns.beginningBalance },
-      dosesPerPatient: { ...columns.dosesPerPatient },
-      convertedQuantityToIssue: { ...columns.convertedQuantityToIssue },
-      'orderable.dispensable.displayUnit': { ...columns['orderable.dispensable.displayUnit'] },
-      totalReceivedQuantity: { ...columns.totalReceivedQuantity },
-      approvedQuantity: { ...columns.approvedQuantity },
-      'orderable.fullProductName': { ...columns['orderable.fullProductName'] },
-      supplyingFacilityStockOnHand: { ...columns.supplyingFacilityStockOnHand },
-      pricePerPack: { ...columns.pricePerPack },
-      numberOfPatientsOnTreatmentNextMonth: { ...columns.numberOfPatientsOnTreatmentNextMonth },
-      averageConsumption: { ...columns.averageConsumption },
-      requestedQuantityExplanation: { ...columns.requestedQuantityExplanation },
-      calculatedOrderQuantity: { ...columns.calculatedOrderQuantity },
-      totalRequirement: { ...columns.totalRequirement },
-      remarks: { ...columns.remarks },
-      totalCost: { ...columns.totalCost },
-      maximumStockQuantity: { ...columns.maximumStockQuantity },
-      additionalQuantityRequired: { ...columns.additionalQuantityRequired },
-    },
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: false,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      ['numberOfNewPatientsAdded', 20],
+      ['adjustedConsumption', 22],
+      ['quantityToIssue', 11],
+      ['totalLossesAndAdjustments', 7],
+      ['totalStockoutDays', 8],
+      ['packsToShip', 13],
+      ['skipped', 1],
+      ['orderable.productCode', 2],
+      ['total', 19],
+      ['totalConsumedQuantity', 6],
+      ['stockOnHand', 9],
+      ['requestedQuantity', 15],
+      ['totalQuantityNeededByHf', 10],
+      ['beginningBalance', 4],
+      ['dosesPerPatient', 8],
+      ['convertedQuantityToIssue', 12],
+      ['orderable.dispensable.displayUnit', 14],
+      ['totalReceivedQuantity', 5],
+      ['approvedQuantity', 17],
+      ['orderable.fullProductName', 3],
+      ['supplyingFacilityStockOnHand', 25],
+      ['pricePerPack', 12],
+      ['numberOfPatientsOnTreatmentNextMonth', 7],
+      ['averageConsumption', 10],
+      ['requestedQuantityExplanation', 16],
+      ['calculatedOrderQuantity', 11],
+      ['totalRequirement', 9],
+      ['remarks', 18],
+      ['totalCost', 21],
+      ['maximumStockQuantity', 23],
+      ['additionalQuantityRequired', 24],
+    ],
   },
   {
-    ...{
-      id: '913f566e-a94d-467e-9309-f13db7685ff8',
-      numberOfPeriodsToAverage: 3,
-      name: 'TB Monthly',
-      populateStockOnHandFromStockCards: false,
-      program: {
-        id: '5a666ff8-5d87-477e-8109-42f6ac666eb1',
-        href: 'https://test.openlmis.org/api/programs/5a666ff8-5d87-477e-8109-42f6ac666eb1',
-      },
-      facilityTypes: [
-        {
-          id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
-          href: 'https://test.openlmis.org/api/facilityTypes/ac1d268b-ce10-455f-bf87-9c667da8f060',
-        },
-      ],
-      rejectionReasonWindowVisible: false,
-      requisitionReportOnly: false,
-      patientsTabEnabled: true,
-      enableAvgConsumptionForCurrentPeriod: false,
+    id: '913f566e-a94d-467e-9309-f13db7685ff8',
+    numberOfPeriodsToAverage: 3,
+    name: 'TB Monthly',
+    populateStockOnHandFromStockCards: false,
+    program: {
+      id: '5a666ff8-5d87-477e-8109-42f6ac666eb1',
     },
-    columnsMap: {
-      numberOfNewPatientsAdded: {
-        ...columns.numberOfNewPatientsAdded,
-        ...{
-          displayOrder: 26,
-        },
+    facilityTypes: [
+      {
+        id: 'ac1d268b-ce10-455f-bf87-9c667da8f060',
       },
-      adjustedConsumption: {
-        ...columns.adjustedConsumption,
-        ...{
-          displayOrder: 28,
+    ],
+    rejectionReasonWindowVisible: false,
+    requisitionReportOnly: false,
+    patientsTabEnabled: true,
+    enableAvgConsumptionForCurrentPeriod: false,
+    rows: [
+      ['numberOfNewPatientsAdded', 26],
+      [
+        'adjustedConsumption',
+        28,
+        {
           isDisplayed: false,
         },
-      },
-      quantityToIssue: {
-        ...columns.quantityToIssue,
-        ...{
+      ],
+      [
+        'quantityToIssue',
+        11,
+        {
           isDisplayed: true,
         },
-      },
-      totalLossesAndAdjustments: {
-        ...columns.totalLossesAndAdjustments,
-        ...{
+      ],
+      [
+        'totalLossesAndAdjustments',
+        5,
+        {
           label: 'Loss & Adjustments (B) ',
-          displayOrder: 5,
         },
-      },
-      totalStockoutDays: {
-        ...columns.totalStockoutDays,
-        ...{
-          displayOrder: 17,
+      ],
+      [
+        'totalStockoutDays',
+        17,
+        {
           isDisplayed: false,
         },
-      },
-      packsToShip: {
-        ...columns.packsToShip,
-        ...{
-          displayOrder: 21,
-        },
-      },
-      skipped: { ...columns.skipped },
-      'orderable.productCode': { ...columns['orderable.productCode'] },
-      total: {
-        ...columns.total,
-        ...{
-          displayOrder: 25,
-        },
-      },
-      totalConsumedQuantity: {
-        ...columns.totalConsumedQuantity,
-        ...{
-          displayOrder: 16,
+      ],
+      ['packsToShip', 21],
+      ['skipped', 1],
+      ['orderable.productCode', 2],
+      ['total', 25],
+      [
+        'totalConsumedQuantity',
+        16,
+        {
           isDisplayed: false,
         },
-      },
-      stockOnHand: {
-        ...columns.stockOnHand,
-        ...{
+      ],
+      [
+        'stockOnHand',
+        4,
+        {
           label: 'Stock on hand (A) ',
-          displayOrder: 4,
           source: 'USER_INPUT',
         },
-      },
-      requestedQuantity: {
-        ...columns.requestedQuantity,
-        ...{
-          displayOrder: 22,
+      ],
+      [
+        'requestedQuantity',
+        22,
+        {
           isDisplayed: false,
         },
-      },
-      totalQuantityNeededByHf: {
-        ...columns.totalQuantityNeededByHf,
-        ...{
+      ],
+      [
+        'totalQuantityNeededByHf',
+        10,
+        {
           isDisplayed: true,
         },
-      },
-      beginningBalance: {
-        ...columns.beginningBalance,
-        ...{
-          displayOrder: 15,
+      ],
+      [
+        'beginningBalance',
+        15,
+        {
           isDisplayed: false,
         },
-      },
-      dosesPerPatient: {
-        ...columns.dosesPerPatient,
-        ...{
+      ],
+      [
+        'dosesPerPatient',
+        8,
+        {
           isDisplayed: true,
         },
-      },
-      convertedQuantityToIssue: {
-        ...columns.convertedQuantityToIssue,
-        ...{
+      ],
+      [
+        'convertedQuantityToIssue',
+        12,
+        {
           isDisplayed: true,
         },
-      },
-      'orderable.dispensable.displayUnit': {
-        ...columns['orderable.dispensable.displayUnit'],
-        ...{
+      ],
+      [
+        'orderable.dispensable.displayUnit',
+        6,
+        {
           label: 'Unit of measure (U) ',
-          displayOrder: 6,
         },
-      },
-      totalReceivedQuantity: {
-        ...columns.totalReceivedQuantity,
-        ...{
+      ],
+      [
+        'totalReceivedQuantity',
+        13,
+        {
           label: 'Quantity Issued ',
-          displayOrder: 13,
           definition: 'Quantity Issued.',
         },
-      },
-      approvedQuantity: {
-        ...columns.approvedQuantity,
-        ...{
-          displayOrder: 24,
+      ],
+      [
+        'approvedQuantity',
+        24,
+        {
           isDisplayed: false,
         },
-      },
-      'orderable.fullProductName': { ...columns['orderable.fullProductName'] },
-      supplyingFacilityStockOnHand: {
-        ...columns.supplyingFacilityStockOnHand,
-        ...{
-          displayOrder: 31,
-        },
-      },
-      pricePerPack: {
-        ...columns.pricePerPack,
-        ...{
-          displayOrder: 20,
+      ],
+      ['orderable.fullProductName', 3],
+      ['supplyingFacilityStockOnHand', 31],
+      [
+        'pricePerPack',
+        20,
+        {
           isDisplayed: false,
         },
-      },
-      numberOfPatientsOnTreatmentNextMonth: {
-        ...columns.numberOfPatientsOnTreatmentNextMonth,
-        ...{
+      ],
+      [
+        'numberOfPatientsOnTreatmentNextMonth',
+        7,
+        {
           isDisplayed: true,
         },
-      },
-      averageConsumption: {
-        ...columns.averageConsumption,
-        ...{
-          displayOrder: 18,
+      ],
+      [
+        'averageConsumption',
+        18,
+        {
           isDisplayed: false,
         },
-      },
-      requestedQuantityExplanation: {
-        ...columns.requestedQuantityExplanation,
-        ...{
-          displayOrder: 23,
+      ],
+      [
+        'requestedQuantityExplanation',
+        23,
+        {
           isDisplayed: false,
         },
-      },
-      calculatedOrderQuantity: {
-        ...columns.calculatedOrderQuantity,
-        ...{
-          displayOrder: 19,
+      ],
+      [
+        'calculatedOrderQuantity',
+        19,
+        {
           isDisplayed: false,
         },
-      },
-      totalRequirement: {
-        ...columns.totalRequirement,
-        ...{
+      ],
+      [
+        'totalRequirement',
+        9,
+        {
           isDisplayed: true,
         },
-      },
-      remarks: {
-        ...columns.remarks,
-        ...{
-          displayOrder: 14,
-        },
-      },
-      totalCost: {
-        ...columns.totalCost,
-        ...{
-          displayOrder: 27,
-        },
-      },
-      maximumStockQuantity: {
-        ...columns.maximumStockQuantity,
-        ...{
-          displayOrder: 29,
-        },
-      },
-      additionalQuantityRequired: {
-        ...columns.additionalQuantityRequired,
-        ...{
-          displayOrder: 30,
-        },
-      },
-    },
+      ],
+      ['remarks', 14],
+      ['totalCost', 27],
+      ['maximumStockQuantity', 29],
+      ['additionalQuantityRequired', 30],
+    ],
   },
 ];
+
+export const liveTemplates: RequisitionTemplate[] = fixtures.map(({ rows, ...template }) => ({
+  ...template,
+  columnsMap: Object.fromEntries(
+    rows.map(([name, displayOrder, override]) => [
+      name,
+      { ...columns[name], displayOrder, ...override },
+    ]),
+  ),
+}));

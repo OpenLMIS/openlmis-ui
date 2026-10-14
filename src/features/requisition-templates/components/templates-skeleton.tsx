@@ -9,7 +9,7 @@ export function TemplatesSkeleton() {
       {[0, 1, 2].map((section) => (
         <div className="flex flex-col gap-3" key={section}>
           <SkeletonLine width="short" />
-          <DataTableSkeleton pagination="none" rowCount={2} table={table} />
+          <DataTableSkeleton layout="auto" pagination="none" rowCount={2} table={table} />
         </div>
       ))}
     </div>

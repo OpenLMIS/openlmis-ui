@@ -7,7 +7,6 @@ import {
 import {
   getNameError,
   getRowErrors,
-  isDraftValid,
 } from '@/features/requisition-templates/lib/template-validation';
 import { liveCatalog, liveTemplates } from '@/features/requisition-templates/lib/test-templates';
 
@@ -40,7 +39,8 @@ describe('saved legacy templates', () => {
     '%s has no legacy errors',
     (_, template) => {
       expect(getRowErrors(draftFromTemplate(template))).toEqual({});
-      expect(isDraftValid(draftFromTemplate(template))).toBe(true);
+      expect(getRowErrors(draftFromTemplate(template))).toEqual({});
+      expect(getNameError(draftFromTemplate(template))).toBeUndefined();
     },
   );
   it('retains the one legacy error in FM-148 defaults', () => {
@@ -77,7 +77,7 @@ it('returns the first failed field in legacy order and clears each repaired erro
   column.definition = '';
   expect(error(draft, 'skipped')?.field).toBe('source');
   column.source = 'REFERENCE_DATA';
-  expect(error(draft, 'skipped')).toEqual({ field: 'option', key: `${prefix}option-required` });
+  expect(error(draft, 'skipped')).toEqual({ field: 'optionId', key: `${prefix}option-required` });
   column.optionId = definition.options[0].id;
   expect(error(draft, 'skipped')).toBeUndefined();
   column.optionId = null;
@@ -106,7 +106,7 @@ it('requires multisource user input to display, with exactly the legacy exemptio
   const { column, definition } = row(draft, 'stockOnHand');
   Object.assign(column, { source: 'USER_INPUT', isDisplayed: false });
   expect(error(draft, 'stockOnHand')).toEqual({
-    field: 'display',
+    field: 'isDisplayed',
     key: `${prefix}user-input-display`,
   });
   draft.patientsTabEnabled = true;
@@ -134,7 +134,10 @@ it.each([
   const draft = base();
   draft.patientsTabEnabled = true;
   draft.numberOfPeriodsToAverage = value;
-  expect(error(draft, 'averageConsumption')).toEqual({ field: 'periods', key: prefix + key });
+  expect(error(draft, 'averageConsumption')).toEqual({
+    field: 'numberOfPeriodsToAverage',
+    key: prefix + key,
+  });
   draft.numberOfPeriodsToAverage = '٢';
   expect(error(draft, 'averageConsumption')).toBeUndefined();
   draft.numberOfPeriodsToAverage = '۳';
@@ -152,7 +155,7 @@ it.each([
   row(draft, name).column.isDisplayed = true;
   Object.assign(row(draft, other).column, { isDisplayed: false, label: 'Current label' });
   expect(error(draft, name)).toEqual({
-    field: 'display',
+    field: 'isDisplayed',
     key: `${prefix}display-mismatch`,
     values: { column: 'Current label' },
   });
@@ -176,7 +179,7 @@ it('checks hidden stockout against adjusted consumption before average consumpti
   expect(error(draft, 'totalStockoutDays')?.values).toEqual({ column: 'adjustedConsumption' });
   row(draft, 'adjustedConsumption').column.isDisplayed = false;
   expect(error(draft, 'totalStockoutDays')).toEqual({
-    field: 'display',
+    field: 'isDisplayed',
     key: `${prefix}calculated-display`,
     values: { column: 'averageConsumption' },
   });
@@ -194,7 +197,7 @@ it.each(['requestedQuantity', 'requestedQuantityExplanation'])(
     row(draft, 'calculatedOrderQuantity').column.isDisplayed = false;
     row(draft, name).column.isDisplayed = false;
     expect(error(draft, 'calculatedOrderQuantity')).toEqual({
-      field: 'display',
+      field: 'isDisplayed',
       key: `${prefix}requested-display`,
       values: {
         calculatedOrderQuantity: row(draft, 'calculatedOrderQuantity').column.label,
@@ -237,14 +240,16 @@ it('checks tags on hidden patients rows, after column rules and before stock-car
 
 it('enforces only required name and length in settings', () => {
   const draft = base();
-  expect(isDraftValid(draft)).toBe(true);
+  expect(getRowErrors(draft)).toEqual({});
+  expect(getNameError(draft)).toBeUndefined();
   draft.name = '  ';
   expect(getNameError(draft)?.key).toBe('requisition-templates.form.name-required');
-  expect(isDraftValid(draft)).toBe(false);
+  expect(getRowErrors(draft)).toEqual({});
   draft.name = 'a'.repeat(256);
   expect(getNameError(draft)?.key).toBe('requisition-templates.form.name-too-long');
   draft.name = 'a'.repeat(255);
-  expect(isDraftValid(draft)).toBe(true);
+  expect(getRowErrors(draft)).toEqual({});
+  expect(getNameError(draft)).toBeUndefined();
 });
 
 it('keeps user-input, column-specific, tag and stock errors in legacy priority', () => {

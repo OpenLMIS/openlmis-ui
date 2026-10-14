@@ -37,7 +37,7 @@ export function TemplateEditorSkeleton({
             <WorkspaceIcon>
               <FileSlidersIcon />
             </WorkspaceIcon>
-            <WorkspaceTitle>{title ?? t('requisition-templates.configure.crumb')}</WorkspaceTitle>
+            <WorkspaceTitle>{title ?? <Block className="h-8 w-72" />}</WorkspaceTitle>
             <WorkspaceDescription>
               {t('requisition-templates.configure.description')}
             </WorkspaceDescription>

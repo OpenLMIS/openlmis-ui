@@ -59,11 +59,11 @@ function TableHeader({
   )
 }
 
-function TableBody({ className, divided = false, ...props }: React.ComponentProps<"tbody"> & { divided?: boolean }) {
+function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn(!divided && "[&_tr:last-child]:border-0", className)}
+      className={cn("[&_tr:last-child]:border-0", className)}
       {...props}
     />
   )

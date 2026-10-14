@@ -124,3 +124,19 @@ it('puts a server duplicate name on the Name field', async () => {
   expect(name).toHaveAccessibleDescription('requisition-templates.form.name-taken');
   expect(screen.queryByText('requisition-templates.form.save-error-title')).not.toBeInTheDocument();
 });
+
+it('describes the missing facility types error on the picker', async () => {
+  const user = userEvent.setup();
+  renderAdd();
+  await user.type(
+    await screen.findByRole('textbox', { name: 'requisition-templates.form.name' }),
+    'New template',
+  );
+  await user.click(screen.getByRole('combobox', { name: 'requisition-templates.form.program' }));
+  await user.click(await screen.findByRole('option', { name: 'Malaria' }));
+  await user.click(screen.getByRole('button', { name: 'requisition-templates.form.create' }));
+  const picker = screen.getByRole('combobox', { name: 'requisition-templates.form.facility-type' });
+  await waitFor(() => expect(picker).toHaveAttribute('aria-invalid', 'true'));
+  expect(picker).toHaveAccessibleDescription('requisition-templates.form.facility-types-required');
+  expect(create).not.toHaveBeenCalled();
+});
