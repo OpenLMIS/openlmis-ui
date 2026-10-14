@@ -33,13 +33,33 @@ describe('getLocalDb', () => {
     old.close();
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     await db.table('physicalInventoryDrafts').put({ draftId: 'draft', lines: [] });
     expect(await db.table('physicalInventoryDrafts').get('draft')).toEqual({
       draftId: 'draft',
       lines: [],
     });
   });
+  it('preserves inventory rows when adding access and download tables to version two', async () => {
+    signIn('access-upgrade');
+    const old = new Dexie(getLocalDb().name);
+    old.version(1).stores({});
+    old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+    const draft = { draftId: 'existing-count', lines: [{ quantity: '12' }], savedAt: 123 };
+    await old.table('physicalInventoryDrafts').put(draft);
+    old.close();
+
+    const db = getLocalDb();
+    await db.open();
+    expect(db.verno).toBe(3);
+    expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
+    expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
+    expect(db.table('adjustmentDownloads').schema.primKey.keyPath).toEqual([
+      'facilityId',
+      'programId',
+    ]);
+  });
+
   it('needs someone signed in, since every database belongs to a user', () => {
     expect(() => getLocalDb()).toThrow();
   });

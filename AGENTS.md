@@ -910,3 +910,7 @@ opens `openlmis-ui:<deployment>:<userId>` for the signed-in user, closes on iden
 sign-out, and never deletes it. Screens add tables with a new `version()`. Offline reads
 return data, unavailable or a handled error; local absence is never a server 404. Tests use
 `fake-indexeddb`; `src/tests/setup.ts` restores online state after each test.
+
+- Only the shell bootstrap coordinator writes `offlineAccess`, as one complete snapshot after
+  all reads and identity checks. Queries fetch online or read it only after no-response failures;
+  server responses never fall back to saved access. Missing local data uses `LocalDataUnavailableError`.

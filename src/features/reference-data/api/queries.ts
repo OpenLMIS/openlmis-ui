@@ -45,6 +45,7 @@ import {
 } from '@/features/reference-data/api/api';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
+import { withOfflineAccess } from '@/lib/offline-access';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -59,7 +60,11 @@ export const minimalFacilitiesOptions = () =>
 export const facilityOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.facilities.detail(id),
-    queryFn: () => fetchFacility(id),
+    queryFn: () =>
+      withOfflineAccess(
+        () => fetchFacility(id),
+        (saved) => (saved.homeFacility?.id === id ? saved.homeFacility : undefined),
+      ),
     staleTime: LOOKUP_STALE_TIME,
   });
 
@@ -241,14 +246,22 @@ export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) 
 export const userRecordOptions = (id: string) =>
   queryOptions({
     queryKey: userRecordKey(id),
-    queryFn: () => fetchUserRecord(id),
+    queryFn: () =>
+      withOfflineAccess(
+        () => fetchUserRecord(id),
+        (saved) => (saved.userId === id ? saved.user : undefined),
+      ),
     staleTime: LOOKUP_STALE_TIME,
   });
 
 export const userProgramsOptions = (id: string) =>
   queryOptions({
     queryKey: userProgramsKey(id),
-    queryFn: () => fetchUserPrograms(id),
+    queryFn: () =>
+      withOfflineAccess(
+        () => fetchUserPrograms(id),
+        (saved) => (saved.userId === id ? saved.programs : undefined),
+      ),
     staleTime: LOOKUP_STALE_TIME,
   });
 

@@ -24,6 +24,10 @@ export function getLocalDb(): Dexie {
     database = new Dexie(localDatabaseName({ deployment: deployment(), userId }));
     database.version(1).stores({});
     database.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+    database.version(3).stores({
+      offlineAccess: 'userId',
+      adjustmentDownloads: '[facilityId+programId]',
+    });
   }
   return database;
 }
