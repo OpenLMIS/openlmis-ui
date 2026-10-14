@@ -1,4 +1,5 @@
-import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryObserver } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -147,6 +148,48 @@ describe('durable access', () => {
     expect(client.getQueryData(facilityOptions('home').queryKey)).toBeUndefined();
   });
 
+  it.each([true, false])(
+    'reuses fallback access for 30 seconds on repeated navigation (browser online: %s)',
+    async (online) => {
+      await bootstrapOfflineAccess(readers());
+      onlineManager.setOnline(online);
+      const timeout = new AxiosError('Read timed out', AxiosError.ECONNABORTED);
+      vi.mocked(fetchPermissionStrings).mockRejectedValue(timeout);
+      vi.mocked(fetchUserRecord).mockRejectedValue(timeout);
+      vi.mocked(fetchUserPrograms).mockRejectedValue(timeout);
+      vi.mocked(fetchFacility).mockRejectedValue(timeout);
+      let now = Date.now();
+      vi.spyOn(Date, 'now').mockImplementation(() => now);
+      const client = queryClient();
+      const read = async () => {
+        await requireRight(client, 'STOCK_ADJUST');
+        await client.fetchQuery(userRecordOptions('ada'));
+        await client.fetchQuery(userProgramsOptions('ada'));
+        await client.fetchQuery(homeFacilityOptions('home'));
+      };
+      await read();
+      now += 29_999;
+      await read();
+      for (const fetch of [
+        fetchPermissionStrings,
+        fetchUserRecord,
+        fetchUserPrograms,
+        fetchFacility,
+      ])
+        expect(fetch).toHaveBeenCalledTimes(1);
+      now += 1;
+      await read();
+      for (const fetch of [
+        fetchPermissionStrings,
+        fetchUserRecord,
+        fetchUserPrograms,
+        fetchFacility,
+      ])
+        expect(fetch).toHaveBeenCalledTimes(2);
+      client.clear();
+    },
+  );
+
   it('refreshes device access before a route can reuse revoked rights after reconnect', async () => {
     await bootstrapOfflineAccess(readers());
     const client = queryClient();
@@ -168,6 +211,27 @@ describe('durable access', () => {
     expect(await client.fetchQuery(userProgramsOptions('ada'))).toEqual([]);
     expect((await client.fetchQuery(homeFacilityOptions('home'))).supportedPrograms).toEqual([]);
     expect(fetchPermissionStrings).toHaveBeenCalledTimes(2);
+  });
+
+  it('refetches mounted device rights immediately on reconnect within the fresh window', async () => {
+    await bootstrapOfflineAccess(readers());
+    onlineManager.setOnline(false);
+    const client = queryClient();
+    await requireRight(client, 'STOCK_ADJUST');
+    client.mount();
+    const observer = new QueryObserver(client, permissionsOptions('ada'));
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
+      vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+      onlineManager.setOnline(true);
+      await waitFor(() => expect(observer.getCurrentResult().data?.rights.size).toBe(0));
+      expect(fetchPermissionStrings).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
+      client.unmount();
+      client.clear();
+    }
   });
 
   it('missing access is an offline failure, never a forbidden or not-found result', async () => {

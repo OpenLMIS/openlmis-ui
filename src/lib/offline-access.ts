@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
@@ -36,10 +37,20 @@ export async function readOfflineAccess() {
   return saved;
 }
 
-const deviceResults = new WeakSet<object>();
+const DEVICE_ACCESS_FRESH_FOR = 30_000;
+const deviceResults = new WeakMap<object, number>();
+let connectionGeneration = 0;
 
-export const isDeviceAccess = (value: unknown) =>
-  typeof value === 'object' && value !== null && deviceResults.has(value);
+onlineManager.subscribe((online) => {
+  if (online) connectionGeneration += 1;
+});
+
+export function offlineAccessStaleTime(value: unknown, serverStaleTime: number) {
+  const generation =
+    typeof value === 'object' && value !== null ? deviceResults.get(value) : undefined;
+  if (generation === undefined) return serverStaleTime;
+  return generation === connectionGeneration ? DEVICE_ACCESS_FRESH_FOR : 0;
+}
 
 export async function withOfflineAccess<T extends object>(
   online: () => Promise<T>,
@@ -57,7 +68,7 @@ export async function withOfflineAccess<T extends object>(
     assertSessionScope(scope);
     const result = select(saved);
     if (result === undefined) throw new LocalDataUnavailableError();
-    deviceResults.add(result);
+    deviceResults.set(result, connectionGeneration);
     return result;
   }
 }
