@@ -2,7 +2,7 @@ import { HouseIcon } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { canOpen, navWithinRights } from '@/components/nav-access';
 import { isNavParent } from '@/lib/config';
-import type { LiveNavGroup, LiveNavLink } from '@/lib/types';
+import type { LiveNavGroup } from '@/lib/types';
 
 // A nav of its own, so adding pages to the real one never breaks these tests.
 const nav: LiveNavGroup[] = [
@@ -72,7 +72,7 @@ describe('canOpen', () => {
   });
 
   it('opens Requisition Groups only to someone who may manage them', () => {
-    const path = '/administration/requisition-groups' as LiveNavLink['to'];
+    const path = '/administration/requisition-groups';
     expect(canOpen(path, new Set(['REQUISITION_GROUPS_MANAGE']))).toBe(true);
     expect(canOpen(path, new Set(['FACILITIES_MANAGE']))).toBe(false);
     expect(canOpen(path, undefined)).toBe(false);
