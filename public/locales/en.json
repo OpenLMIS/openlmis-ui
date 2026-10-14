@@ -1549,7 +1549,7 @@
   "supervisory-nodes.clear-filters": "Clear Filters",
   "supervisory-nodes.code": "Code",
   "supervisory-nodes.edit": "Edit",
-  "supervisory-nodes.edit-description": "Update the supervisory node’s details and assignments.",
+  "supervisory-nodes.edit-description": "Update the details, child nodes and partner nodes of this supervisory node.",
   "supervisory-nodes.edit-title": "Edit Supervisory Node",
   "supervisory-nodes.empty-description": "No supervisory nodes have been configured.",
   "supervisory-nodes.empty-title": "No Supervisory Nodes",
