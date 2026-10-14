@@ -29,6 +29,9 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
       selectRow: (row) => t('data-table.select-row', { row }),
       selectedCount: (count) => t('data-table.selected-count', { count }),
       clearSelection: t('data-table.clear-selection'),
+      filters: t('data-table.filters'),
+      activeFilters: (count) => t('data-table.active-filters', { count }),
+      clearFilters: t('data-table.clear-filters'),
     }),
     [t],
   );

@@ -404,7 +404,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Roles (`GET /roles`) and Programs (`GET /programs`) are examples.
 - **Support backend services on master.** Never depend on branch-only endpoints/parameters.
   Preserve legacy API limits: `GET /orderables` has separate code/name filters, so offer
-  Search By Code and Search By Name.
+  Search By Name in the toolbar and Search By Code inside Filters.
 - Keep the toolbar outside `QueryBoundary`. Rows read `useDeferredValue(search)`;
   first load shows `DataTableSkeleton`, later requests keep dimmed existing rows until ready.
   Filter typing replaces history; paging/sorting add entries for Back navigation.
@@ -449,6 +449,16 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Filters and states:**
 
+- Every toolbar follows one layout: one text search first and always visible, then one
+  `DataTableFilters` button holding every other filter, then View, Print and Create at the end.
+  Where the API filters code and name separately (Products, Stock On Hand), Name stays visible
+  and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
+  go inside too. No search means the button stands alone; no other filters means no button.
+  Physical Inventory is the exception: its progress bar leads the toolbar, so Keywords sits
+  inside Filters there.
+- `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
+  them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
+  toolbars render it disabled.
 - Short fixed lists use `DataTableSelectFilter`, with `allLabel` when legacy offers All.
   Long lists use searchable `DataTableComboboxFilter`; optional `description` follows labels
   in muted text.
@@ -483,9 +493,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout/width`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
-  `ComboboxInput width/clearLabel`, `Skeleton fill`, `Button variant="destructive-solid"` and
-  `"destructive-outline"`. These become plain `className`s in the
-  registry. `selectionColumn` ships the checkbox's indeterminate-minus customization too.
+  `ComboboxInput width/clearLabel`, `PopoverContent width`, `Skeleton fill`,
+  `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
+  `className`s in the registry. `selectionColumn` ships the checkbox's indeterminate-minus
+  customization too.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
@@ -513,6 +524,15 @@ Version-matched guides live in `node_modules/@tanstack/react-table/skills/`.
 - Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
+- Inline add forms with one picker, where picking reveals no further field, drop the label
+  and card: a picker with a leading icon and a placeholder naming the choice, then a separate
+  Add button beside it (never attached). The row sits above the toolbar, capped at
+  `@3xl/main:max-w-xl`, with a `Separator` below it. Decide from the offered list before
+  anything is picked: stock event pickers use this compact row when no offered item has lots
+  and keep labelled fields in a card otherwise. Receive can create lots, so it always keeps
+  labelled fields. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
+  (`src/components/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
+  that kind and program (`rememberedPickerLayout`), compact on a first visit.
 
 **Whole-record saves require fresh reads:**
 
@@ -619,6 +639,10 @@ home facility, user programs, all facilities and page grants, following legacy:
   choices blank, never silently substitute. Supervised links to a home program open as
   My Facility. Auto-pick a required list's sole option.
 - Load stock only for a granted pair, without awaiting picker lookups; load both in parallel.
+- Like the stock event pickers, it has no card and a `Separator` below; Facility Type, Facility
+  and Program each take the shared field width (`min-w-0 flex-1 @3xl/main:max-w-96`).
+- Stock On Hand and Transaction History show their search and Filters before Search, as
+  legacy does; View, Print and the unit toggle wait for results.
 
 ## Rights and dashboards
 

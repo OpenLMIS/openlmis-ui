@@ -2,6 +2,7 @@ import { PlusIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
@@ -28,21 +29,26 @@ export function UsersToolbar({ search, onFilterChange, columnView, onAdd }: User
           value={search.q ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-48 @2xl/main:flex-none">
-        <DataTableSelectFilter
-          label={t('users.status')}
-          onValueChange={(value) =>
-            onFilterChange({
-              status: (value || undefined) as UsersSearch['status'],
-              page: undefined,
-            })
-          }
-          options={[
-            { value: 'active', label: t('users.active') },
-            { value: 'inactive', label: t('users.inactive') },
-          ]}
-          value={search.status ?? ''}
-        />
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={search.status ? 1 : 0}
+          onClear={() => onFilterChange({ status: undefined, page: undefined })}
+        >
+          <DataTableSelectFilter
+            label={t('users.status')}
+            onValueChange={(value) =>
+              onFilterChange({
+                status: (value || undefined) as UsersSearch['status'],
+                page: undefined,
+              })
+            }
+            options={[
+              { value: 'active', label: t('users.active') },
+              { value: 'inactive', label: t('users.inactive') },
+            ]}
+            value={search.status ?? ''}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions

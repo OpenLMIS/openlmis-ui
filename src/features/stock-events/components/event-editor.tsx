@@ -627,7 +627,7 @@ export function EventEditor({
               {canViewStock && (
                 <QueryBoundary
                   resetKey={`${facilityId}/${programId}`}
-                  pendingFallback={<ProductLotPickerSkeleton kind={kind} />}
+                  pendingFallback={<ProductLotPickerSkeleton kind={kind} programId={programId} />}
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker

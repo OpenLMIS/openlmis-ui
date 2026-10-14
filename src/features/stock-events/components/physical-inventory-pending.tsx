@@ -1,17 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnVisibilityState } from '@tanstack/react-table';
-import { FilterIcon, PlusIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableToolbar } from '@/components/data-table/data-table';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
+import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
@@ -57,51 +56,39 @@ export function InventoryToolbar({
 }: ToolbarProps) {
   const { t } = useTranslation();
   const inactiveId = useId();
-  const count = [search.keyword, search.includeInactive].filter(Boolean).length;
   return (
     <DataTableToolbar>
-      <div className="flex w-full items-end gap-3 @4xl/main:w-auto">
-        <div className="min-w-0 flex-1 @4xl/main:w-52 @4xl/main:flex-none">{progress}</div>
-        <Popover>
-          <PopoverTrigger render={<Button type="button" variant="outline" disabled={disabled} />}>
-            <FilterIcon data-icon="inline-start" />
-            {t('stock-on-hand.filter')}
-            {count > 0 && (
-              <>
-                <Badge aria-hidden variant="secondary">
-                  {count}
-                </Badge>
-                <span className="sr-only">{t('stock-on-hand.active-filters', { count })}</span>
-              </>
-            )}
-          </PopoverTrigger>
-          <PopoverContent align="start" aria-label={t('stock-on-hand.filter')} side="top">
-            <div className="flex flex-col gap-3">
-              <Input
-                aria-label={t('stock-events.keywords')}
-                placeholder={t('stock-events.keywords')}
-                maxLength={50}
-                value={search.keyword ?? ''}
-                onChange={(event) =>
-                  onSearchChange?.(
-                    { keyword: event.target.value || undefined, page: undefined },
-                    true,
-                  )
+      <div className="flex w-full flex-wrap items-end gap-2 @4xl/main:w-auto @4xl/main:flex-nowrap">
+        <div className="min-w-0 flex-1 @4xl/main:w-80 @4xl/main:flex-none">{progress}</div>
+        <div className="shrink-0">
+          <DataTableFilters
+            activeCount={[search.keyword, search.includeInactive].filter(Boolean).length}
+            disabled={disabled}
+            onClear={() =>
+              onSearchChange?.({ keyword: undefined, includeInactive: undefined, page: undefined })
+            }
+          >
+            <DataTableSearch
+              disabled={disabled}
+              maxLength={50}
+              onValueChange={(value) =>
+                onSearchChange?.({ keyword: value.trim() || undefined, page: undefined }, true)
+              }
+              placeholder={t('stock-events.keywords')}
+              value={search.keyword ?? ''}
+            />
+            <label htmlFor={inactiveId} className="flex items-center gap-2 text-sm">
+              <Switch
+                id={inactiveId}
+                checked={search.includeInactive ?? false}
+                onCheckedChange={(checked) =>
+                  onSearchChange?.({ includeInactive: checked || undefined, page: undefined })
                 }
               />
-              <label htmlFor={inactiveId} className="flex items-center gap-2 text-sm">
-                <Switch
-                  id={inactiveId}
-                  checked={search.includeInactive ?? false}
-                  onCheckedChange={(checked) =>
-                    onSearchChange?.({ includeInactive: checked || undefined, page: undefined })
-                  }
-                />
-                {t('physical-inventory.include-inactive')}
-              </label>
-            </div>
-          </PopoverContent>
-        </Popover>
+              {t('physical-inventory.include-inactive')}
+            </label>
+          </DataTableFilters>
+        </div>
       </div>
       <div className="flex w-full flex-wrap items-center gap-2 @4xl/main:ms-auto @4xl/main:w-auto">
         <div className="basis-full @4xl/main:basis-auto">{save}</div>
@@ -179,14 +166,16 @@ export function PhysicalInventoryPendingBody({
         view={{ ...view, visibility: columns }}
         disabled
         progress={
-          <div className="flex w-full flex-col gap-1">
-            <div className="h-4 w-full">
-              <Skeleton fill />
+          <div className="flex w-full flex-col gap-1.5">
+            <div className="flex justify-between gap-3">
+              <div className="h-4 w-40">
+                <Skeleton fill />
+              </div>
+              <div className="h-4 w-8">
+                <Skeleton fill />
+              </div>
             </div>
             <div className="h-1 w-full">
-              <Skeleton fill />
-            </div>
-            <div className="h-4 w-8">
               <Skeleton fill />
             </div>
           </div>

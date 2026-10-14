@@ -2,6 +2,7 @@ import { PlusIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
@@ -28,15 +29,20 @@ export function RolesToolbar({ search, onFilterChange, columnView, onCreate }: R
           value={search.q ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-64 @2xl/main:flex-none">
-        <DataTableSelectFilter
-          label={t('roles.type')}
-          onValueChange={(value) =>
-            onFilterChange({ type: (value || undefined) as RolesSearch['type'], page: undefined })
-          }
-          options={ROLE_TYPES.map((item) => ({ value: item.type, label: t(item.labelKey) }))}
-          value={search.type ?? ''}
-        />
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={search.type ? 1 : 0}
+          onClear={() => onFilterChange({ type: undefined, page: undefined })}
+        >
+          <DataTableSelectFilter
+            label={t('roles.type')}
+            onValueChange={(value) =>
+              onFilterChange({ type: (value || undefined) as RolesSearch['type'], page: undefined })
+            }
+            options={ROLE_TYPES.map((item) => ({ value: item.type, label: t(item.labelKey) }))}
+            value={search.type ?? ''}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions

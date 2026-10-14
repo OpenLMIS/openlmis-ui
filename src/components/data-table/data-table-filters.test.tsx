@@ -119,6 +119,25 @@ describe('DataTableComboboxFilter', () => {
     expect(onValueChange).toHaveBeenCalledWith('');
   });
 
+  it('keeps the pick when Escape is pressed with the list closed', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <DataTableComboboxFilter
+        label="Zone"
+        onValueChange={onValueChange}
+        options={zones}
+        value="z1"
+      />,
+    );
+
+    screen.getByRole('combobox', { name: 'Zone' }).focus();
+    await user.keyboard('{Escape}');
+
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('combobox', { name: 'Zone' })).toHaveValue('Gaza');
+  });
+
   it('says so when nothing matches what is typed', async () => {
     const user = userEvent.setup();
     render(

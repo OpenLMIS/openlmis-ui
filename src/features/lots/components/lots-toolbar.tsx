@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableComboboxFilter } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { DatePicker } from '@/components/form/form-fields';
@@ -36,39 +37,47 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72">
-        <ProductFilter
-          onValueChange={(product) =>
-            onFilterChange({ product: product || undefined, page: undefined })
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={[search.product, search.expiryFrom, search.expiryTo].filter(Boolean).length}
+          onClear={() =>
+            onFilterChange({
+              product: undefined,
+              expiryFrom: undefined,
+              expiryTo: undefined,
+              page: undefined,
+            })
           }
-          value={search.product}
-        />
-      </div>
-      <div className="w-full @2xl/main:w-auto @2xl/main:min-w-64 @2xl/main:flex-1 @2xl/main:max-w-80">
-        <DatePicker
-          clearLabel={t('data-table.clear-filter', { label: t('lots.earliest-expiry') })}
-          id="lots-earliest-expiry"
-          label={t('lots.earliest-expiry')}
-          latest={search.expiryTo}
-          onValueChange={(expiryFrom) =>
-            onFilterChange({ expiryFrom: expiryFrom || undefined, page: undefined })
-          }
-          placeholder={t('lots.earliest-expiry')}
-          value={search.expiryFrom ?? ''}
-        />
-      </div>
-      <div className="min-w-0 flex-1 @2xl/main:min-w-64 @2xl/main:max-w-80">
-        <DatePicker
-          clearLabel={t('data-table.clear-filter', { label: t('lots.latest-expiry') })}
-          earliest={search.expiryFrom}
-          id="lots-latest-expiry"
-          label={t('lots.latest-expiry')}
-          onValueChange={(expiryTo) =>
-            onFilterChange({ expiryTo: expiryTo || undefined, page: undefined })
-          }
-          placeholder={t('lots.latest-expiry')}
-          value={search.expiryTo ?? ''}
-        />
+        >
+          <ProductFilter
+            onValueChange={(product) =>
+              onFilterChange({ product: product || undefined, page: undefined })
+            }
+            value={search.product}
+          />
+          <DatePicker
+            clearLabel={t('data-table.clear-filter', { label: t('lots.earliest-expiry') })}
+            id="lots-earliest-expiry"
+            label={t('lots.earliest-expiry')}
+            latest={search.expiryTo}
+            onValueChange={(expiryFrom) =>
+              onFilterChange({ expiryFrom: expiryFrom || undefined, page: undefined })
+            }
+            placeholder={t('lots.earliest-expiry')}
+            value={search.expiryFrom ?? ''}
+          />
+          <DatePicker
+            clearLabel={t('data-table.clear-filter', { label: t('lots.latest-expiry') })}
+            earliest={search.expiryFrom}
+            id="lots-latest-expiry"
+            label={t('lots.latest-expiry')}
+            onValueChange={(expiryTo) =>
+              onFilterChange({ expiryTo: expiryTo || undefined, page: undefined })
+            }
+            placeholder={t('lots.latest-expiry')}
+            value={search.expiryTo ?? ''}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions

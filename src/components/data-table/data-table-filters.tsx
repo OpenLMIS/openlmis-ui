@@ -144,6 +144,11 @@ export function DataTableComboboxFilter({
       <ComboboxInput
         aria-label={label}
         clearLabel={labels.clearFilter(label)}
+        dir="auto"
+        onKeyDown={(event) => {
+          const listOpen = event.currentTarget.getAttribute('aria-expanded') === 'true';
+          if (event.key === 'Escape' && !listOpen) event.preventBaseUIHandler();
+        }}
         placeholder={label}
         showClear={selected !== null}
         width="full"

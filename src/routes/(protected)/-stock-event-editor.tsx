@@ -171,7 +171,7 @@ export function StockEventPending({
         <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
-            <ProductLotPickerSkeleton kind={kind} />
+            <ProductLotPickerSkeleton kind={kind} programId={programId} />
             <DataTableToolbar>
               <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled>
                 <DataTableSearch

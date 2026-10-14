@@ -7,6 +7,7 @@ import {
   DataTableComboboxFilter,
   DataTableSelectFilter,
 } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
@@ -49,25 +50,30 @@ export function AssignmentsToolbar({
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72">
-        <DataTableComboboxFilter
-          label={t('valid-assignments.facility')}
-          onValueChange={(facilityId) =>
-            onFilterChange({ facilityId: facilityId || undefined, page: undefined })
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={[search.facilityId, search.programId].filter(Boolean).length}
+          onClear={() =>
+            onFilterChange({ facilityId: undefined, programId: undefined, page: undefined })
           }
-          options={facilityFilter.options}
-          value={facilityFilter.value}
-        />
-      </div>
-      <div className="flex-1 @2xl/main:w-64 @2xl/main:flex-none">
-        <DataTableSelectFilter
-          label={t('valid-assignments.program')}
-          onValueChange={(programId) =>
-            onFilterChange({ programId: programId || undefined, page: undefined })
-          }
-          options={programFilter.options}
-          value={programFilter.value}
-        />
+        >
+          <DataTableComboboxFilter
+            label={t('valid-assignments.facility')}
+            onValueChange={(facilityId) =>
+              onFilterChange({ facilityId: facilityId || undefined, page: undefined })
+            }
+            options={facilityFilter.options}
+            value={facilityFilter.value}
+          />
+          <DataTableSelectFilter
+            label={t('valid-assignments.program')}
+            onValueChange={(programId) =>
+              onFilterChange({ programId: programId || undefined, page: undefined })
+            }
+            options={programFilter.options}
+            value={programFilter.value}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions

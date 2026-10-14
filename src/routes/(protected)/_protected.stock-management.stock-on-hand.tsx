@@ -341,30 +341,45 @@ function StockOnHandOutcome({
   pending,
 }: StockOnHandOutcomeProps) {
   const { t } = useTranslation();
+  const { unit } = useQuantityUnit();
+  const filters = (
+    <StockOnHandToolbar
+      onFilterChange={(patch) => onSearchChange(patch, true)}
+      onUnitChange={undefined}
+      search={search}
+      unit={unit}
+    />
+  );
 
   if (!valid) {
     const refused = isCompleteSelection(applied);
     return (
-      <DataTableCard>
-        <DataTableEmpty
-          description={t(
-            refused ? 'stock-on-hand.refused-description' : 'stock-on-hand.pick-description',
-          )}
-          icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
-          title={t(refused ? 'stock-on-hand.refused-title' : 'stock-on-hand.pick-title')}
-        />
-      </DataTableCard>
+      <div className="flex flex-col gap-4">
+        {filters}
+        <DataTableCard>
+          <DataTableEmpty
+            description={t(
+              refused ? 'stock-on-hand.refused-description' : 'stock-on-hand.pick-description',
+            )}
+            icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
+            title={t(refused ? 'stock-on-hand.refused-title' : 'stock-on-hand.pick-title')}
+          />
+        </DataTableCard>
+      </div>
     );
   }
   if (pending) {
     return (
-      <DataTableCard>
-        <DataTableEmpty
-          description={t('stock-on-hand.search-pending-description')}
-          icon={<ClipboardListIcon />}
-          title={t('stock-on-hand.search-pending-title')}
-        />
-      </DataTableCard>
+      <div className="flex flex-col gap-4">
+        {filters}
+        <DataTableCard>
+          <DataTableEmpty
+            description={t('stock-on-hand.search-pending-description')}
+            icon={<ClipboardListIcon />}
+            title={t('stock-on-hand.search-pending-title')}
+          />
+        </DataTableCard>
+      </div>
     );
   }
   const programs = valid.mode === 'my' ? options.myPrograms : options.supervisedPrograms;

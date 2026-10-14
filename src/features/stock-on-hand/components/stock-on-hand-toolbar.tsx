@@ -1,14 +1,11 @@
-import { FilterIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { type StockOnHandSearch, showsInactive } from '@/features/stock-on-hand/lib/search';
 import type { QuantityUnit } from '@/lib/quantity';
 
@@ -17,14 +14,13 @@ type StockOnHandToolbarProps = {
   onFilterChange: (patch: Partial<StockOnHandSearch>) => void;
   unit: QuantityUnit;
   onUnitChange: ((unit: QuantityUnit) => void) | undefined;
-  print: ReactNode;
+  print?: ReactNode;
   view?: ReactNode;
   disabled?: boolean;
 };
 
 const activeFilters = (search: StockOnHandSearch) =>
-  [search.productCode, search.productName, search.lotCode, !showsInactive(search)].filter(Boolean)
-    .length;
+  [search.productCode, search.lotCode, !showsInactive(search)].filter(Boolean).length;
 
 export function StockOnHandToolbar({
   search,
@@ -37,7 +33,6 @@ export function StockOnHandToolbar({
 }: StockOnHandToolbarProps) {
   const { t } = useTranslation();
   const inactiveId = useId();
-  const count = activeFilters(search);
   const text = (key: 'productCode' | 'productName' | 'lotCode', placeholder: string) => (
     <DataTableSearch
       label={placeholder}
@@ -49,48 +44,43 @@ export function StockOnHandToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="w-full @2xl/main:me-auto @2xl/main:w-auto">
-        <Popover>
-          <PopoverTrigger
-            render={<Button disabled={disabled} type="button" variant="outline" width="full" />}
-          >
-            <FilterIcon data-icon="inline-start" />
-            {t('stock-on-hand.filter')}
-            {count > 0 && (
-              <>
-                <Badge aria-hidden variant="secondary">
-                  {count}
-                </Badge>
-                <span className="sr-only">{t('stock-on-hand.active-filters', { count })}</span>
-              </>
-            )}
-          </PopoverTrigger>
-          <PopoverContent align="start" aria-label={t('stock-on-hand.filter')} side="top">
-            <div className="flex flex-col gap-3">
-              {text('productCode', t('stock-on-hand.search-product-code'))}
-              {text('productName', t('stock-on-hand.search-product-name'))}
-              {text('lotCode', t('stock-on-hand.search-lot-code'))}
-              <Label htmlFor={inactiveId}>
-                <Checkbox
-                  checked={showsInactive(search)}
-                  id={inactiveId}
-                  onCheckedChange={(checked) =>
-                    onFilterChange({ includeInactive: checked ? undefined : false })
-                  }
-                />
-                {t('stock-on-hand.include-inactive')}
-              </Label>
-            </div>
-          </PopoverContent>
-        </Popover>
+      <div className="w-full @2xl/main:w-72">
+        {text('productName', t('stock-on-hand.search-product-name'))}
+      </div>
+      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={activeFilters(search)}
+          disabled={disabled}
+          onClear={() =>
+            onFilterChange({
+              productCode: undefined,
+              lotCode: undefined,
+              includeInactive: undefined,
+              page: undefined,
+            })
+          }
+        >
+          {text('productCode', t('stock-on-hand.search-product-code'))}
+          {text('lotCode', t('stock-on-hand.search-lot-code'))}
+          <Label htmlFor={inactiveId}>
+            <Checkbox
+              checked={showsInactive(search)}
+              id={inactiveId}
+              onCheckedChange={(checked) =>
+                onFilterChange({ includeInactive: checked ? undefined : false })
+              }
+            />
+            {t('stock-on-hand.include-inactive')}
+          </Label>
+        </DataTableFilters>
       </div>
       {onUnitChange && (
-        <div className="flex-1 @2xl/main:flex-none">
+        <div>
           <QuantityUnitToggle disabled={disabled} onUnitChange={onUnitChange} unit={unit} />
         </div>
       )}
-      <div className={onUnitChange ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>{view}</div>
-      <div className="w-full @2xl/main:w-auto">{print}</div>
+      <div className="shrink-0">{view}</div>
+      {print && <div className="w-full @2xl/main:w-auto">{print}</div>}
     </div>
   );
 }
