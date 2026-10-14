@@ -11,6 +11,7 @@ import { requireRight } from '@/features/auth/lib/access';
 import { fetchRequisitionGroup } from '@/features/requisition-groups/api/api';
 import { requisitionGroupOptions } from '@/features/requisition-groups/api/queries';
 import { Route as ListRoute } from '@/routes/(protected)/_protected.administration.requisition-groups';
+import { Route as ViewRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id';
 import { Route as EditRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id_.edit';
 import { Route as AddRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.new';
 
@@ -77,10 +78,10 @@ describe('requisition group edit loader', () => {
     } as never);
     expect(fetchRequisitionGroup).not.toHaveBeenCalled();
   });
-  it('checks the manage right on list, add and edit', async () => {
+  it('checks the manage right on list, add, edit and view', async () => {
     vi.mocked(fetchRequisitionGroup).mockResolvedValue(version('Group'));
     const queryClient = new QueryClient();
-    for (const route of [ListRoute, AddRoute, EditRoute]) {
+    for (const route of [ListRoute, AddRoute, EditRoute, ViewRoute]) {
       vi.mocked(requireRight).mockClear();
       await (route.options.loader as (args: unknown) => Promise<unknown>)({
         context: { queryClient },
