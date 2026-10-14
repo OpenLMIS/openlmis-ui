@@ -1,7 +1,7 @@
 import { type QueryClient, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ClipboardPenLineIcon } from 'lucide-react';
-import { useState } from 'react';
+import { type ComponentProps, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -46,7 +46,7 @@ import {
   type ConfiguredEventKind,
   counterpartyOptions,
   EVENT_KINDS,
-  type PrintableEventKind,
+  type EventPrintCopy,
 } from '@/features/stock-events/lib/event-kinds';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -215,18 +215,17 @@ export function StockEventPending({
 }
 
 function useStockEventPrint({
-  kind,
+  copy,
   userId,
   facilityId,
   programId,
 }: {
-  kind: PrintableEventKind;
+  copy: EventPrintCopy;
   userId: string;
   facilityId: string;
   programId: string;
 }) {
   const { t } = useTranslation();
-  const copy = EVENT_KINDS[kind].print;
   const navigate = useNavigate();
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
@@ -265,44 +264,81 @@ function useStockEventPrint({
   };
 }
 
-export function StockEventEditorPage({
-  kind,
-  defaultReasonId,
-  data: { userId, homeFacility, program, canViewStock, canManageLots },
-  search,
-}: {
-  kind: PrintableEventKind;
-  defaultReasonId: string | undefined;
+type StockEventEditorPageProps = {
+  kind: ConfiguredEventKind;
+  defaultReasonId?: string;
+  kitUnpackReasonIds?: ComponentProps<typeof EventEditor>['kitUnpackReasonIds'];
   data: Awaited<ReturnType<typeof loadStockEventEditor>>;
   search: EventSearch;
-}) {
-  const { updateSearch } = useSearchNavigation<EventSearch>({});
-  const username = useLoginData((state) => state.username) ?? '';
+};
+
+export function StockEventEditorPage(props: StockEventEditorPageProps) {
+  const navigate = useNavigate();
+  const { homeFacility, program } = props.data;
+  const copy = EVENT_KINDS[props.kind].print;
+  return copy ? (
+    <PrintableStockEventEditor {...props} copy={copy} />
+  ) : (
+    <StockEventEditorContent
+      {...props}
+      onSubmitted={() =>
+        navigate({
+          to: '/stock-management/stock-on-hand',
+          search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+        })
+      }
+    />
+  );
+}
+
+function PrintableStockEventEditor({
+  copy,
+  ...props
+}: StockEventEditorPageProps & { copy: EventPrintCopy }) {
+  const { userId, homeFacility, program } = props.data;
   const print = useStockEventPrint({
-    kind,
+    copy,
     userId,
     facilityId: homeFacility.id,
     programId: program.id,
   });
   return (
     <>
-      <EventEditor
-        kind={kind}
-        defaultReasonId={defaultReasonId}
-        key={`${homeFacility.id}/${program.id}`}
-        facilityId={homeFacility.id}
-        facilityTypeId={homeFacility.type.id}
-        programId={program.id}
-        username={username}
-        canViewStock={canViewStock}
-        canManageLots={canManageLots}
-        search={search}
-        onSearchChange={updateSearch}
-        onSubmitted={print.onSubmitted}
-      >
-        <StockEventHeader kind={kind} facility={homeFacility} program={program} />
-      </EventEditor>
+      <StockEventEditorContent {...props} onSubmitted={print.onSubmitted} />
       {print.dialog}
     </>
+  );
+}
+
+function StockEventEditorContent({
+  kind,
+  defaultReasonId,
+  kitUnpackReasonIds,
+  data: { homeFacility, program, canViewStock, canManageLots },
+  search,
+  onSubmitted,
+}: StockEventEditorPageProps & {
+  onSubmitted: ComponentProps<typeof EventEditor>['onSubmitted'];
+}) {
+  const { updateSearch } = useSearchNavigation<EventSearch>({});
+  const username = useLoginData((state) => state.username) ?? '';
+  return (
+    <EventEditor
+      kind={kind}
+      defaultReasonId={defaultReasonId}
+      kitUnpackReasonIds={kitUnpackReasonIds}
+      key={`${homeFacility.id}/${program.id}`}
+      facilityId={homeFacility.id}
+      facilityTypeId={homeFacility.type.id}
+      programId={program.id}
+      username={username}
+      canViewStock={canViewStock}
+      canManageLots={canManageLots}
+      search={search}
+      onSearchChange={updateSearch}
+      onSubmitted={onSubmitted}
+    >
+      <StockEventHeader kind={kind} facility={homeFacility} program={program} />
+    </EventEditor>
   );
 }
