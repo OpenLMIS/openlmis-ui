@@ -11,12 +11,10 @@ import {
   type StockEventDraft,
   type StockEventSelection,
 } from '@/features/stock-events/lib/stock-event-local';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
+import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
+import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { getSessionScope } from '@/lib/session-scope';
-
-const submissionNoticeOf = (draft: StockEventDraft | undefined) =>
-  draft?.submissionAccepted ? 'accepted' : draft?.submissionAttempted ? 'unknown' : undefined;
 
 export function useStockEventAutosave(
   enabled: boolean,
@@ -28,7 +26,6 @@ export function useStockEventAutosave(
 ) {
   const [state, setState] = useState<StockEventSaveState>({ status: 'loading' });
   const [busy, setBusy] = useState(false);
-  const [submissionNotice, setSubmissionNotice] = useState<'unknown' | 'accepted' | undefined>();
   const snapshots = useRef({ cards, today });
   snapshots.current = { cards, today };
   const [retryLoad, setRetryLoad] = useState(0);
@@ -74,7 +71,6 @@ export function useStockEventAutosave(
           ? refreshStockEventLines(restored, currentCards, snapshots.current.today, kind)
           : restored;
         form.setFieldValue('lines', lines);
-        setSubmissionNotice(submissionNoticeOf(draft));
         restoring.current = false;
         const serial = createStockEventWriter(context, draft, onStatus, () =>
           generationRef.current(),
@@ -111,7 +107,6 @@ export function useStockEventAutosave(
   }, [enabled, cards, today, form, kind]);
   return {
     ...state,
-    submissionNotice,
     busy,
     protected:
       enabled &&
@@ -140,22 +135,17 @@ export function useStockEventAutosave(
         if (scope !== getSessionScope() || serial !== writer.current) return;
         restoring.current = true;
         form.setFieldValue('lines', lines);
-        if (!lines.length) setSubmissionNotice(undefined);
         restoring.current = false;
         return true;
       } finally {
         if (scope === getSessionScope() && serial === writer.current) setBusy(false);
       }
     },
-    async markSubmission(attempted: boolean) {
+    async submit(payload: StockEvent, display: StockEventDisplay) {
       clearTimeout(timer.current);
       const serial = writer.current;
-      if (!serial || !(await serial.flush())) return false;
-      return serial.markSubmission(attempted);
-    },
-    async retire() {
-      clearTimeout(timer.current);
-      return (await writer.current?.retire()) ?? false;
+      if (!serial) throw new Error('The device draft is not ready');
+      return serial.submit(payload, display);
     },
     async restore(copy: StockEventDraft) {
       clearTimeout(timer.current);
@@ -177,7 +167,6 @@ export function useStockEventAutosave(
         restoring.current = false;
         const refreshed = form.state.values.lines;
         if (refreshed !== restored.lines) serial.enqueue(refreshed);
-        setSubmissionNotice(submissionNoticeOf(restored));
         return true;
       } finally {
         if (scope === getSessionScope() && serial === writer.current) setBusy(false);
@@ -210,7 +199,6 @@ export function useStockEventAutosave(
           ? refreshStockEventLines(restored, currentCards, snapshots.current.today, kind)
           : restored;
         form.setFieldValue('lines', lines);
-        setSubmissionNotice(submissionNoticeOf(draft));
         restoring.current = false;
         if (lines !== restored) serial.enqueue(lines);
         if (choice === 'copy') announceDeviceSave('stock-events.draft-copy-saved');

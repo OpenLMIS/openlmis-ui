@@ -818,3 +818,17 @@ it('marks cards excluded for zero stock without claiming they are expired', () =
   const lines = [line({ lot: null })];
   expect(refreshStockEventLines(lines, [empty], today, 'issue')[0].stockProblem).toBe('zero-stock');
 });
+
+it('does not blame expiry when a kit card is excluded by stock or product eligibility', () => {
+  const zero = {
+    ...card,
+    stockOnHand: 0,
+    orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity: 1 }] },
+  };
+  expect(refreshStockEventLines([line()], [zero], today, 'unpack')[0].stockProblem).toBe(
+    'zero-stock',
+  );
+  expect(refreshStockEventLines([line()], [card], today, 'unpack')[0].stockProblem).toBe(
+    'excluded',
+  );
+});

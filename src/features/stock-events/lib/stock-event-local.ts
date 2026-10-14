@@ -13,9 +13,9 @@ export type StockEventDraft = StockEventSelection & {
   userId: string;
   draftId: string;
   revision: number;
-  state: 'editing' | 'archived' | 'accepted';
-  submissionAttempted?: boolean;
-  submissionAccepted?: boolean;
+  state: 'editing' | 'archived' | 'queued' | 'refused' | 'uncertain' | 'accepted';
+  localEventId: string;
+  signature?: string;
   lines: EventLine[];
   savedAt: number;
   updatedAt: number;
@@ -45,17 +45,6 @@ const editingKey = (context: StockEventSelection) => [
   context.programId,
   'editing',
 ];
-const acceptanceKey = (context: StockEventContext, draft: StockEventDraft) =>
-  `${context.db.name}:stock-event-accepted:${draft.draftId}`;
-
-export function rememberStockEventAcceptance(
-  context: StockEventContext,
-  draft: StockEventDraft | undefined,
-) {
-  assertSessionScope(context.sessionScope);
-  if (draft) localStorage.setItem(acceptanceKey(context, draft), 'accepted');
-}
-
 export async function readStockEventDraft(context: StockEventContext) {
   assertSessionScope(context.sessionScope);
   const result = await context.db
@@ -64,12 +53,6 @@ export async function readStockEventDraft(context: StockEventContext) {
     .equals(editingKey(context))
     .first();
   assertSessionScope(context.sessionScope);
-  try {
-    if (result && localStorage.getItem(acceptanceKey(context, result)) === 'accepted')
-      return { ...result, submissionAccepted: true };
-  } catch {
-    // The IndexedDB marker remains usable when localStorage is unavailable.
-  }
   return result;
 }
 function record(
@@ -84,6 +67,7 @@ function record(
     userId: context.userId,
     draftId: crypto.randomUUID(),
     revision: 1,
+    localEventId: crypto.randomUUID(),
     state: 'editing',
     lines,
     savedAt: Date.now(),
@@ -96,8 +80,6 @@ export async function saveStockEventDraft(
   expected: StockEventDraft | undefined,
   lines: EventLine[],
   downloadGeneration?: string,
-  submissionAttempted = expected?.submissionAttempted,
-  submissionAccepted = expected?.submissionAccepted,
 ): Promise<StockEventDraft | undefined> {
   assertSessionScope(context.sessionScope);
   const table = context.db.table<StockEventDraft>('stockEventDrafts');
@@ -128,8 +110,7 @@ export async function saveStockEventDraft(
         ),
         draftId: stored?.draftId ?? crypto.randomUUID(),
         revision: (stored?.revision ?? 0) + 1,
-        submissionAttempted,
-        submissionAccepted,
+        localEventId: stored?.localEventId ?? crypto.randomUUID(),
       };
       await table.put(next);
       assertSessionScope(context.sessionScope);
@@ -137,13 +118,6 @@ export async function saveStockEventDraft(
     },
   );
   assertSessionScope(context.sessionScope);
-  if (!saved && expected) {
-    try {
-      localStorage.removeItem(acceptanceKey(context, expected));
-    } catch {
-      // A marker for a deleted draft cannot affect a new draft.
-    }
-  }
   return saved;
 }
 export async function archiveStockEventCopy(
@@ -159,21 +133,6 @@ export async function archiveStockEventCopy(
     await table.add(copy);
     assertSessionScope(context.sessionScope);
     return copy;
-  });
-}
-
-export async function acceptStockEventDraft(
-  context: StockEventContext,
-  expected: StockEventDraft | undefined,
-) {
-  assertSessionScope(context.sessionScope);
-  const table = context.db.table<StockEventDraft>('stockEventDrafts');
-  await context.db.transaction('rw', table, async () => {
-    const stored = await readStockEventDraft(context);
-    if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
-      throw new DraftConflictError(stored);
-    if (stored) await table.put({ ...stored, state: 'accepted' });
-    assertSessionScope(context.sessionScope);
   });
 }
 

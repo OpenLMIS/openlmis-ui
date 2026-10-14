@@ -26,6 +26,7 @@ beforeEach(async () => {
     .getState()
     .setLoginData({ referenceDataUserId: 'writer-user', username: 'user', accessToken: 'token' });
   await getLocalDb().table('stockEventDrafts').clear();
+  await getLocalDb().table('stockEventQueue').clear();
   localStorage.clear();
 });
 it('serializes edits during a commit, coalesces them, and advances the expected revision', async () => {
@@ -147,31 +148,46 @@ it('Retry after a failed confirmed Clear saves the lines still displayed by the 
   expect((await readStockEventDraft(context))?.lines).toEqual([line]);
 });
 
-it.each([false, true])(
-  'retires accepted submissions without status callbacks, archive failure %s',
-  async (archiveFails) => {
-    const context = createStockEventContext(selection);
-    const initial = await saveStockEventDraft(context, undefined, [line]);
-    const status = vi.fn();
-    const writer = createStockEventWriter(context, initial, status);
-    expect(await writer.markSubmission(true)).toBe(true);
-    vi.spyOn(context.db.table('stockEventDrafts'), 'delete').mockRejectedValueOnce(
-      new Error('storage'),
-    );
-    if (archiveFails)
-      vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValue(new Error('storage'));
-    expect(await writer.retire()).toBe(!archiveFails);
-    writer.stage([{ ...line, reasonFreeText: 'late change' }]);
-    writer.start();
-    await writer.flush();
-    expect(status).not.toHaveBeenCalled();
-    const rows = await context.db.table('stockEventDrafts').toArray();
-    expect(rows[0].submissionAttempted).toBe(true);
-    expect((await readStockEventDraft(context))?.submissionAccepted).toBe(
-      archiveFails ? true : undefined,
-    );
-    vi.restoreAllMocks();
-    expect(rows[0].state).toBe(archiveFails ? 'editing' : 'accepted');
-    expect(rows[0].lines[0].reasonFreeText).toBe('');
-  },
-);
+it('freezes the writer after durable submit and does not autosave late edits into queued work', async () => {
+  const context = createStockEventContext(selection);
+  const initial = await saveStockEventDraft(context, undefined, [line]);
+  const status = vi.fn();
+  const writer = createStockEventWriter(context, initial, status);
+  const queued = await writer.submit(
+    { facilityId: 'facility', programId: 'program', lineItems: [] },
+    {
+      facility: { id: 'facility', code: 'FAC', name: null },
+      program: { id: 'program', code: 'PROG', name: null },
+    },
+  );
+  writer.stage([{ ...line, reasonFreeText: 'late change' }]);
+  writer.start();
+  await writer.flush();
+  expect(status).not.toHaveBeenCalled();
+  expect(await writer.replace([])).toBe(false);
+  expect(await writer.discard()).toBe(false);
+  expect(
+    (await context.db.table('stockEventDrafts').get(queued.draftId)).lines[0].reasonFreeText,
+  ).toBe('');
+  expect(await readStockEventDraft(context)).toBeUndefined();
+});
+
+it('Retry after a failed queue commit recovers the saved state and permits one local submission', async () => {
+  const context = createStockEventContext(selection);
+  const initial = await saveStockEventDraft(context, undefined, [line]);
+  const status = vi.fn();
+  const writer = createStockEventWriter(context, initial, status);
+  const payload = { facilityId: 'facility', programId: 'program', lineItems: [] };
+  const display = {
+    facility: { id: 'facility', code: 'F', name: null },
+    program: { id: 'program', code: 'P', name: null },
+  };
+  vi.spyOn(context.db.table('stockEventQueue'), 'add').mockRejectedValueOnce(new Error('quota'));
+  await expect(writer.submit(payload, display)).rejects.toThrow('quota');
+  expect(status.mock.lastCall?.[0].status).toBe('failed');
+  writer.retry();
+  await writer.flush();
+  expect(status.mock.lastCall?.[0].status).toBe('saved');
+  await writer.submit(payload, display);
+  expect(await context.db.table('stockEventQueue').count()).toBe(1);
+});

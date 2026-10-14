@@ -118,6 +118,7 @@ vi.mock('@/hooks/use-barcode-scan', () => ({
   },
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  storedTimeZone: () => undefined,
   fetchReasons: vi.fn(),
   fetchTradeItemByGtin: vi.fn(async () => ({ id: 'trade' })),
   fetchValidReasons: vi.fn(),
@@ -169,6 +170,7 @@ beforeEach(async () => {
   vi.mocked(fetchTradeItemByGtin).mockReset().mockResolvedValue({ id: 'trade' });
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
   await getLocalDb().table('stockEventDrafts').clear();
+  await getLocalDb().table('stockEventQueue').clear();
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -330,6 +332,13 @@ async function filter(user: ReturnType<typeof userEvent.setup>, keyword: string)
 async function validLine(user: ReturnType<typeof userEvent.setup>) {
   await add(user);
   await pickReason(user);
+  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
+}
+
+async function validIssueLine(user: ReturnType<typeof userEvent.setup>) {
+  await add(user);
+  await user.click(screen.getByRole('combobox', { name: /^Issue To,/ }));
+  await user.click(await screen.findByRole('option', { name: 'Hospital' }));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
@@ -506,9 +515,9 @@ describe('EventEditor', () => {
             finish = () => (outcome === 'success' ? resolve('event') : reject(httpError(400)));
           }),
       );
-      const { user, onSubmitted, queryClient } = setup();
+      const { user, onSubmitted, queryClient } = setup(true, undefined, { kind: 'issue' });
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
-      await validLine(user);
+      await validIssueLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
@@ -764,23 +773,16 @@ describe('EventEditor', () => {
       HTMLElement.prototype.scrollIntoView = originalScroll;
     }
   });
-  it('confirms a signature and sends exactly one dose-based event', async () => {
-    let finish!: (id: string) => void;
-    vi.mocked(submitStockEvent).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
-    const { user, onSubmitted, queryClient } = setup();
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  it('duplicate confirmation queues exactly one dose-based Adjustment without a POST', async () => {
+    const { user, onSubmitted } = setup();
     await validLine(user);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.type(await screen.findByRole('textbox', { name: 'Signature' }), 'Ada');
-    const confirm = screen.getByRole('button', { name: 'Confirm' });
-    await user.dblClick(confirm);
-    await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
-    expect(submitStockEvent).toHaveBeenCalledWith({
+    await user.dblClick(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
+    const rows = await getLocalDb().table('stockEventQueue').toArray();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].payload).toEqual({
       facilityId: 'facility',
       programId: 'program',
       signature: 'Ada',
@@ -796,18 +798,36 @@ describe('EventEditor', () => {
         },
       ],
     });
-    await waitFor(() => expect(finish).toBeTypeOf('function'));
-    await act(async () => finish('event'));
-    await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
-    for (const key of ['stockEvents', 'stockCards', 'stockCardSummaries'])
-      expect(invalidate).toHaveBeenCalledWith(expect.objectContaining({ queryKey: [key] }));
+    expect(submitStockEvent).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenLastCalledWith(en['stock-events.queued-title'], {
+      description: en['stock-events.queued-description'],
+    });
+  });
+  it('failed local enqueue never shows success or freezes the draft', async () => {
+    const { user, onSubmitted } = setup();
+    await validLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    vi.spyOn(getLocalDb().table('stockEventQueue'), 'add').mockRejectedValueOnce(
+      new Error('quota'),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      en['stock-events.draft-failed'],
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(onSubmitted).not.toHaveBeenCalled();
+    expect(submitStockEvent).not.toHaveBeenCalled();
+    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    const drafts = await getLocalDb().table('stockEventDrafts').toArray();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].state).toBe('editing');
   });
   it.each([httpError(400, { message: 'Stock changed' }), networkError()])(
     'keeps lines after submit failure without retrying',
     async (error) => {
       vi.mocked(submitStockEvent).mockRejectedValueOnce(error);
-      const { user, onSubmitted } = setup();
-      await validLine(user);
+      const { user, onSubmitted } = setup(true, undefined, { kind: 'issue' });
+      await validIssueLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -1004,38 +1024,20 @@ it.each([true, false])(
     }
   },
 );
-it.each(['success', 'failure'])(
-  'allows leaving a locally committed Adjustment after submit %s',
-  async (outcome) => {
-    if (outcome === 'success') vi.mocked(submitStockEvent).mockResolvedValueOnce('new-event');
-    else vi.mocked(submitStockEvent).mockRejectedValueOnce(httpError(400));
-    const { user, onSubmitted, router } = setup(true, undefined, { browserHistory: true });
-    await validLine(user);
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    const unload = new Event('beforeunload', { cancelable: true });
-    fireEvent(window, unload);
-    expect(unload.defaultPrevented).toBe(false);
-    const leave = vi.fn();
-    act(() => whenLeaveAllowed(leave));
-    await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
-    if (outcome === 'success') {
-      expect(onSubmitted).toHaveBeenCalledWith('new-event');
-      expect(
-        await getLocalDb()
-          .table('stockEventDrafts')
-          .filter((draft) => draft.state === 'editing')
-          .count(),
-      ).toBe(0);
-      expect(refreshOfflineProgram).toHaveBeenCalledWith({
-        facilityId: 'facility',
-        programId: 'program',
-      });
-    } else expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
-    router?.history.destroy();
-  },
-);
+it('allows leaving a queued Adjustment without retiring its frozen draft', async () => {
+  const { user, onSubmitted, router } = setup(true, undefined, { browserHistory: true });
+  await validLine(user);
+  await user.click(screen.getByRole('button', { name: 'Submit' }));
+  await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+  await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
+  const unload = new Event('beforeunload', { cancelable: true });
+  fireEvent(window, unload);
+  expect(unload.defaultPrevented).toBe(false);
+  const [draft] = await getLocalDb().table('stockEventDrafts').toArray();
+  expect(draft.state).toBe('queued');
+  expect(refreshOfflineProgram).not.toHaveBeenCalled();
+  router?.history.destroy();
+});
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -2301,23 +2303,6 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
   expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
 });
 
-it('shows an unknown outcome on reopening an interrupted submission', async () => {
-  const context = createStockEventContext({
-    kind: 'adjustment',
-    facilityId: 'facility',
-    programId: 'program',
-  });
-  const line = newEventLine(card, undefined, '2026-10-14', {
-    kind: 'adjustment',
-    productHasLots: true,
-  });
-  await saveStockEventDraft(context, undefined, [line], undefined, true);
-  setup();
-  expect(await screen.findByRole('alert')).toHaveTextContent(
-    en['stock-events.unknown-outcome-description'],
-  );
-});
-
 it('keeps resumed lines when cold stock and reason lookups finish after the device read', async () => {
   const context = createStockEventContext({
     kind: 'adjustment',
@@ -2397,75 +2382,9 @@ it('allows a resumed expired-lot Adjustment to submit', async () => {
   expect(quantity.closest('tr')).not.toHaveAttribute('aria-invalid', 'true');
   await next.user.click(screen.getByRole('button', { name: 'Submit' }));
   await next.user.click(await screen.findByRole('button', { name: 'Confirm' }));
-  await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
+  await waitFor(async () => expect(await getLocalDb().table('stockEventQueue').count()).toBe(1));
+  expect(submitStockEvent).not.toHaveBeenCalled();
 });
-
-it('reports accepted cleanup failure and blocks resubmission on reopen until Clear', async () => {
-  vi.mocked(submitStockEvent).mockResolvedValueOnce('recorded-event');
-  const { user, onSubmitted } = setup();
-  await validLine(user);
-  await user.click(screen.getByRole('button', { name: 'Submit' }));
-  const table = getLocalDb().table('stockEventDrafts');
-  const put = table.put.bind(table);
-  vi.spyOn(table, 'put').mockImplementationOnce(put).mockRejectedValue(new Error('storage'));
-  vi.spyOn(table, 'delete').mockRejectedValue(new Error('storage'));
-  await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-  await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('recorded-event'));
-  expect(toast.success).toHaveBeenLastCalledWith(en['stock-adjustment.submitted-title'], {
-    description: en['stock-events.draft-recorded-not-cleared'],
-  });
-  cleanup();
-  vi.restoreAllMocks();
-  const next = setup();
-  const warning = await screen.findByRole('alert');
-  expect(warning).toHaveTextContent(en['stock-events.draft-already-recorded-description']);
-  expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
-  expect(scanningEnabled).toBe(false);
-  await next.user.click(within(warning).getByRole('button', { name: 'Clear' }));
-  const clear = await screen.findByRole('alertdialog');
-  await next.user.click(within(clear).getByRole('button', { name: 'Clear' }));
-  await waitFor(async () => expect(await table.count()).toBe(0));
-  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-  await validLine(next.user);
-  expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
-  expect(submitStockEvent).toHaveBeenCalledOnce();
-});
-
-it.each(['same editor', 'reopened editor'])(
-  'preserves an earlier unknown submission after a later refusal in the %s',
-  async (mode) => {
-    vi.mocked(submitStockEvent)
-      .mockRejectedValueOnce(networkError())
-      .mockRejectedValueOnce(httpError(400));
-    const initial = setup();
-    await validLine(initial.user);
-    await initial.user.click(screen.getByRole('button', { name: 'Submit' }));
-    await initial.user.click(await screen.findByRole('button', { name: 'Confirm' }));
-    const failure = await screen.findByRole('alertdialog');
-    await initial.user.click(within(failure).getByRole('button', { name: 'Close' }));
-    let next = initial;
-    if (mode === 'reopened editor') {
-      cleanup();
-      next = setup();
-      await screen.findByRole('alert');
-    }
-    await next.user.click(screen.getByRole('button', { name: 'Submit' }));
-    await next.user.click(await screen.findByRole('button', { name: 'Confirm' }));
-    const refusal = await screen.findByRole('alertdialog');
-    await next.user.click(within(refusal).getByRole('button', { name: 'Close' }));
-    const context = createStockEventContext({
-      kind: 'adjustment',
-      facilityId: 'facility',
-      programId: 'program',
-    });
-    await waitFor(async () =>
-      expect((await readStockEventDraft(context))?.submissionAttempted).toBe(true),
-    );
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      en['stock-events.unknown-outcome-description'],
-    );
-  },
-);
 
 it('keeps delete failures out of Archived Copies and restore failures out of Delete', async () => {
   const { user } = setup();
@@ -2503,4 +2422,35 @@ it('keeps delete failures out of Archived Copies and restore failures out of Del
   expect(
     within(await screen.findByRole('alertdialog')).queryByRole('alert'),
   ).not.toBeInTheDocument();
+});
+
+it('keeps the editor usable while the deployment time zone suspends', async () => {
+  const { user } = setup(true, (client) => {
+    client.removeQueries({ queryKey: deploymentTimeZoneOptions().queryKey });
+    void client.prefetchQuery({
+      ...deploymentTimeZoneOptions(),
+      queryFn: () => new Promise<{ zone: string; read: boolean }>(() => {}),
+    });
+  });
+  await validLine(user);
+  expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
+});
+
+it('keeps an earlier unknown Issue outcome visible after a later definitive refusal', async () => {
+  vi.mocked(submitStockEvent)
+    .mockRejectedValueOnce(networkError())
+    .mockRejectedValueOnce(httpError(400));
+  const { user } = setup(true, undefined, { kind: 'issue' });
+  await validIssueLine(user);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    const failure = await screen.findByRole('alertdialog');
+    await user.click(within(failure).getByRole('button', { name: 'Close' }));
+  }
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    en['stock-events.unknown-outcome-description'],
+  );
+  expect(submitStockEvent).toHaveBeenCalledTimes(2);
+  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
 });

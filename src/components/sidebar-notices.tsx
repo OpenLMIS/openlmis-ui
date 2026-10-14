@@ -1,5 +1,7 @@
+import { useNavigate } from '@tanstack/react-router';
 import {
   AlertTriangleIcon,
+  ListChecksIcon,
   LoaderCircleIcon,
   type LucideIcon,
   RefreshCwIcon,
@@ -8,6 +10,7 @@ import {
   XIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useHasRight } from '@/components/nav-access';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +19,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { RIGHTS } from '@/features/auth/lib/rights';
+import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
@@ -41,6 +46,9 @@ const ICON_TONE: Record<Notice['variant'], string> = {
 
 function useNotices(): Notice[] {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const canAdjust = useHasRight(RIGHTS.stockAdjust);
+  const { events } = useDeviceEvents(canAdjust);
   const online = useOnline();
   const backOnline = useBackOnline();
   const updateReady = useUpdateReady();
@@ -114,12 +122,23 @@ function useNotices(): Notice[] {
       action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
     });
   }
+  if (events?.length)
+    notices.push({
+      id: 'device-events-waiting',
+      variant: 'info',
+      Icon: ListChecksIcon,
+      title: t('device-events.waiting', { count: events.length }),
+      action: {
+        label: t('device-events.review'),
+        onClick: () => void navigate({ to: '/stock-management/device-events' }),
+      },
+    });
   return notices;
 }
 
 export function SidebarNotices() {
   const { t } = useTranslation();
-  const { isMobile, state } = useSidebar();
+  const { isMobile, state, setOpenMobile } = useSidebar();
   const notices = useNotices();
 
   if (notices.length === 0) return null;
@@ -132,7 +151,10 @@ export function SidebarNotices() {
             {action ? (
               <SidebarMenuButton
                 aria-label={action.label}
-                onClick={action.onClick}
+                onClick={() => {
+                  action.onClick();
+                  if (id === 'device-events-waiting') setOpenMobile(false);
+                }}
                 tooltip={`${title}${description ? `: ${description}` : ''}: ${action.label}`}
               >
                 <Icon className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`} />
@@ -165,7 +187,14 @@ export function SidebarNotices() {
               {description}
               {action && (
                 <div className="pt-1">
-                  <Button onClick={action.onClick} size="xs" variant="outline">
+                  <Button
+                    onClick={() => {
+                      action.onClick();
+                      if (id === 'device-events-waiting') setOpenMobile(false);
+                    }}
+                    size="xs"
+                    variant="outline"
+                  >
                     {action.label}
                   </Button>
                 </div>
