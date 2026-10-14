@@ -28,6 +28,7 @@ import { isOnline } from '@/lib/online';
 import { hasProgramGrant, parsePermissions, programGrants } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { homeStockPrograms } from '@/lib/stock-programs';
+import { setUploadAccessReader, uploadAccessEpoch } from '@/lib/upload-access';
 
 type Dependencies = {
   access?: AccessReaders;
@@ -36,6 +37,7 @@ type Dependencies = {
 type Trigger = 'boot' | 'force' | 'retry' | 'refresh';
 
 export function startOfflineCoordinator(dependencies: Dependencies = {}) {
+  let freshAccess: { epoch: string; saved: OfflineAccess } | undefined;
   let active: AbortController | undefined;
   let channel: BroadcastChannel | undefined;
   let channelName: string | undefined;
@@ -182,8 +184,10 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
             programs: (id) => retryDownloadRead(() => raw.programs(id), check),
             home: (id) => retryDownloadRead(() => raw.home(id), check),
           };
+          const epoch = uploadAccessEpoch();
           saved = await wait(refreshOfflineAccess(readers, check));
           check();
+          if (epoch === uploadAccessEpoch()) freshAccess = { epoch, saved };
         }
         if (!saved) throw new Error('Access download unavailable');
         const home = saved.homeFacility;
@@ -326,6 +330,39 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       if (next && !stopped) void run(next);
     }
   };
+  setUploadAccessReader(async () => {
+    const epoch = uploadAccessEpoch();
+    const scope = getSessionScope();
+    const db = getLocalDb();
+    const check = () => {
+      assertSessionScope(scope);
+      if (
+        stopped ||
+        !isOnline() ||
+        useLoginData.getState().expired ||
+        epoch !== uploadAccessEpoch()
+      )
+        throw new Error('The sync access session changed.');
+    };
+    if (!navigator.locks) throw new Error('Web Locks are required for safe sync.');
+    check();
+    if (freshAccess?.epoch === epoch) return freshAccess.saved;
+    return navigator.locks.request(`${db.name}:offline-download`, async () => {
+      check();
+      if (freshAccess?.epoch === epoch) return freshAccess.saved;
+      const config = { session: false, backgroundRead: true, sessionScope: scope };
+      const readers = dependencies.access ?? {
+        permissions: (id: string) => fetchPermissionStrings(id, config),
+        user: (id: string) => fetchUserRecord(id, config),
+        programs: (id: string) => fetchUserPrograms(id, config),
+        home: (id: string) => fetchFacility(id, config),
+      };
+      const saved = await refreshOfflineAccess(readers, check);
+      check();
+      freshAccess = { epoch, saved };
+      return saved;
+    });
+  });
   setDownloadStatus({ phase: 'idle', failed: [] });
   setDownloadRetry(() => {
     void run('retry');
@@ -363,6 +400,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     unsubscribe();
     unsubscribeOnline();
     channel?.close();
+    setUploadAccessReader();
     setDownloadRetry();
     setDownloadRefresh();
   };

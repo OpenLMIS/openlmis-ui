@@ -16,6 +16,15 @@ export type StockEventDraft = StockEventSelection & {
   state: 'editing' | 'archived' | 'queued' | 'refused' | 'uncertain' | 'accepted';
   localEventId: string;
   signature?: string;
+  acceptedRevision?: number;
+  history?: {
+    attemptId?: string;
+    attemptStartedAt?: number;
+    choice?: 'recorded' | 'resend';
+    userId: string;
+    at: number;
+    outcome: string;
+  }[];
   lines: EventLine[];
   savedAt: number;
   updatedAt: number;

@@ -11,7 +11,12 @@ import { announceQueuedEvents } from '@/lib/device-event-status';
 import type { NamedRecord } from '@/lib/facility-program-selection';
 import { assertSessionScope } from '@/lib/session-scope';
 
-export type StockEventDisplay = { facility: NamedRecord; program: NamedRecord };
+export type StockEventDisplay = {
+  facility: NamedRecord;
+  program: NamedRecord;
+  stockCards?: { id: string; orderableId: string; lotId?: string | null }[];
+  reasons?: { id: string; name: string }[];
+};
 export type QueuedStockEvent = Pick<
   StockEventDraft,
   'localEventId' | 'draftId' | 'revision' | 'kind' | 'facilityId' | 'programId' | 'userId' | 'lines'
