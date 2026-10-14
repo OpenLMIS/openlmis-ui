@@ -1,16 +1,12 @@
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 
-export type ProcessingScheduleDetail = ProcessingSchedule & {
-  modifiedDate?: string;
-};
-
 export type ProcessingPeriod = {
   id: string;
   name: string;
   description?: string;
   startDate: string;
   endDate: string;
-  processingSchedule: ProcessingScheduleDetail;
+  processingSchedule: ProcessingSchedule;
   extraData?: Record<string, unknown> | null;
 };
 

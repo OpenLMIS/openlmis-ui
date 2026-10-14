@@ -24,11 +24,8 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
-import { createProcessingPeriod } from '@/features/processing-schedules/api/api';
-import {
-  latestPeriodOptions,
-  scheduleDetailOptions,
-} from '@/features/processing-schedules/api/queries';
+import { createProcessingPeriod, fetchLatestPeriod } from '@/features/processing-schedules/api/api';
+import { latestPeriodOptions } from '@/features/processing-schedules/api/queries';
 import {
   nextStartDate,
   type PeriodFormValues,
@@ -37,6 +34,7 @@ import {
   toPeriodBody,
   toPeriodFormValues,
 } from '@/features/processing-schedules/lib/period-form';
+import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
@@ -44,26 +42,26 @@ import { queryKeys } from '@/lib/key-factory';
 const saveKey = (id: string) => [...queryKeys.processingPeriods.all, 'save', id] as const;
 
 type PeriodFormDialogProps = {
-  scheduleId: string;
+  schedule: ProcessingSchedule;
   target: 'new' | undefined;
   onClose: () => void;
   onAdded: (total: number) => void;
 };
 
-export function PeriodFormDialog({ scheduleId, target, onClose, onAdded }: PeriodFormDialogProps) {
+export function PeriodFormDialog({ schedule, target, onClose, onAdded }: PeriodFormDialogProps) {
   const { shown, dialogProps } = useDialogTarget(target, onClose);
-  const isSaving = useIsMutating({ mutationKey: saveKey(scheduleId) }) > 0;
+  const isSaving = useIsMutating({ mutationKey: saveKey(schedule.id) }) > 0;
   return (
     <FormDialog {...dialogProps(isSaving)}>
-      {shown && <PeriodDialogContent scheduleId={scheduleId} onAdded={onAdded} />}
+      {shown && <PeriodDialogContent schedule={schedule} onAdded={onAdded} />}
     </FormDialog>
   );
 }
 
 function PeriodDialogContent({
-  scheduleId,
+  schedule,
   onAdded,
-}: Pick<PeriodFormDialogProps, 'scheduleId' | 'onAdded'>) {
+}: Pick<PeriodFormDialogProps, 'schedule' | 'onAdded'>) {
   const { t } = useTranslation();
   const opening = useOpening();
   return (
@@ -73,58 +71,59 @@ function PeriodDialogContent({
           error={error}
           errorTitle={t('processing-schedules.period-form.load-error-title')}
           onRetry={reset}
-          title={t('processing-schedules.period-form.title')}
+          title={t('processing-schedules.periods.add')}
         />
       )}
       pendingFallback={<PeriodFormSkeleton />}
-      resetKey={scheduleId}
+      resetKey={schedule.id}
     >
-      <PeriodForm scheduleId={scheduleId} opening={opening} onAdded={onAdded} />
+      <PeriodForm schedule={schedule} opening={opening} onAdded={onAdded} />
     </QueryBoundary>
   );
 }
 
 function PeriodForm({
-  scheduleId,
+  schedule,
   opening,
   onAdded,
-}: Pick<PeriodFormDialogProps, 'scheduleId' | 'onAdded'> & { opening: number }) {
+}: Pick<PeriodFormDialogProps, 'schedule' | 'onAdded'> & { opening: number }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: schedule } = useSuspenseQuery(scheduleDetailOptions(scheduleId));
-  const { data: latest, refetch } = useSuspenseQuery(latestPeriodOptions(scheduleId, opening));
+  const { data: latest, refetch } = useSuspenseQuery(latestPeriodOptions(schedule.id, opening));
   const startLocked = latest.totalElements > 0;
   const save = useSessionMutation({
-    mutationKey: saveKey(scheduleId),
-    mutationFn: (values: PeriodFormValues) =>
-      createProcessingPeriod(toPeriodBody(values, schedule)),
-    onSuccess: async (saved) => {
+    mutationKey: saveKey(schedule.id),
+    mutationFn: async (values: PeriodFormValues) => {
+      const saved = await createProcessingPeriod(toPeriodBody(values, schedule));
+      const refreshed = await fetchLatestPeriod(schedule.id).catch(() => undefined);
+      return { saved, total: refreshed?.totalElements ?? latest.totalElements + 1 };
+    },
+    onSuccess: ({ saved }) => {
       toast.success(t('processing-schedules.period-form.added-title'), {
         description: t('processing-schedules.period-form.added', { period: saved.name }),
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.processingSchedules.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.processingPeriods.all });
-      const refreshed = await refetch();
-      if (!save.isCurrent()) return;
-      onAdded(
-        refreshed.isError || !refreshed.data
-          ? latest.totalElements + 1
-          : refreshed.data.totalElements,
-      );
     },
     onError: async () => {
       const refreshed = await refetch();
       if (!save.isCurrent()) return;
-      if (refreshed.data && !refreshed.isError && refreshed.data.totalElements > 0) {
-        form.setFieldValue('startDate', nextStartDate(refreshed.data.content[0]?.endDate ?? ''));
-      }
+      const end = refreshed.data?.content[0]?.endDate;
+      if (end) form.setFieldValue('startDate', nextStartDate(end));
     },
   });
   const form = useAppForm({
     defaultValues: toPeriodFormValues(latest.content[0]),
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: periodFormSchema },
-    onSubmit: ({ value }) => save.mutateAsync(value).catch(() => undefined),
+    onSubmit: ({ value }) =>
+      save
+        .mutateAsync(value, {
+          onSuccess: ({ total }) => {
+            if (save.isCurrent()) onAdded(total);
+          },
+        })
+        .catch(() => undefined),
   });
 
   return (
@@ -134,9 +133,7 @@ function PeriodForm({
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={
-                serverMessage(save.error) ?? t('processing-schedules.period-form.save-error')
-              }
+              description={serverMessage(save.error) ?? t('processing-schedules.save-error')}
               title={t('processing-schedules.period-form.save-error-title')}
             />
           )}
@@ -150,7 +147,7 @@ function PeriodForm({
             )}
           </form.AppField>
           <form.AppField name="description">
-            {(field) => <field.TextField label={t('processing-schedules.periods.description')} />}
+            {(field) => <field.TextField label={t('processing-schedules.description')} />}
           </form.AppField>
           <form.Subscribe selector={(state) => state.values.endDate}>
             {(endDate) => (
@@ -208,7 +205,7 @@ function PeriodFormHeader() {
   const { t } = useTranslation();
   return (
     <FormDialogHeader>
-      <FormDialogTitle>{t('processing-schedules.period-form.title')}</FormDialogTitle>
+      <FormDialogTitle>{t('processing-schedules.periods.add')}</FormDialogTitle>
       <FormDialogDescription>
         {t('processing-schedules.period-form.description')}
       </FormDialogDescription>
@@ -224,7 +221,7 @@ function PeriodFormSkeleton() {
       <FormDialogBody>
         <FieldGroup>
           <FieldSkeleton label={t('processing-schedules.periods.name')} required />
-          <FieldSkeleton label={t('processing-schedules.periods.description')} />
+          <FieldSkeleton label={t('processing-schedules.description')} />
           <FieldSkeleton label={t('processing-schedules.periods.start-date')} required />
           <FieldSkeleton label={t('processing-schedules.periods.end-date')} required />
           <SwitchRowSkeleton label={t('processing-schedules.periods.report-only')} />

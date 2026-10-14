@@ -15,7 +15,10 @@ export const SCHEDULE_HIDEABLE_COLUMNS = [
 ] as const;
 
 export const PERIOD_HIDEABLE_COLUMNS = [
-  { id: 'description', labelKey: 'processing-schedules.periods.description', hideBelow: 'lg' },
+  { id: 'description', labelKey: 'processing-schedules.description', hideBelow: 'lg' },
+  { id: 'startDate', labelKey: 'processing-schedules.periods.start-date' },
+  { id: 'endDate', labelKey: 'processing-schedules.periods.end-date' },
+  { id: 'reportOnly', labelKey: 'processing-schedules.periods.report-only', hideBelow: 'md' },
 ] as const;
 
 export const DEFAULT_SCHEDULES_SORT: DefaultSort = { id: 'code', desc: false };

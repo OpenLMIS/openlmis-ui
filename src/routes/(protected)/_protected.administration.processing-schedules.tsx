@@ -29,7 +29,6 @@ import {
   schedulesSearchSchema,
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
-import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 
@@ -47,13 +46,10 @@ export const Route = createFileRoute('/(protected)/_protected/administration/pro
     validateSearch: schedulesSearchSchema,
     loaderDeps: ({ search }) => ({
       query: toSchedulesQuery(search),
-      schedule: search.schedule,
     }),
     loader: async ({ context: { queryClient }, deps }) => {
       await requireRight(queryClient, RIGHTS.processingSchedulesManage);
       queryClient.prefetchQuery(schedulesListOptions(deps.query));
-      if (deps.schedule !== 'new') return;
-      queryClient.prefetchQuery(processingSchedulesOptions());
     },
     pendingComponent: SchedulesPagePending,
     component: SchedulesPage,

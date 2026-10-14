@@ -41,6 +41,7 @@ Today the new UI has these screens:
 | Administration / Facility Types | See facility types, and add or edit one. Needs the Manage Facilities right |
 | Administration / Lots | Find lots by product and expiry dates, and correct a lot's code or dates. Needs the Manage Lots right |
 | Administration / Programs | Find programs, and add or edit one. Needs the Manage Programs right |
+| Administration / Processing Schedules | See processing schedules, add one, and view or add its reporting periods. Needs the Manage Processing Schedules right |
 | Administration / Products | Find products by code, name or program, add one, and edit its details, programs, facility types and kit contents. Needs the Manage Orderables right or the Manage Facility Approved Orderables right; adding needs Manage Orderables |
 | Administration / Reasons | See the reasons stock moves for, add one, and edit one with its tags and the programs and facility types it is offered in. Needs the Manage Stock Card Line Item Reasons right |
 | Administration / Valid Destinations | See where each type of facility may issue stock to, per program, filter by facility and program, add one and delete one or several at once. Needs the Manage Stock Destinations right |

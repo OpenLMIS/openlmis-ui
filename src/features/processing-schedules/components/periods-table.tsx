@@ -42,10 +42,7 @@ function createColumns(t: TFunction, language: string) {
     }),
     columnHelper.accessor('description', {
       header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={t('processing-schedules.periods.description')}
-        />
+        <DataTableColumnHeader column={column} title={t('processing-schedules.description')} />
       ),
       cell: ({ getValue }) => (
         <span className="whitespace-normal break-words" dir="auto">
@@ -78,14 +75,14 @@ function createColumns(t: TFunction, language: string) {
           </Tooltip>
         </div>
       ),
-      cell: ({ getValue }) => <span dir="ltr">{formatDateValue(getValue(), language)}</span>,
+      cell: ({ getValue }) => <bdi>{formatDateValue(getValue(), language)}</bdi>,
       meta: { className: 'w-44 @2xl/main:w-1/5' },
     }),
     columnHelper.accessor('endDate', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('processing-schedules.periods.end-date')} />
       ),
-      cell: ({ getValue }) => <span dir="ltr">{formatDateValue(getValue(), language)}</span>,
+      cell: ({ getValue }) => <bdi>{formatDateValue(getValue(), language)}</bdi>,
       meta: { className: 'w-40 @2xl/main:w-1/5' },
     }),
     columnHelper.display({

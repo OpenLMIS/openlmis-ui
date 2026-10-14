@@ -95,7 +95,7 @@ function ScheduleForm({ onDone }: { onDone: () => void }) {
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
       <FormDialogHeader>
-        <FormDialogTitle>{t('processing-schedules.form.create-title')}</FormDialogTitle>
+        <FormDialogTitle>{t('processing-schedules.add')}</FormDialogTitle>
         <FormDialogDescription>
           {t('processing-schedules.form.create-description')}
         </FormDialogDescription>
@@ -104,7 +104,7 @@ function ScheduleForm({ onDone }: { onDone: () => void }) {
         <FieldGroup>
           {save.isError && !refusedField && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('processing-schedules.form.save-error')}
+              description={serverMessage(save.error) ?? t('processing-schedules.save-error')}
               title={t('processing-schedules.form.save-error-title')}
             />
           )}

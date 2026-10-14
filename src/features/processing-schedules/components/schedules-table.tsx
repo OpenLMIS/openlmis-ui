@@ -48,7 +48,7 @@ function createColumns(t: TFunction, search: SchedulesSearch) {
           </span>
         </span>
       ),
-      meta: { className: '@xl/main:w-1/3' },
+      meta: { className: 'w-60 @xl/main:w-1/3' },
     }),
     columnHelper.accessor('name', {
       header: ({ column }) => (
@@ -61,6 +61,7 @@ function createColumns(t: TFunction, search: SchedulesSearch) {
           </span>
         </span>
       ),
+      meta: { className: 'w-60 @xl/main:w-auto' },
     }),
     columnHelper.accessor('description', {
       header: ({ column }) => (

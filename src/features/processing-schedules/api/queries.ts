@@ -23,13 +23,11 @@ export const scheduleDetailOptions = (id: string) =>
     queryFn: () => fetchProcessingSchedule(id),
   });
 
-export const periodsListOptions = (query: ProcessingPeriodsQuery) => {
-  const { processingScheduleId: scheduleId, ...params } = query;
-  return queryOptions({
-    queryKey: queryKeys.processingPeriods.list({ scheduleId, ...params }),
+export const periodsListOptions = (query: ProcessingPeriodsQuery) =>
+  queryOptions({
+    queryKey: queryKeys.processingPeriods.list(query),
     queryFn: () => fetchProcessingPeriodsPage(query),
   });
-};
 
 export const latestPeriodOptions = (scheduleId: string, opening: number) =>
   queryOptions({

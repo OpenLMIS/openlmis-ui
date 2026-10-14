@@ -1,10 +1,9 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatDateValue } from '@/components/form/date-value';
 import { createProcessingPeriod, fetchLatestPeriod } from '@/features/processing-schedules/api/api';
-import { scheduleDetailOptions } from '@/features/processing-schedules/api/queries';
 import { PeriodFormDialog } from '@/features/processing-schedules/components/period-form-dialog';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -29,17 +28,13 @@ const latest = { content: [period], totalElements: 1, totalPages: 1, number: 0, 
 
 function renderDialog() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  queryClient.setQueryDefaults(scheduleDetailOptions(schedule.id).queryKey, {
-    staleTime: Infinity,
-  });
-  queryClient.setQueryData(scheduleDetailOptions(schedule.id).queryKey, schedule);
   const onAdded = vi.fn();
   const onClose = vi.fn();
   renderPage(
-    <PeriodFormDialog scheduleId={schedule.id} target="new" onAdded={onAdded} onClose={onClose} />,
+    <PeriodFormDialog schedule={schedule} target="new" onAdded={onAdded} onClose={onClose} />,
     { queryClient },
   );
-  return { onAdded, onClose };
+  return { onAdded, onClose, queryClient };
 }
 
 beforeEach(() => {
@@ -77,10 +72,7 @@ describe('PeriodFormDialog', () => {
     );
     const { onAdded, onClose } = renderDialog();
     await user.type(await screen.findByLabelText(/processing-schedules.periods.name/), 'February');
-    await user.type(
-      screen.getByLabelText(/processing-schedules.periods.description/),
-      'Keep this draft',
-    );
+    await user.type(screen.getByLabelText(/processing-schedules.description/), 'Keep this draft');
     await user.click(
       screen.getByRole('switch', { name: /processing-schedules.periods.report-only/ }),
     );
@@ -121,6 +113,32 @@ describe('PeriodFormDialog', () => {
     });
     expect(onAdded).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate after unmounting during a save', async () => {
+    const user = userEvent.setup();
+    let resolveCreate!: (saved: typeof period) => void;
+    vi.mocked(createProcessingPeriod).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    const { onAdded, queryClient } = renderDialog();
+    await user.type(await screen.findByLabelText(/processing-schedules.periods.name/), 'February');
+    await user.click(screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }));
+    const calendar = await screen.findByRole('dialog', {
+      name: /processing-schedules.periods.end-date/,
+    });
+    await user.click(await within(calendar).findByRole('button', { name: /February 28th, 2026/ }));
+    await user.click(screen.getByRole('button', { name: 'processing-schedules.period-form.add' }));
+    await waitFor(() => expect(createProcessingPeriod).toHaveBeenCalled());
+    cleanup();
+    await act(async () => {
+      resolveCreate({ ...period, id: 'p2', name: 'February' });
+    });
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0));
+    expect(onAdded).not.toHaveBeenCalled();
   });
 
   it('finishes a saved add even when the refreshed count cannot load', async () => {

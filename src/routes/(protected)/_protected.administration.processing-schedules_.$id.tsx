@@ -1,7 +1,6 @@
 import {
   createFileRoute,
   type ErrorComponentProps,
-  isNotFound as isRouteNotFound,
   Link,
   notFound,
   useRouter,
@@ -52,7 +51,7 @@ import {
   toListSearch,
   toPeriodsQuery,
 } from '@/features/processing-schedules/lib/search';
-import type { ProcessingScheduleDetail } from '@/features/processing-schedules/lib/types';
+import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { isNotFound } from '@/lib/http';
@@ -69,12 +68,12 @@ export const Route = createFileRoute(
   '/(protected)/_protected/administration/processing-schedules_/$id',
 )({
   validateSearch: periodsSearchSchema,
-  loaderDeps: ({ search }) => ({ search }),
+  loaderDeps: ({ search: { page, size, sort, dir } }) => ({ page, size, sort, dir }),
   loader: async ({ context: { queryClient }, params, deps }) => {
     await requireRight(queryClient, RIGHTS.processingSchedulesManage);
     if (!z.guid().safeParse(params.id).success) throw notFound();
+    queryClient.prefetchQuery(periodsListOptions(toPeriodsQuery(params.id, deps)));
     const schedule = await queryClient.ensureQueryData(scheduleDetailOptions(params.id));
-    queryClient.prefetchQuery(periodsListOptions(toPeriodsQuery(params.id, deps.search)));
     return schedule;
   },
   staticData: {
@@ -154,7 +153,7 @@ function PeriodsPage() {
           <Suspense fallback={null}>
             <PeriodFormDialog
               key={schedule.id}
-              scheduleId={schedule.id}
+              schedule={schedule}
               onAdded={onAdded}
               onClose={closeDialog}
               target={period}
@@ -166,7 +165,7 @@ function PeriodsPage() {
   );
 }
 
-function PeriodsHeader({ schedule }: { schedule?: ProcessingScheduleDetail }) {
+function PeriodsHeader({ schedule }: { schedule?: ProcessingSchedule }) {
   const { t } = useTranslation();
   return (
     <WorkspaceHeader>
@@ -221,10 +220,20 @@ function PeriodsPagePending() {
 
 function PeriodsPageError(props: ErrorComponentProps) {
   const { t } = useTranslation();
-  if (isNotFound(props.error) || isRouteNotFound(props.error)) return <PeriodsNotFound />;
+  const search = Route.useSearch();
+  if (isNotFound(props.error)) return <PeriodsNotFound />;
   return (
     <ErrorFallback
       {...props}
+      back={
+        <Button
+          nativeButton={false}
+          render={<Link to="/administration/processing-schedules" search={toListSearch(search)} />}
+          size="lg"
+        >
+          {t('processing-schedules.periods.back')}
+        </Button>
+      }
       description={t('processing-schedules.periods.load-error-description')}
       title={t('processing-schedules.periods.load-error-title')}
     />

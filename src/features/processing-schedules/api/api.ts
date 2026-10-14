@@ -3,28 +3,28 @@ import type {
   ProcessingPeriodBody,
   ProcessingPeriodsQuery,
   ProcessingScheduleBody,
-  ProcessingScheduleDetail,
   ProcessingSchedulesQuery,
 } from '@/features/processing-schedules/lib/types';
+import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
 import type { Page } from '@/lib/types';
 
 export async function fetchProcessingSchedulesPage(query: ProcessingSchedulesQuery) {
-  const { data } = await client.get<Page<ProcessingScheduleDetail>>('/processingSchedules', {
+  const { data } = await client.get<Page<ProcessingSchedule>>('/processingSchedules', {
     params: query,
   });
   return data;
 }
 
-export async function fetchProcessingSchedule(id: string): Promise<ProcessingScheduleDetail> {
-  const { data } = await client.get<ProcessingScheduleDetail>(`/processingSchedules/${id}`);
+export async function fetchProcessingSchedule(id: string): Promise<ProcessingSchedule> {
+  const { data } = await client.get<ProcessingSchedule>(`/processingSchedules/${id}`);
   return data;
 }
 
 export async function createProcessingSchedule(
   body: ProcessingScheduleBody,
-): Promise<ProcessingScheduleDetail> {
-  const { data } = await client.post<ProcessingScheduleDetail>('/processingSchedules', body);
+): Promise<ProcessingSchedule> {
+  const { data } = await client.post<ProcessingSchedule>('/processingSchedules', body);
   return data;
 }
 

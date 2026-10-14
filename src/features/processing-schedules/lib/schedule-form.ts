@@ -24,7 +24,7 @@ export function scheduleFormSchema(
     name: z
       .string()
       .trim()
-      .min(1, 'processing-schedules.form.name-required')
+      .min(1, 'processing-schedules.name-required')
       .refine(
         (name) => !name || !taken.some((schedule) => same(schedule.name, name)),
         'processing-schedules.form.name-taken',

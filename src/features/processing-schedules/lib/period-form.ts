@@ -3,8 +3,8 @@ import { parseDateValue, toDateValue } from '@/components/form/date-value';
 import type {
   ProcessingPeriod,
   ProcessingPeriodBody,
-  ProcessingScheduleDetail,
 } from '@/features/processing-schedules/lib/types';
+import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 
 export function isReportOnly(extraData?: Record<string, unknown> | null) {
   return extraData?.reportOnly === true || extraData?.reportOnly === 'true';
@@ -28,7 +28,7 @@ const dateSchema = (required: string, invalid: string) =>
 
 export const periodFormSchema = z
   .object({
-    name: z.string().trim().min(1, 'processing-schedules.period-form.name-required'),
+    name: z.string().trim().min(1, 'processing-schedules.name-required'),
     description: z.string().trim(),
     startDate: dateSchema(
       'processing-schedules.period-form.start-required',
@@ -60,7 +60,7 @@ export function toPeriodFormValues(latest?: ProcessingPeriod): PeriodFormValues 
 
 export function toPeriodBody(
   values: PeriodFormValues,
-  schedule: ProcessingScheduleDetail,
+  schedule: ProcessingSchedule,
 ): ProcessingPeriodBody {
   const description = values.description.trim();
   return {
