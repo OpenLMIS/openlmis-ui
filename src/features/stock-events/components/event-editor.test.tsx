@@ -42,7 +42,6 @@ import {
 import {
   reasonsOptions,
   validDestinationsOptions,
-  validReasonsOptions,
   validSourcesOptions,
 } from '@/features/reference-data/api/queries';
 import type { Orderable } from '@/features/reference-data/lib/types';
@@ -51,14 +50,20 @@ import {
   fetchEventStockOnHand,
   submitStockEvent,
 } from '@/features/stock-events/api/api';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  eventStockCardsOptions,
+  eventValidReasonsOptions,
+} from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
+
+vi.mock('@/lib/offline-download-status', () => ({ refreshOfflineProgram: vi.fn() }));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -148,6 +153,10 @@ beforeEach(async () => {
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
   vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
+  vi.mocked(fetchValidReasons)
+    .mockReset()
+    .mockResolvedValue([{ id: 'assignment', reason, hidden: false }]);
+  vi.mocked(fetchTradeItemByGtin).mockReset().mockResolvedValue({ id: 'trade' });
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
   vi.stubGlobal(
     'ResizeObserver',
@@ -183,6 +192,22 @@ const reason = {
   isFreeTextAllowed: true,
   tags: [],
 };
+const testBundleScope = {
+  facilityId: 'facility',
+  programId: 'program',
+  facilityTypeId: 'type',
+  scanning: true,
+};
+const editorStockOptions = (kind: ConfiguredEventKind = 'adjustment') =>
+  eventStockCardsOptions(
+    { facilityId: 'facility', programId: 'program' },
+    kind === 'adjustment' ? testBundleScope : undefined,
+  );
+const editorReasonsOptions = (kind: ConfiguredEventKind = 'adjustment') =>
+  eventValidReasonsOptions(
+    { program: 'program', facilityType: 'type' },
+    kind === 'adjustment' ? testBundleScope : undefined,
+  );
 function setup(
   canViewStock = true,
   configure?: (client: QueryClient) => void,
@@ -203,14 +228,10 @@ function setup(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
   });
-  queryClient.setQueryData(
-    eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-    [card, other],
-  );
-  queryClient.setQueryData(
-    validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
-    [{ id: 'assignment', reason, hidden: false }],
-  );
+  queryClient.setQueryData(editorStockOptions(kind).queryKey, [card, other]);
+  queryClient.setQueryData(editorReasonsOptions(kind).queryKey, [
+    { id: 'assignment', reason, hidden: false },
+  ]);
   queryClient.setQueryData(
     validDestinationsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
     destinations,
@@ -347,10 +368,7 @@ describe('EventEditor', () => {
     'refreshes cached no-lot matches for a %s keyword on language changes',
     async (language) => {
       const { user } = setup(true, (client) =>
-        client.setQueryData(
-          eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-          [card, { ...other, lot: null }],
-        ),
+        client.setQueryData(editorStockOptions().queryKey, [card, { ...other, lot: null }]),
       );
       await add(user, 'No Lot Defined');
       await filter(user, i18n.getFixedT(language)('stock-events.no-lot-defined'));
@@ -428,8 +446,8 @@ describe('EventEditor', () => {
           client.removeQueries({
             queryKey:
               source === 'products'
-                ? eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey
-                : validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
+                ? editorStockOptions().queryKey
+                : editorReasonsOptions().queryKey,
           }),
         { onCaughtError },
       );
@@ -494,9 +512,9 @@ describe('EventEditor', () => {
     const { user } = setup();
     await validLine(user);
     let finish!: (value: { id: string }) => void;
-    vi.mocked(fetchEventStockCards).mockReturnValueOnce(
+    vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
       new Promise((resolve) => {
-        finish = () => resolve([card, other]);
+        finish = resolve;
       }),
     );
     let operation: ReturnType<typeof scan>;
@@ -571,9 +589,9 @@ describe('EventEditor', () => {
     await validLine(user);
     const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
     let resolve!: (value: { id: string }) => void;
-    vi.mocked(fetchEventStockCards).mockReturnValueOnce(
+    vi.mocked(fetchTradeItemByGtin).mockReturnValueOnce(
       new Promise((done) => {
-        resolve = () => done([card, other]);
+        resolve = done;
       }),
     );
     let operation: ReturnType<typeof scan>;
@@ -929,7 +947,7 @@ it('waits for reasons before manual and scanned additions receive the default', 
     true,
     (client) =>
       client.removeQueries({
-        queryKey: validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
+        queryKey: editorReasonsOptions().queryKey,
       }),
     { defaultReasonId: 'lost' },
   );
@@ -953,17 +971,14 @@ it.each([true, false])(
   async (enabled) => {
     localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
     const { user } = setup(true, (client) =>
-      client.setQueryData(
-        eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-        [
-          { ...card, lot: null },
-          {
-            ...other,
-            lot: enabled ? other.lot : null,
-            orderable: { ...other.orderable, extraData: { useVVM: enabled ? 'true' : 'false' } },
-          },
-        ],
-      ),
+      client.setQueryData(editorStockOptions().queryKey, [
+        { ...card, lot: null },
+        {
+          ...other,
+          lot: enabled ? other.lot : null,
+          orderable: { ...other.orderable, extraData: { useVVM: enabled ? 'true' : 'false' } },
+        },
+      ]),
     );
     await add(user, enabled ? 'No Lot Defined' : 'Product Has No Lots');
     for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
@@ -987,8 +1002,13 @@ it.each(['success', 'failure'])(
     const leave = vi.fn();
     act(() => whenLeaveAllowed(leave));
     expect(leave).toHaveBeenCalledTimes(outcome === 'success' ? 1 : 0);
-    if (outcome === 'success') expect(onSubmitted).toHaveBeenCalledWith('new-event');
-    else expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    if (outcome === 'success') {
+      expect(onSubmitted).toHaveBeenCalledWith('new-event');
+      expect(refreshOfflineProgram).toHaveBeenCalledWith({
+        facilityId: 'facility',
+        programId: 'program',
+      });
+    } else expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     router?.history.destroy();
   },
 );
@@ -1005,14 +1025,10 @@ it('uses Issue stock eligibility for both the picker and scan resolver and prese
   const { user } = setup(
     true,
     (client) => {
-      client.setQueryData(
-        eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-        [card, zero, other],
-      );
-      client.setQueryData(
-        validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
-        [{ reason: { ...reason, reasonCategory: 'TRANSFER' }, hidden: false }],
-      );
+      client.setQueryData(editorStockOptions('issue').queryKey, [card, zero, other]);
+      client.setQueryData(editorReasonsOptions('issue').queryKey, [
+        { reason: { ...reason, reasonCategory: 'TRANSFER' }, hidden: false },
+      ]);
     },
     { defaultReasonId: 'lost', kind: 'issue' },
   );
@@ -1048,20 +1064,14 @@ describe('Issue editor', () => {
     setup(
       true,
       (client) => {
-        client.setQueryData(
-          eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-          [other],
-        );
-        client.setQueryData(
-          validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
-          [
-            {
-              id: 'transfer',
-              reason: { ...reason, name: 'Transfer Out', reasonCategory: 'TRANSFER' },
-              hidden: false,
-            },
-          ],
-        );
+        client.setQueryData(editorStockOptions('issue').queryKey, [other]);
+        client.setQueryData(editorReasonsOptions('issue').queryKey, [
+          {
+            id: 'transfer',
+            reason: { ...reason, name: 'Transfer Out', reasonCategory: 'TRANSFER' },
+            hidden: false,
+          },
+        ]);
         configure?.(client);
       },
       { kind: 'issue', onCaughtError },
@@ -1274,7 +1284,7 @@ describe('readiness after a failed background refetch', () => {
         true,
         (client) =>
           client.setQueryData(
-            eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+            editorStockOptions(lookup === 'destinations' ? 'issue' : 'adjustment').queryKey,
             [other],
           ),
         { kind: lookup === 'destinations' ? 'issue' : 'adjustment' },
@@ -1284,7 +1294,7 @@ describe('readiness after a failed background refetch', () => {
       expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
       const queryKey =
         lookup === 'reasons'
-          ? validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey
+          ? editorReasonsOptions().queryKey
           : validDestinationsOptions({ facilityId: 'facility', programId: 'program' }).queryKey;
       vi.mocked(lookup === 'reasons' ? fetchValidReasons : fetchValidAssignments).mockRejectedValue(
         httpError(500),
@@ -1305,20 +1315,16 @@ describe('readiness after a failed background refetch', () => {
 it('retains draft lot and VVM columns when refreshed stock no longer offers them', async () => {
   localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
   const { user, queryClient } = setup(true, (client) =>
-    client.setQueryData(
-      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-      [{ ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } }],
-    ),
+    client.setQueryData(editorStockOptions().queryKey, [
+      { ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } },
+    ]),
   );
   await add(user, 'OTHER');
   for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
     expect(screen.getByRole('columnheader', { name })).toBeInTheDocument();
   }
   act(() => {
-    queryClient.setQueryData(
-      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-      [{ ...card, lot: null }],
-    );
+    queryClient.setQueryData(editorStockOptions().queryKey, [{ ...card, lot: null }]);
   });
   await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Lot Code' })).toBeNull());
   for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
@@ -1337,7 +1343,7 @@ it('keeps the empty table busy until stock cards determine its lot and VVM colum
   );
   setup(true, (client) =>
     client.removeQueries({
-      queryKey: eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+      queryKey: editorStockOptions().queryKey,
     }),
   );
   const header = await screen.findByRole('columnheader', { name: 'Product' });
@@ -1358,7 +1364,7 @@ it('stops announcing a busy table after stock cards fail and keeps the retry ava
     true,
     (client) =>
       client.removeQueries({
-        queryKey: eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+        queryKey: editorStockOptions().queryKey,
       }),
     { onCaughtError },
   );
@@ -1474,21 +1480,18 @@ describe('Receive editor', () => {
     setup(
       true,
       (client) => {
-        client.setQueryData(
-          validReasonsOptions({ program: 'program', facilityType: 'type' }).queryKey,
-          [
-            {
-              id: 'transfer',
-              reason: {
-                ...reason,
-                name: 'Transfer In',
-                reasonType: 'CREDIT',
-                reasonCategory: 'TRANSFER',
-              },
-              hidden: false,
+        client.setQueryData(editorReasonsOptions('receive').queryKey, [
+          {
+            id: 'transfer',
+            reason: {
+              ...reason,
+              name: 'Transfer In',
+              reasonType: 'CREDIT',
+              reasonCategory: 'TRANSFER',
             },
-          ],
-        );
+            hidden: false,
+          },
+        ]);
         client.setQueryData(
           validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
           destinations,
@@ -1770,10 +1773,7 @@ describe('Unpack editor', () => {
         mutations: { retry: false },
       },
     });
-    queryClient.setQueryData(
-      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-      [{ ...card, orderable }],
-    );
+    queryClient.setQueryData(editorStockOptions('unpack').queryKey, [{ ...card, orderable }]);
     queryClient.setQueryData(reasonsOptions().queryKey, kitReasons);
     configure?.(queryClient);
     vi.mocked(fetchOrderablesByIds).mockResolvedValue([kit]);
@@ -2021,3 +2021,25 @@ describe('Unpack editor', () => {
     },
   );
 });
+
+it.each([
+  { tradeItem: null, key: 'scan.gtin-not-registered' },
+  { tradeItem: { id: 'not-stocked' }, key: 'scan.product-not-on-screen' },
+])(
+  'keeps the online Adjustment scan refusal $key without refetching stock',
+  async ({ tradeItem, key }) => {
+    vi.mocked(fetchTradeItemByGtin).mockResolvedValueOnce(tradeItem);
+    setup();
+    await waitFor(() => expect(scanningEnabled).toBe(true));
+    let message: Awaited<ReturnType<typeof scan>>;
+    await act(async () => {
+      message = await scan(
+        { ok: true, gtin: '00012345678905', warnings: [], unparsed: {} },
+        new AbortController().signal,
+      );
+    });
+    expect(message).toMatchObject({ key });
+    expect(fetchTradeItemByGtin).toHaveBeenCalledTimes(1);
+    expect(fetchEventStockCards).not.toHaveBeenCalled();
+  },
+);

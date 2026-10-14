@@ -60,6 +60,7 @@ import {
 } from '@/features/stock-events/lib/products';
 import type { EventStockCardsFilter } from '@/features/stock-events/lib/types';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import type { AdjustmentScope } from '@/lib/adjustment-bundle';
 import { useFlag } from '@/lib/feature-flags';
 import { productSearchStatus } from '@/lib/product-search-status';
 
@@ -67,6 +68,7 @@ type BaseProps = EventStockCardsFilter & {
   kind: ConfiguredEventKind;
   children?: ReactNode;
   disabled: boolean;
+  bundleScope?: AdjustmentScope;
   onAdd: (candidate: EventLineCandidate, productHasLots: boolean) => void;
 };
 
@@ -119,12 +121,15 @@ function StockCardLotPicker({
   disabled,
   children,
   cardFilter,
+  bundleScope,
 }: BaseProps & { cardFilter: EventCardFilter }) {
   const { t, i18n } = useTranslation();
   const lotLabel = useLotLabel();
   const copy = EVENT_KINDS[kind].copy;
   const id = useId();
-  const { data: cards } = useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
+  const { data: cards } = useSuspenseQuery(
+    eventStockCardsOptions({ facilityId, programId }, bundleScope),
+  );
   const products = useMemo(() => eventProductOptions(cardFilter(cards)), [cards, cardFilter]);
   const [productId, setProductId] = useState<string | null>(null);
   const [lotId, setLotId] = useState<string | null>(null);

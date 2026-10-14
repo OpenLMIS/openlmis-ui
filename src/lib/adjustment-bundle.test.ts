@@ -1,4 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -104,7 +105,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it('coalesces editor and download reads, retains both requested versions and every page, and never persists', async () => {
+it('coalesces foreground reads, retains both requested versions and every page, and never persists', async () => {
   const [first, second] = await Promise.all([
     getAdjustmentBundle(filter),
     getAdjustmentBundle(filter),
@@ -194,4 +195,60 @@ it('accepts a complete empty program without requesting unrelated products or lo
   expect(saved.tradeItems).toEqual([]);
   expect(saved.reasons).toHaveLength(1);
   expect(requests).toEqual(['/validReasons:0']);
+});
+
+it('keeps foreground readers independent of an aborted coordinator download', async () => {
+  const saved = await getAdjustmentBundle(filter);
+  await getLocalDb().table('adjustmentDownloads').put(saved);
+  let started!: () => void;
+  const downloading = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  client.defaults.adapter = async (config) => {
+    if (config.signal) {
+      started();
+      return new Promise((_resolve, reject) => {
+        config.signal?.addEventListener?.('abort', () =>
+          reject(new AxiosError('Canceled', AxiosError.ERR_CANCELED, config)),
+        );
+      });
+    }
+    throw new AxiosError('Connection lost', AxiosError.ERR_NETWORK, config);
+  };
+  const controller = new AbortController();
+  const background = fetchAdjustmentBundle(filter, controller.signal);
+  const rejected = expect(background).rejects.toThrow();
+  await downloading;
+  const foreground = expect(getAdjustmentBundle(filter)).resolves.toEqual(saved);
+  controller.abort();
+  await Promise.all([rejected, foreground]);
+});
+
+it('waits for same-user renewal and replays a refused foreground bundle request', async () => {
+  const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+  const refused = vi.fn();
+  client.defaults.adapter = async (config) => {
+    expect(config.backgroundRead).not.toBe(true);
+    expect(config.session).not.toBe(false);
+    if (config.headers.Authorization === 'Bearer token') {
+      refused();
+      throw new AxiosError('Expired', AxiosError.ERR_BAD_REQUEST, config, undefined, {
+        data: {},
+        status: 401,
+        statusText: 'Unauthorized',
+        config,
+        headers: {},
+      });
+    }
+    return adapter(config);
+  };
+  const result = getAdjustmentBundle(filter);
+  await waitFor(() => expect(useLoginData.getState().expired).toBe(true));
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: 'bundle-user',
+    username: 'user',
+    accessToken: 'renewed',
+  });
+  expect((await result).cards).toHaveLength(2);
+  expect(refused).toHaveBeenCalledTimes(1);
 });

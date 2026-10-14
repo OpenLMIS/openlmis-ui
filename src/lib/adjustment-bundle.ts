@@ -22,8 +22,10 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 export const DOWNLOAD_STALE_MS = 30 * 60 * 1000;
-export const downloadIsStale = (value: { fetchedAt: number } | undefined, now = Date.now()) =>
-  !value || now - value.fetchedAt >= DOWNLOAD_STALE_MS;
+export const downloadIsStale = (
+  value: { fetchedAt: number; stale?: boolean } | undefined,
+  now = Date.now(),
+) => !value || value.stale || now - value.fetchedAt >= DOWNLOAD_STALE_MS;
 export type AdjustmentScope = {
   facilityId: string;
   programId: string;
@@ -41,6 +43,7 @@ export type AdjustmentBundle = AdjustmentScope & {
   generation: string;
   fetchedAt: number;
   formatVersion: 1;
+  stale?: boolean;
   cards: AdjustmentCard[];
   reasons: ValidReasonAssignment[];
   tradeItems: TradeItem[];
@@ -112,17 +115,17 @@ function snapshotProduct(product: Orderable): Orderable {
 
 async function fetchBundle(
   filter: AdjustmentScope,
-  signal?: AbortSignal,
+  config: AxiosRequestConfig & { signal?: AbortSignal },
 ): Promise<AdjustmentBundle> {
-  const sessionScope = getSessionScope();
+  const sessionScope = config.sessionScope ?? getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
   const check = () => {
     assertSessionScope(sessionScope);
-    signal?.throwIfAborted();
-    if (!isOnline() || useLoginData.getState().expired) throw new Error('Download stopped.');
+    config.signal?.throwIfAborted();
+    if (config.backgroundRead && (!isOnline() || useLoginData.getState().expired))
+      throw new Error('Download stopped.');
   };
-  const config: AxiosRequestConfig = { session: false, backgroundRead: true, signal, sessionScope };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
   const summaries: Summary[] = [];
   for (let page = 0; ; page += 1) {
@@ -267,6 +270,15 @@ async function fetchBundle(
 
 const inFlight = new Map<string, Promise<AdjustmentBundle>>();
 export function fetchAdjustmentBundle(filter: AdjustmentScope, signal?: AbortSignal) {
+  return fetchBundle(filter, {
+    session: false,
+    backgroundRead: true,
+    signal,
+    sessionScope: getSessionScope(),
+  });
+}
+
+function fetchForegroundBundle(filter: AdjustmentScope) {
   const requestKey = JSON.stringify([
     getSessionScope(),
     useLoginData.getState().accessToken,
@@ -277,7 +289,7 @@ export function fetchAdjustmentBundle(filter: AdjustmentScope, signal?: AbortSig
   ]);
   const existing = inFlight.get(requestKey);
   if (existing) return existing;
-  const pending = fetchBundle(filter, signal).finally(() => {
+  const pending = fetchBundle(filter, { sessionScope: getSessionScope() }).finally(() => {
     if (inFlight.get(requestKey) === pending) inFlight.delete(requestKey);
   });
   inFlight.set(requestKey, pending);
@@ -288,7 +300,7 @@ export async function getAdjustmentBundle(filter: AdjustmentScope) {
   if (!isOnline()) return readAdjustmentBundle(filter);
   const scope = getSessionScope();
   try {
-    return await fetchAdjustmentBundle(filter);
+    return await fetchForegroundBundle(filter);
   } catch (error) {
     assertSessionScope(scope);
     if (!isAccessFallbackError(error)) throw error;

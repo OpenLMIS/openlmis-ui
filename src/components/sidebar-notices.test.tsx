@@ -209,3 +209,15 @@ describe('OfflineDot', () => {
     expect(container.querySelector('[aria-hidden=true]')).not.toBeInTheDocument();
   });
 });
+
+it('clears the completed download announcement before later notices change', () => {
+  vi.useFakeTimers();
+  renderNotices();
+  act(() => setDownloadStatus({ phase: 'complete', failed: [] }));
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
+  act(() => vi.advanceTimersByTime(4000));
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
+  showUpdate();
+  expect(screen.getByRole('status')).toHaveTextContent('update.title');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
+});

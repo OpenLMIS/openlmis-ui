@@ -20,6 +20,7 @@ import { type AccessReaders, type OfflineAccess, refreshOfflineAccess } from '@/
 import {
   type DownloadStatus,
   getDownloadStatus,
+  setDownloadRefresh,
   setDownloadRetry,
   setDownloadStatus,
 } from '@/lib/offline-download-status';
@@ -32,7 +33,7 @@ type Dependencies = {
   access?: AccessReaders;
   bundle?: (filter: AdjustmentScope, signal: AbortSignal) => Promise<AdjustmentBundle>;
 };
-type Trigger = 'boot' | 'force' | 'retry';
+type Trigger = 'boot' | 'force' | 'retry' | 'refresh';
 
 export function startOfflineCoordinator(dependencies: Dependencies = {}) {
   let active: AbortController | undefined;
@@ -42,6 +43,9 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
   let pending: Trigger | undefined;
   let observedCompletion = false;
   let observedRunning = false;
+  const refreshPrograms = new Set<string>();
+  const programKey = (facilityId: string, programId: string) => `${facilityId}:${programId}`;
+  let watchedChannel: BroadcastChannel | undefined;
   const publish = (status: DownloadStatus) => {
     setDownloadStatus(status);
     channel?.postMessage({ type: 'status', status });
@@ -68,7 +72,30 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
         channel.onmessage = ({ data }) => {
           if (data?.type === 'status') {
             setDownloadStatus(data.status);
-            if (data.status.phase === 'running') observedRunning = true;
+            if (data.status.phase === 'running') {
+              observedRunning = true;
+              if (watchedChannel !== channel && navigator.locks) {
+                watchedChannel = channel;
+                const scope = getSessionScope();
+                const observedChannel = channel;
+                void navigator.locks
+                  .request(name, { mode: 'shared' }, () => {
+                    if (stopped || scope !== getSessionScope() || channel !== observedChannel)
+                      return;
+                    const status = getDownloadStatus();
+                    if (status.phase === 'running')
+                      setDownloadStatus(
+                        status.failed.length || status.accessFailed
+                          ? { ...status, phase: 'failed', reason: 'read' }
+                          : { phase: 'idle', failed: [] },
+                      );
+                  })
+                  .catch(() => undefined)
+                  .finally(() => {
+                    if (watchedChannel === observedChannel) watchedChannel = undefined;
+                  });
+              }
+            }
             if (
               observedRunning &&
               (data.status.phase === 'complete' || data.status.phase === 'failed')
@@ -84,7 +111,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       return;
     }
     if (active) {
-      pending = trigger;
+      pending = pending === 'force' || trigger === 'force' ? 'force' : trigger;
       return;
     }
     const controller = new AbortController();
@@ -121,18 +148,20 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       channel?.postMessage({ type: 'observe' });
       await navigator.locks.request(name, { signal: controller.signal }, async () => {
         check();
-        if (observedCompletion) return;
+        if (observedCompletion && !refreshPrograms.size) return;
         let saved = await accessTable.get(userId);
         check();
         const accessChanged = saved && saved.generation !== initialAccess?.generation;
         const refreshAccess =
-          trigger === 'retry'
-            ? previousStatus.accessFailed || !saved
-            : trigger === 'boot'
-              ? downloadIsStale(saved)
-              : !accessChanged;
-        publish({ phase: 'running', failed: [], accessFailed: Boolean(refreshAccess) });
+          trigger === 'refresh'
+            ? false
+            : trigger === 'retry'
+              ? previousStatus.accessFailed || !saved
+              : trigger === 'boot'
+                ? downloadIsStale(saved)
+                : !accessChanged;
         if (refreshAccess) {
+          publish({ phase: 'running', failed: [], accessFailed: true });
           const config = {
             session: false,
             backgroundRead: true,
@@ -166,9 +195,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           (program) =>
             home && hasProgramGrant(permissions, 'STOCK_CARDS_VIEW', home.id, program.id),
         );
-        const failed: DownloadStatus['failed'] = programs
-          .filter((program) => !eligible.includes(program))
-          .map((program) => ({ id: program.id, name: program.name ?? program.code }));
+        const failed: DownloadStatus['failed'] = [];
         const queue: typeof eligible = [];
         const scanning = getFlag('GS1_SCANNING');
         for (const program of eligible) {
@@ -176,22 +203,37 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           const bundle = await bundles.get([home?.id ?? '', program.id]);
           check();
           const changed = bundle && bundle.generation !== baseline.get(program.id);
+          const requestKey = programKey(home?.id ?? '', program.id);
+          const requested = refreshPrograms.has(requestKey);
+          if (trigger === 'refresh' && !requested) continue;
           if (
+            !requested &&
             trigger === 'retry' &&
             !previousStatus.failed.some((item) => item.id === program.id) &&
             !previousStatus.accessFailed
           )
             continue;
           if (
-            changed ||
-            (trigger === 'boot' &&
-              !downloadIsStale(bundle) &&
-              bundle?.facilityTypeId === home?.type.id &&
-              (!scanning || bundle?.scanning))
+            !requested &&
+            (changed ||
+              (trigger === 'boot' &&
+                !downloadIsStale(bundle) &&
+                bundle?.facilityTypeId === home?.type.id &&
+                (!scanning || bundle?.scanning)))
           )
             continue;
+          if (requested) {
+            refreshPrograms.delete(requestKey);
+            await db.transaction('rw', bundles, async () => {
+              check();
+              await bundles.update([home?.id ?? '', program.id], { stale: true });
+              check();
+            });
+            check();
+          }
           queue.push(program);
         }
+        if (!refreshAccess && !queue.length) return;
         let reason: DownloadStatus['reason'];
         const incomplete = new Map(
           [
@@ -281,12 +323,17 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
   setDownloadRetry(() => {
     void run('retry');
   });
+  setDownloadRefresh(({ facilityId, programId }) => {
+    refreshPrograms.add(programKey(facilityId, programId));
+    void run('refresh');
+  });
   const unsubscribe = useLoginData.subscribe((state, previous) => {
     if (state.referenceDataUserId !== previous.referenceDataUserId) {
       stopActive();
       channel?.close();
       channel = undefined;
       channelName = undefined;
+      refreshPrograms.clear();
       setDownloadStatus({ phase: 'idle', failed: [] });
     }
     if (state.expired) stopActive('session');
@@ -310,5 +357,6 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     unsubscribeOnline();
     channel?.close();
     setDownloadRetry();
+    setDownloadRefresh();
   };
 }

@@ -988,7 +988,16 @@ return data, unavailable or a handled error; local absence is never a server 404
   Background reads retain session-scope checks even with `session: false`.
 
 - Adjustments reads and downloads share `src/lib/adjustment-bundle.ts`; online queries never
-  persist bundles. Only the shell coordinator publishes complete generations under the
-  database's `offline-download` Web Lock. Keep the future upload lock separate and retain
-  previous bundles on refresh failure. Sidebar notices use stable ids, never variant keys;
-  only `StatusAnnouncer` announces download transitions.
+  persist bundles. Foreground reads coalesce independently of coordinator signals and retain
+  normal session renewal/replay. Only coordinator downloads use fail-fast `backgroundRead`.
+  Bundle cards/reasons use scoped keys from `adjustmentBundleKeys`; pass the same scope to the
+  picker. Online scans retain `tradeItemByGtinOptions`; only unreachable/offline reads consult
+  saved mappings. Missing mappings in a complete scan-enabled bundle mean not in local stock,
+  never globally unregistered.
+- Only the shell coordinator publishes complete generations under the database's
+  `offline-download` Web Lock. Accepted online Adjustments request a nonblocking scoped refresh;
+  mark that bundle stale under the lock before downloading. Keep the future upload lock
+  separate and retain previous bundles on refresh failure. Exclude programs without stock
+  viewing rights from downloads/failures. Passive tabs observe lock release to clear orphaned
+  progress. Fresh boots publish no download transition. Sidebar notices use stable ids, never
+  variant keys; only `StatusAnnouncer` announces transitions and completion clears after 4 s.
