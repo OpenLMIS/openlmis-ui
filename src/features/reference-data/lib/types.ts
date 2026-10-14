@@ -177,3 +177,10 @@ export type OrderableFulfills = Record<
   string,
   { canFulfillForMe?: string[]; canBeFulfilledByMe?: string[] }
 >;
+
+export type ProcessingSchedule = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+};

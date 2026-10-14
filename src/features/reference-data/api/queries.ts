@@ -21,6 +21,7 @@ import {
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
   fetchOrganizations,
+  fetchProcessingSchedules,
   fetchPrograms,
   fetchReasons,
   fetchRoles,
@@ -265,3 +266,10 @@ export const validDestinationsOptions = (filter: ValidAssignmentsFilter) =>
 
 export const validSourcesOptions = (filter: ValidAssignmentsFilter) =>
   validAssignmentsOptions('validSources', filter);
+
+export const processingSchedulesOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.processingSchedules.list(),
+    queryFn: fetchProcessingSchedules,
+    staleTime: LOOKUP_STALE_TIME,
+  });

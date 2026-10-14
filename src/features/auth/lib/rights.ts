@@ -8,6 +8,7 @@ export const RIGHTS = {
   cceInventoryView: 'CCE_INVENTORY_VIEW',
   facilitiesManage: 'FACILITIES_MANAGE',
   programsManage: 'PROGRAMS_MANAGE',
+  processingSchedulesManage: 'PROCESSING_SCHEDULES_MANAGE',
   usersManage: 'USERS_MANAGE',
   userRolesManage: 'USER_ROLES_MANAGE',
   rightsView: 'RIGHTS_VIEW',
