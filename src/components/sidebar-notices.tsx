@@ -22,6 +22,7 @@ import {
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { useQueuedAnnouncement } from '@/lib/device-event-status';
 import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
@@ -30,6 +31,7 @@ import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker
 type Notice = {
   id: string;
   spinning?: boolean;
+  closesSidebar?: boolean;
   variant: 'warning' | 'success' | 'info';
   Icon: LucideIcon;
   title: string;
@@ -125,6 +127,7 @@ function useNotices(): Notice[] {
   if (events?.length)
     notices.push({
       id: 'device-events-waiting',
+      closesSidebar: true,
       variant: 'info',
       Icon: ListChecksIcon,
       title: t('device-events.waiting', { count: events.length }),
@@ -146,75 +149,79 @@ export function SidebarNotices() {
   if (!isMobile && state === 'collapsed') {
     return (
       <SidebarMenu>
-        {notices.map(({ id, variant, Icon, title, description, action, spinning }) => (
-          <SidebarMenuItem key={id}>
-            {action ? (
-              <SidebarMenuButton
-                aria-label={action.label}
-                onClick={() => {
-                  action.onClick();
-                  if (id === 'device-events-waiting') setOpenMobile(false);
-                }}
-                tooltip={`${title}${description ? `: ${description}` : ''}: ${action.label}`}
-              >
-                <Icon className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`} />
-              </SidebarMenuButton>
-            ) : (
-              <SidebarMenuButton
-                render={<span />}
-                tooltip={description ? `${title}: ${description}` : title}
-              >
-                <Icon
-                  aria-hidden="true"
-                  className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`}
-                />
-              </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
-        ))}
+        {notices.map(
+          ({ id, variant, Icon, title, description, action, spinning, closesSidebar }) => (
+            <SidebarMenuItem key={id}>
+              {action ? (
+                <SidebarMenuButton
+                  aria-label={action.label}
+                  onClick={() => {
+                    action.onClick();
+                    if (closesSidebar) setOpenMobile(false);
+                  }}
+                  tooltip={`${title}${description ? `: ${description}` : ''}: ${action.label}`}
+                >
+                  <Icon className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`} />
+                </SidebarMenuButton>
+              ) : (
+                <SidebarMenuButton
+                  render={<span />}
+                  tooltip={description ? `${title}: ${description}` : title}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`}
+                  />
+                </SidebarMenuButton>
+              )}
+            </SidebarMenuItem>
+          ),
+        )}
       </SidebarMenu>
     );
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {notices.map(({ id, variant, Icon, title, description, action, onClose, spinning }) => (
-        <Alert key={id} role="note" variant={variant}>
-          <Icon aria-hidden="true" className={spinning ? 'animate-spin' : undefined} />
-          <AlertTitle>{title}</AlertTitle>
-          {(description || action) && (
-            <AlertDescription>
-              {description}
-              {action && (
-                <div className="pt-1">
-                  <Button
-                    onClick={() => {
-                      action.onClick();
-                      if (id === 'device-events-waiting') setOpenMobile(false);
-                    }}
-                    size="xs"
-                    variant="outline"
-                  >
-                    {action.label}
-                  </Button>
-                </div>
-              )}
-            </AlertDescription>
-          )}
-          {onClose && (
-            <AlertAction>
-              <Button
-                aria-label={t('notice.close', { title })}
-                onClick={onClose}
-                size="icon-xs"
-                variant="ghost"
-              >
-                <XIcon />
-              </Button>
-            </AlertAction>
-          )}
-        </Alert>
-      ))}
+      {notices.map(
+        ({ id, variant, Icon, title, description, action, onClose, spinning, closesSidebar }) => (
+          <Alert key={id} role="note" variant={variant}>
+            <Icon aria-hidden="true" className={spinning ? 'animate-spin' : undefined} />
+            <AlertTitle>{title}</AlertTitle>
+            {(description || action) && (
+              <AlertDescription>
+                {description}
+                {action && (
+                  <div className="pt-1">
+                    <Button
+                      onClick={() => {
+                        action.onClick();
+                        if (closesSidebar) setOpenMobile(false);
+                      }}
+                      size="xs"
+                      variant="outline"
+                    >
+                      {action.label}
+                    </Button>
+                  </div>
+                )}
+              </AlertDescription>
+            )}
+            {onClose && (
+              <AlertAction>
+                <Button
+                  aria-label={t('notice.close', { title })}
+                  onClick={onClose}
+                  size="icon-xs"
+                  variant="ghost"
+                >
+                  <XIcon />
+                </Button>
+              </AlertAction>
+            )}
+          </Alert>
+        ),
+      )}
     </div>
   );
 }
@@ -222,14 +229,20 @@ export function SidebarNotices() {
 export function StatusAnnouncer() {
   const notices = useNotices();
   const download = useDownloadStatus();
+  const queued = useQueuedAnnouncement();
   const deviceSave = useDeviceSaveAnnouncement();
   const { t } = useTranslation();
   return (
     <div className="sr-only" role="status">
       {[
         ...notices.map(({ title, description, id }) =>
-          id === 'offline-download' && description ? `${title}. ${description}` : title,
+          id === 'device-events-waiting'
+            ? ''
+            : id === 'offline-download' && description
+              ? `${title}. ${description}`
+              : title,
         ),
+        ...(queued ? [t('device-events.waiting', { count: queued.count })] : []),
         ...(deviceSave ? [t(deviceSave)] : []),
         ...(download.phase === 'complete' ? [t('offline.download.finished')] : []),
       ].join('. ')}

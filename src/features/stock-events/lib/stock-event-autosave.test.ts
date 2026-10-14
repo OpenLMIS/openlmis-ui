@@ -191,3 +191,26 @@ it('Retry after a failed queue commit recovers the saved state and permits one l
   await writer.submit(payload, display);
   expect(await context.db.table('stockEventQueue').count()).toBe(1);
 });
+
+it('Submit after a conflict cannot make Retry overwrite another tab', async () => {
+  const context = createStockEventContext(selection);
+  const original = await saveStockEventDraft(context, undefined, [line]);
+  const writer = createStockEventWriter(context, original, vi.fn());
+  const other = await saveStockEventDraft(context, original, [
+    { ...line, reasonFreeText: 'other' },
+  ]);
+  writer.enqueue([{ ...line, reasonFreeText: 'mine' }]);
+  await writer.flush();
+  await expect(
+    writer.submit(
+      { facilityId: 'facility', programId: 'program', lineItems: [] },
+      {
+        facility: { id: 'facility', code: 'F', name: null },
+        program: { id: 'program', code: 'P', name: null },
+      },
+    ),
+  ).rejects.toThrow();
+  writer.retry();
+  expect(await writer.flush()).toBe(false);
+  expect(await readStockEventDraft(context)).toEqual(other);
+});

@@ -7,6 +7,7 @@ import {
   readStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import type { StockEvent } from '@/features/stock-events/lib/types';
+import { announceQueuedEvents } from '@/lib/device-event-status';
 import type { NamedRecord } from '@/lib/facility-program-selection';
 import { assertSessionScope } from '@/lib/session-scope';
 
@@ -45,6 +46,7 @@ export async function enqueueStockEvent(
   )
     throw new DraftConflictError(undefined);
   const frozen = structuredClone(payload);
+  let inserted = false;
   const result = await context.db.transaction('rw', drafts, queue, async () => {
     const duplicate = await queue.where('localEventId').equals(expected.localEventId).first();
     assertSessionScope(context.sessionScope);
@@ -92,8 +94,14 @@ export async function enqueueStockEvent(
     assertSessionScope(context.sessionScope);
     const sequence = await queue.add(row);
     assertSessionScope(context.sessionScope);
+    inserted = true;
     return { ...row, sequence };
   });
   assertSessionScope(context.sessionScope);
+  if (inserted) {
+    const count = await queue.count();
+    assertSessionScope(context.sessionScope);
+    announceQueuedEvents(count);
+  }
   return result;
 }

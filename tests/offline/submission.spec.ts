@@ -55,6 +55,11 @@ for (const offline of [true, false]) {
         serviceWorkers: 'allow',
         offline: true,
       });
+      await stub(context, async () => 'finish');
+      await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
+        if (route.request().method() === 'POST') posts++;
+        await route.abort();
+      });
       page = context.pages()[0];
       await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
       await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();

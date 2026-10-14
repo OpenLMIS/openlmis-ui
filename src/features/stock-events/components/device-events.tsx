@@ -48,6 +48,8 @@ export const deviceEventsSearchSchema = tableSearchSchema(['queuedAt']).pick({
 });
 const choicesSchema = z.record(z.string(), z.boolean());
 const hideable = [
+  { id: 'program', labelKey: 'facility-program.program', hideBelow: 'xl' },
+  { id: 'lots', labelKey: 'lots.title', hideBelow: '2xl' },
   { id: 'kind', labelKey: 'device-events.type', hideBelow: 'xl' },
   { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: '3xl' },
   { id: 'status', labelKey: 'device-events.status', hideBelow: '2xl' },
@@ -154,27 +156,40 @@ function DeviceEventsTable({
         meta: { className: 'w-32' },
       },
       {
-        id: 'scope',
-        header: t('device-events.scope'),
+        id: 'facility',
+        header: t('facility-program.facility'),
         cell: ({ row }) => (
-          <div className="flex min-w-40 flex-col gap-1">
-            <span dir="auto">{row.original.facility.name || row.original.facility.code}</span>
-            <span className="text-muted-foreground" dir="auto">
-              {row.original.program.name || row.original.program.code}
-            </span>
+          <span dir="auto">{row.original.facility.name || row.original.facility.code}</span>
+        ),
+      },
+      {
+        id: 'program',
+        header: t('facility-program.program'),
+        cell: ({ row }) => (
+          <span dir="auto">{row.original.program.name || row.original.program.code}</span>
+        ),
+      },
+      {
+        id: 'products',
+        header: t('stock-events.product'),
+        cell: ({ row }) => (
+          <div className="flex min-w-48 flex-col gap-1">
+            {row.original.lines.map((line) => (
+              <span key={line.key} dir="auto">
+                {line.orderable.fullProductName || line.orderable.productCode}
+              </span>
+            ))}
           </div>
         ),
       },
       {
-        id: 'lines',
-        header: t('device-events.lines'),
+        id: 'lots',
+        header: t('lots.title'),
         cell: ({ row }) => (
-          <div className="flex min-w-48 flex-col gap-1">
-            <span>{t('device-events.line-count', { count: row.original.lines.length })}</span>
+          <div className="flex flex-col gap-1">
             {row.original.lines.map((line) => (
-              <span key={line.key} className="text-muted-foreground" dir="auto">
-                {line.orderable.fullProductName || line.orderable.productCode}
-                {line.lot ? ` / ${line.lot.lotCode}` : ''}
+              <span key={line.key} dir="auto">
+                {line.lot?.lotCode}
               </span>
             ))}
           </div>
