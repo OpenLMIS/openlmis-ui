@@ -191,9 +191,14 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       pendingComponent: EditorRoute.options.pendingComponent as never,
       staticData: EditorRoute.options.staticData,
     }).update({ id: `/stock-management/${kind}_/$programId` } as never);
+    const stock = createRoute({
+      getParentRoute: () => layout,
+      path: 'stock-management/stock-on-hand',
+      component: () => <h1>Stock landing</h1>,
+    });
     const router = createRouter({
       routeTree: root.addChildren([
-        group.addChildren([layout.addChildren([picker, editor] as never)] as never),
+        group.addChildren([layout.addChildren([picker, editor, stock] as never)] as never),
       ] as never),
       context: { queryClient },
       defaultErrorComponent: ErrorFallback,
@@ -367,6 +372,60 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       expect(screen.queryByText('Essential Meds')).not.toBeInTheDocument();
     });
   });
+
+  if (kind === 'adjustments') {
+    it('submits with a signature and lands directly on Stock On Hand without offering print', async () => {
+      vi.mocked(fetchPermissionStrings).mockResolvedValue([
+        ...grants,
+        `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+      ]);
+      vi.mocked(fetchEventStockCards).mockResolvedValue([
+        { stockOnHand: 50, orderable: ASPIRIN, lot: null },
+      ]);
+      vi.mocked(fetchValidReasons).mockResolvedValue([
+        {
+          id: 'assignment',
+          hidden: false,
+          reason: {
+            id: 'lost',
+            name: 'Lost',
+            reasonType: 'DEBIT',
+            reasonCategory: 'ADJUSTMENT',
+            isFreeTextAllowed: false,
+            tags: [],
+          },
+        },
+      ]);
+      vi.mocked(submitStockEvent).mockResolvedValue('event-id');
+      const user = userEvent.setup();
+      const { router } = renderRoute(`${PICKER}/${FP}`);
+      const add = await screen.findByRole('button', { name: 'stock-events.add' });
+      await waitFor(() => expect(add).toBeEnabled());
+      await user.click(add);
+      await user.click(document.getElementById('lines[0].reasonId') as HTMLElement);
+      await user.click(await screen.findByRole('option', { name: 'Lost' }));
+      fireEvent.change(
+        document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
+        { target: { value: '2' } },
+      );
+      await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+      await user.type(
+        await screen.findByRole('textbox', { name: 'stock-events.signature' }),
+        'Ada',
+      );
+      await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+      expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
+      expect(router.state.location.search).toMatchObject({
+        mode: 'my',
+        facilityId: HOME,
+        programId: FP,
+      });
+      expect(submitStockEvent).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ signature: 'Ada', eventOrigin: 'ADJUSTMENT' }),
+      );
+      expect(screen.queryByRole('button', { name: 'stock-event.print' })).not.toBeInTheDocument();
+    });
+  }
 
   if (kind === 'unpack') return;
 
