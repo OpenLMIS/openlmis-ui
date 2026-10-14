@@ -42,14 +42,14 @@ const version = (name: string) => ({
   requisitionGroupProgramSchedules: [],
   memberFacilities: [],
 });
-function editRouter(queryClient: QueryClient) {
+function editRouter(queryClient: QueryClient, route: typeof EditRoute | typeof ViewRoute) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const edit = createRoute({
     getParentRoute: () => root,
     path: '/groups/$id/edit',
-    loader: EditRoute.options.loader as never,
-    preload: EditRoute.options.preload,
-    validateSearch: EditRoute.options.validateSearch,
+    loader: route.options.loader as never,
+    preload: route.options.preload,
+    validateSearch: route.options.validateSearch,
   });
   const list = createRoute({ getParentRoute: () => root, path: '/' });
   return createRouter({
@@ -62,27 +62,30 @@ function editRouter(queryClient: QueryClient) {
 }
 beforeEach(() => vi.clearAllMocks());
 describe('requisition group edit loader', () => {
-  it('reads fresh after hover, then preserves the cached detail on a tab change', async () => {
-    const queryClient = new QueryClient();
-    queryClient.setQueryData(requisitionGroupOptions('rg').queryKey, version('Old'));
-    let server = version('At Hover');
-    vi.mocked(fetchRequisitionGroup).mockImplementation(async () => server);
-    const router = editRouter(queryClient);
-    await router.load();
-    await router.preloadRoute({ to: '/groups/$id/edit', params: { id: 'rg' } } as never);
-    server = version('New');
-    await router.navigate({ to: '/groups/$id/edit', params: { id: 'rg' } } as never);
-    expect(queryClient.getQueryData(requisitionGroupOptions('rg').queryKey)).toEqual(
-      version('New'),
-    );
-    vi.mocked(fetchRequisitionGroup).mockClear();
-    await router.navigate({
-      to: '/groups/$id/edit',
-      params: { id: 'rg' },
-      search: { tab: 'facilities' },
-    } as never);
-    expect(fetchRequisitionGroup).not.toHaveBeenCalled();
-  });
+  it.each([EditRoute, ViewRoute])(
+    'reads fresh after hover, then preserves the cached detail on a tab change (%#)',
+    async (route) => {
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(requisitionGroupOptions('rg').queryKey, version('Old'));
+      let server = version('At Hover');
+      vi.mocked(fetchRequisitionGroup).mockImplementation(async () => server);
+      const router = editRouter(queryClient, route);
+      await router.load();
+      await router.preloadRoute({ to: '/groups/$id/edit', params: { id: 'rg' } } as never);
+      server = version('New');
+      await router.navigate({ to: '/groups/$id/edit', params: { id: 'rg' } } as never);
+      expect(queryClient.getQueryData(requisitionGroupOptions('rg').queryKey)).toEqual(
+        version('New'),
+      );
+      vi.mocked(fetchRequisitionGroup).mockClear();
+      await router.navigate({
+        to: '/groups/$id/edit',
+        params: { id: 'rg' },
+        search: { tab: 'facilities' },
+      } as never);
+      expect(fetchRequisitionGroup).not.toHaveBeenCalled();
+    },
+  );
   it('checks the manage right on list, add, edit and view', async () => {
     vi.mocked(fetchRequisitionGroup).mockResolvedValue(version('Group'));
     const queryClient = new QueryClient();
@@ -119,7 +122,7 @@ describe('requisition group error navigation', () => {
     });
     const history = createMemoryHistory({ initialEntries: ['/'] });
     history.replace('/', {
-      requisitionGroupsListSearch: { page: 3, size: 20, name: 'Family', sort: 'code,desc' },
+      requisitionGroupsListSearch: { page: 3, size: 20, name: 'Family' },
     });
     const queryClient = new QueryClient();
     const router = createRouter({ routeTree: root, context: { queryClient }, history });
@@ -135,7 +138,6 @@ describe('requisition group error navigation', () => {
       page: '3',
       size: '20',
       name: 'Family',
-      sort: 'code,desc',
     });
   });
 });

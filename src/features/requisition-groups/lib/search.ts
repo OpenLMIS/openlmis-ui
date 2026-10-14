@@ -25,9 +25,9 @@ export const CLEARED_REQUISITION_GROUP_FILTERS = {
 
 export function toSearchBody(search: RequisitionGroupsListSearch): RequisitionGroupsSearch {
   return {
-    ...(search.name?.trim() && { name: search.name }),
-    ...(search.zone?.trim() && { zone: search.zone }),
-    ...(search.program?.trim() && { program: search.program }),
+    ...(search.name?.trim() && { name: search.name.trim() }),
+    ...(search.zone?.trim() && { zone: search.zone.trim() }),
+    ...(search.program?.trim() && { program: search.program.trim() }),
   };
 }
 

@@ -1,7 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import { isAxiosError } from 'axios';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
@@ -26,7 +25,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
-import { requisitionGroupsSearchOptions } from '@/features/requisition-groups/api/queries';
+import {
+  requisitionGroupNodeFacilityIds,
+  requisitionGroupsSearchOptions,
+} from '@/features/requisition-groups/api/queries';
 import { ProgramNamesCell } from '@/features/requisition-groups/components/program-names-cell';
 import {
   CLEARED_REQUISITION_GROUP_FILTERS,
@@ -248,23 +250,11 @@ function RequisitionGroupsNoMatches({
 export function RequisitionGroupsListError({
   error,
   reset,
-  onSearchChange,
 }: {
   error: unknown;
   reset: () => void;
-  onSearchChange: SearchChange<RequisitionGroupsListSearch>;
 }) {
   const { t } = useTranslation();
-  const messageKey =
-    isAxiosError<{ messageKey?: string }>(error) && error.response?.status === 400
-      ? error.response.data?.messageKey
-      : undefined;
-  if (
-    messageKey === 'referenceData.error.geographicZone.notFound' ||
-    messageKey === 'referenceData.error.program.notFound'
-  ) {
-    return <RequisitionGroupsNoMatches onSearchChange={onSearchChange} />;
-  }
   return (
     <ListError
       description={t('requisition-groups.error-description')}
@@ -285,17 +275,7 @@ export function RequisitionGroupsTable({
   const { data } = useSuspenseQuery(
     requisitionGroupsSearchOptions(toRequisitionGroupsQuery(deferredSearch)),
   );
-  const facilityIds = useMemo(
-    () =>
-      [
-        ...new Set(
-          data.content.flatMap((group) =>
-            group.supervisoryNode.facility?.id ? [group.supervisoryNode.facility.id] : [],
-          ),
-        ),
-      ].sort(),
-    [data.content],
-  );
+  const facilityIds = useMemo(() => requisitionGroupNodeFacilityIds(data.content), [data.content]);
   const facilities = useQuery({
     ...facilitiesByIdsOptions(facilityIds),
     enabled: facilityIds.length > 0,
@@ -327,7 +307,7 @@ export function RequisitionGroupsTable({
   }, [isPastLastPage, data.totalPages, onSearchChange]);
 
   const empty =
-    Object.keys(toSearchBody(deferredSearch)).length > 0 ? (
+    data.unknownFilter || Object.keys(toSearchBody(deferredSearch)).length > 0 ? (
       <RequisitionGroupsNoMatches onSearchChange={onSearchChange} />
     ) : (
       <DataTableEmpty

@@ -42,7 +42,7 @@ const group = (name: string, schedules: ProgramSchedule[]): RequisitionGroup => 
 
 function renderTable(search: RequisitionGroupsListSearch = {}, groups?: RequisitionGroup[]) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: { queries: { retry: 1, retryDelay: 0, staleTime: Infinity } },
   });
   if (groups) {
     queryClient.setQueryData(
@@ -60,7 +60,7 @@ function renderTable(search: RequisitionGroupsListSearch = {}, groups?: Requisit
   renderPage(
     <QueryBoundary
       errorComponent={({ error, reset }) => (
-        <RequisitionGroupsListError error={error} onSearchChange={onSearchChange} reset={reset} />
+        <RequisitionGroupsListError error={error} reset={reset} />
       )}
       pendingFallback={null}
       resetKey={JSON.stringify(search)}
@@ -128,9 +128,13 @@ describe('RequisitionGroupsTable', () => {
         data: { messageKey },
       };
       vi.mocked(searchRequisitionGroups).mockRejectedValue(error);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       const onSearchChange = renderTable({ [filter]: 'unknown', page: 3 });
       expect(await screen.findByText('No Matching Requisition Groups')).toBeVisible();
       expect(screen.queryByText('Could Not Load Requisition Groups')).not.toBeInTheDocument();
+      expect(searchRequisitionGroups).toHaveBeenCalledTimes(1);
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
       await userEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
       expect(onSearchChange).toHaveBeenCalledWith(CLEARED_REQUISITION_GROUP_FILTERS, true);
     },

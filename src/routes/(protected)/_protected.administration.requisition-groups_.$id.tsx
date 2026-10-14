@@ -34,12 +34,14 @@ export const Route = createFileRoute(
 )({
   validateSearch: requisitionGroupEditorSearchSchema,
   staticData: { crumbKey: 'requisition-groups.view-title' },
-  loader: async ({ context: { queryClient }, params }) => {
-    await Promise.all([
-      requireRight(queryClient, RIGHTS.requisitionGroupsManage),
-      queryClient.ensureQueryData(requisitionGroupOptions(params.id)),
-    ]);
+  preload: false,
+  loader: async ({ context: { queryClient }, params, cause }) => {
+    await requireRight(queryClient, RIGHTS.requisitionGroupsManage);
     queryClient.prefetchQuery(minimalFacilitiesOptions());
+    const detail = requisitionGroupOptions(params.id);
+    await (cause === 'stay'
+      ? queryClient.ensureQueryData(detail)
+      : queryClient.fetchQuery({ ...detail, staleTime: 0 }));
   },
   pendingComponent: ViewGroupPending,
   errorComponent: ViewGroupError,
@@ -52,7 +54,7 @@ function ViewGroupPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const { data } = useSuspenseQuery(requisitionGroupOptions(id));
-  const [saved] = useState(() => data);
+  const saved = data;
   const [listSearch] = useState(
     () => router.state.location.state.requisitionGroupsListSearch ?? {},
   );
@@ -76,6 +78,7 @@ function ViewGroupPage() {
   );
   return (
     <RequisitionGroupEditor
+      key={id}
       id={id}
       saved={saved}
       title={saved.name}

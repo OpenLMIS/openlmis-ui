@@ -76,11 +76,7 @@ function RequisitionGroupsPage() {
           />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
-              <RequisitionGroupsListError
-                error={error}
-                reset={reset}
-                onSearchChange={updateSearch}
-              />
+              <RequisitionGroupsListError error={error} reset={reset} />
             )}
             pendingFallback={
               <RequisitionGroupsTableSkeleton

@@ -37,14 +37,12 @@ export const Route = createFileRoute(
   staticData: { crumbKey: 'requisition-groups.form.edit-title' },
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
-    const detail = requisitionGroupOptions(params.id);
-    await Promise.all([
-      requireRight(queryClient, RIGHTS.requisitionGroupsManage),
-      cause === 'stay'
-        ? queryClient.ensureQueryData(detail)
-        : queryClient.fetchQuery({ ...detail, staleTime: 0 }),
-    ]);
+    await requireRight(queryClient, RIGHTS.requisitionGroupsManage);
     prefetchRequisitionGroupLookups(queryClient);
+    const detail = requisitionGroupOptions(params.id);
+    await (cause === 'stay'
+      ? queryClient.ensureQueryData(detail)
+      : queryClient.fetchQuery({ ...detail, staleTime: 0 }));
   },
   pendingComponent: EditGroupPending,
   errorComponent: EditGroupError,
@@ -57,7 +55,7 @@ function EditGroupPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const { data } = useSuspenseQuery(requisitionGroupOptions(id));
-  const [saved] = useState(() => data);
+  const saved = data;
   const [listSearch] = useState(
     () => router.state.location.state.requisitionGroupsListSearch ?? {},
   );
@@ -81,6 +79,7 @@ function EditGroupPage() {
   );
   return (
     <RequisitionGroupEditor
+      key={id}
       id={id}
       saved={saved}
       title={t('requisition-groups.form.edit-heading', { name: saved.name })}

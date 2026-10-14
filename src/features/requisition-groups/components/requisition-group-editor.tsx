@@ -169,7 +169,11 @@ export function RequisitionGroupEditor({
       return saved && id ? updateRequisitionGroup(id, body) : createRequisitionGroup(body);
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.requisitionGroups.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.requisitionGroups.list() });
+      queryClient.removeQueries({
+        queryKey: queryKeys.requisitionGroups.detail(result.id),
+        exact: true,
+      });
       leaving.current = true;
       onSaved?.(result);
     },
