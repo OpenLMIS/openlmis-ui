@@ -36,7 +36,7 @@ export function toDraft(node: SupervisoryNode): NodeDraft {
 }
 
 type PickerNode = { id: string; name: string; facility?: { id: string } | null };
-export function toNodeOption(node: PickerNode, facilityNames: ReadonlyMap<string, string>) {
+function toNodeOption(node: PickerNode, facilityNames: ReadonlyMap<string, string>) {
   const facility = node.facility && facilityNames.get(node.facility.id);
   return { value: node.id, label: facility ? `${node.name} (${facility})` : node.name };
 }
@@ -55,30 +55,27 @@ function options(
 export function childOptions(
   nodes: readonly PickerNode[],
   selfId: string,
-  draft: NodeDraft,
+  rows: readonly DraftNode[],
+  parentId: string | null,
   facilityNames: ReadonlyMap<string, string> = new Map(),
 ) {
-  return options(
-    nodes,
-    [selfId, draft.parentId, ...draft.children.map(({ id }) => id)],
-    facilityNames,
-  );
+  return options(nodes, [selfId, parentId, ...rows.map(({ id }) => id)], facilityNames);
 }
 export function parentOptions(
   nodes: readonly PickerNode[],
   selfId: string,
-  draft: NodeDraft,
+  rows: readonly DraftNode[],
   facilityNames: ReadonlyMap<string, string> = new Map(),
 ) {
-  return options(nodes, [selfId, ...draft.children.map(({ id }) => id)], facilityNames);
+  return options(nodes, [selfId, ...rows.map(({ id }) => id)], facilityNames);
 }
 export function partnerOptions(
   nodes: readonly PickerNode[],
   selfId: string,
-  draft: NodeDraft,
+  rows: readonly DraftNode[],
   facilityNames: ReadonlyMap<string, string> = new Map(),
 ) {
-  return options(nodes, [selfId, ...draft.partners.map(({ id }) => id)], facilityNames);
+  return options(nodes, [selfId, ...rows.map(({ id }) => id)], facilityNames);
 }
 
 function mergeRefs(latest: DraftNode[], saved: DraftNode[], draft: DraftNode[]) {
@@ -92,9 +89,7 @@ function mergeRefs(latest: DraftNode[], saved: DraftNode[], draft: DraftNode[]) 
   return [...ids].map((id) => ({ id }));
 }
 
-export type NodeBodyResult =
-  | { ok: true; body: SupervisoryNode }
-  | { ok: false; reason: 'conflict' };
+export type NodeBodyResult = { ok: true; body: SupervisoryNode } | { ok: false };
 export function toNodeBody(
   latest: SupervisoryNode,
   saved: SupervisoryNode,
@@ -104,8 +99,7 @@ export function toNodeBody(
   const parentId =
     draft.parentId !== initial.parentId ? draft.parentId : (latest.parentNode?.id ?? null);
   const children = mergeRefs(latest.childNodes, saved.childNodes, draft.children);
-  if (parentId === latest.id || children.some(({ id }) => id === parentId))
-    return { ok: false, reason: 'conflict' };
+  if (parentId === latest.id || children.some(({ id }) => id === parentId)) return { ok: false };
   const facilityId =
     draft.facilityId !== initial.facilityId ? draft.facilityId : (latest.facility?.id ?? null);
   return {

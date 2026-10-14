@@ -20,7 +20,7 @@ export async function fetchSupervisoryNodesPage({
     params: {
       page,
       size,
-      ...(name?.trim() && { name: name.trim() }),
+      ...(name && { name }),
       ...(zoneId && { zoneId }),
     },
   });
@@ -54,7 +54,7 @@ export async function fetchSupervisoryNode(id: string) {
   return data;
 }
 
-export async function updateSupervisoryNode(id: string, body: SupervisoryNode) {
+async function updateSupervisoryNode(id: string, body: SupervisoryNode) {
   const { data } = await client.put<SupervisoryNode>(`/supervisoryNodes/${id}`, body);
   return data;
 }
@@ -71,7 +71,6 @@ export async function saveSupervisoryNodeChange(
   change: (latest: SupervisoryNode) => NodeBodyResult,
 ) {
   const scope = getSessionScope();
-  assertSessionScope(scope);
   const latest = await fetchSupervisoryNode(id);
   assertSessionScope(scope);
   const result = change(latest);

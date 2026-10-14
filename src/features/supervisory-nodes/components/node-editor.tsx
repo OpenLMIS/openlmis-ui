@@ -36,7 +36,12 @@ import {
   SupervisoryNodeConflictError,
   saveSupervisoryNodeChange,
 } from '@/features/supervisory-nodes/api/api';
-import { NodeLinksTable } from '@/features/supervisory-nodes/components/node-links-table';
+import {
+  NodeLinksSectionSkeleton,
+  NodeLinksTable,
+} from '@/features/supervisory-nodes/components/node-links-table';
+import type { NodeLinkKind } from '@/features/supervisory-nodes/lib/edit-search';
+import { facilityNames } from '@/features/supervisory-nodes/lib/facility-names';
 import {
   type NodeDraft,
   nodeFormSchema,
@@ -72,22 +77,13 @@ export function NodeEditor({
   onReload,
 }: {
   saved: SupervisoryNode;
-  onSaved: (saved: SupervisoryNode) => void;
+  onSaved: (saved: SupervisoryNode) => void | Promise<void>;
   onCancel: () => void;
   onReload: () => Promise<unknown>;
 }) {
   const { t } = useTranslation();
   const [saved] = useState(loaded);
   const [initial] = useState(() => toDraft(saved));
-  const [savedIds] = useState(() =>
-    [
-      ...new Set([
-        ...saved.childNodes.map(({ id }) => id),
-        ...saved.partnerNodes.map(({ id }) => id),
-        ...(saved.parentNode ? [saved.parentNode.id] : []),
-      ]),
-    ].sort(),
-  );
   const [alert, setAlert] = useState<'invalid' | 'failure' | 'conflict' | null>(null);
   const [reloading, setReloading] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
@@ -99,7 +95,7 @@ export function NodeEditor({
       saveSupervisoryNodeChange(saved.id, (latest) => toNodeBody(latest, saved, draft)),
     onSuccess: (node) => {
       leaving.current = true;
-      onSaved(node);
+      return onSaved(node);
     },
     onError: (error) => {
       setFailure(error);
@@ -115,7 +111,6 @@ export function NodeEditor({
     },
   );
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
-  const draft = useStore(form.store, (state) => state.values);
   const pending = mutation.isPending || reloading;
   const guard = useDiscardGuard(changed, { allowLeave: () => leaving.current, pending });
   return (
@@ -173,23 +168,19 @@ export function NodeEditor({
                   )}
                 </form.AppField>
               </div>
-              <NodeLinksTable
+              <NodeLinkField
                 kind="child"
                 selfId={saved.id}
-                savedIds={savedIds}
-                draft={draft}
+                form={form}
+                initial={initial}
                 disabled={pending}
-                onAdd={(node) => form.pushFieldValue('children', node)}
-                onRemove={(index) => form.removeFieldValue('children', index)}
               />
-              <NodeLinksTable
+              <NodeLinkField
                 kind="partner"
                 selfId={saved.id}
-                savedIds={savedIds}
-                draft={draft}
+                form={form}
+                initial={initial}
                 disabled={pending}
-                onAdd={(node) => form.pushFieldValue('partners', node)}
-                onRemove={(index) => form.removeFieldValue('partners', index)}
               />
             </FieldGroup>
           </form>
@@ -288,14 +279,14 @@ function ParentField({ form, selfId }: { form: NodeForm; selfId: string }) {
   const { t } = useTranslation();
   const { data: nodes } = useSuspenseQuery(supervisoryNodesOptions());
   const { data: facilities } = useSuspenseQuery(minimalFacilitiesOptions());
-  const draft = useStore(form.store, (state) => state.values);
-  const names = new Map(facilities.map(({ id, name }) => [id, name]));
+  const children = useStore(form.store, (state) => state.values.children);
+  const names = facilityNames(facilities);
   return (
     <form.AppField name="parentId">
       {(field) => (
         <field.ComboboxField
           label={t('supervisory-nodes.form.parent')}
-          items={parentOptions(nodes, selfId, draft, names)}
+          items={parentOptions(nodes, selfId, children, names)}
           clearLabel={t('supervisory-nodes.form.clear')}
           emptyMessage={t('supervisory-nodes.form.no-options')}
         />
@@ -332,6 +323,8 @@ export function NodeEditorSkeleton() {
               <FieldSkeleton label={t('supervisory-nodes.form.parent')} />
               <FieldSkeleton label={t('supervisory-nodes.form.description')} control="textarea" />
             </div>
+            <NodeLinksSectionSkeleton kind="child" />
+            <NodeLinksSectionSkeleton kind="partner" />
           </FieldGroup>
         </WorkspaceContent>
       </Workspace>
@@ -344,5 +337,38 @@ export function NodeEditorSkeleton() {
         </Button>
       </WorkspaceFooter>
     </>
+  );
+}
+
+function NodeLinkField({
+  form,
+  kind,
+  initial,
+  selfId,
+  disabled,
+}: {
+  form: NodeForm;
+  kind: NodeLinkKind;
+  initial: NodeDraft;
+  selfId: string;
+  disabled: boolean;
+}) {
+  const field = kind === 'child' ? 'children' : 'partners';
+  const rows = useStore(form.store, (state) => state.values[field]);
+  const parentId = useStore(form.store, (state) =>
+    kind === 'child' ? state.values.parentId : null,
+  );
+  const [savedIds] = useState(() => new Set(initial[field].map(({ id }) => id)));
+  return (
+    <NodeLinksTable
+      kind={kind}
+      selfId={selfId}
+      savedIds={savedIds}
+      rows={rows}
+      parentId={parentId}
+      disabled={disabled}
+      onAdd={(node) => form.pushFieldValue(field, node)}
+      onRemove={(index) => form.removeFieldValue(field, index)}
+    />
   );
 }

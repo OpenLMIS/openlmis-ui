@@ -7,7 +7,6 @@ import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
-  DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableSkeleton,
@@ -40,20 +39,28 @@ function text(value: string | null, dir: 'auto' | 'ltr' = 'auto', strong = false
   if (!tableValue(value)) return null;
   return (
     <span className="flex">
-      <span className={strong ? 'min-w-0 truncate font-medium' : 'min-w-0 truncate'} dir={dir}>
+      <span className={strong ? 'whitespace-nowrap font-medium' : 'whitespace-nowrap'} dir={dir}>
         {value}
       </span>
     </span>
   );
 }
 
-function PartnerNodes({ partners }: { partners: NodeRow['partners'] }) {
+function PartnerNodes({ partners, node }: { partners: NodeRow['partners']; node: string | null }) {
   const { t } = useTranslation();
   if (partners.length === 0) return null;
   if (partners.length === 1) return text(partners[0].name);
   return (
     <Popover>
-      <PopoverTrigger render={<Button size="sm" variant="link" />}>
+      <PopoverTrigger
+        render={
+          <Button
+            aria-label={t('supervisory-nodes.partners-for', { node, count: partners.length })}
+            size="sm"
+            variant="link"
+          />
+        }
+      >
         {t('supervisory-nodes.partner-count', { count: partners.length })}
       </PopoverTrigger>
       <PopoverContent align="start" side="inline-start">
@@ -73,47 +80,29 @@ function PartnerNodes({ partners }: { partners: NodeRow['partners'] }) {
 function createColumns(t: TFunction, listSearch: SupervisoryNodesSearch) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('supervisory-nodes.name')} />
-      ),
+      header: t('supervisory-nodes.name'),
       cell: ({ getValue }) => text(getValue(), 'auto', true),
       enableHiding: false,
-      meta: { className: 'w-48' },
     }),
     columnHelper.accessor('code', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('supervisory-nodes.code')} />
-      ),
+      header: t('supervisory-nodes.code'),
       cell: ({ getValue }) => text(getValue(), 'ltr'),
-      meta: { className: 'w-28' },
     }),
     columnHelper.accessor('facilityName', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('supervisory-nodes.facility')} />
-      ),
+      header: t('supervisory-nodes.facility'),
       cell: ({ getValue }) => text(getValue()),
-      meta: { className: 'w-40' },
     }),
     columnHelper.accessor('childCount', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('supervisory-nodes.child-nodes')} />
-      ),
+      header: t('supervisory-nodes.child-nodes'),
       cell: ({ getValue }) => t('supervisory-nodes.child-count', { count: getValue() }),
-      meta: { className: 'w-32' },
     }),
     columnHelper.accessor('zoneName', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('supervisory-nodes.zone')} />
-      ),
+      header: t('supervisory-nodes.zone'),
       cell: ({ getValue }) => text(getValue()),
-      meta: { className: 'w-40' },
     }),
     columnHelper.accessor('partners', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('supervisory-nodes.partner-nodes')} />
-      ),
-      cell: ({ getValue }) => <PartnerNodes partners={getValue()} />,
-      meta: { className: 'w-40' },
+      header: t('supervisory-nodes.partner-nodes'),
+      cell: ({ getValue, row }) => <PartnerNodes partners={getValue()} node={row.original.name} />,
     }),
     columnHelper.display({
       id: 'actions',
@@ -208,7 +197,9 @@ export function SupervisoryNodesTableSkeleton({
     onSearchChange: noop,
     columnVisibility,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  return (
+    <DataTableSkeleton layout="auto" rowCount={toPaginationState(search).pageSize} table={table} />
+  );
 }
 
 export function SupervisoryNodesTable({
@@ -257,6 +248,7 @@ export function SupervisoryNodesTable({
   );
   return (
     <DataTable
+      layout="auto"
       empty={!isPastLastPage && empty}
       footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
       isStale={search !== deferredSearch}

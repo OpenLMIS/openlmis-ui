@@ -24,12 +24,15 @@ import {
 import {
   supervisoryNodeOptions,
   supervisoryNodesByIdsOptions,
+  supervisoryNodesPageOptions,
 } from '@/features/supervisory-nodes/api/queries';
 import {
   NodeEditor,
   NodeEditorSkeleton,
 } from '@/features/supervisory-nodes/components/node-editor';
 import { nodeEditSearchSchema } from '@/features/supervisory-nodes/lib/edit-search';
+import { toSupervisoryNodesQuery } from '@/features/supervisory-nodes/lib/search';
+import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -40,24 +43,35 @@ export const Route = createFileRoute(
   validateSearch: nodeEditSearchSchema,
   staticData: { crumbKey: 'supervisory-nodes.edit-title' },
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loaderDeps: ({ search }) => ({
+    childPage: search.childPage ?? 1,
+    childSize: search.childSize ?? 10,
+    partnerPage: search.partnerPage ?? 1,
+    partnerSize: search.partnerSize ?? 10,
+  }),
+  loader: async ({ context: { queryClient }, params, cause, deps }) => {
     const detail = supervisoryNodeOptions(params.id);
     const [, saved] = await Promise.all([
-      requireRight(queryClient, RIGHTS.supervisoryNodesManage),
+      requireRight(queryClient, RIGHTS.supervisoryNodesManage).then(() => {
+        queryClient.prefetchQuery(supervisoryNodesOptions());
+        queryClient.prefetchQuery(minimalFacilitiesOptions());
+      }),
       cause === 'stay'
         ? queryClient.ensureQueryData(detail)
         : queryClient.fetchQuery({ ...detail, staleTime: 0 }),
     ]);
-    const ids = [
-      ...new Set([
-        ...saved.childNodes.map(({ id }) => id),
-        ...saved.partnerNodes.map(({ id }) => id),
-        ...(saved.parentNode ? [saved.parentNode.id] : []),
-      ]),
-    ].sort();
-    queryClient.prefetchQuery(supervisoryNodesByIdsOptions(ids));
-    queryClient.prefetchQuery(supervisoryNodesOptions());
-    queryClient.prefetchQuery(minimalFacilitiesOptions());
+    if (cause === 'stay') return;
+    for (const [kind, rows] of [
+      ['child', saved.childNodes],
+      ['partner', saved.partnerNodes],
+    ] as const) {
+      const savedIds = new Set(rows.map(({ id }) => id));
+      queryClient.prefetchQuery(
+        supervisoryNodesByIdsOptions(
+          visibleSavedIds(rows, deps[`${kind}Page`], deps[`${kind}Size`], savedIds),
+        ),
+      );
+    }
   },
   pendingComponent: NodeEditorSkeleton,
   errorComponent: EditNodeError,
@@ -88,12 +102,23 @@ function EditNodePage() {
         assertSessionScope(scope);
         setRevision((value) => value + 1);
       }}
-      onSaved={(updated) => {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.supervisoryNodes.all });
+      onSaved={async (updated) => {
+        const scope = getSessionScope();
+        await backToList();
+        assertSessionScope(scope);
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.supervisoryNodes.all,
+          refetchType: 'none',
+        });
+        assertSessionScope(scope);
+        void queryClient.refetchQueries({
+          queryKey: supervisoryNodesPageOptions(toSupervisoryNodesQuery(listSearch)).queryKey,
+          exact: true,
+          type: 'active',
+        });
         toast.success(t('supervisory-nodes.form.saved-title'), {
           description: t('supervisory-nodes.form.saved-description', { name: updated.name }),
         });
-        void backToList();
       }}
     />
   );

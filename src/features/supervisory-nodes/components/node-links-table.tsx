@@ -3,7 +3,7 @@ import { Link, useLocation, useSearch } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, NetworkIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -35,12 +35,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
-import {
-  AddNodeDialog,
-  type NodeLinkKind,
-} from '@/features/supervisory-nodes/components/add-node-dialog';
-import type { NodeEditSearch } from '@/features/supervisory-nodes/lib/edit-search';
-import type { DraftNode, NodeDraft } from '@/features/supervisory-nodes/lib/node-form';
+import { AddNodeDialog } from '@/features/supervisory-nodes/components/add-node-dialog';
+import type { NodeEditSearch, NodeLinkKind } from '@/features/supervisory-nodes/lib/edit-search';
+import { facilityNames } from '@/features/supervisory-nodes/lib/facility-names';
+import type { DraftNode } from '@/features/supervisory-nodes/lib/node-form';
+import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { tableValue } from '@/lib/empty-value';
@@ -54,8 +53,9 @@ type LinkRow = DraftNode & { facilityName: string | null };
 type NodeLinksTableProps = {
   kind: NodeLinkKind;
   selfId: string;
-  savedIds: readonly string[];
-  draft: NodeDraft;
+  savedIds: ReadonlySet<string>;
+  rows: DraftNode[];
+  parentId: string | null;
   disabled: boolean;
   onAdd: (node: DraftNode) => void;
   onRemove: (index: number) => void;
@@ -65,14 +65,14 @@ export function NodeLinksTable({
   kind,
   selfId,
   savedIds,
-  draft,
+  rows,
+  parentId,
   disabled,
   onAdd,
   onRemove,
 }: NodeLinksTableProps) {
   const { t } = useTranslation();
   const headingId = useId();
-  const rows = kind === 'child' ? draft.children : draft.partners;
   const search: NodeEditSearch = useSearch({ strict: false });
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<NodeEditSearch>(CLOSED_DIALOGS);
@@ -86,6 +86,7 @@ export function NodeLinksTable({
   const cancelButton = useRef<HTMLButtonElement>(null);
   const [removing, setRemoving] = useState<string>();
   const [focus, setFocus] = useState<{ id: string | null; ready: boolean } | null>(null);
+  const [renderedRows, setRenderedRows] = useState<readonly LinkRow[]>([]);
   const removeDialog = useDialogTarget(removing, () => setRemoving(undefined));
   const onSearchChange = useCallback<SearchChange<TableSearch>>(
     (update, replace) => {
@@ -113,15 +114,20 @@ export function NodeLinksTable({
   useEffect(() => {
     if (!focus?.ready || requestedPage !== page || search.add) return;
     const index = rows.findIndex(({ id }) => id === focus.id);
-    if (index >= 0 && Math.floor(index / size) + 1 !== page) return;
+    if (
+      index >= 0 &&
+      (Math.floor(index / size) + 1 !== page || !renderedRows.some(({ id }) => id === focus.id))
+    )
+      return;
     const frame = requestAnimationFrame(() => {
       const buttons = tableRegion.current?.querySelectorAll<HTMLElement>('[data-node-menu]');
       const target = [...(buttons ?? [])].find((button) => button.dataset.nodeMenu === focus.id);
+      if (index >= 0 && !target) return;
       (target ?? addButton.current)?.focus();
       setFocus(null);
     });
     return () => cancelAnimationFrame(frame);
-  }, [focus, requestedPage, page, search.add, rows, size]);
+  }, [focus, requestedPage, page, search.add, rows, size, renderedRows]);
   useEffect(() => {
     if (
       !focus?.id ||
@@ -169,7 +175,14 @@ export function NodeLinksTable({
               description={t('error.check-connection')}
             />
           )}
-          pendingFallback={<NodeLinksTableSkeleton kind={kind} page={page} size={size} />}
+          pendingFallback={
+            <NodeLinksTableSkeleton
+              kind={kind}
+              page={page}
+              size={size}
+              rowCount={Math.min(size, Math.max(0, rows.length - (page - 1) * size))}
+            />
+          }
           resetKey={`${selfId}:${kind}`}
         >
           <NodeLinksRows
@@ -181,6 +194,7 @@ export function NodeLinksTable({
             disabled={disabled}
             onRemove={setRemoving}
             onSearchChange={onSearchChange}
+            onRendered={setRenderedRows}
           />
         </QueryBoundary>
       </div>
@@ -188,7 +202,8 @@ export function NodeLinksTable({
         kind={kind}
         open={search.add === kind}
         selfId={selfId}
-        draft={draft}
+        rows={rows}
+        parentId={parentId}
         disabled={disabled}
         onAdd={(node) => {
           setFocus({ id: node.id, ready: false });
@@ -257,7 +272,7 @@ function NodeLinkActions({
         <DropdownMenuTrigger
           render={
             <Button
-              aria-label={t('supervisory-nodes.form.actions-for', {
+              aria-label={t('supervisory-nodes.actions-for', {
                 node: node.name || node.code || node.id,
               })}
               data-node-menu={node.id}
@@ -282,7 +297,7 @@ function NodeLinkActions({
               }
             >
               <PencilIcon />
-              {t('supervisory-nodes.form.edit-node')}
+              {t('supervisory-nodes.edit')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={menu.opensDialog(() => onRemove(node.id))}
@@ -309,21 +324,26 @@ function createColumns(
     columnHelper.accessor('name', {
       header: t('supervisory-nodes.name'),
       cell: ({ getValue }) => (
-        <span className="font-medium" dir="auto">
+        <span className="whitespace-nowrap font-medium" dir="auto">
           {tableValue(getValue())}
         </span>
       ),
-      meta: { className: 'w-48' },
     }),
     columnHelper.accessor('code', {
       header: t('supervisory-nodes.code'),
-      cell: ({ getValue }) => <span dir="ltr">{tableValue(getValue())}</span>,
-      meta: { className: 'w-28' },
+      cell: ({ getValue }) => (
+        <span className="whitespace-nowrap" dir="ltr">
+          {tableValue(getValue())}
+        </span>
+      ),
     }),
     columnHelper.accessor('facilityName', {
       header: t('supervisory-nodes.facility'),
-      cell: ({ getValue }) => <span dir="auto">{tableValue(getValue())}</span>,
-      meta: { className: 'w-48' },
+      cell: ({ getValue }) => (
+        <span className="whitespace-nowrap" dir="auto">
+          {tableValue(getValue())}
+        </span>
+      ),
     }),
     columnHelper.display({
       id: 'actions',
@@ -380,14 +400,16 @@ function useLinksTable({
   });
 }
 
-export function NodeLinksTableSkeleton({
+function NodeLinksTableSkeleton({
   kind,
   page = 1,
   size = 10,
+  rowCount,
 }: {
   kind: NodeLinkKind;
   page?: number;
   size?: number;
+  rowCount: number;
 }) {
   const table = useLinksTable({
     kind,
@@ -399,55 +421,99 @@ export function NodeLinksTableSkeleton({
     onRemove: noop,
     onSearchChange: noop,
   });
-  return <DataTableSkeleton table={table} rowCount={size} layout="auto" />;
+  return rowCount > 0 ? (
+    <DataTableSkeleton table={table} rowCount={rowCount} layout="auto" />
+  ) : (
+    <DataTable table={table} layout="auto" empty={<NodeLinksEmpty kind={kind} />} />
+  );
 }
 
 function NodeLinksRows({
   rows,
   savedIds,
+  onRendered,
   ...props
 }: Omit<LinksTableOptions, 'rows' | 'rowCount'> & {
   rows: DraftNode[];
-  savedIds: readonly string[];
+  savedIds: ReadonlySet<string>;
+  onRendered: (rows: readonly LinkRow[]) => void;
 }) {
-  const { t } = useTranslation();
-  const { data: nodes } = useSuspenseQuery(supervisoryNodesByIdsOptions(savedIds));
+  const requestedPage = useDeferredValue(props.page);
+  const deferredSize = useDeferredValue(props.size);
+  const deferredPage = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / deferredSize)));
+  const ids = visibleSavedIds(rows, deferredPage, deferredSize, savedIds);
+  const { data: nodes } = useSuspenseQuery(supervisoryNodesByIdsOptions(ids));
   const { data: facilities } = useSuspenseQuery(minimalFacilitiesOptions());
   const resolved = useMemo(() => {
     const savedNodes = new Map(nodes.map((node) => [node.id, node]));
-    const names = new Map(facilities.map(({ id, name }) => [id, name]));
-    return rows.slice((props.page - 1) * props.size, props.page * props.size).map((draft) => {
-      const saved = savedNodes.get(draft.id);
-      const facilityId = draft.name !== undefined ? draft.facilityId : saved?.facility?.id;
-      return {
-        id: draft.id,
-        name: draft.name ?? saved?.name,
-        code: draft.code ?? saved?.code,
-        facilityName: facilityId ? (names.get(facilityId) ?? null) : null,
-      };
-    });
-  }, [rows, nodes, facilities, props.page, props.size]);
-  const table = useLinksTable({ ...props, rows: resolved, rowCount: rows.length });
+    const names = facilityNames(facilities);
+    return rows
+      .slice((deferredPage - 1) * deferredSize, deferredPage * deferredSize)
+      .map((draft) => {
+        const saved = savedNodes.get(draft.id);
+        const facilityId = draft.name !== undefined ? draft.facilityId : saved?.facility?.id;
+        return {
+          id: draft.id,
+          name: draft.name ?? saved?.name,
+          code: draft.code ?? saved?.code,
+          facilityName: facilityId ? (names.get(facilityId) ?? null) : null,
+        };
+      });
+  }, [rows, nodes, facilities, deferredPage, deferredSize]);
+  useEffect(() => onRendered(resolved), [resolved, onRendered]);
+  const table = useLinksTable({
+    ...props,
+    page: deferredPage,
+    size: deferredSize,
+    rows: resolved,
+    rowCount: rows.length,
+  });
   return (
     <DataTable
       table={table}
+      isStale={props.page !== deferredPage || props.size !== deferredSize}
       layout="auto"
-      empty={
-        <DataTableEmpty
-          icon={<NetworkIcon />}
-          title={t(
-            props.kind === 'child'
-              ? 'supervisory-nodes.form.no-children-title'
-              : 'supervisory-nodes.form.no-partners-title',
-          )}
-          description={t(
-            props.kind === 'child'
-              ? 'supervisory-nodes.form.no-children-description'
-              : 'supervisory-nodes.form.no-partners-description',
-          )}
-        />
-      }
+      empty={<NodeLinksEmpty kind={props.kind} />}
       footer={rows.length > 0 && <DataTablePagination table={table} disabled={props.disabled} />}
     />
+  );
+}
+
+function NodeLinksEmpty({ kind }: { kind: NodeLinkKind }) {
+  const { t } = useTranslation();
+  return (
+    <DataTableEmpty
+      icon={<NetworkIcon />}
+      title={t(
+        kind === 'child'
+          ? 'supervisory-nodes.form.no-children-title'
+          : 'supervisory-nodes.form.no-partners-title',
+      )}
+      description={t(
+        kind === 'child'
+          ? 'supervisory-nodes.form.no-children-description'
+          : 'supervisory-nodes.form.no-partners-description',
+      )}
+    />
+  );
+}
+
+export function NodeLinksSectionSkeleton({ kind }: { kind: NodeLinkKind }) {
+  const { t } = useTranslation();
+  return (
+    <section className="flex min-w-0 flex-col gap-4">
+      <h2 className="font-semibold text-lg">
+        {t(
+          kind === 'child' ? 'supervisory-nodes.form.children' : 'supervisory-nodes.form.partners',
+        )}
+      </h2>
+      <div className="flex justify-end">
+        <Button disabled type="button" variant="outline">
+          <PlusIcon data-icon="inline-start" />
+          {t(`supervisory-nodes.form.add-${kind}`)}
+        </Button>
+      </div>
+      <NodeLinksTableSkeleton kind={kind} rowCount={2} />
+    </section>
   );
 }

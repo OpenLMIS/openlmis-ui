@@ -34,16 +34,16 @@ describe('node draft', () => {
     const nodes = ['self', 'partner', 'parent', 'child', 'available'].map(node);
     nodes[4].facility = { id: 'f' };
     const names = new Map([['f', 'Facility']]);
-    expect(childOptions(nodes, 'self', draft, names)).toEqual([
+    expect(childOptions(nodes, 'self', draft.children, draft.parentId, names)).toEqual([
       { value: 'available', label: 'available (Facility)' },
       { value: 'partner', label: 'partner' },
     ]);
-    expect(parentOptions(nodes, 'self', draft).map(({ value }) => value)).toEqual([
+    expect(parentOptions(nodes, 'self', draft.children).map(({ value }) => value)).toEqual([
       'available',
       'parent',
       'partner',
     ]);
-    expect(partnerOptions(nodes, 'self', draft).map(({ value }) => value)).toEqual([
+    expect(partnerOptions(nodes, 'self', draft.partners).map(({ value }) => value)).toEqual([
       'available',
       'child',
       'parent',
@@ -95,6 +95,6 @@ describe('node draft', () => {
   it.each(['self', 'child'])('refuses a merged parent of %s', (parent) => {
     const saved = node('self');
     const latest = { ...saved, parentNode: { id: parent }, childNodes: [{ id: 'child' }] };
-    expect(toNodeBody(latest, saved, toDraft(saved))).toEqual({ ok: false, reason: 'conflict' });
+    expect(toNodeBody(latest, saved, toDraft(saved))).toEqual({ ok: false });
   });
 });

@@ -36,6 +36,8 @@ function editRouter(queryClient: QueryClient) {
     path: '/supervisory-nodes/$id',
     loader: Route.options.loader as never,
     preload: Route.options.preload,
+    validateSearch: Route.options.validateSearch as never,
+    loaderDeps: Route.options.loaderDeps as never,
   });
   const list = createRoute({ getParentRoute: () => root, path: '/' });
   const options = {

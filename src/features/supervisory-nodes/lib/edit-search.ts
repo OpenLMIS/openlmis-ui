@@ -12,3 +12,5 @@ export const nodeEditSearchSchema = z.object({
   add: z.enum(['child', 'partner']).optional().catch(undefined),
 });
 export type NodeEditSearch = z.infer<typeof nodeEditSearchSchema>;
+
+export type NodeLinkKind = NonNullable<NodeEditSearch['add']>;

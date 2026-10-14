@@ -32,19 +32,20 @@ import {
   minimalFacilitiesOptions,
   supervisoryNodesOptions,
 } from '@/features/reference-data/api/queries';
+import type { NodeLinkKind } from '@/features/supervisory-nodes/lib/edit-search';
+import { facilityNames } from '@/features/supervisory-nodes/lib/facility-names';
 import {
   childOptions,
   type DraftNode,
-  type NodeDraft,
   partnerOptions,
 } from '@/features/supervisory-nodes/lib/node-form';
 
-export type NodeLinkKind = 'child' | 'partner';
 type AddNodeDialogProps = {
   kind: NodeLinkKind;
   open: boolean;
   selfId: string;
-  draft: NodeDraft;
+  rows: DraftNode[];
+  parentId: string | null;
   disabled: boolean;
   onAdd: (node: DraftNode) => void;
   onClose: () => void;
@@ -115,15 +116,19 @@ const addNodeSchema = z.object({
 function AddNodeForm({
   kind,
   selfId,
-  draft,
+  rows,
+  parentId,
   disabled,
   onAdd,
 }: Omit<AddNodeDialogProps, 'open' | 'onClose' | 'onClosed'>) {
   const { t } = useTranslation();
   const { data: nodes } = useSuspenseQuery(supervisoryNodesOptions());
   const { data: facilities } = useSuspenseQuery(minimalFacilitiesOptions());
-  const names = new Map(facilities.map(({ id, name }) => [id, name]));
-  const items = (kind === 'child' ? childOptions : partnerOptions)(nodes, selfId, draft, names);
+  const names = facilityNames(facilities);
+  const items =
+    kind === 'child'
+      ? childOptions(nodes, selfId, rows, parentId, names)
+      : partnerOptions(nodes, selfId, rows, names);
   const [invalid, setInvalid] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const form = useAppForm({
@@ -179,7 +184,7 @@ function AddNodeForm({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('supervisory-nodes.form.invalid-title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('supervisory-nodes.form.invalid-description')}
+              {t('supervisory-nodes.form.invalid-add-description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

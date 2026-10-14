@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
@@ -9,6 +9,7 @@ import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
 import { NodeEditor } from '@/features/supervisory-nodes/components/node-editor';
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
+import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
 import { client } from '@/integrations/axios';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -25,17 +26,20 @@ function renderEditor(node: SupervisoryNode = saved, path = '/') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
-  const ids = [
-    ...new Set([
-      ...node.childNodes.map(({ id }) => id),
-      ...node.partnerNodes.map(({ id }) => id),
-      ...(node.parentNode ? [node.parentNode.id] : []),
-    ]),
-  ].sort();
-  queryClient.setQueryData(
-    supervisoryNodesByIdsOptions(ids).queryKey,
-    ids.map((id) => ({ id, code: id, name: `Child ${id}`, childNodes: [], partnerNodes: [] })),
-  );
+  const params = new URL(path, 'http://localhost').searchParams;
+  for (const [kind, rows] of [
+    ['child', node.childNodes],
+    ['partner', node.partnerNodes],
+  ] as const) {
+    const savedIds = new Set(rows.map(({ id }) => id));
+    const size = Number(params.get(`${kind}Size`) ?? 10);
+    const page = Number(params.get(`${kind}Page`) ?? 1);
+    const ids = visibleSavedIds(rows, page, size, savedIds);
+    queryClient.setQueryData(
+      supervisoryNodesByIdsOptions(ids).queryKey,
+      ids.map((id) => ({ id, code: id, name: `Child ${id}`, childNodes: [], partnerNodes: [] })),
+    );
+  }
   const onSaved = vi.fn();
   const onReload = vi.fn();
   const router = renderPage(
@@ -73,6 +77,14 @@ describe('supervisory node editor', () => {
       ...saved,
       childNodes: Array.from({ length: 11 }, (_, index) => ({ id: String(index + 1) })),
     };
+    vi.mocked(client.get).mockResolvedValue({
+      data: {
+        content: node.childNodes
+          .slice(0, 10)
+          .map(({ id }) => ({ id, code: id, name: `Child ${id}` })),
+        totalPages: 1,
+      },
+    });
     const { user, router } = renderEditor(node, '/?childPage=2');
     const section = await screen.findByRole('region', { name: 'Child Nodes' });
     await user.click(await within(section).findByRole('button', { name: 'Actions For Child 11' }));
@@ -85,6 +97,43 @@ describe('supervisory node editor', () => {
     );
     expect(within(section).queryByText('Child 11')).not.toBeInTheDocument();
     expect(client.put).not.toHaveBeenCalled();
+  });
+
+  it('requests only the next page and keeps the previous rows visible until it arrives', async () => {
+    const node = {
+      ...saved,
+      childNodes: Array.from({ length: 11 }, (_, index) => ({ id: String(index + 1) })),
+    };
+    let deliver!: () => void;
+    vi.mocked(client.get).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          deliver = () =>
+            resolve({
+              data: { content: [{ id: '11', code: '11', name: 'Child 11' }], totalPages: 1 },
+            });
+        }),
+    );
+    const { user, router } = renderEditor(node);
+    const section = await screen.findByRole('region', { name: 'Child Nodes' });
+    await within(section).findByRole('button', { name: 'Actions For Child 1' });
+    await user.click(within(section).getByRole('button', { name: 'Next Page' }));
+    await waitFor(() =>
+      expect(client.get).toHaveBeenCalledWith(
+        '/supervisoryNodes',
+        expect.objectContaining({ params: { id: ['11'], page: 0, size: 100 } }),
+      ),
+    );
+    expect(router.state.location.search).toHaveProperty('childPage', 2);
+    expect(
+      within(section).getByRole('button', { name: 'Actions For Child 1' }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).queryByRole('button', { name: 'Actions For Child 11' }),
+    ).not.toBeInTheDocument();
+    await act(async () => deliver());
+    await within(section).findByRole('button', { name: 'Actions For Child 11' });
+    expect(within(section).queryByText('Child 1')).not.toBeInTheDocument();
   });
 
   it('keeps the draft and location when saving fails and shows the server message', async () => {
