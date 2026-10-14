@@ -52,14 +52,14 @@ export function RequisitionGroupsToolbar({
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72">
+      <div className="w-full @2xl/main:w-56">
         <DataTableSearch
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
-          placeholder={t('requisition-groups.search')}
+          placeholder={t('requisition-groups.name')}
           value={search.name ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-72 @2xl/main:flex-none">
+      <div className="w-full @2xl/main:w-56">
         <DataTableComboboxFilter
           label={t('requisition-groups.zone')}
           limit={-1}
@@ -68,7 +68,7 @@ export function RequisitionGroupsToolbar({
           value={zoneFilter.value}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-72 @2xl/main:flex-none">
+      <div className="w-full @2xl/main:w-56">
         <DataTableSelectFilter
           allLabel={t('requisition-groups.all-programs')}
           label={t('requisition-groups.program')}
@@ -92,6 +92,7 @@ export function RequisitionGroupsToolbar({
       </div>
       <div className="w-full @2xl/main:w-auto">
         <Button
+          nativeButton={false}
           render={
             <Link
               to="/administration/requisition-groups/new"

@@ -6,11 +6,11 @@ import type { ProgramSchedule } from '@/features/requisition-groups/lib/types';
 export function ProgramNamesCell({ schedules }: { schedules: ProgramSchedule[] }) {
   const { t } = useTranslation();
   if (schedules.length === 0) return null;
-  if (schedules.length === 1) return schedules[0]?.program.name ?? null;
+  if (schedules.length === 1) return <span dir="auto">{schedules[0]?.program.name}</span>;
 
   return (
     <Popover>
-      <PopoverTrigger render={<Button size="sm" variant="ghost" />}>
+      <PopoverTrigger render={<Button align="start" padding="none" variant="ghost" />}>
         {t('requisition-groups.program-count', { count: schedules.length })}
       </PopoverTrigger>
       <PopoverContent align="start">

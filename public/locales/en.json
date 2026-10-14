@@ -1071,7 +1071,6 @@
   "requisition-groups.page-description": "Manage requisition groups, their programs and member facilities.",
   "requisition-groups.program": "Program",
   "requisition-groups.program-count": "{count, plural, one {# Program} other {# Programs}}",
-  "requisition-groups.search": "Requisition Group Name",
   "requisition-groups.supervisory-node": "Supervisory Node",
   "requisition-groups.title": "Requisition Groups",
   "requisition-groups.unknown-zone": "Unknown Geographic Zone",
