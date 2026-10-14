@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchSupervisoryNode,
   fetchSupervisoryNodeRows,
   fetchSupervisoryNodesByIds,
 } from '@/features/supervisory-nodes/api/api';
@@ -16,4 +17,10 @@ export const supervisoryNodesByIdsOptions = (ids: readonly string[]) =>
   queryOptions({
     queryKey: [...queryKeys.supervisoryNodes.all, 'byIds', ids],
     queryFn: () => fetchSupervisoryNodesByIds(ids),
+  });
+
+export const supervisoryNodeOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.supervisoryNodes.detail(id),
+    queryFn: () => fetchSupervisoryNode(id),
   });

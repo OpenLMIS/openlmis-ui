@@ -1,4 +1,5 @@
 import { fetchFacilitiesByIds } from '@/features/reference-data/api/api';
+import type { NodeBodyResult } from '@/features/supervisory-nodes/lib/node-form';
 import { toNodeRows } from '@/features/supervisory-nodes/lib/node-rows';
 import type {
   SupervisoryNode,
@@ -46,4 +47,36 @@ export async function fetchSupervisoryNodeRows(query: SupervisoryNodesQuery) {
   ]);
   assertSessionScope(scope);
   return { ...data, content: toNodeRows(data.content, facilities, partners) };
+}
+
+export async function fetchSupervisoryNode(id: string) {
+  const { data } = await client.get<SupervisoryNode>(`/supervisoryNodes/${id}`);
+  return data;
+}
+
+export async function updateSupervisoryNode(id: string, body: SupervisoryNode) {
+  const { data } = await client.put<SupervisoryNode>(`/supervisoryNodes/${id}`, body);
+  return data;
+}
+
+export class SupervisoryNodeConflictError extends Error {
+  constructor() {
+    super('Supervisory node hierarchy changed');
+    this.name = 'SupervisoryNodeConflictError';
+  }
+}
+
+export async function saveSupervisoryNodeChange(
+  id: string,
+  change: (latest: SupervisoryNode) => NodeBodyResult,
+) {
+  const scope = getSessionScope();
+  assertSessionScope(scope);
+  const latest = await fetchSupervisoryNode(id);
+  assertSessionScope(scope);
+  const result = change(latest);
+  if (!result.ok) throw new SupervisoryNodeConflictError();
+  const saved = await updateSupervisoryNode(id, result.body);
+  assertSessionScope(scope);
+  return saved;
 }
