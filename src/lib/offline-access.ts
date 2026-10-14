@@ -1,0 +1,154 @@
+import { useLoginData } from '@/features/auth/store/login-data';
+import type { Facility, Program } from '@/features/reference-data/lib/types';
+import { getLocalDb } from '@/integrations/local-db';
+import { isOfflineError } from '@/lib/http';
+import { LocalDataUnavailableError } from '@/lib/local-data';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import type { UserRecord } from '@/lib/user-types';
+
+export type OfflineAccess = {
+  userId: string;
+  permissionStrings: string[];
+  user: UserRecord;
+  programs: Program[];
+  homeFacility: Facility | null;
+  fetchedAt: number;
+  generation: string;
+  formatVersion: 1;
+};
+
+export type AccessReaders = {
+  permissions: (userId: string) => Promise<string[]>;
+  user: (userId: string) => Promise<UserRecord>;
+  programs: (userId: string) => Promise<Program[]>;
+  home: (facilityId: string) => Promise<Facility>;
+};
+
+export async function readOfflineAccess() {
+  const scope = getSessionScope();
+  const userId = useLoginData.getState().referenceDataUserId;
+  if (!userId) throw new LocalDataUnavailableError();
+  const saved = await getLocalDb().table<OfflineAccess>('offlineAccess').get(userId);
+  assertSessionScope(scope);
+  if (!saved || saved.userId !== userId || saved.formatVersion !== 1) {
+    throw new LocalDataUnavailableError();
+  }
+  return saved;
+}
+
+export async function withOfflineAccess<T>(
+  online: () => Promise<T>,
+  select: (saved: OfflineAccess) => T | undefined,
+): Promise<T> {
+  const scope = getSessionScope();
+  try {
+    const result = await online();
+    assertSessionScope(scope);
+    return result;
+  } catch (error) {
+    assertSessionScope(scope);
+    if (!isOfflineError(error)) throw error;
+    const saved = await readOfflineAccess();
+    assertSessionScope(scope);
+    const result = select(saved);
+    if (result === undefined) throw new LocalDataUnavailableError();
+    return result;
+  }
+}
+
+function snapshotUser(user: UserRecord): UserRecord {
+  const { id, username, firstName, lastName, active, homeFacilityId, roleAssignments } = user;
+  return {
+    id,
+    username,
+    firstName,
+    lastName,
+    active,
+    homeFacilityId,
+    roleAssignments: roleAssignments.map(
+      ({ roleId, programId, supervisoryNodeId, warehouseId }) => ({
+        roleId,
+        programId,
+        supervisoryNodeId,
+        warehouseId,
+      }),
+    ),
+  };
+}
+
+function snapshotHome(home: Facility): Facility {
+  const { id, code, name, active, enabled, type, geographicZone, supportedPrograms } = home;
+  return {
+    id,
+    code,
+    name,
+    active,
+    enabled,
+    type: { id: type.id, code: type.code, name: type.name },
+    geographicZone: {
+      id: geographicZone.id,
+      code: geographicZone.code,
+      name: geographicZone.name,
+      level: { name: geographicZone.level.name, levelNumber: geographicZone.level.levelNumber },
+    },
+    supportedPrograms: supportedPrograms?.map(
+      ({ id, code, name, supportActive, supportLocallyFulfilled, supportStartDate }) => ({
+        id,
+        code,
+        name,
+        supportActive,
+        supportLocallyFulfilled,
+        supportStartDate,
+      }),
+    ),
+  };
+}
+
+export async function bootstrapOfflineAccess(readers: AccessReaders) {
+  const { referenceDataUserId: userId, isAuthenticated, expired } = useLoginData.getState();
+  if (!navigator.locks || !userId || !isAuthenticated || expired) return;
+  const scope = getSessionScope();
+  const db = getLocalDb();
+  return navigator.locks.request(
+    `${db.name}:offline-download`,
+    { ifAvailable: true },
+    async (lock) => {
+      if (!lock) return;
+      const check = () => {
+        assertSessionScope(scope);
+        if (useLoginData.getState().expired) throw new Error('The download session expired.');
+      };
+      check();
+      const permissionStrings = await readers.permissions(userId);
+      check();
+      const user = await readers.user(userId);
+      check();
+      if (user.id !== userId) throw new Error('The downloaded user does not match the session.');
+      const programs = await readers.programs(userId);
+      check();
+      const home = user.homeFacilityId ? await readers.home(user.homeFacilityId) : null;
+      check();
+      if (home && home.id !== user.homeFacilityId) {
+        throw new Error('The downloaded home facility does not match the user.');
+      }
+      const snapshot: OfflineAccess = {
+        userId,
+        permissionStrings: [...permissionStrings],
+        user: snapshotUser(user),
+        programs: programs.map(({ id, code, name, active }) => ({ id, code, name, active })),
+        homeFacility: home ? snapshotHome(home) : null,
+        fetchedAt: Date.now(),
+        generation: crypto.randomUUID(),
+        formatVersion: 1,
+      };
+      const table = db.table<OfflineAccess>('offlineAccess');
+      await db.transaction('rw', table, async () => {
+        check();
+        await table.put(snapshot);
+        check();
+      });
+      check();
+      return snapshot;
+    },
+  );
+}

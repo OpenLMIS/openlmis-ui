@@ -1,1 +1,5 @@
-{ "featureFlags": {} }
+{
+  "authServerClientId": "fixture-client",
+  "authServerClientSecret": "fixture-secret",
+  "featureFlags": {}
+}

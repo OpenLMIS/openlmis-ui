@@ -297,7 +297,7 @@ describe('fetchUserRecord', () => {
     get.mockResolvedValueOnce({ data: { id: 'u1', homeFacilityId: 'f1' } });
 
     await expect(fetchUserRecord('u1')).resolves.toEqual({ id: 'u1', homeFacilityId: 'f1' });
-    expect(get).toHaveBeenCalledWith('/users/u1');
+    expect(get).toHaveBeenCalledWith('/users/u1', undefined);
   });
 });
 
@@ -308,7 +308,7 @@ describe('fetchUserPrograms', () => {
     await expect(fetchUserPrograms('u1')).resolves.toEqual([
       { id: 'p1', code: 'EM', name: 'Essential Meds' },
     ]);
-    expect(get).toHaveBeenCalledWith('/users/u1/programs');
+    expect(get).toHaveBeenCalledWith('/users/u1/programs', undefined);
   });
 });
 

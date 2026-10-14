@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import {
   normalizeRejectionReason,
@@ -42,8 +43,8 @@ export async function fetchMinimalFacilities(): Promise<MinimalFacility[]> {
 }
 
 /** One facility, for showing its name without loading every facility. */
-export async function fetchFacility(id: string): Promise<Facility> {
-  const { data } = await client.get<Facility>(`/facilities/${id}`);
+export async function fetchFacility(id: string, config?: AxiosRequestConfig): Promise<Facility> {
+  const { data } = await client.get<Facility>(`/facilities/${id}`, config);
   return data;
 }
 
@@ -279,13 +280,19 @@ export async function fetchApprovedProducts({
   return data;
 }
 
-export async function fetchUserRecord(id: string): Promise<UserRecord> {
-  const { data } = await client.get<UserRecord>(`/users/${id}`);
+export async function fetchUserRecord(
+  id: string,
+  config?: AxiosRequestConfig,
+): Promise<UserRecord> {
+  const { data } = await client.get<UserRecord>(`/users/${id}`, config);
   return data;
 }
 
-export async function fetchUserPrograms(id: string): Promise<Program[]> {
-  const { data } = await client.get<Program[]>(`/users/${id}/programs`);
+export async function fetchUserPrograms(
+  id: string,
+  config?: AxiosRequestConfig,
+): Promise<Program[]> {
+  const { data } = await client.get<Program[]>(`/users/${id}/programs`, config);
   return data;
 }
 
