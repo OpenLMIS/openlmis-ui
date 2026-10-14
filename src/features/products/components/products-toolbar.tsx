@@ -9,9 +9,9 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
-import { toProgramFilter } from '@/features/products/lib/program-filter';
 import { PRODUCT_HIDEABLE_COLUMNS, type ProductsSearch } from '@/features/products/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { toProgramFilter } from '@/features/reference-data/lib/program-filter';
 
 type ProductsToolbarProps = {
   search: ProductsSearch;
