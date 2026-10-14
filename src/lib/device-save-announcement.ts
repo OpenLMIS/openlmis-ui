@@ -6,7 +6,11 @@ type Announcement = {
     | 'stock-events.draft-failed'
     | 'stock-events.draft-saved'
     | 'stock-events.draft-copy-saved'
-    | 'stock-events.draft-restored';
+    | 'stock-events.draft-restored'
+    | 'device-events.recorded-by-you'
+    | 'device-events.status-queued'
+    | 'device-events.removed'
+    | 'device-events.synced';
   scope: number;
 } | null;
 let announcement: Announcement = null;

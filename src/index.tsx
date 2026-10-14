@@ -4,6 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { startOfflineCoordinator } from '@/components/offline-coordinator';
+import { startStockEventUploader } from '@/components/stock-event-uploader';
 import { TextDirectionProvider } from '@/components/text-direction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { syncLegacySession, syncOtherTab } from '@/features/auth/store/login-data';
@@ -29,6 +30,7 @@ await Promise.all([initI18n(), loadRuntimeConfig(), configuration]);
 // Before the router guards read the store, so a legacy session lands on /home.
 syncLegacySession();
 startOfflineCoordinator();
+startStockEventUploader();
 
 // `storage` fires in the other tabs, so a sign out anywhere, even in the legacy UI, reaches this one.
 window.addEventListener('storage', async (event) => {

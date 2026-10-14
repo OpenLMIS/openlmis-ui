@@ -316,3 +316,49 @@ describe('client', () => {
     expect(useLoginData.getState()).toMatchObject({ isAuthenticated: false, expired: false });
   });
 });
+
+it('queue transport rejects an expired session before dispatch with no renewal wait', async () => {
+  const { adapter } = serve('old-token');
+  useLoginData.getState().expireSession();
+  const { QueueNotSentError } = await import('@/lib/queue-transport');
+  await expect(
+    client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } }),
+  ).rejects.toBeInstanceOf(QueueNotSentError);
+  expect(adapter).not.toHaveBeenCalled();
+});
+it('queue transport scope switch before dispatch is typed not-sent', async () => {
+  const { adapter } = serve('other');
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+  const { QueueNotSentError } = await import('@/lib/queue-transport');
+  await expect(request).rejects.toBeInstanceOf(QueueNotSentError);
+  expect(adapter).not.toHaveBeenCalled();
+});
+it('queue transport never intercepts and replays a service 401', async () => {
+  const { adapter } = serve('renewed');
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  await expect(request).rejects.toMatchObject({ response: { status: 401 } });
+  expect(useLoginData.getState().expired).toBe(true);
+  useLoginData.getState().setLoginData({ ...ada, accessToken: 'renewed' });
+  await flush();
+  expect(adapter).toHaveBeenCalledTimes(1);
+});
+it('queue transport retains response identity errors as potentially dispatched', async () => {
+  let finish!: () => void;
+  const { adapter } = serve(
+    'old-token',
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  await flush();
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+  finish();
+  await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+  expect(adapter).toHaveBeenCalledTimes(1);
+});
