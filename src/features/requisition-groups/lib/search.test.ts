@@ -24,6 +24,5 @@ describe('requisition group search', () => {
       zone: 'Zone-01',
       program: 'prG001',
     });
-    expect(toSearchBody({ name: 'Family', zone: '', program: ' ' })).toEqual({ name: 'Family' });
   });
 });

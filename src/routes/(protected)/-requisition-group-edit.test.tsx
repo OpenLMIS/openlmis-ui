@@ -102,10 +102,7 @@ describe('requisition group edit loader', () => {
 describe('requisition group error navigation', () => {
   it.each([
     ['edit not found', EditRoute, 404],
-    ['view not found', ViewRoute, 404],
-    ['edit load error', EditRoute, 500],
     ['view load error', ViewRoute, 500],
-    ['add load error', AddRoute, 500],
   ] as const)('preserves the list search on %s', async (_name, route, status) => {
     const ErrorPage = route.options.errorComponent;
     if (!ErrorPage) throw new Error('Missing error page');

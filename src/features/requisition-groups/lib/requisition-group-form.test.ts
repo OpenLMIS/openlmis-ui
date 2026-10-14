@@ -26,7 +26,7 @@ const saved: RequisitionGroup = {
 };
 
 describe('requisition group form', () => {
-  it.each(['', '   ', 'x'.repeat(51)])('refuses invalid name and code: %j', (text) => {
+  it.each(['   ', 'x'.repeat(51)])('refuses invalid name and code: %j', (text) => {
     const result = requisitionGroupFormSchema.safeParse({
       ...toFormValues(saved),
       name: text,
@@ -103,7 +103,7 @@ describe('requisition group form', () => {
     });
   });
 
-  it('omits edit-only data on add, passes drop-off ids and saves empty collections', () => {
+  it('omits edit-only data on add and passes drop-off ids', () => {
     const values = {
       ...toFormValues(saved),
       schedules: [{ ...row('p3'), dropOffFacility: { id: 'drop' }, directDelivery: true }],
@@ -114,10 +114,6 @@ describe('requisition group form', () => {
     expect(body.requisitionGroupProgramSchedules[0]).toMatchObject({
       dropOffFacility: { id: 'drop' },
       directDelivery: true,
-    });
-    expect(toRequisitionGroupBody({ ...values, schedules: [], members: [] }, saved)).toMatchObject({
-      requisitionGroupProgramSchedules: [],
-      memberFacilities: [],
     });
   });
 

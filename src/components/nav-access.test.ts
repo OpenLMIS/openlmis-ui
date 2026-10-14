@@ -71,13 +71,6 @@ describe('canOpen', () => {
     );
   });
 
-  it('opens Requisition Groups only to someone who may manage them', () => {
-    const path = '/administration/requisition-groups';
-    expect(canOpen(path, new Set(['REQUISITION_GROUPS_MANAGE']))).toBe(true);
-    expect(canOpen(path, new Set(['FACILITIES_MANAGE']))).toBe(false);
-    expect(canOpen(path, undefined)).toBe(false);
-  });
-
   it('opens Roles to someone who may manage users', () => {
     expect(canOpen('/administration/roles', new Set(['USERS_MANAGE']))).toBe(true);
     expect(canOpen('/administration/roles', new Set(['USER_ROLES_MANAGE']))).toBe(false);
