@@ -95,7 +95,7 @@ export type SearchUpdate<TSearch> = (previous: TSearch) => Partial<TSearch>;
 export type SearchChange<TSearch> = (
   update: Partial<TSearch> | SearchUpdate<TSearch>,
   replace?: boolean,
-  options?: { resetScroll?: boolean },
+  options?: { resetScroll?: boolean; keepState?: boolean },
 ) => void;
 
 type TableSearchStateOptions<TSearch extends TableSearch> = {

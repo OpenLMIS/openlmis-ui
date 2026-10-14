@@ -17,9 +17,9 @@ export const schedulesListOptions = (query: ProcessingSchedulesQuery) =>
     queryFn: () => fetchProcessingSchedulesPage(query),
   });
 
-export const scheduleDetailOptions = (id: string) =>
+export const scheduleDetailOptions = (id: string, opening: number) =>
   queryOptions({
-    queryKey: queryKeys.processingSchedules.detail(id),
+    queryKey: [...queryKeys.processingSchedules.detail(id), opening] as const,
     queryFn: () => fetchProcessingSchedule(id),
   });
 

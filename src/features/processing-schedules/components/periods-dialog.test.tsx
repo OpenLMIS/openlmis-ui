@@ -3,8 +3,13 @@ import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatDateValue } from '@/components/form/date-value';
-import { createProcessingPeriod, fetchLatestPeriod } from '@/features/processing-schedules/api/api';
-import { PeriodFormDialog } from '@/features/processing-schedules/components/period-form-dialog';
+import {
+  createProcessingPeriod,
+  fetchLatestPeriod,
+  fetchProcessingPeriodsPage,
+  fetchProcessingSchedule,
+} from '@/features/processing-schedules/api/api';
+import { PeriodsDialog } from '@/features/processing-schedules/components/periods-dialog';
 import { httpError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
@@ -31,7 +36,13 @@ function renderDialog() {
   const onAdded = vi.fn();
   const onClose = vi.fn();
   renderPage(
-    <PeriodFormDialog schedule={schedule} target="new" onAdded={onAdded} onClose={onClose} />,
+    <PeriodsDialog
+      target={schedule.id}
+      search={{}}
+      onSearchChange={vi.fn()}
+      onAdded={onAdded}
+      onClose={onClose}
+    />,
     { queryClient },
   );
   return { onAdded, onClose, queryClient };
@@ -40,9 +51,11 @@ function renderDialog() {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchLatestPeriod).mockResolvedValue(latest);
+  vi.mocked(fetchProcessingSchedule).mockResolvedValue(schedule);
+  vi.mocked(fetchProcessingPeriodsPage).mockResolvedValue(latest);
 });
 
-describe('PeriodFormDialog', () => {
+describe('PeriodsDialog', () => {
   it('prefills and locks the start from the latest period', async () => {
     renderDialog();
     const start = await screen.findByRole('button', {
@@ -160,5 +173,16 @@ describe('PeriodFormDialog', () => {
     vi.mocked(fetchLatestPeriod).mockRejectedValue(httpError(503, {}));
     await user.click(screen.getByRole('button', { name: 'processing-schedules.period-form.add' }));
     await waitFor(() => expect(onAdded).toHaveBeenCalledWith(2));
+    expect(screen.getByLabelText(/processing-schedules.periods.name/)).toHaveValue('');
+    expect(screen.getByLabelText(/processing-schedules.description/)).toHaveValue('');
+    const start = screen.getByRole('button', { name: /processing-schedules.periods.start-date/ });
+    expect(start).toBeDisabled();
+    expect(start).toHaveTextContent(formatDateValue('2026-03-01', 'en'));
+    expect(
+      screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }),
+    ).toHaveTextContent('processing-schedules.period-form.pick-date');
+    expect(
+      screen.getByRole('switch', { name: /processing-schedules.periods.report-only/ }),
+    ).not.toBeChecked();
   });
 });

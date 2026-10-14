@@ -1,5 +1,4 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { CalendarDaysIcon, EllipsisIcon, PencilIcon, PlusIcon } from 'lucide-react';
@@ -26,7 +25,6 @@ import { schedulesListOptions } from '@/features/processing-schedules/api/querie
 import {
   DEFAULT_SCHEDULES_SORT,
   type SchedulesSearch,
-  toScheduleListParams,
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
@@ -34,7 +32,7 @@ import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib
 
 const columnHelper = createColumnHelper<DataTableFeatures, ProcessingSchedule>();
 
-function createColumns(t: TFunction, search: SchedulesSearch) {
+function createColumns(t: TFunction, onEdit: (id: string) => void) {
   return columnHelper.columns([
     columnHelper.accessor('code', {
       header: ({ column }) => (
@@ -66,17 +64,17 @@ function createColumns(t: TFunction, search: SchedulesSearch) {
       id: 'actions',
       header: () => <span className="sr-only">{t('processing-schedules.actions')}</span>,
       meta: { className: 'w-16' },
-      cell: ({ row }) => <ScheduleActions schedule={row.original} search={search} />,
+      cell: ({ row }) => <ScheduleActions schedule={row.original} onEdit={onEdit} />,
     }),
   ]);
 }
 
 function ScheduleActions({
   schedule,
-  search,
+  onEdit,
 }: {
   schedule: ProcessingSchedule;
-  search: SchedulesSearch;
+  onEdit: (id: string) => void;
 }) {
   const { t } = useTranslation();
 
@@ -96,15 +94,7 @@ function ScheduleActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              render={
-                <Link
-                  to="/administration/processing-schedules/$id"
-                  params={{ id: schedule.id }}
-                  search={toScheduleListParams(search)}
-                />
-              }
-            >
+            <DropdownMenuItem onClick={() => onEdit(schedule.id)}>
               <PencilIcon />
               {t('processing-schedules.edit')}
             </DropdownMenuItem>
@@ -119,6 +109,7 @@ type SchedulesTableProps = {
   search: SchedulesSearch;
   onSearchChange: SearchChange<SchedulesSearch>;
   onAdd: () => void;
+  onEdit: (id: string) => void;
 };
 
 const NO_SCHEDULES: ProcessingSchedule[] = [];
@@ -132,9 +123,10 @@ function useSchedulesTable({
   rowCount,
   search,
   onSearchChange,
+  onEdit,
 }: Omit<SchedulesTableProps, 'onAdd'> & { data: ProcessingSchedule[]; rowCount: number }) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t, search), [t, search]);
+  const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_SCHEDULES_SORT,
@@ -160,11 +152,12 @@ export function SchedulesTableSkeleton({ search }: Pick<SchedulesTableProps, 'se
     rowCount: 0,
     search,
     onSearchChange: noop,
+    onEdit: noop,
   });
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
 }
 
-export function SchedulesTable({ search, onSearchChange, onAdd }: SchedulesTableProps) {
+export function SchedulesTable({ search, onSearchChange, onAdd, onEdit }: SchedulesTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(schedulesListOptions(toSchedulesQuery(deferredSearch)));
@@ -173,6 +166,7 @@ export function SchedulesTable({ search, onSearchChange, onAdd }: SchedulesTable
     rowCount: data.totalElements,
     search: deferredSearch,
     onSearchChange,
+    onEdit,
   });
   const isPastLastPage = data.content.length === 0 && data.totalElements > 0;
 

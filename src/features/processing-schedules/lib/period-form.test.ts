@@ -61,6 +61,5 @@ it.each([
   [11, 10, 2],
   [11, 4, 3],
 ])('lands %i periods with size %i on ascending page %i', (total, size, page) => {
-  expect(landingPage({ total, size, desc: false })).toBe(page);
-  expect(landingPage({ total, size, desc: true })).toBe(1);
+  expect(landingPage({ total, size })).toBe(page);
 });

@@ -73,6 +73,6 @@ export function toPeriodBody(
   };
 }
 
-export function landingPage({ total, size, desc }: { total: number; size: number; desc: boolean }) {
-  return desc ? 1 : Math.max(1, Math.ceil(total / size));
+export function landingPage({ total, size }: { total: number; size: number }) {
+  return Math.max(1, Math.ceil(total / size));
 }

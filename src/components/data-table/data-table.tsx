@@ -68,6 +68,8 @@ type DataTableProps<TData extends RowData> = {
   isStale?: boolean;
   /** Rendered inside the card below the rows, e.g. `DataTablePagination`. */
   footer?: ReactNode;
+  /** `fill` takes the parent's height and scrolls the rows under a sticky header. */
+  height?: 'auto' | 'fill';
 };
 
 export function DataTable<TData extends RowData>({
@@ -78,15 +80,19 @@ export function DataTable<TData extends RowData>({
   footer,
   density = 'comfortable',
   layout = 'fixed',
+  height = 'auto',
 }: DataTableProps<TData>) {
   const rows = table.getRowModel().rows;
   const columns = table.getVisibleLeafColumns();
 
   return (
-    <DataTableCard>
+    <DataTableCard height={height}>
       <div
         aria-busy={isStale}
-        className="transition-opacity aria-busy:opacity-60"
+        className={cn(
+          'transition-opacity aria-busy:opacity-60',
+          height === 'fill' && 'min-h-0 flex-1',
+        )}
         style={
           columnWidths
             ? ({
@@ -95,7 +101,12 @@ export function DataTable<TData extends RowData>({
             : undefined
         }
       >
-        <Table density={density} layout={layout} width={columnWidths ? 'measured' : 'full'}>
+        <Table
+          density={density}
+          layout={layout}
+          scroll={height === 'fill' ? 'both' : 'x'}
+          width={columnWidths ? 'measured' : 'full'}
+        >
           <DataTableHeader table={table} columnWidths={columnWidths} />
           <TableBody>
             {rows.length > 0 ? (
@@ -169,10 +180,21 @@ function DataTableHeader<TData extends RowData>({
   );
 }
 
-export function DataTableCard({ children }: { children: ReactNode }) {
+export function DataTableCard({
+  children,
+  height = 'auto',
+}: {
+  children: ReactNode;
+  height?: 'auto' | 'fill';
+}) {
   // A size container, so the pagination lays out by the table's width rather than the window's.
   return (
-    <div className="@container/table min-w-0 overflow-hidden rounded-xl border bg-card shadow-xs">
+    <div
+      className={cn(
+        '@container/table min-w-0 overflow-hidden rounded-xl border bg-card shadow-xs',
+        height === 'fill' && 'flex h-full flex-col',
+      )}
+    >
       {children}
     </div>
   );
@@ -238,6 +260,8 @@ type DataTableSkeletonProps<TData extends RowData> = {
   rowCount: number;
   density?: 'default' | 'comfortable' | 'compact';
   layout?: 'fixed' | 'auto';
+  height?: 'auto' | 'fill';
+  pagination?: 'default' | 'centered';
 };
 
 export function DataTableSkeleton<TData extends RowData>({
@@ -245,29 +269,33 @@ export function DataTableSkeleton<TData extends RowData>({
   rowCount,
   density = 'comfortable',
   layout = 'fixed',
+  height = 'auto',
+  pagination = 'default',
 }: DataTableSkeletonProps<TData>) {
   const columns = table.getVisibleLeafColumns();
   const rows = Array.from({ length: rowCount }, (_, index) => index);
 
   return (
-    <div aria-busy>
-      <DataTableCard>
-        <Table density={density} layout={layout}>
-          <DataTableHeader table={table} />
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row}>
-                {columns.map((column) => (
-                  <TableCell key={column.id}>
-                    {column.id === 'select' ? <SkeletonBox /> : <SkeletonBar />}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+    <div aria-busy className={cn(height === 'fill' && 'h-full')}>
+      <DataTableCard height={height}>
+        <div className={cn(height === 'fill' && 'min-h-0 flex-1')}>
+          <Table density={density} layout={layout} scroll={height === 'fill' ? 'both' : 'x'}>
+            <DataTableHeader table={table} />
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row}>
+                  {columns.map((column) => (
+                    <TableCell key={column.id}>
+                      {column.id === 'select' ? <SkeletonBox /> : <SkeletonBar />}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
         <DataTableFooter>
-          <DataTablePaginationSkeleton />
+          <DataTablePaginationSkeleton layout={pagination} />
         </DataTableFooter>
       </DataTableCard>
     </div>
