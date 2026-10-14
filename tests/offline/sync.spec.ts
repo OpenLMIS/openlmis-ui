@@ -149,6 +149,7 @@ test('reconnect sends two immutable events in sequence, with receipts and Synced
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(2);
   await expect(page.getByRole('table')).toContainText('Synced');
   expect(await records(page, 'stockEventQueue')).toHaveLength(0);
+  expect(posts).toHaveLength(2);
 });
 test('stock-changed refusal retains full signed payload and reason through reload', async ({
   context,
@@ -239,7 +240,7 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
     await stub(context, async () => 'finish');
     await context.route('**/api/stockEvents', async (route) => {
       posts.push(route.request().postDataJSON().signature);
-      if (posts.length === 1) await route.abort('failed');
+      if (posts.length === 1) await new Promise<void>((resolve) => context.once('close', resolve));
       else await route.fulfill({ status: 201, json: uuid(posts.length) });
     });
   };
@@ -252,7 +253,7 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
     await context.setOffline(false);
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
-      .toBe('uncertain');
+      .toBe('sending');
     expect(posts).toEqual(['Unknown']);
     await context.close();
     context = await chromium.launchPersistentContext(directory, {
@@ -262,12 +263,15 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
     await attach();
     page = context.pages()[0];
     await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
+    await expect
+      .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
+      .toBe('uncertain');
     await expect(page.getByRole('table')).toContainText('Uncertain');
     expect(posts).toEqual(['Unknown']);
     await context.setOffline(true);
     await enqueue(page, [{ signature: 'Other Program', programId: 'never' }]);
     await context.setOffline(false);
-    await expect.poll(() => posts.length).toBe(2);
+    await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(1);
     expect(posts).toEqual(['Unknown', 'Other Program']);
     await review(page);
     await expect(page.getByRole('dialog')).toContainText(
@@ -283,7 +287,8 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
       .click();
     expect(posts).toHaveLength(2);
     await page.getByRole('button', { name: 'It Was Recorded', exact: true }).click();
-    await expect.poll(() => posts.length).toBe(3);
+    await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(3);
+    expect(await records(page, 'stockEventQueue')).toHaveLength(0);
     expect(posts).toEqual(['Unknown', 'Other Program', 'Blocked']);
     await expect(page.getByRole('table')).toContainText('Marked As Recorded By You');
     await context.setOffline(true);
@@ -309,7 +314,9 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
       .getByRole('alertdialog')
       .getByRole('button', { name: 'Send Again', exact: true })
       .dblclick();
-    await expect.poll(() => posts.length).toBe(5);
+    await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(4);
+    expect(await records(page, 'stockEventQueue')).toHaveLength(0);
+    expect(posts).toHaveLength(5);
     expect(posts.slice(3)).toEqual(['Retry Unknown', 'Retry Unknown']);
     const drafts = await records(page, 'stockEventDrafts');
     expect(
@@ -383,7 +390,7 @@ test('recovery without viewing rights offers both choices without protected hist
   await expect(page).toHaveURL(/\/stock-management\/adjustments$/);
   await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
   await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
-  await expect(page.getByText('No Events Waiting To Sync', { exact: true })).toBeVisible();
+  await expect(page.getByText('No Device Events', { exact: true })).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'No View' }]);
   await context.setOffline(false);
@@ -399,4 +406,70 @@ test('recovery without viewing rights offers both choices without protected hist
   await expect(page.getByRole('button', { name: 'Send Again', exact: true })).toBeEnabled();
   expect(posts).toBe(1);
   expect(historyReads).toBe(0);
+});
+
+test('online refusal stays in the editor, shows the server reason, and reopens a corrected copy', async ({
+  context,
+  page,
+}) => {
+  await stub(context, async () => 'finish');
+  let posts = 0;
+  await context.route('**/api/stockEvents', async (route) => {
+    posts++;
+    await route.fulfill({
+      status: 400,
+      json: {
+        messageKey: 'stockmanagement.error.event.debitQuantityExceedSoh',
+        message: 'Backdated stock would be negative',
+      },
+    });
+  });
+  await ready(page);
+  await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments/program');
+  await page.getByRole('combobox', { name: 'Product', exact: true }).click();
+  await page.getByRole('option').first().click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('textbox', { name: /^Quantity,/ }).fill('1');
+  await page.getByRole('combobox', { name: /^Reason,/ }).click();
+  await page.getByRole('option', { name: 'Damaged', exact: true }).click();
+  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Refused Online');
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  const failure = page.getByRole('alertdialog');
+  await expect(failure).toContainText('Backdated stock would be negative');
+  await expect(
+    failure.getByRole('button', { name: 'Review Device Events', exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/adjustments\/program$/);
+  await expect(page.getByRole('textbox', { name: /^Quantity,/, includeHidden: true })).toHaveValue(
+    '1',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Submit', exact: true, includeHidden: true }),
+  ).toBeDisabled();
+  await expect(page.getByText('Saved On This Device', { exact: true })).toHaveCount(0);
+  await failure.getByRole('button', { name: 'Copy For Correction', exact: true }).click();
+  const details = page.getByRole('dialog');
+  await expect(details).toContainText('Refused Online');
+  await expect(details).toContainText('Type');
+  await details.getByRole('button', { name: 'Copy For Correction', exact: true }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Copy For Correction', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeEnabled();
+  await expect(page.getByRole('textbox', { name: /^Quantity,/ })).toHaveValue('1');
+  await expect
+    .poll(
+      async () =>
+        (await records(page, 'stockEventDrafts')).filter((row) => row.state === 'editing').length,
+    )
+    .toBe(1);
+  expect(
+    (await records(page, 'stockEventDrafts')).filter((row) => row.state === 'refused'),
+  ).toHaveLength(1);
+  expect(await records(page, 'stockEventQueue')).toHaveLength(0);
+  expect(await records(page, 'stockEventReceipts')).toHaveLength(0);
+  expect(posts).toBe(1);
 });

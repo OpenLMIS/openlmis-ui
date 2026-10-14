@@ -44,9 +44,13 @@ for (const offline of [true, false]) {
       await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
       await page.getByRole('button', { name: 'Confirm', exact: true }).dblclick();
       await expect(page).toHaveURL(/\/adjustments$/);
-      await expect(page.getByText('Saved On This Device', { exact: true })).toBeVisible();
       await expect(
-        page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
+        page.getByText(offline ? 'Saved On This Device' : 'Needs Review', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page
+          .getByRole('note')
+          .filter({ hasText: offline ? '1 Event Waiting To Sync' : '1 Event Needs Review' }),
       ).toBeVisible();
       expect(posts).toBe(offline ? 0 : 1);
       await context.close();
@@ -67,7 +71,9 @@ for (const offline of [true, false]) {
       await expect(page.getByRole('table')).toContainText('Fixture Clinic');
       await expect(page.getByRole('table')).toContainText(offline ? 'Queued' : 'Uncertain');
       await expect(
-        page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
+        page
+          .getByRole('note')
+          .filter({ hasText: offline ? '1 Event Waiting To Sync' : '1 Event Needs Review' }),
       ).toBeVisible();
       expect(posts).toBe(offline ? 0 : 1);
     } finally {
