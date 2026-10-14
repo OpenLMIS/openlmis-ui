@@ -10,8 +10,8 @@ import { DataTableViewOptions } from '@/components/data-table/data-table-view-op
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
 import { FACILITY_HIDEABLE_COLUMNS, type FacilitiesSearch } from '@/features/facilities/lib/search';
-import { toZoneOption } from '@/features/facilities/lib/zone-filter';
 import { geographicZonesOptions } from '@/features/reference-data/api/queries';
+import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
 import { withPicked } from '@/lib/filter-options';
 
 type FacilitiesToolbarProps = {
