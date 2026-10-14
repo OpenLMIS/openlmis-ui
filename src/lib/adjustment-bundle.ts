@@ -1,4 +1,5 @@
 import { AxiosError, type AxiosRequestConfig, isAxiosError } from 'axios';
+import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchAllOrderableVersions,
@@ -303,13 +304,8 @@ function fetchForegroundBundle(filter: AdjustmentScope) {
     download
       ? download.catch((error: unknown) => {
           assertSessionScope(scope);
-          if (
-            (isAxiosError(error) &&
-              (error.code === AxiosError.ERR_CANCELED || error.response?.status === 401)) ||
-            (error instanceof DOMException && error.name === 'AbortError')
-          )
-            return fetch();
-          throw error;
+          if (error instanceof SessionEndedError) throw error;
+          return fetch();
         })
       : fetch()
   ).finally(() => {
