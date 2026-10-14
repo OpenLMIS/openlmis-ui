@@ -812,3 +812,9 @@ it('refreshes expiry validity using each kind card policy and retains missing-ca
   expect(refreshStockEventLines(lines, [card], today, 'issue')[0].stockProblem).toBe('expired');
   expect(refreshStockEventLines(lines, [], today, 'adjustment')[0].stockProblem).toBe('missing');
 });
+
+it('marks cards excluded for zero stock without claiming they are expired', () => {
+  const empty = { ...card, stockOnHand: 0, lot: null };
+  const lines = [line({ lot: null })];
+  expect(refreshStockEventLines(lines, [empty], today, 'issue')[0].stockProblem).toBe('zero-stock');
+});

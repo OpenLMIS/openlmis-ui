@@ -26,7 +26,7 @@ import { MAX_WHOLE_NUMBER, toWholeNumber, wholeNumberText } from '@/lib/whole-nu
 
 const lineFields = z.object({
   key: z.string(),
-  stockProblem: z.enum(['missing', 'expired']).optional(),
+  stockProblem: z.enum(['missing', 'expired', 'zero-stock', 'excluded']).optional(),
   orderable: z.custom<EventStockCard['orderable']>(),
   lot: z.custom<EventLot | null>(),
   stockOnHand: z.number().nullable(),
@@ -327,7 +327,11 @@ export function refreshStockEventLines(
       ? 'missing'
       : !allowed.has(card) && card.lot?.expirationDate && card.lot.expirationDate < today
         ? 'expired'
-        : undefined;
+        : !allowed.has(card)
+          ? card.stockOnHand === 0
+            ? 'zero-stock'
+            : 'excluded'
+          : undefined;
     const next: EventLine = card
       ? {
           ...line,

@@ -19,6 +19,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { QueryBoundary } from '@/components/query-boundary';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -51,7 +52,21 @@ type Props = StockEventSelection & {
   onRestore: (copy: StockEventDraft) => Promise<boolean>;
 };
 
-export function EventArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Props) {
+const NoArchives = () => null;
+
+export function EventArchivedCopies(props: Props) {
+  return (
+    <QueryBoundary
+      resetKey={`${props.facilityId}/${props.programId}`}
+      pendingFallback={null}
+      errorComponent={NoArchives}
+    >
+      <ArchivedCopies {...props} />
+    </QueryBoundary>
+  );
+}
+
+function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Props) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const restoreRef = useRef(onRestore);
