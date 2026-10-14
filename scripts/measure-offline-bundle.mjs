@@ -31,12 +31,15 @@ const context = await browser.newContext({ serviceWorkers: 'block' });
 const requests = [];
 const datasets = [];
 let token;
+let forbiddenRequest;
 const started = performance.now();
 try {
   await context.route('**/*', async (route) => {
     const request = route.request();
     if (!allowRequest(request.method(), request.url())) {
-      throw new Error(`Forbidden request: ${request.method()} ${request.url()}`);
+      await route.abort('blockedbyclient');
+      forbiddenRequest = `Forbidden request: ${request.method()} ${request.url()}`;
+      return;
     }
     if (request.isNavigationRequest())
       await route.fulfill({ body: '<html></html>', contentType: 'text/html' });
@@ -44,6 +47,7 @@ try {
   });
   const page = await context.newPage();
   await page.goto(origin);
+  if (forbiddenRequest) throw new Error(forbiddenRequest);
   async function request(scope, dataset, path, params = {}, body) {
     const url = new URL(`/api${path}`, origin);
     for (const [key, value] of Object.entries(params)) {
@@ -94,6 +98,7 @@ try {
               : JSON.stringify(body),
       },
     );
+    if (forbiddenRequest) throw new Error(forbiddenRequest);
     const entry = {
       scope,
       dataset,
@@ -336,7 +341,7 @@ try {
   await mkdir(new URL('../.offline/', import.meta.url), { recursive: true });
   await writeFile(
     new URL('../.offline/measurement-failure.json', import.meta.url),
-    JSON.stringify({ requests, error: String(error) }, null, 2),
+    JSON.stringify({ requests, forbiddenRequest, error: String(error) }, null, 2),
   );
   throw error;
 } finally {

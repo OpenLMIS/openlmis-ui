@@ -5,6 +5,7 @@ test('production shell reloads offline under /v2 after worker takeover', async (
   context,
 }) => {
   await context.route('**/api{,/**,?*}', (route) => route.abort());
+  await context.route('**/localeSettings{,/**,?*}', (route) => route.abort());
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
   await page.waitForFunction(() =>
