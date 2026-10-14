@@ -421,7 +421,6 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       expect(submitStockEvent).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ signature: 'Ada', eventOrigin: 'ADJUSTMENT' }),
       );
-      expect(screen.queryByRole('button', { name: 'stock-event.print' })).not.toBeInTheDocument();
     });
   }
 

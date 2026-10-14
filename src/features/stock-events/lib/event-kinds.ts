@@ -311,7 +311,3 @@ export const EVENT_KINDS = {
 } as const satisfies Record<'adjustment' | 'issue' | 'receive' | 'unpack', EventKindConfig>;
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
-
-export type PrintableEventKind = {
-  [Kind in ConfiguredEventKind]: (typeof EVENT_KINDS)[Kind]['print'] extends null ? never : Kind;
-}[ConfiguredEventKind];
