@@ -21,6 +21,7 @@ import { queryKeys } from '@/lib/key-factory';
 import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { isOnline } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
+import { QueueReceiptError } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { freshUploadAccess, uploadAccessEpoch } from '@/lib/upload-access';
 
@@ -36,6 +37,7 @@ export function startStockEventUploader(
   let pending = false;
   let subscription: ReturnType<ReturnType<typeof liveQuery>['subscribe']> | undefined;
   let pausedEpoch: string | undefined;
+  const pruned = new Set<string>();
   const valid = () => {
     const state = useLoginData.getState();
     return (
@@ -70,8 +72,11 @@ export function startStockEventUploader(
         check();
         await recoverSending(db, userId, check);
         check();
-        await pruneStockEvents(db, check);
-        check();
+        if (!pruned.has(db.name)) {
+          pruned.add(db.name);
+          await pruneStockEvents(db, check);
+          check();
+        }
         if (!valid()) {
           setSyncPhase(
             useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch()
@@ -90,7 +95,7 @@ export function startStockEventUploader(
         const access = await (dependencies.access ?? freshUploadAccess)();
         check();
         if (!valid() || epoch !== uploadAccessEpoch() || access.userId !== userId) return;
-        const permissions = parsePermissions(access.permissionStrings);
+        const permissions = parsePermissions(access.permissionStrings ?? []);
         setSyncPhase('syncing');
         const send: SyncDependencies['send'] =
           dependencies.send ??
@@ -103,6 +108,7 @@ export function startStockEventUploader(
               });
               return { status: response.status, data: response.data };
             } catch (error) {
+              if (error instanceof QueueReceiptError) return error.response;
               if (isAxiosError(error) && error.response)
                 return { status: error.response.status, data: error.response.data };
               throw error;

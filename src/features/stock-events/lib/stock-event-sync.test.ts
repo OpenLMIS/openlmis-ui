@@ -5,7 +5,10 @@ import {
   createStockEventContext,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
-import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import {
+  enqueueStockEvent,
+  type QueuedStockEvent,
+} from '@/features/stock-events/lib/stock-event-queue';
 import {
   acceptStockEvent,
   classifyUpload,
@@ -61,7 +64,7 @@ beforeEach(async () => {
   ])
     await getLocalDb().table(table).clear();
 });
-function dependencies(send = vi.fn(async () => response(201, id))) {
+function dependencies(send = vi.fn(async (_event: QueuedStockEvent) => response(201, id))) {
   return {
     check: vi.fn(),
     canSend: () => true,
@@ -276,7 +279,7 @@ it('typed not-sent and service 401 return to queued without a worker retry loop'
   await syncStockEvents(getLocalDb(), event.userId, deps);
   expect(send).toHaveBeenCalledTimes(3);
 });
-it('scope failure after dispatch keeps the old attempt for uncertain restart recovery', async () => {
+it('records a verified 201 in the original owner database after a scope change', async () => {
   const event = await enqueue();
   const db = getLocalDb();
   const { getSessionScope, assertSessionScope } = await import('@/lib/session-scope');
@@ -293,8 +296,9 @@ it('scope failure after dispatch keeps the old attempt for uncertain restart rec
   useLoginData.getState().setLoginData(owner);
   const reopened = getLocalDb();
   await recoverSending(reopened, event.userId, () => {});
-  expect((await reopened.table('stockEventQueue').get(event.sequence)).status).toBe('uncertain');
-  expect(await reopened.table('stockEventReceipts').count()).toBe(0);
+  expect(await reopened.table('stockEventQueue').get(event.sequence)).toBeUndefined();
+  expect(await reopened.table('stockEventReceipts').count()).toBe(1);
+  expect(deps.accepted).not.toHaveBeenCalled();
   const next = dependencies();
   await syncStockEvents(reopened, 'other', next);
   expect(next.send).not.toHaveBeenCalled();
@@ -314,3 +318,85 @@ for (const [status, data, kind] of [
   it(`classifies ${status} ${JSON.stringify(data)} as ${kind}`, () => {
     expect(classifyUpload(response(status, data)).kind).toBe(kind);
   });
+it('retains every failed attempt with its resolved message and response after resend', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  await syncStockEvents(
+    db,
+    event.userId,
+    dependencies(vi.fn(async () => response(504, 'first response'))),
+  );
+  const firstError = await db.table('stockEventSyncErrors').get(event.localEventId);
+  const uncertain = await db.table('stockEventQueue').get(event.sequence);
+  await resolveUncertain(createStockEventContext(event), uncertain, 'resend');
+  await syncStockEvents(
+    db,
+    event.userId,
+    dependencies(
+      vi.fn(async () => response(400, { messageKey: 'changed', message: 'Second refusal' })),
+    ),
+  );
+  const current = await db.table('stockEventSyncErrors').get(event.localEventId);
+  expect(current.message).toBe('Second refusal');
+  expect(current.history).toEqual([
+    expect.objectContaining({
+      category: 'uncertain',
+      response: 'first response',
+      message: firstError.message,
+      event: expect.objectContaining({ attemptId: uncertain.attemptId }),
+      resolvedAt: expect.any(Number),
+    }),
+  ]);
+});
+it('keeps not-sent queued even if the session scope changes before transport rejects', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  let current = true;
+  const deps = dependencies(
+    vi.fn(async () => {
+      current = false;
+      throw new QueueNotSentError();
+    }),
+  );
+  await syncStockEvents(db, event.userId, {
+    ...deps,
+    check: () => {
+      if (!current) throw new Error('Scope changed');
+    },
+  });
+  expect(await db.table('stockEventQueue').get(event.sequence)).toMatchObject({
+    status: 'queued',
+    attemptId: undefined,
+  });
+  expect(await db.table('stockEventSyncErrors').count()).toBe(0);
+});
+it('pauses missing access without creating a server refusal and resumes when rights return', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  const deps = dependencies();
+  await syncStockEvents(db, event.userId, { ...deps, permitted: () => false });
+  expect(deps.send).not.toHaveBeenCalled();
+  expect(await db.table('stockEventQueue').get(event.sequence)).toMatchObject({
+    status: 'queued',
+    pauseReason: 'access-changed',
+  });
+  expect(await db.table('stockEventSyncErrors').count()).toBe(0);
+  await syncStockEvents(db, event.userId, deps);
+  expect(await db.table('stockEventReceipts').count()).toBe(1);
+  expect(deps.send).toHaveBeenCalledOnce();
+});
+it('blocks a mismatched draft scope without spinning and still sends other programs', async () => {
+  const event = await enqueue();
+  const later = await enqueue();
+  const other = await enqueue('two');
+  const db = getLocalDb();
+  await db.table('stockEventDrafts').update(event.draftId, { revision: 999 });
+  const deps = dependencies();
+  await syncStockEvents(db, event.userId, deps);
+  expect(await db.table('stockEventQueue').get(event.sequence)).toMatchObject({
+    status: 'queued',
+    pauseReason: 'draft-changed',
+  });
+  expect(await db.table('stockEventQueue').get(later.sequence)).toMatchObject({ status: 'queued' });
+  expect(deps.send.mock.calls.map(([row]) => row.sequence)).toEqual([other.sequence]);
+});

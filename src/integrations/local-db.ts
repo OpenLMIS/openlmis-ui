@@ -63,6 +63,17 @@ export function getLocalDb(): Dexie {
             draft.localEventId ??= crypto.randomUUID();
           });
       });
+    database
+      .version(6)
+      .stores({})
+      .upgrade(async (transaction) => {
+        await transaction
+          .table('stockEventSyncErrors')
+          .toCollection()
+          .modify((error) => {
+            error.history ??= [];
+          });
+      });
   }
   return database;
 }

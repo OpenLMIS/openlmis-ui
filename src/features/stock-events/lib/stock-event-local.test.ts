@@ -116,7 +116,7 @@ it('upgrades v3 retaining inventory rows, access and bundles', async () => {
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(5);
+  expect(db.verno).toBe(6);
   expect(await db.table('physicalInventoryDrafts').get('pi')).toEqual(inventory);
   expect(await db.table('offlineAccess').get('draft-upgrade')).toEqual(access);
   expect(await db.table('adjustmentDownloads').get(['facility', 'program'])).toEqual(bundle);

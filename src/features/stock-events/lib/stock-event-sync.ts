@@ -1,4 +1,4 @@
-import type Dexie from 'dexie';
+import Dexie from 'dexie';
 import {
   archiveStockEventCopy,
   readStockEventDraft,
@@ -22,6 +22,7 @@ export type StockEventSyncError = {
   response?: unknown;
   failedAt: number;
   resolvedAt?: number;
+  history?: Omit<StockEventSyncError, 'history'>[];
 };
 export type StockEventReceipt = {
   draftId: string;
@@ -194,8 +195,18 @@ async function failEvent(
   return db.transaction('rw', tables(db), async () => {
     const matched = await matching(db, event, 'sending', check);
     if (!matched) return false;
+    const previous = await db
+      .table<StockEventSyncError>('stockEventSyncErrors')
+      .get(event.localEventId);
+    check();
+    let errorHistory = previous?.history ?? [];
+    if (previous) {
+      const { history: _, ...last } = previous;
+      errorHistory = [...errorHistory, last];
+    }
     await db.table<StockEventSyncError>('stockEventSyncErrors').put({
       ...failure,
+      history: errorHistory,
       event,
       localEventId: event.localEventId,
       facilityId: event.facilityId,
@@ -288,71 +299,103 @@ export type SyncDependencies = {
   retryReceipt: () => Promise<void>;
   accepted: (event: QueuedStockEvent) => void;
 };
+async function writeForOwner<T>(
+  db: Dexie,
+  userId: string,
+  event: QueuedStockEvent,
+  write: (owned: Dexie, check: () => void) => Promise<T>,
+) {
+  const check = () => {
+    if (event.userId !== userId || !db.name.endsWith(`:${userId}`))
+      throw new Error('Wrong device event owner');
+  };
+  check();
+  const owned = db.isOpen() ? db : new Dexie(db.name);
+  try {
+    if (owned !== db) await owned.open();
+    return await write(owned, check);
+  } finally {
+    if (owned !== db) owned.close();
+  }
+}
 export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDependencies) {
   while (deps.canSend()) {
     deps.check();
     const rows = await db.table<QueuedStockEvent>('stockEventQueue').orderBy('sequence').toArray();
     deps.check();
+    const scopeKey = (row: QueuedStockEvent) => `${row.facilityId}:${row.programId}`;
     const blocked = new Set(
       rows
-        .filter((row) => row.status !== 'queued')
-        .map((row) => `${row.facilityId}:${row.programId}`),
+        .filter((row) => row.status !== 'queued' || row.pauseReason === 'draft-changed')
+        .map(scopeKey),
     );
+    for (const row of rows) {
+      if (row.userId !== userId || row.status !== 'queued' || blocked.has(scopeKey(row))) continue;
+      if (!deps.permitted(row)) {
+        blocked.add(scopeKey(row));
+        if (row.pauseReason !== 'access-changed') {
+          await db.table('stockEventQueue').update(row.sequence, { pauseReason: 'access-changed' });
+          deps.check();
+        }
+      } else if (row.pauseReason === 'access-changed') {
+        await db.table('stockEventQueue').update(row.sequence, { pauseReason: undefined });
+        deps.check();
+      }
+    }
     const next = rows.find(
-      (row) =>
-        row.userId === userId &&
-        row.status === 'queued' &&
-        !blocked.has(`${row.facilityId}:${row.programId}`),
+      (row) => row.userId === userId && row.status === 'queued' && !blocked.has(scopeKey(row)),
     );
     if (!next) return;
     const event = await beginAttempt(db, next, deps.check);
-    if (!event) continue;
+    if (!event) {
+      await db.table('stockEventQueue').update(next.sequence, { pauseReason: 'draft-changed' });
+      deps.check();
+      continue;
+    }
     let response: UploadResponse | undefined;
     let error: unknown;
     try {
       deps.check();
       if (!deps.canSend()) throw new QueueNotSentError();
-      response = deps.permitted(event)
-        ? await deps.send(event)
-        : {
-            status: 403,
-            data: {
-              messageKey: 'STOCK_ADJUST_REVOKED',
-              message: 'You no longer have access to adjust this facility and program.',
-            },
-          };
+      response = await deps.send(event);
     } catch (caught) {
       error = caught;
     }
-    deps.check();
     if (error instanceof QueueNotSentError) {
-      await returnQueued(db, event, deps.check, true);
+      await writeForOwner(db, userId, event, (owned, check) =>
+        returnQueued(owned, event, check, true),
+      );
       return;
     }
     const outcome = response ? classifyUpload(response) : { kind: 'uncertain' as const };
     if (outcome.kind === 'accepted') {
       for (;;) {
+        let accepted: boolean;
         try {
-          if (
-            await acceptStockEvent(
-              db,
+          accepted = await writeForOwner(db, userId, event, (owned, check) =>
+            acceptStockEvent(
+              owned,
               event,
               { source: 'server', serverEventId: outcome.serverEventId },
-              deps.check,
-            )
-          )
-            deps.accepted(event);
-          break;
+              check,
+            ),
+          );
         } catch {
           deps.check();
           await deps.retryReceipt();
           deps.check();
+          continue;
         }
+        deps.check();
+        if (accepted) deps.accepted(event);
+        break;
       }
-    } else if (outcome.kind === 'session') {
-      await returnQueued(db, event, deps.check);
-      return;
     } else {
+      deps.check();
+      if (outcome.kind === 'session') {
+        await returnQueued(db, event, deps.check);
+        return;
+      }
       await failEvent(
         db,
         event,
@@ -435,6 +478,8 @@ export async function copyRefusedEvent(context: StockEventContext, error: StockE
     if (
       !stored ||
       stored.resolvedAt ||
+      stored.event.attemptId !== error.event.attemptId ||
+      stored.event.revision !== error.event.revision ||
       !original ||
       original.state !== 'refused' ||
       original.revision !== error.event.revision ||

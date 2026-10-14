@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { QueueNotSentError, type QueueTransport } from '@/lib/queue-transport';
+import { QueueNotSentError, QueueReceiptError, type QueueTransport } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 declare module 'axios' {
@@ -80,7 +80,17 @@ client.interceptors.request.use(async (config) => {
 client.interceptors.response.use(
   (response) => {
     if (!response.config.anonymous) {
-      assertSessionScope(response.config.sessionScope ?? getSessionScope());
+      try {
+        assertSessionScope(response.config.sessionScope ?? getSessionScope());
+      } catch (error) {
+        if (
+          response.status === 201 &&
+          response.config.queueTransport &&
+          response.config.sentFor === response.config.queueTransport.userId
+        )
+          throw new QueueReceiptError({ status: response.status, data: response.data });
+        throw error;
+      }
     }
     return response;
   },
