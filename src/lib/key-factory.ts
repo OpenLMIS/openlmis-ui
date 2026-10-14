@@ -56,3 +56,10 @@ export const userRecordKey = (userId: string) =>
 /** Without a user, every user's programs, as a program save refreshes them. */
 export const userProgramsKey = (userId?: string) =>
   [...queryKeys.users.all, 'programs', ...(userId ? [userId] : [])] as const;
+
+export const adjustmentBundleKeys = {
+  cards: (filter: Record<string, unknown>) =>
+    [...queryKeys.stockEvents.list(filter), 'adjustment-bundle'] as const,
+  reasons: (filter: Record<string, unknown>) =>
+    [...queryKeys.validReasons.list(filter), 'adjustment-bundle'] as const,
+};

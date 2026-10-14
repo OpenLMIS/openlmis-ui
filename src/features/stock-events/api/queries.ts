@@ -1,6 +1,9 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import { fetchValidReasons } from '@/features/reference-data/api/api';
-import { approvedProductsOptions } from '@/features/reference-data/api/queries';
+import {
+  approvedProductsOptions,
+  tradeItemByGtinOptions,
+} from '@/features/reference-data/api/queries';
 import {
   fetchAllStockEventLines,
   fetchEventStockCards,
@@ -15,10 +18,17 @@ import type {
   PageQuery,
   StockEventsQuery,
 } from '@/features/stock-events/lib/types';
-import { type AdjustmentScope, getAdjustmentBundle } from '@/lib/adjustment-bundle';
+import {
+  type AdjustmentScope,
+  getAdjustmentBundle,
+  readAdjustmentBundle,
+} from '@/lib/adjustment-bundle';
 import { getFlag } from '@/lib/feature-flags';
-import { queryKeys } from '@/lib/key-factory';
+import { isAccessFallbackError } from '@/lib/http';
+import { adjustmentBundleKeys, queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { isOnline } from '@/lib/online';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const adjustmentScope = (
   filter: EventStockCardsFilter,
@@ -27,7 +37,7 @@ export const adjustmentScope = (
 
 export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: AdjustmentScope) =>
   queryOptions({
-    queryKey: queryKeys.stockEvents.list(filter),
+    queryKey: bundle ? adjustmentBundleKeys.cards(bundle) : queryKeys.stockEvents.list(filter),
     queryFn: async () =>
       bundle ? (await getAdjustmentBundle(bundle)).cards : fetchEventStockCards(filter),
     networkMode: 'always',
@@ -38,23 +48,36 @@ export const eventValidReasonsOptions = (
   bundle?: AdjustmentScope,
 ) =>
   queryOptions({
-    queryKey: queryKeys.validReasons.list(filter),
+    queryKey: bundle ? adjustmentBundleKeys.reasons(bundle) : queryKeys.validReasons.list(filter),
     queryFn: async () =>
       bundle ? (await getAdjustmentBundle(bundle)).reasons : fetchValidReasons(filter),
     networkMode: 'always',
   });
 
-export const adjustmentTradeItemOptions = (filter: AdjustmentScope, gtin: string) =>
-  queryOptions({
-    queryKey: [...queryKeys.stockEvents.list(filter), 'adjustment-gtin', gtin],
-    queryFn: async () => {
-      const bundle = await getAdjustmentBundle(filter);
-      const item = bundle.tradeItems.find((item) => item.gtin === gtin);
-      if (!item) throw new LocalDataUnavailableError();
-      return item;
-    },
-    networkMode: 'always',
-  });
+export async function fetchAdjustmentTradeItem(
+  queryClient: QueryClient,
+  filter: AdjustmentScope,
+  gtin: string,
+) {
+  const scope = getSessionScope();
+  if (isOnline()) {
+    try {
+      const tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(gtin));
+      assertSessionScope(scope);
+      return { tradeItem, offline: false };
+    } catch (error) {
+      assertSessionScope(scope);
+      if (!isAccessFallbackError(error)) throw error;
+    }
+  }
+  const bundle = await readAdjustmentBundle(filter);
+  assertSessionScope(scope);
+  if (!bundle.scanning) throw new LocalDataUnavailableError();
+  return {
+    tradeItem: bundle.tradeItems.find((item) => item.gtin === gtin) ?? null,
+    offline: true,
+  };
+}
 
 export const stockEventsOptions = (query: StockEventsQuery) =>
   queryOptions({

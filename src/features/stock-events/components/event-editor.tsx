@@ -45,9 +45,9 @@ import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import {
   adjustmentScope,
-  adjustmentTradeItemOptions,
   eventStockCardsOptions,
   eventValidReasonsOptions,
+  fetchAdjustmentTradeItem,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import {
@@ -102,6 +102,7 @@ import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
 import { queryKeys } from '@/lib/key-factory';
+import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import {
   acknowledgeScanExpiry,
   isScanExpiryAcknowledged,
@@ -471,6 +472,7 @@ export function EventEditor({
       return;
     }
     if (!mutation.isCurrent()) return;
+    if (bundleScope) refreshOfflineProgram({ facilityId, programId });
     setConfirmationOpen(false);
     leaving.current = true;
     flushSync(() => setSubmitted(true));
@@ -502,9 +504,15 @@ export function EventEditor({
     if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
-      tradeItem = bundleScope
-        ? await queryClient.fetchQuery(adjustmentTradeItemOptions(bundleScope, parsed.gtin))
-        : await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
+      if (bundleScope) {
+        const result = await fetchAdjustmentTradeItem(queryClient, bundleScope, parsed.gtin);
+        if (stale()) return;
+        if (result.offline && !result.tradeItem)
+          return scanMessage('productNotOnScreen', { gtin: parsed.gtin });
+        tradeItem = result.tradeItem;
+      } else {
+        tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
+      }
     } catch {
       return stale() ? undefined : scanMessage('gtinLookupFailed');
     }
@@ -641,6 +649,7 @@ export function EventEditor({
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
+                    bundleScope={bundleScope}
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
