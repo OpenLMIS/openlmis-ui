@@ -28,6 +28,7 @@ export const queryKeys = {
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
   reasons: createQueryKeys('reasons'),
+  requisitionGroups: createQueryKeys('requisitionGroups'),
   requisitionTemplates: createQueryKeys('requisitionTemplates'),
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),

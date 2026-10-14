@@ -23,6 +23,8 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/administration/processing-schedules': RIGHTS.processingSchedulesManage,
   '/administration/requisition-templates': RIGHTS.requisitionTemplatesManage,
   '/administration/reasons': RIGHTS.stockCardLineItemReasonsManage,
+  ['/administration/requisition-groups' as NonNullable<LiveNavLink['to']>]:
+    RIGHTS.requisitionGroupsManage,
   '/administration/valid-destinations': RIGHTS.stockDestinationsManage,
   '/administration/valid-sources': RIGHTS.stockSourcesManage,
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
