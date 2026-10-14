@@ -84,8 +84,9 @@ function SchedulesPage() {
   const addSchedule = useCallback(() => openDialog({ schedule: 'new' }), [openDialog]);
   const editSchedule = useCallback((id: string) => openDialog({ periods: id }), [openDialog]);
   const onAdded = useCallback(
-    (total: number) => {
+    (scheduleId: string, total: number) => {
       const current = schedulesSearchSchema.parse(router.state.location.search);
+      if (current.periods !== scheduleId) return;
       const landing = landingPage({ total, size: PERIODS_PAGE_SIZE });
       if (landing !== (current.periodsPage ?? 1))
         updateSearch({ periodsPage: landing === 1 ? undefined : landing }, true, {

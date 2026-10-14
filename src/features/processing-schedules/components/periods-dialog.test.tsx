@@ -56,6 +56,28 @@ beforeEach(() => {
 });
 
 describe('PeriodsDialog', () => {
+  it('starts the period reads while the schedule detail is still loading', async () => {
+    let resolveSchedule!: (value: typeof schedule) => void;
+    vi.mocked(fetchProcessingSchedule).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSchedule = resolve;
+        }),
+    );
+    renderDialog();
+    await waitFor(() => {
+      expect(fetchLatestPeriod).toHaveBeenCalledWith(schedule.id);
+      expect(fetchProcessingPeriodsPage).toHaveBeenCalledWith({
+        processingScheduleId: schedule.id,
+        page: 0,
+        size: 10,
+        sort: 'startDate,asc',
+      });
+    });
+    await act(async () => resolveSchedule(schedule));
+    expect(await screen.findByRole('cell', { name: 'January' })).toBeInTheDocument();
+  });
+
   it('prefills and locks the start from the latest period', async () => {
     renderDialog();
     const start = await screen.findByRole('button', {
@@ -172,7 +194,7 @@ describe('PeriodsDialog', () => {
     await user.click(await within(calendar).findByRole('button', { name: /February 28th, 2026/ }));
     vi.mocked(fetchLatestPeriod).mockRejectedValue(httpError(503, {}));
     await user.click(screen.getByRole('button', { name: 'processing-schedules.period-form.add' }));
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(schedule.id, 2));
     expect(screen.getByLabelText(/processing-schedules.periods.name/)).toHaveValue('');
     expect(screen.getByLabelText(/processing-schedules.description/)).toHaveValue('');
     const start = screen.getByRole('button', { name: /processing-schedules.periods.start-date/ });

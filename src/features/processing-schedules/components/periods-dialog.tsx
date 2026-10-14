@@ -1,7 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -31,6 +31,7 @@ import { FieldGroup } from '@/components/ui/field';
 import { createProcessingPeriod, fetchLatestPeriod } from '@/features/processing-schedules/api/api';
 import {
   latestPeriodOptions,
+  periodsListOptions,
   scheduleDetailOptions,
 } from '@/features/processing-schedules/api/queries';
 import {
@@ -45,7 +46,7 @@ import {
   toPeriodBody,
   toPeriodFormValues,
 } from '@/features/processing-schedules/lib/period-form';
-import type { SchedulesSearch } from '@/features/processing-schedules/lib/search';
+import { type SchedulesSearch, toPeriodsQuery } from '@/features/processing-schedules/lib/search';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -60,7 +61,7 @@ type PeriodsDialogProps = {
   search: SchedulesSearch;
   onSearchChange: SearchChange<SchedulesSearch>;
   onClose: () => void;
-  onAdded: (total: number) => void;
+  onAdded: (scheduleId: string, total: number) => void;
 };
 
 export function PeriodsDialog({ target, onClose, ...props }: PeriodsDialogProps) {
@@ -81,6 +82,12 @@ type PeriodDialogContentProps = Pick<
 function PeriodDialogContent({ scheduleId, ...props }: PeriodDialogContentProps) {
   const { t } = useTranslation();
   const opening = useOpening();
+  const queryClient = useQueryClient();
+  const { search } = props;
+  useEffect(() => {
+    void queryClient.prefetchQuery(latestPeriodOptions(scheduleId, opening));
+    void queryClient.prefetchQuery(periodsListOptions(toPeriodsQuery(scheduleId, search)));
+  }, [queryClient, scheduleId, opening, search]);
   const title = t('processing-schedules.edit');
   return (
     <QueryBoundary
@@ -165,7 +172,7 @@ function PeriodForm({
             const next = toPeriodFormValues(saved);
             setDefaults(next);
             form.reset(next);
-            onAdded(total);
+            onAdded(schedule.id, total);
           },
         })
         .catch(() => undefined),
