@@ -10,10 +10,6 @@ import {
   toSortParam,
 } from '@/lib/table-search';
 
-export const SCHEDULE_HIDEABLE_COLUMNS = [
-  { id: 'description', labelKey: 'processing-schedules.description', hideBelow: 'lg' },
-] as const;
-
 export const PERIOD_HIDEABLE_COLUMNS = [
   { id: 'description', labelKey: 'processing-schedules.description', hideBelow: 'lg' },
   { id: 'startDate', labelKey: 'processing-schedules.periods.start-date' },

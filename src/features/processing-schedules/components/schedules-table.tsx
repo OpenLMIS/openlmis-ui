@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
+import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { CalendarDaysIcon, EllipsisIcon, PencilIcon, PlusIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
@@ -30,7 +30,6 @@ import {
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
-import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ProcessingSchedule>();
@@ -48,7 +47,7 @@ function createColumns(t: TFunction, search: SchedulesSearch) {
           </span>
         </span>
       ),
-      meta: { className: 'w-60 @xl/main:w-1/3' },
+      meta: { className: 'w-60 @xl/main:w-1/2' },
     }),
     columnHelper.accessor('name', {
       header: ({ column }) => (
@@ -62,14 +61,6 @@ function createColumns(t: TFunction, search: SchedulesSearch) {
         </span>
       ),
       meta: { className: 'w-60 @xl/main:w-auto' },
-    }),
-    columnHelper.accessor('description', {
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('processing-schedules.description')} />
-      ),
-      cell: ({ getValue }) => <span dir="auto">{tableValue(getValue())}</span>,
-      enableSorting: false,
-      meta: { className: '@xl/main:w-1/3' },
     }),
     columnHelper.display({
       id: 'actions',
@@ -127,7 +118,6 @@ function ScheduleActions({
 type SchedulesTableProps = {
   search: SchedulesSearch;
   onSearchChange: SearchChange<SchedulesSearch>;
-  columnVisibility: ColumnVisibilityState;
   onAdd: () => void;
 };
 
@@ -142,7 +132,6 @@ function useSchedulesTable({
   rowCount,
   search,
   onSearchChange,
-  columnVisibility,
 }: Omit<SchedulesTableProps, 'onAdd'> & { data: ProcessingSchedule[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
@@ -162,30 +151,20 @@ function useSchedulesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    state: { ...searchState.state, columnVisibility },
   });
 }
 
-export function SchedulesTableSkeleton({
-  search,
-  columnVisibility,
-}: Pick<SchedulesTableProps, 'search' | 'columnVisibility'>) {
+export function SchedulesTableSkeleton({ search }: Pick<SchedulesTableProps, 'search'>) {
   const table = useSchedulesTable({
     data: NO_SCHEDULES,
     rowCount: 0,
     search,
     onSearchChange: noop,
-    columnVisibility,
   });
   return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
 }
 
-export function SchedulesTable({
-  search,
-  onSearchChange,
-  columnVisibility,
-  onAdd,
-}: SchedulesTableProps) {
+export function SchedulesTable({ search, onSearchChange, onAdd }: SchedulesTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(schedulesListOptions(toSchedulesQuery(deferredSearch)));
@@ -194,7 +173,6 @@ export function SchedulesTable({
     rowCount: data.totalElements,
     search: deferredSearch,
     onSearchChange,
-    columnVisibility,
   });
   const isPastLastPage = data.content.length === 0 && data.totalElements > 0;
 

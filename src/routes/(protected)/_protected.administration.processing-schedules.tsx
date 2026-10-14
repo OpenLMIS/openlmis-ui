@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { CalendarDaysIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -24,13 +22,11 @@ import {
 } from '@/features/processing-schedules/components/schedules-table';
 import { SchedulesToolbar } from '@/features/processing-schedules/components/schedules-toolbar';
 import {
-  SCHEDULE_HIDEABLE_COLUMNS,
   type SchedulesSearch,
   schedulesSearchSchema,
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const loadDialog = () => import('@/features/processing-schedules/components/schedule-form-dialog');
 const ScheduleFormDialog = lazy(() =>
@@ -38,8 +34,6 @@ const ScheduleFormDialog = lazy(() =>
 );
 
 const CLOSED_DIALOGS = { schedule: undefined } satisfies Partial<SchedulesSearch>;
-
-const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 export const Route = createFileRoute('/(protected)/_protected/administration/processing-schedules')(
   {
@@ -63,12 +57,6 @@ function SchedulesPage() {
     structuralSharing: true,
   });
   const schedule = Route.useSearch({ select: (search) => search.schedule });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    SCHEDULE_HIDEABLE_COLUMNS,
-    useStoredState('processing-schedules.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<SchedulesSearch>(CLOSED_DIALOGS);
   const addSchedule = useCallback(() => openDialog({ schedule: 'new' }), [openDialog]);
@@ -82,8 +70,8 @@ function SchedulesPage() {
     <Workspace>
       <SchedulesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
-          <SchedulesToolbar columnView={columnView} onAdd={addSchedule} />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6">
+          <SchedulesToolbar onAdd={addSchedule} />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -93,17 +81,10 @@ function SchedulesPage() {
                 title={t('processing-schedules.error-title')}
               />
             )}
-            pendingFallback={
-              <SchedulesTableSkeleton columnVisibility={columnView.visibility} search={search} />
-            }
+            pendingFallback={<SchedulesTableSkeleton search={search} />}
             resetKey={JSON.stringify(search)}
           >
-            <SchedulesTable
-              columnVisibility={columnView.visibility}
-              onAdd={addSchedule}
-              onSearchChange={updateSearch}
-              search={search}
-            />
+            <SchedulesTable onAdd={addSchedule} onSearchChange={updateSearch} search={search} />
           </QueryBoundary>
         </div>
         {dialogsMounted && (
@@ -136,7 +117,7 @@ function SchedulesPagePending() {
     <Workspace>
       <SchedulesHeader />
       <WorkspaceContent>
-        <SchedulesTableSkeleton columnVisibility={{}} search={{}} />
+        <SchedulesTableSkeleton search={{}} />
       </WorkspaceContent>
     </Workspace>
   );
