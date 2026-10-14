@@ -50,6 +50,7 @@ import {
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
+import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import {
   EventLineTable,
   EventLineTableSkeleton,
@@ -63,6 +64,7 @@ import {
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
 import { SubmitConfirmDialog } from '@/features/stock-events/components/submit-confirm-dialog';
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
+import { useStockEventAutosave } from '@/features/stock-events/hooks/use-stock-event-autosave';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
   changeEventLot,
@@ -217,6 +219,7 @@ export function EventEditor({
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [editingLot, setEditingLot] = useState<EventLine | null>(null);
   const [editLotOpen, setEditLotOpen] = useState(false);
@@ -276,6 +279,11 @@ export function EventEditor({
     setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
+  const draft = useStockEventAutosave(
+    config.drafts === 'device' && canViewStock,
+    { kind, facilityId, programId },
+    form,
+  );
   const hasLots =
     !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
   const hasVVM =
@@ -354,11 +362,18 @@ export function EventEditor({
     mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
     retry: false,
   });
-  const pending = refreshing || mutation.isPending;
-  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
-    allowLeave: () => leaving.current,
-    pending,
-  });
+  const pending =
+    refreshing ||
+    mutation.isPending ||
+    (config.drafts === 'device' && (draft.loading || draft.busy));
+  const guard = useDiscardGuard(
+    (config.drafts === 'device' ? draft.protected : lines.length > 0) && !submitted,
+    {
+      allowLeave: () => leaving.current,
+      pending:
+        (!draft.readFailed && pending) || (config.drafts === 'device' && draft.status === 'saving'),
+    },
+  );
   const clearFilter = () => onSearchChange({ keyword: undefined, page: undefined }, true);
   useEffect(() => {
     if (!focusField || search.keyword || (search.page ?? 1) !== focusField.page) return;
@@ -403,6 +418,9 @@ export function EventEditor({
   };
   const submit = async () => {
     if (!mutation.isCurrent()) return;
+    if (config.drafts === 'device') {
+      if (!(await draft.flush()) || !mutation.isCurrent()) return;
+    }
     if (config.contents.type !== 'kit') {
       void validateAndSubmit();
       return;
@@ -683,6 +701,9 @@ export function EventEditor({
                   </ProductLotPicker>
                 </QueryBoundary>
               )}
+              {config.drafts === 'device' && (lines.length > 0 || draft.status !== 'saved') && (
+                <EventDraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
+              )}
               {unknownOutcome && (
                 <ErrorAlert
                   title={t('stock-events.unknown-outcome-title')}
@@ -864,6 +885,10 @@ export function EventEditor({
         count={filtered.length}
         onClear={() => {
           const keys = new Set(filtered.map((line) => line.key));
+          if (config.drafts === 'device') {
+            void draft.clear(keys);
+            return;
+          }
           form.setFieldValue('lines', (current) => current.filter((line) => !keys.has(line.key)));
         }}
       />
@@ -888,7 +913,25 @@ export function EventEditor({
           onConfirm={() => confirmSubmit()}
         />
       )}
-      <DiscardChangesDialog {...guard.dialog} description={t('stock-events.discard-description')} />
+      <DiscardChangesDialog
+        {...guard.dialog}
+        pending={discarding}
+        description={t('stock-events.discard-description')}
+        onDiscard={async () => {
+          if (discarding) return;
+          if (config.drafts === 'device') {
+            setDiscarding(true);
+            const discarded = await draft.discard();
+            if (!mutation.isCurrent()) return;
+            setDiscarding(false);
+            if (!discarded) {
+              guard.dialog.onKeepEditing();
+              return;
+            }
+          }
+          guard.dialog.onDiscard();
+        }}
+      />
       <AlertDialog
         open={!!expiryPrompt}
         onOpenChange={(open) => {

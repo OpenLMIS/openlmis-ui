@@ -17,6 +17,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
@@ -192,6 +193,7 @@ export function SidebarNotices() {
 export function StatusAnnouncer() {
   const notices = useNotices();
   const download = useDownloadStatus();
+  const deviceSave = useDeviceSaveAnnouncement();
   const { t } = useTranslation();
   return (
     <div className="sr-only" role="status">
@@ -199,6 +201,7 @@ export function StatusAnnouncer() {
         ...notices.map(({ title, description, id }) =>
           id === 'offline-download' && description ? `${title}. ${description}` : title,
         ),
+        ...(deviceSave ? [t(deviceSave)] : []),
         ...(download.phase === 'complete' ? [t('offline.download.finished')] : []),
       ].join('. ')}
     </div>

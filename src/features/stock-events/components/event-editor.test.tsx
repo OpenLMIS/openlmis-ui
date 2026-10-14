@@ -59,6 +59,7 @@ import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kind
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { getLocalDb } from '@/integrations/local-db';
 import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -152,12 +153,14 @@ beforeEach(async () => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
+  scanningEnabled = false;
   vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
   vi.mocked(fetchValidReasons)
     .mockReset()
     .mockResolvedValue([{ id: 'assignment', reason, hidden: false }]);
   vi.mocked(fetchTradeItemByGtin).mockReset().mockResolvedValue({ id: 'trade' });
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
+  await getLocalDb().table('stockEventDrafts').clear();
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -877,7 +880,7 @@ describe('EventEditor', () => {
   });
   it('confirms an expiry mismatch once per batch across expiry values and editor openings and ignores aborted scans', async () => {
     setup();
-    await screen.findByRole('combobox', { name: 'Product' });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
     const parsed = {
       ok: true as const,
       gtin: '00012345678905',
@@ -915,14 +918,18 @@ describe('EventEditor', () => {
       await operation;
     });
     expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('32');
+    await screen.findByText('Saved on this device');
     cleanup();
     setup();
-    await screen.findByRole('combobox', { name: 'Product' });
+    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+      '32',
+    );
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
     await act(async () => {
       await scan({ ...parsed, expiry: '2029-01-01' }, signal);
     });
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('16');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('48');
   });
   it('explains missing stock view access and offers no picker', async () => {
     setup(false);
@@ -987,7 +994,7 @@ it.each([true, false])(
   },
 );
 it.each(['success', 'failure'])(
-  'releases reload and sign-out guards only after submit %s',
+  'allows leaving a locally committed Adjustment after submit %s',
   async (outcome) => {
     if (outcome === 'success') vi.mocked(submitStockEvent).mockResolvedValueOnce('new-event');
     else vi.mocked(submitStockEvent).mockRejectedValueOnce(httpError(400));
@@ -998,10 +1005,10 @@ it.each(['success', 'failure'])(
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const unload = new Event('beforeunload', { cancelable: true });
     fireEvent(window, unload);
-    expect(unload.defaultPrevented).toBe(outcome === 'failure');
+    expect(unload.defaultPrevented).toBe(false);
     const leave = vi.fn();
     act(() => whenLeaveAllowed(leave));
-    expect(leave).toHaveBeenCalledTimes(outcome === 'success' ? 1 : 0);
+    expect(leave).toHaveBeenCalledTimes(1);
     if (outcome === 'success') {
       expect(onSubmitted).toHaveBeenCalledWith('new-event');
       expect(refreshOfflineProgram).toHaveBeenCalledWith({
@@ -1368,7 +1375,9 @@ it('stops announcing a busy table after stock cards fail and keeps the retry ava
       }),
     { onCaughtError },
   );
-  expect(await screen.findByText(en['stock-events.cards-error-title'])).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByText(en['stock-events.cards-error-title'])).toBeInTheDocument(),
+  );
   expect(
     screen.getByRole('columnheader', { name: 'Product' }).closest('[aria-busy="true"]'),
   ).toBeNull();
@@ -2041,5 +2050,71 @@ it.each([
     expect(message).toMatchObject({ key });
     expect(fetchTradeItemByGtin).toHaveBeenCalledTimes(1);
     expect(fetchEventStockCards).not.toHaveBeenCalled();
+  },
+);
+
+it('shows failed local commits with Retry and leave protection until a successful retry', async () => {
+  const { user, router } = setup(true, undefined, { browserHistory: true });
+  await add(user);
+  await screen.findByText('Saved on this device');
+  vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
+  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
+  await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+  expect(screen.queryByText('Saved on this device')).not.toBeInTheDocument();
+  const unload = new Event('beforeunload', { cancelable: true });
+  fireEvent(window, unload);
+  expect(unload.defaultPrevented).toBe(true);
+  await user.click(screen.getByRole('button', { name: /^Retry$/ }));
+  await screen.findByText('Saved on this device');
+  const savedUnload = new Event('beforeunload', { cancelable: true });
+  fireEvent(window, savedUnload);
+  expect(savedUnload.defaultPrevented).toBe(false);
+  router?.history.destroy();
+});
+
+it('resumes exact typed quantities and lines after the editor remounts without a discard prompt', async () => {
+  const { user } = setup();
+  await add(user);
+  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
+  await screen.findByText('Saved on this device');
+  const leave = vi.fn();
+  act(() => whenLeaveAllowed(leave));
+  expect(leave).toHaveBeenCalledOnce();
+  cleanup();
+  setup();
+  expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+    '0012',
+  );
+});
+
+it.each([false, true])(
+  'revision-checks a confirmed navigation discard when stale=%s',
+  async (stale) => {
+    const { user } = setup();
+    await add(user);
+    await screen.findByText('Saved on this device');
+    const table = getLocalDb().table('stockEventDrafts');
+    vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
+    await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+    if (stale) {
+      const stored = (await table.toArray())[0];
+      await table.put({ ...stored, revision: stored.revision + 1 });
+    }
+    const leave = vi.fn();
+    act(() => whenLeaveAllowed(leave));
+    await user.click(await screen.findByRole('button', { name: 'Discard And Sign Out' }));
+    if (stale) {
+      await screen.findByText('Draft Changed In Another Tab');
+      expect(leave).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'Keep An Archived Copy' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      const rows = await table.toArray();
+      expect(rows.find((draft) => draft.state === 'archived').lines[0].quantity.doses).toBe('0012');
+      expect(rows.find((draft) => draft.state === 'editing').lines[0].quantity.doses).toBe('');
+    } else {
+      await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+      expect(await table.count()).toBe(0);
+    }
   },
 );

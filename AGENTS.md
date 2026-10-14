@@ -989,7 +989,8 @@ return data, unavailable or a handled error; local absence is never a server 404
 
 - Adjustments reads and downloads share `src/lib/adjustment-bundle.ts`; online queries never
   persist bundles. Foreground reads join matching coordinator downloads, restart independently
-  after cancellation or background 401, and retain normal session renewal/replay. Only coordinator
+  after a shared download failure, except identity/session-scope errors, and retain normal
+  session renewal/replay. Only coordinator
   downloads use fail-fast `backgroundRead`.
   Bundle cards/reasons use scoped keys from `adjustmentBundleKeys`; pass the same scope to the
   picker. Online scans retain `tradeItemByGtinOptions`; only unreachable/offline reads consult
@@ -1002,3 +1003,26 @@ return data, unavailable or a handled error; local absence is never a server 404
   viewing rights from downloads/failures. Passive tabs observe lock release to clear orphaned
   progress. Fresh boots publish no download transition. Sidebar notices use stable ids, never
   variant keys; only `StatusAnnouncer` announces transitions and completion clears after 4 s.
+
+
+### Stock event device drafts
+
+- Dexie v4 adds only `stockEventDrafts`; queue, error and receipt tables need later versions.
+  The kind's `drafts` policy enables device autosave only for Adjustments. Other event kinds
+  keep their existing leave guards and online behavior.
+- `stock-event-local.ts` captures the owning database and session scope. Check scope after
+  every await inside write transactions so identity changes roll back writes. Sign-out closes
+  the database and retains drafts. Keep display snapshots and all `QuantityValue` text parts.
+- Enforce one editing draft per kind/facility/program transactionally. Compare both draft id
+  and revision before autosave, confirmed Clear and navigation Discard. Increment revisions
+  for saved editing drafts.
+  A mismatch stops writes. Load explicitly replaces editor values; Copy archives current edits
+  and loads the current stored draft in one transaction. Subscriptions must never replace edits.
+- `use-stock-event-autosave` debounces edits for 350 ms and uses one serial writer. Stage edits
+  immediately for leave protection, and flush before subsequent durable transitions. Only show
+  Saved On This Device after transaction commit; failures stay visible with Retry, including
+  while retrying. Keep committed drafts on navigation and resume them before enabling edits.
+- Route device-save failures, recovery and archived-copy announcements through the shell's
+  `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
+  Stage 6 must replace the existing direct submission path with revision-checked durable enqueue
+  and retire its editing draft; stage 5 alone is not releasable.
