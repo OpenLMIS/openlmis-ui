@@ -80,6 +80,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                 const observedChannel = channel;
                 void navigator.locks
                   .request(name, { mode: 'shared' }, async () => {
+                    // Completion messages may still be in flight after the lock is released.
                     await new Promise((resolve) => setTimeout(resolve, 25));
                     if (stopped || scope !== getSessionScope() || channel !== observedChannel)
                       return;

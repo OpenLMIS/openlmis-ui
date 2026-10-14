@@ -300,3 +300,31 @@ it('keeps a scan-enabled program usable when a referenced trade item is missing'
   expect(downloaded.cards).toHaveLength(2);
   expect(downloaded.tradeItems).toEqual([]);
 });
+
+it('restarts its own read when coordinator trade items fail with 500', async () => {
+  const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+  let fail!: () => void;
+  const held = new Promise<void>((resolve) => {
+    fail = resolve;
+  });
+  client.defaults.adapter = async (config) => {
+    if (config.url === '/tradeItems') {
+      await held;
+      throw new AxiosError('Failed', AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+        data: {},
+        status: 500,
+        statusText: 'Failed',
+        headers: {},
+        config,
+      });
+    }
+    return adapter(config);
+  };
+  const background = fetchAdjustmentBundle(filter);
+  const rejected = expect(background).rejects.toMatchObject({ response: { status: 500 } });
+  const foreground = getAdjustmentBundle(filter);
+  fail();
+  await rejected;
+  expect((await foreground).cards).toHaveLength(2);
+  expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(4);
+});
