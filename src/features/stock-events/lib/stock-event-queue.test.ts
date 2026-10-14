@@ -10,6 +10,9 @@ import {
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { getLocalDb } from '@/integrations/local-db';
+import { announceQueuedEvents } from '@/lib/device-event-status';
+
+vi.mock('@/lib/device-event-status', () => ({ announceQueuedEvents: vi.fn() }));
 
 const selection = { kind: 'adjustment' as const, facilityId: 'facility', programId: 'program' };
 const line = newEventLine(
@@ -47,6 +50,7 @@ it('rolls back both sides if the queue insert or draft freeze fails', async () =
     await expect(enqueueStockEvent(context, draft, payload(), display)).rejects.toThrow('quota');
     expect(await readStockEventDraft(context)).toEqual(draft);
     expect(await context.db.table('stockEventQueue').count()).toBe(0);
+    expect(announceQueuedEvents).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   }
 });
@@ -60,6 +64,7 @@ it('duplicate confirmation freezes one exact revision and body; queued work cann
     enqueueStockEvent(context, draft, body, display),
   ]);
   expect(first.localEventId).toBe(second.localEventId);
+  expect(announceQueuedEvents).toHaveBeenCalledExactlyOnceWith(1);
   expect(await context.db.table('stockEventQueue').count()).toBe(1);
   expect(first.postBody).toBe(JSON.stringify(body));
   expect(first.payload).toEqual(body);

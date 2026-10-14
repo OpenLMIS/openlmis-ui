@@ -107,7 +107,7 @@ export function createStockEventWriter(
         } catch (error) {
           latest ??= current;
           stopped = true;
-          conflict = error instanceof DraftConflictError;
+          conflict ||= error instanceof DraftConflictError;
           onStatus({ status: conflict ? 'conflict' : 'failed', error });
           throw error;
         }
