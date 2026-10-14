@@ -303,8 +303,18 @@ it.each([false, true])(
         expect.any(Function),
       ),
     );
-    if (final) receive({ data: { type: 'status', status: { phase: 'complete', failed: [] } } });
     release();
+    if (final) {
+      let phaseBeforeFinal = getDownloadStatus().phase;
+      await new Promise<void>((resolve) =>
+        setTimeout(() => {
+          phaseBeforeFinal = getDownloadStatus().phase;
+          receive({ data: { type: 'status', status: { phase: 'complete', failed: [] } } });
+          resolve();
+        }, 0),
+      );
+      expect(phaseBeforeFinal).toBe('running');
+    }
     await waitFor(() => expect(getDownloadStatus().phase).toBe(final ? 'complete' : 'failed'));
   },
 );
@@ -349,4 +359,47 @@ it('queues a submitted program refresh behind an older in-flight batch', async (
   await waitFor(() => expect(download).toHaveBeenCalledTimes(3));
   await finished();
   expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p1', 'p2', 'p1']);
+});
+
+it('drops refresh requests outside eligible home programs so an observed completion satisfies later triggers', async () => {
+  vi.mocked(raw.permissions).mockResolvedValueOnce([
+    'STOCK_ADJUST|home|p1',
+    'STOCK_ADJUST|home|p2',
+    'STOCK_CARDS_VIEW|home|p2',
+  ]);
+  let receive!: (event: { data: unknown }) => void;
+  vi.stubGlobal(
+    'BroadcastChannel',
+    class {
+      set onmessage(value: typeof receive) {
+        receive = value;
+      }
+      postMessage() {}
+      close() {}
+    },
+  );
+  let completedLocks = 0;
+  let remoteCompletion = false;
+  vi.mocked(navigator.locks.request).mockImplementation(async (_name, _options, task) => {
+    if (remoteCompletion) {
+      receive({ data: { type: 'status', status: { phase: 'running', failed: [] } } });
+      receive({ data: { type: 'status', status: { phase: 'complete', failed: [] } } });
+    }
+    const result = await task({} as Lock);
+    completedLocks += 1;
+    return result;
+  });
+  begin();
+  await finished();
+  await waitFor(() => expect(completedLocks).toBe(1));
+  download.mockClear();
+  refreshOfflineProgram({ facilityId: 'away', programId: 'p2' });
+  await waitFor(() => expect(completedLocks).toBe(2));
+  refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
+  await waitFor(() => expect(completedLocks).toBe(3));
+  remoteCompletion = true;
+  onlineManager.setOnline(false);
+  onlineManager.setOnline(true);
+  await waitFor(() => expect(completedLocks).toBeGreaterThanOrEqual(4));
+  expect(download).not.toHaveBeenCalled();
 });

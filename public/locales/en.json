@@ -520,6 +520,7 @@
   "offline.download.finished": "Offline Download Finished",
   "offline.download.incomplete": "Offline Download Incomplete",
   "offline.download.locks-required": "This browser cannot coordinate offline downloads. Use a browser with Web Locks support.",
+  "offline.download.needs-refresh": "Needs Refresh",
   "offline.download.not-downloaded": "Not Downloaded",
   "offline.download.readiness": "Offline Readiness",
   "offline.download.ready": "Ready Offline",

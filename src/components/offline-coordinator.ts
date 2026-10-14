@@ -79,7 +79,8 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                 const scope = getSessionScope();
                 const observedChannel = channel;
                 void navigator.locks
-                  .request(name, { mode: 'shared' }, () => {
+                  .request(name, { mode: 'shared' }, async () => {
+                    await new Promise((resolve) => setTimeout(resolve, 25));
                     if (stopped || scope !== getSessionScope() || channel !== observedChannel)
                       return;
                     const status = getDownloadStatus();
@@ -233,6 +234,11 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           }
           queue.push(program);
         }
+        const eligibleKeys = new Set(
+          eligible.map((program) => programKey(home?.id ?? '', program.id)),
+        );
+        for (const requestKey of refreshPrograms)
+          if (!eligibleKeys.has(requestKey)) refreshPrograms.delete(requestKey);
         if (!refreshAccess && !queue.length) return;
         let reason: DownloadStatus['reason'];
         const incomplete = new Map(

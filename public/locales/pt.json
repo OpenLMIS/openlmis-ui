@@ -520,6 +520,7 @@
   "offline.download.finished": "Transferência Offline Concluída",
   "offline.download.incomplete": "Transferência Offline Incompleta",
   "offline.download.locks-required": "Este navegador não consegue coordenar as transferências offline. Utilize um navegador com suporte para Web Locks.",
+  "offline.download.needs-refresh": "Precisa de Atualização",
   "offline.download.not-downloaded": "Não Transferido",
   "offline.download.readiness": "Disponibilidade Offline",
   "offline.download.ready": "Disponível Offline",

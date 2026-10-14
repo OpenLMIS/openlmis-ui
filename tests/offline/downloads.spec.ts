@@ -158,7 +158,7 @@ test('held and failed background downloads allow sign-in and navigation', async 
   await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
 });
 
-test('complete bundle survives persistent-context restart offline and missing program shows download notice', async () => {
+test('stale bundle survives offline restart with its download time and missing program shows download notice', async () => {
   const directory = await mkdtemp(resolve('.offline/profile-stage-4-'));
   let context = await chromium.launchPersistentContext(directory, {
     headless: true,
@@ -180,6 +180,29 @@ test('complete bundle survives persistent-context restart offline and missing pr
         ),
       ),
     );
+    const downloadedAt = await page.getByText(/^Downloaded /).textContent();
+    await page.evaluate(async () => {
+      const name = (await indexedDB.databases()).find((db) =>
+        db.name?.endsWith(':download-user'),
+      )?.name;
+      if (!name) throw new Error('Download database missing');
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction('adjustmentDownloads', 'readwrite');
+          const table = transaction.objectStore('adjustmentDownloads');
+          const read = table.get(['home', 'program']);
+          read.onsuccess = () => table.put({ ...read.result, stale: true });
+          transaction.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          transaction.onerror = () => reject(transaction.error);
+        };
+      });
+    });
     await context.close();
     context = await chromium.launchPersistentContext(directory, {
       headless: true,
@@ -188,7 +211,8 @@ test('complete bundle survives persistent-context restart offline and missing pr
     });
     page = context.pages()[0];
     await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments');
-    await expect(page.getByText('Ready Offline', { exact: true })).toBeVisible();
+    await expect(page.getByText('Needs Refresh', { exact: true })).toBeVisible();
+    await expect(page.getByText(downloadedAt ?? '', { exact: true })).toBeVisible();
     await expect(page.getByText('Not Downloaded', { exact: true })).toBeVisible();
     await page
       .getByRole('row')

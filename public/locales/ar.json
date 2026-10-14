@@ -520,6 +520,7 @@
   "offline.download.finished": "اكتمل تنزيل البيانات للعمل دون اتصال",
   "offline.download.incomplete": "تنزيل البيانات للعمل دون اتصال غير مكتمل",
   "offline.download.locks-required": "لا يمكن لهذا المتصفح تنسيق تنزيل البيانات للعمل دون اتصال. استخدم متصفحًا يدعم Web Locks.",
+  "offline.download.needs-refresh": "يحتاج إلى تحديث",
   "offline.download.not-downloaded": "لم يُنزّل",
   "offline.download.readiness": "الجاهزية للعمل دون اتصال",
   "offline.download.ready": "جاهز للعمل دون اتصال",
