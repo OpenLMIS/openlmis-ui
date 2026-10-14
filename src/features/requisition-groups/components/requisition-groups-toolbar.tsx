@@ -60,15 +60,6 @@ export function RequisitionGroupsToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-56">
-        <DataTableComboboxFilter
-          label={t('requisition-groups.zone')}
-          limit={-1}
-          onValueChange={(zone) => onFilterChange({ zone: zone || undefined, page: undefined })}
-          options={zoneFilter.options}
-          value={zoneFilter.value}
-        />
-      </div>
-      <div className="w-full @2xl/main:w-56">
         <DataTableSelectFilter
           allLabel={t('requisition-groups.all-programs')}
           label={t('requisition-groups.program')}
@@ -77,6 +68,15 @@ export function RequisitionGroupsToolbar({
           }
           options={programFilter.options}
           value={programFilter.value}
+        />
+      </div>
+      <div className="w-full @2xl/main:w-56">
+        <DataTableComboboxFilter
+          label={t('requisition-groups.zone')}
+          limit={-1}
+          onValueChange={(zone) => onFilterChange({ zone: zone || undefined, page: undefined })}
+          options={zoneFilter.options}
+          value={zoneFilter.value}
         />
       </div>
       <div className="@2xl/main:ms-auto">

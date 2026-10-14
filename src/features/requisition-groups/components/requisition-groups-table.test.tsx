@@ -26,7 +26,7 @@ vi.mock('@/features/requisition-groups/api/api', () => ({ searchRequisitionGroup
 
 const schedule = (name: string, id = name): ProgramSchedule => ({
   id,
-  program: { id: name, name },
+  program: { id, name },
   processingSchedule: { id: 'schedule' },
   directDelivery: false,
 });
@@ -99,7 +99,7 @@ describe('RequisitionGroupsTable', () => {
       group('Many Schedules', [
         schedule('Family Planning'),
         schedule('Malaria'),
-        schedule('Malaria'),
+        schedule('Malaria', 'malaria-second'),
       ]),
     ]);
     const noSchedules = (await screen.findByText('No Schedules')).closest('tr') as HTMLElement;
@@ -107,7 +107,7 @@ describe('RequisitionGroupsTable', () => {
     const one = screen.getByText('One Schedule').closest('tr') as HTMLElement;
     expect(within(one).getAllByRole('cell')[1]).toHaveTextContent('Malaria');
     expect(within(one).queryByRole('button', { name: /Programs/ })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '3 Programs' }));
+    await userEvent.click(screen.getByRole('button', { name: '3 Programs In Many Schedules' }));
     const popover = await screen.findByRole('dialog');
     expect(within(popover).getByText('Family Planning')).toBeVisible();
     expect(within(popover).getAllByText('Malaria')).toHaveLength(2);

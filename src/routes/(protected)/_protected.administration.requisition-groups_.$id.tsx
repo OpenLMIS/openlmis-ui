@@ -94,7 +94,6 @@ function ViewGroupPending() {
   const { t } = useTranslation();
   return (
     <RequisitionGroupEditorSkeleton
-      title={t('requisition-groups.view-title')}
       description={t('requisition-groups.form.view-description')}
       readOnly
     />

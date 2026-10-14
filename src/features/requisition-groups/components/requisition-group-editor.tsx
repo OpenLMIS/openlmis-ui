@@ -100,6 +100,7 @@ import type {
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { tableValue } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
 import { getSessionScope } from '@/lib/session-scope';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
@@ -385,15 +386,15 @@ function NodeControl({
   nodes: RequisitionGroup['supervisoryNode'][];
 }) {
   const { t } = useTranslation();
+  const items = useMemo(
+    () => nodes.map((node) => ({ value: node.id, label: node.name, description: node.code })),
+    [nodes],
+  );
   return (
     <form.AppField name="nodeId">
       {(field) => (
         <field.ComboboxField
-          items={nodes.map((node) => ({
-            value: node.id,
-            label: node.name,
-            description: node.code,
-          }))}
+          items={items}
           label={t('requisition-groups.form.node')}
           placeholder={t('requisition-groups.form.pick-node')}
           clearLabel={t('requisition-groups.form.clear-node')}
@@ -451,12 +452,21 @@ function DropOffName({ id }: { id: string | undefined }) {
         <Skeleton fill />
       </div>
     );
-  return data?.find((facility) => facility.id === id)?.name ?? id;
+  return (
+    <span className="whitespace-normal break-words" dir="auto">
+      {tableValue(data?.find((facility) => facility.id === id)?.name)}
+    </span>
+  );
 }
 function programColumns(t: TFunction, remove?: (row: ProgramSchedule) => void) {
   return programColumn.columns([
-    programColumn.accessor((row) => row.program.name ?? row.program.id, {
+    programColumn.accessor((row) => tableValue(row.program.name), {
       id: 'program',
+      cell: ({ getValue }) => (
+        <span className="whitespace-normal break-words" dir="auto">
+          {getValue()}
+        </span>
+      ),
       header: () => (
         <DataTableHeaderLabel>{t('requisition-groups.form.program')}</DataTableHeaderLabel>
       ),
@@ -466,6 +476,11 @@ function programColumns(t: TFunction, remove?: (row: ProgramSchedule) => void) {
         row.processingSchedule.name ?? row.processingSchedule.code ?? row.processingSchedule.id,
       {
         id: 'schedule',
+        cell: ({ getValue }) => (
+          <span className="whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ),
         header: () => (
           <DataTableHeaderLabel>
             {t('requisition-groups.form.schedule-column')}
@@ -481,6 +496,7 @@ function programColumns(t: TFunction, remove?: (row: ProgramSchedule) => void) {
       cell: ({ row }) => <DropOffName id={row.original.dropOffFacility?.id} />,
     }),
     programColumn.accessor('directDelivery', {
+      meta: { className: 'w-36' },
       header: () => (
         <DataTableHeaderLabel>{t('requisition-groups.form.direct-delivery')}</DataTableHeaderLabel>
       ),
@@ -584,23 +600,39 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
 function memberColumns(t: TFunction, remove?: (row: MemberFacility) => void) {
   return memberColumn.columns([
     memberColumn.accessor('name', {
+      cell: ({ getValue }) => (
+        <span className="whitespace-normal break-words" dir="auto">
+          {getValue()}
+        </span>
+      ),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.facility-name')} />
       ),
     }),
     memberColumn.accessor((row) => row.geographicZone?.name ?? '', {
       id: 'zone',
+      cell: ({ getValue }) => (
+        <span className="whitespace-normal break-words" dir="auto">
+          {getValue()}
+        </span>
+      ),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.zone')} />
       ),
     }),
     memberColumn.accessor((row) => row.type?.name ?? '', {
       id: 'type',
+      cell: ({ getValue }) => (
+        <span className="whitespace-normal break-words" dir="auto">
+          {getValue()}
+        </span>
+      ),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.type')} />
       ),
     }),
     memberColumn.accessor('enabled', {
+      meta: { className: 'w-40' },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.enabled')} />
       ),
@@ -866,6 +898,15 @@ function ProgramPicker({ form, rows }: { form: ProgramForm; rows: ProgramSchedul
 function SchedulePicker({ form }: { form: ProgramForm }) {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(REQUISITION_GROUP_LOOKUPS.schedules);
+  const items = useMemo(
+    () =>
+      data.map((schedule) => ({
+        value: schedule.id,
+        label: schedule.name,
+        description: schedule.code,
+      })),
+    [data],
+  );
   return (
     <form.AppField name="scheduleId">
       {(field) => (
@@ -875,11 +916,7 @@ function SchedulePicker({ form }: { form: ProgramForm }) {
           placeholder={t('requisition-groups.form.pick-schedule')}
           clearLabel={t('requisition-groups.form.clear-schedule')}
           emptyMessage={t('requisition-groups.form.no-options')}
-          items={data.map((schedule) => ({
-            value: schedule.id,
-            label: schedule.name,
-            description: schedule.code,
-          }))}
+          items={items}
         />
       )}
     </form.AppField>
@@ -888,6 +925,15 @@ function SchedulePicker({ form }: { form: ProgramForm }) {
 function DropOffPicker({ form }: { form: ProgramForm }) {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(REQUISITION_GROUP_LOOKUPS.facilities);
+  const items = useMemo(
+    () =>
+      data.map((facility) => ({
+        value: facility.id,
+        label: facility.name,
+        description: facility.code,
+      })),
+    [data],
+  );
   return (
     <form.AppField name="dropOffId">
       {(field) => (
@@ -896,11 +942,7 @@ function DropOffPicker({ form }: { form: ProgramForm }) {
           placeholder={t('requisition-groups.form.pick-facility')}
           clearLabel={t('requisition-groups.form.clear-facility')}
           emptyMessage={t('requisition-groups.form.no-options')}
-          items={data.map((facility) => ({
-            value: facility.id,
-            label: facility.name,
-            description: facility.code,
-          }))}
+          items={items}
         />
       )}
     </form.AppField>
@@ -1013,7 +1055,18 @@ function FacilityPicker({
 }) {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(REQUISITION_GROUP_LOOKUPS.facilities);
-  const ids = new Set(rows.map((row) => row.id));
+  const ids = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
+  const items = useMemo(
+    () =>
+      data
+        .filter((facility) => !ids.has(facility.id))
+        .map((facility) => ({
+          value: facility.id,
+          label: facility.name,
+          description: facility.code,
+        })),
+    [data, ids],
+  );
   return (
     <form.AppField name="facilityId">
       {(field) => (
@@ -1024,13 +1077,7 @@ function FacilityPicker({
           placeholder={t('requisition-groups.form.pick-facility')}
           clearLabel={t('requisition-groups.form.clear-facility')}
           emptyMessage={t('requisition-groups.form.no-options')}
-          items={data
-            .filter((facility) => !ids.has(facility.id))
-            .map((facility) => ({
-              value: facility.id,
-              label: facility.name,
-              description: facility.code,
-            }))}
+          items={items}
         />
       )}
     </form.AppField>

@@ -53,7 +53,7 @@ function createColumns(
         <DataTableColumnHeader column={column} title={t('requisition-groups.name')} />
       ),
       cell: ({ getValue }) => (
-        <span className="font-medium" dir="auto">
+        <span className="font-medium whitespace-normal break-words" dir="auto">
           {getValue()}
         </span>
       ),
@@ -65,7 +65,10 @@ function createColumns(
         <DataTableColumnHeader column={column} title={t('requisition-groups.program')} />
       ),
       cell: ({ row }) => (
-        <ProgramNamesCell schedules={row.original.requisitionGroupProgramSchedules} />
+        <ProgramNamesCell
+          name={row.original.name}
+          schedules={row.original.requisitionGroupProgramSchedules}
+        />
       ),
     }),
     columnHelper.accessor('code', {
@@ -125,7 +128,10 @@ function RequisitionGroupActions({
         <DropdownMenuTrigger
           render={
             <Button
-              aria-label={t('requisition-groups.actions-for', { name: group.name })}
+              aria-label={t('requisition-groups.actions-for', {
+                name: group.name,
+                code: group.code,
+              })}
               size="icon-sm"
               variant="ghost"
             />

@@ -4,7 +4,6 @@ import { tableSearchSchema, textFilterSchema, toPaginationState } from '@/lib/ta
 
 export const REQUISITION_GROUP_HIDEABLE_COLUMNS = [
   { id: 'program', labelKey: 'requisition-groups.program', hideBelow: 'lg' },
-  { id: 'code', labelKey: 'requisition-groups.code', hideBelow: 'lg' },
   { id: 'supervisoryNode', labelKey: 'requisition-groups.supervisory-node', hideBelow: '4xl' },
   { id: 'zone', labelKey: 'requisition-groups.zone', hideBelow: '5xl' },
   { id: 'facilityCount', labelKey: 'requisition-groups.facility-count', hideBelow: '2xl' },
