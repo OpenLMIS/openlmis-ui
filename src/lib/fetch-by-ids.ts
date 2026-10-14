@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import { client } from '@/integrations/axios';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { settleFew } from '@/lib/settle-few';
@@ -25,6 +26,7 @@ export async function fetchByIds<T extends { id: string }>(
   path: string,
   ids: readonly string[],
   param = 'id',
+  config?: AxiosRequestConfig,
 ) {
   const scope = getSessionScope();
   const batches = await fetchIdBatches(ids, async (batch) => {
@@ -32,6 +34,7 @@ export async function fetchByIds<T extends { id: string }>(
     for (let page = 0; ; page += 1) {
       assertSessionScope(scope);
       const { data } = await client.get<Page<T>>(path, {
+        ...config,
         params: { [param]: batch, page, size: BY_IDS_BATCH },
         paramsSerializer: { indexes: null },
       });

@@ -1,4 +1,12 @@
-import { type LucideIcon, RefreshCwIcon, WifiIcon, WifiOffIcon, XIcon } from 'lucide-react';
+import {
+  AlertTriangleIcon,
+  LoaderCircleIcon,
+  type LucideIcon,
+  RefreshCwIcon,
+  WifiIcon,
+  WifiOffIcon,
+  XIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -9,10 +17,13 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
 
 type Notice = {
+  id: string;
+  spinning?: boolean;
   variant: 'warning' | 'success' | 'info';
   Icon: LucideIcon;
   title: string;
@@ -33,9 +44,11 @@ function useNotices(): Notice[] {
   const backOnline = useBackOnline();
   const updateReady = useUpdateReady();
 
+  const download = useDownloadStatus();
   const notices: Notice[] = [];
   if (!online) {
     notices.push({
+      id: 'connection-offline',
       variant: 'warning',
       Icon: WifiOffIcon,
       title: t('offline.title'),
@@ -44,6 +57,7 @@ function useNotices(): Notice[] {
   }
   if (online && backOnline) {
     notices.push({
+      id: 'connection-restored',
       variant: 'success',
       Icon: WifiIcon,
       title: t('offline.back-online'),
@@ -52,6 +66,7 @@ function useNotices(): Notice[] {
   }
   if (updateReady) {
     notices.push({
+      id: 'app-update',
       variant: 'info',
       Icon: RefreshCwIcon,
       title: t('update.title'),
@@ -60,6 +75,42 @@ function useNotices(): Notice[] {
         onClick: () => whenLeaveAllowed(() => void applyUpdate(allowUnload)),
       },
       onClose: dismissUpdate,
+    });
+  }
+  if (download.phase === 'running')
+    notices.push({
+      id: 'offline-download',
+      variant: 'info',
+      Icon: LoaderCircleIcon,
+      spinning: true,
+      title: t('offline.download.fetching'),
+    });
+  if (download.phase === 'unsupported')
+    notices.push({
+      id: 'offline-download',
+      variant: 'warning',
+      Icon: AlertTriangleIcon,
+      title: t('offline.download.unavailable'),
+      description: t('offline.download.locks-required'),
+    });
+  if (download.phase === 'failed') {
+    const reason = download.reason ?? 'read';
+    notices.push({
+      id: 'offline-download',
+      variant: 'warning',
+      Icon: AlertTriangleIcon,
+      title: t('offline.download.incomplete'),
+      description: [
+        t(`offline.download.failure-${reason}`),
+        download.failed.length
+          ? t('offline.download.failed-programs', {
+              programs: download.failed.map((program) => program.name).join(', '),
+            })
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+      action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
     });
   }
   return notices;
@@ -75,19 +126,25 @@ export function SidebarNotices() {
   if (!isMobile && state === 'collapsed') {
     return (
       <SidebarMenu>
-        {notices.map(({ variant, Icon, title, action }) => (
-          <SidebarMenuItem key={variant}>
+        {notices.map(({ id, variant, Icon, title, description, action, spinning }) => (
+          <SidebarMenuItem key={id}>
             {action ? (
               <SidebarMenuButton
                 aria-label={action.label}
                 onClick={action.onClick}
-                tooltip={`${title}: ${action.label}`}
+                tooltip={`${title}${description ? `: ${description}` : ''}: ${action.label}`}
               >
-                <Icon className={ICON_TONE[variant]} />
+                <Icon className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`} />
               </SidebarMenuButton>
             ) : (
-              <SidebarMenuButton render={<span />} tooltip={title}>
-                <Icon aria-hidden="true" className={ICON_TONE[variant]} />
+              <SidebarMenuButton
+                render={<span />}
+                tooltip={description ? `${title}: ${description}` : title}
+              >
+                <Icon
+                  aria-hidden="true"
+                  className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`}
+                />
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>
@@ -98,9 +155,9 @@ export function SidebarNotices() {
 
   return (
     <div className="flex flex-col gap-2">
-      {notices.map(({ variant, Icon, title, description, action, onClose }) => (
-        <Alert key={variant} role="note" variant={variant}>
-          <Icon />
+      {notices.map(({ id, variant, Icon, title, description, action, onClose, spinning }) => (
+        <Alert key={id} role="note" variant={variant}>
+          <Icon aria-hidden="true" className={spinning ? 'animate-spin' : undefined} />
           <AlertTitle>{title}</AlertTitle>
           {(description || action) && (
             <AlertDescription>
@@ -134,9 +191,16 @@ export function SidebarNotices() {
 
 export function StatusAnnouncer() {
   const notices = useNotices();
+  const download = useDownloadStatus();
+  const { t } = useTranslation();
   return (
     <div className="sr-only" role="status">
-      {notices.map(({ title }) => title).join('. ')}
+      {[
+        ...notices.map(({ title, description, id }) =>
+          id === 'offline-download' && description ? `${title}. ${description}` : title,
+        ),
+        ...(download.phase === 'complete' ? [t('offline.download.finished')] : []),
+      ].join('. ')}
     </div>
   );
 }

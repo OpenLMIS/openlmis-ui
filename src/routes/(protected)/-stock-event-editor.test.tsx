@@ -70,6 +70,8 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  storedTimeZone: () => 'UTC',
+  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
   fetchReasons: vi.fn(),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
@@ -80,6 +82,25 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacilityOrderableFulfills: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
   fetchLotsByTradeItems: vi.fn(),
+}));
+
+vi.mock('@/lib/adjustment-bundle', async (original) => ({
+  ...(await original<typeof import('@/lib/adjustment-bundle')>()),
+  getAdjustmentBundle: async (filter: {
+    facilityId: string;
+    programId: string;
+    facilityTypeId: string;
+  }) => ({
+    cards: await fetchEventStockCards({
+      facilityId: filter.facilityId,
+      programId: filter.programId,
+    }),
+    reasons: await fetchValidReasons({
+      program: filter.programId,
+      facilityType: filter.facilityTypeId,
+    }),
+    tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
+  }),
 }));
 
 vi.mock('@/features/stock-events/api/api', () => ({
@@ -291,7 +312,10 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
           .getAllByRole('row')
           .slice(1)
           .map((row) => row.textContent),
-      ).toEqual([`Essential Meds${copy}.make`, `Family Planning${copy}.make`]);
+      ).toEqual([
+        `Essential Meds${kind === 'adjustments' ? 'offline.download.not-downloaded' : ''}${copy}.make`,
+        `Family Planning${kind === 'adjustments' ? 'offline.download.not-downloaded' : ''}${copy}.make`,
+      ]);
       const row = screen.getByText('Essential Meds').closest('tr') as HTMLElement;
       const link = within(row).getByRole('link', { name: `${copy}.make` });
       expect(link).toHaveAttribute('href', `${PICKER}/${EM}`);

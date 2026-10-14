@@ -919,3 +919,9 @@ return data, unavailable or a handled error; local absence is never a server 404
   use `fetchQuery` to refresh them before checking access. Only `homeFacilityOptions` reads
   the stripped facility snapshot; `facilityOptions` stays online-only for whole-record saves.
   Background reads retain session-scope checks even with `session: false`.
+
+- Adjustments reads and downloads share `src/lib/adjustment-bundle.ts`; online queries never
+  persist bundles. Only the shell coordinator publishes complete generations under the
+  database's `offline-download` Web Lock. Keep the future upload lock separate and retain
+  previous bundles on refresh failure. Sidebar notices use stable ids, never variant keys;
+  only `StatusAnnouncer` announces download transitions.

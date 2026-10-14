@@ -6,6 +6,7 @@ import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sideba
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
+import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
 
@@ -59,6 +60,7 @@ afterEach(() => {
     onlineManager.setOnline(true);
     dismissBackOnline();
     dismissUpdate();
+    setDownloadStatus({ phase: 'idle', failed: [] });
   });
 });
 
@@ -158,6 +160,28 @@ describe('StatusAnnouncer', () => {
     act(() => onlineManager.setOnline(true));
     expect(region).toHaveTextContent('offline.back-online');
   });
+});
+
+it('keeps concurrent warning notes separate and announces download start, finish and failure once', () => {
+  renderNotices();
+  act(() => setDownloadStatus({ phase: 'running', failed: [] }));
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.fetching');
+  expect(screen.getAllByRole('status')).toHaveLength(1);
+  expect(screen.getByRole('note')).toHaveTextContent('offline.download.fetching');
+  act(() => setDownloadStatus({ phase: 'complete', failed: [] }));
+  expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
+  act(() => {
+    onlineManager.setOnline(false);
+    setDownloadStatus({
+      phase: 'failed',
+      failed: [{ id: 'med', name: 'Medicines' }],
+      reason: 'timeout',
+    });
+  });
+  expect(screen.getAllByRole('note')).toHaveLength(2);
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.failed-programs');
+  expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeInTheDocument();
 });
 
 describe('OfflineDot', () => {

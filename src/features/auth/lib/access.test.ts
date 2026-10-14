@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError, isForbidden, requireRight } from '@/features/auth/lib/access';
+import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { queryClient } from '@/integrations/tanstack-query';
 
@@ -64,10 +65,23 @@ describe('requireRight', () => {
     },
   );
 
+  it('ends a rights retry when the user signs out', async () => {
+    let release!: (rights: string[]) => void;
+    permissionStrings.mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const pending = requireRight(new QueryClient(), 'USERS_MANAGE');
+    useLoginData.getState().clearLoginData();
+    release(['USERS_MANAGE']);
+    await expect(pending).rejects.toBeInstanceOf(SessionEndedError);
+  });
+
   it('throws without asking the server when nobody is signed in', async () => {
     useLoginData.setState({ referenceDataUserId: null });
     await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).rejects.toBeInstanceOf(
-      ForbiddenError,
+      SessionEndedError,
     );
     expect(permissionStrings).not.toHaveBeenCalled();
   });

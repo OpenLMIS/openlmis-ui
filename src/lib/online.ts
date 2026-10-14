@@ -3,6 +3,9 @@ import { useEffect, useEffectEvent, useSyncExternalStore } from 'react';
 
 const BACK_ONLINE_MS = 4000;
 
+let connectionGeneration = 0;
+export const getConnectionGeneration = () => connectionGeneration;
+
 let backOnline = false;
 let backOnlineTimer: ReturnType<typeof setTimeout> | undefined;
 const backOnlineListeners = new Set<() => void>();
@@ -13,6 +16,7 @@ function setBackOnline(value: boolean) {
 }
 
 onlineManager.subscribe((online) => {
+  if (online) connectionGeneration += 1;
   clearTimeout(backOnlineTimer);
   setBackOnline(online);
   if (online) backOnlineTimer = setTimeout(() => setBackOnline(false), BACK_ONLINE_MS);

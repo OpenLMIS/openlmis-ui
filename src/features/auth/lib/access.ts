@@ -1,8 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { permissionsOptions } from '@/features/auth/api/queries';
+import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isRefused } from '@/lib/http';
-import { type Permissions, parsePermissions } from '@/lib/permissions';
+import type { Permissions } from '@/lib/permissions';
 import { getSessionScope } from '@/lib/session-scope';
 
 /** Thrown by a route whose user lacks every right that opens the page. */
@@ -26,11 +27,10 @@ export async function requirePermissions(
   while (true) {
     const scope = getSessionScope();
     const userId = useLoginData.getState().referenceDataUserId;
+    if (!userId) throw new SessionEndedError();
     let permissions: Permissions;
     try {
-      permissions = userId
-        ? await queryClient.fetchQuery(permissionsOptions(userId))
-        : parsePermissions([]);
+      permissions = await queryClient.fetchQuery(permissionsOptions(userId));
     } catch (error) {
       if (scope !== getSessionScope()) continue;
       throw error;

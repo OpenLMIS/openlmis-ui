@@ -181,14 +181,24 @@ function latestVersions(orderables: readonly Orderable[]) {
   return [...latest.values()];
 }
 
-export async function fetchOrderablesByIds(ids: readonly string[]): Promise<Orderable[]> {
-  return latestVersions(await fetchByIds<Orderable>('/orderables', ids));
+export async function fetchOrderablesByIds(
+  ids: readonly string[],
+  config?: AxiosRequestConfig,
+): Promise<Orderable[]> {
+  return latestVersions(await fetchByIds<Orderable>('/orderables', ids, 'id', config));
 }
 
 export type OrderableIdentity = { id: string; versionNumber: number };
 
 export async function fetchOrderablesByIdentities(
   identities: readonly OrderableIdentity[],
+): Promise<Orderable[]> {
+  return latestVersions(await fetchAllOrderableVersions(identities));
+}
+
+export async function fetchAllOrderableVersions(
+  identities: readonly OrderableIdentity[],
+  config?: AxiosRequestConfig,
 ): Promise<Orderable[]> {
   const scope = getSessionScope();
   const unique = [
@@ -198,22 +208,29 @@ export async function fetchOrderablesByIdentities(
     const found: Orderable[] = [];
     for (let page = 0; ; page += 1) {
       assertSessionScope(scope);
-      const { data } = await client.post<Page<Orderable>>('/orderables/search', {
-        identities: batch,
-        page,
-        size: BY_IDS_BATCH,
-      });
+      const { data } = await client.post<Page<Orderable>>(
+        '/orderables/search',
+        {
+          identities: batch,
+          page,
+          size: BY_IDS_BATCH,
+        },
+        ...(config ? [config] : []),
+      );
       assertSessionScope(scope);
       found.push(...data.content);
       if (page + 1 >= data.totalPages) break;
     }
     return found;
   });
-  return latestVersions(batches.flat());
+  return batches.flat();
 }
 
-export function fetchLotsByIds(ids: readonly string[]): Promise<LotSummary[]> {
-  return fetchByIds<LotSummary>('/lots', ids);
+export function fetchLotsByIds(
+  ids: readonly string[],
+  config?: AxiosRequestConfig,
+): Promise<LotSummary[]> {
+  return fetchByIds<LotSummary>('/lots', ids, 'id', config);
 }
 
 export async function fetchLotsByTradeItems(ids: readonly string[]): Promise<LotSummary[]> {
@@ -337,8 +354,12 @@ export async function fetchDeploymentTimeZone(): Promise<string> {
 
 export async function fetchValidReasons(
   params: ValidReasonsFilter,
+  config?: AxiosRequestConfig,
 ): Promise<ValidReasonAssignment[]> {
-  const { data } = await client.get<ValidReasonAssignment[]>('/validReasons', { params });
+  const { data } = await client.get<ValidReasonAssignment[]>('/validReasons', {
+    ...config,
+    params,
+  });
   return data;
 }
 
@@ -365,6 +386,10 @@ export async function fetchValidAssignments(
     if (page + 1 >= data.totalPages) break;
   }
   return assignments;
+}
+
+export function fetchTradeItemsByIds(ids: readonly string[], config?: AxiosRequestConfig) {
+  return fetchByIds<TradeItem>('/tradeItems', ids, 'id', config);
 }
 
 export async function fetchProcessingSchedules(): Promise<ProcessingSchedule[]> {
