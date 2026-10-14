@@ -1072,7 +1072,7 @@
   "requisition-groups.page-description": "Gestione los grupos de requisiciones, sus programas y establecimientos miembros.",
   "requisition-groups.program": "Programa",
   "requisition-groups.program-count": "{count, plural, one {# Programa} other {# Programas}}",
-  "requisition-groups.program-count-for": "{count} Programas En {name}",
+  "requisition-groups.program-count-for": "{count, plural, one {# Programa En {name}} other {# Programas En {name}}}",
   "requisition-groups.supervisory-node": "Nodo De Supervisión",
   "requisition-groups.title": "Grupos De Requisiciones",
   "requisition-groups.unknown-zone": "Zona Geográfica Desconocida",

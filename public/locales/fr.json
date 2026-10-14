@@ -1072,7 +1072,7 @@
   "requisition-groups.page-description": "Gérez les groupes de réquisitions, leurs programmes et leurs établissements membres.",
   "requisition-groups.program": "Programme",
   "requisition-groups.program-count": "{count, plural, one {# Programme} many {# Programmes} other {# Programmes}}",
-  "requisition-groups.program-count-for": "{count} Programmes Dans {name}",
+  "requisition-groups.program-count-for": "{count, plural, one {# Programme Dans {name}} many {# Programmes Dans {name}} other {# Programmes Dans {name}}}",
   "requisition-groups.supervisory-node": "Nœud De Supervision",
   "requisition-groups.title": "Groupes De Réquisitions",
   "requisition-groups.unknown-zone": "Zone Géographique Inconnue",
