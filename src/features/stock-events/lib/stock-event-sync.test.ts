@@ -314,6 +314,7 @@ for (const [status, data, kind] of [
   [401, { error: 'invalid_token' }, 'session'],
   [401, '<html>proxy</html>', 'uncertain'],
   [400, {}, 'uncertain'],
+  [502, { messageKey: 'gateway' }, 'uncertain'],
   [504, '<html>timeout</html>', 'uncertain'],
 ] as const)
   it(`classifies ${status} ${JSON.stringify(data)} as ${kind}`, () => {

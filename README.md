@@ -135,6 +135,17 @@ or `OFFLINE_PROOF_OUTPUT` to choose another output directory. Persistent browser
 are temporary directories under the operating system's temp folder.
 Vitest covers the no-Web-Locks fallback; the browser suite does not certify it.
 
+The 16-scenario matrix rerun on 2026-10-15 with Playwright 1.64.1 recorded
+Chromium 16 passed/0 skipped/0 failed, Chrome 13 passed/3 skipped/0 failed, Firefox
+16 passed/0 skipped/0 failed, Docker Edge 16 passed/0 skipped/0 failed and Docker WebKit
+15 passed/1 skipped/0 failed. Versions: Chromium 156.0.8078.4, Chrome 152.0.7977.64,
+Firefox 157.0, Edge 155.0.4283.45 and WebKit 27.2.
+The first Docker WebKit run had 14 passed, 1 skipped and 1 failed: the saved-access case
+stayed on Sign In before reaching offline reload. A separate full WebKit rerun passed
+15 with 1 skip and no failures. This intermittent sign-in failure remains unresolved; the
+passing rerun does not establish a failure-free suite.
+Vitest covers refusal policy and download timeouts as well as the no-Web-Locks fallback.
+
 For Linux hosts missing WebKit libraries or Edge, use the matching official image
 `mcr.microsoft.com/playwright:v1.64.1-noble` (`docker pull` first). On x86_64 Linux, run with
 `--network host --ipc host` and mount this worktree read-only. Copy `node_modules`,
