@@ -9,11 +9,13 @@ import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import {
   BuildingIcon,
+  CheckIcon,
   Loader2Icon,
   NetworkIcon,
   PlusIcon,
   SearchXIcon,
   Trash2Icon,
+  XIcon,
 } from 'lucide-react';
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +55,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Block } from '@/components/skeleton-block';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -445,6 +448,19 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
     </div>
   );
 }
+function yesNoBadge(value: boolean, t: TFunction) {
+  return value ? (
+    <Badge variant="success">
+      <CheckIcon data-icon="inline-start" />
+      {t('requisition-groups.form.yes')}
+    </Badge>
+  ) : (
+    <Badge variant="destructive">
+      <XIcon data-icon="inline-start" />
+      {t('requisition-groups.form.no')}
+    </Badge>
+  );
+}
 function programColumns(t: TFunction, remove?: (index: number) => void) {
   return programColumn.columns([
     programColumn.accessor((row) => tableValue(row.program.name), {
@@ -480,8 +496,7 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
       header: () => (
         <DataTableHeaderLabel>{t('requisition-groups.form.direct-delivery')}</DataTableHeaderLabel>
       ),
-      cell: ({ getValue }) =>
-        t(getValue() ? 'requisition-groups.form.yes' : 'requisition-groups.form.no'),
+      cell: ({ getValue }) => yesNoBadge(getValue(), t),
     }),
     ...(remove
       ? [
@@ -645,8 +660,7 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.enabled')} />
       ),
-      cell: ({ getValue }) =>
-        t(getValue() ? 'requisition-groups.form.yes' : 'requisition-groups.form.no'),
+      cell: ({ getValue }) => yesNoBadge(getValue(), t),
     }),
     memberColumn.display({
       id: 'actions',
