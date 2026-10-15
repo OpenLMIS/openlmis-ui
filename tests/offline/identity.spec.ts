@@ -13,12 +13,9 @@ test.beforeEach(async ({ context }) => {
   await context.route('**/api/stockEvents', (route) => route.abort());
 });
 
-test('offline shell disables server navigation and blocks direct routes without protected requests', async ({
-  page,
-  context,
-  channel,
-  browser,
-}) => {
+test('offline shell disables server navigation and blocks direct routes without protected requests', {
+  tag: '@offline-shell',
+}, async ({ page, context, channel, browser }) => {
   test.skip(
     channel === 'chrome' && browser.version().startsWith('152.'),
     'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',
@@ -64,10 +61,9 @@ test('offline shell disables server navigation and blocks direct routes without 
   await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeDisabled();
 });
 
-test('logout gives one retained-work warning offline and online and retains the queue after sign-out', async ({
-  page,
-  context,
-}) => {
+test('logout gives one retained-work warning offline and online and retains the queue after sign-out', {
+  tag: '@offline-shell',
+}, async ({ page, context }) => {
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
@@ -102,12 +98,9 @@ test('logout gives one retained-work warning offline and online and retains the 
   expect(await records(page, 'stockEventQueue')).toHaveLength(1);
 });
 
-test('offline expiry keeps editor drafts usable through reload and resumes only after same-user renewal', async ({
-  page,
-  context,
-  channel,
-  browser,
-}) => {
+test('offline expiry keeps editor drafts usable through reload and resumes only after same-user renewal', {
+  tag: '@offline-shell',
+}, async ({ page, context, channel, browser }) => {
   test.skip(
     channel === 'chrome' && browser.version().startsWith('152.'),
     'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',

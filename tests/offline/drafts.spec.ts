@@ -40,9 +40,9 @@ async function rows(page: Page) {
   });
 }
 
-test('offline edits restore exact quantity text after reload and persistent browser restart', async ({
-  persistentContext,
-}) => {
+test('offline edits restore exact quantity text after reload and persistent browser restart', {
+  tag: '@offline-shell',
+}, async ({ persistentContext }) => {
   const directory = await mkdtemp(resolve('.offline/profile-stage-5-'));
   let context = await persistentContext(directory);
   try {

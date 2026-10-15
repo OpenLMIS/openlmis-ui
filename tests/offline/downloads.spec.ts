@@ -28,9 +28,9 @@ test('held and failed background downloads allow sign-in and navigation', async 
   await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
 });
 
-test('stale bundle survives offline restart with its download time and missing program shows download notice', async ({
-  persistentContext,
-}) => {
+test('stale bundle survives offline restart with its download time and missing program shows download notice', {
+  tag: '@offline-shell',
+}, async ({ persistentContext }) => {
   const directory = await mkdtemp(resolve('.offline/profile-stage-4-'));
   let context = await persistentContext(directory);
   try {
@@ -106,7 +106,12 @@ test('stale bundle survives offline restart with its download time and missing p
 test('bounded Axios timeouts stop the spinner with Retry and keep the prior bundle', async ({
   page,
   context,
+  browserName,
 }) => {
+  test.skip(
+    browserName === 'webkit',
+    'WebKit 26.6 / Playwright 1.63 fulfills delayed routed XHR without firing its native timeout. See FM-165 stage 9 Docker diagnostics.',
+  );
   let slow = false;
   await context.addInitScript(() => {
     const send = XMLHttpRequest.prototype.send;

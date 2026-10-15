@@ -5,11 +5,9 @@ import { test } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
 for (const offline of [true, false]) {
-  test(`${offline ? 'offline' : 'connected'} Submit retains its committed event through persistent restart`, async ({
-    persistentContext,
-    channel,
-    browser,
-  }) => {
+  test(`${offline ? 'offline' : 'connected'} Submit retains its committed event through persistent restart`, {
+    tag: '@offline-shell',
+  }, async ({ persistentContext, channel, browser }) => {
     test.skip(
       offline && channel === 'chrome' && browser.version().startsWith('152.'),
       'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',

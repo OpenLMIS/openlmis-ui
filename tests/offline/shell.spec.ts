@@ -1,10 +1,9 @@
 import { expect } from '@playwright/test';
 import { test } from './browser-fixtures';
 
-test('production shell reloads offline under /v2 after worker takeover', async ({
-  page,
-  context,
-}) => {
+test('production shell reloads offline under /v2 after worker takeover', {
+  tag: '@offline-shell',
+}, async ({ page, context }) => {
   await context.route('**/api{,/**,?*}', (route) => route.abort());
   await context.route('**/localeSettings{,/**,?*}', (route) => route.abort());
   await page.goto('./');

@@ -126,6 +126,32 @@ test results in `.offline/browser-verification.json`; an unavailable engine is n
 `pnpm test:offline` stays Chromium-only. Visual proof writes screenshots and verification JSON
 to `.screenshots/fm-165-stage-9/`.
 
+For Linux hosts missing WebKit libraries or Edge, use the matching official image
+`mcr.microsoft.com/playwright:v1.63.0-noble` (`docker pull` first). On x86_64 Linux, run with
+`--network host --ipc host` and mount this worktree read-only. Copy `node_modules`,
+`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `playwright.config.ts`, `tests` and
+`scripts` to a writable container directory. Install Edge there as container root with
+`npx playwright install msedge`; WebKit is already installed. Enable the pinned pnpm through
+Corepack. Edge's Linux channel requires x86_64.
+
+On the host, build with `VITE_BASE_PATH=/v2 pnpm build`, copy
+`tests/offline/config.json` to `dist/config.json`, then start
+`VITE_BASE_PATH=/v2 VITE_API_PROXY_TARGET=http://172.17.0.1 node scripts/preview-offline-tests.mjs`.
+This guarded preview rejects API fall-through. From the writable container directory, run:
+
+```bash
+OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ corepack pnpm exec playwright test \
+  --config playwright.config.ts --project=webkit --project=msedge
+```
+
+Copy `.offline/browser-results.json` out before removing the container and stop the host
+preview afterwards. Keep container writes in its local copy to avoid root-owned host files.
+WebKit currently runs with service workers blocked so API fixtures remain effective; ten
+`@offline-shell` cases and one routed-XHR timeout case are explicitly skipped. `node scripts/diagnose-offline-webkit.mjs`
+compares WebKit and Chromium against a synthetic worker and loopback server, reproducing the
+routing and offline-navigation limits without application code. Playwright WebKit on Linux
+verifies that engine, not the shipping Safari app or Apple devices.
+
 For read-only local storage sizing, preview a production build with real runtime credentials
 and `VITE_API_PROXY_TARGET=http://172.17.0.1` on port 9166, then run
 `node scripts/measure-offline-storage.mjs`. It downloads the local administrator's bundles,
