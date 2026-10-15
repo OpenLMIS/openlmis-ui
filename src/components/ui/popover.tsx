@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageHidden } from "@/components/page-visibility"
+import { useCloseOnPageHidden } from "@/components/page-visibility"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "cn"
 
@@ -9,8 +9,11 @@ function Popover({
   onOpenChange,
   ...props
 }: PopoverPrimitive.Root.Props) {
-  const hidden = usePageHidden()
   const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
+    setLocalOpen(false)
+    onOpenChange?.(false, details)
+  })
   return (
     <PopoverPrimitive.Root
       data-slot="popover"

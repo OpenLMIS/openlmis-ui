@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { PageVisibility } from '@/components/page-visibility';
 import { AlertDialog, AlertDialogContent, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
@@ -104,5 +104,49 @@ it.each(['sheet', 'menu', 'popover', 'select', 'combobox'] as const)(
     await screen.findByRole(role);
     await act(() => view.rerender(<PageVisibility hidden>{contents[kind]}</PageVisibility>));
     await waitFor(() => expect(screen.queryByRole(role)).not.toBeInTheDocument());
+    await act(() =>
+      view.rerender(<PageVisibility hidden={false}>{contents[kind]}</PageVisibility>),
+    );
+    expect(screen.queryByRole(role)).not.toBeInTheDocument();
+  },
+);
+
+it.each([false, true])(
+  'keeps a popover closed after reconnect (controlled: %s)',
+  async (controlled) => {
+    const changed = vi.fn();
+    function Example({ hidden }: { hidden: boolean }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button">Connection retry</button>
+          <PageVisibility hidden={hidden}>
+            <Popover
+              open={controlled ? open : undefined}
+              onOpenChange={(next) => {
+                changed(next);
+                setOpen(next);
+              }}
+            >
+              <PopoverTrigger>Filters</PopoverTrigger>
+              <PopoverContent>
+                <input aria-label="Filter value" />
+              </PopoverContent>
+            </Popover>
+          </PageVisibility>
+        </>
+      );
+    }
+    const view = render(<Example hidden={false} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await screen.findByRole('dialog');
+    changed.mockClear();
+    await act(() => view.rerender(<Example hidden />));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Connection retry' }));
+    await act(() => view.rerender(<Example hidden={false} />));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connection retry' })).toHaveFocus();
+    expect(changed.mock.calls).toEqual([[false]]);
   },
 );

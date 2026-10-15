@@ -257,7 +257,7 @@ edits, which have no prop for TypeScript to detect:
 | File | Required customization |
 |---|---|
 | `dialog.tsx` / `alert-dialog.tsx` | Keep the app `@/components/page-visibility` dependency, hidden portal state and release after visible close; DiscardChangesDialog opts out so navigation and sign-out remain answerable |
-| `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` / `combobox.tsx` | Keep page-visibility gates on open overlays |
+| `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` / `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides |
 | `alert-dialog.tsx` | Preserve the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
@@ -579,6 +579,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
   `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
+- Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
+  `@/components/page-visibility` gate. Its context defaults to false, keeping these primitives
+  stock-like outside the app. Strip the gate when moving them into the registry.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
@@ -720,8 +723,10 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
 `Button align/width`, `PopoverContent width/padding`. Each `lg` size is a plain `h-9` className
 in the registry.
-The app Dialog primitive depends on `@/components/page-visibility`; form-dialog inherits this
-dependency. Supply or remove that app gate when moving these components into the registry.
+The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
+import `@/components/page-visibility`; form-dialog and form-fields inherit this dependency.
+The context defaults to false, keeping them stock-like outside the app. Strip the app gate
+when moving these components into the registry.
 
 **Every toast has a short Title Case title and a detail sentence as `description`**, displayed
 at most two lines. `Toaster` supplies the translated close button; callers never pass one.
@@ -994,11 +999,13 @@ until those criteria are met.
   loads. Its error keeps the shell and uses `OfflineNotice` with the online-only explanation;
   an already-open server page hides behind the same fallback, retaining its mounted draft
   and leave guards. Same-path search changes keep that page mounted only after a successful
-  protected match; a failed entry cannot bypass the gate on retry or invalidation.
+  protected match for the current session scope; a failed entry or changed identity cannot
+  bypass the gate on retry or invalidation.
   Retry calls `seedOnline()` first and invalidates only when online. Dialog/alert-dialog portals
   and workspace footers hide with the page and retain their state. Release retained portals
   after a visible close. DiscardChangesDialog opts out so blocked navigation/sign-out can
-  still be answered. Other portalled pickers, menus, popovers and sheets hide with the page.
+  still be answered. Other portalled pickers, menus, popovers and sheets close when the page
+  hides and stay closed on reconnect.
   Skip offline preloads of online-only routes before their gate or child loaders run.
 - `usePrintReport` refuses offline clicks before delivery/permissions, and rechecks connection
   after permissions before requesting the PDF. Every consumer and the event print dialog

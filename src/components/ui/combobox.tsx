@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePageHidden } from "@/components/page-visibility"
+import { useCloseOnPageHidden } from "@/components/page-visibility"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "cn"
@@ -21,8 +21,11 @@ function Combobox<Value, Multiple extends boolean | undefined = false, Item = Va
   onOpenChange,
   ...props
 }: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
-  const hidden = usePageHidden()
   const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
+    setLocalOpen(false)
+    onOpenChange?.(false, details)
+  })
   return (
     <ComboboxPrimitive.Root
       {...props}
