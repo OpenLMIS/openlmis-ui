@@ -1,7 +1,9 @@
 import { expect } from '@playwright/test';
 import { test } from './browser-fixtures';
 
-test('signed-in access and home programs survive an offline reload', async ({ page, context }) => {
+test('signed-in access and home programs survive an offline reload', {
+  tag: '@offline-shell',
+}, async ({ page, context }) => {
   let offline = false;
   await context.route('**/api{,/**,?*}', async (route) => {
     if (offline) return route.abort('internetdisconnected');

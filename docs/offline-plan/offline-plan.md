@@ -68,6 +68,12 @@ Stage 9 records exact browser versions, results, English/Arabic phone/desktop ca
 local storage measurements in [FM-165](../../plans/FM-165.md). Engine proof is not a guarantee
 for a different browser version, a managed profile or a physical phone.
 
+The 2026-10-15 Docker follow-up ran Edge 155.0.4283.45 with all 24 scenarios passing and
+WebKit 26.6 with 13 passing and 11 explicitly skipped. WebKit's run blocks service workers
+because controlled requests bypass the API fixtures; its skipped coverage includes offline
+shell navigation/restart and routed-XHR timeouts. This is partial engine coverage. The actual
+Safari browser and Apple devices were not run. See the stage 9 notes for diagnostic evidence.
+
 Use HTTPS and test the actual target devices before rollout. Browser storage is not a backup:
 quotas, private browsing, clearing site data, eviction and device loss can remove work. The app
 does not request persistent storage. Safari's storage policy includes pressure-based eviction;

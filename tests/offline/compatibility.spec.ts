@@ -39,10 +39,9 @@ test('without Web Locks online reads and local drafts work but downloads and upl
   expect(posts).toBe(0);
 });
 
-test('sign-out and a different sign-in isolate device work and the original owner recovers it', async ({
-  context,
-  page,
-}) => {
+test('sign-out and a different sign-in isolate device work and the original owner recovers it', {
+  tag: '@offline-shell',
+}, async ({ context, page }) => {
   await stub(context, async () => 'finish');
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();

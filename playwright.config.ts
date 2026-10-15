@@ -28,7 +28,8 @@ export default defineConfig({
       ? [{ name: 'msedge', use: { browserName: 'chromium' as const, channel: 'msedge' } }]
       : []),
     { name: 'firefox', use: { browserName: 'firefox' } },
-    { name: 'webkit', use: { browserName: 'webkit' } },
+    // WebKit worker-controlled requests bypass API fixtures; shell cases skip explicitly.
+    { name: 'webkit', use: { browserName: 'webkit', serviceWorkers: 'block' } },
   ],
   use: {
     baseURL: process.env.OFFLINE_PREVIEW_URL || 'http://127.0.0.1:9165/v2/',

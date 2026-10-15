@@ -41,7 +41,18 @@ function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = 
 export const test = base.extend<{
   persistentContext: (directory: string, offline?: boolean) => Promise<BrowserContext>;
   firefoxWorkerCache: undefined;
+  offlineShell: undefined;
 }>({
+  offlineShell: [
+    async ({ browserName }, use, testInfo) => {
+      test.skip(
+        browserName === 'webkit' && testInfo.tags.includes('@offline-shell'),
+        'WebKit 26.6 / Playwright 1.63 cannot navigate through a worker offline; worker-controlled requests also bypass API fixtures. See FM-165 stage 9 Docker diagnostics.',
+      );
+      await use(undefined);
+    },
+    { auto: true },
+  ],
   firefoxWorkerCache: [
     async ({ context, browserName }, use) => {
       if (browserName === 'firefox') preserveFirefoxWorkerCache(context);
@@ -49,12 +60,12 @@ export const test = base.extend<{
     },
     { auto: true },
   ],
-  persistentContext: async ({ playwright, browserName, channel, baseURL }, use) => {
+  persistentContext: async ({ playwright, browserName, channel, baseURL, serviceWorkers }, use) => {
     await use(async (directory, offline = false) => {
       const context = await playwright[browserName].launchPersistentContext(directory, {
         baseURL,
         headless: true,
-        serviceWorkers: 'allow',
+        serviceWorkers,
         channel,
         offline,
       });

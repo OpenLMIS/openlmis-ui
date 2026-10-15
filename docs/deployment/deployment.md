@@ -363,7 +363,8 @@ by a proxy or service worker as an offline substitute.
 Offline download and upload coordination requires Web Locks. Browsers without it show an
 explanation and keep connected reads available, but cannot automatically send queued work.
 Check the dated [FM-165 verification](../../plans/FM-165.md) for the versions actually run,
-including unavailable engines. Test managed browsers and real phones separately.
+including engine-specific skips. Edge has full Docker suite coverage; WebKit remains partial,
+and actual Safari has not run. Test managed browsers and real phones separately.
 
 Do not clear browser site data as a routine fix for sync trouble. It can delete the only copy
 of unsynced events. Preserve the same deployment URL, base path and browser profile when
