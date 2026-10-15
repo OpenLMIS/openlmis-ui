@@ -593,6 +593,11 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
           empty={
             <DataTableEmpty
               title={t('requisition-groups.form.no-programs')}
+              description={t(
+                readOnly
+                  ? 'requisition-groups.form.no-programs-view-description'
+                  : 'requisition-groups.form.no-programs-description',
+              )}
               icon={<NetworkIcon />}
             />
           }
@@ -776,6 +781,11 @@ function MembersFields({
             ) : (
               <DataTableEmpty
                 title={t('requisition-groups.form.no-facilities')}
+                description={t(
+                  readOnly
+                    ? 'requisition-groups.form.no-facilities-view-description'
+                    : 'requisition-groups.form.no-facilities-description',
+                )}
                 icon={<BuildingIcon />}
               />
             )
