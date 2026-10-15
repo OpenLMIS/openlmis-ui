@@ -6,6 +6,7 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router';
+import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
@@ -57,8 +58,8 @@ beforeEach(() => {
 });
 
 describe('supervisory node edit loader', () => {
-  it('opens on a fresh read even after a hover preloaded the page', async () => {
-    const queryClient = new QueryClient();
+  it('opens on a fresh read after a hover and on every later visit', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } });
     const server = { node: version('At Hover') };
     vi.mocked(fetchSupervisoryNode).mockImplementation(() => later(server.node));
     const router = editRouter(queryClient);
@@ -70,5 +71,14 @@ describe('supervisory node edit loader', () => {
 
     expect(requireRight).toHaveBeenCalledWith(queryClient, RIGHTS.supervisoryNodesManage);
     expect(queryClient.getQueryData(supervisoryNodeOptions('f1').queryKey)).toEqual(version('New'));
+
+    await router.navigate({ to: '/' } as never);
+    server.node = version('Revisit');
+    await router.navigate({ to: '/supervisory-nodes/$id', params: { id: 'f1' } } as never);
+    await waitFor(() =>
+      expect(queryClient.getQueryData(supervisoryNodeOptions('f1').queryKey)).toEqual(
+        version('Revisit'),
+      ),
+    );
   });
 });
