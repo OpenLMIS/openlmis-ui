@@ -403,3 +403,17 @@ it('drops refresh requests outside eligible home programs so an observed complet
   await waitFor(() => expect(completedLocks).toBeGreaterThanOrEqual(4));
   expect(download).not.toHaveBeenCalled();
 });
+
+it('refreshes a cached upload snapshot explicitly without a token or connection change', async () => {
+  vi.mocked(navigator.locks.request).mockImplementation(async (_name, ...args) => {
+    const action = args.at(-1) as () => Promise<unknown>;
+    return action();
+  });
+  begin();
+  await finished();
+  const { freshUploadAccess } = await import('@/lib/upload-access');
+  const first = await freshUploadAccess();
+  vi.mocked(raw.permissions).mockResolvedValueOnce([]);
+  expect((await freshUploadAccess()).generation).toBe(first.generation);
+  expect((await freshUploadAccess(true)).permissionStrings).toEqual([]);
+});

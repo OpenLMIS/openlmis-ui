@@ -100,3 +100,45 @@ describe('useOnReconnect', () => {
     expect(latest).toHaveBeenCalledOnce();
   });
 });
+
+describe('server reachability', () => {
+  it('stays offline through failed probes and browser online hints, then reconnects once', async () => {
+    vi.useFakeTimers();
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('unreachable'))
+      .mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal('fetch', fetch);
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const reconnect = vi.fn();
+    renderHook(() => useOnReconnect(reconnect));
+    const { reportConnectionFailure } = await import('@/lib/online');
+    const { AxiosError } = await import('axios');
+    reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+    expect(isOnline()).toBe(false);
+    seedOnline();
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(isOnline()).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      '/localeSettings',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(isOnline()).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(isOnline()).toBe(true);
+    expect(reconnect).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+  it('does not treat cancellations, local absence or HTTP refusals as lost connectivity', async () => {
+    const { reportConnectionFailure } = await import('@/lib/online');
+    const { AxiosError } = await import('axios');
+    reportConnectionFailure(new AxiosError('cancelled', AxiosError.ERR_CANCELED));
+    reportConnectionFailure(new Error('local absence'));
+    expect(isOnline()).toBe(true);
+  });
+});

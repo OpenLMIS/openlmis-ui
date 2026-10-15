@@ -19,7 +19,7 @@ import { setSyncPhase, setSyncWake } from '@/lib/device-event-status';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { queryKeys } from '@/lib/key-factory';
 import { refreshOfflineProgram } from '@/lib/offline-download-status';
-import { isOnline } from '@/lib/online';
+import { isOnline, reportConnectionFailure } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
 import { QueueReceiptError } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -37,6 +37,11 @@ export function startStockEventUploader(
   let pending = false;
   let subscription: ReturnType<ReturnType<typeof liveQuery>['subscribe']> | undefined;
   let pausedEpoch: string | undefined;
+  let forceAccess = false;
+  let accessPaused = false;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let accessTimer: ReturnType<typeof setInterval> | undefined;
+  let retryDelay = 1000;
   const pruned = new Set<string>();
   const valid = () => {
     const state = useLoginData.getState();
@@ -92,7 +97,9 @@ export function startStockEventUploader(
           return;
         }
         const epoch = uploadAccessEpoch();
-        const access = await (dependencies.access ?? freshUploadAccess)();
+        const force = forceAccess;
+        forceAccess = false;
+        const access = await (dependencies.access ?? freshUploadAccess)(force);
         check();
         if (!valid() || epoch !== uploadAccessEpoch() || access.userId !== userId) return;
         const permissions = parsePermissions(access.permissionStrings ?? []);
@@ -149,15 +156,25 @@ export function startStockEventUploader(
           },
         });
         check();
+        retryDelay = 1000;
         setSyncPhase(
           useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch()
             ? 'session'
             : 'idle',
         );
       });
-    } catch {
-      if (scope === getSessionScope() && !stopped)
+    } catch (error) {
+      if (scope === getSessionScope() && !stopped) {
+        reportConnectionFailure(error);
         setSyncPhase(useLoginData.getState().expired ? 'session' : 'failed');
+        if (!useLoginData.getState().expired && !retryTimer) {
+          retryTimer = setTimeout(() => {
+            retryTimer = undefined;
+            void run();
+          }, retryDelay);
+          retryDelay = Math.min(retryDelay * 2, 30000);
+        }
+      }
     } finally {
       running = false;
       if (pending && !stopped) {
@@ -175,8 +192,19 @@ export function startStockEventUploader(
     subscription = liveQuery(() =>
       db.table<QueuedStockEvent>('stockEventQueue').toArray(),
     ).subscribe({
-      next: () => {
-        if (scope === getSessionScope()) void run();
+      next: (rows) => {
+        if (scope !== getSessionScope()) return;
+        accessPaused = rows.some((row) => row.pauseReason === 'access-changed');
+        if (!accessPaused) {
+          clearInterval(accessTimer);
+          accessTimer = undefined;
+        } else if (!accessTimer) {
+          accessTimer = setInterval(() => {
+            forceAccess = true;
+            void run();
+          }, 30000);
+        }
+        void run();
       },
       error: () => {
         if (scope === getSessionScope()) setSyncPhase('failed');
@@ -202,13 +230,23 @@ export function startStockEventUploader(
   const unsubscribeOnline = onlineManager.subscribe((online) => {
     if (online) void run();
   });
+  const focus = () => {
+    if (!accessPaused) return;
+    forceAccess = true;
+    void run();
+  };
+  window.addEventListener('focus', focus);
   setSyncWake(() => {
+    forceAccess = true;
     void run();
   });
   watch();
   void run();
   return () => {
     stopped = true;
+    clearTimeout(retryTimer);
+    clearInterval(accessTimer);
+    window.removeEventListener('focus', focus);
     subscription?.unsubscribe();
     unsubscribe();
     unsubscribeOnline();
