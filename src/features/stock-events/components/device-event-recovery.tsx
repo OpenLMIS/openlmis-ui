@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { kindLabels } from '@/features/stock-events/components/device-events';
+import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {

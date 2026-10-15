@@ -38,7 +38,7 @@
   "data-table.view": "عرض",
   "device-events.access-changed": "تغيّر الوصول",
   "device-events.access-changed-description": "تغير وصولك إلى هذه المنشأة أو البرنامج، لذا ستبقى أحداثه في قائمة الانتظار حتى استعادة الوصول أو إزالتها.",
-  "device-events.access-changed-held-description": "استعد الوصول للمزامنة.",
+  "device-events.access-changed-held-description": "اطلب الوصول للمزامنة.",
   "device-events.action-failed": "تعذر تحديث حدث الجهاز",
   "device-events.action-failed-description": "لا يزال حدثك على هذا الجهاز. حاول مرة أخرى.",
   "device-events.attempted-at": "وقت المحاولة",

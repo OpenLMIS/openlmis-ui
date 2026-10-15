@@ -56,7 +56,7 @@ export function waitForStockEventReceipt(event: QueuedStockEvent): Promise<Stock
                 candidate.facilityId === event.facilityId &&
                 candidate.programId === event.programId &&
                 candidate.sequence < event.sequence &&
-                (candidate.status === 'uncertain' || !!candidate.pauseReason),
+                (candidate.status === 'uncertain' || candidate.pauseReason === 'draft-changed'),
             )
             .first();
           assertSessionScope(scope);
