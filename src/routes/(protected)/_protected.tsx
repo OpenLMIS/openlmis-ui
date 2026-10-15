@@ -4,18 +4,23 @@ import { AppShell } from '@/components/app-shell';
 import { AppShellSkeleton } from '@/components/app-shell-skeleton';
 import { ErrorFallback } from '@/components/error-fallback';
 import { OfflineNotice } from '@/components/offline-notice';
+import { PageVisibility } from '@/components/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isOfflineCapable, OfflinePageUnavailableError } from '@/lib/offline-capability';
-import { isOnline, useOnline } from '@/lib/online';
+import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected')({
-  beforeLoad: ({ location }) => {
+  beforeLoad: ({ location, context }) => {
     if (!useLoginData.getState().isAuthenticated) {
       throw redirect({ to: '/login', search: loginSearch(location) });
     }
-    if (!isOnline() && !isOfflineCapable(location.pathname))
+    if (
+      !isOnline() &&
+      !isOfflineCapable(location.pathname) &&
+      location.pathname !== context.getResolvedPathname?.()
+    )
       throw new OfflinePageUnavailableError();
     return { sessionScope: getSessionScope() };
   },
@@ -53,10 +58,18 @@ function ProtectedLayout() {
   return (
     <AppShell key={scope}>
       {!available && (
-        <OfflineNotice reason="online-only" onRetry={() => void router.invalidate()} />
+        <OfflineNotice
+          reason="online-only"
+          onRetry={() => {
+            seedOnline();
+            if (isOnline()) void router.invalidate();
+          }}
+        />
       )}
       <div className={available ? 'contents' : undefined} hidden={!available}>
-        <Outlet />
+        <PageVisibility hidden={!available}>
+          <Outlet />
+        </PageVisibility>
       </div>
     </AppShell>
   );

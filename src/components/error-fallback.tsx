@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/empty';
 import { isForbidden } from '@/features/auth/lib/access';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
+import { seedOnline } from '@/lib/online';
 
 type ErrorFallbackProps = ErrorComponentProps & {
   title?: string;
@@ -27,6 +28,7 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
   const { t } = useTranslation();
   const router = useRouter();
   const retry = () => {
+    seedOnline();
     void router.invalidate();
     reset();
   };

@@ -11,6 +11,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 export type RouterContext = {
   queryClient: QueryClient;
+  getResolvedPathname?: () => string | undefined;
 };
 
 export const Route = createRootRouteWithContext<RouterContext>()({

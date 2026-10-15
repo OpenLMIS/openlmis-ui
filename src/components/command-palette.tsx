@@ -16,8 +16,6 @@ import {
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { isNavParent } from '@/lib/config';
 import { hasOpenDialog } from '@/lib/has-open-dialog';
-import { isOfflineCapable } from '@/lib/offline-capability';
-import { isOnline } from '@/lib/online';
 import type { LiveNavItem, LiveNavLink } from '@/lib/types';
 
 type PaletteSection = {
@@ -103,7 +101,6 @@ export function CommandPalette() {
                         key={link.titleKey}
                         disabled={link.disabled}
                         onSelect={() => {
-                          if (!isOnline() && !isOfflineCapable(link.to ?? '')) return;
                           setOpen(false);
                           navigate({ to: link.to });
                         }}
@@ -132,7 +129,6 @@ export function CommandPalette() {
                     key={link.to}
                     disabled={link.disabled}
                     onSelect={() => {
-                      if (!isOnline() && !isOfflineCapable(link.to)) return;
                       setOpen(false);
                       navigate({ to: link.to });
                     }}

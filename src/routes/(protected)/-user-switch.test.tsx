@@ -11,12 +11,15 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FormDialog, FormDialogTitle } from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
 
+vi.mock('@/components/nav-access', () => ({ useHasRight: () => false }));
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -34,13 +37,27 @@ const loader = vi.fn(async () => {
 
 function Draft() {
   const [value, setValue] = useState('saved');
+  const [target, setTarget] = useState<boolean>();
+  const { shown, dialogProps } = useDialogTarget(target, () => setTarget(undefined));
   useDiscardGuard(value !== 'saved');
   return (
-    <input aria-label="Draft" value={value} onChange={(event) => setValue(event.target.value)} />
+    <>
+      <input aria-label="Draft" value={value} onChange={(event) => setValue(event.target.value)} />
+      <button type="button" onClick={() => setTarget(true)}>
+        Open draft dialog
+      </button>
+      <FormDialog {...dialogProps()}>
+        <FormDialogTitle>Draft dialog</FormDialogTitle>
+        {shown && <input aria-label="Dialog draft" defaultValue="saved" />}
+      </FormDialog>
+    </>
   );
 }
 
-const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({ component: Outlet });
+const root = createRootRouteWithContext<{
+  queryClient: QueryClient;
+  getResolvedPathname?: () => string | undefined;
+}>()({ component: Outlet });
 Route.update({ getParentRoute: () => root, id: '/(protected)/_protected' } as never);
 const draft = createRoute({
   getParentRoute: () => Route,
@@ -55,7 +72,7 @@ async function openDraft(onCaughtError?: (error: unknown) => void) {
   const queryClient = new QueryClient();
   const router = createRouter({
     routeTree: tree,
-    context: { queryClient },
+    context: { queryClient, getResolvedPathname: () => router.state.resolvedLocation?.pathname },
     history: createMemoryHistory({ initialEntries: ['/draft'] }),
   });
   render(
@@ -152,9 +169,34 @@ describe('protected session identity', () => {
 
 it('preserves an open online-only draft while the offline gate hides it', async () => {
   await openDraft();
-  act(() => onlineManager.setOnline(false));
-  expect(await screen.findByRole('heading', { name: 'offline.notice-title' })).toBeInTheDocument();
-  act(() => onlineManager.setOnline(true));
+  await act(() => onlineManager.setOnline(false));
+  expect(
+    await screen.findByRole('heading', { name: /offline\.(notice|page)-title/ }),
+  ).toBeInTheDocument();
+  await act(() => onlineManager.setOnline(true));
   expect(await screen.findByLabelText('Draft')).toHaveValue('saved changed');
   expect(loader).toHaveBeenCalledOnce();
+});
+
+it.each(['retry', 'search'])('retains hidden drafts after an offline %s', async (action) => {
+  const router = await openDraft();
+  await userEvent.click(screen.getByRole('button', { name: 'Open draft dialog' }));
+  await userEvent.type(screen.getByLabelText('Dialog draft'), ' changed');
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  await act(() => onlineManager.setOnline(false));
+  expect(
+    await screen.findByRole('heading', { name: /offline\.(notice|page)-title/ }),
+  ).toBeVisible();
+  if (action === 'retry') {
+    await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  } else {
+    await act(() => router.navigate({ to: '/draft', search: { tab: 'other' } } as never));
+  }
+  expect(screen.getByLabelText('Draft')).toHaveValue('saved changed');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await act(() => onlineManager.setOnline(true));
+  expect(await screen.findByLabelText('Draft')).toHaveValue('saved changed');
+  expect(screen.getByLabelText('Dialog draft')).toHaveValue('saved changed');
+  expect(screen.getByRole('dialog')).toBeVisible();
+  vi.restoreAllMocks();
 });

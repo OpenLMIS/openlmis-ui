@@ -4,6 +4,7 @@ import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import {
   CONTAINER_WIDTHS,
@@ -231,21 +232,22 @@ function StockCardPrint({
     refusedDescription: t('stock-card.print-refused'),
   });
   return (
-    <Button
-      size="lg"
-      disabled={print.offline || print.isPending}
-      onClick={print.print}
-      focusableWhenDisabled={print.offline}
-      title={print.disabledReason}
-      aria-description={print.disabledReason}
-    >
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <PrinterIcon data-icon="inline-start" />
-      )}
-      {t('stock-card.print')}
-    </Button>
+    <ActionTooltip reason={print.disabledReason}>
+      <Button
+        size="lg"
+        disabled={print.offline || print.isPending}
+        onClick={print.print}
+        focusableWhenDisabled={print.offline}
+        aria-description={print.disabledReason}
+      >
+        {print.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <PrinterIcon data-icon="inline-start" />
+        )}
+        {t('stock-card.print')}
+      </Button>
+    </ActionTooltip>
   );
 }
 

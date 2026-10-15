@@ -1,11 +1,34 @@
 import * as React from "react"
+import { usePageHidden } from "@/components/page-visibility"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 
-function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+function AlertDialog({
+  open,
+  defaultOpen,
+  onOpenChange,
+  onOpenChangeComplete,
+  ...props
+}: AlertDialogPrimitive.Root.Props) {
+  const hidden = usePageHidden()
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  return (
+    <AlertDialogPrimitive.Root
+      data-slot="alert-dialog"
+      {...props}
+      open={!hidden && (open ?? localOpen)}
+      onOpenChange={(next, details) => {
+        if (hidden) return
+        setLocalOpen(next)
+        onOpenChange?.(next, details)
+      }}
+      onOpenChangeComplete={(next) => {
+        if (!hidden) onOpenChangeComplete?.(next)
+      }}
+    />
+  )
 }
 
 function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
@@ -15,8 +38,18 @@ function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
 }
 
 function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
+  const hidden = usePageHidden()
+  const retained = React.useRef(false)
+  if (hidden) retained.current = true
   return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" container={typeof document === "undefined" ? undefined : document.body} {...props} />
+    <AlertDialogPrimitive.Portal
+      data-slot="alert-dialog-portal"
+      container={typeof document === "undefined" ? undefined : document.body}
+      {...props}
+      keepMounted={retained.current || props.keepMounted}
+      hidden={hidden || props.hidden}
+      inert={hidden || props.inert}
+    />
   )
 }
 

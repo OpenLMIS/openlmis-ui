@@ -1,4 +1,5 @@
 import * as React from "react"
+import { usePageHidden } from "@/components/page-visibility"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -18,8 +19,30 @@ function DialogCloseLabelProvider({
   return <DialogCloseLabelContext value={label}>{children}</DialogCloseLabelContext>
 }
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+function Dialog({
+  open,
+  defaultOpen,
+  onOpenChange,
+  onOpenChangeComplete,
+  ...props
+}: DialogPrimitive.Root.Props) {
+  const hidden = usePageHidden()
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      {...props}
+      open={!hidden && (open ?? localOpen)}
+      onOpenChange={(next, details) => {
+        if (hidden) return
+        setLocalOpen(next)
+        onOpenChange?.(next, details)
+      }}
+      onOpenChangeComplete={(next) => {
+        if (!hidden) onOpenChangeComplete?.(next)
+      }}
+    />
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -27,7 +50,19 @@ function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" container={typeof document === "undefined" ? undefined : document.body} {...props} />
+  const hidden = usePageHidden()
+  const retained = React.useRef(false)
+  if (hidden) retained.current = true
+  return (
+    <DialogPrimitive.Portal
+      data-slot="dialog-portal"
+      container={typeof document === "undefined" ? undefined : document.body}
+      {...props}
+      keepMounted={retained.current || props.keepMounted}
+      hidden={hidden || props.hidden}
+      inert={hidden || props.inert}
+    />
+  )
 }
 
 function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
