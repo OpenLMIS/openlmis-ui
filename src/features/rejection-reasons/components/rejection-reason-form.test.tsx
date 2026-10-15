@@ -148,12 +148,15 @@ it('keeps a missing saved category visible and blocks saving until a valid choic
 });
 
 it('does not auto-select a category when a later refresh reduces an initially multiple-choice Add list to one', async () => {
-  const { queryClient } = setup(true, [category, other]);
+  const { user, queryClient } = setup(true, [category, other]);
   const picker = await screen.findByRole('combobox', { name: /^Category/ });
   expect(picker).toHaveTextContent('Choose a category');
   await act(async () => {
     queryClient.setQueryData(queryKeys.rejectionReasonCategories.list(), [other]);
   });
+  await user.click(picker);
+  await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(1));
+  expect(screen.getByRole('option', { name: 'Inactive category (Inactive)' })).toBeVisible();
   expect(picker).toHaveTextContent('Choose a category');
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
 });
