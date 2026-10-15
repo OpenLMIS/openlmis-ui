@@ -353,7 +353,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 - Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
   one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
-  and `width="wide"` for uncapped tables.
+  `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
+  Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
   disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
   the real translated Button size.

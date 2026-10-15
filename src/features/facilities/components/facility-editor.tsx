@@ -69,7 +69,6 @@ import {
   tabWithFirstError,
   toProgramRow,
 } from '@/features/facilities/lib/facility-form';
-import { toZoneOption } from '@/features/facilities/lib/zone-filter';
 import {
   facilityOperatorsOptions,
   facilityTypesOptions,
@@ -78,6 +77,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Facility } from '@/features/reference-data/lib/types';
+import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 

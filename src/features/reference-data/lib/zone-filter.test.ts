@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { toZoneOption } from '@/features/facilities/lib/zone-filter';
 import type { GeographicZone } from '@/features/reference-data/lib/types';
+import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
 
 const zone = (id: string, name: string, level: string | null): GeographicZone => ({
   id,
