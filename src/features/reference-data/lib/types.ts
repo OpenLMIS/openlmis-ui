@@ -184,3 +184,18 @@ export type ProcessingSchedule = {
   name: string;
   description?: string;
 };
+
+export type RejectionReasonCategory = {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+};
+
+export type RejectionReason = {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  rejectionReasonCategory: RejectionReasonCategory;
+};

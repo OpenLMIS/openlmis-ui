@@ -28,6 +28,8 @@ export const queryKeys = {
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
   reasons: createQueryKeys('reasons'),
+  rejectionReasonCategories: createQueryKeys('rejectionReasonCategories'),
+  rejectionReasons: createQueryKeys('rejectionReasons'),
   requisitionGroups: createQueryKeys('requisitionGroups'),
   requisitionTemplates: createQueryKeys('requisitionTemplates'),
   rights: createQueryKeys('rights'),

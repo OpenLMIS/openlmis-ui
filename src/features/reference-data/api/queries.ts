@@ -24,6 +24,8 @@ import {
   fetchProcessingSchedules,
   fetchPrograms,
   fetchReasons,
+  fetchRejectionReasonCategories,
+  fetchRejectionReasons,
   fetchRoles,
   fetchSupervisoryNodes,
   fetchTradeItemByGtin,
@@ -271,5 +273,19 @@ export const processingSchedulesOptions = () =>
   queryOptions({
     queryKey: queryKeys.processingSchedules.list(),
     queryFn: fetchProcessingSchedules,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const rejectionReasonCategoriesOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.rejectionReasonCategories.list(),
+    queryFn: fetchRejectionReasonCategories,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const rejectionReasonsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.rejectionReasons.list(),
+    queryFn: fetchRejectionReasons,
     staleTime: LOOKUP_STALE_TIME,
   });
