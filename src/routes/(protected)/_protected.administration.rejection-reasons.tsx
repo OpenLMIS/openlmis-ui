@@ -32,17 +32,10 @@ import {
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 
-declare module '@tanstack/react-router' {
-  // biome-ignore lint/style/useConsistentTypeDefinitions: router state extends by interface merging.
-  interface HistoryState {
-    rejectionReasonsListSearch?: RejectionReasonsListSearch;
-  }
-}
-
 const loadDialog = () =>
-  import('@/features/rejection-reasons/components/rejection-reason-add-dialog');
-const RejectionReasonAddDialog = lazy(() =>
-  loadDialog().then((module) => ({ default: module.RejectionReasonAddDialog })),
+  import('@/features/rejection-reasons/components/rejection-reason-form-dialog');
+const RejectionReasonFormDialog = lazy(() =>
+  loadDialog().then((module) => ({ default: module.RejectionReasonFormDialog })),
 );
 const CLOSED_DIALOGS = { reason: undefined } satisfies Partial<RejectionReasonsSearch>;
 const columnChoicesSchema = z.record(z.string(), z.boolean());
@@ -117,7 +110,7 @@ function RejectionReasonsPage() {
         </div>
         {dialogMounted && (
           <Suspense fallback={null}>
-            <RejectionReasonAddDialog target={target} onClose={closeDialog} />
+            <RejectionReasonFormDialog target={target} onClose={closeDialog} />
           </Suspense>
         )}
       </WorkspaceContent>

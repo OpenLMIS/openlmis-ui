@@ -6,8 +6,7 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
-import { RejectionReasonAddDialog } from '@/features/rejection-reasons/components/rejection-reason-add-dialog';
-import { RejectionReasonEditor } from '@/features/rejection-reasons/components/rejection-reason-editor';
+import { RejectionReasonFormDialog } from '@/features/rejection-reasons/components/rejection-reason-form-dialog';
 import { client } from '@/integrations/axios';
 import { queryKeys } from '@/lib/key-factory';
 import { httpError } from '@/tests/http-error';
@@ -52,14 +51,11 @@ function setup(add = false, categories?: (typeof category)[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
+  if (!add) vi.mocked(client.get).mockResolvedValueOnce({ data: saved });
   if (categories) queryClient.setQueryData(queryKeys.rejectionReasonCategories.list(), categories);
   renderPage(
     <TranslatedFormMessages>
-      {add ? (
-        <RejectionReasonAddDialog target="new" onClose={onSaved} />
-      ) : (
-        <RejectionReasonEditor saved={saved} onSaved={onSaved} onCancel={vi.fn()} />
-      )}
+      <RejectionReasonFormDialog target={add ? 'new' : saved.id} onClose={onSaved} />
     </TranslatedFormMessages>,
     { queryClient, onCaughtError: () => undefined },
   );
@@ -132,19 +128,14 @@ it('keeps a missing saved category visible and blocks saving until a valid choic
   const { user, queryClient } = setup(false, [other]);
   const picker = await screen.findByRole('combobox', { name: /^Category/ });
   expect(picker).toHaveTextContent('Original category (Unavailable)');
-  expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true');
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   await choose(user, 'Inactive category (Inactive)');
   await act(async () => {
     queryClient.setQueryData(queryKeys.rejectionReasonCategories.list(), [category, other]);
   });
   expect(picker).toHaveTextContent('Inactive category');
   expect(picker).not.toHaveTextContent('Original category');
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute(
-      'aria-disabled',
-      'true',
-    ),
-  );
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled());
 });
 
 it('does not auto-select a category when a later refresh reduces an initially multiple-choice Add list to one', async () => {

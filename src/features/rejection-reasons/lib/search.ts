@@ -13,7 +13,10 @@ export const categoriesListSearchSchema = tableSearchSchema(['name', 'code', 'ac
 });
 
 export const categoriesSearchSchema = categoriesListSearchSchema.extend({
-  category: z.literal('new').optional().catch(undefined),
+  category: z
+    .union([z.literal('new'), z.guid()])
+    .optional()
+    .catch(undefined),
 });
 
 export type CategoriesListSearch = z.infer<typeof categoriesListSearchSchema>;
@@ -37,7 +40,10 @@ export const rejectionReasonsListSearchSchema = tableSearchSchema([
 });
 
 export const rejectionReasonsSearchSchema = rejectionReasonsListSearchSchema.extend({
-  reason: z.literal('new').optional().catch(undefined),
+  reason: z
+    .union([z.literal('new'), z.guid()])
+    .optional()
+    .catch(undefined),
 });
 
 export type RejectionReasonsListSearch = z.infer<typeof rejectionReasonsListSearchSchema>;

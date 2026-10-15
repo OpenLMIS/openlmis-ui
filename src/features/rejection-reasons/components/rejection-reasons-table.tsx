@@ -30,6 +30,7 @@ import {
   DEFAULT_REJECTION_REASONS_SORT,
   type RejectionReasonsListSearch,
 } from '@/features/rejection-reasons/lib/search';
+import { markDialogOpened } from '@/hooks/use-search-navigation';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, RejectionReason>();
@@ -125,10 +126,9 @@ function RejectionReasonActions({
             <DropdownMenuItem
               render={
                 <Link
-                  to="/administration/rejection-reasons/$id"
-                  params={{ id: reason.id }}
-                  search={listSearch}
-                  state={{ rejectionReasonsListSearch: listSearch }}
+                  to="/administration/rejection-reasons"
+                  search={{ ...listSearch, reason: reason.id }}
+                  state={markDialogOpened}
                 />
               }
             >

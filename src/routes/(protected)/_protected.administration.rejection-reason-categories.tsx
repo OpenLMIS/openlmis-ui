@@ -32,16 +32,9 @@ import {
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 
-declare module '@tanstack/react-router' {
-  // biome-ignore lint/style/useConsistentTypeDefinitions: router state extends by interface merging.
-  interface HistoryState {
-    rejectionReasonCategoriesListSearch?: CategoriesListSearch;
-  }
-}
-
-const loadDialog = () => import('@/features/rejection-reasons/components/category-add-dialog');
-const CategoryAddDialog = lazy(() =>
-  loadDialog().then((module) => ({ default: module.CategoryAddDialog })),
+const loadDialog = () => import('@/features/rejection-reasons/components/category-form-dialog');
+const CategoryFormDialog = lazy(() =>
+  loadDialog().then((module) => ({ default: module.CategoryFormDialog })),
 );
 const CLOSED_DIALOGS = { category: undefined } satisfies Partial<CategoriesSearch>;
 const columnChoicesSchema = z.record(z.string(), z.boolean());
@@ -115,7 +108,7 @@ function CategoriesPage() {
         </div>
         {dialogMounted && (
           <Suspense fallback={null}>
-            <CategoryAddDialog target={target} onClose={closeDialog} />
+            <CategoryFormDialog target={target} onClose={closeDialog} />
           </Suspense>
         )}
       </WorkspaceContent>
