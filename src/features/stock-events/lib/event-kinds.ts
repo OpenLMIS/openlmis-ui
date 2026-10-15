@@ -57,6 +57,17 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 }
 
 export type EventKindConfig = {
+  listRoute:
+    | '/stock-management/adjustments'
+    | '/stock-management/issue'
+    | '/stock-management/receive'
+    | '/stock-management/unpack';
+  editorRoute:
+    | '/stock-management/adjustments/$programId'
+    | '/stock-management/issue/$programId'
+    | '/stock-management/receive/$programId'
+    | '/stock-management/unpack/$programId';
+  historyType: 'adjustment' | 'issue' | 'receive';
   eventOrigin: NonNullable<StockEvent['eventOrigin']> | null;
   contents:
     | { type: 'none' }
@@ -118,6 +129,9 @@ export type EventKindConfig = {
 
 export const EVENT_KINDS = {
   adjustment: {
+    listRoute: '/stock-management/adjustments',
+    editorRoute: '/stock-management/adjustments/$programId',
+    historyType: 'adjustment',
     download: 'adjustment',
     drafts: 'device',
     eventOrigin: 'ADJUSTMENT',
@@ -160,6 +174,9 @@ export const EVENT_KINDS = {
     formId: 'adjustment-form',
   },
   issue: {
+    listRoute: '/stock-management/issue',
+    editorRoute: '/stock-management/issue/$programId',
+    historyType: 'issue',
     download: null,
     drafts: null,
     eventOrigin: 'ISSUE',
@@ -211,6 +228,9 @@ export const EVENT_KINDS = {
     formId: 'issue-form',
   },
   receive: {
+    listRoute: '/stock-management/receive',
+    editorRoute: '/stock-management/receive/$programId',
+    historyType: 'receive',
     download: null,
     drafts: null,
     eventOrigin: 'RECEIVE',
@@ -262,6 +282,9 @@ export const EVENT_KINDS = {
     formId: 'receive-form',
   },
   unpack: {
+    listRoute: '/stock-management/unpack',
+    editorRoute: '/stock-management/unpack/$programId',
+    historyType: 'adjustment',
     download: null,
     drafts: null,
     eventOrigin: null,

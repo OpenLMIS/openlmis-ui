@@ -21,7 +21,9 @@ export async function countUnsyncedDeviceWork() {
       assertSessionScope(scope);
       const events = new Set([
         ...queue.map((row) => row.localEventId),
-        ...errors.filter((row) => !row.resolvedAt).map((row) => row.localEventId),
+        ...errors
+          .filter((row) => !row.resolvedAt && !row.dismissedAt)
+          .map((row) => row.localEventId),
       ]);
       return (
         events.size +

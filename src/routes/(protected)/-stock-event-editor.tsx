@@ -253,11 +253,13 @@ export function StockEventPending({
 }
 
 export function useStockEventPrint({
+  kind,
   copy,
   userId,
   facilityId,
   programId,
 }: {
+  kind: ConfiguredEventKind;
   copy: EventPrintCopy;
   userId: string;
   facilityId: string;
@@ -268,7 +270,7 @@ export function useStockEventPrint({
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
     !isOnline()
-      ? navigate({ to: '/stock-management/adjustments' })
+      ? navigate({ to: EVENT_KINDS[kind].listRoute })
       : navigate({
           to: '/stock-management/stock-on-hand',
           search: { mode: 'my', facilityId, programId },
@@ -323,7 +325,7 @@ export function StockEventEditorPage(props: StockEventEditorPageProps) {
       {...props}
       onSubmitted={(_eventId, synced) =>
         !synced && EVENT_KINDS[props.kind].drafts === 'device'
-          ? navigate({ to: '/stock-management/adjustments' })
+          ? navigate({ to: EVENT_KINDS[props.kind].listRoute })
           : navigate({
               to: '/stock-management/stock-on-hand',
               search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
@@ -339,6 +341,7 @@ function PrintableStockEventEditor({
 }: StockEventEditorPageProps & { copy: EventPrintCopy }) {
   const { userId, homeFacility, program } = props.data;
   const print = useStockEventPrint({
+    kind: props.kind,
     copy,
     userId,
     facilityId: homeFacility.id,

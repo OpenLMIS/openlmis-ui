@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
-import type { ErrorComponentProps } from '@tanstack/react-router';
+import { type ErrorComponentProps, Link } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
@@ -13,6 +13,7 @@ import {
   StockProgramPicker,
   StockProgramPickerSkeleton,
 } from '@/components/stock-program-picker/stock-program-picker';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -31,10 +32,12 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { useAdjustmentReadiness } from '@/hooks/use-adjustment-readiness';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
+import { useDownloadStatus } from '@/lib/offline-download-status';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
 
@@ -131,6 +134,7 @@ export function StockEventProgramPicker(props: PickerProps) {
     <Workspace width="narrow">
       <ProgramsHeader userId={userId} copy={copy} />
       <WorkspaceContent>
+        {'kind' in props && <PendingDeviceWork kind={props.kind} />}
         <QueryBoundary
           errorComponent={ProgramsError}
           pendingFallback={
@@ -174,6 +178,29 @@ export function StockEventProgramPicker(props: PickerProps) {
         </QueryBoundary>
       </WorkspaceContent>
     </Workspace>
+  );
+}
+
+function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
+  const { t } = useTranslation();
+  const { events } = useDeviceEvents();
+  const count =
+    events?.filter(
+      (event) =>
+        event.kind === kind &&
+        (['queued', 'sending', 'uncertain'].includes(event.status) ||
+          (event.status === 'refused' && !event.error?.resolvedAt)),
+    ).length ?? 0;
+  if (!count) return null;
+  return (
+    <Alert role="note">
+      <AlertDescription>
+        {t('device-events.program-pending', { count })}{' '}
+        <Link to="/stock-management/device-events" className="underline underline-offset-4">
+          {t('device-events.review')}
+        </Link>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -248,6 +275,7 @@ function DownloadedProgramsTable({
 }) {
   const { t, i18n } = useTranslation();
   const bundles = useAdjustmentReadiness(facilityId);
+  const download = useDownloadStatus();
   const timeZone = useDeploymentTimeZone();
   return (
     <StockProgramPicker
@@ -260,23 +288,27 @@ function DownloadedProgramsTable({
         return {
           id: program.id,
           label: recordLabel(program),
-          status: bundle ? (
-            <div className="flex flex-col gap-1">
-              <span>
-                {t(bundle.stale ? 'offline.download.needs-refresh' : 'offline.download.ready')}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {t('offline.download.downloaded-at', {
-                  date: formatTimestamp(new Date(bundle.fetchedAt).toISOString(), i18n.language, {
-                    time: true,
-                    timeZone,
-                  }),
-                })}
-              </span>
-            </div>
-          ) : (
-            t('offline.download.not-downloaded')
-          ),
+          status:
+            download.phase === 'running' &&
+            download.failed.some((item) => item.id === program.id) ? (
+              t('offline.download.downloading')
+            ) : bundle ? (
+              <div className="flex flex-col gap-1">
+                <span>
+                  {t(bundle.stale ? 'offline.download.needs-refresh' : 'offline.download.ready')}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {t('offline.download.downloaded-at', {
+                    date: formatTimestamp(new Date(bundle.fetchedAt).toISOString(), i18n.language, {
+                      time: true,
+                      timeZone,
+                    }),
+                  })}
+                </span>
+              </div>
+            ) : (
+              t('offline.download.not-downloaded')
+            ),
         };
       })}
     />

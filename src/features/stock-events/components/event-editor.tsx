@@ -9,7 +9,15 @@ import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -107,11 +115,16 @@ import {
   type StockEventDelivery,
   waitForStockEventReceipt,
 } from '@/features/stock-events/lib/stock-event-delivery';
+import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
-import type { StockEventSyncError } from '@/features/stock-events/lib/stock-event-sync';
+import {
+  copyRefusedEvent,
+  type StockEventSyncError,
+} from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { useCardLayout } from '@/hooks/use-card-view';
+import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -233,6 +246,32 @@ export function EventEditor({
   const navigate = useNavigate();
   const [refusal, setRefusal] = useState<StockEventSyncError | null>(null);
   const [reviewRefusal, setReviewRefusal] = useState(false);
+  const correction = useSessionMutation({
+    mutationFn: async () =>
+      refusal ? copyRefusedEvent(createStockEventContext(refusal.event), refusal) : undefined,
+    retry: false,
+  });
+  const correctRefusal = async () => {
+    try {
+      const copy = await correction.mutateAsync();
+      if (!correction.isCurrent()) return;
+      if (!copy) {
+        toast.warning(t('device-events.changed-title'), {
+          description: t('device-events.changed-description'),
+        });
+        return;
+      }
+      setFailure(null);
+      setRefusal(null);
+      posting.current = false;
+      draft.reload();
+    } catch {
+      if (correction.isCurrent())
+        toast.error(t('device-events.action-failed'), {
+          description: t('device-events.action-failed-description'),
+        });
+    }
+  };
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -1012,6 +1051,7 @@ export function EventEditor({
             <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
+              {refusal && <span className="block pt-2">{t('device-events.copy-warning')}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1028,12 +1068,7 @@ export function EventEditor({
                   >
                     {t('device-events.review')}
                   </Button>
-                  <Button
-                    onClick={() => {
-                      setFailure(null);
-                      setReviewRefusal(true);
-                    }}
-                  >
+                  <Button disabled={correction.isPending} onClick={() => void correctRefusal()}>
                     {t('device-events.copy')}
                   </Button>
                 </>
@@ -1044,16 +1079,30 @@ export function EventEditor({
         </AlertDialogContent>
       </AlertDialog>
       {refusal && reviewRefusal && (
-        <DeviceEventRecovery
-          event={{ ...refusal.event, status: 'refused', error: refusal }}
-          canView={canViewStock}
-          onClose={() => setReviewRefusal(false)}
-          onCopied={() => {
-            setRefusal(null);
-            posting.current = false;
-            draft.reload();
-          }}
-        />
+        <QueryBoundary
+          resetKey={refusal.localEventId}
+          pendingFallback={null}
+          errorComponent={({ error, reset }) => (
+            <LoadError
+              error={error}
+              reset={reset}
+              title={t('device-events.error-title')}
+              description={t('device-events.error-description')}
+            />
+          )}
+        >
+          <RefusalRecovery
+            event={{ ...refusal.event, status: 'refused', error: refusal }}
+            canView={canViewStock}
+            canSend
+            onClose={() => setReviewRefusal(false)}
+            onCopied={() => {
+              setRefusal(null);
+              posting.current = false;
+              draft.reload();
+            }}
+          />
+        </QueryBoundary>
       )}
       {editingLot && isNewLot(editingLot.lot) && (
         <EditLotDialog
@@ -1304,4 +1353,9 @@ function LookupError({
   const { t } = useTranslation();
   if (isRefused(error)) return <p>{t('no-access.description')}</p>;
   return <LoadError error={error} reset={reset} title={t(title)} description={t(description)} />;
+}
+
+function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
+  const timeZone = useDeploymentTimeZone();
+  return <DeviceEventRecovery {...props} timeZone={timeZone} />;
 }

@@ -13,6 +13,7 @@ import {
   acceptStockEvent,
   classifyUpload,
   copyRefusedEvent,
+  dismissRefusedEvent,
   pruneStockEvents,
   recoverSending,
   removeQueuedEvent,
@@ -487,3 +488,31 @@ it('allows removal after a service 401 proves the event was not committed', asyn
   expect(queued.attemptId).toBeUndefined();
   expect(await removeQueuedEvent(createStockEventContext(event), queued)).toBe(true);
 });
+
+it.each([false, true])(
+  'dismisses a refusal without deleting its original (copied: %s)',
+  async (copied) => {
+    const event = await enqueue();
+    const db = getLocalDb();
+    await syncStockEvents(
+      db,
+      event.userId,
+      dependencies(
+        vi.fn(async () => response(400, { messageKey: 'bad', message: 'Invalid event' })),
+      ),
+    );
+    const error = await db.table('stockEventSyncErrors').get(event.localEventId);
+    const context = createStockEventContext(event);
+    if (copied) await copyRefusedEvent(context, error);
+    expect(
+      await dismissRefusedEvent(context, { ...error, event: { ...error.event, revision: 999 } }),
+    ).toBe(false);
+    expect(await dismissRefusedEvent(context, error)).toBe(true);
+    expect(await dismissRefusedEvent(context, error)).toBe(false);
+    expect(await db.table('stockEventSyncErrors').get(event.localEventId)).toMatchObject({
+      dismissedAt: expect.any(Number),
+      resolvedAt: expect.any(Number),
+    });
+    expect((await db.table('stockEventDrafts').get(event.draftId)).state).toBe('refused');
+  },
+);

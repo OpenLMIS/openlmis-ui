@@ -906,29 +906,58 @@ describe('EventEditor', () => {
     expect(screen.getByRole('button', { name: 'Submit', hidden: true })).toBeDisabled();
     expect(onSubmitted).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
-    await user.click(within(failure).getByRole('button', { name: 'Close' }));
-    const correction = screen.getByRole('button', { name: 'Copy For Correction' });
-    expect(correction.closest('[role="note"]')).toHaveTextContent(
-      'Backdated stock would be negative',
-    );
-    await waitFor(() => expect(correction).toHaveFocus());
-    await user.click(correction);
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', {
-        name: 'Copy For Correction',
-      }),
-    );
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', {
-        name: 'Copy For Correction',
-      }),
-    );
+    await user.click(within(failure).getByRole('button', { name: 'Copy For Correction' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled());
     expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
     const drafts = await getLocalDb().table('stockEventDrafts').toArray();
     expect(drafts.map((row) => row.state).sort()).toEqual(['editing', 'refused']);
     expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
     expect(onSubmitted).not.toHaveBeenCalled();
+  });
+  it('formats refusal detail times in the deployment zone while keeping transport fields out', async () => {
+    vi.mocked(waitForStockEventReceipt).mockImplementationOnce(async (event) => {
+      await syncStockEvents(getLocalDb(), event.userId, {
+        check: () => {},
+        canSend: () => true,
+        permitted: () => true,
+        send: async () => ({
+          status: 400,
+          data: {
+            messageKey: 'stock-changed',
+            message: 'Backdated stock would be negative',
+            internal: 'secret-debug-value',
+          },
+        }),
+        retryReceipt: async () => {},
+        accepted: () => {},
+      });
+      return {
+        kind: 'refused',
+        error: await getLocalDb().table('stockEventSyncErrors').get(event.localEventId),
+      };
+    });
+    const { user } = setup(true, (client) =>
+      client.setQueryData(deploymentTimeZoneOptions().queryKey, {
+        zone: 'Pacific/Auckland',
+        read: true,
+      }),
+    );
+    await validLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    const failure = await screen.findByRole('alertdialog');
+    await user.click(within(failure).getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Copy For Correction' }));
+    const details = await screen.findByRole('dialog');
+    const error = await getLocalDb().table('stockEventSyncErrors').toCollection().first();
+    expect(details).toHaveTextContent(
+      formatTimestamp(new Date(error.event.queuedAt).toISOString(), 'en', {
+        time: true,
+        timeZone: 'Pacific/Auckland',
+      }),
+    );
+    expect(details).not.toHaveTextContent('secret-debug-value');
+    expect(details).not.toHaveTextContent('Saved Revision');
   });
   it('failed local enqueue never shows success or freezes the draft', async () => {
     const { user, onSubmitted } = setup();

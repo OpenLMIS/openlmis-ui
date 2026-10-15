@@ -22,6 +22,7 @@ export type StockEventSyncError = {
   response?: unknown;
   failedAt: number;
   resolvedAt?: number;
+  dismissedAt?: number;
   history?: (Pick<
     StockEventSyncError,
     'category' | 'httpStatus' | 'messageKey' | 'message' | 'failedAt' | 'resolvedAt'
@@ -35,6 +36,7 @@ export type StockEventReceipt = {
   acceptedAt: number;
   source: 'server' | 'user';
   serverEventId?: string;
+  documentNumber?: string;
   confirmedBy?: string;
   event: QueuedStockEvent;
 };
@@ -52,7 +54,7 @@ function serviceError(data: unknown) {
 export function classifyUpload(
   response: UploadResponse,
 ):
-  | { kind: 'accepted'; serverEventId: string }
+  | { kind: 'accepted'; serverEventId: string; documentNumber?: string }
   | { kind: 'session' }
   | { kind: 'refused'; category: 'refused' | 'stock-changed'; message: string; messageKey?: string }
   | { kind: 'uncertain' } {
@@ -64,7 +66,16 @@ export function classifyUpload(
         : data && typeof data === 'object'
           ? (data as { id?: unknown }).id
           : undefined;
-    if (typeof id === 'string' && uuid.test(id)) return { kind: 'accepted', serverEventId: id };
+    if (typeof id === 'string' && uuid.test(id)) {
+      const documentNumber =
+        data &&
+        typeof data === 'object' &&
+        'documentNumber' in data &&
+        typeof data.documentNumber === 'string'
+          ? data.documentNumber
+          : undefined;
+      return { kind: 'accepted', serverEventId: id, documentNumber };
+    }
   }
   const error = serviceError(data);
   if (status === 401 && error) return { kind: 'session' };
@@ -145,7 +156,7 @@ function history(
 export async function acceptStockEvent(
   db: Dexie,
   event: QueuedStockEvent,
-  receipt: Pick<StockEventReceipt, 'source' | 'serverEventId'>,
+  receipt: Pick<StockEventReceipt, 'source' | 'serverEventId' | 'documentNumber'>,
   check: () => void,
 ) {
   return db.transaction('rw', tables(db), async () => {
@@ -395,7 +406,11 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
             acceptStockEvent(
               owned,
               event,
-              { source: 'server', serverEventId: outcome.serverEventId },
+              {
+                source: 'server',
+                serverEventId: outcome.serverEventId,
+                documentNumber: outcome.documentNumber,
+              },
               check,
             ),
           );
@@ -549,6 +564,35 @@ export async function copyRefusedEvent(context: StockEventContext, error: StockE
       .update(error.localEventId, { resolvedAt: Date.now() });
     check();
     return editing;
+  });
+}
+export async function dismissRefusedEvent(context: StockEventContext, error: StockEventSyncError) {
+  const check = () => {
+    assertSessionScope(context.sessionScope);
+    if (error.event.userId !== context.userId) throw new Error('Wrong device event owner');
+  };
+  return context.db.transaction('rw', tables(context.db), async () => {
+    check();
+    const stored = await context.db
+      .table<StockEventSyncError>('stockEventSyncErrors')
+      .get(error.localEventId);
+    check();
+    if (
+      !stored ||
+      stored.category === 'uncertain' ||
+      stored.dismissedAt ||
+      stored.event.userId !== context.userId ||
+      stored.event.draftId !== error.event.draftId ||
+      stored.event.revision !== error.event.revision ||
+      stored.event.attemptId !== error.event.attemptId
+    )
+      return false;
+    await context.db.table('stockEventSyncErrors').update(error.localEventId, {
+      dismissedAt: Date.now(),
+      resolvedAt: stored.resolvedAt ?? Date.now(),
+    });
+    check();
+    return true;
   });
 }
 export async function pruneStockEvents(db: Dexie, check: () => void) {
