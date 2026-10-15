@@ -21,10 +21,14 @@ vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
 }));
-const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[] }));
+const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[], reads: vi.fn() }));
 vi.mock('@/components/nav-access', () => ({ useHasRight: () => device.allowed }));
 vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
-  useDeviceEvents: () => ({ events: device.events }),
+  useHasDeviceEvents: () => device.events.length > 0,
+  useDeviceEvents: (enabled: boolean) => {
+    device.reads(enabled);
+    return { events: enabled ? device.events : undefined };
+  },
 }));
 
 const worker = vi.hoisted(() => ({ waiting: () => {} }));
@@ -331,4 +335,11 @@ it('does not describe a connected expired session as offline', () => {
   renderNotices();
   expect(screen.queryByText('session.offline-description')).not.toBeInTheDocument();
   useLoginData.getState().clearLoginData();
+});
+
+it('avoids loading device event records for users without Adjustments access or device data', () => {
+  device.reads.mockClear();
+  renderNotices();
+  expect(device.reads).toHaveBeenCalledWith(false);
+  expect(device.reads).not.toHaveBeenCalledWith(true);
 });

@@ -201,6 +201,9 @@ it.each(['failure', 'timeout'])(
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(
       'sign-out-device.check-failed',
     );
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      'sign-out-device.check-failed-title',
+    );
     expect(onSignOut).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'sign-out-offline.confirm' }));
     expect(onSignOut).toHaveBeenCalledOnce();

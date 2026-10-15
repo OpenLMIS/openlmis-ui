@@ -1704,6 +1704,7 @@
   "sidebar.theme.light": "Clair",
   "sidebar.toggle-sidebar": "Afficher ou masquer le panneau latéral",
   "sign-out-device.check-failed": "Impossible de vérifier cet appareil ; le travail enregistré reste ici.",
+  "sign-out-device.check-failed-title": "Impossible De Vérifier Le Travail Sur Cet Appareil",
   "sign-out-device.description": "{count, plural, one {# élément est enregistré} other {# éléments sont enregistrés}} uniquement sur cet appareil. Ils y restent pour votre prochaine connexion avec ce compte ; les événements en attente de synchronisation seront alors envoyés.",
   "sign-out-device.title": "Travail Non Synchronisé Sur Cet Appareil",
   "sign-out-offline.confirm": "Se déconnecter",

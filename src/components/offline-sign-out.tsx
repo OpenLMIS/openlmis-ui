@@ -72,9 +72,11 @@ export function useOfflineSignOut() {
         <AlertDialogHeader>
           <AlertDialogTitle>
             {t(
-              pending?.count === null || pending?.count
-                ? 'sign-out-device.title'
-                : 'sign-out-offline.title',
+              pending?.count === null
+                ? 'sign-out-device.check-failed-title'
+                : pending?.count
+                  ? 'sign-out-device.title'
+                  : 'sign-out-offline.title',
             )}
           </AlertDialogTitle>
           <AlertDialogDescription>

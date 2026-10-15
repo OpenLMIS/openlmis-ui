@@ -1704,6 +1704,7 @@
   "sidebar.theme.light": "Light",
   "sidebar.toggle-sidebar": "Toggle Sidebar",
   "sign-out-device.check-failed": "Could not check this device; any saved work stays here.",
+  "sign-out-device.check-failed-title": "Could Not Check Device Work",
   "sign-out-device.description": "{count, plural, one {# item is} other {# items are}} saved only on this device. They stay here for when you sign in again as this user; events waiting to sync send then.",
   "sign-out-device.title": "Device Work Has Not Synced",
   "sign-out-offline.confirm": "Sign Out",

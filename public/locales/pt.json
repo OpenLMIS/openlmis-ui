@@ -1704,6 +1704,7 @@
   "sidebar.theme.light": "Claro",
   "sidebar.toggle-sidebar": "Alternar Barra Lateral",
   "sign-out-device.check-failed": "Não foi possível verificar este dispositivo; o trabalho guardado fica aqui.",
+  "sign-out-device.check-failed-title": "Não Foi Possível Verificar O Trabalho No Dispositivo",
   "sign-out-device.description": "{count, plural, one {# item está guardado} other {# itens estão guardados}} apenas neste dispositivo. Ficam aqui até voltar a iniciar sessão com este utilizador; os eventos à espera de sincronização serão enviados nessa altura.",
   "sign-out-device.title": "Trabalho Do Dispositivo Por Sincronizar",
   "sign-out-offline.confirm": "Terminar Sessão",

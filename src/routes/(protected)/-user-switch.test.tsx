@@ -4,6 +4,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  Link,
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
@@ -11,8 +12,10 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { FormDialog, FormDialogTitle } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -21,7 +24,19 @@ import { expectRouteWarning } from '@/tests/expect-route-warning';
 
 vi.mock('@/components/nav-access', () => ({ useHasRight: () => false }));
 vi.mock('@/components/app-shell', () => ({
-  AppShell: ({ children }: { children: React.ReactNode }) => children,
+  AppShell: ({ children }: { children: React.ReactNode }) => {
+    const { confirm, dialog } = useOfflineSignOut();
+    return (
+      <>
+        <Link to="/home">Home</Link>
+        <button type="button" onClick={() => confirm(() => {})}>
+          Sign Out
+        </button>
+        {dialog}
+        {children}
+      </>
+    );
+  },
 }));
 vi.mock('@/components/app-shell-skeleton', () => ({
   AppShellSkeleton: () => <p>Checking access</p>,
@@ -39,13 +54,14 @@ function Draft() {
   const [value, setValue] = useState('saved');
   const [target, setTarget] = useState<boolean>();
   const { shown, dialogProps } = useDialogTarget(target, () => setTarget(undefined));
-  useDiscardGuard(value !== 'saved');
+  const guard = useDiscardGuard(value !== 'saved');
   return (
     <>
       <input aria-label="Draft" value={value} onChange={(event) => setValue(event.target.value)} />
       <button type="button" onClick={() => setTarget(true)}>
         Open draft dialog
       </button>
+      <DiscardChangesDialog {...guard.dialog} description="Unsaved draft" />
       <FormDialog {...dialogProps()}>
         <FormDialogTitle>Draft dialog</FormDialogTitle>
         {shown && <input aria-label="Dialog draft" defaultValue="saved" />}
@@ -66,13 +82,26 @@ const draft = createRoute({
   component: Draft,
   errorComponent: () => <p>No Access</p>,
 });
-const tree = root.addChildren([Route.addChildren([draft])]);
+const home = createRoute({
+  getParentRoute: () => Route,
+  path: '/home',
+  component: () => <p>Home page</p>,
+});
+const tree = root.addChildren([Route.addChildren([draft, home])]);
 
 async function openDraft(onCaughtError?: (error: unknown) => void) {
   const queryClient = new QueryClient();
   const router = createRouter({
     routeTree: tree,
-    context: { queryClient, getResolvedPathname: () => router.state.resolvedLocation?.pathname },
+    context: {
+      queryClient,
+      getResolvedPathname: (): string | undefined =>
+        router.state.matches.some(
+          (match) => match.routeId === '/(protected)/_protected' && match.status === 'success',
+        )
+          ? router.state.resolvedLocation?.pathname
+          : undefined,
+    },
     history: createMemoryHistory({ initialEntries: ['/draft'] }),
   });
   render(
@@ -198,5 +227,45 @@ it.each(['retry', 'search'])('retains hidden drafts after an offline %s', async 
   expect(await screen.findByLabelText('Draft')).toHaveValue('saved changed');
   expect(screen.getByLabelText('Dialog draft')).toHaveValue('saved changed');
   expect(screen.getByRole('dialog')).toBeVisible();
+  vi.restoreAllMocks();
+});
+
+it.each(['Home', 'Sign Out'])('shows the hidden draft discard prompt for %s', async (action) => {
+  const router = await openDraft();
+  await act(() => onlineManager.setOnline(false));
+  await userEvent.click(screen.getByRole(action === 'Home' ? 'link' : 'button', { name: action }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('discard-changes.title');
+  await userEvent.click(screen.getByRole('button', { name: 'discard-changes.keep-editing' }));
+  expect(router.state.location.pathname).toBe('/draft');
+  expect(screen.getByLabelText('Draft')).toHaveValue('saved changed');
+  await userEvent.click(screen.getByRole(action === 'Home' ? 'link' : 'button', { name: action }));
+  await userEvent.click(
+    await screen.findByRole('button', {
+      name: action === 'Home' ? 'discard-changes.discard' : 'discard-changes.discard-sign-out',
+    }),
+  );
+  if (action === 'Home') expect(await screen.findByText('Home page')).toBeVisible();
+  else expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-offline.title');
+});
+
+it('keeps a failed offline Back entry gated through retry and invalidation', async () => {
+  const router = await openDraft();
+  await userEvent.clear(screen.getByLabelText('Draft'));
+  await userEvent.type(screen.getByLabelText('Draft'), 'saved');
+  await userEvent.click(screen.getByRole('link', { name: 'Home' }));
+  await screen.findByText('Home page');
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  await act(() => onlineManager.setOnline(false));
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  await act(async () => router.history.back());
+  await screen.findByRole('heading', { name: /offline\.(notice|page)-title/ });
+  await waitFor(() => expect(router.state.resolvedLocation?.pathname).toBe('/draft'));
+  loader.mockClear();
+  await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  expect(loader).not.toHaveBeenCalled();
+  await act(() => router.invalidate());
+  expect(loader).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument();
+  warning.mockRestore();
   vi.restoreAllMocks();
 });

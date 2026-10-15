@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/empty';
 import { isForbidden } from '@/features/auth/lib/access';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
-import { seedOnline } from '@/lib/online';
+import { isOnline, seedOnline } from '@/lib/online';
 
 type ErrorFallbackProps = ErrorComponentProps & {
   title?: string;
@@ -29,8 +29,10 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
   const router = useRouter();
   const retry = () => {
     seedOnline();
-    void router.invalidate();
-    reset();
+    if (isOnline()) {
+      void router.invalidate();
+      reset();
+    }
   };
   const offline = useOfflineFailure(error, retry);
   // A route that needs a right it lacks, or a refusal from the server, is not an error.
