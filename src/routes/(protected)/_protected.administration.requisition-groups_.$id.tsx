@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import {
   RequisitionGroupEditor,
   RequisitionGroupEditorSkeleton,
@@ -22,7 +21,6 @@ export const Route = createFileRoute(
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
     await requireRight(queryClient, RIGHTS.requisitionGroupsManage);
-    queryClient.prefetchQuery(minimalFacilitiesOptions());
     return loadRequisitionGroup(queryClient, params.id, cause);
   },
   pendingComponent: ViewGroupPending,

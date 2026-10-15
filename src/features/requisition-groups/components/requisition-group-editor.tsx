@@ -2,7 +2,6 @@ import { revalidateLogic, useStore } from '@tanstack/react-form';
 import {
   type QueryClient,
   useIsMutating,
-  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
@@ -299,7 +298,7 @@ function EditorHeader({ title, description }: { title?: string; description: str
 function EditorTabs() {
   const { t } = useTranslation();
   return (
-    <TabsList aria-label={t('requisition-groups.form.tabs-label')} wrap="md">
+    <TabsList aria-label={t('requisition-groups.form.tabs-label')}>
       <TabsTrigger value="programs">{t('requisition-groups.form.programs')}</TabsTrigger>
       <TabsTrigger value="facilities">{t('requisition-groups.form.facilities')}</TabsTrigger>
     </TabsList>
@@ -412,7 +411,6 @@ function NodeControl({
 }
 const PROGRAM_COLUMNS = [
   { id: 'directDelivery', labelKey: 'requisition-groups.form.direct-delivery', hideBelow: '3xl' },
-  { id: 'dropOffFacility', labelKey: 'requisition-groups.form.drop-off', hideBelow: 'xl' },
 ] as const;
 const MEMBER_COLUMNS = [
   { id: 'type', labelKey: 'requisition-groups.form.type', hideBelow: '3xl' },
@@ -447,16 +445,6 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
     </div>
   );
 }
-function DropOffName({ id }: { id: string | undefined }) {
-  const { data, isPending } = useQuery(REQUISITION_GROUP_LOOKUPS.facilities);
-  if (!id) return null;
-  if (isPending) return <Block className="h-4 w-24" />;
-  return (
-    <span className="whitespace-normal break-words" dir="auto">
-      {tableValue(data?.find((facility) => facility.id === id)?.name)}
-    </span>
-  );
-}
 function programColumns(t: TFunction, remove?: (index: number) => void) {
   return programColumn.columns([
     programColumn.accessor((row) => tableValue(row.program.name), {
@@ -487,13 +475,6 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
         ),
       },
     ),
-    programColumn.display({
-      id: 'dropOffFacility',
-      header: () => (
-        <DataTableHeaderLabel>{t('requisition-groups.form.drop-off')}</DataTableHeaderLabel>
-      ),
-      cell: ({ row }) => <DropOffName id={row.original.dropOffFacility?.id} />,
-    }),
     programColumn.accessor('directDelivery', {
       meta: { className: 'w-36' },
       header: () => (
@@ -662,23 +643,20 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
       cell: ({ getValue }) =>
         t(getValue() ? 'requisition-groups.form.yes' : 'requisition-groups.form.no'),
     }),
-    ...(remove
-      ? [
-          memberColumn.display({
-            id: 'actions',
-            header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
-            meta: { className: 'w-16' },
-            cell: ({ row }) => (
-              <RemoveButton
-                label={t('requisition-groups.form.remove-facility', {
-                  facility: row.original.name,
-                })}
-                onClick={() => remove(row.original.id, row.index)}
-              />
-            ),
-          }),
-        ]
-      : []),
+    memberColumn.display({
+      id: 'actions',
+      header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
+      meta: { className: 'w-16' },
+      cell: ({ row }) =>
+        remove && (
+          <RemoveButton
+            label={t('requisition-groups.form.remove-facility', {
+              facility: row.original.name,
+            })}
+            onClick={() => remove(row.original.id, row.index)}
+          />
+        ),
+    }),
   ]);
 }
 function MembersFields({
