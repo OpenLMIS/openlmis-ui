@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { createRootRoute, createRouter, RouterContextProvider } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -87,4 +88,11 @@ describe('ErrorFallback', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Back To List' }));
     expect(back).toHaveBeenCalledOnce();
   });
+});
+
+it('reseeds connection on retry after Continue Offline', async () => {
+  onlineManager.setOnline(false);
+  renderFallback(networkError());
+  await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  expect(onlineManager.isOnline()).toBe(true);
 });

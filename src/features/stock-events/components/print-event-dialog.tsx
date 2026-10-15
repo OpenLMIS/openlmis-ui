@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -35,15 +36,16 @@ export function PrintEventDialog({ copy, open, onPrint, onSkip }: Props) {
           <Button variant="outline" onClick={onSkip}>
             {t(copy.skip)}
           </Button>
-          <Button
-            disabled={!online}
-            focusableWhenDisabled={!online}
-            title={!online ? t('offline.print-description') : undefined}
-            aria-description={!online ? t('offline.print-description') : undefined}
-            onClick={onPrint}
-          >
-            {t('stock-event.print')}
-          </Button>
+          <ActionTooltip reason={online ? undefined : t('offline.print-description')}>
+            <Button
+              disabled={!online}
+              focusableWhenDisabled={!online}
+              aria-description={!online ? t('offline.print-description') : undefined}
+              onClick={onPrint}
+            >
+              {t('stock-event.print')}
+            </Button>
+          </ActionTooltip>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

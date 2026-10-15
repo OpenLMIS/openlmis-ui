@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import {
@@ -532,21 +533,22 @@ function StockOnHandPrintButton({
     refusedDescription: t('stock-on-hand.print-refused'),
   });
   return (
-    <Button
-      disabled={print.offline || !page || page.totalElements === 0 || print.isPending}
-      onClick={print.print}
-      size="lg"
-      focusableWhenDisabled={print.offline}
-      title={print.disabledReason}
-      aria-description={print.disabledReason}
-      width="full"
-    >
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <PrinterIcon data-icon="inline-start" />
-      )}
-      {t('stock-on-hand.print')}
-    </Button>
+    <ActionTooltip reason={print.disabledReason}>
+      <Button
+        disabled={print.offline || !page || page.totalElements === 0 || print.isPending}
+        onClick={print.print}
+        focusableWhenDisabled={print.offline}
+        aria-description={print.disabledReason}
+        size="lg"
+        width="full"
+      >
+        {print.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <PrinterIcon data-icon="inline-start" />
+        )}
+        {t('stock-on-hand.print')}
+      </Button>
+    </ActionTooltip>
   );
 }

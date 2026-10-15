@@ -55,7 +55,7 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
-import { useOnline } from '@/lib/online';
+import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
@@ -252,7 +252,7 @@ export function StockEventPending({
   );
 }
 
-function useStockEventPrint({
+export function useStockEventPrint({
   copy,
   userId,
   facilityId,
@@ -267,10 +267,12 @@ function useStockEventPrint({
   const navigate = useNavigate();
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
-    navigate({
-      to: '/stock-management/stock-on-hand',
-      search: { mode: 'my', facilityId, programId },
-    });
+    !isOnline()
+      ? navigate({ to: '/stock-management/adjustments' })
+      : navigate({
+          to: '/stock-management/stock-on-hand',
+          search: { mode: 'my', facilityId, programId },
+        });
   const print = usePrintReport({
     userId,
     right: RIGHTS.stockCardsView,

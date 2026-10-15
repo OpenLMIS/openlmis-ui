@@ -53,7 +53,7 @@ function useNotices(): Notice[] {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const canAdjust = useHasRight(RIGHTS.stockAdjust);
-  const { events } = useDeviceEvents(canAdjust);
+  const { events } = useDeviceEvents();
   const ownPhase = useSyncPhase();
   const phase =
     ownPhase === 'idle' && events?.some((event) => event.status === 'sending')
@@ -83,7 +83,7 @@ function useNotices(): Notice[] {
       Icon: WifiOffIcon,
       title: t('offline.title'),
       description: t('offline.description'),
-      action: { label: t('offline.try-connection'), onClick: seedOnline },
+      action: { label: t('error.try-again'), onClick: seedOnline },
     });
   }
   if (online && backOnline) {
@@ -154,7 +154,7 @@ function useNotices(): Notice[] {
       action: review,
     });
   if (
-    offlineSession ||
+    (offlineSession && (canAdjust || events?.some((event) => event.status !== 'accepted'))) ||
     (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
   )
     notices.push({
@@ -169,11 +169,12 @@ function useNotices(): Notice[] {
             ? 'device-events.sign-in'
             : 'device-events.receipt-write',
       ),
-      description: offlineSession
-        ? t('session.offline-description')
-        : phase === 'receipt'
-          ? t('device-events.receipt-write-description')
-          : undefined,
+      description:
+        offlineSession && !online
+          ? t('session.offline-description')
+          : phase === 'receipt'
+            ? t('device-events.receipt-write-description')
+            : undefined,
       action: offlineSession || phase === 'session' ? undefined : review,
       closesSidebar: true,
     });

@@ -2,6 +2,7 @@ import { Link, useLocation } from '@tanstack/react-router';
 import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
@@ -192,7 +193,17 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
           item.disabled ? <button type="button" /> : <Link onClick={onNavigate} to={item.to} />
         }
         tooltip={
-          item.disabled ? { children: t('offline.connection-required'), hidden: false } : title
+          item.disabled
+            ? {
+                children: (
+                  <span>
+                    <span className="block">{title}</span>
+                    <span className="block">{t('offline.connection-required')}</span>
+                  </span>
+                ),
+                hidden: false,
+              }
+            : title
         }
       >
         {item.icon && <item.icon />}
@@ -228,24 +239,25 @@ function NavCollapsible({
         <SidebarMenuSub end="flush">
           {item.items.map((child) => (
             <SidebarMenuSubItem key={child.titleKey}>
-              <SidebarMenuSubButton
-                isActive={isNavActive(pathname, child.to)}
-                aria-disabled={child.disabled || undefined}
-                aria-description={child.disabled ? t('offline.connection-required') : undefined}
-                title={child.disabled ? t('offline.connection-required') : undefined}
-                aria-label={t(child.titleKey)}
-                render={
-                  child.disabled ? (
-                    <button type="button" />
-                  ) : (
-                    <Link onClick={onNavigate} to={child.to} />
-                  )
-                }
-              >
-                {child.icon && <child.icon />}
-                <span className="truncate">{t(child.titleKey)}</span>
-                {child.disabled && <WifiOffIcon aria-hidden="true" />}
-              </SidebarMenuSubButton>
+              <ActionTooltip reason={child.disabled ? t('offline.connection-required') : undefined}>
+                <SidebarMenuSubButton
+                  isActive={isNavActive(pathname, child.to)}
+                  aria-disabled={child.disabled || undefined}
+                  aria-description={child.disabled ? t('offline.connection-required') : undefined}
+                  aria-label={t(child.titleKey)}
+                  render={
+                    child.disabled ? (
+                      <button type="button" />
+                    ) : (
+                      <Link onClick={onNavigate} to={child.to} />
+                    )
+                  }
+                >
+                  {child.icon && <child.icon />}
+                  <span className="truncate">{t(child.titleKey)}</span>
+                  {child.disabled && <WifiOffIcon aria-hidden="true" />}
+                </SidebarMenuSubButton>
+              </ActionTooltip>
             </SidebarMenuSubItem>
           ))}
         </SidebarMenuSub>
@@ -266,23 +278,21 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
           <span>{title}</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" side="inline-end" sideOffset={12} width="wide">
-          {item.items.some((child) => child.disabled) && (
-            <p className="px-2 py-1 text-xs text-muted-foreground">
-              {t('offline.connection-required')}
-            </p>
-          )}
           <DropdownMenuGroup>
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
+            {item.items.some((child) => child.disabled) && (
+              <p className="px-2 py-1 text-xs text-muted-foreground">
+                {t('offline.navigation-description')}
+              </p>
+            )}
+
             {item.items.map((child) => (
               <DropdownMenuItem
                 key={child.titleKey}
                 disabled={child.disabled}
-                title={child.disabled ? t('offline.connection-required') : undefined}
+                aria-description={child.disabled ? t('offline.connection-required') : undefined}
                 render={child.disabled ? undefined : <Link to={child.to} />}
               >
-                {child.disabled && (
-                  <span className="sr-only">{t('offline.connection-required')}</span>
-                )}
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
                 {child.disabled && <WifiOffIcon aria-hidden="true" />}

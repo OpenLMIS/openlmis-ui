@@ -256,6 +256,7 @@ edits, which have no prop for TypeScript to detect:
 
 | File | Required customization |
 |---|---|
+| `dialog.tsx` / `alert-dialog.tsx` | Preserve page-visibility gates and retained hidden portals |
 | `alert-dialog.tsx` | Preserve the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
@@ -633,7 +634,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 
 **Whole-record saves require fresh reads:**
 
-- Edit Facility passes fresh `saved` data to `src/features/facilities/components/facility-editor.tsx`.
+- Edit Facility passes fresh `saved` data to
+  `src/features/facilities/components/facility-editor.tsx`.
   Pages reading fresh records for whole-record saves, including Edit Reason, set
   `preload: false` to prevent hover-cache reuse.
 - Dialogs fetch fresh on each opening: add a per-opening number from `useOpening()`
@@ -730,7 +732,8 @@ scanning follows the kind policy; Unpack keeps it off, as legacy.
 
 ## Facility and program picker
 
-Facility/program screens use `FacilityProgramSelector` (`src/components/facility-program-selector/`).
+Facility/program screens use `FacilityProgramSelector`
+(`src/components/facility-program-selector/`).
 `facilityProgramOptions` (`src/lib/facility-program-selection.ts`) builds options from the
 home facility, user programs, all facilities and page grants, following legacy:
 
@@ -969,7 +972,8 @@ until those criteria are met.
   caught errors with component stacks.
 - `SidebarNotices` above footer buttons shows You're Offline (warning, no close), You're Back
   Online (success, 4 s), and Update Available (info, Reload). Collapsed rail: tooltip icons,
-  connection retry and Reload remain clickable. `OfflineDot` marks the header menu when the sidebar is closed.
+  connection retry and Reload remain clickable. `OfflineDot` marks the header menu when the
+  sidebar is closed.
 - Visual notices are notes, never live regions. Header `StatusAnnouncer` is the single
   always-mounted `role="status"` so announcements survive sidebar visibility changes.
 - Reload uses `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Run `allowUnload()` just
@@ -986,24 +990,30 @@ until those criteria are met.
 - The protected parent's `beforeLoad` rejects online-only direct routes before child data
   loads. Its error keeps the shell and uses `OfflineNotice` with the online-only explanation;
   an already-open server page hides behind the same fallback, retaining its mounted draft
-  and leave guards. Reconnect retries a failed direct-entry gate without resetting open forms.
+  and leave guards. Same-path search changes keep that page mounted; only entering a different
+  path fails the route gate. Retry calls `seedOnline()` first and invalidates only when online.
+  Dialog/alert-dialog portals and workspace footers hide with the page and retain their state.
+  Skip offline preloads of online-only routes before their gate or child loaders run.
 - `usePrintReport` refuses offline clicks before delivery/permissions, and rechecks connection
   after permissions before requesting the PDF. Every consumer and the event print dialog
-  uses focusable disabled buttons with a translated title and accessible description. Home
+  uses focusable disabled buttons with a visible Tooltip and accessible description. Home
   keeps its shell/local content while Add User and server Refresh follow the same action gate.
 - Sign-out flushes first, then counts editing/archived drafts, modified inventory copies,
   queued/sending/uncertain/paused events and unresolved refusals in the owning database.
   Deduplicate queue/error rows by event id; exclude accepted/resolved work. Show one combined
   retained-work/offline warning online or offline. Cancel stays signed in; confirmation is
-  identity-scoped and never deletes drafts or queue rows. A failed device check keeps the user
-  signed in with a title/detail error toast so they can retry.
+  identity-scoped and never deletes drafts or queue rows. Close the warning on identity change.
+  A failed device check or five-second timeout opens the same warning with an unknown count
+  and permits confirmed sign-out; a failed draft flush still requires its existing decision.
+  Password changes use this same confirm path before sending the change.
 - Offline expiry never opens the blocking session dialog. `useOfflineSession` shows Sign In
   To Sync after a 401, or within one minute of the earliest token expiry while offline,
-  without expiring or signing out the user on a timer. It appears even without a queue.
+  without expiring or signing out the user on a timer. Show it only with STOCK_ADJUST access
+  or pending device events; reserve the offline description for a disconnected session.
   Local access reads go directly to the saved snapshot while known offline. Ordinary session
   waits reject with a network error on connection loss, allowing device fallback without
   replay. Queue transport keeps its independent typed not-sent and no-replay policies.
-- Failed connected renewal offers Continue Offline through `online.ts`; Try Connection in
+- Failed connected renewal offers Continue Offline through `online.ts`; Try Again in
   the offline notice reseeds the browser connection hint. Real reconnect shows same-user
   renewal when expired; fresh access and the existing uploader govern resumption. Only the
   shell StatusAnnouncer announces these notes.

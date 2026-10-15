@@ -9,6 +9,7 @@ import en from '@/../public/locales/en.json';
 import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sidebar-notices';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useLoginData } from '@/features/auth/store/login-data';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
 import { setSyncPhase } from '@/lib/device-event-status';
@@ -163,7 +164,7 @@ describe('SidebarNotices', () => {
 
     expect(screen.queryByText('offline.description')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'offline.try-connection' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'error.try-again' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'update.reload' })).toBeInTheDocument();
     expect(screen.getByRole('list')).toBeInTheDocument();
   });
@@ -302,4 +303,32 @@ it('Sign In To Sync has no review action of its own', () => {
   expect(notice).toBeDefined();
   expect(notice?.querySelector('button')).toBeNull();
   expect(screen.getAllByRole('button', { name: 'device-events.review' })).toHaveLength(1);
+});
+
+it.each([false, true])(
+  'only offers offline renewal for Adjustments access or pending work (access=%s)',
+  (allowed) => {
+    device.allowed = allowed;
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'admin',
+      username: 'admin',
+      accessToken: 'token',
+      expiresIn: 30,
+    });
+    onlineManager.setOnline(false);
+    renderNotices();
+    expect(screen.queryByText('session.offline-description') !== null).toBe(allowed);
+    useLoginData.getState().clearLoginData();
+  },
+);
+
+it('does not describe a connected expired session as offline', () => {
+  device.allowed = true;
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'adjuster', username: 'adjuster', accessToken: 'token' });
+  useLoginData.getState().expireSession();
+  renderNotices();
+  expect(screen.queryByText('session.offline-description')).not.toBeInTheDocument();
+  useLoginData.getState().clearLoginData();
 });

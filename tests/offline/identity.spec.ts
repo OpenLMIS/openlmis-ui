@@ -45,7 +45,7 @@ test('offline shell disables server navigation and blocks direct routes without 
   await expect(page).toHaveURL(/adjustments$/);
   await page.keyboard.press('Escape');
   await page.goto('./administration/users');
-  await expect(page.getByRole('heading', { name: 'Connect To Download This Data' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
   expect(protectedRequests).toHaveLength(0);
   await context.setOffline(false);
   await page.goto('./home');
@@ -79,7 +79,7 @@ test('logout gives one retained-work warning offline and online and retains the 
     await page.getByRole('button', { name: 'Account Menu' }).click();
     await page.getByRole('menuitem', { name: 'Log Out' }).click();
     const warning = page.getByRole('alertdialog');
-    await expect(warning).toContainText('stays on this device');
+    await expect(warning).toContainText('saved only on this device');
     await expect(warning).toContainText('sign in again as this user');
     await expect(warning).toHaveCount(1);
     await warning.getByRole('button', { name: 'Stay Signed In' }).click();

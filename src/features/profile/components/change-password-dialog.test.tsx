@@ -1,11 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { changePassword } from '@/features/profile/api/api';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import * as deviceWork from '@/lib/unsynced-device-work';
 import type { UserRecord } from '@/lib/user-types';
+
+beforeEach(() =>
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u1', username: 'ada', accessToken: 'token' }),
+);
 
 vi.mock('@/features/profile/api/api', () => ({ changePassword: vi.fn() }));
 
@@ -61,4 +69,16 @@ describe('ChangePasswordDialog', () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
     expect(changePassword).toHaveBeenCalledOnce();
   });
+});
+
+it('warns once about retained work before changing the password and signing out', async () => {
+  const check = vi.spyOn(deviceWork, 'countUnsyncedDeviceWork').mockResolvedValue(2);
+  vi.mocked(changePassword).mockReset().mockResolvedValue();
+  const onChanged = await submitValidPassword();
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-device.description');
+  expect(changePassword).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'sign-out-offline.confirm' }));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+  expect(check).toHaveBeenCalledOnce();
+  check.mockRestore();
 });

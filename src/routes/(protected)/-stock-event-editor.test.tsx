@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -58,7 +58,11 @@ import { Route as ReceivePickerRoute } from '@/routes/(protected)/_protected.sto
 import { Route as ReceiveEditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
 import { Route as UnpackPickerRoute } from '@/routes/(protected)/_protected.stock-management.unpack';
 import { Route as UnpackEditorRoute } from '@/routes/(protected)/_protected.stock-management.unpack_.$programId';
-import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
+import {
+  loadStockEventEditor,
+  StockEventPending,
+  useStockEventPrint,
+} from '@/routes/(protected)/-stock-event-editor';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { renderPage } from '@/tests/render-page';
 
@@ -869,4 +873,30 @@ describe('Unpack policies', () => {
       });
     }
   });
+});
+
+it('returns to the available program list when connection drops before print Skip', async () => {
+  function SubmittedEvent() {
+    const print = useStockEventPrint({
+      copy: EVENT_KINDS.issue.print,
+      userId: USER,
+      facilityId: HOME,
+      programId: FP,
+    });
+    return (
+      <>
+        <button type="button" onClick={() => print.onSubmitted('event')}>
+          Submitted
+        </button>
+        {print.dialog}
+      </>
+    );
+  }
+  const router = renderPage(<SubmittedEvent />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Submitted' }));
+  await screen.findByRole('alertdialog');
+  await act(() => onlineManager.setOnline(false));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-issue.print-skip' }));
+  await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/adjustments'));
+  expect(submitStockEvent).not.toHaveBeenCalled();
 });

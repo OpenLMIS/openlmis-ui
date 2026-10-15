@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -95,20 +96,21 @@ function HomeContent({ userId }: { userId: string }) {
         <WorkspaceActions>
           <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
           {rights.has(RIGHTS.usersManage) && (
-            <Button
-              nativeButton={!online}
-              disabled={!online}
-              focusableWhenDisabled={!online}
-              title={online ? undefined : t('offline.action-description')}
-              aria-description={online ? undefined : t('offline.action-description')}
-              render={
-                online ? <Link search={{ user: 'new' }} to="/administration/users" /> : undefined
-              }
-              size="lg"
-            >
-              <PlusIcon data-icon="inline-start" />
-              {t('home.add-user')}
-            </Button>
+            <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
+              <Button
+                nativeButton={!online}
+                disabled={!online}
+                focusableWhenDisabled={!online}
+                aria-description={online ? undefined : t('offline.action-description')}
+                render={
+                  online ? <Link search={{ user: 'new' }} to="/administration/users" /> : undefined
+                }
+                size="lg"
+              >
+                <PlusIcon data-icon="inline-start" />
+                {t('home.add-user')}
+              </Button>
+            </ActionTooltip>
           )}
         </WorkspaceActions>
       </WorkspaceHeader>
@@ -136,19 +138,23 @@ function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () =>
   };
 
   return (
-    <Button
-      disabled={!online || isFetching}
-      focusableWhenDisabled={!online}
-      title={online ? undefined : t('offline.action-description')}
-      aria-description={online ? undefined : t('offline.action-description')}
-      onClick={refresh}
-      size="lg"
-      type="button"
-      variant="outline"
-    >
-      <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} data-icon="inline-start" />
-      {t('home.refresh')}
-    </Button>
+    <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
+      <Button
+        disabled={!online || isFetching}
+        focusableWhenDisabled={!online}
+        aria-description={online ? undefined : t('offline.action-description')}
+        onClick={refresh}
+        size="lg"
+        type="button"
+        variant="outline"
+      >
+        <RefreshCwIcon
+          className={isFetching ? 'animate-spin' : undefined}
+          data-icon="inline-start"
+        />
+        {t('home.refresh')}
+      </Button>
+    </ActionTooltip>
   );
 }
 

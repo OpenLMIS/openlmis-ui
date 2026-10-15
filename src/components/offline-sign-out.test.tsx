@@ -6,6 +6,7 @@ import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { getLocalDb } from '@/integrations/local-db';
+import * as deviceWork from '@/lib/unsynced-device-work';
 import { countUnsyncedDeviceWork } from '@/lib/unsynced-device-work';
 
 function SignOutButton({
@@ -163,8 +164,8 @@ it('does not sign out a new identity after an old confirmation', async () => {
       .getState()
       .setLoginData({ referenceDataUserId: 'other', username: 'other', accessToken: 'other' }),
   );
-  await userEvent.click(screen.getByRole('button', { name: 'sign-out-offline.confirm' }));
-  await waitFor(() => expect(onSignOut).not.toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(onSignOut).not.toHaveBeenCalled();
 });
 
 it('counts an uncertain event once across queue/errors and excludes resolved or accepted work', async () => {
@@ -182,3 +183,27 @@ it('counts an uncertain event once across queue/errors and excludes resolved or 
   await db.table('stockEventSyncErrors').update('event', { resolvedAt: Date.now() });
   expect(await countUnsyncedDeviceWork()).toBe(0);
 });
+
+it.each(['failure', 'timeout'])(
+  'allows confirmed sign-out after a device check %s',
+  async (mode) => {
+    const check = vi.spyOn(deviceWork, 'countUnsyncedDeviceWork');
+    if (mode === 'failure') check.mockRejectedValue(new Error('Device unavailable'));
+    else check.mockReturnValue(new Promise(() => {}));
+    const onSignOut = vi.fn();
+    render(<SignOutButton onSignOut={onSignOut} />);
+    if (mode === 'timeout') {
+      vi.useFakeTimers();
+      act(() => screen.getByRole('button', { name: 'sign out' }).click());
+      await act(() => vi.advanceTimersByTimeAsync(5000));
+      vi.useRealTimers();
+    } else await userEvent.click(screen.getByRole('button', { name: 'sign out' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'sign-out-device.check-failed',
+    );
+    expect(onSignOut).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'sign-out-offline.confirm' }));
+    expect(onSignOut).toHaveBeenCalledOnce();
+    check.mockRestore();
+  },
+);
