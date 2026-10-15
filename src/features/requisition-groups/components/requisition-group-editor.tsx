@@ -503,17 +503,13 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
         ),
       },
     ),
-    ...(remove
-      ? [
-          programColumn.display({
-            id: 'dropOffFacility',
-            header: () => (
-              <DataTableHeaderLabel>{t('requisition-groups.form.drop-off')}</DataTableHeaderLabel>
-            ),
-            cell: ({ row }) => <DropOffName id={row.original.dropOffFacility?.id} />,
-          }),
-        ]
-      : []),
+    programColumn.display({
+      id: 'dropOffFacility',
+      header: () => (
+        <DataTableHeaderLabel>{t('requisition-groups.form.drop-off')}</DataTableHeaderLabel>
+      ),
+      cell: ({ row }) => <DropOffName id={row.original.dropOffFacility?.id} />,
+    }),
     programColumn.accessor('directDelivery', {
       meta: { className: 'w-36' },
       header: () => (
@@ -567,9 +563,7 @@ function ProgramsToolbar({
     <DataTableToolbar>
       <div className="ms-auto">
         <DataTableViewOptions
-          columns={PROGRAM_COLUMNS.filter(({ id }) => !readOnly || id !== 'dropOffFacility').map(
-            ({ id, labelKey }) => ({ id, label: t(labelKey) }),
-          )}
+          columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           disabled={disabled}
           visibility={view.visibility}
           onVisibilityChange={view.onVisibilityChange}

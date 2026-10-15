@@ -443,9 +443,10 @@ describe('RequisitionGroupEditor', () => {
     expect(
       screen.queryByRole('button', { name: 'requisition-groups.form.remove-program' }),
     ).toBeNull();
+    const dropOff = screen.getByRole('columnheader', { name: 'requisition-groups.form.drop-off' });
     expect(
-      screen.queryByRole('columnheader', { name: 'requisition-groups.form.drop-off' }),
-    ).toBeNull();
+      within(dropOff.closest('table') as HTMLElement).getByText('First Facility'),
+    ).toBeVisible();
     await userEvent
       .setup()
       .click(screen.getByRole('tab', { name: /requisition-groups.form.facilities/ }));
