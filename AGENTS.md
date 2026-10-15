@@ -431,6 +431,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
+- Yes/no and active/inactive cells use `FlagBadge` (`src/components/flag-badge.tsx`): a success
+  check or destructive cross, always with its label.
+
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
   with `hideBelow` (container size or pixels) or `defaultHidden`; see `USER_HIDEABLE_COLUMNS`.
   Combine `useElementWidth()`, `useColumnVisibility()` and `useStoredState`. User choices

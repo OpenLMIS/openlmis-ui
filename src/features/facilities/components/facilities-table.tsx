@@ -2,15 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import {
-  BuildingIcon,
-  CheckIcon,
-  EllipsisIcon,
-  PencilIcon,
-  PlusIcon,
-  SearchXIcon,
-  XIcon,
-} from 'lucide-react';
+import { BuildingIcon, EllipsisIcon, PencilIcon, PlusIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -22,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { Badge } from '@/components/ui/badge';
+import { FlagBadge } from '@/components/flag-badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -51,20 +43,6 @@ function text(value: string | null | undefined, dir: 'auto' | 'ltr' = 'auto', st
         {value}
       </span>
     </span>
-  );
-}
-
-function flag(on: boolean, onLabel: string, offLabel: string) {
-  return on ? (
-    <Badge variant="success">
-      <CheckIcon data-icon="inline-start" />
-      {onLabel}
-    </Badge>
-  ) : (
-    <Badge variant="destructive">
-      <XIcon data-icon="inline-start" />
-      {offLabel}
-    </Badge>
   );
 }
 
@@ -105,16 +83,26 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facilities.active')} />
       ),
-      cell: ({ getValue }) =>
-        flag(getValue(), t('facilities.status-active'), t('facilities.status-inactive')),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('facilities.status-active')}
+          falseLabel={t('facilities.status-inactive')}
+        />
+      ),
       meta: { className: 'w-32' },
     }),
     columnHelper.accessor('enabled', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facilities.enabled')} />
       ),
-      cell: ({ getValue }) =>
-        flag(getValue(), t('facilities.status-enabled'), t('facilities.status-disabled')),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('facilities.status-enabled')}
+          falseLabel={t('facilities.status-disabled')}
+        />
+      ),
       meta: { className: 'w-32' },
     }),
     columnHelper.display({

@@ -10,13 +10,11 @@ import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import {
   BuildingIcon,
-  CheckIcon,
   Loader2Icon,
   NetworkIcon,
   PlusIcon,
   SearchXIcon,
   Trash2Icon,
-  XIcon,
 } from 'lucide-react';
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +40,7 @@ import {
   serverMessage,
 } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { FlagBadge } from '@/components/flag-badge';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -56,7 +55,6 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Block } from '@/components/skeleton-block';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -450,19 +448,6 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
     </div>
   );
 }
-function yesNoBadge(value: boolean, t: TFunction) {
-  return value ? (
-    <Badge variant="success">
-      <CheckIcon data-icon="inline-start" />
-      {t('requisition-groups.form.yes')}
-    </Badge>
-  ) : (
-    <Badge variant="destructive">
-      <XIcon data-icon="inline-start" />
-      {t('requisition-groups.form.no')}
-    </Badge>
-  );
-}
 function DropOffName({ id }: { id: string | undefined }) {
   const { data, isPending } = useQuery(REQUISITION_GROUP_LOOKUPS.facilities);
   if (!id) return null;
@@ -515,7 +500,13 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
       header: () => (
         <DataTableHeaderLabel>{t('requisition-groups.form.direct-delivery')}</DataTableHeaderLabel>
       ),
-      cell: ({ getValue }) => yesNoBadge(getValue(), t),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('requisition-groups.form.yes')}
+          falseLabel={t('requisition-groups.form.no')}
+        />
+      ),
     }),
     ...(remove
       ? [
@@ -679,7 +670,13 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.enabled')} />
       ),
-      cell: ({ getValue }) => yesNoBadge(getValue(), t),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('requisition-groups.form.yes')}
+          falseLabel={t('requisition-groups.form.no')}
+        />
+      ),
     }),
     memberColumn.display({
       id: 'actions',
