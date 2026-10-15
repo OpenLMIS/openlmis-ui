@@ -295,7 +295,8 @@ async function returnQueued(
     await db.table('stockEventQueue').put({
       ...matched.row,
       status: 'queued',
-      ...(notSent ? { attemptId: undefined, attemptStartedAt: undefined } : {}),
+      attemptId: undefined,
+      attemptStartedAt: undefined,
     });
     check();
     await db.table('stockEventDrafts').put({
@@ -369,14 +370,16 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
     }
     let response: UploadResponse | undefined;
     let error: unknown;
+    let dispatched = false;
     try {
       deps.check();
       if (!deps.canSend()) throw new QueueNotSentError();
+      dispatched = true;
       response = await deps.send(event);
     } catch (caught) {
       error = caught;
     }
-    if (error instanceof QueueNotSentError) {
+    if (!dispatched || error instanceof QueueNotSentError) {
       await writeForOwner(db, userId, event, (owned, check) =>
         returnQueued(owned, event, check, true),
       );
@@ -411,11 +414,11 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
         break;
       }
     } else {
-      deps.check();
       if (outcome.kind === 'session') {
-        await returnQueued(db, event, deps.check);
+        await writeForOwner(db, userId, event, (owned, check) => returnQueued(owned, event, check));
         return;
       }
+      deps.check();
       await failEvent(
         db,
         event,

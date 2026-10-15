@@ -447,3 +447,43 @@ it('clears restored access on a row still held behind an earlier uncertain event
   expect((await db.table('stockEventQueue').get(later.sequence)).pauseReason).toBeUndefined();
   expect(deps.send).not.toHaveBeenCalled();
 });
+
+it('returns a committed sending row to its owner queue when the pre-dispatch check throws', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  const transaction = db.transaction.bind(db);
+  let ended = false;
+  vi.spyOn(db, 'transaction').mockImplementation(
+    (...args: Parameters<typeof transaction>) =>
+      transaction(...args).then((result: unknown) => {
+        if ((result as QueuedStockEvent | undefined)?.status === 'sending') ended = true;
+        return result;
+      }) as ReturnType<typeof transaction>,
+  );
+  const deps = dependencies();
+  await syncStockEvents(db, event.userId, {
+    ...deps,
+    check: () => {
+      if (ended) throw new Error('Session ended before dispatch');
+    },
+  });
+  expect(deps.send).not.toHaveBeenCalled();
+  expect(await db.table('stockEventQueue').get(event.sequence)).toMatchObject({
+    status: 'queued',
+    attemptId: undefined,
+    attemptStartedAt: undefined,
+  });
+  expect(await db.table('stockEventSyncErrors').count()).toBe(0);
+});
+it('allows removal after a service 401 proves the event was not committed', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  await syncStockEvents(
+    db,
+    event.userId,
+    dependencies(vi.fn(async () => response(401, { error: 'invalid_token' }))),
+  );
+  const queued = await db.table('stockEventQueue').get(event.sequence);
+  expect(queued.attemptId).toBeUndefined();
+  expect(await removeQueuedEvent(createStockEventContext(event), queued)).toBe(true);
+});
