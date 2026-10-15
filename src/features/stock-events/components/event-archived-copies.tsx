@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -168,18 +169,20 @@ function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Pr
               <MoreHorizontalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => void restore(row.original)}>
-                {t('stock-events.draft-restore')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  setDeleteFailed(false);
-                  setDeleting(row.original);
-                }}
-              >
-                {t('stock-events.draft-delete')}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => void restore(row.original)}>
+                  {t('stock-events.draft-restore')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    setDeleteFailed(false);
+                    setDeleting(row.original);
+                  }}
+                >
+                  {t('stock-events.draft-delete')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         ),

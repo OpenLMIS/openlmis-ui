@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -66,27 +67,29 @@ export function useOfflineSignOut() {
     });
   };
 
+  const target = useDialogTarget(pending ?? undefined, () => setPending(null));
+  const shown = target.shown;
   const dialog = (
-    <AlertDialog onOpenChange={(next) => !next && setPending(null)} open={pending !== null}>
+    <AlertDialog {...target.dialogProps()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
             {t(
-              pending?.count === null
+              shown?.count === null
                 ? 'sign-out-device.check-failed-title'
-                : pending?.count
+                : shown?.count
                   ? 'sign-out-device.title'
                   : 'sign-out-offline.title',
             )}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {[
-              pending?.count === null
+              shown?.count === null
                 ? t('sign-out-device.check-failed')
-                : pending?.count
-                  ? t('sign-out-device.description', { count: pending.count })
+                : shown?.count
+                  ? t('sign-out-device.description', { count: shown.count })
                   : null,
-              pending?.offline ? t('sign-out-offline.description') : null,
+              shown?.offline ? t('sign-out-offline.description') : null,
             ]
               .filter(Boolean)
               .join(' ')}
@@ -96,8 +99,7 @@ export function useOfflineSignOut() {
           <AlertDialogCancel>{t('sign-out-offline.stay')}</AlertDialogCancel>
           <Button
             onClick={() => {
-              setPending(null);
-              pending?.proceed();
+              if (target.close()) shown?.proceed();
             }}
             variant="destructive"
           >

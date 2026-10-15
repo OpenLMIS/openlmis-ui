@@ -1,7 +1,8 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
+import { toast } from 'sonner';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandPalette } from '@/components/command-palette';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -11,6 +12,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
 vi.mock('@/lib/feature-flags', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/feature-flags')>();
   return {
@@ -106,11 +108,26 @@ it('keeps offline server entries visible with an explanation and prevents select
   renderPalette(['STOCK_ADJUST', 'USERS_MANAGE']);
   await userEvent.keyboard('{Control>}k{/Control}');
   const issue = await screen.findByRole('option', { name: /nav.stock-management.issue/ });
-  expect(issue).toHaveAttribute('aria-disabled', 'true');
+  expect(issue).toHaveAttribute('data-unavailable', 'true');
   expect(issue).toHaveTextContent('offline.connection-required');
   await userEvent.click(issue);
   expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(
     screen.getByRole('option', { name: 'nav.stock-management.adjustments' }),
   ).not.toHaveAttribute('aria-disabled', 'true');
+});
+
+it('lets keyboard users reach an offline item and hear its reason without leaving the palette', async () => {
+  onlineManager.setOnline(false);
+  renderPalette(['STOCK_ADJUST']);
+  await userEvent.keyboard('{Control>}k{/Control}');
+  const input = await screen.findByRole('combobox');
+  await userEvent.type(input, 'nav.stock-management.issue');
+  await userEvent.keyboard('{ArrowDown}');
+  const issue = screen.getByRole('option', { name: /nav.stock-management.issue/ });
+  await waitFor(() => expect(issue).toHaveAttribute('data-selected', 'true'));
+  await userEvent.keyboard('{Enter}');
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(issue).toHaveAttribute('aria-describedby');
+  expect(toast.info).toHaveBeenCalledWith('offline.connection-required');
 });
