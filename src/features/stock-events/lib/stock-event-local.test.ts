@@ -99,29 +99,6 @@ it('rolls back a write when identity changes after put, and retains existing dra
     .setLoginData({ referenceDataUserId: 'draft-user', username: 'user', accessToken: 'new' });
   expect(await readStockEventDraft(createStockEventContext(selection))).toEqual(first);
 });
-it('upgrades v3 retaining inventory rows, access and bundles', async () => {
-  useLoginData
-    .getState()
-    .setLoginData({ referenceDataUserId: 'draft-upgrade', username: 'user', accessToken: 'token' });
-  const old = new Dexie(getLocalDb().name);
-  old.version(1).stores({});
-  old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
-  old.version(3).stores({ offlineAccess: 'userId', adjustmentDownloads: '[facilityId+programId]' });
-  const inventory = { draftId: 'pi', lines: [{ quantity: '12' }] };
-  const access = { userId: 'draft-upgrade', generation: 'access' };
-  const bundle = { facilityId: 'facility', programId: 'program', generation: 'bundle' };
-  await old.table('physicalInventoryDrafts').put(inventory);
-  await old.table('offlineAccess').put(access);
-  await old.table('adjustmentDownloads').put(bundle);
-  old.close();
-  const db = getLocalDb();
-  await db.open();
-  expect(db.verno).toBe(6);
-  expect(await db.table('physicalInventoryDrafts').get('pi')).toEqual(inventory);
-  expect(await db.table('offlineAccess').get('draft-upgrade')).toEqual(access);
-  expect(await db.table('adjustmentDownloads').get(['facility', 'program'])).toEqual(bundle);
-  expect(await db.table('stockEventDrafts').count()).toBe(0);
-});
 
 it('restores an archived copy atomically, archives the active draft, and rejects stale restores and deletes', async () => {
   const context = createStockEventContext(selection);

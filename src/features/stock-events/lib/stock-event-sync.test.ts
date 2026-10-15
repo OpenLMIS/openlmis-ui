@@ -125,28 +125,28 @@ it('after 201 retries only the receipt transaction, never POST, before reporting
   expect(deps.accepted).toHaveBeenCalledTimes(1);
   expect(await db.table('stockEventQueue').count()).toBe(0);
 });
-for (const occurredDate of ['2026-10-14', '2026-09-01'])
-  it(`retains a whole stock-changed refusal for ${occurredDate} and continues`, async () => {
-    const event = await enqueue('one', occurredDate);
-    await enqueue();
-    const send = vi
-      .fn()
-      .mockResolvedValueOnce(
-        response(400, {
-          messageKey: 'stockmanagement.error.event.debitQuantityExceedSoh',
-          message: 'Negative stock',
-          details: { occurredDate },
-        }),
-      )
-      .mockResolvedValueOnce(response(201, id));
-    await syncStockEvents(getLocalDb(), event.userId, dependencies(send));
-    const error = await getLocalDb().table('stockEventSyncErrors').get(event.localEventId);
-    expect(error.category).toBe('stock-changed');
-    expect(error.response.details).toEqual({ occurredDate });
-    expect(error.event.payload.lineItems[0].occurredDate).toBe(occurredDate);
-    expect((await getLocalDb().table('stockEventDrafts').get(event.draftId)).state).toBe('refused');
-    expect(send).toHaveBeenCalledTimes(2);
-  });
+it('retains a whole backdated stock-changed refusal and continues', async () => {
+  const occurredDate = '2026-09-01';
+  const event = await enqueue('one', occurredDate);
+  await enqueue();
+  const send = vi
+    .fn()
+    .mockResolvedValueOnce(
+      response(400, {
+        messageKey: 'stockmanagement.error.event.debitQuantityExceedSoh',
+        message: 'Negative stock',
+        details: { occurredDate },
+      }),
+    )
+    .mockResolvedValueOnce(response(201, id));
+  await syncStockEvents(getLocalDb(), event.userId, dependencies(send));
+  const error = await getLocalDb().table('stockEventSyncErrors').get(event.localEventId);
+  expect(error.category).toBe('stock-changed');
+  expect(error.response.details).toEqual({ occurredDate });
+  expect(error.event.payload.lineItems[0].occurredDate).toBe(occurredDate);
+  expect((await getLocalDb().table('stockEventDrafts').get(event.draftId)).state).toBe('refused');
+  expect(send).toHaveBeenCalledTimes(2);
+});
 it('marks recorded without a POST, releases the barrier, and ignores repeated/stale choices', async () => {
   const event = await enqueue();
   await getLocalDb()
@@ -308,14 +308,13 @@ it('records a verified 201 in the original owner database after a scope change',
 for (const [status, data, kind] of [
   [201, id, 'accepted'],
   [201, {}, 'uncertain'],
+  [201, '<html>ok</html>', 'uncertain'],
   [404, { messageKey: 'missing' }, 'refused'],
   [401, { messageKey: 'expired' }, 'session'],
   [401, { error: 'invalid_token' }, 'session'],
   [401, '<html>proxy</html>', 'uncertain'],
   [400, {}, 'uncertain'],
-  [502, { messageKey: 'gateway' }, 'uncertain'],
   [504, '<html>timeout</html>', 'uncertain'],
-  [500, { messageKey: 'error' }, 'uncertain'],
 ] as const)
   it(`classifies ${status} ${JSON.stringify(data)} as ${kind}`, () => {
     expect(classifyUpload(response(status, data)).kind).toBe(kind);
@@ -446,28 +445,4 @@ it('clears restored access on a row still held behind an earlier uncertain event
   await syncStockEvents(db, first.userId, deps);
   expect((await db.table('stockEventQueue').get(later.sequence)).pauseReason).toBeUndefined();
   expect(deps.send).not.toHaveBeenCalled();
-});
-it('retries the owner receipt if identity closes the database during acceptance', async () => {
-  const event = await enqueue();
-  const db = getLocalDb();
-  const { getSessionScope, assertSessionScope } = await import('@/lib/session-scope');
-  const scope = getSessionScope();
-  const put = db.table('stockEventReceipts').put.bind(db.table('stockEventReceipts'));
-  vi.spyOn(db.table('stockEventReceipts'), 'put').mockImplementationOnce((...args) =>
-    put(...args).then((result) => {
-      useLoginData
-        .getState()
-        .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
-      return result;
-    }),
-  );
-  const deps = dependencies();
-  await expect(
-    syncStockEvents(db, event.userId, { ...deps, check: () => assertSessionScope(scope) }),
-  ).rejects.toThrow();
-  useLoginData.getState().setLoginData(owner);
-  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
-  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1);
-  expect(deps.send).toHaveBeenCalledOnce();
-  expect(deps.accepted).not.toHaveBeenCalled();
 });

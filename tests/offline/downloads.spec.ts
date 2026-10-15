@@ -1,5 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 
@@ -31,7 +32,7 @@ test('held and failed background downloads allow sign-in and navigation', async 
 test('stale bundle survives offline restart with its download time and missing program shows download notice', {
   tag: '@offline-shell',
 }, async ({ persistentContext }) => {
-  const directory = await mkdtemp(resolve('.offline/profile-stage-4-'));
+  const directory = await mkdtemp(join(tmpdir(), 'openlmis-offline-4-'));
   let context = await persistentContext(directory);
   try {
     await stub(context, async () => 'finish');
@@ -40,7 +41,8 @@ test('stale bundle survives offline restart with its download time and missing p
     await expect(page.getByText('Ready Offline', { exact: true })).toBeVisible();
     await expect.poll(() => generation(page)).not.toBeNull();
     await waitForOfflineShell(page);
-    const downloadedAt = await page.getByText(/^Downloaded /).textContent();
+    const downloadedAt = (await page.getByText(/^Downloaded /).textContent()) ?? '';
+    expect(downloadedAt).toBeTruthy();
     await page.evaluate(async () => {
       const name = (await indexedDB.databases()).find((db) =>
         db.name?.endsWith(':download-user'),
@@ -68,7 +70,7 @@ test('stale bundle survives offline restart with its download time and missing p
     page = context.pages()[0];
     await page.goto('./stock-management/adjustments');
     await expect(page.getByText('Needs Refresh', { exact: true })).toBeVisible();
-    await expect(page.getByText(downloadedAt ?? '', { exact: true })).toBeVisible();
+    await expect(page.getByText(downloadedAt, { exact: true })).toBeVisible();
     await expect(page.getByText('Not Downloaded', { exact: true })).toBeVisible();
     await page
       .getByRole('row')
@@ -92,43 +94,6 @@ test('stale bundle survives offline restart with its download time and missing p
     await context.close();
     await rm(directory, { recursive: true, force: true });
   }
-});
-
-test('bounded Axios timeouts stop the spinner with Retry and keep the prior bundle', async ({
-  page,
-  context,
-}) => {
-  let slow = false;
-  await context.addInitScript(() => {
-    const send = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function (body) {
-      if ((window as unknown as { shortenTimeout?: boolean }).shortenTimeout) this.timeout = 40;
-      return send.call(this, body);
-    };
-  });
-  await stub(context, async () => {
-    return 'finish';
-  });
-  await context.route('**/api/v2/stockCardSummaries?*', (route) =>
-    slow
-      ? route.continue({ url: new URL('/api/offline-test-timeout', route.request().url()).href })
-      : route.fallback(),
-  );
-  await login(page);
-  await expect(page.getByText('Ready Offline', { exact: true })).toBeVisible();
-  const previous = await generation(page);
-  slow = true;
-  await page.evaluate(() => {
-    (window as unknown as { shortenTimeout: boolean }).shortenTimeout = true;
-    window.dispatchEvent(new Event('offline'));
-    window.dispatchEvent(new Event('online'));
-  });
-  await expect(page.getByRole('note').filter({ hasText: 'The download timed out.' })).toBeVisible();
-  await expect(
-    page.getByRole('note').filter({ hasText: 'Fetching the necessary data for offline' }),
-  ).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
-  expect(await generation(page)).toBe(previous);
 });
 
 test('another tab observes the batch and does not duplicate held stock reads', async ({

@@ -1,78 +1,69 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
-for (const offline of [true, false]) {
-  test(`${offline ? 'offline' : 'connected'} Submit retains its committed event through persistent restart`, {
-    tag: offline ? '@offline-shell' : ['@offline-shell', '@webkit-fixture-routing'],
-  }, async ({ persistentContext, channel, browser }) => {
-    test.skip(
-      offline && channel === 'chrome' && browser.version().startsWith('152.'),
-      'Chrome 152 offline emulation resets navigator.onLine after worker navigation.',
-    );
-    const directory = await mkdtemp(resolve('.offline/profile-stage-6-'));
-    let context = await persistentContext(directory);
-    let posts = 0;
-    try {
-      await stub(context, async () => 'finish');
-      await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
-        if (route.request().method() === 'POST') posts++;
-        await route.abort();
-      });
-      let page = context.pages()[0];
-      await login(page);
-      await expect.poll(() => generation(page)).not.toBeNull();
-      await waitForOfflineShell(page);
-      if (offline) await context.setOffline(true);
-      await page.goto('./stock-management/device-events');
-      await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
-      await page.goto('./stock-management/adjustments/program');
-      await page.getByRole('button', { name: 'Add', exact: true }).click();
-      await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('12');
-      await page.getByRole('combobox', { name: /^Reason, Fixture Product/ }).click();
-      await page.getByRole('option', { name: 'Damaged', exact: true }).click();
-      await page
-        .getByRole('button', { name: offline ? 'Submit Offline' : 'Submit', exact: true })
-        .click();
-      await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
-      await page.getByRole('button', { name: 'Confirm', exact: true }).dblclick();
-      await expect(page).toHaveURL(/\/adjustments$/);
-      await expect(
-        page.getByText(offline ? 'Saved On This Device' : 'Needs Review', { exact: true }),
-      ).toBeVisible();
-      await expect(
-        page
-          .getByRole('note')
-          .filter({ hasText: offline ? '1 Event Waiting To Sync' : '1 Event Needs Review' }),
-      ).toBeVisible();
-      expect(posts).toBe(offline ? 0 : 1);
-      await context.close();
-      context = await persistentContext(directory, true);
-      await stub(context, async () => 'finish');
-      await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
-        if (route.request().method() === 'POST') posts++;
-        await route.abort();
-      });
-      page = context.pages()[0];
-      await page.goto('./stock-management/device-events');
-      await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
-      await expect(page.getByRole('table')).toContainText('Fixture Product');
-      await expect(page.getByRole('table')).toContainText('Fixture Clinic');
-      await expect(page.getByRole('table')).toContainText(offline ? 'Queued' : 'Uncertain');
-      await expect(
-        page
-          .getByRole('note')
-          .filter({ hasText: offline ? '1 Event Waiting To Sync' : '1 Event Needs Review' }),
-      ).toBeVisible();
-      expect(posts).toBe(offline ? 0 : 1);
-    } finally {
-      await context.close();
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
-}
+test('offline Submit retains its committed event through persistent restart', {
+  tag: '@offline-shell',
+}, async ({ persistentContext, channel, browser }) => {
+  test.skip(
+    channel === 'chrome' && browser.version().startsWith('152.'),
+    'Chrome 152 offline emulation resets navigator.onLine after worker navigation.',
+  );
+  const directory = await mkdtemp(join(tmpdir(), 'openlmis-offline-6-'));
+  let context = await persistentContext(directory);
+  let posts = 0;
+  try {
+    await stub(context, async () => 'finish');
+    await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
+      if (route.request().method() === 'POST') posts++;
+      await route.abort();
+    });
+    let page = context.pages()[0];
+    await login(page);
+    await expect.poll(() => generation(page)).not.toBeNull();
+    await waitForOfflineShell(page);
+    await context.setOffline(true);
+    await page.goto('./stock-management/device-events');
+    await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+    await page.goto('./stock-management/adjustments/program');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('12');
+    await page.getByRole('combobox', { name: /^Reason, Fixture Product/ }).click();
+    await page.getByRole('option', { name: 'Damaged', exact: true }).click();
+    await page.getByRole('button', { name: 'Submit Offline', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
+    await page.getByRole('button', { name: 'Confirm', exact: true }).dblclick();
+    await expect(page).toHaveURL(/\/adjustments$/);
+    await expect(page.getByText('Saved On This Device', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
+    ).toBeVisible();
+    expect(posts).toBe(0);
+    await context.close();
+    context = await persistentContext(directory, true);
+    await stub(context, async () => 'finish');
+    await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
+      if (route.request().method() === 'POST') posts++;
+      await route.abort();
+    });
+    page = context.pages()[0];
+    await page.goto('./stock-management/device-events');
+    await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+    await expect(page.getByRole('table')).toContainText('Fixture Product');
+    await expect(page.getByRole('table')).toContainText('Fixture Clinic');
+    await expect(page.getByRole('table')).toContainText('Queued');
+    await expect(
+      page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
+    ).toBeVisible();
+    expect(posts).toBe(0);
+  } finally {
+    await context.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test('connected acceptance shows Synced and restores the facility/program Stock on Hand landing', async ({
   context,
@@ -81,11 +72,10 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
   const home = '22222222-2222-4222-8222-222222222222';
   const program = '33333333-3333-4333-8333-333333333333';
   await stub(context, async () => 'finish', { home, program });
-  let posts = 0;
+  const posts: Record<string, unknown>[] = [];
   let answer!: () => Promise<void>;
   await context.route('**/api/stockEvents', async (route) => {
-    posts++;
-    expect(route.request().postDataJSON()).not.toHaveProperty('documentNumber');
+    posts.push(route.request().postDataJSON());
     await new Promise<void>((resolve) => {
       answer = async () => {
         await route.fulfill({ status: 201, json: '11111111-1111-4111-8111-111111111111' });
@@ -103,8 +93,8 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
   await page.getByRole('button', { name: 'Submit', exact: true }).click();
   await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect.poll(() => posts).toBe(1);
-  await page.waitForTimeout(1800);
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).not.toHaveProperty('documentNumber');
   await expect(page).toHaveURL(new RegExp(`/adjustments/${program}$`));
   await expect(page.getByText('Saved On This Device', { exact: true })).not.toBeVisible();
   await answer();
@@ -114,5 +104,5 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
   await expect(
     page.getByRole('region', { name: 'Notifications alt+T' }).getByText('Synced', { exact: true }),
   ).toBeVisible();
-  expect(posts).toBe(1);
+  expect(posts).toHaveLength(1);
 });

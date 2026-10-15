@@ -28,7 +28,7 @@ for (const [project, engine, channel, executable] of targets) {
 console.log(JSON.stringify(browsers, null, 2));
 const projects = browsers.filter((browser) => browser.status === 'available');
 if (projects.length === 0) throw new Error('No headless browser can run');
-await rm('.offline/browser-results.json', { force: true });
+await rm('.offline/browsers-results.json', { force: true });
 const child = spawn(
   'pnpm',
   [
@@ -40,7 +40,7 @@ const child = spawn(
     ...projects.map(({ project }) => `--project=${project}`),
     ...process.argv.slice(2),
   ],
-  { stdio: 'inherit' },
+  { stdio: 'inherit', env: { ...process.env, OFFLINE_BROWSER_MATRIX: '1' } },
 );
 const exitCode = await new Promise((resolve) => {
   child.once('error', () => resolve(1));
@@ -50,7 +50,7 @@ const exitCode = await new Promise((resolve) => {
 });
 let results;
 try {
-  results = JSON.parse(await readFile('.offline/browser-results.json', 'utf8'));
+  results = JSON.parse(await readFile('.offline/browsers-results.json', 'utf8'));
 } catch (error) {
   console.error('Browser reporter did not produce valid results:', error.message);
   process.exit(exitCode || 1);

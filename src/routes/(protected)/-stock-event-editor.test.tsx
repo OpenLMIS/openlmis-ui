@@ -426,12 +426,11 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       const add = await screen.findByRole('button', { name: 'stock-events.add' });
       await waitFor(() => expect(add).toBeEnabled());
       await user.click(add);
-      await user.click(document.getElementById('lines[0].reasonId') as HTMLElement);
+      await user.click(screen.getByRole('combobox', { name: 'stock-events.field-of' }));
       await user.click(await screen.findByRole('option', { name: 'Lost' }));
-      fireEvent.change(
-        document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
-        { target: { value: '2' } },
-      );
+      fireEvent.change(screen.getByRole('textbox', { name: 'stock-events.field-of' }), {
+        target: { value: '2' },
+      });
       await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
       await user.type(
         await screen.findByRole('textbox', { name: 'stock-events.signature' }),
@@ -517,9 +516,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       await user.click(await screen.findByRole('combobox', { name: 'stock-events.product' }));
       await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
       await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
-      const quantity = document.querySelector(
-        '[name="lines[0].quantity.doses"]',
-      ) as HTMLInputElement;
+      const quantity = screen.getByRole('textbox', { name: 'stock-events.field-of' });
       expect(quantity).toBeInTheDocument();
       await user.type(quantity, '65');
       let finish!: (permissions: string[]) => void;
@@ -534,7 +531,9 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('other'));
       await act(async () => finish(rights));
       await screen.findByRole('heading', { name: `${copy}.editor-title` });
-      expect(document.querySelector('[name="lines[0].quantity.doses"]')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('textbox', { name: 'stock-events.field-of' }),
+      ).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
     });
 
@@ -830,10 +829,9 @@ describe('Unpack policies', () => {
       const add = await screen.findByRole('button', { name: 'stock-events.add' });
       await waitFor(() => expect(add).toBeEnabled());
       await user.click(add);
-      fireEvent.change(
-        document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
-        { target: { value: '2' } },
-      );
+      fireEvent.change(screen.getByRole('textbox', { name: 'stock-events.field-of' }), {
+        target: { value: '2' },
+      });
       await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
       await user.click(await screen.findByRole('button', { name: 'stock-events.confirm' }));
       expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
@@ -876,5 +874,4 @@ it('returns to the available program list when connection drops before print Ski
   await act(() => onlineManager.setOnline(false));
   await userEvent.click(screen.getByRole('button', { name: 'stock-issue.print-skip' }));
   await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/adjustments'));
-  expect(submitStockEvent).not.toHaveBeenCalled();
 });

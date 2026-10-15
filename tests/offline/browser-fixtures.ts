@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { type BrowserContext, test as base, expect, type Page } from '@playwright/test';
 import playwrightPackage from '@playwright/test/package.json' with { type: 'json' };
 
@@ -105,10 +106,12 @@ export async function waitForOfflineShell(page: Page) {
         },
         [
           { cache: 'openlmis-ui-config', url: new URL('config.json', baseURL).href },
-          ...['en', 'ar', 'es', 'fr', 'pt'].map((language) => ({
-            cache: 'openlmis-ui-locales',
-            url: new URL(`locales/${language}.json`, baseURL).href,
-          })),
+          ...readdirSync(new URL('../../public/locales/', import.meta.url))
+            .filter((file) => file.endsWith('.json'))
+            .map((file) => ({
+              cache: 'openlmis-ui-locales',
+              url: new URL(`locales/${file}`, baseURL).href,
+            })),
         ],
       ),
     )

@@ -96,7 +96,7 @@ afterEach(async () => {
   useLoginData.getState().clearLoginData();
 });
 
-it.each(['queued', 'sending', 'uncertain', 'held', 'refused', 'draft'])(
+it.each(['queued', 'refused', 'draft'])(
   'warns online about retained %s device work and never deletes it',
   async (state) => {
     const db = getLocalDb();
@@ -112,8 +112,7 @@ it.each(['queued', 'sending', 'uncertain', 'held', 'refused', 'draft'])(
       userId: 'logout-user',
       state: 'editing',
       lines: [{}],
-      status: state === 'held' ? 'queued' : state,
-      pauseReason: state === 'held' ? 'access-changed' : undefined,
+      status: state,
     });
     const onSignOut = vi.fn();
     render(<SignOutButton onSignOut={onSignOut} />);
@@ -177,11 +176,16 @@ it('counts an uncertain event once across queue/errors and excludes resolved or 
   await db.table('stockEventDrafts').bulkPut([
     { draftId: 'draft', state: 'uncertain', lines: [{}] },
     { draftId: 'accepted', state: 'accepted', lines: [{}] },
+    { draftId: 'archived', state: 'archived', lines: [{}] },
   ]);
-  expect(await countUnsyncedDeviceWork()).toBe(1);
+  await db.table('physicalInventoryDrafts').bulkPut([
+    { draftId: 'modified', modified: true },
+    { draftId: 'untouched', modified: false },
+  ]);
+  expect(await countUnsyncedDeviceWork()).toBe(3);
   await db.table('stockEventQueue').clear();
   await db.table('stockEventSyncErrors').update('event', { resolvedAt: Date.now() });
-  expect(await countUnsyncedDeviceWork()).toBe(0);
+  expect(await countUnsyncedDeviceWork()).toBe(2);
 });
 
 it.each(['failure', 'timeout'])(

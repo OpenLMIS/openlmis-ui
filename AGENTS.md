@@ -883,6 +883,9 @@ offline criteria stay open until those criteria are met.
 
 - Specs import `test` from `tests/offline/browser-fixtures.ts`; persistent profiles use its
   `persistentContext` fixture so the selected engine, channel and base URL are respected.
+  Create persistent profiles under `os.tmpdir()` and remove them after the scenario.
+- Vitest covers the no-Web-Locks fallback: coordinator/uploader stay disabled while online
+  bundle reads remain available. The browser suite does not certify that fallback.
 - Keep page URLs relative to `baseURL`, such as `./stock-management/adjustments`.
 - Run `pnpm test:offline` (Chromium) during development and `pnpm test:offline:browsers`
   for the installed-engine matrix. Use the README Docker route for Edge/WebKit dependencies.

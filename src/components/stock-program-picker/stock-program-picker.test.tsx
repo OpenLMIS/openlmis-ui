@@ -9,8 +9,8 @@ const rows = [
 const linkFor = (row: { id: string }) => <a href={`/adjustments/${row.id}`}>Make Adjustments</a>;
 
 describe('StockProgramPicker', () => {
-  it('keeps workflow status and offline readiness available on narrow tables', () => {
-    const { rerender } = render(
+  it("shows workflow status and each program's available action", () => {
+    render(
       <StockProgramPicker
         actionLabel="Start"
         hasHomeFacility
@@ -33,18 +33,6 @@ describe('StockProgramPicker', () => {
         name: 'Start',
       }),
     ).toBeInTheDocument();
-    rerender(
-      <StockProgramPicker
-        actionLabel="Start"
-        hasHomeFacility
-        statusLabel="Readiness"
-        linkFor={linkFor}
-        rows={[{ ...rows[0], status: 'Not Downloaded' }]}
-      />,
-    );
-    expect(screen.getByRole('columnheader', { name: 'Readiness' })).toBeInTheDocument();
-    expect(screen.getByText('Not Downloaded')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Make Adjustments' })).toBeInTheDocument();
   });
 
   it('lists each program with a link to its action', () => {

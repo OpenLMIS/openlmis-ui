@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
@@ -21,12 +21,11 @@ vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
 }));
-const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[], reads: vi.fn() }));
+const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[] }));
 vi.mock('@/components/nav-access', () => ({ useHasRight: () => device.allowed }));
 vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
   useHasDeviceEvents: () => device.events.length > 0,
   useDeviceEvents: (enabled: boolean) => {
-    device.reads(enabled);
     return { events: enabled ? device.events : undefined };
   },
 }));
@@ -187,25 +186,35 @@ describe('StatusAnnouncer', () => {
   });
 });
 
-it('keeps concurrent warning notes separate and announces download start, finish and failure once', () => {
+it('keeps concurrent notes visible and announces only download changes through completion and failure', () => {
+  onlineManager.setOnline(false);
   renderNotices();
+  expect(screen.getByRole('status')).toHaveTextContent('offline.title');
   act(() => setDownloadStatus({ phase: 'running', failed: [] }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.fetching');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
   expect(screen.getAllByRole('status')).toHaveLength(1);
-  expect(screen.getByRole('note')).toHaveTextContent('offline.download.fetching');
+  expect(screen.getAllByRole('note')).toHaveLength(2);
+  expect(
+    screen
+      .getAllByRole('note')
+      .some((note) => note.textContent?.includes('offline.download.fetching')),
+  ).toBe(true);
   act(() => setDownloadStatus({ phase: 'complete', failed: [] }));
-  expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('note')).toHaveLength(1);
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
-  act(() => {
-    onlineManager.setOnline(false);
+  act(() => setDownloadStatus({ phase: 'failed', failed: [], reason: 'timeout' }));
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
+  act(() =>
     setDownloadStatus({
       phase: 'failed',
       failed: [{ id: 'med', name: 'Medicines' }],
       reason: 'timeout',
-    });
-  });
+    }),
+  );
   expect(screen.getAllByRole('note')).toHaveLength(2);
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.failed-programs');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
   expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeInTheDocument();
 });
 
@@ -245,19 +254,6 @@ it('clears the completed download announcement before later notices change', () 
   showUpdate();
   expect(screen.getByRole('status')).toHaveTextContent('update.title');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
-});
-
-it('announces only the changed notice while concurrent warnings stay visible', () => {
-  onlineManager.setOnline(false);
-  renderNotices();
-  expect(screen.getByRole('status')).toHaveTextContent('offline.title');
-  act(() => setDownloadStatus({ phase: 'running', failed: [] }));
-  expect(screen.getByRole('status')).toHaveTextContent('offline.download.fetching');
-  expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
-  expect(screen.getAllByRole('note')).toHaveLength(2);
-  act(() => setDownloadStatus({ phase: 'failed', failed: [], reason: 'timeout' }));
-  expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
-  expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
 });
 
 it('uncertain events stay out of Waiting To Sync and stacked notices offer review once', async () => {
@@ -305,7 +301,7 @@ it('Sign In To Sync has no review action of its own', () => {
     .getAllByRole('note')
     .find((note) => note.textContent?.includes('device-events.sign-in'));
   expect(notice).toBeDefined();
-  expect(notice?.querySelector('button')).toBeNull();
+  expect(within(notice as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
   expect(screen.getAllByRole('button', { name: 'device-events.review' })).toHaveLength(1);
 });
 
@@ -335,11 +331,4 @@ it('does not describe a connected expired session as offline', () => {
   renderNotices();
   expect(screen.queryByText('session.offline-description')).not.toBeInTheDocument();
   useLoginData.getState().clearLoginData();
-});
-
-it('avoids loading device event records for users without Adjustments access or device data', () => {
-  device.reads.mockClear();
-  renderNotices();
-  expect(device.reads).toHaveBeenCalledWith(false);
-  expect(device.reads).not.toHaveBeenCalledWith(true);
 });

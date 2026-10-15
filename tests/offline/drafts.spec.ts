@@ -1,5 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, type Page } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
@@ -43,7 +44,7 @@ async function rows(page: Page) {
 test('offline edits restore exact quantity text after reload and persistent browser restart', {
   tag: '@offline-shell',
 }, async ({ persistentContext }) => {
-  const directory = await mkdtemp(resolve('.offline/profile-stage-5-'));
+  const directory = await mkdtemp(join(tmpdir(), 'openlmis-offline-5-'));
   let context = await persistentContext(directory);
   try {
     await stub(context, async () => 'finish');
