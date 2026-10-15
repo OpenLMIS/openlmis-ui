@@ -25,6 +25,7 @@ import { Route as protectedProtectedAdministrationProductsRouteImport } from './
 import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
 import { Route as protectedProtectedAdministrationReasonsRouteImport } from './routes/(protected)/_protected.administration.reasons'
 import { Route as protectedProtectedAdministrationRejectionReasonCategoriesRouteImport } from './routes/(protected)/_protected.administration.rejection-reason-categories'
+import { Route as protectedProtectedAdministrationRejectionReasonsRouteImport } from './routes/(protected)/_protected.administration.rejection-reasons'
 import { Route as protectedProtectedAdministrationRequisitionGroupsRouteImport } from './routes/(protected)/_protected.administration.requisition-groups'
 import { Route as protectedProtectedAdministrationRequisitionTemplatesRouteImport } from './routes/(protected)/_protected.administration.requisition-templates'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
@@ -52,6 +53,7 @@ import { Route as protectedProtectedAdministrationProductsIdRouteImport } from '
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
 import { Route as protectedProtectedAdministrationRejectionReasonCategoriesIdRouteImport } from './routes/(protected)/_protected.administration.rejection-reason-categories_.$id'
+import { Route as protectedProtectedAdministrationRejectionReasonsIdRouteImport } from './routes/(protected)/_protected.administration.rejection-reasons_.$id'
 import { Route as protectedProtectedAdministrationRequisitionGroupsIdRouteImport } from './routes/(protected)/_protected.administration.requisition-groups_.$id'
 import { Route as protectedProtectedAdministrationRequisitionGroupsNewRouteImport } from './routes/(protected)/_protected.administration.requisition-groups_.new'
 import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
@@ -159,6 +161,12 @@ const protectedProtectedAdministrationRejectionReasonCategoriesRoute =
   protectedProtectedAdministrationRejectionReasonCategoriesRouteImport.update({
     id: '/administration/rejection-reason-categories',
     path: '/administration/rejection-reason-categories',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationRejectionReasonsRoute =
+  protectedProtectedAdministrationRejectionReasonsRouteImport.update({
+    id: '/administration/rejection-reasons',
+    path: '/administration/rejection-reasons',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationRequisitionGroupsRoute =
@@ -325,6 +333,12 @@ const protectedProtectedAdministrationRejectionReasonCategoriesIdRoute =
       getParentRoute: () => protectedProtectedRoute,
     } as any,
   )
+const protectedProtectedAdministrationRejectionReasonsIdRoute =
+  protectedProtectedAdministrationRejectionReasonsIdRouteImport.update({
+    id: '/administration/rejection-reasons_/$id',
+    path: '/administration/rejection-reasons/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationRequisitionGroupsIdRoute =
   protectedProtectedAdministrationRequisitionGroupsIdRouteImport.update({
     id: '/administration/requisition-groups_/$id',
@@ -460,6 +474,7 @@ export interface FileRoutesByFullPath {
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/administration/rejection-reason-categories': typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
+  '/administration/rejection-reasons': typeof protectedProtectedAdministrationRejectionReasonsRoute
   '/administration/requisition-groups': typeof protectedProtectedAdministrationRequisitionGroupsRoute
   '/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
@@ -487,6 +502,7 @@ export interface FileRoutesByFullPath {
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/administration/rejection-reason-categories/$id': typeof protectedProtectedAdministrationRejectionReasonCategoriesIdRoute
+  '/administration/rejection-reasons/$id': typeof protectedProtectedAdministrationRejectionReasonsIdRoute
   '/administration/requisition-groups/$id': typeof protectedProtectedAdministrationRequisitionGroupsIdRoute
   '/administration/requisition-groups/new': typeof protectedProtectedAdministrationRequisitionGroupsNewRoute
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
@@ -521,6 +537,7 @@ export interface FileRoutesByTo {
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/administration/rejection-reason-categories': typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
+  '/administration/rejection-reasons': typeof protectedProtectedAdministrationRejectionReasonsRoute
   '/administration/requisition-groups': typeof protectedProtectedAdministrationRequisitionGroupsRoute
   '/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
@@ -547,6 +564,7 @@ export interface FileRoutesByTo {
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/administration/rejection-reason-categories/$id': typeof protectedProtectedAdministrationRejectionReasonCategoriesIdRoute
+  '/administration/rejection-reasons/$id': typeof protectedProtectedAdministrationRejectionReasonsIdRoute
   '/administration/requisition-groups/$id': typeof protectedProtectedAdministrationRequisitionGroupsIdRoute
   '/administration/requisition-groups/new': typeof protectedProtectedAdministrationRequisitionGroupsNewRoute
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
@@ -585,6 +603,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/(protected)/_protected/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
   '/(protected)/_protected/administration/rejection-reason-categories': typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
+  '/(protected)/_protected/administration/rejection-reasons': typeof protectedProtectedAdministrationRejectionReasonsRoute
   '/(protected)/_protected/administration/requisition-groups': typeof protectedProtectedAdministrationRequisitionGroupsRoute
   '/(protected)/_protected/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
@@ -612,6 +631,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
   '/(protected)/_protected/administration/rejection-reason-categories_/$id': typeof protectedProtectedAdministrationRejectionReasonCategoriesIdRoute
+  '/(protected)/_protected/administration/rejection-reasons_/$id': typeof protectedProtectedAdministrationRejectionReasonsIdRoute
   '/(protected)/_protected/administration/requisition-groups_/$id': typeof protectedProtectedAdministrationRequisitionGroupsIdRoute
   '/(protected)/_protected/administration/requisition-groups_/new': typeof protectedProtectedAdministrationRequisitionGroupsNewRoute
   '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
@@ -650,6 +670,7 @@ export interface FileRouteTypes {
     | '/administration/programs'
     | '/administration/reasons'
     | '/administration/rejection-reason-categories'
+    | '/administration/rejection-reasons'
     | '/administration/requisition-groups'
     | '/administration/requisition-templates'
     | '/administration/roles'
@@ -677,6 +698,7 @@ export interface FileRouteTypes {
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
     | '/administration/rejection-reason-categories/$id'
+    | '/administration/rejection-reasons/$id'
     | '/administration/requisition-groups/$id'
     | '/administration/requisition-groups/new'
     | '/administration/requisition-templates/$id'
@@ -711,6 +733,7 @@ export interface FileRouteTypes {
     | '/administration/programs'
     | '/administration/reasons'
     | '/administration/rejection-reason-categories'
+    | '/administration/rejection-reasons'
     | '/administration/requisition-groups'
     | '/administration/requisition-templates'
     | '/administration/roles'
@@ -737,6 +760,7 @@ export interface FileRouteTypes {
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
     | '/administration/rejection-reason-categories/$id'
+    | '/administration/rejection-reasons/$id'
     | '/administration/requisition-groups/$id'
     | '/administration/requisition-groups/new'
     | '/administration/requisition-templates/$id'
@@ -774,6 +798,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/programs'
     | '/(protected)/_protected/administration/reasons'
     | '/(protected)/_protected/administration/rejection-reason-categories'
+    | '/(protected)/_protected/administration/rejection-reasons'
     | '/(protected)/_protected/administration/requisition-groups'
     | '/(protected)/_protected/administration/requisition-templates'
     | '/(protected)/_protected/administration/roles'
@@ -801,6 +826,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
     | '/(protected)/_protected/administration/rejection-reason-categories_/$id'
+    | '/(protected)/_protected/administration/rejection-reasons_/$id'
     | '/(protected)/_protected/administration/requisition-groups_/$id'
     | '/(protected)/_protected/administration/requisition-groups_/new'
     | '/(protected)/_protected/administration/requisition-templates_/$id'
@@ -942,6 +968,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/rejection-reason-categories'
       fullPath: '/administration/rejection-reason-categories'
       preLoaderRoute: typeof protectedProtectedAdministrationRejectionReasonCategoriesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/rejection-reasons': {
+      id: '/(protected)/_protected/administration/rejection-reasons'
+      path: '/administration/rejection-reasons'
+      fullPath: '/administration/rejection-reasons'
+      preLoaderRoute: typeof protectedProtectedAdministrationRejectionReasonsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/requisition-groups': {
@@ -1131,6 +1164,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/rejection-reason-categories/$id'
       fullPath: '/administration/rejection-reason-categories/$id'
       preLoaderRoute: typeof protectedProtectedAdministrationRejectionReasonCategoriesIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/rejection-reasons_/$id': {
+      id: '/(protected)/_protected/administration/rejection-reasons_/$id'
+      path: '/administration/rejection-reasons/$id'
+      fullPath: '/administration/rejection-reasons/$id'
+      preLoaderRoute: typeof protectedProtectedAdministrationRejectionReasonsIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/requisition-groups_/$id': {
@@ -1346,6 +1386,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
   protectedProtectedAdministrationReasonsRoute: typeof protectedProtectedAdministrationReasonsRoute
   protectedProtectedAdministrationRejectionReasonCategoriesRoute: typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
+  protectedProtectedAdministrationRejectionReasonsRoute: typeof protectedProtectedAdministrationRejectionReasonsRoute
   protectedProtectedAdministrationRequisitionGroupsRoute: typeof protectedProtectedAdministrationRequisitionGroupsRoute
   protectedProtectedAdministrationRequisitionTemplatesRoute: typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
@@ -1367,6 +1408,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
   protectedProtectedAdministrationRejectionReasonCategoriesIdRoute: typeof protectedProtectedAdministrationRejectionReasonCategoriesIdRoute
+  protectedProtectedAdministrationRejectionReasonsIdRoute: typeof protectedProtectedAdministrationRejectionReasonsIdRoute
   protectedProtectedAdministrationRequisitionGroupsIdRoute: typeof protectedProtectedAdministrationRequisitionGroupsIdRoute
   protectedProtectedAdministrationRequisitionGroupsNewRoute: typeof protectedProtectedAdministrationRequisitionGroupsNewRoute
   protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
@@ -1403,6 +1445,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsRoute,
   protectedProtectedAdministrationRejectionReasonCategoriesRoute:
     protectedProtectedAdministrationRejectionReasonCategoriesRoute,
+  protectedProtectedAdministrationRejectionReasonsRoute:
+    protectedProtectedAdministrationRejectionReasonsRoute,
   protectedProtectedAdministrationRequisitionGroupsRoute:
     protectedProtectedAdministrationRequisitionGroupsRoute,
   protectedProtectedAdministrationRequisitionTemplatesRoute:
@@ -1445,6 +1489,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsNewRoute,
   protectedProtectedAdministrationRejectionReasonCategoriesIdRoute:
     protectedProtectedAdministrationRejectionReasonCategoriesIdRoute,
+  protectedProtectedAdministrationRejectionReasonsIdRoute:
+    protectedProtectedAdministrationRejectionReasonsIdRoute,
   protectedProtectedAdministrationRequisitionGroupsIdRoute:
     protectedProtectedAdministrationRequisitionGroupsIdRoute,
   protectedProtectedAdministrationRequisitionGroupsNewRoute:

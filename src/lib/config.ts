@@ -140,7 +140,10 @@ export const NAV_GROUPS: NavGroup[] = [
             titleKey: 'nav.administration.rejection-reason-category',
             to: '/administration/rejection-reason-categories',
           },
-          { titleKey: 'nav.administration.rejection-reason', to: '#' },
+          {
+            titleKey: 'nav.administration.rejection-reason',
+            to: '/administration/rejection-reasons',
+          },
           {
             titleKey: 'nav.administration.requisition-groups',
             to: '/administration/requisition-groups',

@@ -1,3 +1,5 @@
+import type { ParseKeys } from 'i18next';
+import { z } from 'zod';
 import type { RejectionReason, RejectionReasonCategory } from '@/features/reference-data/lib/types';
 import type { RejectionReasonBody } from '@/features/rejection-reasons/lib/types';
 
@@ -38,4 +40,22 @@ export function toReasonBody(
     active: values.active,
     rejectionReasonCategory: category,
   };
+}
+
+export function reasonFormSchema(categories: RejectionReasonCategory[] | undefined) {
+  return z.object({
+    name: z.string().refine((value) => value.trim().length > 0, {
+      message: 'rejection-reasons.form.name-required' satisfies ParseKeys,
+    }),
+    code: z.string().refine((value) => value.trim().length > 0, {
+      message: 'rejection-reasons.form.code-required' satisfies ParseKeys,
+    }),
+    active: z.boolean(),
+    categoryId: z
+      .string()
+      .min(1, 'rejection-reasons.form.category-required' satisfies ParseKeys)
+      .refine((id) => !id || Boolean(categories?.some((category) => category.id === id)), {
+        message: 'rejection-reasons.form.category-unavailable' satisfies ParseKeys,
+      }),
+  });
 }
