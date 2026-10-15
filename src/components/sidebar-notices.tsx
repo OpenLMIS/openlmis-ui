@@ -23,10 +23,11 @@ import {
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { useOfflineSession } from '@/hooks/use-offline-session';
 import { useQueuedAnnouncement, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
-import { dismissBackOnline, useBackOnline, useOnline } from '@/lib/online';
+import { dismissBackOnline, seedOnline, useBackOnline, useOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
 import { useSessionScope } from '@/lib/session-scope';
 
@@ -69,6 +70,7 @@ function useNotices(): Notice[] {
     onClick: () => void navigate({ to: '/stock-management/device-events' }),
   };
   const online = useOnline();
+  const offlineSession = useOfflineSession();
   const backOnline = useBackOnline();
   const updateReady = useUpdateReady();
 
@@ -81,6 +83,7 @@ function useNotices(): Notice[] {
       Icon: WifiOffIcon,
       title: t('offline.title'),
       description: t('offline.description'),
+      action: { label: t('offline.try-connection'), onClick: seedOnline },
     });
   }
   if (online && backOnline) {
@@ -150,21 +153,28 @@ function useNotices(): Notice[] {
       title: t('device-events.waiting', { count: waiting }),
       action: review,
     });
-  if (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
+  if (
+    offlineSession ||
+    (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
+  )
     notices.push({
       id: 'device-events-sync',
-      variant: phase === 'syncing' ? 'info' : 'warning',
-      Icon: phase === 'syncing' ? LoaderCircleIcon : AlertTriangleIcon,
-      spinning: phase === 'syncing',
+      variant: !offlineSession && phase === 'syncing' ? 'info' : 'warning',
+      Icon: !offlineSession && phase === 'syncing' ? LoaderCircleIcon : AlertTriangleIcon,
+      spinning: !offlineSession && phase === 'syncing',
       title: t(
-        phase === 'syncing'
+        !offlineSession && phase === 'syncing'
           ? 'device-events.syncing'
-          : phase === 'session'
+          : offlineSession || phase === 'session'
             ? 'device-events.sign-in'
             : 'device-events.receipt-write',
       ),
-      description: phase === 'receipt' ? t('device-events.receipt-write-description') : undefined,
-      action: phase === 'session' ? undefined : review,
+      description: offlineSession
+        ? t('session.offline-description')
+        : phase === 'receipt'
+          ? t('device-events.receipt-write-description')
+          : undefined,
+      action: offlineSession || phase === 'session' ? undefined : review,
       closesSidebar: true,
     });
   if (canAdjust && phase === 'unsupported')

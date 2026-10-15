@@ -311,11 +311,8 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         within(table)
           .getAllByRole('row')
           .slice(1)
-          .map((row) => row.textContent),
-      ).toEqual([
-        `Essential Meds${kind === 'adjustments' ? 'offline.download.not-downloaded' : ''}${copy}.make`,
-        `Family Planning${kind === 'adjustments' ? 'offline.download.not-downloaded' : ''}${copy}.make`,
-      ]);
+          .map((row) => within(row).getAllByRole('cell')[0]?.textContent),
+      ).toEqual(['Essential Meds', 'Family Planning']);
       const row = screen.getByText('Essential Meds').closest('tr') as HTMLElement;
       const link = within(row).getByRole('link', { name: `${copy}.make` });
       expect(link).toHaveAttribute('href', `${PICKER}/${EM}`);

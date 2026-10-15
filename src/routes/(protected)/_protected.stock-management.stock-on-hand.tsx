@@ -540,8 +540,11 @@ function StockOnHandPrintButton({
   });
   return (
     <Button
-      disabled={!page || page.totalElements === 0 || print.isPending}
+      disabled={print.offline || !page || page.totalElements === 0 || print.isPending}
       onClick={print.print}
+      focusableWhenDisabled={print.offline}
+      title={print.disabledReason}
+      aria-description={print.disabledReason}
       width="full"
     >
       {print.isPending ? (

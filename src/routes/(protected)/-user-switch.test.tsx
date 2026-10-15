@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRouteWithContext,
@@ -148,4 +148,13 @@ describe('protected session identity', () => {
     expect(screen.getByLabelText('Draft')).toHaveValue('saved changed');
     expect(loader).toHaveBeenCalledTimes(1);
   });
+});
+
+it('preserves an open online-only draft while the offline gate hides it', async () => {
+  await openDraft();
+  act(() => onlineManager.setOnline(false));
+  expect(await screen.findByRole('heading', { name: 'offline.notice-title' })).toBeInTheDocument();
+  act(() => onlineManager.setOnline(true));
+  expect(await screen.findByLabelText('Draft')).toHaveValue('saved changed');
+  expect(loader).toHaveBeenCalledOnce();
 });

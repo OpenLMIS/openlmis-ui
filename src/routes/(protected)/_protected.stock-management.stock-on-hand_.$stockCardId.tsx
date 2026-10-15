@@ -231,7 +231,14 @@ function StockCardPrint({
     refusedDescription: t('stock-card.print-refused'),
   });
   return (
-    <Button size="lg" disabled={print.isPending} onClick={print.print}>
+    <Button
+      size="lg"
+      disabled={print.offline || print.isPending}
+      onClick={print.print}
+      focusableWhenDisabled={print.offline}
+      title={print.disabledReason}
+      aria-description={print.disabledReason}
+    >
       {print.isPending ? (
         <Spinner data-icon="inline-start" />
       ) : (

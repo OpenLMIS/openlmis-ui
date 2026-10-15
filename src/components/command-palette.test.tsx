@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
@@ -99,4 +99,18 @@ describe('CommandPalette', () => {
     expect(await screen.findByRole('option', { name: 'nav-user.account' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'nav-user.settings' })).not.toBeInTheDocument();
   });
+});
+
+it('keeps offline server entries visible with an explanation and prevents selection', async () => {
+  onlineManager.setOnline(false);
+  renderPalette(['STOCK_ADJUST', 'USERS_MANAGE']);
+  await userEvent.keyboard('{Control>}k{/Control}');
+  const issue = await screen.findByRole('option', { name: /nav.stock-management.issue/ });
+  expect(issue).toHaveAttribute('aria-disabled', 'true');
+  expect(issue).toHaveTextContent('offline.connection-required');
+  await userEvent.click(issue);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(
+    screen.getByRole('option', { name: 'nav.stock-management.adjustments' }),
+  ).not.toHaveAttribute('aria-disabled', 'true');
 });

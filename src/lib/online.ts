@@ -26,6 +26,8 @@ export function seedOnline() {
   onlineManager.setOnline(navigator.onLine);
 }
 
+export const continueOffline = () => onlineManager.setOnline(false);
+
 export const isOnline = () => onlineManager.isOnline();
 
 export function useOnline() {
