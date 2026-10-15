@@ -150,3 +150,31 @@ it.each([false, true])(
     expect(changed.mock.calls).toEqual([[false]]);
   },
 );
+
+it.each(['popover', 'dialog'] as const)(
+  'honors cancelled Escape in an uncontrolled %s',
+  async (kind) => {
+    const cancel = vi.fn((_open: boolean, details: { cancel: () => void }) => details.cancel());
+    render(
+      kind === 'popover' ? (
+        <Popover defaultOpen onOpenChange={cancel}>
+          <PopoverContent>
+            <input aria-label="Kept draft" />
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <Dialog defaultOpen onOpenChange={cancel}>
+          <DialogContent>
+            <DialogTitle>Kept draft</DialogTitle>
+            <input aria-label="Kept draft" />
+          </DialogContent>
+        </Dialog>
+      ),
+    );
+    await screen.findByRole('dialog');
+    await userEvent.keyboard('{Escape}');
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-open');
+    expect(screen.getByRole('textbox', { name: 'Kept draft' })).toBeInTheDocument();
+  },
+);
