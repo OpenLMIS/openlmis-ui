@@ -231,13 +231,11 @@ export function SidebarNotices() {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
   const notices = useNotices();
   const reviewAction = useRef<HTMLButtonElement>(null);
-  const layout = notices
-    .map(({ id, title, description }) => `${id}:${title}:${description}`)
-    .join();
+  const reviewNoticeId = notices.find((notice) => notice.action && notice.closesSidebar)?.id;
+  const expanded = isMobile ? openMobile : state === 'expanded';
   useEffect(() => {
-    if (layout && (isMobile ? openMobile : state === 'expanded'))
-      reviewAction.current?.scrollIntoView({ block: 'nearest' });
-  }, [layout, isMobile, openMobile, state]);
+    if (reviewNoticeId && expanded) reviewAction.current?.scrollIntoView({ block: 'nearest' });
+  }, [reviewNoticeId, expanded]);
 
   if (notices.length === 0) return null;
 
