@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios';
 import { liveQuery } from 'dexie';
 import { toast } from 'sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { foregroundStockEvents } from '@/features/stock-events/lib/stock-event-delivery';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
@@ -17,8 +18,6 @@ import { getLocalDb } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import { setSyncPhase, setSyncWake } from '@/lib/device-event-status';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
-import { queryKeys } from '@/lib/key-factory';
-import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
 import { QueueReceiptError } from '@/lib/queue-transport';
@@ -54,6 +53,8 @@ export function startStockEventUploader(
       pausedEpoch !== uploadAccessEpoch()
     );
   };
+  const restingPhase = () =>
+    useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
   const run = async () => {
     if (running) {
       pending = true;
@@ -83,11 +84,7 @@ export function startStockEventUploader(
           check();
         }
         if (!valid()) {
-          setSyncPhase(
-            useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch()
-              ? 'session'
-              : 'idle',
-          );
+          setSyncPhase(restingPhase());
           return;
         }
         const count = await db.table('stockEventQueue').where('status').equals('queued').count();
@@ -141,14 +138,8 @@ export function startStockEventUploader(
             }),
           accepted: (event: QueuedStockEvent) => {
             check();
-            refreshOfflineProgram(event);
+            refreshAfterStockEventAccepted(queryClient, event);
             announceDeviceSave('device-events.synced');
-            for (const queryKey of [
-              queryKeys.stockEvents.all,
-              queryKeys.stockCards.all,
-              queryKeys.stockCardSummaries.all,
-            ])
-              void queryClient.invalidateQueries({ queryKey });
             if (!foregroundStockEvents.has(event.localEventId))
               toast.success(i18n.t('device-events.synced'), {
                 description: i18n.t('device-events.synced-description'),
@@ -156,13 +147,11 @@ export function startStockEventUploader(
           },
         });
         check();
-        retryDelay = 1000;
-        setSyncPhase(
-          useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch()
-            ? 'session'
-            : 'idle',
-        );
+        setSyncPhase(restingPhase());
       });
+      retryDelay = 1000;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
     } catch (error) {
       if (scope === getSessionScope() && !stopped) {
         reportConnectionFailure(error);
@@ -186,6 +175,9 @@ export function startStockEventUploader(
   const watch = () => {
     subscription?.unsubscribe();
     subscription = undefined;
+    clearInterval(accessTimer);
+    accessTimer = undefined;
+    accessPaused = false;
     if (!useLoginData.getState().referenceDataUserId) return;
     const scope = getSessionScope();
     const db = getLocalDb();
@@ -214,6 +206,10 @@ export function startStockEventUploader(
   const unsubscribe = useLoginData.subscribe((state, previous) => {
     if (state.referenceDataUserId !== previous.referenceDataUserId) {
       pausedEpoch = undefined;
+      forceAccess = false;
+      retryDelay = 1000;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
       setSyncPhase('idle');
       watch();
     }

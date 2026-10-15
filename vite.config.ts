@@ -39,6 +39,19 @@ export default defineConfig(({ mode }) => {
     plugins: [
       tanstackRouter({
         autoCodeSplitting: true,
+        codeSplittingOptions: {
+          splitBehavior: ({ routeId }) =>
+            routeId.includes('/stock-management/') &&
+            !routeId.includes('/physical-inventory_/$programId')
+              ? [
+                  ['loader'],
+                  ['component'],
+                  ['pendingComponent'],
+                  ['errorComponent'],
+                  ['notFoundComponent'],
+                ]
+              : undefined,
+        },
         generatedRouteTree: './src/route-tree.gen.ts',
       }),
       react(),

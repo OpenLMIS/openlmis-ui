@@ -155,7 +155,7 @@ for (const language of ['en', 'ar']) {
       await expect(page.getByRole('table')).toContainText('Fixture Product');
       await expect(
         page.getByRole('columnheader', {
-          name: catalog['device-events.occurred-date'],
+          name: catalog['device-events.status'],
           exact: true,
         }),
       ).toBeVisible();

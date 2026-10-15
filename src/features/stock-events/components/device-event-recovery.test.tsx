@@ -18,10 +18,10 @@ import {
   recoverSending,
   syncStockEvents,
 } from '@/features/stock-events/lib/stock-event-sync';
+import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { wakeStockEventSync } from '@/lib/device-event-status';
-import { countUnsyncedDeviceWork } from '@/lib/unsynced-device-work';
 import { renderPage } from '@/tests/render-page';
 
 const navigation = vi.hoisted(() => vi.fn());

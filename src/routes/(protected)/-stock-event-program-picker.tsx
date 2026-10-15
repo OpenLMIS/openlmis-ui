@@ -290,7 +290,7 @@ function DownloadedProgramsTable({
           label: recordLabel(program),
           status:
             download.phase === 'running' &&
-            download.failed.some((item) => item.id === program.id) ? (
+            download.incompletePrograms.some((item) => item.id === program.id) ? (
               t('offline.download.downloading')
             ) : bundle ? (
               <div className="flex flex-col gap-1">

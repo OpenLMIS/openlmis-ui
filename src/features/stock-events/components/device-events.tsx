@@ -7,7 +7,7 @@ import {
   ListChecksIcon,
   MoreHorizontalIcon,
 } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -22,7 +22,9 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import { DialogNotFound } from '@/components/dialog-parts';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { FormDialog } from '@/components/form-dialog/form-dialog';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
@@ -45,25 +47,15 @@ import {
 } from '@/components/workspace';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import type { DeviceEventsSearch } from '@/features/stock-events/lib/device-events-search';
 import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { recordLabel } from '@/lib/facility-program-selection';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
-import {
-  type SearchChange,
-  type TableSearch,
-  tableSearchSchema,
-  toPaginationState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
-export const deviceEventsSearchSchema = tableSearchSchema(['queuedAt']).pick({
-  page: true,
-  size: true,
-  sort: true,
-  dir: true,
-});
 const choicesSchema = z.record(z.string(), z.boolean());
 const hideable = [
   { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '2xl' },
@@ -73,8 +65,8 @@ const hideable = [
   { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: 'xl' },
   { id: 'quantity', labelKey: 'device-events.quantity', hideBelow: 'sm' },
   { id: 'reason', labelKey: 'device-events.reason', hideBelow: '3xl' },
-  { id: 'occurredDate', labelKey: 'device-events.occurred-date' },
-  { id: 'status', labelKey: 'device-events.status', hideBelow: 'md' },
+  { id: 'occurredDate', labelKey: 'device-events.occurred-date', hideBelow: 'md' },
+  { id: 'status', labelKey: 'device-events.status' },
 ] as const;
 type EventRow = DeviceEvent & { lineIndex: number };
 const defaultSort = { id: 'queuedAt', desc: false };
@@ -82,13 +74,17 @@ const defaultSort = { id: 'queuedAt', desc: false };
 export function DeviceEventsPage({
   search,
   onSearchChange,
+  onOpenEvent,
+  onCloseEvent,
   permissions,
   permissionsUpdatedAt,
 }: {
   permissions: Permissions;
   permissionsUpdatedAt: number;
-  search: TableSearch;
-  onSearchChange: SearchChange<TableSearch>;
+  search: DeviceEventsSearch;
+  onSearchChange: SearchChange<DeviceEventsSearch>;
+  onOpenEvent: (event: string) => void;
+  onCloseEvent: () => void;
 }) {
   const { t } = useTranslation();
   const [measure, width] = useElementWidth<HTMLDivElement>();
@@ -126,6 +122,8 @@ export function DeviceEventsPage({
                 permissionsUpdatedAt={permissionsUpdatedAt}
                 search={search}
                 onSearchChange={onSearchChange}
+                onOpenEvent={onOpenEvent}
+                onCloseEvent={onCloseEvent}
                 columnVisibility={view.visibility}
                 loading
               />
@@ -144,6 +142,8 @@ export function DeviceEventsPage({
               permissionsUpdatedAt={permissionsUpdatedAt}
               search={search}
               onSearchChange={onSearchChange}
+              onOpenEvent={onOpenEvent}
+              onCloseEvent={onCloseEvent}
               columnVisibility={view.visibility}
             />
           </QueryBoundary>
@@ -159,6 +159,8 @@ function DeviceEventsReady(props: Parameters<typeof DeviceEventsTable>[0]) {
 function DeviceEventsTable({
   search,
   onSearchChange,
+  onOpenEvent,
+  onCloseEvent,
   columnVisibility,
   timeZone,
   loading = false,
@@ -167,15 +169,17 @@ function DeviceEventsTable({
 }: {
   permissions: Permissions;
   permissionsUpdatedAt: number;
-  search: TableSearch;
-  onSearchChange: SearchChange<TableSearch>;
+  search: DeviceEventsSearch;
+  onSearchChange: SearchChange<DeviceEventsSearch>;
+  onOpenEvent: (event: string) => void;
+  onCloseEvent: () => void;
   columnVisibility: Record<string, boolean>;
   timeZone?: string;
   loading?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const local = useDeviceEvents(!loading);
-  const [selected, setSelected] = useState<DeviceEvent | null>(null);
+  const selected = local.events?.find((event) => event.localEventId === search.event);
   const deferred = useDeferredValue(search);
   const columns = useMemo<ColumnDef<DataTableFeatures, EventRow>[]>(
     () => [
@@ -190,7 +194,7 @@ function DeviceEventsTable({
         header: t('facility-program.facility'),
         cell: ({ row }) =>
           row.original.lineIndex === 0 ? (
-            <span dir="auto">{row.original.facility.name || row.original.facility.code}</span>
+            <span dir="auto">{recordLabel(row.original.facility)}</span>
           ) : null,
       },
       {
@@ -198,7 +202,7 @@ function DeviceEventsTable({
         header: t('facility-program.program'),
         cell: ({ row }) =>
           row.original.lineIndex === 0 ? (
-            <span dir="auto">{row.original.program.name || row.original.program.code}</span>
+            <span dir="auto">{recordLabel(row.original.program)}</span>
           ) : null,
       },
       {
@@ -233,8 +237,7 @@ function DeviceEventsTable({
           const item = row.original.payload.lineItems[row.original.lineIndex];
           return (
             <span dir="auto">
-              {row.original.reasons?.find((reason) => reason.id === item?.reasonId)?.name ||
-                item?.reasonId}
+              {row.original.reasons?.find((reason) => reason.id === item?.reasonId)?.name}
             </span>
           );
         },
@@ -326,7 +329,7 @@ function DeviceEventsTable({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setSelected(row.original)}>
+                  <DropdownMenuItem onClick={() => onOpenEvent(row.original.localEventId)}>
                     {t('device-events.review-event')}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -336,7 +339,7 @@ function DeviceEventsTable({
         meta: { className: 'w-12' },
       },
     ],
-    [t, i18n.language, timeZone],
+    [t, i18n.language, timeZone, onOpenEvent],
   );
   const sorted = useMemo(
     () =>
@@ -394,6 +397,19 @@ function DeviceEventsTable({
     return <DataTableSkeleton table={table} rowCount={pagination.pageSize} />;
   return (
     <>
+      {search.event && !selected && (
+        <FormDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) onCloseEvent();
+          }}
+        >
+          <DialogNotFound
+            title={t('device-events.not-found-title')}
+            description={t('device-events.not-found-description')}
+          />
+        </FormDialog>
+      )}
       {selected && (
         <DeviceEventRecovery
           event={selected}
@@ -414,7 +430,7 @@ function DeviceEventsTable({
             selected.programId,
           )}
           timeZone={timeZone}
-          onClose={() => setSelected(null)}
+          onClose={onCloseEvent}
         />
       )}
       <DataTable

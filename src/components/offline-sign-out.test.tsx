@@ -4,10 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { useLoginData } from '@/features/auth/store/login-data';
+import * as deviceWork from '@/features/stock-events/lib/unsynced-device-work';
+import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { getLocalDb } from '@/integrations/local-db';
-import * as deviceWork from '@/lib/unsynced-device-work';
-import { countUnsyncedDeviceWork } from '@/lib/unsynced-device-work';
+
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: () => ({ countUnsyncedWork: () => deviceWork.countUnsyncedDeviceWork() }),
+}));
 
 function SignOutButton({
   onSignOut,

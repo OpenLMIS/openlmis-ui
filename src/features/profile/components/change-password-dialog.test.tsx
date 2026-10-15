@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { changePassword } from '@/features/profile/api/api';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
+import * as deviceWork from '@/features/stock-events/lib/unsynced-device-work';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
-import * as deviceWork from '@/lib/unsynced-device-work';
 import type { UserRecord } from '@/lib/user-types';
 
 beforeEach(() =>
@@ -14,6 +14,10 @@ beforeEach(() =>
     .getState()
     .setLoginData({ referenceDataUserId: 'u1', username: 'ada', accessToken: 'token' }),
 );
+
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: () => ({ countUnsyncedWork: () => deviceWork.countUnsyncedDeviceWork() }),
+}));
 
 vi.mock('@/features/profile/api/api', () => ({ changePassword: vi.fn() }));
 

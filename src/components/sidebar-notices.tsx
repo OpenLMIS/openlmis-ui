@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDeviceWork } from '@/components/device-work';
 import { useHasRight } from '@/components/nav-access';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import {
-  useDeviceEvents,
-  useHasDeviceEvents,
-} from '@/features/stock-events/hooks/use-device-events';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useOfflineSession } from '@/hooks/use-offline-session';
 import { useQueuedAnnouncement, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
@@ -56,19 +53,10 @@ function useNotices(): Notice[] {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const canAdjust = useHasRight(RIGHTS.stockAdjust);
-  const hasDeviceEvents = useHasDeviceEvents();
-  const { events } = useDeviceEvents(canAdjust || hasDeviceEvents);
+  const device = useDeviceWork();
+  const { waiting, uncertain, refused } = device;
   const ownPhase = useSyncPhase();
-  const phase =
-    ownPhase === 'idle' && events?.some((event) => event.status === 'sending')
-      ? 'syncing'
-      : ownPhase;
-  const waiting =
-    events?.filter((event) => !event.pauseReason && ['queued', 'sending'].includes(event.status))
-      .length ?? 0;
-  const uncertain = events?.filter((event) => event.status === 'uncertain').length ?? 0;
-  const refused =
-    events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt).length ?? 0;
+  const phase = ownPhase === 'idle' && device.sending ? 'syncing' : ownPhase;
   const review = {
     label: t('device-events.review'),
     onClick: () => void navigate({ to: '/stock-management/device-events' }),
@@ -137,9 +125,9 @@ function useNotices(): Notice[] {
       title: t('offline.download.incomplete'),
       description: [
         t(`offline.download.failure-${reason}`),
-        download.failed.length
+        download.incompletePrograms.length
           ? t('offline.download.failed-programs', {
-              programs: download.failed.map((program) => program.name).join(', '),
+              programs: download.incompletePrograms.map((program) => program.name).join(', '),
             })
           : '',
       ]
@@ -158,7 +146,7 @@ function useNotices(): Notice[] {
       action: review,
     });
   if (
-    (offlineSession && (canAdjust || events?.some((event) => event.status !== 'accepted'))) ||
+    (offlineSession && (canAdjust || device.retained)) ||
     (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
   )
     notices.push({
@@ -218,7 +206,7 @@ function useNotices(): Notice[] {
       closesSidebar: true,
     });
   for (const reason of ['access-changed', 'draft-changed'] as const) {
-    if (events?.some((event) => event.pauseReason === reason))
+    if (device.pauses.includes(reason))
       notices.push({
         id: `device-events-${reason}`,
         variant: 'warning',
@@ -253,7 +241,7 @@ export function SidebarNotices() {
             <SidebarMenuItem key={id}>
               {action ? (
                 <SidebarMenuButton
-                  aria-label={`${title}: ${action.label}`}
+                  aria-label={t('notice.action-label', { action: action.label, title })}
                   onClick={() => {
                     action.onClick();
                     if (closesSidebar) setOpenMobile(false);

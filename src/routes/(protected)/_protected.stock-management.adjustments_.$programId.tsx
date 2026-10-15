@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import {
   loadStockEventEditor,
   StockEventEditorPage,
   StockEventPending,
-  stockEventSearchSchema,
 } from '@/routes/(protected)/-stock-event-editor';
 
 export const Route = createFileRoute(

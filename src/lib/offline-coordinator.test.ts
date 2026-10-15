@@ -2,11 +2,11 @@ import { onlineManager } from '@tanstack/react-query';
 import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { startOfflineCoordinator } from '@/components/offline-coordinator';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb } from '@/integrations/local-db';
 import { type AdjustmentBundle, downloadIsStale } from '@/lib/adjustment-bundle';
 import type { AccessReaders } from '@/lib/offline-access';
+import { startOfflineCoordinator } from '@/lib/offline-coordinator';
 import {
   getDownloadStatus,
   refreshOfflineProgram,
@@ -106,7 +106,7 @@ it('returns immediately with a held download, commits only complete programs and
   onlineManager.setOnline(true);
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('timeout');
-  expect(getDownloadStatus().failed.map((program) => program.id)).toEqual(['p1']);
+  expect(getDownloadStatus().incompletePrograms.map((program) => program.id)).toEqual(['p1']);
   expect(await getLocalDb().table('adjustmentDownloads').get(['home', 'p1'])).toEqual(old);
   expect(await getLocalDb().table('physicalInventoryDrafts').get('retained-pi')).toEqual({
     draftId: 'retained-pi',
@@ -227,7 +227,7 @@ it('stops unfinished scopes on a no-response connection failure even when the br
   begin();
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('offline');
-  expect(getDownloadStatus().failed.map((program) => program.id)).toEqual(['p1', 'p2']);
+  expect(getDownloadStatus().incompletePrograms.map((program) => program.id)).toEqual(['p1', 'p2']);
   expect(await getLocalDb().table('adjustmentDownloads').count()).toBe(0);
   expect(onlineManager.isOnline()).toBe(true);
 });
@@ -262,7 +262,7 @@ it('excludes programs without stock viewing rights from downloads and Retry fail
   begin();
   await finished();
   expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p2']);
-  expect(getDownloadStatus().failed).toEqual([]);
+  expect(getDownloadStatus().incompletePrograms).toEqual([]);
   expect(await getLocalDb().table('adjustmentDownloads').get(['home', 'p1'])).toBeUndefined();
 });
 
@@ -294,7 +294,10 @@ it.each([false, true])(
     begin();
     await waitFor(() => expect(receive).toBeTypeOf('function'));
     receive({
-      data: { type: 'status', status: { phase: 'running', failed: [{ id: 'p1', name: 'p1' }] } },
+      data: {
+        type: 'status',
+        status: { phase: 'running', incompletePrograms: [{ id: 'p1', name: 'p1' }] },
+      },
     });
     await waitFor(() =>
       expect(navigator.locks.request).toHaveBeenCalledWith(
@@ -309,7 +312,9 @@ it.each([false, true])(
       await new Promise<void>((resolve) =>
         setTimeout(() => {
           phaseBeforeFinal = getDownloadStatus().phase;
-          receive({ data: { type: 'status', status: { phase: 'complete', failed: [] } } });
+          receive({
+            data: { type: 'status', status: { phase: 'complete', incompletePrograms: [] } },
+          });
           resolve();
         }, 0),
       );
@@ -382,8 +387,8 @@ it('drops refresh requests outside eligible home programs so an observed complet
   let remoteCompletion = false;
   vi.mocked(navigator.locks.request).mockImplementation(async (_name, _options, task) => {
     if (remoteCompletion) {
-      receive({ data: { type: 'status', status: { phase: 'running', failed: [] } } });
-      receive({ data: { type: 'status', status: { phase: 'complete', failed: [] } } });
+      receive({ data: { type: 'status', status: { phase: 'running', incompletePrograms: [] } } });
+      receive({ data: { type: 'status', status: { phase: 'complete', incompletePrograms: [] } } });
     }
     const result = await task({} as Lock);
     completedLocks += 1;

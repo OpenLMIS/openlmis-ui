@@ -2,7 +2,6 @@ import { onlineManager } from '@tanstack/react-query';
 import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { startOfflineCoordinator } from '@/components/offline-coordinator';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
@@ -13,6 +12,7 @@ import {
 } from '@/lib/adjustment-bundle';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import type { AccessReaders } from '@/lib/offline-access';
+import { startOfflineCoordinator } from '@/lib/offline-coordinator';
 import { getDownloadStatus } from '@/lib/offline-download-status';
 
 const filter = { facilityId: 'home', programId: 'program', facilityTypeId: 'type', scanning: true };

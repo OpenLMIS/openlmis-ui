@@ -5,14 +5,15 @@ import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import { DeviceEventsPage } from '@/features/stock-events/components/device-events';
+import { hasOwnDeviceEvents } from '@/features/stock-events/lib/device-event-access';
 import {
-  DeviceEventsPage,
+  CLOSED_DIALOGS,
+  type DeviceEventsSearch,
   deviceEventsSearchSchema,
-} from '@/features/stock-events/components/device-events';
+} from '@/features/stock-events/lib/device-events-search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { hasOwnDeviceEvents } from '@/lib/device-event-access';
 import { parsePermissions } from '@/lib/permissions';
-import type { TableSearch } from '@/lib/table-search';
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/device-events')({
   validateSearch: deviceEventsSearchSchema,
@@ -25,13 +26,16 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/d
 function DeviceEvents() {
   const userId = useLoginData((state) => state.referenceDataUserId) ?? '';
   const { data: permissions, dataUpdatedAt } = useQuery(permissionsOptions(userId));
-  const { updateSearch } = useSearchNavigation<TableSearch>({});
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<DeviceEventsSearch>(CLOSED_DIALOGS);
   return (
     <DeviceEventsPage
       permissions={permissions ?? parsePermissions([])}
       permissionsUpdatedAt={dataUpdatedAt}
       search={Route.useSearch()}
       onSearchChange={updateSearch}
+      onOpenEvent={(event) => void openDialog({ event })}
+      onCloseEvent={closeDialog}
     />
   );
 }

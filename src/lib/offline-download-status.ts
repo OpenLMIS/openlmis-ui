@@ -2,11 +2,11 @@ import { useSyncExternalStore } from 'react';
 
 export type DownloadStatus = {
   phase: 'idle' | 'running' | 'complete' | 'failed' | 'unsupported';
-  failed: { id: string; name: string }[];
+  incompletePrograms: { id: string; name: string }[];
   reason?: 'timeout' | 'offline' | 'session' | 'read';
   accessFailed?: boolean;
 };
-const idle: DownloadStatus = { phase: 'idle', failed: [] };
+const idle: DownloadStatus = { phase: 'idle', incompletePrograms: [] };
 let status = idle;
 const listeners = new Set<() => void>();
 let retry: (() => void) | undefined;

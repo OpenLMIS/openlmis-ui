@@ -1,5 +1,6 @@
 import { liveQuery } from 'dexie';
 import { useEffect, useState } from 'react';
+import { hasOwnDeviceEvents } from '@/features/stock-events/lib/device-event-access';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type {
   DeviceEvent,
@@ -7,18 +8,18 @@ import type {
   StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb } from '@/integrations/local-db';
-import { hasOwnDeviceEvents } from '@/lib/device-event-access';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { type Permissions, parsePermissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
 
-export function useDeviceEvents(enabled = true) {
+export function useDeviceEvents(enabled = true, onlyIfPresent = false) {
   const scope = useSessionScope();
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{
     scope: number;
     attempt: number;
     events?: DeviceEvent[];
+    hasDeviceEvents?: boolean;
     error?: unknown;
     permissions?: Permissions;
     permissionsFetchedAt?: number;
@@ -27,6 +28,9 @@ export function useDeviceEvents(enabled = true) {
     if (!enabled) return;
     const subscription = liveQuery(async () => {
       assertSessionScope(scope);
+      const hasDeviceEvents = await hasOwnDeviceEvents();
+      assertSessionScope(scope);
+      if (onlyIfPresent && !hasDeviceEvents) return { events: [], hasDeviceEvents };
       const db = getLocalDb();
       const events = await db.transaction(
         'r',
@@ -62,7 +66,7 @@ export function useDeviceEvents(enabled = true) {
         },
       );
       assertSessionScope(scope);
-      return events;
+      return { ...events, hasDeviceEvents };
     }).subscribe({
       next: (result) => {
         if (scope === getSessionScope()) setState({ scope, attempt: retry, ...result });
@@ -72,30 +76,13 @@ export function useDeviceEvents(enabled = true) {
       },
     });
     return () => subscription.unsubscribe();
-  }, [enabled, scope, retry]);
+  }, [enabled, onlyIfPresent, scope, retry]);
   return {
+    hasDeviceEvents: enabled && state.scope === scope && !!state.hasDeviceEvents,
     permissionsFetchedAt: state.scope === scope ? state.permissionsFetchedAt : undefined,
     permissions: state.scope === scope ? state.permissions : undefined,
     events: enabled && state.scope === scope && state.attempt === retry ? state.events : undefined,
     error: enabled && state.scope === scope && state.attempt === retry ? state.error : undefined,
     retry: () => setRetry((value) => value + 1),
   };
-}
-
-export function useHasDeviceEvents() {
-  const scope = useSessionScope();
-  const [state, setState] = useState({ scope, present: false });
-  useEffect(() => {
-    const subscription = liveQuery(async () => {
-      assertSessionScope(scope);
-      const present = await hasOwnDeviceEvents();
-      assertSessionScope(scope);
-      return present;
-    }).subscribe({
-      next: (present) => setState({ scope, present }),
-      error: () => setState({ scope, present: false }),
-    });
-    return () => subscription.unsubscribe();
-  }, [scope]);
-  return state.scope === scope && state.present;
 }
