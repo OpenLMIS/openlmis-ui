@@ -10,6 +10,10 @@ let probeController: AbortController | undefined;
 let probeDelay = 1000;
 
 function scheduleProbe(delay = probeDelay) {
+  if (delay === 0) {
+    clearTimeout(probeTimer);
+    probeTimer = undefined;
+  }
   if (!unreachable || probeTimer || probeController || !navigator.onLine) return;
   probeTimer = setTimeout(async () => {
     probeTimer = undefined;
@@ -21,18 +25,23 @@ function scheduleProbe(delay = probeDelay) {
         cache: 'no-store',
         signal: controller.signal,
       });
+      probeDelay = Math.min(probeDelay * 2, 30000);
       if (response.ok && !controller.signal.aborted && navigator.onLine) {
         onlineManager.setOnline(true);
         return;
       }
     } catch {
+      probeDelay = Math.min(probeDelay * 2, 30000);
     } finally {
       clearTimeout(timeout);
       if (probeController === controller) probeController = undefined;
+      if (unreachable) scheduleProbe();
     }
-    probeDelay = Math.min(probeDelay * 2, 30000);
-    scheduleProbe();
   }, delay);
+}
+
+export function reportConnectionSuccess() {
+  probeDelay = 1000;
 }
 
 export function reportConnectionFailure(error: unknown) {
@@ -78,7 +87,6 @@ onlineManager.subscribe((online) => {
   if (online) {
     connectionGeneration += 1;
     unreachable = false;
-    probeDelay = 1000;
     clearTimeout(probeTimer);
     probeTimer = undefined;
     probeController?.abort();
