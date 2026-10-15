@@ -129,59 +129,61 @@ export function NodeEditor({
             }}
           >
             <FieldGroup>
-              <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-                <form.AppField name="code">
-                  {(field) => (
-                    <field.TextField
-                      label={t('supervisory-nodes.form.code')}
-                      required
-                      autoComplete="off"
-                    />
-                  )}
-                </form.AppField>
-                <form.AppField name="name">
-                  {(field) => (
-                    <field.TextField
-                      label={t('supervisory-nodes.form.name')}
-                      required
-                      autoComplete="off"
-                    />
-                  )}
-                </form.AppField>
-                <LookupBoundary
-                  label={t('supervisory-nodes.form.facility')}
-                  errorTitle={t('supervisory-nodes.form.lookup-error')}
-                  errorDescription={t('error.check-connection')}
-                >
-                  <FacilityField form={form} />
-                </LookupBoundary>
-                <LookupBoundary
-                  label={t('supervisory-nodes.form.parent')}
-                  errorTitle={t('supervisory-nodes.form.lookup-error')}
-                  errorDescription={t('error.check-connection')}
-                >
-                  <ParentField form={form} selfId={saved.id} />
-                </LookupBoundary>
-                <form.AppField name="description">
-                  {(field) => (
-                    <field.TextareaField label={t('supervisory-nodes.form.description')} />
-                  )}
-                </form.AppField>
+              <div className="flex flex-col gap-10">
+                <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+                  <form.AppField name="code">
+                    {(field) => (
+                      <field.TextField
+                        label={t('supervisory-nodes.form.code')}
+                        required
+                        autoComplete="off"
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="name">
+                    {(field) => (
+                      <field.TextField
+                        label={t('supervisory-nodes.form.name')}
+                        required
+                        autoComplete="off"
+                      />
+                    )}
+                  </form.AppField>
+                  <LookupBoundary
+                    label={t('supervisory-nodes.form.facility')}
+                    errorTitle={t('supervisory-nodes.form.lookup-error')}
+                    errorDescription={t('error.check-connection')}
+                  >
+                    <FacilityField form={form} />
+                  </LookupBoundary>
+                  <LookupBoundary
+                    label={t('supervisory-nodes.form.parent')}
+                    errorTitle={t('supervisory-nodes.form.lookup-error')}
+                    errorDescription={t('error.check-connection')}
+                  >
+                    <ParentField form={form} selfId={saved.id} />
+                  </LookupBoundary>
+                  <form.AppField name="description">
+                    {(field) => (
+                      <field.TextareaField label={t('supervisory-nodes.form.description')} />
+                    )}
+                  </form.AppField>
+                </div>
+                <NodeLinkField
+                  kind="child"
+                  selfId={saved.id}
+                  form={form}
+                  initial={initial}
+                  disabled={pending}
+                />
+                <NodeLinkField
+                  kind="partner"
+                  selfId={saved.id}
+                  form={form}
+                  initial={initial}
+                  disabled={pending}
+                />
               </div>
-              <NodeLinkField
-                kind="child"
-                selfId={saved.id}
-                form={form}
-                initial={initial}
-                disabled={pending}
-              />
-              <NodeLinkField
-                kind="partner"
-                selfId={saved.id}
-                form={form}
-                initial={initial}
-                disabled={pending}
-              />
             </FieldGroup>
           </form>
           <DiscardChangesDialog
@@ -316,15 +318,17 @@ export function NodeEditorSkeleton() {
         <NodeHeading />
         <WorkspaceContent>
           <FieldGroup>
-            <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-              <FieldSkeleton label={t('supervisory-nodes.form.code')} required />
-              <FieldSkeleton label={t('supervisory-nodes.form.name')} required />
-              <FieldSkeleton label={t('supervisory-nodes.form.facility')} />
-              <FieldSkeleton label={t('supervisory-nodes.form.parent')} />
-              <FieldSkeleton label={t('supervisory-nodes.form.description')} control="textarea" />
+            <div className="flex flex-col gap-10">
+              <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+                <FieldSkeleton label={t('supervisory-nodes.form.code')} required />
+                <FieldSkeleton label={t('supervisory-nodes.form.name')} required />
+                <FieldSkeleton label={t('supervisory-nodes.form.facility')} />
+                <FieldSkeleton label={t('supervisory-nodes.form.parent')} />
+                <FieldSkeleton label={t('supervisory-nodes.form.description')} control="textarea" />
+              </div>
+              <NodeLinksSectionSkeleton kind="child" />
+              <NodeLinksSectionSkeleton kind="partner" />
             </div>
-            <NodeLinksSectionSkeleton kind="child" />
-            <NodeLinksSectionSkeleton kind="partner" />
           </FieldGroup>
         </WorkspaceContent>
       </Workspace>

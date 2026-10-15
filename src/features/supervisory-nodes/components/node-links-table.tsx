@@ -2,8 +2,18 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, useLocation, useSearch } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, NetworkIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { NetworkIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import {
+  type ReactNode,
+  type Ref,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -26,26 +36,21 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
-import { AddNodeDialog } from '@/features/supervisory-nodes/components/add-node-dialog';
+import {
+  AddNodePicker,
+  AddNodePickerSkeleton,
+} from '@/features/supervisory-nodes/components/add-node-picker';
 import type { NodeEditSearch, NodeLinkKind } from '@/features/supervisory-nodes/lib/edit-search';
 import { facilityNames } from '@/features/supervisory-nodes/lib/facility-names';
 import type { DraftNode } from '@/features/supervisory-nodes/lib/node-form';
 import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
 
-const CLOSED_DIALOGS = { add: undefined };
+const CLOSED_DIALOGS = {};
 const NO_SORT = { id: 'name', desc: false };
 const NO_ROWS: LinkRow[] = [];
 const noop = () => {};
@@ -74,18 +79,18 @@ export function NodeLinksTable({
   const { t } = useTranslation();
   const headingId = useId();
   const search: NodeEditSearch = useSearch({ strict: false });
-  const { updateSearch, openDialog, closeDialog } =
-    useSearchNavigation<NodeEditSearch>(CLOSED_DIALOGS);
+  const { updateSearch } = useSearchNavigation<NodeEditSearch>(CLOSED_DIALOGS);
   const pageKey = kind === 'child' ? 'childPage' : 'partnerPage';
   const sizeKey = kind === 'child' ? 'childSize' : 'partnerSize';
   const size = search[sizeKey] ?? 10;
   const requestedPage = search[pageKey] ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
   const tableRegion = useRef<HTMLDivElement>(null);
-  const addButton = useRef<HTMLButtonElement>(null);
+  const pickerRegion = useRef<HTMLDivElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const [removing, setRemoving] = useState<string>();
   const [focus, setFocus] = useState<{ id: string | null; ready: boolean } | null>(null);
+  const [reveal, setReveal] = useState<string | null>(null);
   const [renderedRows, setRenderedRows] = useState<readonly LinkRow[]>([]);
   const removeDialog = useDialogTarget(removing, () => setRemoving(undefined));
   const onSearchChange = useCallback<SearchChange<TableSearch>>(
@@ -112,7 +117,7 @@ export function NodeLinksTable({
       });
   }, [page, requestedPage, pageKey, updateSearch]);
   useEffect(() => {
-    if (!focus?.ready || requestedPage !== page || search.add) return;
+    if (!focus?.ready || requestedPage !== page) return;
     const index = rows.findIndex(({ id }) => id === focus.id);
     if (
       index >= 0 &&
@@ -120,22 +125,16 @@ export function NodeLinksTable({
     )
       return;
     const frame = requestAnimationFrame(() => {
-      const buttons = tableRegion.current?.querySelectorAll<HTMLElement>('[data-node-menu]');
-      const target = [...(buttons ?? [])].find((button) => button.dataset.nodeMenu === focus.id);
+      const buttons = tableRegion.current?.querySelectorAll<HTMLElement>('[data-node-remove]');
+      const target = [...(buttons ?? [])].find((button) => button.dataset.nodeRemove === focus.id);
       if (index >= 0 && !target) return;
-      (target ?? addButton.current)?.focus();
+      (target ?? pickerRegion.current?.querySelector('input'))?.focus();
       setFocus(null);
     });
     return () => cancelAnimationFrame(frame);
-  }, [focus, requestedPage, page, search.add, rows, size, renderedRows]);
+  }, [focus, requestedPage, page, rows, size, renderedRows]);
   useEffect(() => {
-    if (
-      !focus?.id ||
-      !rows.some(({ id }) => id === focus.id) ||
-      search.add ||
-      page !== requestedPage
-    )
-      return;
+    if (!focus?.id || !rows.some(({ id }) => id === focus.id) || page !== requestedPage) return;
     const targetPage = Math.floor(rows.findIndex(({ id }) => id === focus.id) / size) + 1;
     if (targetPage !== requestedPage) {
       updateSearch({ [pageKey]: targetPage === 1 ? undefined : targetPage }, true, {
@@ -143,28 +142,36 @@ export function NodeLinksTable({
         keepState: true,
       });
     }
-  }, [focus, rows, size, requestedPage, page, search.add, updateSearch, pageKey]);
+  }, [focus, rows, size, requestedPage, page, updateSearch, pageKey]);
+  useEffect(() => {
+    if (!reveal) return;
+    const index = rows.findIndex(({ id }) => id === reveal);
+    setReveal(null);
+    const targetPage = Math.floor(index / size) + 1;
+    if (index >= 0 && targetPage !== requestedPage) {
+      updateSearch({ [pageKey]: targetPage === 1 ? undefined : targetPage }, true, {
+        resetScroll: false,
+        keepState: true,
+      });
+    }
+  }, [reveal, rows, size, requestedPage, updateSearch, pageKey]);
   const finishFocus = () => setFocus((previous) => previous && { ...previous, ready: true });
   const dialog = removeDialog.dialogProps(disabled);
   return (
-    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4">
-      <h2 className="font-semibold text-lg" id={headingId}>
-        {t(
-          kind === 'child' ? 'supervisory-nodes.form.children' : 'supervisory-nodes.form.partners',
-        )}
-      </h2>
-      <div className="flex justify-end">
-        <Button
+    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-3">
+      <NodeLinksHeader kind={kind} headingId={headingId} pickerRef={pickerRegion}>
+        <AddNodePicker
+          kind={kind}
+          selfId={selfId}
+          rows={rows}
+          parentId={parentId}
           disabled={disabled}
-          onClick={() => void openDialog({ add: kind })}
-          ref={addButton}
-          type="button"
-          variant="outline"
-        >
-          <PlusIcon data-icon="inline-start" />
-          {t(`supervisory-nodes.form.add-${kind}`)}
-        </Button>
-      </div>
+          onAdd={(node) => {
+            setReveal(node.id);
+            onAdd(node);
+          }}
+        />
+      </NodeLinksHeader>
       <div ref={tableRegion}>
         <QueryBoundary
           errorComponent={({ error, reset }) => (
@@ -198,20 +205,6 @@ export function NodeLinksTable({
           />
         </QueryBoundary>
       </div>
-      <AddNodeDialog
-        kind={kind}
-        open={search.add === kind}
-        selfId={selfId}
-        rows={rows}
-        parentId={parentId}
-        disabled={disabled}
-        onAdd={(node) => {
-          setFocus({ id: node.id, ready: false });
-          onAdd(node);
-        }}
-        onClose={closeDialog}
-        onClosed={finishFocus}
-      />
       <AlertDialog
         {...dialog}
         onOpenChangeComplete={(next) => {
@@ -265,50 +258,36 @@ function NodeLinkActions({
   const listSearch = useLocation({
     select: (location) => location.state.supervisoryNodesListSearch,
   });
-  const menu = useMenuOpensDialog();
+  const label = node.name || node.code || node.id;
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('supervisory-nodes.actions-for', {
-                node: node.name || node.code || node.id,
-              })}
-              data-node-menu={node.id}
-              disabled={disabled}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              render={
-                <Link
-                  to="/administration/supervisory-nodes/$id"
-                  params={{ id: node.id }}
-                  state={{ supervisoryNodesListSearch: listSearch }}
-                />
-              }
-            >
-              <PencilIcon />
-              {t('supervisory-nodes.edit')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={menu.opensDialog(() => onRemove(node.id))}
-              variant="destructive"
-            >
-              <Trash2Icon />
-              {t(`supervisory-nodes.form.remove-${kind}`)}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div className="flex justify-center gap-1">
+      <Button
+        aria-label={t('supervisory-nodes.edit-node', { node: label })}
+        disabled={disabled}
+        nativeButton={false}
+        render={
+          <Link
+            to="/administration/supervisory-nodes/$id"
+            params={{ id: node.id }}
+            state={{ supervisoryNodesListSearch: listSearch }}
+          />
+        }
+        size="icon-sm"
+        variant="ghost"
+      >
+        <PencilIcon />
+      </Button>
+      <Button
+        aria-label={t(`supervisory-nodes.form.remove-${kind}-node`, { node: label })}
+        data-node-remove={node.id}
+        disabled={disabled}
+        onClick={() => onRemove(node.id)}
+        size="icon-sm"
+        type="button"
+        variant="destructive"
+      >
+        <Trash2Icon />
+      </Button>
     </div>
   );
 }
@@ -348,7 +327,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('supervisory-nodes.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => (
         <NodeLinkActions node={row.original} kind={kind} disabled={disabled} onRemove={onRemove} />
       ),
@@ -498,21 +477,38 @@ function NodeLinksEmpty({ kind }: { kind: NodeLinkKind }) {
   );
 }
 
-export function NodeLinksSectionSkeleton({ kind }: { kind: NodeLinkKind }) {
+function NodeLinksHeader({
+  kind,
+  headingId,
+  pickerRef,
+  children,
+}: {
+  kind: NodeLinkKind;
+  headingId?: string;
+  pickerRef?: Ref<HTMLDivElement>;
+  children: ReactNode;
+}) {
   const { t } = useTranslation();
   return (
-    <section className="flex min-w-0 flex-col gap-4">
-      <h2 className="font-semibold text-lg">
+    <div className="flex flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+      <h2 className="font-semibold text-lg @3xl/main:me-auto" id={headingId}>
         {t(
           kind === 'child' ? 'supervisory-nodes.form.children' : 'supervisory-nodes.form.partners',
         )}
       </h2>
-      <div className="flex justify-end">
-        <Button disabled type="button" variant="outline">
-          <PlusIcon data-icon="inline-start" />
-          {t(`supervisory-nodes.form.add-${kind}`)}
-        </Button>
+      <div className="flex w-full items-center gap-2 @3xl/main:max-w-sm" ref={pickerRef}>
+        {children}
       </div>
+    </div>
+  );
+}
+
+export function NodeLinksSectionSkeleton({ kind }: { kind: NodeLinkKind }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-3">
+      <NodeLinksHeader kind={kind}>
+        <AddNodePickerSkeleton kind={kind} />
+      </NodeLinksHeader>
       <NodeLinksTableSkeleton kind={kind} rowCount={2} />
     </section>
   );

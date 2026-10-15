@@ -87,13 +87,16 @@ describe('supervisory node editor', () => {
     });
     const { user, router } = renderEditor(node, '/?childPage=2');
     const section = await screen.findByRole('region', { name: 'Child Nodes' });
-    await user.click(await within(section).findByRole('button', { name: 'Actions For Child 11' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Remove Child Node' }));
+    await user.click(
+      await within(section).findByRole('button', { name: 'Remove Child Node Child 11' }),
+    );
     const alert = await screen.findByRole('alertdialog', { name: 'Remove Child Node' });
     await user.click(within(alert).getByRole('button', { name: 'Remove Child Node' }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('childPage'));
     await waitFor(() =>
-      expect(within(section).getByRole('button', { name: 'Actions For Child 10' })).toHaveFocus(),
+      expect(
+        within(section).getByRole('button', { name: 'Remove Child Node Child 10' }),
+      ).toHaveFocus(),
     );
     expect(within(section).queryByText('Child 11')).not.toBeInTheDocument();
     expect(client.put).not.toHaveBeenCalled();
@@ -116,7 +119,7 @@ describe('supervisory node editor', () => {
     );
     const { user, router } = renderEditor(node);
     const section = await screen.findByRole('region', { name: 'Child Nodes' });
-    await within(section).findByRole('button', { name: 'Actions For Child 1' });
+    await within(section).findByRole('button', { name: 'Remove Child Node Child 1' });
     await user.click(within(section).getByRole('button', { name: 'Next Page' }));
     await waitFor(() =>
       expect(client.get).toHaveBeenCalledWith(
@@ -126,13 +129,13 @@ describe('supervisory node editor', () => {
     );
     expect(router.state.location.search).toHaveProperty('childPage', 2);
     expect(
-      within(section).getByRole('button', { name: 'Actions For Child 1' }),
+      within(section).getByRole('button', { name: 'Remove Child Node Child 1' }),
     ).toBeInTheDocument();
     expect(
-      within(section).queryByRole('button', { name: 'Actions For Child 11' }),
+      within(section).queryByRole('button', { name: 'Remove Child Node Child 11' }),
     ).not.toBeInTheDocument();
     await act(async () => deliver());
-    await within(section).findByRole('button', { name: 'Actions For Child 11' });
+    await within(section).findByRole('button', { name: 'Remove Child Node Child 11' });
     expect(within(section).queryByText('Child 1')).not.toBeInTheDocument();
   });
 

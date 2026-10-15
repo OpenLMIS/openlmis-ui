@@ -9,8 +9,7 @@ export const nodeEditSearchSchema = z.object({
   childSize: editSize,
   partnerPage: editPage,
   partnerSize: editSize,
-  add: z.enum(['child', 'partner']).optional().catch(undefined),
 });
 export type NodeEditSearch = z.infer<typeof nodeEditSearchSchema>;
 
-export type NodeLinkKind = NonNullable<NodeEditSearch['add']>;
+export type NodeLinkKind = 'child' | 'partner';
