@@ -7,7 +7,7 @@ import {
   ListChecksIcon,
   MoreHorizontalIcon,
 } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -179,7 +179,11 @@ function DeviceEventsTable({
 }) {
   const { t, i18n } = useTranslation();
   const local = useDeviceEvents(!loading);
-  const selected = local.events?.find((event) => event.localEventId === search.event);
+  const matched = local.events?.find((event) => event.localEventId === search.event);
+  const lastMatched = useRef<DeviceEvent | undefined>(undefined);
+  if (lastMatched.current?.localEventId !== search.event) lastMatched.current = undefined;
+  if (matched) lastMatched.current = matched;
+  const selected = matched ?? lastMatched.current;
   const deferred = useDeferredValue(search);
   const columns = useMemo<ColumnDef<DataTableFeatures, EventRow>[]>(
     () => [

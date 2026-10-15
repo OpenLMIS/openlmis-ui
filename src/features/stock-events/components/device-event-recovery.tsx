@@ -118,13 +118,14 @@ export function DeviceEventRecovery({
         }
         if (choice === 'resend') announceDeviceSave('device-events.status-queued');
         if (choice === 'remove') announceDeviceSave('device-events.removed');
-        onClose();
         if (choice === 'copy' && onCopied) onCopied();
         else if (choice === 'copy')
           await navigate({
             to: EVENT_KINDS[event.kind].editorRoute,
             params: { programId: event.programId },
+            replace: true,
           });
+        else onClose();
       } else {
         toast.warning(t('device-events.changed-title'), {
           description: t('device-events.changed-description'),

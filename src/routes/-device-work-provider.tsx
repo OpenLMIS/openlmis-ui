@@ -3,17 +3,23 @@ import { DeviceWorkContext } from '@/components/device-work';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 
-export function DeviceWorkProvider({ children }: { children: ReactNode }) {
+export function DeviceWorkProvider({
+  children,
+  initialTrigger,
+}: {
+  children: ReactNode;
+  initialTrigger: 'boot' | 'force';
+}) {
   const { events, hasDeviceEvents } = useDeviceEvents(true, true);
   useEffect(() => {
     let active = true;
     let stop: (() => void) | undefined;
     void Promise.all([
       import('@/lib/offline-coordinator'),
-      import('@/features/stock-events/lib/stock-event-uploader'),
+      import('@/lib/stock-event-uploader'),
     ]).then(([coordinator, uploader]) => {
       if (!active) return;
-      const stopCoordinator = coordinator.startOfflineCoordinator();
+      const stopCoordinator = coordinator.startOfflineCoordinator({ initialTrigger });
       const stopUploader = uploader.startStockEventUploader();
       stop = () => {
         stopUploader();
@@ -24,7 +30,7 @@ export function DeviceWorkProvider({ children }: { children: ReactNode }) {
       active = false;
       stop?.();
     };
-  }, []);
+  }, [initialTrigger]);
   return (
     <DeviceWorkContext
       value={{

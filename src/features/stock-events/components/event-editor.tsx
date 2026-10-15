@@ -1089,6 +1089,7 @@ export function EventEditor({
             canSend
             onClose={() => setReviewRefusal(false)}
             onCopied={() => {
+              setReviewRefusal(false);
               setRefusal(null);
               posting.current = false;
               draft.reload();

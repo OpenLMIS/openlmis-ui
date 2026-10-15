@@ -125,7 +125,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="max-h-64 overflow-y-auto overscroll-contain">
+        <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
           <SidebarNotices />
         </div>
         <div className="flex items-center group-data-[collapsible=icon]:hidden">

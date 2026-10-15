@@ -124,6 +124,27 @@ for (const language of ['en', 'ar']) {
         await page
           .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
           .click();
+      const reviewAction = page.getByRole('button', {
+        name: catalog['device-events.review'],
+        exact: true,
+      });
+      await expect(reviewAction).toBeVisible();
+      await expect
+        .poll(() =>
+          reviewAction.evaluate((button) => {
+            const scroller = button.closest('[data-sidebar=footer]')?.firstElementChild;
+            if (!scroller) throw new Error('Missing notice scroller');
+            const region = scroller.getBoundingClientRect();
+            const action = button.getBoundingClientRect();
+            return (
+              action.top >= region.top &&
+              action.bottom <= region.bottom &&
+              action.left >= region.left &&
+              action.right <= region.right
+            );
+          }),
+        )
+        .toBe(true);
       await capture('sidebar-many-notices');
       if (width === 390) {
         const content = page.locator('[data-slot=sidebar-content]');

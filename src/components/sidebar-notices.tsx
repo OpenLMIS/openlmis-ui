@@ -9,7 +9,7 @@ import {
   WifiOffIcon,
   XIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeviceWork } from '@/components/device-work';
 import { useHasRight } from '@/components/nav-access';
@@ -228,8 +228,16 @@ function useNotices(): Notice[] {
 
 export function SidebarNotices() {
   const { t } = useTranslation();
-  const { isMobile, state, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
   const notices = useNotices();
+  const reviewAction = useRef<HTMLButtonElement>(null);
+  const layout = notices
+    .map(({ id, title, description }) => `${id}:${title}:${description}`)
+    .join();
+  useEffect(() => {
+    if (layout && (isMobile ? openMobile : state === 'expanded'))
+      reviewAction.current?.scrollIntoView({ block: 'nearest' });
+  }, [layout, isMobile, openMobile, state]);
 
   if (notices.length === 0) return null;
 
@@ -281,6 +289,7 @@ export function SidebarNotices() {
                 {action && (
                   <div className="pt-1">
                     <Button
+                      ref={closesSidebar ? reviewAction : undefined}
                       onClick={() => {
                         action.onClick();
                         if (closesSidebar) setOpenMobile(false);

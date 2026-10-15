@@ -10,11 +10,11 @@ import {
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
-import { startStockEventUploader } from '@/features/stock-events/lib/stock-event-uploader';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import type { OfflineAccess } from '@/lib/offline-access';
+import { startStockEventUploader } from '@/lib/stock-event-uploader';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 const owner = { referenceDataUserId: 'uploader', username: 'Ada', accessToken: 'first' };

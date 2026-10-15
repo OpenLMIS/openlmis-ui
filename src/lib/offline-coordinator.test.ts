@@ -137,6 +137,16 @@ it('restored boot reuses young data and refreshes only missing or 30-minute-stal
   expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p2']);
 });
 
+it('forces fresh sign-in downloads even when saved bundles are young', async () => {
+  begin();
+  await finished();
+  stop?.();
+  download.mockClear();
+  stop = startOfflineCoordinator({ access: raw, bundle: download, initialTrigger: 'force' });
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+  await finished();
+});
+
 it('forces refresh on reconnect and same-user renewal even for young bundles', async () => {
   begin();
   await finished();

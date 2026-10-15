@@ -33,6 +33,7 @@ import { homeStockPrograms } from '@/lib/stock-programs';
 import { setUploadAccessReader, uploadAccessEpoch } from '@/lib/upload-access';
 
 type Dependencies = {
+  initialTrigger?: 'boot' | 'force';
   access?: AccessReaders;
   bundle?: (filter: AdjustmentScope, signal: AbortSignal) => Promise<AdjustmentBundle>;
 };
@@ -409,7 +410,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     if (online) void run('force');
     else stopActive('offline');
   });
-  void run('boot');
+  void run(dependencies.initialTrigger ?? 'boot');
   return () => {
     stopped = true;
     stopActive();
