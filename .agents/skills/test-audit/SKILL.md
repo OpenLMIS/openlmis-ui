@@ -40,6 +40,8 @@ Before adding, replacing, or retaining a disputed test, identify:
    important contract violation. Distinguish it from a harmless implementation change.
 2. **Mistake:** the plausible production edit that causes that failure. Identify the
    assertion that would detect it, and whether a mock prevents exercising that edit.
+   Apply the mutation check below to every reviewed test; passing execution alone does
+   not demonstrate that its assertions detect the claimed regression.
 3. **Unique protection:** why another retained test, TypeScript, Biome, or design-system
    lint does not already catch it adequately. A larger test may miss a unit edge case.
 4. **Cheapest adequate test:** pure function, public hook, component interaction, focused
@@ -162,10 +164,38 @@ our supplied arguments and transformations, not the server response, Axios seria
 or the entire screen. UI tests that mock our API functions leave UI/API integration
 untested; use that boundary deliberately, and do not mislabel the coverage.
 
-For an uncertain high-impact finding, an isolated, reversible mutation can demonstrate
-whether a named test detects a real bug. Do it only in a disposable checkout with a
-usable test environment. Never mutate the user's dirty tree. Do not run broad mutation
-testing by default or treat a surviving equivalent mutation as a defect.
+### Check assertion strength with mutation testing
+
+For every reviewed test, name a small production change that breaks the behavior it
+claims to protect and the assertion expected to fail. Examples include changing `>` to
+`>=` at a domain boundary, removing an access guard, dropping a preserved payload field,
+or clearing a draft after a rejected save. Choose mutations from the actual risk and
+contract; a harmless change does not justify a test.
+
+Verify uncertain detection with a focused mutation run, prioritizing high-impact logic
+and new or rewritten tests. Use existing mutation tooling when configured, or apply
+one reversible edit at a time in a disposable checkout with the relevant source and
+tests. Never mutate the user's working tree or assume uncommitted changes are present
+in a new checkout. Do not install tooling or run broad mutation testing by default.
+
+First run the affected tests unchanged and confirm they pass. Apply the mutation, then
+rerun the relevant tests. A mutation is **killed** only when an assertion catches the
+intended behavior change. Compile errors, broken imports, setup failures, and unrelated
+timeouts are inconclusive. Restore the source after each mutation and confirm the tests
+pass again, including when the mutation run fails unexpectedly.
+
+A **surviving** mutation leaves the tests passing. Investigate whether mocks bypass the
+real code, inputs miss the boundary, or assertions omit the outcome. For a meaningful
+behavior change, classify the finding as Rewrite or Gap and strengthen protection when
+cleanup is authorized. Equivalent mutations do not change observable behavior; explain
+why they are equivalent rather than adding an assertion to kill them. A mutation caught
+only by another test proves suite protection, not the reviewed test's unique value.
+
+Report the source edit, tests run, and outcome for executed checks. Distinguish reasoned
+expectations from verified kills, and state scope or environment limits. Do not claim
+all tests are strong from a sample, or chase a 100% mutation score. Mutation testing
+provides evidence of fault detection; the value gate still determines whether that
+protection matters.
 
 ## 5. Classify and report
 
