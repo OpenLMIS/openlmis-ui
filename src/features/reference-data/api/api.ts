@@ -1,4 +1,10 @@
 import type { ValidAssignment } from '@/components/valid-assignments/types';
+import {
+  normalizeRejectionReason,
+  normalizeRejectionReasonCategory,
+  type RejectionReasonCategoryResponse,
+  type RejectionReasonResponse,
+} from '@/features/reference-data/lib/rejection-reasons';
 import type {
   ApprovedProduct,
   Facility,
@@ -15,6 +21,8 @@ import type {
   ProcessingSchedule,
   Program,
   Reason,
+  RejectionReason,
+  RejectionReasonCategory,
   Role,
   SupervisoryNode,
   TradeItem,
@@ -333,4 +341,50 @@ export async function fetchProcessingSchedules(): Promise<ProcessingSchedule[]> 
     if (page + 1 >= data.totalPages) break;
   }
   return schedules;
+}
+
+export async function fetchRejectionReasonCategories(): Promise<RejectionReasonCategory[]> {
+  const scope = getSessionScope();
+  const records: RejectionReasonCategory[] = [];
+  let size = 0;
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<RejectionReasonCategoryResponse>>(
+      '/rejectionReasonCategories',
+      ...(page === 0 ? [] : [{ params: { page, size } }]),
+    );
+    assertSessionScope(scope);
+    records.push(...data.content.map(normalizeRejectionReasonCategory));
+    if (page + 1 >= data.totalPages) break;
+    size = data.size;
+    if (!Number.isInteger(size) || size <= 0) {
+      throw new Error(
+        'Cannot read the complete rejectionReasonCategories collection without a positive page size',
+      );
+    }
+  }
+  return records;
+}
+
+export async function fetchRejectionReasons(): Promise<RejectionReason[]> {
+  const scope = getSessionScope();
+  const records: RejectionReason[] = [];
+  let size = 0;
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<RejectionReasonResponse>>(
+      '/rejectionReasons',
+      ...(page === 0 ? [] : [{ params: { page, size } }]),
+    );
+    assertSessionScope(scope);
+    records.push(...data.content.map(normalizeRejectionReason));
+    if (page + 1 >= data.totalPages) break;
+    size = data.size;
+    if (!Number.isInteger(size) || size <= 0) {
+      throw new Error(
+        'Cannot read the complete rejectionReasons collection without a positive page size',
+      );
+    }
+  }
+  return records;
 }

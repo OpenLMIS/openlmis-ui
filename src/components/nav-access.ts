@@ -24,6 +24,8 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/administration/requisition-templates': RIGHTS.requisitionTemplatesManage,
   '/administration/reasons': RIGHTS.stockCardLineItemReasonsManage,
   '/administration/requisition-groups': RIGHTS.requisitionGroupsManage,
+  '/administration/rejection-reason-categories': RIGHTS.usersManage,
+  '/administration/rejection-reasons': RIGHTS.usersManage,
   '/administration/valid-destinations': RIGHTS.stockDestinationsManage,
   '/administration/valid-sources': RIGHTS.stockSourcesManage,
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
