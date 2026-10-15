@@ -47,7 +47,7 @@ describe('StockProgramPicker', () => {
     expect(within(cards[1]).getByRole('button', { name: 'Start' })).toBeDisabled();
   });
 
-  it('adds statuses and row action labels while retaining the default action', () => {
+  it("shows workflow status and each program's available action", () => {
     render(
       <StockProgramPicker
         actionLabel="Start"

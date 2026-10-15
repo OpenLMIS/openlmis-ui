@@ -41,7 +41,7 @@ type StockProgramPickerProps = {
   hasHomeFacility: boolean;
   actionLabel?: string;
   actionsLabel?: string;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
 } & (
   | { linkFor: (row: StockProgramRow) => ReactElement; onAction?: never }
   | { onAction: (row: StockProgramRow) => void; linkFor?: never }
@@ -53,16 +53,16 @@ function ProgramTable({
   actionsLabel,
 }: {
   children: ReactNode;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
   actionsLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
     <DataTableCard>
-      <Table density="comfortable" layout="fixed">
+      <Table density="default" layout="fixed">
         <colgroup>
-          <col className="w-2/5" />
-          {statusLabel ? <col className="w-1/3" /> : null}
+          <col className={statusLabel ? 'w-1/3 @xl/main:w-2/5' : 'w-2/5'} />
+          {statusLabel ? <col className="w-3/10 @xl/main:w-1/3" /> : null}
           <col />
         </colgroup>
         <TableHeader surface="muted">
@@ -135,7 +135,9 @@ function ProgramPickerContent({
       size={cards ? 'sm' : 'xl'}
       width="shrink"
     >
-      <span className="whitespace-normal break-words">{row.actionLabel ?? actionLabel}</span>
+      <span className="min-w-0 break-words whitespace-normal">
+        {row.actionLabel ?? actionLabel}
+      </span>
     </Button>
   );
   if (cards) {
@@ -162,23 +164,25 @@ function ProgramPickerContent({
     );
   }
   return (
-    <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
-      {rows.map((row) => (
-        <TableRow key={row.id}>
-          <TableCell>
-            <div className="whitespace-normal break-words font-medium">{row.label}</div>
-          </TableCell>
-          {statusLabel ? (
+    <div>
+      <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
             <TableCell>
-              <div className="whitespace-normal break-words">{row.status}</div>
+              <div className="break-words whitespace-normal font-medium">{row.label}</div>
             </TableCell>
-          ) : null}
-          <TableCell>
-            <div className="flex justify-end">{action(row)}</div>
-          </TableCell>
-        </TableRow>
-      ))}
-    </ProgramTable>
+            {statusLabel ? (
+              <TableCell>
+                <div className="min-w-0 break-words whitespace-normal">{row.status}</div>
+              </TableCell>
+            ) : null}
+            <TableCell>
+              <div className="flex justify-end">{action(row)}</div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </ProgramTable>
+    </div>
   );
 }
 
@@ -189,14 +193,14 @@ export function StockProgramPickerSkeleton({
 }: {
   actionLabel: string;
   actionsLabel?: string;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
 }) {
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   const action = (
     <div className="relative min-w-0">
       <div className="invisible" aria-hidden="true">
         <Button size={cards ? 'sm' : 'xl'} width="shrink" disabled tabIndex={-1}>
-          <span className="whitespace-normal break-words">{actionLabel}</span>
+          <span className="min-w-0 break-words whitespace-normal">{actionLabel}</span>
         </Button>
       </div>
       <div className="absolute inset-0">

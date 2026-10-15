@@ -941,9 +941,20 @@ Read the applicable skill before using it.
 
 ## Offline
 
-Follow the [offline plan](docs/offline-plan/offline-plan.md). The foundation exists; stock
-screens ship online first, then offline data/drafts. Tickets with offline criteria stay open
-until those criteria are met.
+Follow the [offline plan](docs/offline-plan/offline-plan.md). Adjustments supports offline
+downloads, drafts, submission and recovery. Other stock screens follow in FM-166. Tickets with
+offline criteria stay open until those criteria are met.
+
+### Browser tests
+
+- Specs import `test` from `tests/offline/browser-fixtures.ts`; persistent profiles use its
+  `persistentContext` fixture so the selected engine, channel and base URL are respected.
+- Keep page URLs relative to `baseURL`, such as `./stock-management/adjustments`.
+- Run `pnpm test:offline` (Chromium) during development and `pnpm test:offline:browsers`
+  for the installed-engine matrix. Use the README Docker route for Edge/WebKit dependencies.
+- Firefox removes request routes only while natively offline to preserve its worker cache,
+  then re-dispatches online/offline events. This does not prove native reconnect events after
+  navigation. WebKit skips must name the unavailable behavior and retain diagnostic evidence.
 
 ### Service worker
 

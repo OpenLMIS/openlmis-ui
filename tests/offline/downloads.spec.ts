@@ -75,7 +75,7 @@ test('stale bundle survives offline restart with its download time and missing p
     await context.close();
     context = await persistentContext(directory, true);
     page = context.pages()[0];
-    await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments');
+    await page.goto('./stock-management/adjustments');
     await expect(page.getByText('Needs Refresh', { exact: true })).toBeVisible();
     await expect(page.getByText(downloadedAt ?? '', { exact: true })).toBeVisible();
     await expect(page.getByText('Not Downloaded', { exact: true })).toBeVisible();
@@ -92,7 +92,7 @@ test('stale bundle survives offline restart with its download time and missing p
     );
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(page.getByRole('combobox', { name: /Reason, Fixture Product/ })).toBeVisible();
-    await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments/never');
+    await page.goto('./stock-management/adjustments/never');
     await expect(
       page.getByText('Connect To Download This Data', { exact: true }).first(),
     ).toBeVisible();
@@ -106,12 +106,7 @@ test('stale bundle survives offline restart with its download time and missing p
 test('bounded Axios timeouts stop the spinner with Retry and keep the prior bundle', async ({
   page,
   context,
-  browserName,
 }) => {
-  test.skip(
-    browserName === 'webkit',
-    'WebKit 26.6 / Playwright 1.63 fulfills delayed routed XHR without firing its native timeout. See FM-165 stage 9 Docker diagnostics.',
-  );
   let slow = false;
   await context.addInitScript(() => {
     const send = XMLHttpRequest.prototype.send;
@@ -121,9 +116,13 @@ test('bounded Axios timeouts stop the spinner with Retry and keep the prior bund
     };
   });
   await stub(context, async () => {
-    if (slow) await new Promise((resolve) => setTimeout(resolve, 250));
     return 'finish';
   });
+  await context.route('**/api/v2/stockCardSummaries?*', (route) =>
+    slow
+      ? route.continue({ url: new URL('/api/offline-test-timeout', route.request().url()).href })
+      : route.fallback(),
+  );
   await login(page);
   await expect(page.getByText('Ready Offline', { exact: true })).toBeVisible();
   const previous = await generation(page);
@@ -160,7 +159,7 @@ test('another tab observes the batch and does not duplicate held stock reads', a
   ).toBeVisible();
   await expect.poll(() => stockReads).toBe(1);
   const other = await context.newPage();
-  await other.goto('http://127.0.0.1:9165/v2/stock-management/adjustments');
+  await other.goto('./stock-management/adjustments');
   await expect(other.getByRole('cell', { name: 'Fixture Medicines', exact: true })).toBeVisible();
   await expect(
     other.getByRole('note').filter({ hasText: 'Fetching the necessary data for offline' }),

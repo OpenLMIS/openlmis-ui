@@ -10,7 +10,7 @@ for (const offline of [true, false]) {
   }, async ({ persistentContext, channel, browser }) => {
     test.skip(
       offline && channel === 'chrome' && browser.version().startsWith('152.'),
-      'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',
+      'Chrome 152 offline emulation resets navigator.onLine after worker navigation.',
     );
     const directory = await mkdtemp(resolve('.offline/profile-stage-6-'));
     let context = await persistentContext(directory);
@@ -34,9 +34,9 @@ for (const offline of [true, false]) {
           ),
         ),
       );
-      await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
+      await page.goto('./stock-management/device-events');
       await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
-      await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments/program');
+      await page.goto('./stock-management/adjustments/program');
       if (offline) await context.setOffline(true);
       await page.getByRole('button', { name: 'Add', exact: true }).click();
       await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('12');
@@ -65,7 +65,7 @@ for (const offline of [true, false]) {
         await route.abort();
       });
       page = context.pages()[0];
-      await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
+      await page.goto('./stock-management/device-events');
       await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
       await expect(page.getByRole('table')).toContainText('Fixture Product');
       await expect(page.getByRole('table')).toContainText('Fixture Clinic');
@@ -104,7 +104,7 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
   });
   await login(page);
   await expect(page).toHaveURL(/\/stock-management\/adjustments$/);
-  await page.goto(`http://127.0.0.1:9165/v2/stock-management/adjustments/${program}`);
+  await page.goto(`./stock-management/adjustments/${program}`);
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('1');
   await page.getByRole('combobox', { name: /^Reason, Fixture Product/ }).click();

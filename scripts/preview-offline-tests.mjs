@@ -8,8 +8,13 @@ await preview({
       configurePreviewServer(server) {
         server.middlewares.use((request, response, next) => {
           if (!request.url?.startsWith('/api')) return next();
-          response.writeHead(503, { 'Content-Type': 'application/json' });
-          response.end(JSON.stringify({ message: 'Browser API fixture required' }));
+          const refuse = () => {
+            response.writeHead(503, { 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({ message: 'Browser API fixture required' }));
+          };
+          if (request.method === 'GET' && request.url === '/api/offline-test-timeout') {
+            setTimeout(refuse, 250);
+          } else refuse();
         });
       },
     },

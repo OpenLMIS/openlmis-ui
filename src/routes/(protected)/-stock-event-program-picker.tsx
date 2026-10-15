@@ -136,7 +136,13 @@ export function StockEventProgramPicker(props: PickerProps) {
           pendingFallback={
             <StockProgramPickerSkeleton
               actionLabel={t(copy.action)}
-              statusLabel={copy.status ? t(copy.status) : undefined}
+              statusLabel={
+                copy.status === 'offline.download.readiness' ? (
+                  <ReadinessLabel />
+                ) : copy.status ? (
+                  t(copy.status)
+                ) : undefined
+              }
               actionsLabel={copy.actions ? t(copy.actions) : undefined}
             />
           }
@@ -247,7 +253,7 @@ function DownloadedProgramsTable({
     <StockProgramPicker
       actionLabel={t(action)}
       hasHomeFacility={hasHomeFacility}
-      statusLabel={t('offline.download.readiness')}
+      statusLabel={<ReadinessLabel />}
       linkFor={(row) => editorLink(row.id)}
       rows={programs.map((program) => {
         const bundle = bundles.find((bundle) => bundle.programId === program.id);
@@ -299,10 +305,26 @@ export function StockEventProgramsPending(source: PickerSource) {
       <WorkspaceContent>
         <StockProgramPickerSkeleton
           actionLabel={t(copy.action)}
-          statusLabel={copy.status ? t(copy.status) : undefined}
+          statusLabel={
+            copy.status === 'offline.download.readiness' ? (
+              <ReadinessLabel />
+            ) : copy.status ? (
+              t(copy.status)
+            ) : undefined
+          }
           actionsLabel={copy.actions ? t(copy.actions) : undefined}
         />
       </WorkspaceContent>
     </Workspace>
+  );
+}
+
+function ReadinessLabel() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <span className="@xl/main:hidden">{t('offline.download.short-readiness')}</span>
+      <span className="hidden @xl/main:inline">{t('offline.download.readiness')}</span>
+    </>
   );
 }

@@ -605,6 +605,7 @@
   "offline.download.readiness": "الجاهزية للعمل دون اتصال",
   "offline.download.ready": "جاهز للعمل دون اتصال",
   "offline.download.retry": "إعادة المحاولة",
+  "offline.download.short-readiness": "دون اتصال",
   "offline.download.unavailable": "تنزيل البيانات للعمل دون اتصال غير متاح",
   "offline.navigation-description": "تحتاج الصفحات المميزة برمز انقطاع الاتصال إلى اتصال بالشبكة.",
   "offline.notice-description": "أنت غير متصل، ولم يتم تنزيل هذه البيانات على هذا الجهاز بعد. سيتم تحميلها بمجرد عودتك إلى الاتصال.",

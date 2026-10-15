@@ -14,7 +14,6 @@ import type { TableSearch } from '@/lib/table-search';
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/device-events')({
   validateSearch: deviceEventsSearchSchema,
-  staticData: { crumbKey: 'device-events.title' },
   loader: async ({ context: { queryClient } }) => {
     await requireRight(queryClient, RIGHTS.stockAdjust);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());

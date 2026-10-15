@@ -9,7 +9,7 @@ const uuid = (number: number) => `11111111-1111-4111-8111-${String(number).padSt
 async function ready(page: Page) {
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
-  await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
+  await page.goto('./stock-management/device-events');
   await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
 }
 async function review(page: Page, index = 0) {
@@ -159,7 +159,7 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
     context = await persistentContext(directory);
     await attach();
     page = context.pages()[0];
-    await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
+    await page.goto('./stock-management/device-events');
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('uncertain');
@@ -255,7 +255,7 @@ test('two tabs reconnecting have one uploader and never overlap POSTs', async ({
   });
   await ready(page);
   const other = await context.newPage();
-  await other.goto('/v2/stock-management/device-events');
+  await other.goto('./stock-management/device-events');
   await expect(other.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'First' }, { signature: 'Second' }]);
@@ -285,7 +285,7 @@ test('recovery without viewing rights offers both choices without protected hist
   });
   await login(page);
   await expect(page).toHaveURL(/\/stock-management\/adjustments$/);
-  await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
+  await page.goto('./stock-management/device-events');
   await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
   await expect(page.getByText('No Device Events', { exact: true })).toBeVisible();
   await context.setOffline(true);
@@ -322,7 +322,7 @@ test('online refusal stays in the editor, shows the server reason, and reopens a
     });
   });
   await ready(page);
-  await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments/program');
+  await page.goto('./stock-management/adjustments/program');
   await page.getByRole('combobox', { name: 'Product', exact: true }).click();
   await page.getByRole('option').first().click();
   await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -385,7 +385,7 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
   });
   await ready(page);
   const other = await context.newPage();
-  await other.goto('/v2/stock-management/device-events');
+  await other.goto('./stock-management/device-events');
   await expect(other.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'Interrupted Owner' }, { signature: 'Held Behind Owner' }]);

@@ -605,6 +605,7 @@
   "offline.download.readiness": "Disponibilité Hors Ligne",
   "offline.download.ready": "Disponible Hors Ligne",
   "offline.download.retry": "Réessayer",
+  "offline.download.short-readiness": "Hors ligne",
   "offline.download.unavailable": "Téléchargement Hors Ligne Indisponible",
   "offline.navigation-description": "Les pages marquées d’une icône de déconnexion nécessitent une connexion.",
   "offline.notice-description": "Vous êtes hors ligne et ces données n’ont pas été téléchargées sur cet appareil. Elles seront chargées dès le rétablissement de la connexion.",

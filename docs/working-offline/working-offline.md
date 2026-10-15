@@ -9,8 +9,8 @@ PDF downloads need a connection until their own offline support is added.
 Sign in while connected, using the browser and device you will take with you. Downloads run
 in the background without stopping your work. Keep the app open until the download finishes.
 On the Adjustments program list, check the program's Offline Readiness and downloaded time.
-The readiness column is hidden on narrow screens. Use a wider window to check it before
-disconnecting; the sidebar still reports download progress and failures at every width.
+On phones, the column is headed Offline and remains visible beside each program.
+The sidebar also reports download progress and failures at every width.
 
 - Ready Offline means a complete copy is available on this device.
 - Needs Refresh means the saved copy is older or stock has changed. You can still use it
@@ -47,7 +47,8 @@ Keep the app open when you reconnect. Events send one at a time after fresh acce
 If Sign In To Sync appears, connect and sign in again as the same user. An expired session
 keeps your downloaded data, drafts and events available for local work.
 
-Open Device Events from Review Device Events in the sidebar. It shows queued work, refusals,
+Open Stock Management > Device Events in the sidebar. Review Device Events also appears
+when work needs attention. The page shows queued work, refusals,
 unknown results and recent receipts. Use each row's menu to review signed details.
 
 - Queued means waiting to send. You may remove an event that has never been attempted, after

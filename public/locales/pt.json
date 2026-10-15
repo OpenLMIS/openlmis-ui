@@ -605,6 +605,7 @@
   "offline.download.readiness": "Disponibilidade Offline",
   "offline.download.ready": "Disponível Offline",
   "offline.download.retry": "Tentar Novamente",
+  "offline.download.short-readiness": "Offline",
   "offline.download.unavailable": "Transferência Offline Indisponível",
   "offline.navigation-description": "As páginas com o ícone de desligado precisam de ligação.",
   "offline.notice-description": "Está offline e isto ainda não foi transferido para este dispositivo. Carrega assim que voltar a estar online.",

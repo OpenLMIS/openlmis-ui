@@ -39,20 +39,13 @@ test('without Web Locks online reads and local drafts work but downloads and upl
   expect(posts).toBe(0);
 });
 
-test('sign-out and a different sign-in isolate device work and the original owner recovers it', {
-  tag: '@offline-shell',
-}, async ({ context, page }) => {
+test('sign-out and a different sign-in isolate device work and the original owner recovers it', async ({
+  context,
+  page,
+}) => {
   await stub(context, async () => 'finish');
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-  await page.waitForFunction(async () =>
-    Boolean(
-      await (await caches.open('openlmis-ui-locales')).match(
-        new URL('/v2/locales/en.json', location.origin),
-      ),
-    ),
-  );
   await context.setOffline(true);
   await expect(page.getByRole('note').filter({ hasText: "You're Offline" })).toBeVisible();
   await enqueue(page, [{ signature: 'Private Original Signature' }]);
@@ -88,8 +81,8 @@ test('sign-out and a different sign-in isolate device work and the original owne
     return route.fulfill({ status: 201, json: '11111111-1111-4111-8111-111111111111' });
   });
   await login(page);
-  await page.goto('./stock-management/device-events');
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(1);
+  await page.getByRole('link', { name: 'Device Events', exact: true }).first().click();
   expect(posts).toBe(1);
   expect((await records(page, 'stockEventDrafts'))[0].signature).toBe('Private Original Signature');
 });
