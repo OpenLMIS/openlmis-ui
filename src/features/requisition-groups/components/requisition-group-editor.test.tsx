@@ -456,6 +456,7 @@ describe('RequisitionGroupEditor', () => {
     expect(
       screen.queryByRole('button', { name: 'requisition-groups.form.remove-facility' }),
     ).toBeNull();
+    expect(screen.queryByText('requisition-groups.actions')).toBeNull();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Next Page' }));
     await userEvent
       .setup()
