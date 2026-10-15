@@ -1,8 +1,9 @@
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SearchIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import {
   Command,
@@ -39,6 +40,7 @@ function toSections(items: LiveNavItem[]): PaletteSection[] {
 export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const disabledReasonId = useId();
   const [open, setOpen] = useState(false);
   const paletteRef = useRef<HTMLDivElement>(null);
   const navGroups = useNavGroups();
@@ -87,6 +89,9 @@ export function CommandPalette() {
         title={t('command.title')}
       >
         <Command ref={paletteRef}>
+          <p id={disabledReasonId} className="sr-only">
+            {t('offline.connection-required')}
+          </p>
           <CommandInput placeholder={t('command.placeholder')} />
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
@@ -99,8 +104,13 @@ export function CommandPalette() {
                     return (
                       <CommandItem
                         key={link.titleKey}
-                        disabled={link.disabled}
+                        data-unavailable={link.disabled || undefined}
+                        aria-describedby={link.disabled ? disabledReasonId : undefined}
                         onSelect={() => {
+                          if (link.disabled) {
+                            toast.info(t('offline.connection-required'));
+                            return;
+                          }
                           setOpen(false);
                           navigate({ to: link.to });
                         }}
@@ -127,8 +137,13 @@ export function CommandPalette() {
                 return (
                   <CommandItem
                     key={link.to}
-                    disabled={link.disabled}
+                    data-unavailable={link.disabled || undefined}
+                    aria-describedby={link.disabled ? disabledReasonId : undefined}
                     onSelect={() => {
+                      if (link.disabled) {
+                        toast.info(t('offline.connection-required'));
+                        return;
+                      }
                       setOpen(false);
                       navigate({ to: link.to });
                     }}

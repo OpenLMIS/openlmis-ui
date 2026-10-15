@@ -167,8 +167,10 @@ describe('SidebarNotices', () => {
 
     expect(screen.queryByText('offline.description')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'error.try-again' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'update.reload' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'offline.title: error.try-again' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'update.title: update.reload' })).toBeInTheDocument();
     expect(screen.getByRole('list')).toBeInTheDocument();
   });
 });

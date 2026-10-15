@@ -253,7 +253,7 @@ export function SidebarNotices() {
             <SidebarMenuItem key={id}>
               {action ? (
                 <SidebarMenuButton
-                  aria-label={action.label}
+                  aria-label={`${title}: ${action.label}`}
                   onClick={() => {
                     action.onClick();
                     if (closesSidebar) setOpenMobile(false);
@@ -335,7 +335,7 @@ export function StatusAnnouncer() {
   const current: Record<string, string> = {};
   for (const { id, title, description } of notices) {
     if (id !== 'device-events-waiting')
-      current[id] = description ? `${title}. ${description}` : title;
+      current[id] = description ? `${title.replace(/[.!?؟。]+$/u, '')}. ${description}` : title;
   }
   if (queued) current.queued = t('device-events.waiting', { count: queued.count });
   if (deviceSave) current.save = t(deviceSave);
@@ -354,7 +354,7 @@ export function StatusAnnouncer() {
       notices: current,
       message: Object.entries(current)
         .filter(([id, text]) => announced.scope !== scope || announced.notices[id] !== text)
-        .map(([, text]) => text)
+        .map(([, text]) => text.replace(/[.!?؟。]+$/u, ''))
         .join('. '),
     });
   }
