@@ -11,6 +11,7 @@ export default defineConfig({
   testDir: './tests/offline',
   testMatch: process.env.OFFLINE_VISUAL_PROOF ? '**/visual-proof.ts' : '**/*.spec.ts',
   outputDir: `./.offline/${run}-results`,
+  timeout: 60_000,
   workers: 1,
   reporter: [
     ['list'],

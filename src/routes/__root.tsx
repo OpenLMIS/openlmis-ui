@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
-import { lazy, type ReactNode, Suspense } from 'react';
+import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppShellSkeleton } from '@/components/app-shell-skeleton';
 import { NotFoundPage } from '@/components/not-found-page';
@@ -18,11 +18,15 @@ const DeviceWorkProvider = lazy(() =>
   })),
 );
 
-function SignedInDeviceWork({ children }: { children: ReactNode }) {
+export function SignedInDeviceWork({ children }: { children: ReactNode }) {
   const authenticated = useLoginData((state) => state.isAuthenticated);
+  const [initialTrigger, setInitialTrigger] = useState<'boot' | 'force'>(
+    authenticated ? 'boot' : 'force',
+  );
+  if (!authenticated && initialTrigger !== 'force') setInitialTrigger('force');
   return authenticated ? (
     <Suspense fallback={<AppShellSkeleton />}>
-      <DeviceWorkProvider>{children}</DeviceWorkProvider>
+      <DeviceWorkProvider initialTrigger={initialTrigger}>{children}</DeviceWorkProvider>
     </Suspense>
   ) : (
     children

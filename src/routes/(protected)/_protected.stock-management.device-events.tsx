@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { useCallback } from 'react';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
@@ -28,13 +29,14 @@ function DeviceEvents() {
   const { data: permissions, dataUpdatedAt } = useQuery(permissionsOptions(userId));
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<DeviceEventsSearch>(CLOSED_DIALOGS);
+  const onOpenEvent = useCallback((event: string) => void openDialog({ event }), [openDialog]);
   return (
     <DeviceEventsPage
       permissions={permissions ?? parsePermissions([])}
       permissionsUpdatedAt={dataUpdatedAt}
       search={Route.useSearch()}
       onSearchChange={updateSearch}
-      onOpenEvent={(event) => void openDialog({ event })}
+      onOpenEvent={onOpenEvent}
       onCloseEvent={closeDialog}
     />
   );

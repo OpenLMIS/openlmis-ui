@@ -1,13 +1,16 @@
-import { useLoginData } from '@/features/auth/store/login-data';
 import type { InventoryLocalCopy } from '@/features/stock-events/lib/physical-inventory-local';
 import type { StockEventDraft } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type { StockEventSyncError } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, getLocalDbUserId } from '@/integrations/local-db';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export async function countUnsyncedDeviceWork() {
-  if (!useLoginData.getState().referenceDataUserId) return 0;
+  try {
+    getLocalDbUserId();
+  } catch {
+    return 0;
+  }
   const scope = getSessionScope();
   const db = getLocalDb();
   return db.transaction(

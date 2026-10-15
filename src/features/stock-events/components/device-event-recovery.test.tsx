@@ -217,7 +217,7 @@ it('shows a synced server reference and links straight to its transaction histor
 });
 
 it('opens the correction in the refused event kind editor', async () => {
-  await open(true, 'refused', 'issue');
+  const { onClose } = await open(true, 'refused', 'issue');
   await userEvent.click(screen.getByRole('button', { name: 'device-events.copy' }));
   await userEvent.click(
     within(screen.getByRole('alertdialog')).getByRole('button', { name: 'device-events.copy' }),
@@ -226,6 +226,8 @@ it('opens the correction in the refused event kind editor', async () => {
     expect(navigation).toHaveBeenCalledWith({
       to: '/stock-management/issue/$programId',
       params: { programId: 'one' },
+      replace: true,
     }),
   );
+  expect(onClose).not.toHaveBeenCalled();
 });
