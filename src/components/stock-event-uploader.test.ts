@@ -229,20 +229,18 @@ it('maps real transport refusals and saves a late acceptance in the original own
   }
 });
 
-it('automatically retries preparation failures with bounded delay and stops timers on cleanup', async () => {
+it('automatically retries preparation failures after its bounded delay without a reconnect or click', async () => {
   await enqueue();
-  const access = vi
-    .fn()
-    .mockRejectedValueOnce(new AxiosError('network', AxiosError.ERR_NETWORK))
-    .mockResolvedValue(snapshot);
+  const access = vi.fn().mockRejectedValue(new Error('Preparation unavailable'));
   const send = vi.fn(async () => accepted);
   const timer = vi.spyOn(globalThis, 'setTimeout');
-  const stop = startStockEventUploader({ access, send });
-  stops.push(stop);
+  stops.push(startStockEventUploader({ access, send }));
   onlineManager.setOnline(true);
-  await waitFor(() => expect(access).toHaveBeenCalledOnce());
   await waitFor(() => expect(timer.mock.calls.some(([, delay]) => delay === 1000)).toBe(true));
-  onlineManager.setOnline(true);
+  expect(send).not.toHaveBeenCalled();
+  access.mockResolvedValue(snapshot);
+  const retry = timer.mock.calls.find(([, delay]) => delay === 1000)?.[0] as () => void;
+  retry();
   await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
   expect(send).toHaveBeenCalledOnce();
 });

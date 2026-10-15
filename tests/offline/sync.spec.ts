@@ -47,7 +47,7 @@ test('interrupted upload becomes uncertain after restart and is never automatica
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('uncertain');
-    await expect(page.getByRole('table')).toContainText('Uncertain');
+    await expect(page.getByRole('table')).toContainText('Needs Review');
     expect(posts).toEqual(['Unknown']);
   } finally {
     await context.close();
@@ -129,7 +129,7 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
   await expect
     .poll(async () => (await records(survivor, 'stockEventQueue'))[0]?.status)
     .toBe('uncertain');
-  await expect(survivor.getByRole('table')).toContainText('Uncertain');
+  await expect(survivor.getByRole('table')).toContainText('Needs Review');
   expect(await records(survivor, 'stockEventQueue')).toHaveLength(2);
   expect(posts).toBe(1);
 });

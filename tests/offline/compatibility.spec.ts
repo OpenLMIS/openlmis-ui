@@ -15,10 +15,7 @@ test('sign-out and a different sign-in isolate device work and the original owne
   await enqueue(page, [{ signature: 'Private Original Signature' }]);
   await page.getByRole('button', { name: 'Account Menu' }).click();
   await page.getByRole('menuitem', { name: 'Log Out', exact: true }).click();
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: 'Sign Out', exact: true })
-    .click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Log Out', exact: true }).click();
   await expect(page).toHaveURL(/login/);
   await expect(page.getByRole('textbox', { name: 'Username', exact: true })).toBeVisible();
   await context.setOffline(false);

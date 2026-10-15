@@ -1,10 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
+import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import {
@@ -20,6 +21,7 @@ import {
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { wakeStockEventSync } from '@/lib/device-event-status';
+import { countUnsyncedDeviceWork } from '@/lib/unsynced-device-work';
 import { renderPage } from '@/tests/render-page';
 
 const navigation = vi.hoisted(() => vi.fn());
@@ -199,6 +201,9 @@ it('dismisses a refusal after confirmation and shows only a human message in det
     (await getLocalDb().table('stockEventSyncErrors').get(uncertain.localEventId)).dismissedAt,
   ).toBeDefined();
   expect(client.post).not.toHaveBeenCalled();
+  const local = renderHook(() => useDeviceEvents());
+  await waitFor(() => expect(local.result.current.events).toEqual([]));
+  expect(await countUnsyncedDeviceWork()).toBe(0);
 });
 it('shows a synced server reference and links straight to its transaction history event', async () => {
   await open(true, 'accepted');

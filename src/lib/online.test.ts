@@ -142,3 +142,23 @@ describe('server reachability', () => {
     expect(isOnline()).toBe(true);
   });
 });
+
+it('bounds unreachable-server probe backoff at thirty seconds', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const fetch = vi.fn().mockRejectedValue(new TypeError('unreachable'));
+  vi.stubGlobal('fetch', fetch);
+  const { reportConnectionFailure } = await import('@/lib/online');
+  const { AxiosError } = await import('axios');
+  reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+  for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+    const before = fetch.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(delay - 1);
+    expect(fetch).toHaveBeenCalledTimes(before);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetch).toHaveBeenCalledTimes(before + 1);
+    expect(isOnline()).toBe(false);
+  }
+  onlineManager.setOnline(true);
+  vi.unstubAllGlobals();
+});

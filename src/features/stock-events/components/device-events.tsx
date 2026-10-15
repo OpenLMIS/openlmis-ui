@@ -67,9 +67,9 @@ export const deviceEventsSearchSchema = tableSearchSchema(['queuedAt']).pick({
 const choicesSchema = z.record(z.string(), z.boolean());
 const hideable = [
   { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '2xl' },
-  { id: 'program', labelKey: 'facility-program.program', hideBelow: 'xl' },
-  { id: 'lots', labelKey: 'device-events.lots', hideBelow: '2xl' },
-  { id: 'kind', labelKey: 'device-events.type', hideBelow: 'xl' },
+  { id: 'program', labelKey: 'facility-program.program', hideBelow: 1280 },
+  { id: 'lots', labelKey: 'device-events.lots', hideBelow: 1180 },
+  { id: 'kind', labelKey: 'device-events.type', hideBelow: 1180 },
   { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: 'xl' },
   { id: 'quantity', labelKey: 'device-events.quantity', hideBelow: 'sm' },
   { id: 'reason', labelKey: 'device-events.reason', hideBelow: '3xl' },

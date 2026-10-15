@@ -2,6 +2,27 @@ import { readdirSync } from 'node:fs';
 import { type BrowserContext, test as base, expect, type Page } from '@playwright/test';
 import playwrightPackage from '@playwright/test/package.json' with { type: 'json' };
 
+function failClosedRoutes(context: BrowserContext) {
+  const route = context.route.bind(context);
+  const unroute = context.unroute.bind(context);
+  type Handler = Parameters<BrowserContext['route']>[1];
+  const handlers = new Map<Handler, Handler>();
+  context.route = async (url, handler, options) => {
+    const guarded: Handler = async (route, request) => {
+      try {
+        await handler(route, request);
+      } catch (error) {
+        await route.abort('blockedbyclient').catch(() => {});
+        throw error;
+      }
+    };
+    handlers.set(handler, guarded);
+    await route(url, guarded, options);
+  };
+  context.unroute = (url, handler) =>
+    unroute(url, handler ? (handlers.get(handler) ?? handler) : undefined);
+}
+
 // Firefox interception disables its worker cache; remove routes only while truly offline.
 function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = false) {
   const route = context.route.bind(context);
@@ -43,6 +64,7 @@ function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = 
 export const test = base.extend<{
   persistentContext: (directory: string, offline?: boolean) => Promise<BrowserContext>;
   firefoxWorkerCache: undefined;
+  failClosedFixtures: undefined;
   webkitFixtureRouting: undefined;
 }>({
   serviceWorkers: async ({ browserName }, use, testInfo) => {
@@ -63,6 +85,13 @@ export const test = base.extend<{
     },
     { auto: true },
   ],
+  failClosedFixtures: [
+    async ({ context }, use) => {
+      failClosedRoutes(context);
+      await use(undefined);
+    },
+    { auto: true },
+  ],
   firefoxWorkerCache: [
     async ({ context, browserName }, use) => {
       if (browserName === 'firefox') preserveFirefoxWorkerCache(context);
@@ -79,6 +108,7 @@ export const test = base.extend<{
         channel,
         offline,
       });
+      failClosedRoutes(context);
       if (browserName === 'firefox') preserveFirefoxWorkerCache(context, offline);
       return context;
     });
