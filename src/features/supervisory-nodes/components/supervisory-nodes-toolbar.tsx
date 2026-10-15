@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableComboboxFilter } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
@@ -41,16 +42,21 @@ export function SupervisoryNodesToolbar({
           value={search.name ?? ''}
         />
       </div>
-      <div className="flex-1 @2xl/main:w-72 @2xl/main:flex-none">
-        <DataTableComboboxFilter
-          label={t('supervisory-nodes.zone')}
-          limit={-1}
-          onValueChange={(zoneId) =>
-            onFilterChange({ zoneId: zoneId || undefined, page: undefined })
-          }
-          options={zoneFilter.options}
-          value={zoneFilter.value}
-        />
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={search.zoneId ? 1 : 0}
+          onClear={() => onFilterChange({ zoneId: undefined, page: undefined })}
+        >
+          <DataTableComboboxFilter
+            label={t('supervisory-nodes.zone')}
+            limit={-1}
+            onValueChange={(zoneId) =>
+              onFilterChange({ zoneId: zoneId || undefined, page: undefined })
+            }
+            options={zoneFilter.options}
+            value={zoneFilter.value}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
