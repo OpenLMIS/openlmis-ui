@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePageHidden } from "@/components/page-visibility"
+import { useCloseOnPageHidden } from "@/components/page-visibility"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
@@ -14,8 +14,11 @@ function Sheet({
   onOpenChange,
   ...props
 }: SheetPrimitive.Root.Props) {
-  const hidden = usePageHidden()
   const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
+    setLocalOpen(false)
+    onOpenChange?.(false, details)
+  })
   return (
     <SheetPrimitive.Root
       data-slot="sheet"

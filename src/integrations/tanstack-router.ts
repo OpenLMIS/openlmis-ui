@@ -4,6 +4,7 @@ import { PendingFallback } from '@/components/pending-fallback';
 import { queryClient } from '@/integrations/tanstack-query';
 import { isOfflineCapable } from '@/lib/offline-capability';
 import { isOnline } from '@/lib/online';
+import { getSessionScope } from '@/lib/session-scope';
 import { routeTree } from '@/route-tree.gen';
 
 // Vite derives BASE_URL from `base`; the router wants it without the trailing slash.
@@ -16,7 +17,10 @@ export const router = createRouter({
     queryClient,
     getResolvedPathname: (): string | undefined =>
       router.state.matches.some(
-        (match) => match.routeId === '/(protected)/_protected' && match.status === 'success',
+        (match) =>
+          match.routeId === '/(protected)/_protected' &&
+          match.status === 'success' &&
+          match.context.sessionScope === getSessionScope(),
       )
         ? router.state.resolvedLocation?.pathname
         : undefined,

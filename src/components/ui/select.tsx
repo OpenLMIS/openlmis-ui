@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePageHidden } from "@/components/page-visibility"
+import { useCloseOnPageHidden } from "@/components/page-visibility"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "cn"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
@@ -12,8 +12,11 @@ function Select<Value, Multiple extends boolean | undefined = false>({
   onOpenChange,
   ...props
 }: SelectPrimitive.Root.Props<Value, Multiple>) {
-  const hidden = usePageHidden()
   const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
+    setLocalOpen(false)
+    onOpenChange?.(false, details)
+  })
   return (
     <SelectPrimitive.Root
       {...props}
