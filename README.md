@@ -58,6 +58,9 @@ at startup. Feature flags have no `.env` fallback.
 | `pnpm test:run` | Vitest single run |
 | `pnpm sort-messages` | Alphabetize translation keys |
 
+Local test runs use Vitest's `25%` worker limit. CI runs two test shards with its default
+worker parallelism.
+
 ## Project layout
 
 Each feature owns its API calls, queries, components and types.

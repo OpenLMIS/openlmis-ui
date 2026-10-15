@@ -81,6 +81,7 @@ describe('ProductGeneralForm', () => {
   });
 
   it('saves the whole product with the change, keeps the new version and goes back', async () => {
+    vi.spyOn(toast, 'success').mockImplementation(() => '');
     const saved = { ...product, fullProductName: 'Levora Plus' };
     update.mockResolvedValueOnce(saved);
     const { queryClient, onDone } = renderForm();
@@ -90,16 +91,6 @@ describe('ProductGeneralForm', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', saved);
     expect(queryClient.getQueryData(productDetailOptions('o1').queryKey)).toEqual(saved);
-  });
-
-  it('says the product is saved once the save goes through', async () => {
-    vi.spyOn(toast, 'success').mockImplementation(() => '');
-    update.mockImplementationOnce(async (_, body) => body);
-    const { onDone } = renderForm();
-
-    await rename('Levora Plus');
-
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(toast.success).toHaveBeenCalledWith('products.edit.saved-title', {
       description: 'products.edit.saved',
     });
@@ -138,14 +129,15 @@ describe('ProductGeneralForm', () => {
   });
 
   it('leaves the user where they went when the save ends after they left', async () => {
-    let finish: (saved: ProductDetail) => void = () => {};
-    update.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
-    const { onDone } = renderForm();
+    const finish = Promise.withResolvers<ProductDetail>();
+    update.mockReturnValueOnce(finish.promise);
+    const { onDone, queryClient } = renderForm();
     await rename('Levora Plus');
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
 
     cleanup();
-    finish({ ...product, fullProductName: 'Levora Plus' });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(async () => finish.resolve({ ...product, fullProductName: 'Levora Plus' }));
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0));
 
     expect(onDone).not.toHaveBeenCalled();
   });

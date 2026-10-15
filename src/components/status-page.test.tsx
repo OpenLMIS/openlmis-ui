@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { createContext, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '@/components/app-shell';
@@ -17,7 +17,10 @@ vi.mock('@/components/app-shell', () => {
   };
 });
 
-afterEach(() => useLoginData.getState().clearLoginData());
+afterEach(() => {
+  cleanup();
+  useLoginData.getState().clearLoginData();
+});
 
 describe('StatusPage', () => {
   it('uses the screen height outside a signed-in shell', () => {

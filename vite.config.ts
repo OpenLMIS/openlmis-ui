@@ -78,8 +78,8 @@ export default defineConfig(({ mode }) => {
       clearMocks: true,
       restoreMocks: true,
       testTimeout: 20_000,
-      // Parallel agents each run suites; one worker per core starves the machine.
-      maxWorkers: '25%',
+      // Keep shared development machines responsive; CI uses Vitest's worker default.
+      maxWorkers: process.env.CI ? undefined : '25%',
     },
     build: {
       rollupOptions: {
