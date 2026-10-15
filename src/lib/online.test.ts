@@ -1,9 +1,12 @@
 import { onlineManager } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
+import { AxiosError } from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   dismissBackOnline,
   isOnline,
+  reportConnectionFailure,
+  reportConnectionSuccess,
   seedOnline,
   useBackOnline,
   useOnline,
@@ -11,7 +14,9 @@ import {
 } from '@/lib/online';
 
 afterEach(() => {
+  reportConnectionSuccess();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   act(() => {
     onlineManager.setOnline(true);
     dismissBackOnline();
@@ -118,7 +123,7 @@ describe('server reachability', () => {
     expect(isOnline()).toBe(false);
     seedOnline();
     window.dispatchEvent(new Event('online'));
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(0);
     expect(isOnline()).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
@@ -162,3 +167,59 @@ it('bounds unreachable-server probe backoff at thirty seconds', async () => {
   onlineManager.setOnline(true);
   vi.unstubAllGlobals();
 });
+
+it('keeps escalating through successful probes when the API still has no response', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const fetch = vi.fn().mockResolvedValue({ ok: true });
+  vi.stubGlobal('fetch', fetch);
+  const fail = () => reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+  fail();
+  for (const delay of [1000, 2000, 4000, 8000]) {
+    const before = fetch.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(delay - 1);
+    expect(fetch).toHaveBeenCalledTimes(before);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(isOnline()).toBe(true);
+    fail();
+  }
+  reportConnectionSuccess();
+  onlineManager.setOnline(true);
+  fail();
+  const before = fetch.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(fetch).toHaveBeenCalledTimes(before + 1);
+});
+
+it.each(['seed', 'browser'])(
+  'an explicit %s hint replaces a backed-off timer without overlapping probes',
+  async (hint) => {
+    vi.useFakeTimers();
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    let answer!: (response: { ok: boolean }) => void;
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('network'))
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+    vi.stubGlobal('fetch', fetch);
+    reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const retry = () =>
+      hint === 'seed' ? seedOnline() : window.dispatchEvent(new Event('online'));
+    retry();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    retry();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    answer({ ok: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(isOnline()).toBe(true);
+  },
+);

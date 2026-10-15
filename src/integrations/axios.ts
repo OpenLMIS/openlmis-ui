@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { reportConnectionFailure } from '@/lib/online';
+import { reportConnectionFailure, reportConnectionSuccess } from '@/lib/online';
 import { QueueNotSentError, QueueReceiptError, type QueueTransport } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -80,6 +80,7 @@ client.interceptors.request.use(async (config) => {
 // A refused token keeps the page as it is: the request waits for a new session, then is sent again.
 client.interceptors.response.use(
   (response) => {
+    reportConnectionSuccess();
     if (!response.config.anonymous) {
       try {
         assertSessionScope(response.config.sessionScope ?? getSessionScope());
@@ -102,13 +103,8 @@ client.interceptors.response.use(
       assertSessionScope(config.sessionScope ?? getSessionScope());
     }
     const { isAuthenticated, accessToken, expired, referenceDataUserId } = useLoginData.getState();
-    if (config?.queueTransport) {
+    if (config?.queueTransport || config?.backgroundRead) {
       if (error.response?.status === 401 && config.headers.Authorization === bearer(accessToken))
-        useLoginData.getState().expireSession();
-      throw error;
-    }
-    if (config?.backgroundRead && error.response?.status === 401) {
-      if (config.headers.Authorization === bearer(accessToken))
         useLoginData.getState().expireSession();
       throw error;
     }
