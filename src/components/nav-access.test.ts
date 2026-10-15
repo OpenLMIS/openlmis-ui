@@ -42,6 +42,10 @@ describe('navWithinRights', () => {
 });
 
 describe('canOpen', () => {
+  it('keeps Device Events behind adjustment access', () => {
+    expect(canOpen('/stock-management/device-events', new Set(['STOCK_ADJUST']))).toBe(true);
+    expect(canOpen('/stock-management/device-events', new Set(['STOCK_CARDS_VIEW']))).toBe(false);
+  });
   it('lets anyone open a page that needs no right', () => {
     expect(canOpen('/home', undefined)).toBe(true);
     expect(canOpen('/administration/users', new Set())).toBe(false);

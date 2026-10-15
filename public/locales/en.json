@@ -599,6 +599,7 @@
   "offline.download.readiness": "Offline Readiness",
   "offline.download.ready": "Ready Offline",
   "offline.download.retry": "Retry",
+  "offline.download.short-readiness": "Offline",
   "offline.download.unavailable": "Offline Download Unavailable",
   "offline.navigation-description": "Pages with a disconnected icon need a connection.",
   "offline.notice-description": "You're offline, and this hasn't been downloaded to this device. It loads once you're back online.",

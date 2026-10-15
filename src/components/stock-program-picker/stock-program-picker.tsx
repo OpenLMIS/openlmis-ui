@@ -6,11 +6,6 @@ import {
   DataTableEmpty,
   DataTableHeaderLabel,
 } from '@/components/data-table/data-table';
-import {
-  type ResponsiveColumn,
-  resolveColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -35,8 +30,7 @@ type StockProgramPickerProps = {
   hasHomeFacility: boolean;
   actionLabel?: string;
   actionsLabel?: string;
-  statusLabel?: string;
-  statusHideBelow?: ResponsiveColumn['hideBelow'];
+  statusLabel?: ReactNode;
 } & (
   | { linkFor: (row: StockProgramRow) => ReactElement; onAction?: never }
   | { onAction: (row: StockProgramRow) => void; linkFor?: never }
@@ -48,15 +42,15 @@ function ProgramTable({
   actionsLabel,
 }: {
   children: ReactNode;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
   actionsLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
     <DataTableCard>
-      <Table density="comfortable" layout="fixed">
+      <Table density="default" layout="fixed">
         <colgroup>
-          <col className="w-2/5" />
+          <col className={statusLabel ? 'w-1/4 @xl/main:w-2/5' : 'w-2/5'} />
           {statusLabel ? <col className="w-1/3" /> : null}
           <col />
         </colgroup>
@@ -92,16 +86,9 @@ export function StockProgramPicker({
   actionsLabel,
   linkFor,
   statusLabel,
-  statusHideBelow,
   onAction,
 }: StockProgramPickerProps) {
   const { t } = useTranslation();
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const showStatus = resolveColumnVisibility(
-    [{ id: 'status', hideBelow: statusHideBelow }],
-    {},
-    width,
-  ).status;
   if (!hasHomeFacility || rows.length === 0) {
     return (
       <DataTableCard>
@@ -118,16 +105,16 @@ export function StockProgramPicker({
     );
   }
   return (
-    <div ref={measure}>
-      <ProgramTable statusLabel={showStatus ? statusLabel : undefined} actionsLabel={actionsLabel}>
+    <div>
+      <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
               <div className="whitespace-normal break-words font-medium">{row.label}</div>
             </TableCell>
-            {statusLabel && showStatus ? (
+            {statusLabel ? (
               <TableCell>
-                <div className="whitespace-normal break-words">{row.status}</div>
+                <div className="min-w-0 whitespace-normal break-words">{row.status}</div>
               </TableCell>
             ) : null}
             <TableCell>
@@ -141,7 +128,7 @@ export function StockProgramPicker({
                   size="xl"
                   width="shrink"
                 >
-                  <span className="whitespace-normal break-words">
+                  <span className="min-w-0 whitespace-normal break-words">
                     {row.actionLabel ?? actionLabel}
                   </span>
                 </Button>
@@ -158,22 +145,14 @@ export function StockProgramPickerSkeleton({
   actionLabel,
   actionsLabel,
   statusLabel,
-  statusHideBelow,
 }: {
   actionLabel: string;
   actionsLabel?: string;
-  statusLabel?: string;
-  statusHideBelow?: ResponsiveColumn['hideBelow'];
+  statusLabel?: ReactNode;
 }) {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const showStatus = resolveColumnVisibility(
-    [{ id: 'status', hideBelow: statusHideBelow }],
-    {},
-    width,
-  ).status;
   return (
-    <div aria-busy ref={measure}>
-      <ProgramTable statusLabel={showStatus ? statusLabel : undefined} actionsLabel={actionsLabel}>
+    <div aria-busy>
+      <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
         {[0, 1].map((row) => (
           <TableRow key={row}>
             <TableCell>
@@ -181,7 +160,7 @@ export function StockProgramPickerSkeleton({
                 <Skeleton fill />
               </div>
             </TableCell>
-            {statusLabel && showStatus ? (
+            {statusLabel ? (
               <TableCell>
                 <div className="h-4 w-20">
                   <Skeleton fill />
@@ -193,7 +172,7 @@ export function StockProgramPickerSkeleton({
                 <div className="relative">
                   <div className="invisible" aria-hidden="true">
                     <Button size="xl" width="shrink" disabled tabIndex={-1}>
-                      <span className="whitespace-normal break-words">{actionLabel}</span>
+                      <span className="min-w-0 whitespace-normal break-words">{actionLabel}</span>
                     </Button>
                   </div>
                   <div className="absolute inset-0">

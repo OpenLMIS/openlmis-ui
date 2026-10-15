@@ -9,7 +9,7 @@ const rows = [
 const linkFor = (row: { id: string }) => <a href={`/adjustments/${row.id}`}>Make Adjustments</a>;
 
 describe('StockProgramPicker', () => {
-  it('keeps required statuses visible and hides only optional readiness on narrow tables', () => {
+  it('keeps workflow status and offline readiness available on narrow tables', () => {
     const { rerender } = render(
       <StockProgramPicker
         actionLabel="Start"
@@ -38,13 +38,12 @@ describe('StockProgramPicker', () => {
         actionLabel="Start"
         hasHomeFacility
         statusLabel="Readiness"
-        statusHideBelow="xl"
         linkFor={linkFor}
         rows={[{ ...rows[0], status: 'Not Downloaded' }]}
       />,
     );
-    expect(screen.queryByRole('columnheader', { name: 'Readiness' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Not Downloaded')).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Readiness' })).toBeInTheDocument();
+    expect(screen.getByText('Not Downloaded')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Make Adjustments' })).toBeInTheDocument();
   });
 

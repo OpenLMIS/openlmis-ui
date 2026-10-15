@@ -4,7 +4,7 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
-const editorUrl = 'http://127.0.0.1:9165/v2/stock-management/adjustments/program';
+const editorUrl = './stock-management/adjustments/program';
 const quantity = (page: Page) => page.getByRole('textbox', { name: /^Quantity, Fixture Product/ });
 async function addLine(page: Page) {
   await page.getByRole('button', { name: 'Add', exact: true }).click();

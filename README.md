@@ -121,8 +121,9 @@ VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
 The offline suites use fixture API responses and intercept all stock-event POSTs. They build
 and stop their own preview server. Install test binaries with `pnpm exec playwright install
 chromium firefox webkit`. Chrome and Edge channels run when their Linux installations are
-available. The browser runner records missing binaries or host dependencies separately from
-test results in `.offline/browser-verification.json`; an unavailable engine is not a pass.
+available. WebKit also needs host libraries from `pnpm exec playwright install-deps webkit`
+(with permission to install system packages), or the Docker route below. The browser runner
+records missing binaries or host dependencies separately from test results in `.offline/browser-verification.json`; an unavailable engine is not a pass.
 `pnpm test:offline` stays Chromium-only. Visual proof writes screenshots and verification JSON
 to `.screenshots/fm-165-stage-9/`.
 
@@ -137,7 +138,9 @@ Corepack. Edge's Linux channel requires x86_64.
 On the host, build with `VITE_BASE_PATH=/v2 pnpm build`, copy
 `tests/offline/config.json` to `dist/config.json`, then start
 `VITE_BASE_PATH=/v2 VITE_API_PROXY_TARGET=http://172.17.0.1 node scripts/preview-offline-tests.mjs`.
-This guarded preview rejects API fall-through. From the writable container directory, run:
+Here `172.17.0.1` is the local Docker bridge address; set `VITE_API_PROXY_TARGET` for your
+backend, or omit it for the default localhost target. This guarded preview rejects API
+fall-through. From the writable container directory, run:
 
 ```bash
 OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ corepack pnpm exec playwright test \
@@ -146,19 +149,25 @@ OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ corepack pnpm exec playwright test
 
 Copy `.offline/browser-results.json` out before removing the container and stop the host
 preview afterwards. Keep container writes in its local copy to avoid root-owned host files.
-WebKit currently runs with service workers blocked so API fixtures remain effective; ten
-`@offline-shell` cases and one routed-XHR timeout case are explicitly skipped. `node scripts/diagnose-offline-webkit.mjs`
-compares WebKit and Chromium against a synthetic worker and loopback server, reproducing the
-routing and offline-navigation limits without application code. Playwright WebKit on Linux
-verifies that engine, not the shipping Safari app or Apple devices.
+WebKit currently runs with service workers blocked so API fixtures remain effective; eight
+`@offline-shell` cases are explicitly skipped. The native timeout case uses a delayed local
+HTTP response and runs in every engine. `node scripts/diagnose-offline-webkit.mjs` compares
+WebKit and Chromium against a synthetic worker and loopback server, reproducing routing and
+offline-navigation limits without application code. Set `OFFLINE_PREVIEW_URL` to add the
+actual application's offline-reload diagnostic with no routes installed. Playwright WebKit
+on Linux verifies that engine; actual Safari and Apple devices still need testing.
 
-For read-only local storage sizing, preview a production build with real runtime credentials
-and `VITE_API_PROXY_TARGET=http://172.17.0.1` on port 9166, then run
-`node scripts/measure-offline-storage.mjs`. It downloads the local administrator's bundles,
-blocks business writes and inserts synthetic draft/queue/outcome rows only in its isolated
-browser context. Output is `.offline/stage-9-storage.json`. `OFFLINE_PREVIEW_URL` can select
-another preview URL. `scripts/measure-offline-bundle.mjs` remains the separate read-only
-test-server payload/timing probe.
+For read-only local storage sizing, preview a production `/v2` build with real runtime OAuth
+settings in `dist/config.json` (not the browser fixture config), the configured
+`VITE_API_PROXY_TARGET` and port 9166. Then run `node scripts/measure-offline-storage.mjs`.
+It needs local demo data: `administrator`, Comfort Health Clinic, Essential Meds and Family
+Planning. Supply `OFFLINE_MEASUREMENT_PASSWORD` if the demo password differs. This ordinary
+preview must proxy read-only API calls, unlike the guarded test preview. The script blocks
+business writes and inserts sizing fixtures only in an isolated browser database. Output is
+`.offline/stage-9-storage.json`, with a `completed` flag. `OFFLINE_PREVIEW_URL` selects another
+preview URL (default `http://127.0.0.1:9166/v2/`). Results in `.offline/` and screenshots in
+`.screenshots/` are local-only, gitignored artifacts. `scripts/measure-offline-bundle.mjs`
+remains the separate read-only test-server payload/timing probe.
 
 ## Contributing
 

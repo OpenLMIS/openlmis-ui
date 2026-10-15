@@ -1,8 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
 const output = '.screenshots/fm-165-stage-9';
+const reports: unknown[] = [];
 for (const language of ['en', 'ar']) {
   for (const [size, width, height] of [
     ['desktop', 1440, 1000],
@@ -12,7 +14,7 @@ for (const language of ['en', 'ar']) {
       await mkdir(output, { recursive: true });
       const catalog = JSON.parse(await readFile(`public/locales/${language}.json`, 'utf8'));
       const report = {
-        date: '2026-10-15',
+        date: new Date().toISOString(),
         language,
         width,
         height,
@@ -40,12 +42,20 @@ for (const language of ['en', 'ar']) {
       await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
       const capture = async (surface: string) => {
         await page.evaluate(() => document.fonts.ready);
-        const path = `${output}/${language}-${size}-${surface}.png`;
+        const path = `${output}/r2-${language}-${size}-${surface}.png`;
         await page.screenshot({ path, fullPage: true, animations: 'disabled' });
         const metrics = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,
           width: innerWidth,
           statuses: document.querySelectorAll('[role=status]').length,
+          tableWidths: [...document.querySelectorAll('[data-slot=table-container]')].map((el) => ({
+            scroll: el.scrollWidth,
+            width: el.clientWidth,
+          })),
+          headers: [...document.querySelectorAll('th')].map((el) => ({
+            scroll: el.scrollWidth,
+            width: el.clientWidth,
+          })),
           dialogs: [...document.querySelectorAll('[role=dialog], [role=alertdialog]')]
             .filter((el) => el.getClientRects().length)
             .map((el) => {
@@ -55,6 +65,10 @@ for (const language of ['en', 'ar']) {
         }));
         expect(metrics.scrollWidth).toBeLessThanOrEqual(width);
         expect(metrics.statuses).toBe(1);
+        if (surface === 'program-readiness') {
+          for (const item of [...metrics.tableWidths, ...metrics.headers])
+            expect(item.scroll).toBeLessThanOrEqual(item.width);
+        }
         for (const rect of metrics.dialogs) {
           expect(rect.x).toBeGreaterThanOrEqual(-1);
           expect(rect.right).toBeLessThanOrEqual(width + 1);
@@ -67,6 +81,12 @@ for (const language of ['en', 'ar']) {
         await context.setOffline(true);
         await expect(
           page.getByRole('cell', { name: 'Fixture Medicines', exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByText(catalog['offline.download.ready'], { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByText(catalog['offline.download.not-downloaded'], { exact: true }),
         ).toBeVisible();
         await capture('program-readiness');
         await page.goto('./stock-management/adjustments/program');
@@ -92,7 +112,14 @@ for (const language of ['en', 'ar']) {
           .click();
         await expect(page).toHaveURL(/adjustments$/);
         await capture('saved-device');
-        await page.goto('./stock-management/device-events');
+        if (size === 'phone')
+          await page
+            .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
+            .click();
+        await page
+          .getByRole('link', { name: catalog['device-events.title'], exact: true })
+          .first()
+          .click();
         await expect(page.getByRole('table')).toContainText('Fixture Product');
         await capture('device-events');
         if (size === 'phone')
@@ -133,8 +160,9 @@ for (const language of ['en', 'ar']) {
         expect(report.pageErrors).toEqual([]);
         report.passed = true;
       } finally {
+        reports.push(report);
         await writeFile(
-          `${output}/${language}-${size}-verification.json`,
+          `${output}/r2-${language}-${size}-verification.json`,
           JSON.stringify(report, null, 2),
         );
       }
@@ -143,17 +171,15 @@ for (const language of ['en', 'ar']) {
 }
 
 test.afterAll(async () => {
-  const reports = await Promise.all(
-    ['en', 'ar'].flatMap((language) =>
-      ['desktop', 'phone'].map(async (size) =>
-        JSON.parse(await readFile(`${output}/${language}-${size}-verification.json`, 'utf8')),
-      ),
-    ),
-  );
   await writeFile(
-    `${output}/verification.json`,
+    `${output}/r2-verification.json`,
     JSON.stringify(
-      { date: '2026-10-15', fixture: 'fixture-only API responses', headless: true, reports },
+      {
+        date: new Date().toISOString(),
+        fixture: 'fixture-only API responses',
+        headless: true,
+        reports,
+      },
       null,
       2,
     ),

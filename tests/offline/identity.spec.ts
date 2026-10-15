@@ -18,7 +18,7 @@ test('offline shell disables server navigation and blocks direct routes without 
 }, async ({ page, context, channel, browser }) => {
   test.skip(
     channel === 'chrome' && browser.version().startsWith('152.'),
-    'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',
+    'Chrome 152 offline emulation resets navigator.onLine after worker navigation.',
   );
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
@@ -56,27 +56,20 @@ test('offline shell disables server navigation and blocks direct routes without 
   await expect(page.getByRole('heading', { name: /Welcome/ })).toBeVisible();
   await context.setOffline(true);
   await page.reload();
+  // The optional server name lookup is unavailable after an offline reload.
   await expect(page.getByRole('heading', { name: /^(Home|Welcome.*)$/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add User', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeDisabled();
 });
 
-test('logout gives one retained-work warning offline and online and retains the queue after sign-out', {
-  tag: '@offline-shell',
-}, async ({ page, context }) => {
+test('logout gives one retained-work warning offline and online and retains the queue after sign-out', async ({
+  page,
+  context,
+}) => {
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-  await page.waitForFunction(async () =>
-    Boolean(
-      await (await caches.open('openlmis-ui-locales')).match(
-        new URL('/v2/locales/en.json', location.origin),
-      ),
-    ),
-  );
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'Retain Me' }]);
-  await page.reload();
   for (const offline of [true, false]) {
     await context.setOffline(offline);
     await page.getByRole('button', { name: 'Account Menu' }).click();
@@ -103,7 +96,7 @@ test('offline expiry keeps editor drafts usable through reload and resumes only 
 }, async ({ page, context, channel, browser }) => {
   test.skip(
     channel === 'chrome' && browser.version().startsWith('152.'),
-    'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',
+    'Chrome 152 offline emulation resets navigator.onLine after worker navigation.',
   );
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();

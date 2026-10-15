@@ -47,7 +47,7 @@ export const test = base.extend<{
     async ({ browserName }, use, testInfo) => {
       test.skip(
         browserName === 'webkit' && testInfo.tags.includes('@offline-shell'),
-        'WebKit 26.6 / Playwright 1.63 cannot navigate through a worker offline; worker-controlled requests also bypass API fixtures. See FM-165 stage 9 Docker diagnostics.',
+        'WebKit 26.6 / Playwright 1.63 fails native offline navigation even with a literal worker response; worker-controlled requests bypass API fixtures. Reproduce with scripts/diagnose-offline-webkit.mjs.',
       );
       await use(undefined);
     },

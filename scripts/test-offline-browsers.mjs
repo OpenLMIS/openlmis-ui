@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:os';
 import { chromium, firefox, webkit } from '@playwright/test';
 
 const targets = [
@@ -41,8 +42,19 @@ const child = spawn(
   ],
   { stdio: 'inherit' },
 );
-const exitCode = await new Promise((resolve) => child.once('exit', resolve));
-const results = JSON.parse(await readFile('.offline/browser-results.json', 'utf8'));
+const exitCode = await new Promise((resolve) => {
+  child.once('error', () => resolve(1));
+  child.once('exit', (code, signal) =>
+    resolve(code ?? (signal ? 128 + constants.signals[signal] : 1)),
+  );
+});
+let results;
+try {
+  results = JSON.parse(await readFile('.offline/browser-results.json', 'utf8'));
+} catch (error) {
+  console.error('Browser reporter did not produce valid results:', error.message);
+  process.exit(exitCode || 1);
+}
 function collect(suites) {
   return suites.flatMap((suite) => [
     ...suite.specs.flatMap((spec) =>
