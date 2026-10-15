@@ -87,7 +87,7 @@ Sessions are shared, with one exception.
 | What you do | What happens |
 | --- | --- |
 | Sign into the old UI, then open `/v2` | Already signed in, nothing to do |
-| Sign out of the old UI | If you signed in through the old UI, the new UI asks for your password again, over the page you were on. Sign in to carry on, or choose Sign Out |
+| Sign out of the old UI | If you signed in through the old UI, the new UI asks for your password again, over the page you were on. Sign in to carry on, or choose Log Out |
 | Sign out of the new UI | The old UI signs out too. If a page has unsaved changes, it asks first |
 | Change your password in the new UI | You are signed out of both, and sign in again with the new password |
 | Leave the new UI idle for 30 minutes | It asks for your password over the page you were on. Sign in and carry on; nothing unsaved is lost |
