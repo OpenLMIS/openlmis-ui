@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { useHasDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
 import { isOfflineCapable } from '@/lib/offline-capability';
@@ -45,7 +46,12 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
-export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | undefined) {
+export function canOpen(
+  to: LiveNavLink['to'],
+  rights: ReadonlySet<string> | undefined,
+  hasDeviceEvents = false,
+) {
+  if (to === '/stock-management/device-events' && hasDeviceEvents) return true;
   const right = to && NAV_RIGHTS[to];
   return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
@@ -54,8 +60,9 @@ export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | und
 export function navWithinRights(
   groups: LiveNavGroup[],
   rights: ReadonlySet<string> | undefined,
+  hasDeviceEvents = false,
 ): LiveNavGroup[] {
-  const allowed = (link: LiveNavLink) => canOpen(link.to, rights);
+  const allowed = (link: LiveNavLink) => canOpen(link.to, rights, hasDeviceEvents);
   return groups
     .map((group) => ({
       ...group,
@@ -77,10 +84,11 @@ function useSignedInRights() {
 /** The signed-in user's nav, for the sidebar and the command palette. */
 export function useNavGroups() {
   const rights = useSignedInRights();
+  const hasDeviceEvents = useHasDeviceEvents();
   const online = useOnline();
   return useMemo<LiveNavGroup[]>(
     () =>
-      navWithinRights(LIVE_NAV_GROUPS, rights).map((group) => ({
+      navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents).map((group) => ({
         ...group,
         items: group.items.map((item) =>
           isNavParent(item)
@@ -94,7 +102,7 @@ export function useNavGroups() {
             : { ...item, disabled: !online && !isOfflineCapable(item.to ?? '') },
         ),
       })),
-    [rights, online],
+    [rights, online, hasDeviceEvents],
   );
 }
 
@@ -105,8 +113,10 @@ export function useHasRight(right: string) {
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
   const rights = useSignedInRights();
+  const hasDeviceEvents = useHasDeviceEvents();
   const online = useOnline();
-  return (to: LiveNavLink['to']) => canOpen(to, rights) && (online || isOfflineCapable(to ?? ''));
+  return (to: LiveNavLink['to']) =>
+    canOpen(to, rights, hasDeviceEvents) && (online || isOfflineCapable(to ?? ''));
 }
 
 export type AccountLink = {

@@ -7,6 +7,7 @@ import type {
   StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb } from '@/integrations/local-db';
+import { hasOwnDeviceEvents } from '@/lib/device-event-access';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { type Permissions, parsePermissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
@@ -49,7 +50,7 @@ export function useDeviceEvents(enabled = true) {
                 ),
               })),
               ...errors
-                .filter((error) => error.category !== 'uncertain')
+                .filter((error) => error.category !== 'uncertain' && !error.dismissedAt)
                 .map((error) => ({ ...error.event, status: 'refused' as const, error })),
               ...receipts.map((receipt) => ({
                 ...receipt.event,
@@ -87,13 +88,9 @@ export function useHasDeviceEvents() {
   useEffect(() => {
     const subscription = liveQuery(async () => {
       assertSessionScope(scope);
-      const db = getLocalDb();
-      const counts = await Promise.all([
-        db.table('stockEventQueue').count(),
-        db.table('stockEventSyncErrors').count(),
-      ]);
+      const present = await hasOwnDeviceEvents();
       assertSessionScope(scope);
-      return counts.some((count) => count > 0);
+      return present;
     }).subscribe({
       next: (present) => setState({ scope, present }),
       error: () => setState({ scope, present: false }),

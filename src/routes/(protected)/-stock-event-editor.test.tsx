@@ -854,6 +854,7 @@ describe('Unpack policies', () => {
 it('returns to the available program list when connection drops before print Skip', async () => {
   function SubmittedEvent() {
     const print = useStockEventPrint({
+      kind: 'issue',
       copy: EVENT_KINDS.issue.print,
       userId: USER,
       facilityId: HOME,
@@ -873,5 +874,5 @@ it('returns to the available program list when connection drops before print Ski
   await screen.findByRole('alertdialog');
   await act(() => onlineManager.setOnline(false));
   await userEvent.click(screen.getByRole('button', { name: 'stock-issue.print-skip' }));
-  await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/adjustments'));
+  await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/issue'));
 });

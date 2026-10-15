@@ -22,7 +22,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
-import { formatTimestamp } from '@/components/form/date-value';
+import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Badge } from '@/components/ui/badge';
@@ -70,8 +70,11 @@ const hideable = [
   { id: 'program', labelKey: 'facility-program.program', hideBelow: 'xl' },
   { id: 'lots', labelKey: 'device-events.lots', hideBelow: '2xl' },
   { id: 'kind', labelKey: 'device-events.type', hideBelow: 'xl' },
-  { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: '3xl' },
-  { id: 'status', labelKey: 'device-events.status' },
+  { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: 'xl' },
+  { id: 'quantity', labelKey: 'device-events.quantity', hideBelow: 'sm' },
+  { id: 'reason', labelKey: 'device-events.reason', hideBelow: '3xl' },
+  { id: 'occurredDate', labelKey: 'device-events.occurred-date' },
+  { id: 'status', labelKey: 'device-events.status', hideBelow: 'md' },
 ] as const;
 type EventRow = DeviceEvent & { lineIndex: number };
 const defaultSort = { id: 'queuedAt', desc: false };
@@ -216,6 +219,36 @@ function DeviceEventsTable({
         ),
       },
       {
+        id: 'quantity',
+        header: t('device-events.quantity'),
+        cell: ({ row }) => {
+          const item = row.original.payload.lineItems[row.original.lineIndex];
+          return item ? new Intl.NumberFormat(i18n.language).format(item.quantity) : null;
+        },
+      },
+      {
+        id: 'reason',
+        header: t('device-events.reason'),
+        cell: ({ row }) => {
+          const item = row.original.payload.lineItems[row.original.lineIndex];
+          return (
+            <span dir="auto">
+              {row.original.reasons?.find((reason) => reason.id === item?.reasonId)?.name ||
+                item?.reasonId}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'occurredDate',
+        header: t('device-events.occurred-date'),
+        cell: ({ row }) =>
+          formatDateValue(
+            row.original.payload.lineItems[row.original.lineIndex]?.occurredDate,
+            i18n.language,
+          ),
+      },
+      {
         accessorKey: 'queuedAt',
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('device-events.queued-at')} />
@@ -277,7 +310,15 @@ function DeviceEventsTable({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={t('device-events.review-event')}
+                    aria-label={t('device-events.review-event-label', {
+                      type: t(kindLabels[row.original.kind]),
+                      date: formatTimestamp(
+                        new Date(row.original.queuedAt).toISOString(),
+                        i18n.language,
+                        { time: true, timeZone },
+                      ),
+                      status: t(`device-events.status-${row.original.status}`),
+                    })}
                   />
                 }
               >
@@ -361,6 +402,14 @@ function DeviceEventsTable({
               ? (local.permissions ?? permissions)
               : permissions,
             'STOCK_CARDS_VIEW',
+            selected.facilityId,
+            selected.programId,
+          )}
+          canSend={hasProgramGrant(
+            (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
+              ? (local.permissions ?? permissions)
+              : permissions,
+            'STOCK_ADJUST',
             selected.facilityId,
             selected.programId,
           )}

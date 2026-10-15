@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -32,12 +33,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
   copyRefusedEvent,
   type DeviceEvent,
+  dismissRefusedEvent,
   removeQueuedEvent,
   resolveUncertain,
 } from '@/features/stock-events/lib/stock-event-sync';
@@ -50,12 +53,14 @@ import { useOnline } from '@/lib/online';
 export function DeviceEventRecovery({
   event,
   canView,
+  canSend,
   timeZone,
   onClose,
   onCopied,
 }: {
   event: DeviceEvent;
   canView: boolean;
+  canSend: boolean;
   timeZone?: string;
   onClose: () => void;
   onCopied?: () => void;
@@ -64,10 +69,19 @@ export function DeviceEventRecovery({
   const online = useOnline();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [confirmation, setConfirmation] = useState<'resend' | 'copy' | 'remove' | null>(null);
+  const [confirmation, setConfirmation] = useState<'resend' | 'copy' | 'remove' | 'dismiss' | null>(
+    null,
+  );
+  const confirmationTarget = useDialogTarget(confirmation ?? undefined, () =>
+    setConfirmation(null),
+  );
+  const confirmationShown = confirmationTarget.shown;
   const operation = useSessionMutation({
-    mutationFn: async (choice: 'recorded' | 'resend' | 'copy' | 'remove') => {
+    mutationFn: async (choice: 'recorded' | 'resend' | 'copy' | 'remove' | 'dismiss') => {
       const context = createStockEventContext(event);
+      if (choice === 'resend' && !canSend) return false;
+      if (choice === 'dismiss')
+        return event.error ? dismissRefusedEvent(context, event.error) : false;
       if (choice === 'copy')
         return event.error ? copyRefusedEvent(context, event.error) : undefined;
       if (choice === 'remove') return removeQueuedEvent(context, event as QueuedStockEvent);
@@ -75,7 +89,7 @@ export function DeviceEventRecovery({
     },
     retry: false,
   });
-  const act = async (choice: 'recorded' | 'resend' | 'copy' | 'remove') => {
+  const act = async (choice: 'recorded' | 'resend' | 'copy' | 'remove' | 'dismiss') => {
     try {
       const changed = await operation.mutateAsync(choice);
       if (!operation.isCurrent()) return;
@@ -97,7 +111,7 @@ export function DeviceEventRecovery({
         if (choice === 'copy' && onCopied) onCopied();
         else if (choice === 'copy')
           await navigate({
-            to: '/stock-management/adjustments/$programId',
+            to: EVENT_KINDS[event.kind].editorRoute,
             params: { programId: event.programId },
           });
       } else {
@@ -142,15 +156,11 @@ export function DeviceEventRecovery({
                 [t('device-events.type'), t(kindLabels[event.kind])],
                 [t('facility-program.facility'), event.facility.name || event.facility.code],
                 [t('facility-program.program'), event.program.name || event.program.code],
-                [
-                  t('device-events.revision'),
-                  i18n.language
-                    ? new Intl.NumberFormat(i18n.language).format(event.revision)
-                    : event.revision,
-                ],
                 [t('device-events.queued-at'), timestamp(event.queuedAt)],
                 [t('device-events.attempted-at'), timestamp(event.attemptStartedAt)],
                 [t('device-events.signature'), event.payload.signature],
+                [t('device-events.server-event-id'), event.receipt?.serverEventId],
+                [t('stock-event.document-number'), event.receipt?.documentNumber],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-muted-foreground">{label}</dt>
@@ -216,10 +226,11 @@ export function DeviceEventRecovery({
             {event.status === 'refused' && (
               <div className="flex min-w-0 flex-col gap-2">
                 <h3 className="font-medium">{t('device-events.full-error')}</h3>
-                <p dir="auto">{event.error?.message}</p>
-                <pre className="whitespace-pre-wrap break-all text-sm" dir="auto">
-                  {JSON.stringify(event.error?.response, null, 2)}
-                </pre>
+                <p dir="auto">
+                  {event.error?.messageKey === event.error?.message
+                    ? t('device-events.refused-description')
+                    : event.error?.message}
+                </p>
               </div>
             )}
             {event.pauseReason && (
@@ -265,7 +276,7 @@ export function DeviceEventRecovery({
                               mode: 'my',
                               facilityId: event.facilityId,
                               programId: event.programId,
-                              type: 'adjustment',
+                              type: EVENT_KINDS[event.kind].historyType,
                             }}
                             preload={false}
                           />
@@ -311,6 +322,23 @@ export function DeviceEventRecovery({
               </>
             )}
           </div>
+          {event.receipt?.serverEventId && canView && (
+            <Button
+              variant="outline"
+              disabled={!online}
+              nativeButton={false}
+              role="link"
+              render={
+                <Link
+                  to="/stock-management/transaction-history/$eventId"
+                  params={{ eventId: event.receipt.serverEventId }}
+                  preload={false}
+                />
+              }
+            >
+              {t('device-events.history')}
+            </Button>
+          )}
           <DialogFooter>
             <Button variant="outline" disabled={operation.isPending} onClick={onClose}>
               {t('device-events.close')}
@@ -324,18 +352,30 @@ export function DeviceEventRecovery({
                 >
                   {t('device-events.recorded')}
                 </Button>
-                <Button disabled={operation.isPending} onClick={() => setConfirmation('resend')}>
+                <Button
+                  disabled={operation.isPending || !canSend}
+                  onClick={() => setConfirmation('resend')}
+                >
                   {t('device-events.send-again')}
                 </Button>
               </>
             )}
             {event.status === 'refused' && (
-              <Button
-                disabled={operation.isPending || !!event.error?.resolvedAt}
-                onClick={() => setConfirmation('copy')}
-              >
-                {t('device-events.copy')}
-              </Button>
+              <>
+                <Button
+                  variant="destructive"
+                  disabled={operation.isPending}
+                  onClick={() => setConfirmation('dismiss')}
+                >
+                  {t('device-events.dismiss')}
+                </Button>
+                <Button
+                  disabled={operation.isPending || !!event.error?.resolvedAt}
+                  onClick={() => setConfirmation('copy')}
+                >
+                  {t('device-events.copy')}
+                </Button>
+              </>
             )}
             {event.status === 'queued' && !event.attemptId && (
               <Button
@@ -349,30 +389,29 @@ export function DeviceEventRecovery({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <AlertDialog
-        open={confirmation !== null}
-        onOpenChange={(open) => {
-          if (!open && !operation.isPending) setConfirmation(null);
-        }}
-      >
+      <AlertDialog {...confirmationTarget.dialogProps(operation.isPending)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t(
-                confirmation === 'resend'
+                confirmationShown === 'resend'
                   ? 'device-events.send-again'
-                  : confirmation === 'copy'
+                  : confirmationShown === 'copy'
                     ? 'device-events.copy'
-                    : 'device-events.remove',
+                    : confirmationShown === 'dismiss'
+                      ? 'device-events.dismiss'
+                      : 'device-events.remove',
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                confirmation === 'resend'
+                confirmationShown === 'resend'
                   ? 'device-events.duplicate-warning'
-                  : confirmation === 'copy'
+                  : confirmationShown === 'copy'
                     ? 'device-events.copy-warning'
-                    : 'device-events.remove-warning',
+                    : confirmationShown === 'dismiss'
+                      ? 'device-events.dismiss-warning'
+                      : 'device-events.remove-warning',
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -382,17 +421,19 @@ export function DeviceEventRecovery({
             </AlertDialogCancel>
             <Button
               disabled={operation.isPending}
-              variant={confirmation === 'copy' ? 'default' : 'destructive'}
+              variant={confirmationShown === 'copy' ? 'default' : 'destructive'}
               onClick={() => {
                 if (confirmation) void act(confirmation);
               }}
             >
               {t(
-                confirmation === 'resend'
+                confirmationShown === 'resend'
                   ? 'device-events.send-again'
-                  : confirmation === 'copy'
+                  : confirmationShown === 'copy'
                     ? 'device-events.copy'
-                    : 'device-events.remove',
+                    : confirmationShown === 'dismiss'
+                      ? 'device-events.dismiss'
+                      : 'device-events.remove',
               )}
             </Button>
           </AlertDialogFooter>
