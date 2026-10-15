@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/table';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { kindLabels } from '@/features/stock-events/lib/kind-labels';
+import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
@@ -46,9 +47,25 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
-import { queryKeys } from '@/lib/key-factory';
-import { refreshOfflineProgram } from '@/lib/offline-download-status';
+import { recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
+
+const confirmationCopy = {
+  resend: { title: 'device-events.send-again', warning: 'device-events.duplicate-warning' },
+  copy: { title: 'device-events.copy', warning: 'device-events.copy-warning' },
+  remove: { title: 'device-events.remove', warning: 'device-events.remove-warning' },
+  dismiss: { title: 'device-events.dismiss', warning: 'device-events.dismiss-warning' },
+} as const;
+const pauseCopy = {
+  'access-changed': {
+    title: 'device-events.access-changed',
+    description: 'device-events.access-changed-description',
+  },
+  'draft-changed': {
+    title: 'device-events.draft-changed',
+    description: 'device-events.draft-changed-description',
+  },
+} as const;
 
 export function DeviceEventRecovery({
   event,
@@ -96,13 +113,7 @@ export function DeviceEventRecovery({
       setConfirmation(null);
       if (changed) {
         if (choice === 'recorded') {
-          refreshOfflineProgram(event);
-          for (const queryKey of [
-            queryKeys.stockEvents.all,
-            queryKeys.stockCards.all,
-            queryKeys.stockCardSummaries.all,
-          ])
-            void queryClient.invalidateQueries({ queryKey });
+          refreshAfterStockEventAccepted(queryClient, event);
           announceDeviceSave('device-events.recorded-by-you');
         }
         if (choice === 'resend') announceDeviceSave('device-events.status-queued');
@@ -154,13 +165,17 @@ export function DeviceEventRecovery({
             <dl className="grid grid-cols-2 gap-3 text-sm">
               {[
                 [t('device-events.type'), t(kindLabels[event.kind])],
-                [t('facility-program.facility'), event.facility.name || event.facility.code],
-                [t('facility-program.program'), event.program.name || event.program.code],
+                [t('facility-program.facility'), recordLabel(event.facility)],
+                [t('facility-program.program'), recordLabel(event.program)],
                 [t('device-events.queued-at'), timestamp(event.queuedAt)],
                 [t('device-events.attempted-at'), timestamp(event.attemptStartedAt)],
                 [t('device-events.signature'), event.payload.signature],
-                [t('device-events.server-event-id'), event.receipt?.serverEventId],
-                [t('stock-event.document-number'), event.receipt?.documentNumber],
+                ...(event.receipt
+                  ? [
+                      [t('device-events.server-event-id'), event.receipt.serverEventId],
+                      [t('stock-event.document-number'), event.receipt.documentNumber],
+                    ]
+                  : []),
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-muted-foreground">{label}</dt>
@@ -204,8 +219,7 @@ export function DeviceEventRecovery({
                     </TableCell>
                     <TableCell>
                       <div className="min-w-32 whitespace-pre-wrap" dir="auto">
-                        {event.reasons?.find((reason) => reason.id === item.reasonId)?.name ||
-                          item.reasonId}
+                        {event.reasons?.find((reason) => reason.id === item.reasonId)?.name}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -235,20 +249,8 @@ export function DeviceEventRecovery({
             )}
             {event.pauseReason && (
               <Alert variant="warning">
-                <AlertTitle>
-                  {t(
-                    event.pauseReason === 'access-changed'
-                      ? 'device-events.access-changed'
-                      : 'device-events.draft-changed',
-                  )}
-                </AlertTitle>
-                <AlertDescription>
-                  {t(
-                    event.pauseReason === 'access-changed'
-                      ? 'device-events.access-changed-description'
-                      : 'device-events.draft-changed-description',
-                  )}
-                </AlertDescription>
+                <AlertTitle>{t(pauseCopy[event.pauseReason].title)}</AlertTitle>
+                <AlertDescription>{t(pauseCopy[event.pauseReason].description)}</AlertDescription>
               </Alert>
             )}
             {event.status === 'uncertain' && (
@@ -321,24 +323,29 @@ export function DeviceEventRecovery({
                 )}
               </>
             )}
+            {event.receipt?.serverEventId &&
+              canView &&
+              (online ? (
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  role="link"
+                  render={
+                    <Link
+                      to="/stock-management/transaction-history/$eventId"
+                      params={{ eventId: event.receipt.serverEventId }}
+                      preload={false}
+                    />
+                  }
+                >
+                  {t('device-events.history')}
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t('device-events.history-offline')}
+                </p>
+              ))}
           </div>
-          {event.receipt?.serverEventId && canView && (
-            <Button
-              variant="outline"
-              disabled={!online}
-              nativeButton={false}
-              role="link"
-              render={
-                <Link
-                  to="/stock-management/transaction-history/$eventId"
-                  params={{ eventId: event.receipt.serverEventId }}
-                  preload={false}
-                />
-              }
-            >
-              {t('device-events.history')}
-            </Button>
-          )}
           <DialogFooter>
             <Button variant="outline" disabled={operation.isPending} onClick={onClose}>
               {t('device-events.close')}
@@ -393,26 +400,10 @@ export function DeviceEventRecovery({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t(
-                confirmationShown === 'resend'
-                  ? 'device-events.send-again'
-                  : confirmationShown === 'copy'
-                    ? 'device-events.copy'
-                    : confirmationShown === 'dismiss'
-                      ? 'device-events.dismiss'
-                      : 'device-events.remove',
-              )}
+              {t(confirmationCopy[confirmationShown ?? 'remove'].title)}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                confirmationShown === 'resend'
-                  ? 'device-events.duplicate-warning'
-                  : confirmationShown === 'copy'
-                    ? 'device-events.copy-warning'
-                    : confirmationShown === 'dismiss'
-                      ? 'device-events.dismiss-warning'
-                      : 'device-events.remove-warning',
-              )}
+              {t(confirmationCopy[confirmationShown ?? 'remove'].warning)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -426,15 +417,7 @@ export function DeviceEventRecovery({
                 if (confirmation) void act(confirmation);
               }}
             >
-              {t(
-                confirmationShown === 'resend'
-                  ? 'device-events.send-again'
-                  : confirmationShown === 'copy'
-                    ? 'device-events.copy'
-                    : confirmationShown === 'dismiss'
-                      ? 'device-events.dismiss'
-                      : 'device-events.remove',
-              )}
+              {t(confirmationCopy[confirmationShown ?? 'remove'].title)}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

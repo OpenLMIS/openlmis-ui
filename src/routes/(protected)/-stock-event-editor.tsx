@@ -57,18 +57,6 @@ import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection'
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
-import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
-
-export const stockEventSearchSchema = tableSearchSchema(['id'])
-  .pick({ page: true, size: true })
-  .extend({
-    keyword: textFilterSchema,
-  })
-  .transform((search) => ({
-    ...search,
-    page: search.page === 1 ? undefined : search.page,
-    size: search.size === 10 ? undefined : search.size,
-  }));
 
 export async function loadStockEventEditor(
   queryClient: QueryClient,

@@ -271,6 +271,10 @@ function setup(
       <I18nextProvider i18n={i18n}>
         <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
           <EventEditor
+            deviceDisplay={{
+              facility: { id: 'home', code: 'H', name: 'Home' },
+              program: { id: 'one', code: 'one', name: 'One' },
+            }}
             kind={kind}
             defaultReasonId={defaultReasonId}
             canViewStock={canViewStock}
@@ -1910,6 +1914,10 @@ describe('Unpack editor', () => {
         <I18nextProvider i18n={i18n}>
           <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
             <EventEditor
+              deviceDisplay={{
+                facility: { id: 'home', code: 'H', name: 'Home' },
+                program: { id: 'one', code: 'one', name: 'One' },
+              }}
               kind="unpack"
               kitUnpackReasonIds={configured ? ids : undefined}
               canViewStock
@@ -2221,7 +2229,7 @@ it('keeps committed lines when signing out after a failed device save', async ()
   await screen.findByText('Could not save on this device. Your latest edits are not saved.');
   const leave = vi.fn();
   act(() => whenLeaveAllowed(leave));
-  await user.click(await screen.findByRole('button', { name: 'Sign Out' }));
+  await user.click(await screen.findByRole('button', { name: 'Log Out' }));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
   expect(await table.toArray()).toEqual(before);
 });

@@ -1,11 +1,14 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, within } from '@testing-library/react';
+import { useSearch } from '@tanstack/react-router';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventsPage } from '@/features/stock-events/components/device-events';
+import type { DeviceEventsSearch } from '@/features/stock-events/lib/device-events-search';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
@@ -44,7 +47,7 @@ it('keeps each frozen line quantity, reason and date aligned and identifies its 
       program: { id: 'p', code: 'P', name: 'Program' },
       queuedAt: Date.UTC(2026, 9, 15),
       status: 'uncertain',
-      lines: [line, line],
+      lines: [line, { ...line, key: 'second-line' }],
       postBody: '',
       payload: {
         facilityId: 'f',
@@ -62,15 +65,20 @@ it('keeps each frozen line quantity, reason and date aligned and identifies its 
   ];
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
-  renderPage(
-    <DeviceEventsPage
-      search={{}}
-      onSearchChange={vi.fn()}
-      permissions={parsePermissions([])}
-      permissionsUpdatedAt={1}
-    />,
-    { queryClient: client },
-  );
+  function Page() {
+    const navigation = useSearchNavigation<DeviceEventsSearch>({ event: undefined });
+    return (
+      <DeviceEventsPage
+        search={useSearch({ strict: false })}
+        onSearchChange={navigation.updateSearch}
+        onOpenEvent={(event) => void navigation.openDialog({ event })}
+        onCloseEvent={navigation.closeDialog}
+        permissions={parsePermissions([])}
+        permissionsUpdatedAt={1}
+      />
+    );
+  }
+  const router = renderPage(<Page />, { queryClient: client });
   const rows = within(await screen.findByRole('table')).getAllByRole('row');
   expect(rows[1]).toHaveTextContent('12');
   expect(rows[1]).toHaveTextContent('Damaged');
@@ -87,4 +95,36 @@ it('keeps each frozen line quantity, reason and date aligned and identifies its 
     await screen.findByRole('menuitem', { name: 'device-events.review-event' }),
   );
   expect(screen.getByRole('button', { name: 'device-events.send-again' })).toBeDisabled();
+  expect(router.state.location.search).toMatchObject({ event: 'e' });
+  await userEvent.click(screen.getByRole('button', { name: 'device-events.close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect((router.state.location.search as DeviceEventsSearch).event).toBeUndefined();
+  router.history.forward();
+  expect(await screen.findByRole('dialog')).toBeVisible();
+});
+
+it('opens a directly linked event, replaces search on close, and explains a missing event', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  local.events = [];
+  function Page() {
+    const navigation = useSearchNavigation<DeviceEventsSearch>({ event: undefined });
+    return (
+      <DeviceEventsPage
+        search={useSearch({ strict: false })}
+        onSearchChange={navigation.updateSearch}
+        onOpenEvent={(event) => void navigation.openDialog({ event })}
+        onCloseEvent={navigation.closeDialog}
+        permissions={parsePermissions([])}
+        permissionsUpdatedAt={1}
+      />
+    );
+  }
+  const router = renderPage(<Page />, { queryClient: client, path: '/?event=missing' });
+  expect(await screen.findByRole('dialog')).toHaveTextContent('device-events.not-found-title');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect((router.state.location.search as DeviceEventsSearch).event).toBeUndefined(),
+  );
+  expect(router.history.canGoBack()).toBe(false);
 });

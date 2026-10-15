@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDeviceWork } from '@/components/device-work';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -15,10 +16,10 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { isOnline } from '@/lib/online';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
-import { countUnsyncedDeviceWork } from '@/lib/unsynced-device-work';
 
 export function useOfflineSignOut() {
   const { t } = useTranslation();
+  const { countUnsyncedWork } = useDeviceWork();
   const scope = useSessionScope();
   const checking = useRef<number | null>(null);
   const [pending, setPending] = useState<{
@@ -44,7 +45,7 @@ export function useOfflineSignOut() {
         let count: number | null = null;
         try {
           count = await Promise.race([
-            countUnsyncedDeviceWork(),
+            countUnsyncedWork(),
             new Promise<never>((_, reject) => {
               timer = setTimeout(() => reject(new Error('Device check timed out')), 5000);
             }),

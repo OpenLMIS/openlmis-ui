@@ -3,7 +3,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import Dexie from 'dexie';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { startStockEventUploader } from '@/components/stock-event-uploader';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import {
@@ -11,6 +10,7 @@ import {
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import { startStockEventUploader } from '@/features/stock-events/lib/stock-event-uploader';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
@@ -291,4 +291,20 @@ it('refreshes access-paused scopes every thirty seconds and cancels that interva
   expect(send).not.toHaveBeenCalled();
   stop();
   expect(clear).toHaveBeenCalledWith(interval.mock.results[timerIndex].value);
+});
+
+it('clears access polling on logout and does not force access for the next owner', async () => {
+  const interval = vi.spyOn(globalThis, 'setInterval');
+  const clear = vi.spyOn(globalThis, 'clearInterval');
+  await enqueue();
+  const access = vi.fn(async () => ({ ...snapshot, permissionStrings: [] as string[] }));
+  stops.push(startStockEventUploader({ access, send: vi.fn(async () => accepted) }));
+  onlineManager.setOnline(true);
+  await waitFor(() => expect(interval.mock.calls.some(([, delay]) => delay === 30000)).toBe(true));
+  const index = interval.mock.calls.findIndex(([, delay]) => delay === 30000);
+  useLoginData.getState().clearLoginData();
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[index].value);
+  access.mockClear();
+  window.dispatchEvent(new Event('focus'));
+  expect(access).not.toHaveBeenCalled();
 });

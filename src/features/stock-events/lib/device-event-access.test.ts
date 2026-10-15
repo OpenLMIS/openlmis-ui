@@ -3,8 +3,8 @@ import { beforeEach, expect, it } from 'vitest';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import { hasOwnDeviceEvents } from '@/features/stock-events/lib/device-event-access';
 import { getLocalDb } from '@/integrations/local-db';
-import { hasOwnDeviceEvents } from '@/lib/device-event-access';
 import { parsePermissions } from '@/lib/permissions';
 import { Route } from '@/routes/(protected)/_protected.stock-management.device-events';
 

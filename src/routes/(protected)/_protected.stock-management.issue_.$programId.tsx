@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import { getDefaultIssueReasonId } from '@/lib/runtime-config';
 import {
   loadStockEventEditor,
   StockEventEditorPage,
   StockEventPending,
-  stockEventSearchSchema,
 } from '@/routes/(protected)/-stock-event-editor';
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/issue_/$programId')({

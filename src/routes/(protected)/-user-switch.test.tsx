@@ -22,6 +22,10 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
 
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
+}));
+
 vi.mock('@/components/nav-access', () => ({ useHasRight: () => false }));
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => {

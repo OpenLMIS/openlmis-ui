@@ -154,7 +154,7 @@ type Props = {
   canManageLots?: boolean;
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
-  deviceDisplay?: StockEventDisplay;
+  deviceDisplay: StockEventDisplay;
   onSubmitted: (eventId: string, synced?: boolean) => void | Promise<void>;
 };
 const columnChoicesSchema = z.record(z.string(), z.boolean());
@@ -178,6 +178,7 @@ export function EventEditor({
 }: Props) {
   const { t, i18n } = useTranslation();
   const config: EventKindConfig = EVENT_KINDS[kind];
+  const deviceDrafts = config.drafts === 'device';
   const online = useOnline();
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
@@ -226,7 +227,7 @@ export function EventEditor({
     ...stockOptions,
     enabled: canViewStock && fromCards,
   });
-  const ready = lookupsReady && (config.drafts !== 'device' || cardsQuery.data !== undefined);
+  const ready = lookupsReady && (!deviceDrafts || cardsQuery.data !== undefined);
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data ?? []),
     [cardsQuery.data, filterCards],
@@ -327,7 +328,7 @@ export function EventEditor({
   };
   const lines = useStore(form.store, (state) => state.values.lines);
   const draft = useStockEventAutosave(
-    config.drafts === 'device' && canViewStock,
+    deviceDrafts && canViewStock,
     { kind, facilityId, programId },
     form,
     cardsQuery.data,
@@ -409,12 +410,9 @@ export function EventEditor({
   );
   const mutation = useSessionMutation({
     mutationFn: async (body: Parameters<typeof submitStockEvent>[0]) => {
-      if (config.drafts === 'device') {
+      if (deviceDrafts) {
         const queued = await draft.submit(body, {
-          ...(deviceDisplay ?? {
-            facility: { id: facilityId, code: facilityId, name: null },
-            program: { id: programId, code: programId, name: null },
-          }),
+          ...deviceDisplay,
           stockCards: (queryClient.getQueryData(stockOptions.queryKey) ?? [])
             .filter((card) =>
               body.lineItems.some(
@@ -445,15 +443,13 @@ export function EventEditor({
   const pending =
     refreshing ||
     mutation.isPending ||
-    (config.drafts === 'device' && canViewStock && (draft.loading || draft.busy));
-  const guard = useDiscardGuard(
-    (config.drafts === 'device' ? draft.protected : lines.length > 0) && !submitted,
-    {
-      allowLeave: () => leaving.current,
-      pending: !draft.readFailed && pending,
-      flushBeforeLeave: config.drafts === 'device' ? draft.flush : undefined,
-    },
-  );
+    (deviceDrafts && canViewStock && (draft.loading || draft.busy));
+  const locked = pending || submitted || !!refusal;
+  const guard = useDiscardGuard((deviceDrafts ? draft.protected : lines.length > 0) && !submitted, {
+    allowLeave: () => leaving.current,
+    pending: !draft.readFailed && pending,
+    flushBeforeLeave: deviceDrafts ? draft.flush : undefined,
+  });
   const clearFilter = () => onSearchChange({ keyword: undefined, page: undefined }, true);
   useEffect(() => {
     if (!focusField || search.keyword || (search.page ?? 1) !== focusField.page) return;
@@ -498,7 +494,7 @@ export function EventEditor({
   };
   const submit = async () => {
     if (!mutation.isCurrent()) return;
-    if (config.drafts === 'device') {
+    if (deviceDrafts) {
       const saved = await draft.flush();
       if (!mutation.isCurrent()) return;
       if (!saved) {
@@ -585,7 +581,7 @@ export function EventEditor({
       delivery = result.delivery;
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      const local = config.drafts === 'device';
+      const local = deviceDrafts;
       const unknown = !local && isAxiosError(error) && !error.response;
       setFailure({
         title: local
@@ -618,7 +614,7 @@ export function EventEditor({
     setConfirmationOpen(false);
     leaving.current = true;
     setRefreshing(false);
-    if (config.drafts === 'device') {
+    if (deviceDrafts) {
       if (
         delivery?.kind === 'uncertain' ||
         delivery?.kind === 'blocked' ||
@@ -848,7 +844,7 @@ export function EventEditor({
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted || !!refusal || !ready}
+                    disabled={locked || !ready}
                     {...(fromCards
                       ? { cardFilter: filterCards }
                       : { from: 'approved-products' as const, canManageLots, lines })}
@@ -858,7 +854,7 @@ export function EventEditor({
                   </ProductLotPicker>
                 </QueryBoundary>
               )}
-              {config.drafts === 'device' && (
+              {deviceDrafts && (
                 <div className="flex flex-wrap items-center gap-2">
                   {(lines.length > 0 || draft.status !== 'saved') && (
                     <EventDraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
@@ -867,7 +863,7 @@ export function EventEditor({
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted || !!refusal}
+                    disabled={locked}
                     onRestore={draft.restore}
                   />
                 </div>
@@ -904,7 +900,7 @@ export function EventEditor({
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
-                      disabled={pending || submitted || !!refusal}
+                      disabled={locked}
                     />
                   </div>
                 )}
@@ -959,7 +955,7 @@ export function EventEditor({
                           assignments={assignments}
                           unit={quantityUnit.unit}
                           today={today}
-                          disabled={pending || submitted || !!refusal}
+                          disabled={locked}
                           onRemove={remove}
                           search={search}
                           onSearchChange={onSearchChange}
@@ -977,7 +973,7 @@ export function EventEditor({
       </Workspace>
       <WorkspaceFooter width={config.width}>
         <Button
-          disabled={!filtered.length || pending || submitted || !!refusal}
+          disabled={!filtered.length || locked}
           onClick={() => setClearOpen(true)}
           size="lg"
           variant="outline"
@@ -985,18 +981,14 @@ export function EventEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
-          disabled={!lines.length || pending || submitted || !!refusal || !ready}
+          disabled={!lines.length || locked || !ready}
           ref={submitButton}
           form={config.formId}
           size="lg"
           type="submit"
         >
           {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
-          {t(
-            config.drafts === 'device' && !online
-              ? 'stock-events.submit-offline'
-              : 'stock-events.submit',
-          )}
+          {t(deviceDrafts && !online ? 'stock-events.submit-offline' : 'stock-events.submit')}
         </Button>
       </WorkspaceFooter>
       <AlertDialog
@@ -1085,7 +1077,7 @@ export function EventEditor({
         count={filtered.length}
         onClear={() => {
           const keys = new Set(filtered.map((line) => line.key));
-          if (config.drafts === 'device') {
+          if (deviceDrafts) {
             void draft.clear(keys).then((cleared) => {
               if (cleared && mutation.isCurrent() && !form.state.values.lines.length)
                 setUnknownOutcome(false);
@@ -1119,9 +1111,9 @@ export function EventEditor({
       <DiscardChangesDialog
         {...guard.dialog}
         pending={discarding}
-        title={config.drafts === 'device' ? t('stock-events.draft-leave-title') : undefined}
+        title={deviceDrafts ? t('stock-events.draft-leave-title') : undefined}
         actionLabel={
-          config.drafts === 'device'
+          deviceDrafts
             ? t(
                 guard.dialog.signingOut
                   ? 'stock-events.draft-sign-out'
@@ -1130,7 +1122,7 @@ export function EventEditor({
             : undefined
         }
         description={t(
-          config.drafts === 'device'
+          deviceDrafts
             ? guard.dialog.signingOut
               ? 'stock-events.draft-sign-out-description'
               : 'stock-events.draft-leave-description'
@@ -1138,7 +1130,7 @@ export function EventEditor({
         )}
         onDiscard={async () => {
           if (discarding) return;
-          if (config.drafts === 'device' && !guard.dialog.signingOut) {
+          if (deviceDrafts && !guard.dialog.signingOut) {
             setDiscarding(true);
             const discarded = await draft.discard();
             if (!mutation.isCurrent()) return;

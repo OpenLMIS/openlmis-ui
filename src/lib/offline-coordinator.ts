@@ -1,4 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
+import type { AxiosRequestConfig } from 'axios';
 import { AxiosError, isAxiosError } from 'axios';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -17,6 +18,7 @@ import {
 } from '@/lib/adjustment-bundle';
 import { getFlag } from '@/lib/feature-flags';
 import { type AccessReaders, type OfflineAccess, refreshOfflineAccess } from '@/lib/offline-access';
+import { offlineDownloadLock } from '@/lib/offline-download-lock';
 import {
   type DownloadStatus,
   getDownloadStatus,
@@ -35,6 +37,23 @@ type Dependencies = {
   bundle?: (filter: AdjustmentScope, signal: AbortSignal) => Promise<AdjustmentBundle>;
 };
 type Trigger = 'boot' | 'force' | 'retry' | 'refresh';
+
+function accessReaders(config: AxiosRequestConfig): AccessReaders {
+  return {
+    permissions: (id) => fetchPermissionStrings(id, config),
+    user: (id) => fetchUserRecord(id, config),
+    programs: (id) => fetchUserPrograms(id, config),
+    home: (id) => fetchFacility(id, config),
+  };
+}
+function withRetry(raw: AccessReaders, check: () => void): AccessReaders {
+  return {
+    permissions: (id) => retryDownloadRead(() => raw.permissions(id), check),
+    user: (id) => retryDownloadRead(() => raw.user(id), check),
+    programs: (id) => retryDownloadRead(() => raw.programs(id), check),
+    home: (id) => retryDownloadRead(() => raw.home(id), check),
+  };
+}
 
 export function startOfflineCoordinator(dependencies: Dependencies = {}) {
   let freshAccess: { epoch: string; saved: OfflineAccess } | undefined;
@@ -58,14 +77,14 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       publish(
         reason
           ? { ...getDownloadStatus(), phase: 'failed', reason }
-          : { phase: 'idle', failed: [] },
+          : { phase: 'idle', incompletePrograms: [] },
       );
   };
   const run = async (trigger: Trigger) => {
     const { referenceDataUserId: userId, isAuthenticated, expired } = useLoginData.getState();
     if (stopped || !userId || !isAuthenticated || expired || !isOnline()) return;
     const db = getLocalDb();
-    const name = `${db.name}:offline-download`;
+    const name = offlineDownloadLock(db);
     if (channelName !== name) {
       channel?.close();
       channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(name);
@@ -89,9 +108,9 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                     const status = getDownloadStatus();
                     if (status.phase === 'running')
                       setDownloadStatus(
-                        status.failed.length || status.accessFailed
+                        status.incompletePrograms.length || status.accessFailed
                           ? { ...status, phase: 'failed', reason: 'read' }
-                          : { phase: 'idle', failed: [] },
+                          : { phase: 'idle', incompletePrograms: [] },
                       );
                   })
                   .catch(() => undefined)
@@ -111,7 +130,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
         };
     }
     if (!navigator.locks) {
-      publish({ phase: 'unsupported', failed: [] });
+      publish({ phase: 'unsupported', incompletePrograms: [] });
       return;
     }
     if (active) {
@@ -165,25 +184,14 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                 ? downloadIsStale(saved)
                 : !accessChanged;
         if (refreshAccess) {
-          publish({ phase: 'running', failed: [], accessFailed: true });
+          publish({ phase: 'running', incompletePrograms: [], accessFailed: true });
           const config = {
             session: false,
             backgroundRead: true,
             signal: controller.signal,
             sessionScope: scope,
           };
-          const raw = dependencies.access ?? {
-            permissions: (id: string) => fetchPermissionStrings(id, config),
-            user: (id: string) => fetchUserRecord(id, config),
-            programs: (id: string) => fetchUserPrograms(id, config),
-            home: (id: string) => fetchFacility(id, config),
-          };
-          const readers: AccessReaders = {
-            permissions: (id) => retryDownloadRead(() => raw.permissions(id), check),
-            user: (id) => retryDownloadRead(() => raw.user(id), check),
-            programs: (id) => retryDownloadRead(() => raw.programs(id), check),
-            home: (id) => retryDownloadRead(() => raw.home(id), check),
-          };
+          const readers = withRetry(dependencies.access ?? accessReaders(config), check);
           const epoch = uploadAccessEpoch();
           saved = await wait(refreshOfflineAccess(readers, check));
           check();
@@ -201,7 +209,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           (program) =>
             home && hasProgramGrant(permissions, 'STOCK_CARDS_VIEW', home.id, program.id),
         );
-        const failed: DownloadStatus['failed'] = [];
+        const failed: DownloadStatus['incompletePrograms'] = [];
         const queue: typeof eligible = [];
         const scanning = getFlag('GS1_SCANNING');
         for (const program of eligible) {
@@ -215,7 +223,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           if (
             !requested &&
             trigger === 'retry' &&
-            !previousStatus.failed.some((item) => item.id === program.id) &&
+            !previousStatus.incompletePrograms.some((item) => item.id === program.id) &&
             !previousStatus.accessFailed
           )
             continue;
@@ -252,7 +260,11 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
             ...queue.map((program) => ({ id: program.id, name: program.name ?? program.code })),
           ].map((program) => [program.id, program]),
         );
-        publish({ phase: 'running', failed: [...incomplete.values()], accessFailed: false });
+        publish({
+          phase: 'running',
+          incompletePrograms: [...incomplete.values()],
+          accessFailed: false,
+        });
         const worker = async () => {
           for (let program = queue.shift(); program; program = queue.shift()) {
             check();
@@ -282,7 +294,11 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
               });
               check();
               incomplete.delete(program.id);
-              publish({ phase: 'running', failed: [...incomplete.values()], accessFailed: false });
+              publish({
+                phase: 'running',
+                incompletePrograms: [...incomplete.values()],
+                accessFailed: false,
+              });
             } catch (error) {
               check();
               if (
@@ -293,7 +309,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
               ) {
                 publish({
                   phase: 'failed',
-                  failed: [...incomplete.values()],
+                  incompletePrograms: [...incomplete.values()],
                   reason: 'offline',
                   accessFailed: false,
                 });
@@ -310,8 +326,13 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
         check();
         publish(
           failed.length
-            ? { phase: 'failed', failed, reason: reason ?? 'read', accessFailed: false }
-            : { phase: 'complete', failed: [] },
+            ? {
+                phase: 'failed',
+                incompletePrograms: failed,
+                reason: reason ?? 'read',
+                accessFailed: false,
+              }
+            : { phase: 'complete', incompletePrograms: [] },
         );
       });
     } catch (error) {
@@ -347,23 +368,18 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     if (!navigator.locks) throw new Error('Web Locks are required for safe sync.');
     check();
     if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
-    return navigator.locks.request(`${db.name}:offline-download`, async () => {
+    return navigator.locks.request(offlineDownloadLock(db), async () => {
       check();
       if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
       const config = { session: false, backgroundRead: true, sessionScope: scope };
-      const readers = dependencies.access ?? {
-        permissions: (id: string) => fetchPermissionStrings(id, config),
-        user: (id: string) => fetchUserRecord(id, config),
-        programs: (id: string) => fetchUserPrograms(id, config),
-        home: (id: string) => fetchFacility(id, config),
-      };
+      const readers = dependencies.access ?? accessReaders(config);
       const saved = await refreshOfflineAccess(readers, check);
       check();
       freshAccess = { epoch, saved };
       return saved;
     });
   });
-  setDownloadStatus({ phase: 'idle', failed: [] });
+  setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
   setDownloadRetry(() => {
     void run('retry');
   });
@@ -378,7 +394,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       channel = undefined;
       channelName = undefined;
       refreshPrograms.clear();
-      setDownloadStatus({ phase: 'idle', failed: [] });
+      setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
     }
     if (state.expired) stopActive('session');
     if (!state.isAuthenticated || state.expired) return;

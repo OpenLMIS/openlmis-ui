@@ -108,7 +108,9 @@ export function CommandPalette() {
                         aria-describedby={link.disabled ? disabledReasonId : undefined}
                         onSelect={() => {
                           if (link.disabled) {
-                            toast.info(t('offline.connection-required'));
+                            toast.info(t('offline.title'), {
+                              description: t('offline.connection-required'),
+                            });
                             return;
                           }
                           setOpen(false);
@@ -141,7 +143,9 @@ export function CommandPalette() {
                     aria-describedby={link.disabled ? disabledReasonId : undefined}
                     onSelect={() => {
                       if (link.disabled) {
-                        toast.info(t('offline.connection-required'));
+                        toast.info(t('offline.title'), {
+                          description: t('offline.connection-required'),
+                        });
                         return;
                       }
                       setOpen(false);

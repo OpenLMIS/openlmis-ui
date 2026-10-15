@@ -27,6 +27,10 @@ import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { httpError } from '@/tests/http-error';
 
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
+}));
+
 vi.mock('@/features/auth/api/api', async (original) => ({
   ...(await original<typeof import('@/features/auth/api/api')>()),
   login: vi.fn(),

@@ -24,7 +24,7 @@ vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
     ] as DeviceEvent[],
   }),
 }));
-afterEach(() => setDownloadStatus({ phase: 'idle', failed: [] }));
+afterEach(() => setDownloadStatus({ phase: 'idle', incompletePrograms: [] }));
 it('shows pending work for this kind and downloading readiness for an unfinished program', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   const program = { id: 'p', code: 'P', name: 'Medicines', active: true };
@@ -49,7 +49,7 @@ it('shows pending work for this kind and downloading readiness for an unfinished
     supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: false }],
   });
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
-  setDownloadStatus({ phase: 'running', failed: [{ id: 'p', name: 'Medicines' }] });
+  setDownloadStatus({ phase: 'running', incompletePrograms: [{ id: 'p', name: 'Medicines' }] });
   renderPage(
     <StockEventProgramPicker
       userId="u"

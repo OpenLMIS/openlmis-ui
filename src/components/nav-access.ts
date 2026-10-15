@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { useMemo } from 'react';
+import { useDeviceWork } from '@/components/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { useHasDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
 import { isOfflineCapable } from '@/lib/offline-capability';
@@ -84,26 +84,20 @@ function useSignedInRights() {
 /** The signed-in user's nav, for the sidebar and the command palette. */
 export function useNavGroups() {
   const rights = useSignedInRights();
-  const hasDeviceEvents = useHasDeviceEvents();
+  const { hasDeviceEvents } = useDeviceWork();
   const online = useOnline();
-  return useMemo<LiveNavGroup[]>(
-    () =>
-      navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents).map((group) => ({
-        ...group,
-        items: group.items.map((item) =>
-          isNavParent(item)
-            ? {
-                ...item,
-                items: item.items.map((link) => ({
-                  ...link,
-                  disabled: !online && !isOfflineCapable(link.to ?? ''),
-                })),
-              }
-            : { ...item, disabled: !online && !isOfflineCapable(item.to ?? '') },
-        ),
-      })),
-    [rights, online, hasDeviceEvents],
-  );
+  return useMemo<LiveNavGroup[]>(() => {
+    const mark = (link: LiveNavLink) => ({
+      ...link,
+      disabled: !online && !isOfflineCapable(link.to ?? ''),
+    });
+    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents).map((group) => ({
+      ...group,
+      items: group.items.map((item) =>
+        isNavParent(item) ? { ...item, items: item.items.map(mark) } : mark(item),
+      ),
+    }));
+  }, [rights, online, hasDeviceEvents]);
 }
 
 export function useHasRight(right: string) {
@@ -113,13 +107,13 @@ export function useHasRight(right: string) {
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
   const rights = useSignedInRights();
-  const hasDeviceEvents = useHasDeviceEvents();
+  const { hasDeviceEvents } = useDeviceWork();
   const online = useOnline();
   return (to: LiveNavLink['to']) =>
     canOpen(to, rights, hasDeviceEvents) && (online || isOfflineCapable(to ?? ''));
 }
 
-export type AccountLink = {
+type AccountLink = {
   titleKey: ParseKeys;
   to: '/profile' | '/settings';
   icon: LucideIcon;

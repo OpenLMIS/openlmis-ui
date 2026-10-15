@@ -23,11 +23,22 @@ vi.mock('@tanstack/react-router', async (original) => ({
 }));
 const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[] }));
 vi.mock('@/components/nav-access', () => ({ useHasRight: () => device.allowed }));
-vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
-  useHasDeviceEvents: () => device.events.length > 0,
-  useDeviceEvents: (enabled: boolean) => {
-    return { events: enabled ? device.events : undefined };
-  },
+vi.mock('@/components/device-work', async (original) => ({
+  ...(await original<typeof import('@/components/device-work')>()),
+  useDeviceWork: () => ({
+    hasDeviceEvents: device.events.length > 0,
+    waiting: device.events.filter(
+      (event) => !event.pauseReason && ['queued', 'sending'].includes(event.status),
+    ).length,
+    uncertain: device.events.filter((event) => event.status === 'uncertain').length,
+    refused: device.events.filter((event) => event.status === 'refused' && !event.error?.resolvedAt)
+      .length,
+    sending: device.events.some((event) => event.status === 'sending'),
+    retained: device.events.some((event) => event.status !== 'accepted'),
+    pauses: ['access-changed', 'draft-changed'].filter((reason) =>
+      device.events.some((event) => event.pauseReason === reason),
+    ),
+  }),
 }));
 
 const worker = vi.hoisted(() => ({ waiting: () => {} }));
@@ -80,7 +91,7 @@ afterEach(() => {
     onlineManager.setOnline(true);
     dismissBackOnline();
     dismissUpdate();
-    setDownloadStatus({ phase: 'idle', failed: [] });
+    setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
     setSyncPhase('idle');
     device.allowed = false;
     device.events = [];
@@ -167,10 +178,8 @@ describe('SidebarNotices', () => {
 
     expect(screen.queryByText('offline.description')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(2);
-    expect(
-      screen.getByRole('button', { name: 'offline.title: error.try-again' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'update.title: update.reload' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'notice.action-label' })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'notice.action-label' })[1]).toBeInTheDocument();
     expect(screen.getByRole('list')).toBeInTheDocument();
   });
 });
@@ -192,7 +201,7 @@ it('keeps concurrent notes visible and announces only download changes through c
   onlineManager.setOnline(false);
   renderNotices();
   expect(screen.getByRole('status')).toHaveTextContent('offline.title');
-  act(() => setDownloadStatus({ phase: 'running', failed: [] }));
+  act(() => setDownloadStatus({ phase: 'running', incompletePrograms: [] }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.fetching');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
   expect(screen.getAllByRole('status')).toHaveLength(1);
@@ -200,15 +209,15 @@ it('keeps concurrent notes visible and announces only download changes through c
   expect(screen.getAllByRole('note').map((note) => note.textContent)).toEqual(
     expect.arrayContaining([expect.stringContaining('offline.download.fetching')]),
   );
-  act(() => setDownloadStatus({ phase: 'complete', failed: [] }));
+  act(() => setDownloadStatus({ phase: 'complete', incompletePrograms: [] }));
   expect(screen.getAllByRole('note')).toHaveLength(1);
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
-  act(() => setDownloadStatus({ phase: 'failed', failed: [], reason: 'timeout' }));
+  act(() => setDownloadStatus({ phase: 'failed', incompletePrograms: [], reason: 'timeout' }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
   act(() =>
     setDownloadStatus({
       phase: 'failed',
-      failed: [{ id: 'med', name: 'Medicines' }],
+      incompletePrograms: [{ id: 'med', name: 'Medicines' }],
       reason: 'timeout',
     }),
   );
@@ -247,7 +256,7 @@ describe('OfflineDot', () => {
 it('clears the completed download announcement before later notices change', () => {
   vi.useFakeTimers();
   renderNotices();
-  act(() => setDownloadStatus({ phase: 'complete', failed: [] }));
+  act(() => setDownloadStatus({ phase: 'complete', incompletePrograms: [] }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
   act(() => vi.advanceTimersByTime(4000));
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');

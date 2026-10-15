@@ -129,5 +129,7 @@ it('lets keyboard users reach an offline item and hear its reason without leavin
   await userEvent.keyboard('{Enter}');
   expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(issue).toHaveAttribute('aria-describedby');
-  expect(toast.info).toHaveBeenCalledWith('offline.connection-required');
+  expect(toast.info).toHaveBeenCalledWith('offline.title', {
+    description: 'offline.connection-required',
+  });
 });
