@@ -8,6 +8,7 @@ import {
   DataTableComboboxFilter,
   DataTableSelectFilter,
 } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
@@ -52,32 +53,35 @@ export function RequisitionGroupsToolbar({
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-56">
+      <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('requisition-groups.name')}
           value={search.name ?? ''}
         />
       </div>
-      <div className="w-full @2xl/main:w-56">
-        <DataTableSelectFilter
-          allLabel={t('requisition-groups.all-programs')}
-          label={t('requisition-groups.program')}
-          onValueChange={(program) =>
-            onFilterChange({ program: program || undefined, page: undefined })
-          }
-          options={programFilter.options}
-          value={programFilter.value}
-        />
-      </div>
-      <div className="w-full @2xl/main:w-56">
-        <DataTableComboboxFilter
-          label={t('requisition-groups.zone')}
-          limit={-1}
-          onValueChange={(zone) => onFilterChange({ zone: zone || undefined, page: undefined })}
-          options={zoneFilter.options}
-          value={zoneFilter.value}
-        />
+      <div className="flex-1 @2xl/main:flex-none">
+        <DataTableFilters
+          activeCount={[search.program, search.zone].filter(Boolean).length}
+          onClear={() => onFilterChange({ program: undefined, zone: undefined, page: undefined })}
+        >
+          <DataTableSelectFilter
+            allLabel={t('requisition-groups.all-programs')}
+            label={t('requisition-groups.program')}
+            onValueChange={(program) =>
+              onFilterChange({ program: program || undefined, page: undefined })
+            }
+            options={programFilter.options}
+            value={programFilter.value}
+          />
+          <DataTableComboboxFilter
+            label={t('requisition-groups.zone')}
+            limit={-1}
+            onValueChange={(zone) => onFilterChange({ zone: zone || undefined, page: undefined })}
+            options={zoneFilter.options}
+            value={zoneFilter.value}
+          />
+        </DataTableFilters>
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
