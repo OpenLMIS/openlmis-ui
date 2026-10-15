@@ -841,8 +841,8 @@ Login sends `POST /api/oauth/token?grant_type=password`. The service authenticat
 first with `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)`, resolved
 through runtime config. The persisted zustand store (`src/features/auth/store/login-data.ts`)
 supplies bearer tokens to Axios and identity to router guards. `_protected.tsx` redirects
-anonymous users to `/login?redirect=<page>`; login returns authenticated users through `safeRedirect()`
-(`src/lib/redirect.ts`) or `/home`.
+anonymous users to `/login?redirect=<page>`; login returns authenticated users through
+`safeRedirect()` (`src/lib/redirect.ts`) or `/home`.
 
 ### Expiry and requests
 

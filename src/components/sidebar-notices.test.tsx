@@ -266,6 +266,7 @@ it('clears the completed download announcement before later notices change', () 
 });
 
 it('uncertain events stay out of Waiting To Sync and stacked notices offer review once', async () => {
+  const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
   device.allowed = true;
   device.events = [
     { status: 'queued' },
@@ -291,15 +292,27 @@ it('uncertain events stay out of Waiting To Sync and stacked notices offer revie
       </TooltipProvider>
     </I18nextProvider>,
   );
+  expect(scroll).toHaveBeenCalledTimes(1);
   expect(screen.getByText('2 Events Waiting To Sync')).toBeVisible();
   expect(screen.getAllByRole('button', { name: 'Review Device Events' })).toHaveLength(1);
   expect(
     screen.getByRole('button', { name: 'Review Device Events' }).closest('[role="note"]'),
   ).toHaveTextContent('1 Event Needs Review');
+  device.events = [{ status: 'queued' }, { status: 'uncertain' }] as DeviceEvent[];
+  act(() => setSyncPhase('syncing'));
+  expect(screen.getByText('1 Event Waiting To Sync')).toBeVisible();
+  expect(scroll).toHaveBeenCalledTimes(1);
+  device.events = [{ status: 'refused' }] as DeviceEvent[];
+  act(() => setSyncPhase('idle'));
+  expect(scroll).toHaveBeenCalledTimes(2);
   device.events = [{ status: 'uncertain' }] as DeviceEvent[];
   act(() => setSyncPhase('failed'));
   expect(screen.queryByText(/Waiting To Sync/)).not.toBeInTheDocument();
-  expect(screen.getByText('1 Event Needs Review')).toBeVisible();
+  expect(
+    screen.getByRole('button', { name: 'Review Device Events' }).closest('[role="note"]'),
+  ).toHaveTextContent('1 Event Needs Review');
+  expect(scroll).toHaveBeenCalledTimes(3);
+  scroll.mockRestore();
 });
 it('Sign In To Sync has no review action of its own', () => {
   device.allowed = true;
