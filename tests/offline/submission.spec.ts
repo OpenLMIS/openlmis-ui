@@ -1,15 +1,21 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium, expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
 for (const offline of [true, false]) {
-  test(`${offline ? 'offline' : 'connected'} Submit retains its committed event through persistent restart`, async () => {
+  test(`${offline ? 'offline' : 'connected'} Submit retains its committed event through persistent restart`, async ({
+    persistentContext,
+    channel,
+    browser,
+  }) => {
+    test.skip(
+      offline && channel === 'chrome' && browser.version().startsWith('152.'),
+      'Chrome 152 offline emulation resets navigator.onLine after worker navigation; see FM-165 stage 9 diagnostics.',
+    );
     const directory = await mkdtemp(resolve('.offline/profile-stage-6-'));
-    let context = await chromium.launchPersistentContext(directory, {
-      headless: true,
-      serviceWorkers: 'allow',
-    });
+    let context = await persistentContext(directory);
     let posts = 0;
     try {
       await stub(context, async () => 'finish');
@@ -54,11 +60,7 @@ for (const offline of [true, false]) {
       ).toBeVisible();
       expect(posts).toBe(offline ? 0 : 1);
       await context.close();
-      context = await chromium.launchPersistentContext(directory, {
-        headless: true,
-        serviceWorkers: 'allow',
-        offline: true,
-      });
+      context = await persistentContext(directory, true);
       await stub(context, async () => 'finish');
       await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
         if (route.request().method() === 'POST') posts++;

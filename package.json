@@ -15,7 +15,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "sort-messages": "node scripts/sort-messages.mjs",
-    "test:offline": "playwright test --config playwright.config.ts"
+    "test:offline": "playwright test --config playwright.config.ts --project=chromium",
+    "test:offline:proof": "OFFLINE_VISUAL_PROOF=1 playwright test --config playwright.config.ts --project=chromium",
+    "test:offline:browsers": "node scripts/test-offline-browsers.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './browser-fixtures';
 
 test('signed-in access and home programs survive an offline reload', async ({ page, context }) => {
   let offline = false;

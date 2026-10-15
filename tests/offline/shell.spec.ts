@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './browser-fixtures';
 
 test('production shell reloads offline under /v2 after worker takeover', async ({
   page,

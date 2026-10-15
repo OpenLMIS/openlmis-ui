@@ -1,0 +1,100 @@
+# Working Offline
+
+Adjustments can use downloaded data, save drafts and submit events without a connection.
+Home and Device Events also open offline. Other stock pages, administration, printing and
+PDF downloads need a connection until their own offline support is added.
+
+## Before You Disconnect
+
+Sign in while connected, using the browser and device you will take with you. Downloads run
+in the background without stopping your work. Keep the app open until the download finishes.
+On the Adjustments program list, check the program's Offline Readiness and downloaded time.
+The readiness column is hidden on narrow screens. Use a wider window to check it before
+disconnecting; the sidebar still reports download progress and failures at every width.
+
+- Ready Offline means a complete copy is available on this device.
+- Needs Refresh means the saved copy is older or stock has changed. You can still use it
+  offline, but its stock figures may be out of date.
+- Not Downloaded means you need a connection before using that program offline.
+- If a download fails, the sidebar offers Retry. A previous complete download stays available.
+
+Only permitted home-facility programs with stock viewing access are downloaded. A downloaded
+program is a snapshot, not a live stock balance. Check the displayed time before relying on it.
+The app cannot download new data while disconnected.
+
+## Drafts And Submit Offline
+
+Open Adjustments and choose a program. Edits save automatically. Wait for Saved on this device
+before closing the browser. If saving fails, keep the page open and use Retry. A failed save
+is not confirmation that your latest edits are stored.
+
+Reopening the same deployment in the same browser profile restores the draft for the same
+signed-in user. Archived Copies lets you restore or delete saved copies. If another tab has
+changed the draft, choose Load Saved Draft or Keep An Archived Copy. The app stops the stale
+save so one tab cannot silently replace the other tab's work.
+
+Submit Offline validates the lines and asks for your signature. Confirmation saves a frozen
+event on the device. It returns to the Adjustments program list and shows Saved On This Device.
+It has not changed server stock yet. Further adjustments start a new draft.
+
+While connected, Submit uses the same device queue. Synced appears only after the server
+accepts the event and the app records that result. Connected acceptance opens Stock On Hand.
+There is no offline print offer.
+
+## Reconnect And Review Device Events
+
+Keep the app open when you reconnect. Events send one at a time after fresh access checks.
+If Sign In To Sync appears, connect and sign in again as the same user. An expired session
+keeps your downloaded data, drafts and events available for local work.
+
+Open Device Events from Review Device Events in the sidebar. It shows queued work, refusals,
+unknown results and recent receipts. Use each row's menu to review signed details.
+
+- Queued means waiting to send. You may remove an event that has never been attempted, after
+  confirmation. Removing it does not change server stock.
+- Sending means an upload is in progress. Keep the app open and wait for its result.
+- Refused means the server rejected the whole event. Review the full reason. Copy For
+  Correction makes an editable copy and keeps the original refusal. A stock-changed refusal
+  can include backdated movements that would make a later balance negative.
+- Uncertain means the app did not receive a reliable result. The server may have recorded it.
+  Later events for that facility and program wait; other programs can continue.
+- Synced means a server acceptance was recorded. Marked As Recorded By You identifies a
+  manual decision rather than a server answer.
+
+For an uncertain event, check Stock Cards and Transaction History while connected. If you
+lack access, ask someone with access to check before choosing. It Was Recorded records your
+choice without sending again. Send Again requires a warning because it may record the event
+and change stock twice. Cancel leaves the event waiting for review. Reconnecting or restarting
+never authorizes an automatic resend of an uncertain event.
+
+## Signing Out And Keeping Work
+
+Signing out warns about work saved only on this device, even while connected. Stay Signed In
+keeps access. Confirming Sign Out retains committed work, but signing in again needs a
+connection. Only the original user can resume that user's work in the app.
+
+Device work does not move to another computer, browser profile or deployment. Do not clear site
+data, uninstall the browser or use private browsing for work you need to retain. Browser storage
+is not a backup. A lost device or browser eviction can remove unsynced work.
+
+## Limits And Support
+
+Offline downloads and automatic sync require Web Locks and a secure connection, normally HTTPS.
+Without Web Locks, connected reads and device draft saving still work, but downloads and
+uploads are disabled with an explanation. Even connected Submit remains queued until you use
+a supported browser environment with access to that same device database.
+
+Browser quotas, low free space, privacy settings and storage eviction can interrupt saving.
+Safari can also remove inactive sites' stored data through its tracking prevention policies.
+The app does not request persistent storage and cannot promise a retention period. Sync work
+regularly, and resolve warnings before removing any site data.
+
+If saving fails, keep the editor open, free space without clearing this site's data and retry.
+If a download fails, reconnect and retry; an older complete copy remains usable. If sync is
+paused by changed access or a changed draft, review the event and ask support to check access
+or the retained draft. Do not repeatedly submit a second copy to work around an uncertain
+result. Give support the facility, program, event time and displayed status, without sharing
+your password or access token.
+
+Accepted receipts remain for 30 days. Pending events, archived copies and refusals are not
+removed automatically. The server's history remains separate from the device's recent receipts.

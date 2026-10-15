@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium, expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from './browser-fixtures';
 import { enqueue, records } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
 
@@ -129,12 +130,11 @@ test('service 401 renews the same user, reads fresh grants, and resends exactly 
   expect(posts[1]).toBe(posts[0]);
   expect(grantReads).toBeGreaterThan(readsBefore);
 });
-test('interrupted upload survives restart, barriers are scoped, and both explicit choices preserve attempts', async () => {
+test('interrupted upload survives restart, barriers are scoped, and both explicit choices preserve attempts', async ({
+  persistentContext,
+}) => {
   const directory = await mkdtemp(resolve('.offline/profile-stage-7-'));
-  let context = await chromium.launchPersistentContext(directory, {
-    headless: true,
-    serviceWorkers: 'allow',
-  });
+  let context = await persistentContext(directory);
   const posts: string[] = [];
   const attach = async () => {
     await stub(context, async () => 'finish');
@@ -156,10 +156,7 @@ test('interrupted upload survives restart, barriers are scoped, and both explici
       .toBe('sending');
     expect(posts).toEqual(['Unknown']);
     await context.close();
-    context = await chromium.launchPersistentContext(directory, {
-      headless: true,
-      serviceWorkers: 'allow',
-    });
+    context = await persistentContext(directory);
     await attach();
     page = context.pages()[0];
     await page.goto('http://127.0.0.1:9165/v2/stock-management/device-events');
@@ -371,5 +368,36 @@ test('online refusal stays in the editor, shows the server reason, and reopens a
   ).toHaveLength(1);
   expect(await records(page, 'stockEventQueue')).toHaveLength(0);
   expect(await records(page, 'stockEventReceipts')).toHaveLength(0);
+  expect(posts).toBe(1);
+});
+
+test('closing the uploading tab leaves uncertainty in the surviving tab without a second POST', async ({
+  context,
+  page,
+}) => {
+  await stub(context, async () => 'finish');
+  let posts = 0;
+  let owner: Page | undefined;
+  await context.route('**/api/stockEvents', async (route) => {
+    posts++;
+    owner = route.request().frame().page();
+    await new Promise<void>((resolve) => owner?.once('close', () => resolve()));
+  });
+  await ready(page);
+  const other = await context.newPage();
+  await other.goto('/v2/stock-management/device-events');
+  await expect(other.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+  await context.setOffline(true);
+  await enqueue(page, [{ signature: 'Interrupted Owner' }, { signature: 'Held Behind Owner' }]);
+  await context.setOffline(false);
+  await expect.poll(() => posts).toBe(1);
+  if (!owner) throw new Error('No upload owner');
+  const survivor = owner === page ? other : page;
+  await owner.close();
+  await expect
+    .poll(async () => (await records(survivor, 'stockEventQueue'))[0]?.status)
+    .toBe('uncertain');
+  await expect(survivor.getByRole('table')).toContainText('Uncertain');
+  expect(await records(survivor, 'stockEventQueue')).toHaveLength(2);
   expect(posts).toBe(1);
 });

@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium, expect, type Page, test } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
 const editorUrl = 'http://127.0.0.1:9165/v2/stock-management/adjustments/program';
@@ -39,12 +40,11 @@ async function rows(page: Page) {
   });
 }
 
-test('offline edits restore exact quantity text after reload and persistent browser restart', async () => {
+test('offline edits restore exact quantity text after reload and persistent browser restart', async ({
+  persistentContext,
+}) => {
   const directory = await mkdtemp(resolve('.offline/profile-stage-5-'));
-  let context = await chromium.launchPersistentContext(directory, {
-    headless: true,
-    serviceWorkers: 'allow',
-  });
+  let context = await persistentContext(directory);
   try {
     await stub(context, async () => 'finish');
     let page = context.pages()[0];
@@ -79,11 +79,7 @@ test('offline edits restore exact quantity text after reload and persistent brow
     ).toHaveValue('٠٢');
     expect(await rows(page)).toEqual(before);
     await context.close();
-    context = await chromium.launchPersistentContext(directory, {
-      headless: true,
-      serviceWorkers: 'allow',
-      offline: true,
-    });
+    context = await persistentContext(directory, true);
     page = context.pages()[0];
     await page.goto(editorUrl);
     await expect(
