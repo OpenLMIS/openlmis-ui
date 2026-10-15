@@ -951,6 +951,9 @@ offline criteria stay open until those criteria are met.
 - Specs import `test` from `tests/offline/browser-fixtures.ts`; persistent profiles use its
   `persistentContext` fixture so the selected engine, channel and base URL are respected.
   Create persistent profiles under `os.tmpdir()` and remove them after the scenario.
+  Fixture handlers abort on exceptions before surfacing the failure. The preview server also
+  refuses all `/api` requests independently of interception. Stock event POSTs must always be
+  stubbed or blocked; a failed handler must never fall through to a backend.
 - Vitest covers the no-Web-Locks fallback: coordinator/uploader stay disabled while online
   bundle reads remain available. The browser suite does not certify that fallback.
 - Keep page URLs relative to `baseURL`, such as `./stock-management/adjustments`.
@@ -999,8 +1002,9 @@ offline criteria stay open until those criteria are met.
   errors and logs other caught errors with component stacks.
 - `SidebarNotices` above footer buttons shows You're Offline (warning, no close), You're Back
   Online (success, 4 s), and Update Available (info, Reload). Collapsed rail: tooltip icons,
-  connection retry and Reload remain clickable. `OfflineDot` marks the header menu when the
-  sidebar is closed.
+  connection retry and Reload remain clickable, with the notice title in their accessible
+  names. Cap and scroll footer notices so navigation remains usable on phones. `OfflineDot`
+  marks the header menu when the sidebar is closed.
 - Visual notices are notes, never live regions. Header `StatusAnnouncer` is the single
   always-mounted `role="status"` so announcements survive sidebar visibility changes.
 - Reload uses `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Run `allowUnload()` just
@@ -1013,7 +1017,8 @@ offline criteria stay open until those criteria are met.
   a connection until their offline pass. Capability does not imply downloaded readiness.
   `useNavGroups` and `useAccountLinks` retain rights-visible entries and mark them disabled
   for sidebar, collapsed flyout, account menu and palette. Keep disabled sidebar entries
-  focusable, omit their links and explain the connection requirement.
+  focusable, omit their links and explain the connection requirement. Palette entries stay
+  reachable by arrow keys; selection explains the reason and never navigates.
 - The protected parent's `beforeLoad` rejects online-only direct routes before child data
   loads. Its error keeps the shell and uses `OfflineNotice` with the online-only explanation;
   an already-open server page hides behind the same fallback, retaining its mounted draft
@@ -1048,7 +1053,8 @@ offline criteria stay open until those criteria are met.
   waits reject with a network error on connection loss, allowing device fallback without
   replay. Queue transport keeps its independent typed not-sent and no-replay policies.
 - Failed connected renewal offers Continue Offline through `online.ts`; Try Again in
-  the offline notice reseeds the browser connection hint. Real reconnect shows same-user
+  the offline notice requests a reachability check after a network failure. A successful probe
+  shows same-user
   renewal when expired; fresh access and the existing uploader govern resumption. Only the
   shell StatusAnnouncer announces these notes.
 
@@ -1134,6 +1140,10 @@ return data, unavailable or a handled error; local absence is never a server 404
   `QueueNotSentError`; queue requests never wait for renewal or replay a 401. Keep mutation
   retries off and retain response identity checks. Missing fresh grants pause the scope with
   queued events and an access-changed notice; only server answers create refusals.
+- The uploader retries preparation failures with exponential backoff capped at 30 seconds.
+  Access-paused scopes reread grants on Retry Sync, window focus and every 30 seconds while
+  paused. These reads bypass the coordinator's epoch cache; Send Again and uploads still
+  require the current scoped STOCK_ADJUST grant. Stop removes timers and listeners.
 - Commit queued to sending, its attempt UUID/time and frozen body before dispatch. Send the
   oldest eligible sequence, one POST at a time. Sending or uncertain work blocks later work
   in its facility/program; other scopes remain eligible. Recover orphaned sending rows as
@@ -1151,7 +1161,9 @@ return data, unavailable or a handled error; local absence is never a server 404
   UUID in memory and retry only local storage, never POST. A crash before that commit remains
   uncertain. Service JSON 400/403/404 moves the full original and error to sync errors and
   permits later events; negative-stock refusals are Stock Changed. A recognized service/OAuth
-  401 returns to queued and pauses until same-user renewal and fresh grants. Timeout, abort,
+  401 returns to queued and pauses until same-user renewal and fresh grants. Both definite
+  non-commit responses and throws before dispatch clear attempt metadata through the original
+  owner's queue transaction, leaving the event removable. Timeout, abort,
   gateway HTML, 5xx, unrecognized responses and post-dispatch scope failures stay uncertain.
 - Connected Adjustments Submit gives queued work 1.5 seconds to start and caps the total wait
   at 65 seconds without interrupting receipt-only retries. Its typed outcome distinguishes
@@ -1159,19 +1171,31 @@ return data, unavailable or a handled error; local absence is never a server 404
   and still queued. Acceptance shows Synced and opens
   Stock on Hand. Refusal retains the frozen editor with the server message, Review Device Events
   and Copy For Correction in the failure dialog. Render the frozen refusal as a note and
-  return focus to its Copy For Correction button on close; correction opens full review and copy
-  confirmation before reloading a new editing draft. Uncertain/blocked outcomes warn with a
+  return focus to its Copy For Correction button on close. The failure dialog's Copy For
+  Correction action confirms the explained copy in one step and reloads an editable draft;
+  the retained note still opens full details. Use deployment time zone in those details.
+  Uncertain/blocked outcomes warn with a
   review action and open the program list; describe access/draft holds by their own cause
   and reserve earlier-event wording for an actual earlier barrier. Queued/offline outcomes use
   the device-saved toast.
 - Device Events shows pending events, retained refusals and 30-day receipts. Keep Facility,
-  Program, Products and Lots in separate columns, hiding optional columns by container width.
+  Program, Products, Lots, Quantity, Reason and Occurred Date in separate columns, hiding
+  optional columns by container width. Keep Occurred Date alongside Products longer on phones.
   Each product/lot pair occupies one row; event metadata and actions appear on its first line.
   Page size counts events. Facility and Program hide before Products and Status on phones;
   identifying Products and actions stay visible. Status badges use distinct icons and
   semantic variants.
-  Recovery exposes signed details and full refusal reasons. Copy For Correction requires
-  review, creates a new editing draft and archives existing edits without deleting the original.
+  Recovery exposes signed details and a human refusal message, without raw JSON or saved
+  revision. Copy For Correction creates a new draft and archives existing edits. Confirmed
+  Dismiss hides a refusal and excludes it from notices/sign-out counts while retaining its
+  original and any correction copy. Recovery and sign-out retain dialog targets while closing.
+  Device Events and its nav entry require STOCK_ADJUST or owning non-accepted device events;
+  removal, dismissal and It Was Recorded remain available without adjustment rights. Send Again
+  still requires the scoped grant. Accepted receipts show server id/document number when known,
+  with a direct event history link only when the scoped viewing grant permits it.
+  Kind config owns editor, list and history type routes; every recovery/copy/print landing
+  follows those policies. Program lists show a local pending/review note and per-program
+  Downloading readiness while the coordinator is fetching that program.
 - Unknown-result recovery uses exact owner/revision/status/attempt checks in a transaction.
   It Was Recorded writes a user-confirmed receipt labelled Marked As Recorded By You without
   POST. Send Again requires the duplicate warning, preserves body/sequence and attempt history,
@@ -1184,7 +1208,8 @@ return data, unavailable or a handled error; local absence is never a server 404
   preserve changed drafts. Sending/uncertain events cannot be removed as unsent.
 - Show history links only for the exact STOCK_CARDS_VIEW grant, with no preloading or protected
   history calls from recovery. Explain that the links need a connection. Without viewing
-  rights retain both choices and explain that someone with access must check first.
+  rights explain that someone with access must check first; Send Again independently requires
+  the scoped adjustment grant.
 - Prune receipts and accepted draft rows after 30 days. Never prune queue rows, sync errors,
   refused originals or archived copies. Pending/refusal/uncertainty sidebar notes have stable
   ids; only the shell StatusAnnouncer announces changed notices/counts, including acceptance.
@@ -1195,8 +1220,3 @@ return data, unavailable or a handled error; local absence is never a server 404
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
   Announce committed queue counts through the same shell status region.
-
-- The uploader retries preparation failures with exponential backoff capped at 30 seconds.
-  Access-paused scopes reread grants on Retry Sync, window focus and every 30 seconds while
-  paused. These reads bypass the coordinator's epoch cache; Send Again and uploads still
-  require the current scoped STOCK_ADJUST grant. Stop removes timers and listeners.
