@@ -68,7 +68,7 @@ export function PeriodsDialog({ target, onClose, ...props }: PeriodsDialogProps)
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? '') }) > 0;
   return (
-    <FormDialog {...dialogProps(isSaving)} height="fixed" size="table">
+    <FormDialog {...dialogProps(isSaving)} size="table">
       {shown && <PeriodDialogContent key={shown} scheduleId={shown} {...props} />}
     </FormDialog>
   );
@@ -252,7 +252,7 @@ function PeriodForm({
             </FormDialogSubmit>
           </div>
         </div>
-        <div className="min-h-32 flex-1">
+        <div className="grid min-h-32 flex-auto">
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -318,7 +318,7 @@ function PeriodFormSkeleton({ search }: { search: SchedulesSearch }) {
             </FormDialogSubmit>
           </div>
         </div>
-        <div className="min-h-32 flex-1">
+        <div className="grid min-h-32 flex-auto">
           <PeriodsTableSkeleton search={search} />
         </div>
       </FormDialogBody>
