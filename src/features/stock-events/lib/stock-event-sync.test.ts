@@ -110,7 +110,9 @@ it('orders all scopes and blocks only the uncertain facility/program', async () 
 it('after 201 retries only the receipt transaction, never POST, before reporting acceptance', async () => {
   const event = await enqueue();
   const db = getLocalDb();
-  vi.spyOn(db.table('stockEventReceipts'), 'put').mockRejectedValueOnce(new Error('quota'));
+  vi.spyOn(db.table('stockEventReceipts'), 'put')
+    .mockRejectedValueOnce(new Error('quota'))
+    .mockRejectedValueOnce(new Error('quota'));
   const deps = dependencies();
   const retry = vi.fn(async () => {
     expect(deps.send).toHaveBeenCalledTimes(1);
@@ -318,7 +320,7 @@ for (const [status, data, kind] of [
   it(`classifies ${status} ${JSON.stringify(data)} as ${kind}`, () => {
     expect(classifyUpload(response(status, data)).kind).toBe(kind);
   });
-it('retains every failed attempt with its resolved message and response after resend', async () => {
+it('retains attempt details without duplicating the frozen event after resend', async () => {
   const event = await enqueue();
   const db = getLocalDb();
   await syncStockEvents(
@@ -338,12 +340,15 @@ it('retains every failed attempt with its resolved message and response after re
   );
   const current = await db.table('stockEventSyncErrors').get(event.localEventId);
   expect(current.message).toBe('Second refusal');
+  expect(current.history[0]).not.toHaveProperty('event');
+  expect(current.history[0]).not.toHaveProperty('response');
   expect(current.history).toEqual([
     expect.objectContaining({
       category: 'uncertain',
-      response: 'first response',
       message: firstError.message,
-      event: expect.objectContaining({ attemptId: uncertain.attemptId }),
+      attemptId: uncertain.attemptId,
+      failedAt: expect.any(Number),
+      httpStatus: 504,
       resolvedAt: expect.any(Number),
     }),
   ]);
@@ -399,4 +404,70 @@ it('blocks a mismatched draft scope without spinning and still sends other progr
   });
   expect(await db.table('stockEventQueue').get(later.sequence)).toMatchObject({ status: 'queued' });
   expect(deps.send.mock.calls.map(([row]) => row.sequence)).toEqual([other.sequence]);
+});
+
+it('rechecks a draft pause and sends the scope once the frozen revision matches again', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  await db.table('stockEventDrafts').update(event.draftId, { revision: 999 });
+  const deps = dependencies();
+  await syncStockEvents(db, event.userId, deps);
+  expect(deps.send).not.toHaveBeenCalled();
+  await db.table('stockEventDrafts').update(event.draftId, { revision: event.revision });
+  await syncStockEvents(db, event.userId, deps);
+  expect(deps.send).toHaveBeenCalledOnce();
+  expect(deps.send.mock.calls[0][0].pauseReason).toBeUndefined();
+  expect(await db.table('stockEventQueue').count()).toBe(0);
+});
+it('removes a paused unsent queue row while preserving the changed draft and releasing its scope', async () => {
+  const event = await enqueue();
+  const later = await enqueue();
+  const db = getLocalDb();
+  await db.table('stockEventDrafts').update(event.draftId, { revision: 999 });
+  const deps = dependencies();
+  await syncStockEvents(db, event.userId, deps);
+  expect(await removeQueuedEvent(createStockEventContext(event), event)).toBe(true);
+  expect((await db.table('stockEventDrafts').get(event.draftId)).revision).toBe(999);
+  await syncStockEvents(db, event.userId, deps);
+  expect(deps.send.mock.calls.map(([row]) => row.sequence)).toEqual([later.sequence]);
+});
+it('clears restored access on a row still held behind an earlier uncertain event', async () => {
+  const first = await enqueue();
+  const later = await enqueue();
+  const db = getLocalDb();
+  await syncStockEvents(db, first.userId, {
+    ...dependencies(),
+    permitted: () => false,
+  });
+  await db.table('stockEventQueue').update(later.sequence, { pauseReason: 'access-changed' });
+  await db.table('stockEventQueue').update(first.sequence, { status: 'sending', attemptId: 'a' });
+  await recoverSending(db, first.userId, () => {});
+  const deps = dependencies();
+  await syncStockEvents(db, first.userId, deps);
+  expect((await db.table('stockEventQueue').get(later.sequence)).pauseReason).toBeUndefined();
+  expect(deps.send).not.toHaveBeenCalled();
+});
+it('retries the owner receipt if identity closes the database during acceptance', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  const { getSessionScope, assertSessionScope } = await import('@/lib/session-scope');
+  const scope = getSessionScope();
+  const put = db.table('stockEventReceipts').put.bind(db.table('stockEventReceipts'));
+  vi.spyOn(db.table('stockEventReceipts'), 'put').mockImplementationOnce((...args) =>
+    put(...args).then((result) => {
+      useLoginData
+        .getState()
+        .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+      return result;
+    }),
+  );
+  const deps = dependencies();
+  await expect(
+    syncStockEvents(db, event.userId, { ...deps, check: () => assertSessionScope(scope) }),
+  ).rejects.toThrow();
+  useLoginData.getState().setLoginData(owner);
+  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1);
+  expect(deps.send).toHaveBeenCalledOnce();
+  expect(deps.accepted).not.toHaveBeenCalled();
 });

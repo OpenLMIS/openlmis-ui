@@ -137,6 +137,7 @@ export function StockEventProgramPicker(props: PickerProps) {
             <StockProgramPickerSkeleton
               actionLabel={t(copy.action)}
               statusLabel={copy.status ? t(copy.status) : undefined}
+              statusHideBelow={copy.status === 'offline.download.readiness' ? 'xl' : undefined}
               actionsLabel={copy.actions ? t(copy.actions) : undefined}
             />
           }
@@ -248,6 +249,7 @@ function DownloadedProgramsTable({
       actionLabel={t(action)}
       hasHomeFacility={hasHomeFacility}
       statusLabel={t('offline.download.readiness')}
+      statusHideBelow="xl"
       linkFor={(row) => editorLink(row.id)}
       rows={programs.map((program) => {
         const bundle = bundles.find((bundle) => bundle.programId === program.id);
@@ -300,6 +302,7 @@ export function StockEventProgramsPending(source: PickerSource) {
         <StockProgramPickerSkeleton
           actionLabel={t(copy.action)}
           statusLabel={copy.status ? t(copy.status) : undefined}
+          statusHideBelow={copy.status === 'offline.download.readiness' ? 'xl' : undefined}
           actionsLabel={copy.actions ? t(copy.actions) : undefined}
         />
       </WorkspaceContent>

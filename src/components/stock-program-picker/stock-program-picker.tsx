@@ -6,6 +6,11 @@ import {
   DataTableEmpty,
   DataTableHeaderLabel,
 } from '@/components/data-table/data-table';
+import {
+  type ResponsiveColumn,
+  resolveColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -31,6 +36,7 @@ type StockProgramPickerProps = {
   actionLabel?: string;
   actionsLabel?: string;
   statusLabel?: string;
+  statusHideBelow?: ResponsiveColumn['hideBelow'];
 } & (
   | { linkFor: (row: StockProgramRow) => ReactElement; onAction?: never }
   | { onAction: (row: StockProgramRow) => void; linkFor?: never }
@@ -86,9 +92,16 @@ export function StockProgramPicker({
   actionsLabel,
   linkFor,
   statusLabel,
+  statusHideBelow,
   onAction,
 }: StockProgramPickerProps) {
   const { t } = useTranslation();
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const showStatus = resolveColumnVisibility(
+    [{ id: 'status', hideBelow: statusHideBelow }],
+    {},
+    width,
+  ).status;
   if (!hasHomeFacility || rows.length === 0) {
     return (
       <DataTableCard>
@@ -105,37 +118,39 @@ export function StockProgramPicker({
     );
   }
   return (
-    <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
-      {rows.map((row) => (
-        <TableRow key={row.id}>
-          <TableCell>
-            <div className="whitespace-normal break-words font-medium">{row.label}</div>
-          </TableCell>
-          {statusLabel ? (
+    <div ref={measure}>
+      <ProgramTable statusLabel={showStatus ? statusLabel : undefined} actionsLabel={actionsLabel}>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
             <TableCell>
-              <div className="whitespace-normal break-words">{row.status}</div>
+              <div className="whitespace-normal break-words font-medium">{row.label}</div>
             </TableCell>
-          ) : null}
-          <TableCell>
-            <div className="flex justify-end">
-              <Button
-                nativeButton={Boolean(onAction)}
-                render={onAction ? undefined : linkFor?.(row)}
-                role={onAction ? undefined : 'link'}
-                disabled={row.disabled}
-                onClick={onAction ? () => onAction(row) : undefined}
-                size="xl"
-                width="shrink"
-              >
-                <span className="whitespace-normal break-words">
-                  {row.actionLabel ?? actionLabel}
-                </span>
-              </Button>
-            </div>
-          </TableCell>
-        </TableRow>
-      ))}
-    </ProgramTable>
+            {statusLabel && showStatus ? (
+              <TableCell>
+                <div className="whitespace-normal break-words">{row.status}</div>
+              </TableCell>
+            ) : null}
+            <TableCell>
+              <div className="flex justify-end">
+                <Button
+                  nativeButton={Boolean(onAction)}
+                  render={onAction ? undefined : linkFor?.(row)}
+                  role={onAction ? undefined : 'link'}
+                  disabled={row.disabled}
+                  onClick={onAction ? () => onAction(row) : undefined}
+                  size="xl"
+                  width="shrink"
+                >
+                  <span className="whitespace-normal break-words">
+                    {row.actionLabel ?? actionLabel}
+                  </span>
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </ProgramTable>
+    </div>
   );
 }
 
@@ -143,14 +158,22 @@ export function StockProgramPickerSkeleton({
   actionLabel,
   actionsLabel,
   statusLabel,
+  statusHideBelow,
 }: {
   actionLabel: string;
   actionsLabel?: string;
   statusLabel?: string;
+  statusHideBelow?: ResponsiveColumn['hideBelow'];
 }) {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const showStatus = resolveColumnVisibility(
+    [{ id: 'status', hideBelow: statusHideBelow }],
+    {},
+    width,
+  ).status;
   return (
-    <div aria-busy>
-      <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
+    <div aria-busy ref={measure}>
+      <ProgramTable statusLabel={showStatus ? statusLabel : undefined} actionsLabel={actionsLabel}>
         {[0, 1].map((row) => (
           <TableRow key={row}>
             <TableCell>
@@ -158,7 +181,7 @@ export function StockProgramPickerSkeleton({
                 <Skeleton fill />
               </div>
             </TableCell>
-            {statusLabel ? (
+            {statusLabel && showStatus ? (
               <TableCell>
                 <div className="h-4 w-20">
                   <Skeleton fill />

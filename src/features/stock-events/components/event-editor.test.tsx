@@ -795,27 +795,42 @@ describe('EventEditor', () => {
     });
     expect(toast.warning).not.toHaveBeenCalled();
   });
-  it.each(['uncertain', 'blocked'] as const)(
-    '%s delivery warns with review and uses the program-list landing',
-    async (kind) => {
-      vi.mocked(waitForStockEventReceipt).mockResolvedValueOnce({ kind });
+  it.each([
+    {
+      kind: 'uncertain',
+      title: 'device-events.needs-review',
+      description: 'device-events.needs-review-description',
+    },
+    {
+      kind: 'blocked',
+      title: 'device-events.blocked-title',
+      description: 'device-events.blocked-description',
+    },
+    {
+      kind: 'held',
+      reason: 'access-changed',
+      title: 'device-events.access-changed',
+      description: 'device-events.access-changed-held-description',
+    },
+    {
+      kind: 'held',
+      reason: 'draft-changed',
+      title: 'device-events.draft-changed',
+      description: 'device-events.draft-changed-held-description',
+    },
+  ] as const)(
+    '$kind delivery warns with its cause and uses the program-list landing',
+    async (outcome) => {
+      vi.mocked(waitForStockEventReceipt).mockResolvedValueOnce(outcome);
       const { user, onSubmitted } = setup();
       await validLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith(expect.any(String), false));
-      expect(toast.warning).toHaveBeenCalledWith(
-        en[kind === 'uncertain' ? 'device-events.needs-review' : 'device-events.blocked-title'],
-        {
-          description:
-            en[
-              kind === 'uncertain'
-                ? 'device-events.needs-review-description'
-                : 'device-events.blocked-description'
-            ],
-          action: { label: en['device-events.review'], onClick: expect.any(Function) },
-        },
-      );
+      expect(toast.warning).toHaveBeenCalledWith(en[outcome.title], {
+        description: en[outcome.description],
+        action: { label: en['device-events.review'], onClick: expect.any(Function) },
+      });
       expect(toast.success).not.toHaveBeenCalled();
     },
   );
@@ -850,7 +865,13 @@ describe('EventEditor', () => {
     expect(screen.getByRole('button', { name: 'Submit', hidden: true })).toBeDisabled();
     expect(onSubmitted).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
-    await user.click(within(failure).getByRole('button', { name: 'Copy For Correction' }));
+    await user.click(within(failure).getByRole('button', { name: 'Close' }));
+    const correction = screen.getByRole('button', { name: 'Copy For Correction' });
+    expect(correction.closest('[role="note"]')).toHaveTextContent(
+      'Backdated stock would be negative',
+    );
+    await waitFor(() => expect(correction).toHaveFocus());
+    await user.click(correction);
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', {
         name: 'Copy For Correction',

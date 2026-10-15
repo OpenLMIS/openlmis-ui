@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { kindLabels } from '@/features/stock-events/components/device-events';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
@@ -138,12 +139,7 @@ export function DeviceEventRecovery({
           <div className="flex min-w-0 flex-col gap-4 overflow-y-auto">
             <dl className="grid grid-cols-2 gap-3 text-sm">
               {[
-                [
-                  t('device-events.type'),
-                  t(
-                    `nav.stock-management.${event.kind === 'adjustment' ? 'adjustments' : event.kind}`,
-                  ),
-                ],
+                [t('device-events.type'), t(kindLabels[event.kind])],
                 [t('facility-program.facility'), event.facility.name || event.facility.code],
                 [t('facility-program.program'), event.program.name || event.program.code],
                 [

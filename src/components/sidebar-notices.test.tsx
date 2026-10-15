@@ -259,6 +259,7 @@ it('uncertain events stay out of Waiting To Sync and stacked notices offer revie
   device.events = [
     { status: 'queued' },
     { status: 'sending' },
+    { status: 'queued', pauseReason: 'access-changed' },
     { status: 'uncertain' },
     { status: 'refused' },
   ] as DeviceEvent[];
@@ -281,6 +282,9 @@ it('uncertain events stay out of Waiting To Sync and stacked notices offer revie
   );
   expect(screen.getByText('2 Events Waiting To Sync')).toBeVisible();
   expect(screen.getAllByRole('button', { name: 'Review Device Events' })).toHaveLength(1);
+  expect(
+    screen.getByRole('button', { name: 'Review Device Events' }).closest('[role="note"]'),
+  ).toHaveTextContent('1 Event Needs Review');
   device.events = [{ status: 'uncertain' }] as DeviceEvent[];
   act(() => setSyncPhase('failed'));
   expect(screen.queryByText(/Waiting To Sync/)).not.toBeInTheDocument();

@@ -22,7 +22,11 @@ export type StockEventSyncError = {
   response?: unknown;
   failedAt: number;
   resolvedAt?: number;
-  history?: Omit<StockEventSyncError, 'history'>[];
+  history?: (Pick<
+    StockEventSyncError,
+    'category' | 'httpStatus' | 'messageKey' | 'message' | 'failedAt' | 'resolvedAt'
+  > &
+    Pick<QueuedStockEvent, 'attemptId' | 'attemptStartedAt'>)[];
 };
 export type StockEventReceipt = {
   draftId: string;
@@ -201,8 +205,19 @@ async function failEvent(
     check();
     let errorHistory = previous?.history ?? [];
     if (previous) {
-      const { history: _, ...last } = previous;
-      errorHistory = [...errorHistory, last];
+      errorHistory = [
+        ...errorHistory,
+        {
+          attemptId: previous.event.attemptId,
+          attemptStartedAt: previous.event.attemptStartedAt,
+          category: previous.category,
+          httpStatus: previous.httpStatus,
+          messageKey: previous.messageKey,
+          message: previous.message,
+          failedAt: previous.failedAt,
+          resolvedAt: previous.resolvedAt,
+        },
+      ];
     }
     await db.table<StockEventSyncError>('stockEventSyncErrors').put({
       ...failure,
@@ -324,24 +339,24 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
     const rows = await db.table<QueuedStockEvent>('stockEventQueue').orderBy('sequence').toArray();
     deps.check();
     const scopeKey = (row: QueuedStockEvent) => `${row.facilityId}:${row.programId}`;
-    const blocked = new Set(
-      rows
-        .filter((row) => row.status !== 'queued' || row.pauseReason === 'draft-changed')
-        .map(scopeKey),
-    );
     for (const row of rows) {
-      if (row.userId !== userId || row.status !== 'queued' || blocked.has(scopeKey(row))) continue;
-      if (!deps.permitted(row)) {
-        blocked.add(scopeKey(row));
-        if (row.pauseReason !== 'access-changed') {
-          await db.table('stockEventQueue').update(row.sequence, { pauseReason: 'access-changed' });
-          deps.check();
-        }
-      } else if (row.pauseReason === 'access-changed') {
-        await db.table('stockEventQueue').update(row.sequence, { pauseReason: undefined });
+      if (row.userId !== userId || row.status !== 'queued') continue;
+      if (row.pauseReason === 'draft-changed') {
+        const matched = await db.transaction('r', tables(db), () =>
+          matching(db, row, 'queued', deps.check),
+        );
+        if (!matched) continue;
+      }
+      const pauseReason = deps.permitted(row) ? undefined : 'access-changed';
+      if (row.pauseReason !== pauseReason) {
+        await db.table('stockEventQueue').update(row.sequence, { pauseReason });
         deps.check();
+        row.pauseReason = pauseReason;
       }
     }
+    const blocked = new Set(
+      rows.filter((row) => row.status !== 'queued' || row.pauseReason).map(scopeKey),
+    );
     const next = rows.find(
       (row) => row.userId === userId && row.status === 'queued' && !blocked.has(scopeKey(row)),
     );
@@ -369,6 +384,7 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
     }
     const outcome = response ? classifyUpload(response) : { kind: 'uncertain' as const };
     if (outcome.kind === 'accepted') {
+      let immediateRetry = true;
       for (;;) {
         let accepted: boolean;
         try {
@@ -381,6 +397,10 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
             ),
           );
         } catch {
+          if (immediateRetry) {
+            immediateRetry = false;
+            continue;
+          }
           deps.check();
           await deps.retryReceipt();
           deps.check();
@@ -451,12 +471,35 @@ export async function removeQueuedEvent(context: StockEventContext, event: Queue
     if (event.userId !== context.userId) throw new Error('Wrong device event owner');
   };
   return context.db.transaction('rw', tables(context.db), async () => {
-    const matched = await matching(context.db, event, 'queued', check);
-    if (!matched || matched.row.attemptId) return false;
-    await context.db.table('stockEventQueue').delete(event.sequence);
     check();
-    await context.db.table('stockEventDrafts').delete(event.draftId);
+    const row = await context.db.table<QueuedStockEvent>('stockEventQueue').get(event.sequence);
     check();
+    if (
+      row?.status !== 'queued' ||
+      row.attemptId ||
+      row.userId !== context.userId ||
+      row.localEventId !== event.localEventId ||
+      row.draftId !== event.draftId ||
+      row.revision !== event.revision ||
+      row.facilityId !== event.facilityId ||
+      row.programId !== event.programId
+    )
+      return false;
+    const draft = await context.db.table<StockEventDraft>('stockEventDrafts').get(row.draftId);
+    check();
+    await context.db.table('stockEventQueue').delete(row.sequence);
+    check();
+    if (
+      draft?.userId === context.userId &&
+      draft.localEventId === row.localEventId &&
+      draft.revision === row.revision &&
+      draft.state === 'queued' &&
+      draft.facilityId === row.facilityId &&
+      draft.programId === row.programId
+    ) {
+      await context.db.table('stockEventDrafts').delete(row.draftId);
+      check();
+    }
     return true;
   });
 }

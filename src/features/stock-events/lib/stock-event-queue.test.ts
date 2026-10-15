@@ -125,3 +125,18 @@ it('rolls back enqueue after identity change and retains queued work on sign-out
     .setLoginData({ referenceDataUserId: 'queue-user', username: 'Ada', accessToken: 'again' });
   expect(await getLocalDb().table('stockEventQueue').get(queued.sequence)).toEqual(queued);
 });
+
+it('announces only waiting work when earlier events have their own pause notice', async () => {
+  const context = createStockEventContext(selection);
+  const draft = await saveStockEventDraft(context, undefined, [line]);
+  if (!draft) throw new Error('Missing draft');
+  const first = await enqueueStockEvent(context, draft, payload(), display);
+  await context.db
+    .table('stockEventQueue')
+    .update(first.sequence, { pauseReason: 'access-changed' });
+  vi.mocked(announceQueuedEvents).mockClear();
+  const next = await saveStockEventDraft(context, undefined, [line]);
+  if (!next) throw new Error('Missing draft');
+  await enqueueStockEvent(context, next, payload(), display);
+  expect(announceQueuedEvents).toHaveBeenCalledExactlyOnceWith(1);
+});

@@ -363,7 +363,8 @@ App-shell pages compose `src/components/workspace.tsx`:
   Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
   disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
-  the real translated Button size.
+  the real translated Button size. Hide optional readiness below the xl table-container width
+  in both loaded and pending program tables, keeping Program and Action separate.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -992,11 +993,15 @@ return data, unavailable or a handled error; local absence is never a server 404
   oldest eligible sequence, one POST at a time. Sending or uncertain work blocks later work
   in its facility/program; other scopes remain eligible. Recover orphaned sending rows as
   uncertain only while owning the upload lock, including offline boot. A queued row whose
-  draft no longer matches pauses its scope for review instead of spinning.
+  draft no longer matches pauses its scope for review instead of spinning. Recheck the match
+  each pass and clear the pause when it matches again; recompute access pauses even behind
+  another held event.
 - A verified 201 UUID commits the exact revision's receipt, accepted state and queue removal
   together. A scope change still permits owner-bound receipt persistence in the original
   database, never UI callbacks for the next user. Typed not-sent cleanup uses the same owner
-  check before session checks. Refresh stock independently afterward. Receipt-write failures
+  check before session checks. Retry owner-bound receipt persistence once if identity closes
+  the database during acceptance, before checking the current session. Refresh stock independently
+  afterward. Receipt-write failures
   hold the lock and
   UUID in memory and retry only local storage, never POST. A crash before that commit remains
   uncertain. Service JSON 400/403/404 moves the full original and error to sync errors and
@@ -1005,15 +1010,21 @@ return data, unavailable or a handled error; local absence is never a server 404
   gateway HTML, 5xx, unrecognized responses and post-dispatch scope failures stay uncertain.
 - Connected Adjustments Submit gives queued work 1.5 seconds to start and caps the total wait
   at 65 seconds without interrupting receipt-only retries. Its typed outcome distinguishes
-  accepted, refused, uncertain, blocked and still queued. Acceptance shows Synced and opens
+  accepted, refused, uncertain, held with its own pause reason, blocked by an earlier event
+  and still queued. Acceptance shows Synced and opens
   Stock on Hand. Refusal retains the frozen editor with the server message, Review Device Events
-  and Copy For Correction in the failure dialog; correction opens the full review and copy
+  and Copy For Correction in the failure dialog. Render the frozen refusal as a note and
+  return focus to its Copy For Correction button on close; correction opens full review and copy
   confirmation before reloading a new editing draft. Uncertain/blocked outcomes warn with a
-  review action and open the program list; queued/offline outcomes use the device-saved toast.
+  review action and open the program list; describe access/draft holds by their own cause
+  and reserve earlier-event wording for an actual earlier barrier. Queued/offline outcomes use
+  the device-saved toast.
 - Device Events shows pending events, retained refusals and 30-day receipts. Keep Facility,
   Program, Products and Lots in separate columns, hiding optional columns by container width.
   Each product/lot pair occupies one row; event metadata and actions appear on its first line.
-  Page size counts events. Status badges use distinct icons and semantic variants.
+  Page size counts events. Facility and Program hide before Products and Status on phones;
+  identifying Products and actions stay visible. Status badges use distinct icons and
+  semantic variants.
   Recovery exposes signed details and full refusal reasons. Copy For Correction requires
   review, creates a new editing draft and archives existing edits without deleting the original.
 - Unknown-result recovery uses exact owner/revision/status/attempt checks in a transaction.
@@ -1021,18 +1032,20 @@ return data, unavailable or a handled error; local absence is never a server 404
   POST. Send Again requires the duplicate warning, preserves body/sequence and attempt history,
   and returns that same event to queued. Stale choices do nothing and explain that the event
   changed. Resolve linked
-  errors without deleting them. Preserve each previous error, including message/status/response
-  and resolution time, in the error record history before replacing its current attempt.
+  errors without deleting them. Preserve previous attempt ids/times, status, error message/code
+  and resolution time in error history, without duplicating the frozen event or response.
   Only queued events with no attempted send may be removed,
-  with confirmation; sending/uncertain events cannot be removed as unsent.
+  with confirmation, even when the linked draft changed. Delete only a still-matching draft;
+  preserve changed drafts. Sending/uncertain events cannot be removed as unsent.
 - Show history links only for the exact STOCK_CARDS_VIEW grant, with no preloading or protected
   history calls from recovery. Explain that the links need a connection. Without viewing
   rights retain both choices and explain that someone with access must check first.
 - Prune receipts and accepted draft rows after 30 days. Never prune queue rows, sync errors,
   refused originals or archived copies. Pending/refusal/uncertainty sidebar notes have stable
   ids; only the shell StatusAnnouncer announces changed notices/counts, including acceptance.
-  Waiting To Sync counts queued/sending only. Offer Review Device Events once across stacked
-  notices; Sign In To Sync has no action because SessionExpiredDialog owns reauthentication.
+  Waiting To Sync counts queued/sending only, excluding pauses. Offer Review Device Events
+  once on the most severe stacked notice; Sign In To Sync has no action because
+  SessionExpiredDialog owns reauthentication.
   Prune at most once per uploader session for each owner database.
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.

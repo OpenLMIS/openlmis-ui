@@ -66,3 +66,11 @@ it('identifies an earlier uncertain event as a barrier to this queued event', as
     ]);
   expect(await waitForStockEventReceipt({ ...event, sequence: 2 })).toEqual({ kind: 'blocked' });
 });
+
+for (const reason of ['access-changed', 'draft-changed'] as const)
+  it(`reports its own ${reason} pause as held with the cause`, async () => {
+    await getLocalDb()
+      .table('stockEventQueue')
+      .put({ ...event, pauseReason: reason });
+    expect(await waitForStockEventReceipt(event)).toEqual({ kind: 'held', reason });
+  });

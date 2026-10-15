@@ -9,8 +9,8 @@ const rows = [
 const linkFor = (row: { id: string }) => <a href={`/adjustments/${row.id}`}>Make Adjustments</a>;
 
 describe('StockProgramPicker', () => {
-  it('adds statuses and row action labels while retaining the default action', () => {
-    render(
+  it('keeps required statuses visible and hides only optional readiness on narrow tables', () => {
+    const { rerender } = render(
       <StockProgramPicker
         actionLabel="Start"
         hasHomeFacility
@@ -33,6 +33,19 @@ describe('StockProgramPicker', () => {
         name: 'Start',
       }),
     ).toBeInTheDocument();
+    rerender(
+      <StockProgramPicker
+        actionLabel="Start"
+        hasHomeFacility
+        statusLabel="Readiness"
+        statusHideBelow="xl"
+        linkFor={linkFor}
+        rows={[{ ...rows[0], status: 'Not Downloaded' }]}
+      />,
+    );
+    expect(screen.queryByRole('columnheader', { name: 'Readiness' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Not Downloaded')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Make Adjustments' })).toBeInTheDocument();
   });
 
   it('lists each program with a link to its action', () => {
