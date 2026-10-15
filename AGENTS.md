@@ -916,7 +916,11 @@ offline criteria stay open until those criteria are met.
 - Queries use `networkMode: 'always'` to fail immediately offline. `seedOnline()` seeds boot
   state; TanStack otherwise only hears online/offline events. Use `src/lib/online.ts`:
   `useOnline()`, `isOnline()`, `useOnReconnect()`, `useBackOnline()`. Never read
-  `navigator.onLine` directly.
+  `navigator.onLine` directly. Axios reports no-response network failures to `online.ts`,
+  which marks the app offline even with Wi-Fi and probes public `GET /localeSettings` with
+  `cache: no-store`, a five-second deadline and exponential backoff capped at 30 seconds.
+  Browser online hints and Try Again keep a failed reachability check offline until a probe
+  succeeds. Cancellations, local absence and request timeouts do not establish disconnection.
 - No-response failures (`isOfflineError`) show "Connect To Download This Data" through
   `useOfflineFailure(error, retry)`, which retries on reconnect. Use `OfflineNotice` through
   `ErrorFallback` for pages/blocking loaders; `ListError` for server-paged boundaries (also
@@ -1124,3 +1128,8 @@ return data, unavailable or a handled error; local absence is never a server 404
 - Route device-save failures, recovery and archived-copy announcements through the shell's
   `StatusAnnouncer`. Never announce each edit or create a second live region for the save note.
   Announce committed queue counts through the same shell status region.
+
+- The uploader retries preparation failures with exponential backoff capped at 30 seconds.
+  Access-paused scopes reread grants on Retry Sync, window focus and every 30 seconds while
+  paused. These reads bypass the coordinator's epoch cache; Send Again and uploads still
+  require the current scoped STOCK_ADJUST grant. Stop removes timers and listeners.

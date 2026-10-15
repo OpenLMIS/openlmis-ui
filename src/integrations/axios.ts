@@ -1,6 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { reportConnectionFailure } from '@/lib/online';
 import { QueueNotSentError, QueueReceiptError, type QueueTransport } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -95,6 +96,7 @@ client.interceptors.response.use(
     return response;
   },
   async (error) => {
+    reportConnectionFailure(error);
     const config = isAxiosError(error) ? error.config : undefined;
     if (config && !config.anonymous) {
       assertSessionScope(config.sessionScope ?? getSessionScope());

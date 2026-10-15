@@ -330,7 +330,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       if (next && !stopped) void run(next);
     }
   };
-  setUploadAccessReader(async () => {
+  setUploadAccessReader(async (force) => {
     const epoch = uploadAccessEpoch();
     const scope = getSessionScope();
     const db = getLocalDb();
@@ -346,10 +346,10 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     };
     if (!navigator.locks) throw new Error('Web Locks are required for safe sync.');
     check();
-    if (freshAccess?.epoch === epoch) return freshAccess.saved;
+    if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
     return navigator.locks.request(`${db.name}:offline-download`, async () => {
       check();
-      if (freshAccess?.epoch === epoch) return freshAccess.saved;
+      if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
       const config = { session: false, backgroundRead: true, sessionScope: scope };
       const readers = dependencies.access ?? {
         permissions: (id: string) => fetchPermissionStrings(id, config),

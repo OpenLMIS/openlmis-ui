@@ -14,11 +14,11 @@ useLoginData.subscribe((state, previous) => {
 });
 export const uploadAccessEpoch = () =>
   `${getSessionScope()}:${sessionGeneration}:${getConnectionGeneration()}`;
-let refresh: (() => Promise<OfflineAccess>) | undefined;
-export function setUploadAccessReader(reader?: () => Promise<OfflineAccess>) {
+let refresh: ((force?: boolean) => Promise<OfflineAccess>) | undefined;
+export function setUploadAccessReader(reader?: (force?: boolean) => Promise<OfflineAccess>) {
   refresh = reader;
 }
-export function freshUploadAccess() {
+export function freshUploadAccess(force = false) {
   if (!refresh) return Promise.reject(new Error('Fresh sync access is unavailable.'));
-  return refresh();
+  return refresh(force);
 }
