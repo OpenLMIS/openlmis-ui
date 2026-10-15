@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
-import { refreshStockEventLines } from '@/features/stock-events/lib/event-form';
+import { type EventLine, refreshStockEventLines } from '@/features/stock-events/lib/event-form';
 import {
   createStockEventWriter,
   type StockEventSaveState,
@@ -37,6 +37,19 @@ export function useStockEventAutosave(
   const generationRef = useRef(generation);
   generationRef.current = generation;
   const { kind, facilityId, programId } = selection;
+  const applyStoredLines = useCallback(
+    (restored: EventLine[]) => {
+      const currentCards = snapshots.current.cards;
+      const lines = currentCards
+        ? refreshStockEventLines(restored, currentCards, snapshots.current.today, kind)
+        : restored;
+      restoring.current = true;
+      form.setFieldValue('lines', lines);
+      restoring.current = false;
+      return lines;
+    },
+    [form, kind],
+  );
   useEffect(() => {
     if (!enabled) return;
     const context = createStockEventContext({ kind, facilityId, programId });
@@ -64,14 +77,8 @@ export function useStockEventAutosave(
     void readStockEventDraft(context)
       .then((draft) => {
         if (!current()) return;
-        restoring.current = true;
         const restored = draft?.lines ?? [];
-        const currentCards = snapshots.current.cards;
-        const lines = currentCards
-          ? refreshStockEventLines(restored, currentCards, snapshots.current.today, kind)
-          : restored;
-        form.setFieldValue('lines', lines);
-        restoring.current = false;
+        const lines = applyStoredLines(restored);
         const serial = createStockEventWriter(context, draft, onStatus, () =>
           generationRef.current(),
         );
@@ -98,7 +105,7 @@ export function useStockEventAutosave(
       subscription?.unsubscribe();
       writer.current = undefined;
     };
-  }, [enabled, kind, facilityId, programId, form, retryLoad]);
+  }, [enabled, kind, facilityId, programId, form, retryLoad, applyStoredLines]);
   useEffect(() => {
     if (!enabled || !cards || !writer.current) return;
     const current = form.state.values.lines;
@@ -157,16 +164,7 @@ export function useStockEventAutosave(
       try {
         const restored = await serial.restore(copy);
         if (!restored || scope !== getSessionScope() || serial !== writer.current) return false;
-        const currentCards = snapshots.current.cards;
-        restoring.current = true;
-        form.setFieldValue(
-          'lines',
-          currentCards
-            ? refreshStockEventLines(restored.lines, currentCards, snapshots.current.today, kind)
-            : restored.lines,
-        );
-        restoring.current = false;
-        const refreshed = form.state.values.lines;
+        const refreshed = applyStoredLines(restored.lines);
         if (refreshed !== restored.lines) serial.enqueue(refreshed);
         return true;
       } finally {
@@ -193,14 +191,8 @@ export function useStockEventAutosave(
       try {
         const draft = await serial.resolve(choice);
         if (scope !== getSessionScope() || serial !== writer.current) return;
-        restoring.current = true;
         const restored = draft?.lines ?? [];
-        const currentCards = snapshots.current.cards;
-        const lines = currentCards
-          ? refreshStockEventLines(restored, currentCards, snapshots.current.today, kind)
-          : restored;
-        form.setFieldValue('lines', lines);
-        restoring.current = false;
+        const lines = applyStoredLines(restored);
         if (lines !== restored) serial.enqueue(lines);
         if (choice === 'copy') announceDeviceSave('stock-events.draft-copy-saved');
       } catch (error) {

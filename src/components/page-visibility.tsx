@@ -81,3 +81,11 @@ export function usePageGatedOpen<Details extends { isCanceled: boolean }>({
     },
   };
 }
+
+export function useRetainedPortal(open: boolean) {
+  const hidden = usePageHidden();
+  const retained = useRef(false);
+  if (hidden) retained.current = true;
+  else if (!open) retained.current = false;
+  return { hidden, keepMounted: retained.current };
+}

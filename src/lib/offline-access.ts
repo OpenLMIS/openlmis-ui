@@ -1,9 +1,7 @@
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
-import { getLocalDb } from '@/integrations/local-db';
-import { isAccessFallbackError } from '@/lib/http';
-import { LocalDataUnavailableError } from '@/lib/local-data';
-import { getConnectionGeneration, isOnline } from '@/lib/online';
+import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import { getConnectionGeneration } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -25,10 +23,12 @@ export type AccessReaders = {
   home: (facilityId: string) => Promise<Facility>;
 };
 
-export async function readOfflineAccess() {
+async function readOfflineAccess() {
   const scope = getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
+  const { getLocalDb } = await import('@/integrations/local-db');
+  assertSessionScope(scope);
   const saved = await getLocalDb().table<OfflineAccess>('offlineAccess').get(userId);
   assertSessionScope(scope);
   if (!saved || saved.userId !== userId || saved.formatVersion !== 1) {
@@ -46,6 +46,15 @@ export function offlineAccessStaleTime(value: unknown, serverStaleTime: number) 
   return generation === getConnectionGeneration() ? DEVICE_ACCESS_FRESH_FOR : 0;
 }
 
+export function offlineAccessQuery(serverStaleTime: number) {
+  return {
+    structuralSharing: false as const,
+    refetchOnReconnect: true as const,
+    staleTime: (query: { state: { data: unknown } }) =>
+      offlineAccessStaleTime(query.state.data, serverStaleTime),
+  };
+}
+
 export async function withOfflineAccess<T extends object>(
   online: () => Promise<T>,
   select: (saved: OfflineAccess) => T | undefined,
@@ -59,16 +68,7 @@ export async function withOfflineAccess<T extends object>(
     deviceResults.set(result, getConnectionGeneration());
     return result;
   };
-  if (!isOnline()) return device();
-  try {
-    const result = await online();
-    assertSessionScope(scope);
-    return result;
-  } catch (error) {
-    assertSessionScope(scope);
-    if (!isAccessFallbackError(error)) throw error;
-    return device();
-  }
+  return onlineOrDevice(online, device);
 }
 
 function snapshotUser(user: UserRecord): UserRecord {
@@ -119,29 +119,11 @@ function snapshotHome(home: Facility): Facility {
   };
 }
 
-export async function bootstrapOfflineAccess(readers: AccessReaders) {
-  const { referenceDataUserId: userId, isAuthenticated, expired } = useLoginData.getState();
-  if (!navigator.locks || !userId || !isAuthenticated || expired) return;
-  const scope = getSessionScope();
-  const db = getLocalDb();
-  return navigator.locks.request(
-    `${db.name}:offline-download`,
-    { ifAvailable: true },
-    async (lock) => {
-      if (!lock) return;
-      const check = () => {
-        assertSessionScope(scope);
-        if (useLoginData.getState().expired) throw new Error('The download session expired.');
-      };
-      check();
-      return refreshOfflineAccess(readers, check);
-    },
-  );
-}
-
 export async function refreshOfflineAccess(readers: AccessReaders, check: () => void) {
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
+  const { getLocalDb } = await import('@/integrations/local-db');
+  check();
   const db = getLocalDb();
   check();
   const permissionStrings = await readers.permissions(userId);

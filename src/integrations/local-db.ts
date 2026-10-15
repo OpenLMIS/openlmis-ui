@@ -29,51 +29,15 @@ export function getLocalDb(): Dexie {
     database = new Dexie(localDatabaseName({ deployment: deployment(), userId }));
     database.version(1).stores({});
     database.version(2).stores({ physicalInventoryDrafts: 'draftId' });
-    database.version(3).stores({
+    database.version(7).stores({
+      physicalInventoryDrafts: 'draftId',
       offlineAccess: 'userId',
       adjustmentDownloads: '[facilityId+programId]',
+      stockEventDrafts: 'draftId, [kind+facilityId+programId+state]',
+      stockEventQueue: '++sequence, &localEventId, [status+sequence]',
+      stockEventSyncErrors: '&localEventId',
+      stockEventReceipts: '[draftId+revision], &localEventId',
     });
-    database.version(4).stores({
-      stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt',
-    });
-    const name = database.name;
-    database
-      .version(5)
-      .stores({
-        stockEventQueue: '++sequence, &localEventId, draftId, [status+sequence]',
-        stockEventSyncErrors: '&localEventId, [facilityId+programId], failedAt',
-        stockEventReceipts: '[draftId+revision], &localEventId, serverEventId',
-      })
-      .upgrade(async (transaction) => {
-        await transaction
-          .table('stockEventDrafts')
-          .toCollection()
-          .modify((draft) => {
-            const key = `${name}:stock-event-accepted:${draft.draftId}`;
-            let accepted = draft.submissionAccepted || draft.state === 'accepted';
-            try {
-              accepted ||= localStorage.getItem(key) === 'accepted';
-              localStorage.removeItem(key);
-            } catch {
-              // Retain the IndexedDB state when legacy marker cleanup is unavailable.
-            }
-            if (accepted) draft.state = 'accepted';
-            delete draft.submissionAttempted;
-            delete draft.submissionAccepted;
-            draft.localEventId ??= crypto.randomUUID();
-          });
-      });
-    database
-      .version(6)
-      .stores({})
-      .upgrade(async (transaction) => {
-        await transaction
-          .table('stockEventSyncErrors')
-          .toCollection()
-          .modify((error) => {
-            error.history ??= [];
-          });
-      });
   }
   return database;
 }

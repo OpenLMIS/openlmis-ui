@@ -34,6 +34,11 @@ export function createStockEventWriter(
   let conflict = false;
   let frozen = false;
   let submitting: Promise<QueuedStockEvent> | undefined;
+  function fail(error: unknown, alreadyConflicted = false) {
+    stopped = true;
+    conflict = alreadyConflicted || error instanceof DraftConflictError;
+    onStatus({ status: conflict ? 'conflict' : 'failed', error });
+  }
   async function drain() {
     while (latest && !stopped) {
       const next = latest;
@@ -42,10 +47,8 @@ export function createStockEventWriter(
         expected = await saveStockEventDraft(context, expected, next, generation?.());
         if (!latest) onStatus({ status: 'saved' });
       } catch (error) {
-        stopped = true;
-        conflict = error instanceof DraftConflictError;
         latest ??= next;
-        onStatus({ status: error instanceof DraftConflictError ? 'conflict' : 'failed', error });
+        fail(error);
       }
     }
   }
@@ -106,9 +109,7 @@ export function createStockEventWriter(
           return queued;
         } catch (error) {
           latest ??= current;
-          stopped = true;
-          conflict ||= error instanceof DraftConflictError;
-          onStatus({ status: conflict ? 'conflict' : 'failed', error });
+          fail(error, conflict);
           throw error;
         }
       })().finally(() => {
@@ -126,9 +127,7 @@ export function createStockEventWriter(
         onStatus({ status: 'saved' });
         return expected;
       } catch (error) {
-        stopped = true;
-        conflict = error instanceof DraftConflictError;
-        onStatus({ status: conflict ? 'conflict' : 'failed', error });
+        fail(error);
         return undefined;
       }
     },
@@ -144,9 +143,7 @@ export function createStockEventWriter(
         onStatus({ status: 'saved' });
         return true;
       } catch (error) {
-        stopped = true;
-        conflict = error instanceof DraftConflictError;
-        onStatus({ status: conflict ? 'conflict' : 'failed', error });
+        fail(error);
         return false;
       }
     },

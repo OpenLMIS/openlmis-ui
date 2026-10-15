@@ -15,14 +15,12 @@ import type {
   ValidReasonAssignment,
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
-import { getLocalDb } from '@/integrations/local-db';
-import { isAccessFallbackError } from '@/lib/http';
-import { LocalDataUnavailableError } from '@/lib/local-data';
+import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
-export const DOWNLOAD_STALE_MS = 30 * 60 * 1000;
+const DOWNLOAD_STALE_MS = 30 * 60 * 1000;
 export const downloadIsStale = (
   value: { fetchedAt: number; stale?: boolean } | undefined,
   now = Date.now(),
@@ -33,7 +31,7 @@ export type AdjustmentScope = {
   facilityTypeId: string;
   scanning: boolean;
 };
-export type AdjustmentCard = {
+type AdjustmentCard = {
   id: string;
   stockOnHand: number | null;
   orderable: Orderable;
@@ -68,6 +66,8 @@ export async function readAdjustmentBundle(
 ) {
   const scope = getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
+  const { getLocalDb } = await import('@/integrations/local-db');
+  assertSessionScope(scope);
   const bundle = await getLocalDb()
     .table<AdjustmentBundle>('adjustmentDownloads')
     .get([filter.facilityId, filter.programId]);
@@ -315,14 +315,9 @@ function fetchForegroundBundle(filter: AdjustmentScope) {
   return pending;
 }
 
-export async function getAdjustmentBundle(filter: AdjustmentScope) {
-  if (!isOnline()) return readAdjustmentBundle(filter);
-  const scope = getSessionScope();
-  try {
-    return await fetchForegroundBundle(filter);
-  } catch (error) {
-    assertSessionScope(scope);
-    if (!isAccessFallbackError(error)) throw error;
-    return readAdjustmentBundle(filter);
-  }
+export function getAdjustmentBundle(filter: AdjustmentScope) {
+  return onlineOrDevice(
+    () => fetchForegroundBundle(filter),
+    () => readAdjustmentBundle(filter),
+  );
 }

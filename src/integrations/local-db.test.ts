@@ -39,7 +39,7 @@ describe('getLocalDb', () => {
 
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     if (version === 1) await db.table('physicalInventoryDrafts').put(draft);
     expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
     expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
@@ -103,8 +103,8 @@ describe('getLocalDb', () => {
   });
 });
 
-it('upgrades v4 keeping drafts, bundles, access and PI rows while retiring temporary attempt markers', async () => {
-  signIn('queue-upgrade-v4');
+it('opens an existing v6 database at v7 while preserving every offline record', async () => {
+  signIn('queue-upgrade-v6');
   const old = new Dexie(getLocalDb().name);
   old.version(1).stores({});
   old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
@@ -112,65 +112,30 @@ it('upgrades v4 keeping drafts, bundles, access and PI rows while retiring tempo
   old
     .version(4)
     .stores({ stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt' });
-  const records = {
+  old.version(5).stores({
+    stockEventQueue: '++sequence, &localEventId, draftId, [status+sequence]',
+    stockEventSyncErrors: '&localEventId, [facilityId+programId], failedAt',
+    stockEventReceipts: '[draftId+revision], &localEventId, serverEventId',
+  });
+  old.version(6).stores({});
+  const rows = {
     physicalInventoryDrafts: { draftId: 'pi', lines: [{ quantity: '12' }] },
-    offlineAccess: { userId: 'queue-upgrade-v4', generation: 'access' },
+    offlineAccess: { userId: 'queue-upgrade-v6', generation: 'access' },
     adjustmentDownloads: { facilityId: 'facility', programId: 'program', generation: 'bundle' },
-    stockEventDrafts: {
-      draftId: 'draft',
-      state: 'editing',
-      revision: 7,
-      lines: [{ quantity: '0012' }],
-      submissionAttempted: true,
-    },
+    stockEventDrafts: { draftId: 'draft', revision: 7, state: 'uncertain', lines: [] },
+    stockEventQueue: { sequence: 1, localEventId: 'queued', status: 'uncertain', revision: 7 },
+    stockEventSyncErrors: { localEventId: 'refused', history: [] },
+    stockEventReceipts: { draftId: 'accepted', revision: 1, localEventId: 'accepted' },
   };
-  for (const [name, row] of Object.entries(records)) await old.table(name).put(row);
-  await old
-    .table('stockEventDrafts')
-    .put({ ...records.stockEventDrafts, draftId: 'accepted', submissionAccepted: true });
+  for (const [table, row] of Object.entries(rows)) await old.table(table).put(row);
   old.close();
-  localStorage.setItem(`${getLocalDb().name}:stock-event-accepted:accepted`, 'accepted');
   const db = getLocalDb();
   await db.open();
-  for (const name of ['physicalInventoryDrafts', 'offlineAccess', 'adjustmentDownloads'])
-    expect(await db.table(name).toArray()).toEqual([records[name as keyof typeof records]]);
-  expect(await db.table('stockEventDrafts').get('draft')).toMatchObject({
-    draftId: 'draft',
-    revision: 7,
-    lines: records.stockEventDrafts.lines,
-  });
-  expect(await db.table('stockEventDrafts').get('draft')).not.toHaveProperty('submissionAttempted');
-  expect((await db.table('stockEventDrafts').get('accepted')).state).toBe('accepted');
-  expect(localStorage.getItem(`${db.name}:stock-event-accepted:accepted`)).toBeNull();
-  expect(db.tables.map((table) => table.name)).toEqual(
-    expect.arrayContaining(['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts']),
-  );
-});
-
-it('upgrades v5 retaining the current resolved error for later attempt history', async () => {
-  signIn('errors-upgrade-v5');
-  const old = new Dexie(getLocalDb().name);
-  old.version(5).stores({
-    stockEventSyncErrors: '&localEventId, [facilityId+programId], failedAt',
-    stockEventQueue: '++sequence, &localEventId, draftId, [status+sequence]',
-    stockEventReceipts: '[draftId+revision], &localEventId, serverEventId',
-    stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt',
-    physicalInventoryDrafts: 'draftId',
-    offlineAccess: 'userId',
-    adjustmentDownloads: '[facilityId+programId]',
-  });
-  const error = {
-    localEventId: 'event',
-    resolvedAt: 123,
-    message: 'First error',
-    httpStatus: 504,
-    response: 'gateway',
-    event: { attemptId: 'original' },
-  };
-  await old.table('stockEventSyncErrors').put(error);
-  old.close();
-  expect(await getLocalDb().table('stockEventSyncErrors').get('event')).toEqual({
-    ...error,
-    history: [],
-  });
+  expect(db.verno).toBe(7);
+  for (const [table, row] of Object.entries(rows))
+    expect(await db.table(table).toArray()).toEqual([row]);
+  for (const table of ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'])
+    expect(
+      (db.table(table).schema.idxByName.localEventId ?? db.table(table).schema.primKey).unique,
+    ).toBe(true);
 });

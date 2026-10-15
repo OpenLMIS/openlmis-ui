@@ -27,12 +27,9 @@ import type { Facility, Program } from '@/features/reference-data/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
 import { isOfflineError } from '@/lib/http';
 import { LocalDataUnavailableError } from '@/lib/local-data';
-import {
-  type AccessReaders,
-  bootstrapOfflineAccess,
-  readOfflineAccess,
-} from '@/lib/offline-access';
+import { type AccessReaders, refreshOfflineAccess } from '@/lib/offline-access';
 import { hasProgramGrant, programGrants } from '@/lib/permissions';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { homeStockPrograms } from '@/lib/stock-programs';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -97,6 +94,11 @@ const queryClient = () =>
     },
   });
 
+function saveAccess(readers: AccessReaders) {
+  const scope = getSessionScope();
+  return refreshOfflineAccess(readers, () => assertSessionScope(scope));
+}
+
 beforeEach(async () => {
   signIn('ada');
   await getLocalDb().table('offlineAccess').clear();
@@ -116,7 +118,7 @@ afterEach(() => {
 
 describe('durable access', () => {
   it('reconstructs route rights, scoped grants and home programs after Query is cleared', async () => {
-    await bootstrapOfflineAccess(readers());
+    await saveAccess(readers());
     const client = queryClient();
     client.setQueryData(permissionsOptions('ada').queryKey, {
       rights: new Set(['OBSOLETE']),
@@ -141,7 +143,7 @@ describe('durable access', () => {
   });
 
   it('never supplies a device home lookup to a whole-record facility read', async () => {
-    await bootstrapOfflineAccess(readers());
+    await saveAccess(readers());
     const client = queryClient();
     await client.fetchQuery(homeFacilityOptions('home'));
     await expect(client.fetchQuery(facilityOptions('home'))).rejects.toBe(offline);
@@ -151,7 +153,7 @@ describe('durable access', () => {
   it.each([true, false])(
     'reuses fallback access for 30 seconds on repeated navigation (browser online: %s)',
     async (online) => {
-      await bootstrapOfflineAccess(readers());
+      await saveAccess(readers());
       onlineManager.setOnline(online);
       const timeout = new AxiosError('Read timed out', AxiosError.ECONNABORTED);
       vi.mocked(fetchPermissionStrings).mockRejectedValue(timeout);
@@ -191,7 +193,7 @@ describe('durable access', () => {
   );
 
   it('refreshes device access before a route can reuse revoked rights after reconnect', async () => {
-    await bootstrapOfflineAccess(readers());
+    await saveAccess(readers());
     const client = queryClient();
     client.setQueryData(userProgramsOptions('ada').queryKey, programs, { updatedAt: 1 });
     onlineManager.setOnline(false);
@@ -214,7 +216,7 @@ describe('durable access', () => {
   });
 
   it('refetches mounted device rights immediately on reconnect within the fresh window', async () => {
-    await bootstrapOfflineAccess(readers());
+    await saveAccess(readers());
     onlineManager.setOnline(false);
     const client = queryClient();
     await requireRight(client, 'STOCK_ADJUST');
@@ -241,20 +243,20 @@ describe('durable access', () => {
     expect(isForbidden(error)).toBe(false);
   });
 
-  it('keeps the previous complete generation when any bootstrap part fails', async () => {
-    await bootstrapOfflineAccess(readers());
-    const previous = await readOfflineAccess();
+  it('keeps the previous complete generation when any snapshot part fails', async () => {
+    await saveAccess(readers());
+    const previous = await getLocalDb().table('offlineAccess').get('ada');
     const failing = readers();
     vi.mocked(failing.permissions).mockResolvedValue(['USERS_MANAGE']);
     vi.mocked(failing.home).mockRejectedValue(offline);
-    await expect(bootstrapOfflineAccess(failing)).rejects.toBe(offline);
-    expect(await readOfflineAccess()).toEqual(previous);
+    await expect(saveAccess(failing)).rejects.toBe(offline);
+    expect(await getLocalDb().table('offlineAccess').get('ada')).toEqual(previous);
     expect(previous).not.toHaveProperty('user.extraData');
     expect(previous).not.toHaveProperty('homeFacility.extraData');
     expect(JSON.stringify(previous)).not.toContain('token');
   });
 
-  it('writes nothing when a held bootstrap completes after identity changes', async () => {
+  it('writes nothing when a held snapshot completes after identity changes', async () => {
     let release!: (value: Facility) => void;
     let homeStarted!: () => void;
     const started = new Promise<void>((resolve) => {
@@ -268,7 +270,7 @@ describe('durable access', () => {
           homeStarted();
         }),
     );
-    const run = bootstrapOfflineAccess(pending);
+    const run = saveAccess(pending);
     await started;
     signIn('alan');
     release(home);
@@ -278,22 +280,8 @@ describe('durable access', () => {
     expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
   });
 
-  it('does not download or write when another tab owns the database download lock', async () => {
-    const request = vi.fn(async (_name, _options, run) => run(null));
-    vi.stubGlobal('navigator', { locks: { request } });
-    const raw = readers();
-    await bootstrapOfflineAccess(raw);
-    expect(request).toHaveBeenCalledWith(
-      `${getLocalDb().name}:offline-download`,
-      { ifAvailable: true },
-      expect.any(Function),
-    );
-    expect(raw.permissions).not.toHaveBeenCalled();
-    expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
-  });
-
   it('retains the owner snapshot on sign-out but never lends it to another user', async () => {
-    await bootstrapOfflineAccess(readers());
+    await saveAccess(readers());
     useLoginData.getState().clearLoginData();
     signIn('alan');
     await expect(requireRight(queryClient(), 'STOCK_ADJUST')).rejects.toBeInstanceOf(
@@ -310,7 +298,7 @@ describe('durable access', () => {
 
   it('never falls back after a definitive 403 server response', async () => {
     const status = 403;
-    await bootstrapOfflineAccess(readers());
+    await saveAccess(readers());
     const failure = Object.assign(new AxiosError('Server refusal'), { response: { status } });
     vi.mocked(fetchPermissionStrings).mockRejectedValue(failure);
     vi.mocked(fetchUserRecord).mockRejectedValue(failure);
@@ -326,12 +314,7 @@ describe('durable access', () => {
   it.each([true, false])(
     'online queries never persist access parts (Web Locks: %s)',
     async (locks) => {
-      if (!locks) {
-        vi.stubGlobal('navigator', {});
-        const raw = readers();
-        await bootstrapOfflineAccess(raw);
-        expect(raw.permissions).not.toHaveBeenCalled();
-      }
+      if (!locks) vi.stubGlobal('navigator', {});
       vi.mocked(fetchPermissionStrings).mockResolvedValue(['STOCK_ADJUST|home|p1']);
       vi.mocked(fetchUserRecord).mockResolvedValue(user);
       vi.mocked(fetchUserPrograms).mockResolvedValue(programs);
@@ -348,7 +331,7 @@ describe('durable access', () => {
 
 it('reads downloaded access without a session wait when offline and expired', async () => {
   signIn('ada');
-  await bootstrapOfflineAccess(readers());
+  await saveAccess(readers());
   useLoginData.getState().expireSession();
   onlineManager.setOnline(false);
   vi.mocked(fetchPermissionStrings).mockReturnValue(new Promise(() => {}));

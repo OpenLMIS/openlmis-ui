@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageGatedOpen, usePageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen, useRetainedPortal } from "@/components/page-visibility"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -50,17 +50,13 @@ function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
-  const hidden = usePageHidden()
-  const retained = React.useRef(false)
-  const open = React.use(DialogOpenContext)
-  if (hidden) retained.current = true
-  else if (!open) retained.current = false
+  const { hidden, keepMounted } = useRetainedPortal(React.use(DialogOpenContext))
   return (
     <DialogPrimitive.Portal
       data-slot="dialog-portal"
       container={typeof document === "undefined" ? undefined : document.body}
       {...props}
-      keepMounted={retained.current || props.keepMounted}
+      keepMounted={keepMounted || props.keepMounted}
       hidden={hidden || props.hidden}
       inert={hidden || props.inert}
     />

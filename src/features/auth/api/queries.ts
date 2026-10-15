@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { userRightsKey } from '@/lib/key-factory';
-import { offlineAccessStaleTime, withOfflineAccess } from '@/lib/offline-access';
+import { offlineAccessQuery, withOfflineAccess } from '@/lib/offline-access';
 import { parsePermissions } from '@/lib/permissions';
 
 /** The signed-in user's permission strings, parsed once for both right names and facility and program grants. */
@@ -17,11 +17,7 @@ export const permissionsOptions = (userId: string) =>
               saved.userId === userId ? parsePermissions(saved.permissionStrings) : undefined,
           )
         : Promise.resolve(parsePermissions([])),
-    // Preserve the device marker rather than sharing it with a server result.
-    structuralSharing: false,
-    refetchOnReconnect: true,
-    // An admin can hold thousands of grants; server access stays fresh for longer.
-    staleTime: (query) => offlineAccessStaleTime(query.state.data, 30 * 60 * 1000),
+    ...offlineAccessQuery(30 * 60 * 1000),
     gcTime: Number.POSITIVE_INFINITY,
   });
 
