@@ -150,8 +150,9 @@ OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ corepack pnpm exec playwright test
 
 Copy `.offline/browser-results.json` out before removing the container and stop the host
 preview afterwards. Keep container writes in its local copy to avoid root-owned host files.
-WebKit's `@offline-shell` cases allow service workers. Six cases pass with the real worker cache: saved access, stale
-bundles, exact draft restart, direct-route gates, bare shell reload and offline Submit restart.
+WebKit's `@offline-shell` cases allow service workers. Six cases pass with the real worker cache:
+saved access, stale bundles, exact draft restart, direct-route gates, bare shell reload and
+offline Submit restart.
 Two cases require fixture-backed same-user renewal or connected submission after worker
 takeover, which WebKit 27.2 bypasses. They skip only with Playwright 1.64.1 / WebKit 27.2;
 a future version reruns them. Other WebKit cases block workers so their API fixtures remain

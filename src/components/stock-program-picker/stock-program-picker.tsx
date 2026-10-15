@@ -110,11 +110,11 @@ export function StockProgramPicker({
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
-              <div className="whitespace-normal font-medium">{row.label}</div>
+              <div className="break-words whitespace-normal font-medium">{row.label}</div>
             </TableCell>
             {statusLabel ? (
               <TableCell>
-                <div className="min-w-0 whitespace-normal">{row.status}</div>
+                <div className="min-w-0 break-words whitespace-normal">{row.status}</div>
               </TableCell>
             ) : null}
             <TableCell>
@@ -128,7 +128,7 @@ export function StockProgramPicker({
                   size="xl"
                   width="shrink"
                 >
-                  <span className="min-w-0 whitespace-normal">
+                  <span className="min-w-0 break-words whitespace-normal">
                     {row.actionLabel ?? actionLabel}
                   </span>
                 </Button>
@@ -172,7 +172,7 @@ export function StockProgramPickerSkeleton({
                 <div className="relative">
                   <div className="invisible" aria-hidden="true">
                     <Button size="xl" width="shrink" disabled tabIndex={-1}>
-                      <span className="min-w-0 whitespace-normal">{actionLabel}</span>
+                      <span className="min-w-0 break-words whitespace-normal">{actionLabel}</span>
                     </Button>
                   </div>
                   <div className="absolute inset-0">
