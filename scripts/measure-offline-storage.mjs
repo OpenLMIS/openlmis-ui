@@ -164,129 +164,134 @@ try {
   await page.goto(new URL(`stock-management/adjustments/${program}`, base).href);
   await expect(page.getByRole('combobox', { name: 'Product', exact: true })).toBeEnabled();
   report.coldOfflineEditorMs = performance.now() - start;
-  await page.evaluate(async () => {
-    const name = (await indexedDB.databases()).find((db) =>
-      db.name?.startsWith('openlmis-ui:'),
-    )?.name;
-    const db = await new Promise((resolve) => {
-      const open = indexedDB.open(name);
-      open.onsuccess = () => resolve(open.result);
-    });
-    const read = (table) =>
-      new Promise((resolve) => {
-        const request = db.transaction(table).objectStore(table).getAll();
-        request.onsuccess = () => resolve(request.result);
+  for (const phase of ['queue', 'outcomes']) {
+    await page.evaluate(async (phase) => {
+      const name = (await indexedDB.databases()).find((db) =>
+        db.name?.startsWith('openlmis-ui:'),
+      )?.name;
+      const db = await new Promise((resolve) => {
+        const open = indexedDB.open(name);
+        open.onsuccess = () => resolve(open.result);
       });
-    const access = (await read('offlineAccess'))[0];
-    const bundle = (await read('adjustmentDownloads')).find((bundle) => bundle.cards.length);
-    const card = bundle.cards[0];
-    const reason = bundle.reasons.find(
-      (assignment) => !assignment.hidden && assignment.reason.reasonCategory === 'ADJUSTMENT',
-    ).reason;
-    const line = {
-      key: crypto.randomUUID(),
-      orderable: card.orderable,
-      lot: card.lot,
-      stockOnHand: card.stockOnHand,
-      productHasLots: !!card.lot,
-      useVVM: false,
-      counterparty: '',
-      counterpartyComments: '',
-      reasonId: reason.id,
-      reasonFreeText: '',
-      quantity: { doses: '1', packs: '', remainder: '' },
-      occurredDate: new Date().toISOString().slice(0, 10),
-      vvmStatus: '',
-    };
-    const tx = db.transaction(
-      ['stockEventDrafts', 'stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'],
-      'readwrite',
-    );
-    const draft = (count, state) => ({
-      draftId: crypto.randomUUID(),
-      localEventId: crypto.randomUUID(),
-      userId: access.userId,
-      facilityId: bundle.facilityId,
-      programId: bundle.programId,
-      kind: 'adjustment',
-      revision: 1,
-      state,
-      downloadGeneration: bundle.generation,
-      savedAt: Date.now(),
-      updatedAt: Date.now(),
-      lines: Array.from({ length: count }, () => ({ ...line, key: crypto.randomUUID() })),
-    });
-    const event = (draft) => {
-      const payload = {
+      const read = (table) =>
+        new Promise((resolve) => {
+          const request = db.transaction(table).objectStore(table).getAll();
+          request.onsuccess = () => resolve(request.result);
+        });
+      const access = (await read('offlineAccess'))[0];
+      const bundle = (await read('adjustmentDownloads')).find((bundle) => bundle.cards.length);
+      const card = bundle.cards[0];
+      const reason = bundle.reasons.find(
+        (assignment) => !assignment.hidden && assignment.reason.reasonCategory === 'ADJUSTMENT',
+      ).reason;
+      const line = {
+        key: crypto.randomUUID(),
+        orderable: card.orderable,
+        lot: card.lot,
+        stockOnHand: card.stockOnHand,
+        productHasLots: !!card.lot,
+        useVVM: false,
+        counterparty: '',
+        counterpartyComments: '',
+        reasonId: reason.id,
+        reasonFreeText: '',
+        quantity: { doses: '1', packs: '', remainder: '' },
+        occurredDate: new Date().toISOString().slice(0, 10),
+        vvmStatus: '',
+      };
+      const tx = db.transaction(
+        ['stockEventDrafts', 'stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'],
+        'readwrite',
+      );
+      const draft = (count, state) => ({
+        draftId: crypto.randomUUID(),
+        localEventId: crypto.randomUUID(),
+        userId: access.userId,
         facilityId: bundle.facilityId,
         programId: bundle.programId,
-        signature: 'Local sizing fixture',
-        eventOrigin: 'ADJUSTMENT',
-        lineItems: draft.lines.map(() => ({
-          orderableId: card.orderable.id,
-          lotId: card.lot?.id,
-          quantity: 1,
-          occurredDate: new Date().toISOString().slice(0, 10),
-          reasonId: reason.id,
-        })),
+        kind: 'adjustment',
+        revision: 1,
+        state,
+        downloadGeneration: bundle.generation,
+        savedAt: Date.now(),
+        updatedAt: Date.now(),
+        lines: Array.from({ length: count }, () => ({ ...line, key: crypto.randomUUID() })),
+      });
+      const event = (draft) => {
+        const payload = {
+          facilityId: bundle.facilityId,
+          programId: bundle.programId,
+          signature: 'Local sizing fixture',
+          eventOrigin: 'ADJUSTMENT',
+          lineItems: draft.lines.map(() => ({
+            orderableId: card.orderable.id,
+            lotId: card.lot?.id,
+            quantity: 1,
+            occurredDate: new Date().toISOString().slice(0, 10),
+            reasonId: reason.id,
+          })),
+        };
+        const { state, savedAt, updatedAt, downloadGeneration, ...identity } = draft;
+        return {
+          ...identity,
+          status: 'queued',
+          queuedAt: Date.now(),
+          payload,
+          postBody: JSON.stringify(payload),
+          facility: {
+            id: access.homeFacility.id,
+            code: access.homeFacility.code,
+            name: access.homeFacility.name,
+          },
+          program: (({ id, code, name }) => ({ id, code, name }))(
+            access.programs.find((program) => program.id === bundle.programId),
+          ),
+          stockCards: [{ id: card.id, orderableId: card.orderable.id, lotId: card.lot?.id }],
+          reasons: [{ id: reason.id, name: reason.name }],
+        };
       };
-      const { state, savedAt, updatedAt, downloadGeneration, ...identity } = draft;
-      return {
-        ...identity,
-        status: 'queued',
-        queuedAt: Date.now(),
-        payload,
-        postBody: JSON.stringify(payload),
-        facility: {
-          id: access.homeFacility.id,
-          code: access.homeFacility.code,
-          name: access.homeFacility.name,
-        },
-        program: (({ id, code, name }) => ({ id, code, name }))(
-          access.programs.find((program) => program.id === bundle.programId),
-        ),
-        stockCards: [{ id: card.id, orderableId: card.orderable.id, lotId: card.lot?.id }],
-        reasons: [{ id: reason.id, name: reason.name }],
-      };
-    };
-    for (const count of [1, 10, 100])
-      tx.objectStore('stockEventDrafts').add(draft(count, 'archived'));
-    for (let index = 0; index < 100; index++) {
-      const row = { ...draft(10, 'queued'), signature: 'Local sizing fixture' };
-      tx.objectStore('stockEventDrafts').add(row);
-      tx.objectStore('stockEventQueue').add(event(row));
-    }
-    const refused = draft(10, 'refused');
-    tx.objectStore('stockEventDrafts').add(refused);
-    tx.objectStore('stockEventSyncErrors').add({
-      localEventId: refused.localEventId,
-      facilityId: bundle.facilityId,
-      programId: bundle.programId,
-      event: { ...event(refused), sequence: 101 },
-      category: 'stock-changed',
-      httpStatus: 400,
-      message: 'Local sizing fixture refusal',
-      failedAt: Date.now(),
-      history: [],
-    });
-    const accepted = draft(10, 'accepted');
-    tx.objectStore('stockEventDrafts').add(accepted);
-    tx.objectStore('stockEventReceipts').add({
-      draftId: accepted.draftId,
-      revision: 1,
-      localEventId: accepted.localEventId,
-      acceptedAt: Date.now(),
-      source: 'server',
-      serverEventId: crypto.randomUUID(),
-      event: { ...event(accepted), sequence: 102 },
-    });
-    await new Promise((resolve, reject) => {
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
-    db.close();
-  });
-  await snapshot('3-archived-100-queued-1-refused-1-accepted');
+      if (phase === 'queue') {
+        for (let index = 0; index < 100; index++) {
+          const row = { ...draft(10, 'queued'), signature: 'Local sizing fixture' };
+          tx.objectStore('stockEventDrafts').add(row);
+          tx.objectStore('stockEventQueue').add(event(row));
+        }
+      } else {
+        for (const count of [1, 10, 100])
+          tx.objectStore('stockEventDrafts').add(draft(count, 'archived'));
+        const refused = draft(10, 'refused');
+        tx.objectStore('stockEventDrafts').add(refused);
+        tx.objectStore('stockEventSyncErrors').add({
+          localEventId: refused.localEventId,
+          facilityId: bundle.facilityId,
+          programId: bundle.programId,
+          event: { ...event(refused), sequence: 101 },
+          category: 'stock-changed',
+          httpStatus: 400,
+          message: 'Local sizing fixture refusal',
+          failedAt: Date.now(),
+          history: [],
+        });
+        const accepted = draft(10, 'accepted');
+        tx.objectStore('stockEventDrafts').add(accepted);
+        tx.objectStore('stockEventReceipts').add({
+          draftId: accepted.draftId,
+          revision: 1,
+          localEventId: accepted.localEventId,
+          acceptedAt: Date.now(),
+          source: 'server',
+          serverEventId: crypto.randomUUID(),
+          event: { ...event(accepted), sequence: 102 },
+        });
+      }
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    }, phase);
+    await snapshot(phase === 'queue' ? '100-queued' : '3-archived-100-queued-1-refused-1-accepted');
+  }
   expect(report.stockPosts).toBe(0);
   report.completed = true;
 } finally {
