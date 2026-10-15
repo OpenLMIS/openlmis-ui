@@ -4,6 +4,7 @@ export async function stub(
   context: BrowserContext,
   stock: () => Promise<'finish' | 'fail'>,
   ids = { home: 'home', program: 'program' },
+  userId = 'download-user',
 ) {
   const programs = [ids.program, 'never'].map((id) => ({
     id,
@@ -15,25 +16,25 @@ export async function stub(
     const url = new URL(route.request().url());
     const fixtures: Record<string, unknown> = {
       '/api/oauth/token': {
-        referenceDataUserId: 'download-user',
-        username: 'download-user',
+        referenceDataUserId: userId,
+        username: userId,
         access_token: 'fixture-token',
         expires_in: 1800,
       },
-      '/api/users/download-user/permissionStrings': programs.flatMap(({ id }) => [
+      [`/api/users/${userId}/permissionStrings`]: programs.flatMap(({ id }) => [
         `STOCK_ADJUST|${ids.home}|${id}`,
         `STOCK_CARDS_VIEW|${ids.home}|${id}`,
       ]),
-      '/api/users/download-user': {
-        id: 'download-user',
-        username: 'download-user',
+      [`/api/users/${userId}`]: {
+        id: userId,
+        username: userId,
         firstName: 'Download',
         lastName: 'User',
         active: true,
         homeFacilityId: ids.home,
         roleAssignments: [],
       },
-      '/api/users/download-user/programs': programs,
+      [`/api/users/${userId}/programs`]: programs,
       [`/api/facilities/${ids.home}`]: {
         id: ids.home,
         code: 'HOME',
@@ -114,11 +115,13 @@ export async function stub(
     route.fulfill({ json: { timeZoneId: 'UTC' } }),
   );
 }
-export async function login(page: Page) {
-  await page.goto('http://127.0.0.1:9165/v2/login?redirect=%2Fstock-management%2Fadjustments');
-  await page.getByRole('textbox', { name: 'Username', exact: true }).fill('download-user');
+export async function login(page: Page, username = 'download-user') {
+  await page.goto('./login?redirect=%2Fstock-management%2Fadjustments');
+  await page.getByRole('textbox', { name: 'Username', exact: true }).fill(username);
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+  await page.waitForURL(/\/stock-management\/adjustments$/);
+  await page.getByRole('cell', { name: 'Fixture Medicines', exact: true }).waitFor();
 }
 export async function generation(page: Page) {
   return page.evaluate(async () => {

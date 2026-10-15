@@ -351,3 +351,22 @@ does not exist here, so the first real build failed at checkout.
 
 See [how-to-add-new-ui.md](how-to-add-new-ui.md) for the steps, including the Jenkins
 job, the OAuth client, the compose entry and how to verify.
+
+## Offline Readiness
+
+Serve the new UI over HTTPS, with its service worker, app assets, `config.json` and language
+catalogs under the same configured base path. A successful page load alone does not mean a
+program is downloaded. Check Adjustments readiness in the actual browser profile before
+disconnecting. Keep `/api` outside the `/v2` asset cache; API responses must never be cached
+by a proxy or service worker as an offline substitute.
+
+Offline download and upload coordination requires Web Locks. Browsers without it show an
+explanation and keep connected reads available, but cannot automatically send queued work.
+Check the dated [FM-165 verification](../../plans/FM-165.md) for the versions actually run,
+including unavailable engines. Test managed browsers and real phones separately.
+
+Do not clear browser site data as a routine fix for sync trouble. It can delete the only copy
+of unsynced events. Preserve the same deployment URL, base path and browser profile when
+recovering device work. A changed origin or base path uses a different device database.
+Refer users to [Working Offline](../working-offline/working-offline.md) for safe recovery,
+sign-out behavior and browser storage limits.

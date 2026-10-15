@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium, expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './browser-fixtures';
 
 import { generation, login, stub } from './fixtures';
 
@@ -27,12 +28,11 @@ test('held and failed background downloads allow sign-in and navigation', async 
   await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
 });
 
-test('stale bundle survives offline restart with its download time and missing program shows download notice', async () => {
+test('stale bundle survives offline restart with its download time and missing program shows download notice', async ({
+  persistentContext,
+}) => {
   const directory = await mkdtemp(resolve('.offline/profile-stage-4-'));
-  let context = await chromium.launchPersistentContext(directory, {
-    headless: true,
-    serviceWorkers: 'allow',
-  });
+  let context = await persistentContext(directory);
   try {
     await stub(context, async () => 'finish');
     let page = context.pages()[0];
@@ -73,11 +73,7 @@ test('stale bundle survives offline restart with its download time and missing p
       });
     });
     await context.close();
-    context = await chromium.launchPersistentContext(directory, {
-      headless: true,
-      serviceWorkers: 'allow',
-      offline: true,
-    });
+    context = await persistentContext(directory, true);
     page = context.pages()[0];
     await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments');
     await expect(page.getByText('Needs Refresh', { exact: true })).toBeVisible();

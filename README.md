@@ -56,6 +56,9 @@ at startup. Feature flags have no `.env` fallback.
 | `pnpm format` | Format |
 | `pnpm test` | Vitest watch mode |
 | `pnpm test:run` | Vitest single run |
+| `pnpm test:offline` | Production `/v2` offline suite in headless Chromium |
+| `pnpm test:offline:browsers` | Same suite in each runnable browser, with an availability report |
+| `pnpm test:offline:proof` | English/Arabic desktop/phone captures in headless Chromium |
 | `pnpm sort-messages` | Alphabetize translation keys |
 
 Local test runs use Vitest's `25%` worker limit. CI runs two test shards with its default
@@ -102,7 +105,8 @@ adding the service to `openlmis-deployment`.
 ## Offline support
 
 After one online visit, the service worker lets the app open/reload offline in every
-supported language. Offline data and drafts are planned; see the
+supported language. Adjustments downloads, device drafts, queued submission and recovery are
+available. See [Working Offline](docs/working-offline/working-offline.md) and the
 [offline plan](docs/offline-plan/offline-plan.md).
 
 The worker runs only in production builds. To try it locally, supply `dist/config.json`
@@ -113,6 +117,22 @@ VITE_BASE_PATH=/v2 pnpm build
 # Place config.json in dist/ before previewing.
 VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
 ```
+
+The offline suites use fixture API responses and intercept all stock-event POSTs. They build
+and stop their own preview server. Install test binaries with `pnpm exec playwright install
+chromium firefox webkit`. Chrome and Edge channels run when their Linux installations are
+available. The browser runner records missing binaries or host dependencies separately from
+test results in `.offline/browser-verification.json`; an unavailable engine is not a pass.
+`pnpm test:offline` stays Chromium-only. Visual proof writes screenshots and verification JSON
+to `.screenshots/fm-165-stage-9/`.
+
+For read-only local storage sizing, preview a production build with real runtime credentials
+and `VITE_API_PROXY_TARGET=http://172.17.0.1` on port 9166, then run
+`node scripts/measure-offline-storage.mjs`. It downloads the local administrator's bundles,
+blocks business writes and inserts synthetic draft/queue/outcome rows only in its isolated
+browser context. Output is `.offline/stage-9-storage.json`. `OFFLINE_PREVIEW_URL` can select
+another preview URL. `scripts/measure-offline-bundle.mjs` remains the separate read-only
+test-server payload/timing probe.
 
 ## Contributing
 
