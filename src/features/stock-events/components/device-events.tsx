@@ -65,13 +65,14 @@ export const deviceEventsSearchSchema = tableSearchSchema(['queuedAt']).pick({
 });
 const choicesSchema = z.record(z.string(), z.boolean());
 const hideable = [
+  { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '2xl' },
   { id: 'program', labelKey: 'facility-program.program', hideBelow: 'xl' },
   { id: 'lots', labelKey: 'device-events.lots', hideBelow: '2xl' },
   { id: 'kind', labelKey: 'device-events.type', hideBelow: 'xl' },
   { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: '3xl' },
-  { id: 'status', labelKey: 'device-events.status', hideBelow: '2xl' },
+  { id: 'status', labelKey: 'device-events.status' },
 ] as const;
-const kindLabels = {
+export const kindLabels = {
   adjustment: 'nav.stock-management.adjustments',
   issue: 'nav.stock-management.issue',
   receive: 'nav.stock-management.receive',
@@ -206,7 +207,7 @@ function DeviceEventsTable({
         id: 'products',
         header: t('device-events.products'),
         cell: ({ row }) => (
-          <span className="block min-w-48 whitespace-normal" dir="auto">
+          <span className="block min-w-24 whitespace-normal" dir="auto">
             {row.original.lines[row.original.lineIndex]?.orderable.fullProductName ||
               row.original.lines[row.original.lineIndex]?.orderable.productCode}
           </span>

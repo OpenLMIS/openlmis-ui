@@ -14,6 +14,7 @@ export type StockEventDelivery =
   | { kind: 'refused'; error: StockEventSyncError }
   | { kind: 'uncertain' }
   | { kind: 'blocked' }
+  | { kind: 'held'; reason: NonNullable<QueuedStockEvent['pauseReason']> }
   | { kind: 'queued' };
 export const foregroundStockEvents = new Set<string>();
 export function waitForStockEventReceipt(event: QueuedStockEvent): Promise<StockEventDelivery> {
@@ -68,7 +69,8 @@ export function waitForStockEventReceipt(event: QueuedStockEvent): Promise<Stock
         else if (error && !error.resolvedAt && error.category !== 'uncertain')
           finish({ kind: 'refused', error });
         else if (row?.status === 'uncertain') finish({ kind: 'uncertain' });
-        else if (earlier || row?.pauseReason === 'draft-changed') finish({ kind: 'blocked' });
+        else if (row?.pauseReason) finish({ kind: 'held', reason: row.pauseReason });
+        else if (earlier) finish({ kind: 'blocked' });
         else if (!row || (sending && row.status === 'queued')) finish({ kind: 'queued' });
         else if (row.status === 'sending') {
           sending = true;

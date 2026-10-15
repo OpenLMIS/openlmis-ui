@@ -59,7 +59,8 @@ function useNotices(): Notice[] {
       ? 'syncing'
       : ownPhase;
   const waiting =
-    events?.filter((event) => ['queued', 'sending'].includes(event.status)).length ?? 0;
+    events?.filter((event) => !event.pauseReason && ['queued', 'sending'].includes(event.status))
+      .length ?? 0;
   const uncertain = events?.filter((event) => event.status === 'uncertain').length ?? 0;
   const refused =
     events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt).length ?? 0;
@@ -213,12 +214,11 @@ function useNotices(): Notice[] {
         closesSidebar: true,
       });
   }
-  let offeredReview = false;
+  const reviewNotice =
+    notices.find((notice) => notice.action === review && notice.variant === 'warning') ??
+    notices.find((notice) => notice.action === review);
   for (const notice of notices) {
-    if (notice.action === review) {
-      if (offeredReview) notice.action = undefined;
-      else offeredReview = true;
-    }
+    if (notice.action === review && notice !== reviewNotice) notice.action = undefined;
   }
   return notices;
 }

@@ -252,6 +252,7 @@ export function EventEditor({
   const [validationOpen, setValidationOpen] = useState(false);
   const alertTarget = useRef<{ name: string; page: number } | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
+  const correctionButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
   const confirming = useRef(false);
   confirming.current = confirmationOpen;
@@ -594,18 +595,26 @@ export function EventEditor({
     leaving.current = true;
     setRefreshing(false);
     if (config.drafts === 'device') {
-      if (delivery?.kind === 'uncertain' || delivery?.kind === 'blocked') {
+      if (
+        delivery?.kind === 'uncertain' ||
+        delivery?.kind === 'blocked' ||
+        delivery?.kind === 'held'
+      ) {
         toast.warning(
           t(
             delivery.kind === 'uncertain'
               ? 'device-events.needs-review'
-              : 'device-events.blocked-title',
+              : delivery.kind === 'held'
+                ? `device-events.${delivery.reason}`
+                : 'device-events.blocked-title',
           ),
           {
             description: t(
               delivery.kind === 'uncertain'
                 ? 'device-events.needs-review-description'
-                : 'device-events.blocked-description',
+                : delivery.kind === 'held'
+                  ? `device-events.${delivery.reason}-held-description`
+                  : 'device-events.blocked-description',
             ),
             action: {
               label: t('device-events.review'),
@@ -786,11 +795,15 @@ export function EventEditor({
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
             {refusal && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" role="note">
                 <AlertTitle>{t(config.copy.submitErrorTitle)}</AlertTitle>
                 <AlertDescription>
                   {refusal.message}
-                  <Button variant="outline" onClick={() => setReviewRefusal(true)}>
+                  <Button
+                    ref={correctionButton}
+                    variant="outline"
+                    onClick={() => setReviewRefusal(true)}
+                  >
                     {t('device-events.copy')}
                   </Button>
                 </AlertDescription>
@@ -988,7 +1001,10 @@ export function EventEditor({
           alertTarget.current = null;
         }}
       >
-        <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
+        <AlertDialogContent
+          size={refusal ? 'lg' : 'default'}
+          finalFocus={alertTarget.current ? false : refusal ? correctionButton : submitButton}
+        >
           <AlertDialogHeader>
             <AlertDialogMedia>
               <CircleAlertIcon className="text-destructive" />
@@ -999,7 +1015,11 @@ export function EventEditor({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <div className={refusal ? 'flex w-full flex-col gap-2' : 'contents'}>
+            <div
+              className={
+                refusal ? 'flex w-full flex-col gap-2 sm:flex-row sm:justify-end' : 'contents'
+              }
+            >
               {refusal && (
                 <>
                   <Button

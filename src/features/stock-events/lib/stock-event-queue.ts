@@ -106,7 +106,9 @@ export async function enqueueStockEvent(
   assertSessionScope(context.sessionScope);
   if (inserted) {
     const count = await queue
-      .filter((event) => event.status === 'queued' || event.status === 'sending')
+      .filter(
+        (event) => !event.pauseReason && (event.status === 'queued' || event.status === 'sending'),
+      )
       .count();
     assertSessionScope(context.sessionScope);
     announceQueuedEvents(count);
