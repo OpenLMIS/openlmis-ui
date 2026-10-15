@@ -6,6 +6,7 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { fetchMinimalFacilities, fetchSupervisoryNodes } from '@/features/reference-data/api/api';
 import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
 import { NodeEditor } from '@/features/supervisory-nodes/components/node-editor';
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
@@ -137,6 +138,37 @@ describe('supervisory node editor', () => {
     await act(async () => deliver());
     await within(section).findByRole('button', { name: 'Remove Child Node Child 11' });
     expect(within(section).queryByText('Child 1')).not.toBeInTheDocument();
+  });
+
+  it('adds a picked node to the end, shows its page and sends it on Update', async () => {
+    const node = {
+      ...saved,
+      childNodes: Array.from({ length: 10 }, (_, index) => ({ id: String(index + 1) })),
+    };
+    vi.mocked(fetchSupervisoryNodes).mockResolvedValue([
+      { id: '1', code: '1', name: 'Child 1' },
+      { id: 'new', code: 'NEW', name: 'New Node' },
+    ]);
+    vi.mocked(fetchMinimalFacilities).mockResolvedValue([]);
+    vi.mocked(client.get).mockResolvedValue({ data: node });
+    const { user, router } = renderEditor(node);
+    const section = await screen.findByRole('region', { name: 'Child Nodes' });
+    const picker = () => within(section).getByRole('combobox', { name: 'Choose A Child Node' });
+    await waitFor(() => expect(picker()).not.toHaveAttribute('data-disabled'));
+    await user.type(picker(), 'Node');
+    await user.click(await screen.findByRole('option', { name: 'New Node' }));
+    await user.click(within(section).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(router.state.location.search).toHaveProperty('childPage', 2));
+    expect(
+      await within(section).findByRole('button', { name: 'Remove Child Node New Node' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Update Supervisory Node' }));
+    await waitFor(() =>
+      expect(client.put).toHaveBeenCalledWith(
+        '/supervisoryNodes/node',
+        expect.objectContaining({ childNodes: [...node.childNodes, { id: 'new' }] }),
+      ),
+    );
   });
 
   it('keeps the draft and location when saving fails and shows the server message', async () => {

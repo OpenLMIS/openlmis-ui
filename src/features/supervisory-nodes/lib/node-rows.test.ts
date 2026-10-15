@@ -11,9 +11,9 @@ const node = (id: string, partnerIds: string[] = []): SupervisoryNode => ({
 });
 
 describe('toNodeRows', () => {
-  it('resolves no, one and multiple partners in the reference order', () => {
+  it('resolves no, one and multiple partners in the reference order, keeping unresolved ones', () => {
     const rows = toNodeRows(
-      [node('none'), node('one', ['p1']), node('many', ['p2', 'p1'])],
+      [node('none'), node('one', ['p1']), node('many', ['p2', 'missing', 'p1'])],
       [],
       [node('p1'), node('p2')],
     );
@@ -23,6 +23,7 @@ describe('toNodeRows', () => {
       [{ id: 'p1', name: 'Node p1' }],
       [
         { id: 'p2', name: 'Node p2' },
+        { id: 'missing', name: '' },
         { id: 'p1', name: 'Node p1' },
       ],
     ]);
@@ -68,12 +69,6 @@ describe('toNodeRows', () => {
         childCount: 0,
         partners: [],
       },
-    ]);
-  });
-
-  it('keeps an unresolved partner reference with a blank name', () => {
-    expect(toNodeRows([node('owner', ['missing'])], [], [node('other')])[0].partners).toEqual([
-      { id: 'missing', name: '' },
     ]);
   });
 });
