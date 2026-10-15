@@ -176,7 +176,7 @@ describe('durable access', () => {
         fetchUserPrograms,
         fetchFacility,
       ])
-        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(fetch).toHaveBeenCalledTimes(online ? 1 : 0);
       now += 1;
       await read();
       for (const fetch of [
@@ -185,7 +185,7 @@ describe('durable access', () => {
         fetchUserPrograms,
         fetchFacility,
       ])
-        expect(fetch).toHaveBeenCalledTimes(2);
+        expect(fetch).toHaveBeenCalledTimes(online ? 2 : 0);
       client.clear();
     },
   );
@@ -210,7 +210,7 @@ describe('durable access', () => {
     expect((await client.fetchQuery(userRecordOptions('ada'))).homeFacilityId).toBeNull();
     expect(await client.fetchQuery(userProgramsOptions('ada'))).toEqual([]);
     expect((await client.fetchQuery(homeFacilityOptions('home'))).supportedPrograms).toEqual([]);
-    expect(fetchPermissionStrings).toHaveBeenCalledTimes(2);
+    expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
   });
 
   it('refetches mounted device rights immediately on reconnect within the fresh window', async () => {
@@ -222,11 +222,11 @@ describe('durable access', () => {
     const observer = new QueryObserver(client, permissionsOptions('ada'));
     const unsubscribe = observer.subscribe(() => {});
     try {
-      expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
+      expect(fetchPermissionStrings).not.toHaveBeenCalled();
       vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
       onlineManager.setOnline(true);
       await waitFor(() => expect(observer.getCurrentResult().data?.rights.size).toBe(0));
-      expect(fetchPermissionStrings).toHaveBeenCalledTimes(2);
+      expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
     } finally {
       unsubscribe();
       client.unmount();
@@ -346,4 +346,15 @@ describe('durable access', () => {
       expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
     },
   );
+});
+
+it('reads downloaded access without a session wait when offline and expired', async () => {
+  signIn('ada');
+  await bootstrapOfflineAccess(readers());
+  useLoginData.getState().expireSession();
+  onlineManager.setOnline(false);
+  vi.mocked(fetchPermissionStrings).mockReturnValue(new Promise(() => {}));
+  const permissions = await queryClient().fetchQuery(permissionsOptions('ada'));
+  expect(hasProgramGrant(permissions, 'STOCK_ADJUST', 'home', 'p1')).toBe(true);
+  expect(fetchPermissionStrings).not.toHaveBeenCalled();
 });

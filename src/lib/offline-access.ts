@@ -3,7 +3,7 @@ import type { Facility, Program } from '@/features/reference-data/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
 import { isAccessFallbackError } from '@/lib/http';
 import { LocalDataUnavailableError } from '@/lib/local-data';
-import { getConnectionGeneration } from '@/lib/online';
+import { getConnectionGeneration, isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -51,6 +51,15 @@ export async function withOfflineAccess<T extends object>(
   select: (saved: OfflineAccess) => T | undefined,
 ): Promise<T> {
   const scope = getSessionScope();
+  const device = async () => {
+    const saved = await readOfflineAccess();
+    assertSessionScope(scope);
+    const result = select(saved);
+    if (result === undefined) throw new LocalDataUnavailableError();
+    deviceResults.set(result, getConnectionGeneration());
+    return result;
+  };
+  if (!isOnline()) return device();
   try {
     const result = await online();
     assertSessionScope(scope);
@@ -58,12 +67,7 @@ export async function withOfflineAccess<T extends object>(
   } catch (error) {
     assertSessionScope(scope);
     if (!isAccessFallbackError(error)) throw error;
-    const saved = await readOfflineAccess();
-    assertSessionScope(scope);
-    const result = select(saved);
-    if (result === undefined) throw new LocalDataUnavailableError();
-    deviceResults.set(result, getConnectionGeneration());
-    return result;
+    return device();
   }
 }
 

@@ -97,7 +97,9 @@ test('stale bundle survives offline restart with its download time and missing p
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(page.getByRole('combobox', { name: /Reason, Fixture Product/ })).toBeVisible();
     await page.goto('http://127.0.0.1:9165/v2/stock-management/adjustments/never');
-    await expect(page.getByText('Connect To Download This Data', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Connect To Download This Data', { exact: true }).first(),
+    ).toBeVisible();
     await expect(page.getByText('No Access', { exact: true })).toHaveCount(0);
   } finally {
     await context.close();

@@ -16,6 +16,8 @@ import {
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { isNavParent } from '@/lib/config';
 import { hasOpenDialog } from '@/lib/has-open-dialog';
+import { isOfflineCapable } from '@/lib/offline-capability';
+import { isOnline } from '@/lib/online';
 import type { LiveNavItem, LiveNavLink } from '@/lib/types';
 
 type PaletteSection = {
@@ -99,14 +101,23 @@ export function CommandPalette() {
                     return (
                       <CommandItem
                         key={link.titleKey}
+                        disabled={link.disabled}
                         onSelect={() => {
+                          if (!isOnline() && !isOfflineCapable(link.to ?? '')) return;
                           setOpen(false);
                           navigate({ to: link.to });
                         }}
                         value={heading ? `${heading} ${title}` : title}
                       >
                         {link.icon ? <link.icon /> : section.icon && <section.icon />}
-                        <span>{title}</span>
+                        <span className="min-w-0">
+                          <span className="block">{title}</span>
+                          {link.disabled && (
+                            <span className="block text-xs text-muted-foreground">
+                              {t('offline.connection-required')}
+                            </span>
+                          )}
+                        </span>
                       </CommandItem>
                     );
                   })}
@@ -119,14 +130,23 @@ export function CommandPalette() {
                 return (
                   <CommandItem
                     key={link.to}
+                    disabled={link.disabled}
                     onSelect={() => {
+                      if (!isOnline() && !isOfflineCapable(link.to)) return;
                       setOpen(false);
                       navigate({ to: link.to });
                     }}
                     value={`${accountHeading} ${title}`}
                   >
                     <link.icon />
-                    <span>{title}</span>
+                    <span className="min-w-0">
+                      <span className="block">{title}</span>
+                      {link.disabled && (
+                        <span className="block text-xs text-muted-foreground">
+                          {t('offline.connection-required')}
+                        </span>
+                      )}
+                    </span>
                   </CommandItem>
                 );
               })}

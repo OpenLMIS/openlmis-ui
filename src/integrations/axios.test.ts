@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
@@ -377,4 +378,17 @@ it('queue 201 after identity change exposes its receipt only through the owner-b
   await expect(request).rejects.toBeInstanceOf(QueueReceiptError);
   await expect(request).rejects.toMatchObject({ response: { status: 201, data } });
   expect(adapter).toHaveBeenCalledOnce();
+});
+
+it('ends a refused session wait on connection loss without replaying the request', async () => {
+  const { sent } = serve('new-token');
+  const pending = client.get('/users/ada-id').catch((error) => error);
+  await flush();
+  expect(useLoginData.getState().expired).toBe(true);
+  onlineManager.setOnline(false);
+  await expect(pending).resolves.toMatchObject({ code: 'ERR_NETWORK' });
+  expect(sent).toEqual(['/users/ada-id Bearer old-token']);
+  useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+  await flush();
+  expect(sent).toHaveLength(1);
 });

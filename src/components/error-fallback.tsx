@@ -15,6 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { isForbidden } from '@/features/auth/lib/access';
+import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 
 type ErrorFallbackProps = ErrorComponentProps & {
   title?: string;
@@ -32,7 +33,13 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
   const offline = useOfflineFailure(error, retry);
   // A route that needs a right it lacks, or a refusal from the server, is not an error.
   if (isForbidden(error)) return <NoAccessPage />;
-  if (offline) return <OfflineNotice onRetry={retry} />;
+  if (offline)
+    return (
+      <OfflineNotice
+        onRetry={retry}
+        reason={error instanceof OfflinePageUnavailableError ? 'online-only' : undefined}
+      />
+    );
   const parsedError = error instanceof Error ? error : new Error(String(error));
 
   return (

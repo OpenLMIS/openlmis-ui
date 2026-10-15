@@ -19,7 +19,13 @@ export function useOfflineFailure(error: unknown, retry: () => void) {
   return offline;
 }
 
-export function OfflineNotice({ onRetry }: { onRetry: () => void }) {
+export function OfflineNotice({
+  onRetry,
+  reason,
+}: {
+  onRetry: () => void;
+  reason?: 'online-only';
+}) {
   const { t } = useTranslation();
 
   return (
@@ -31,7 +37,9 @@ export function OfflineNotice({ onRetry }: { onRetry: () => void }) {
         <EmptyTitle>
           <h2>{t('offline.notice-title')}</h2>
         </EmptyTitle>
-        <EmptyDescription>{t('offline.notice-description')}</EmptyDescription>
+        <EmptyDescription>
+          {t(reason === 'online-only' ? 'offline.page-description' : 'offline.notice-description')}
+        </EmptyDescription>
       </EmptyHeader>
       <Button onClick={onRetry} size="sm" variant="secondary">
         <RotateCcwIcon />

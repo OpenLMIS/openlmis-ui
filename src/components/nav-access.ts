@@ -7,6 +7,8 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
+import { isOfflineCapable } from '@/lib/offline-capability';
+import { useOnline } from '@/lib/online';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
 /** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
@@ -75,7 +77,25 @@ function useSignedInRights() {
 /** The signed-in user's nav, for the sidebar and the command palette. */
 export function useNavGroups() {
   const rights = useSignedInRights();
-  return useMemo(() => navWithinRights(LIVE_NAV_GROUPS, rights), [rights]);
+  const online = useOnline();
+  return useMemo<LiveNavGroup[]>(
+    () =>
+      navWithinRights(LIVE_NAV_GROUPS, rights).map((group) => ({
+        ...group,
+        items: group.items.map((item) =>
+          isNavParent(item)
+            ? {
+                ...item,
+                items: item.items.map((link) => ({
+                  ...link,
+                  disabled: !online && !isOfflineCapable(link.to ?? ''),
+                })),
+              }
+            : { ...item, disabled: !online && !isOfflineCapable(item.to ?? '') },
+        ),
+      })),
+    [rights, online],
+  );
 }
 
 export function useHasRight(right: string) {
@@ -85,19 +105,33 @@ export function useHasRight(right: string) {
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
   const rights = useSignedInRights();
-  return (to: LiveNavLink['to']) => canOpen(to, rights);
+  const online = useOnline();
+  return (to: LiveNavLink['to']) => canOpen(to, rights) && (online || isOfflineCapable(to ?? ''));
 }
 
-export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; icon: LucideIcon };
+export type AccountLink = {
+  titleKey: ParseKeys;
+  to: '/profile' | '/settings';
+  icon: LucideIcon;
+  disabled?: boolean;
+};
 
 export function useAccountLinks(): AccountLink[] {
+  const online = useOnline();
   const mayManageSettings = useHasRight(RIGHTS.systemSettingsManage);
   const settingsOn = useFlag('SYSTEM_SETTINGS');
   const canManageSettings = mayManageSettings && settingsOn;
   return [
-    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
+    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon, disabled: !online },
     ...(canManageSettings
-      ? [{ titleKey: 'nav-user.settings', to: '/settings', icon: SettingsIcon } as const]
+      ? [
+          {
+            titleKey: 'nav-user.settings',
+            to: '/settings',
+            icon: SettingsIcon,
+            disabled: !online,
+          } as const,
+        ]
       : []),
   ];
 }

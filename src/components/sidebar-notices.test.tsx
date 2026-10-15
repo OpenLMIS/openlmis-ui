@@ -156,13 +156,14 @@ describe('SidebarNotices', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
-  it('shrinks to icons on the collapsed rail, with only the update one to press', () => {
+  it('shrinks to icons on the collapsed rail, with connection retry and update actions', () => {
     onlineManager.setOnline(false);
     showUpdate();
     renderNotices({ defaultOpen: false });
 
     expect(screen.queryByText('offline.description')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'offline.try-connection' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'update.reload' })).toBeInTheDocument();
     expect(screen.getByRole('list')).toBeInTheDocument();
   });

@@ -258,8 +258,8 @@ edits, which have no prop for TypeScript to detect:
 |---|---|
 | `alert-dialog.tsx` | Preserve the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
+| `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
-| `table.tsx` | Preserve TableRow `drag` with transform and transition from CSS custom properties |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
@@ -269,7 +269,7 @@ edits, which have no prop for TypeScript to detect:
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
-| `table.tsx` | Preserve TableRow `aria-invalid:bg-destructive/10` for invalid draft lines |
+| `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `aria-invalid:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 
@@ -833,7 +833,7 @@ to Axios and identity to router guards. `_protected.tsx` redirects anonymous use
 
 - **A `401` keeps the page and drafts.** Axios marks the session `expired`, preserving user
   and refused token so legacy's old token cannot look new. Root `SessionExpiredDialog`
-  asks the same user for a password.
+  asks the same user for a password when connected; offline editing remains available.
 - Refused requests and new requests while expired await `waitForSession()`
   (`src/features/auth/lib/session.ts`), then replay once with the new token.
 - Sign-out, another user signing in, or a refusal for an obsolete `sentFor` identity fails
@@ -844,9 +844,10 @@ to Axios and identity to router guards. `_protected.tsx` redirects anonymous use
   `anonymous: true`: no bearer and no session wait. Hide the dialog on `isSignInPage()` routes.
 - Queries never retry `401`/`403`. Server expiry slides on calls: `expiresAt` from `expires_in`
   is only the earliest expiry, never a sign-out timer. Let `401` decide.
-- Deliberate sign-outs use `useOfflineSignOut()` (`src/components/offline-sign-out.tsx`)
-  before `whenLeaveAllowed`; offline re-login needs the server, so ask first. A failed
-  server connection counts as offline even when the browser claims online.
+- Deliberate sign-outs call `useOfflineSignOut()` (`src/components/offline-sign-out.tsx`).
+  It owns `whenLeaveAllowed`, flushing edits before counting device work and asking once.
+  Never wrap its callback in another leave check. Offline re-login needs the server; a
+  failed renewal connection offers Continue Offline even when the browser claims online.
 
 ### Shared-origin sessions
 
@@ -968,11 +969,44 @@ until those criteria are met.
   caught errors with component stacks.
 - `SidebarNotices` above footer buttons shows You're Offline (warning, no close), You're Back
   Online (success, 4 s), and Update Available (info, Reload). Collapsed rail: tooltip icons,
-  only Reload clickable. `OfflineDot` marks the header menu when the sidebar is closed.
+  connection retry and Reload remain clickable. `OfflineDot` marks the header menu when the sidebar is closed.
 - Visual notices are notes, never live regions. Header `StatusAnnouncer` is the single
   always-mounted `role="status"` so announcements survive sidebar visibility changes.
 - Reload uses `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Run `allowUnload()` just
   before reload to avoid a second browser prompt; the guard stays active if reload never comes.
+
+### Shell capabilities and identity
+
+- `src/lib/offline-capability.ts` is the route capability policy. Home, Adjustments and
+  Device Events remain available offline; other protected stock/admin/account pages need
+  a connection until their offline pass. Capability does not imply downloaded readiness.
+  `useNavGroups` and `useAccountLinks` retain rights-visible entries and mark them disabled
+  for sidebar, collapsed flyout, account menu and palette. Keep disabled sidebar entries
+  focusable, omit their links and explain the connection requirement.
+- The protected parent's `beforeLoad` rejects online-only direct routes before child data
+  loads. Its error keeps the shell and uses `OfflineNotice` with the online-only explanation;
+  an already-open server page hides behind the same fallback, retaining its mounted draft
+  and leave guards. Reconnect retries a failed direct-entry gate without resetting open forms.
+- `usePrintReport` refuses offline clicks before delivery/permissions, and rechecks connection
+  after permissions before requesting the PDF. Every consumer and the event print dialog
+  uses focusable disabled buttons with a translated title and accessible description. Home
+  keeps its shell/local content while Add User and server Refresh follow the same action gate.
+- Sign-out flushes first, then counts editing/archived drafts, modified inventory copies,
+  queued/sending/uncertain/paused events and unresolved refusals in the owning database.
+  Deduplicate queue/error rows by event id; exclude accepted/resolved work. Show one combined
+  retained-work/offline warning online or offline. Cancel stays signed in; confirmation is
+  identity-scoped and never deletes drafts or queue rows. A failed device check keeps the user
+  signed in with a title/detail error toast so they can retry.
+- Offline expiry never opens the blocking session dialog. `useOfflineSession` shows Sign In
+  To Sync after a 401, or within one minute of the earliest token expiry while offline,
+  without expiring or signing out the user on a timer. It appears even without a queue.
+  Local access reads go directly to the saved snapshot while known offline. Ordinary session
+  waits reject with a network error on connection loss, allowing device fallback without
+  replay. Queue transport keeps its independent typed not-sent and no-replay policies.
+- Failed connected renewal offers Continue Offline through `online.ts`; Try Connection in
+  the offline notice reseeds the browser connection hint. Real reconnect shows same-user
+  renewal when expired; fresh access and the existing uploader govern resumption. Only the
+  shell StatusAnnouncer announces these notes.
 
 ### Local data
 

@@ -278,8 +278,11 @@ function StockEventActions({
       )}
       <Button
         size="lg"
-        disabled={print.isPending || !lines.data?.totalElements || !!lines.error}
+        disabled={print.offline || print.isPending || !lines.data?.totalElements || !!lines.error}
         onClick={print.print}
+        focusableWhenDisabled={print.offline}
+        title={print.disabledReason}
+        aria-description={print.disabledReason}
       >
         {print.isPending ? (
           <Spinner data-icon="inline-start" />

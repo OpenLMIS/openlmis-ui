@@ -425,6 +425,10 @@ export function InventoryActions(props: Props) {
             {t('physical-inventory.no')}
           </Button>
           <Button
+            disabled={print.offline}
+            focusableWhenDisabled={print.offline}
+            title={print.disabledReason}
+            aria-description={print.disabledReason}
             onClick={() => {
               print.print();
               closePrint();
