@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +46,11 @@ import {
   toPeriodBody,
   toPeriodFormValues,
 } from '@/features/processing-schedules/lib/period-form';
-import { type SchedulesSearch, toPeriodsQuery } from '@/features/processing-schedules/lib/search';
+import {
+  PERIODS_PAGE_SIZE,
+  type SchedulesSearch,
+  toPeriodsQuery,
+} from '@/features/processing-schedules/lib/search';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -67,8 +71,13 @@ type PeriodsDialogProps = {
 export function PeriodsDialog({ target, onClose, ...props }: PeriodsDialogProps) {
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? '') }) > 0;
+  const { data: periods } = useQuery({
+    ...periodsListOptions(toPeriodsQuery(shown ?? '', props.search)),
+    enabled: shown !== undefined,
+  });
+  const onePage = periods !== undefined && periods.totalElements <= PERIODS_PAGE_SIZE;
   return (
-    <FormDialog {...dialogProps(isSaving)} height="fixed" size="table">
+    <FormDialog {...dialogProps(isSaving)} height={onePage ? 'auto' : 'fixed'} size="table">
       {shown && <PeriodDialogContent key={shown} scheduleId={shown} {...props} />}
     </FormDialog>
   );
@@ -252,7 +261,7 @@ function PeriodForm({
             </FormDialogSubmit>
           </div>
         </div>
-        <div className="min-h-32 flex-1">
+        <div className="grid min-h-32 flex-auto">
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -318,7 +327,7 @@ function PeriodFormSkeleton({ search }: { search: SchedulesSearch }) {
             </FormDialogSubmit>
           </div>
         </div>
-        <div className="min-h-32 flex-1">
+        <div className="grid min-h-32 flex-auto">
           <PeriodsTableSkeleton search={search} />
         </div>
       </FormDialogBody>

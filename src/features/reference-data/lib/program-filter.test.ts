@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toProgramFilter } from '@/features/products/lib/program-filter';
+import { toProgramFilter } from '@/features/reference-data/lib/program-filter';
 
 const programs = [
   { id: 'p2', code: 'PRG002', name: 'Essential Meds', active: true },

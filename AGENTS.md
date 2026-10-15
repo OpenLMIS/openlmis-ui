@@ -120,9 +120,11 @@ shared folder, or compose features in `src/routes/` and pass data as props. Rout
 any feature.
 
 `src/features/reference-data/` contains lookups for facilities, facility types, programs,
-supervisory nodes, roles, products, stock organizations, reasons and processing schedules. It imports no other
-feature. Keep management screens in their own features. When their list uses a lookup's
-endpoint, reuse that query and widen its type, as Roles and Reasons do.
+supervisory nodes, processing schedules, roles, products, stock organizations and reasons,
+plus the zone filter (`toZoneOption`) and program filter (`toProgramFilter`) helpers in its
+`lib/`. It imports no other feature. Keep management screens in their own features. When
+their list uses a lookup's endpoint, reuse that query and widen its type, as Roles and
+Reasons do.
 
 - Product lookups: `orderablesSearchOptions`, `orderablesByIdsOptions` and
   `orderablesByTradeItemsOptions`, all under `queryKeys.orderables.list` so saves refresh them.
