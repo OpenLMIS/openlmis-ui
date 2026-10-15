@@ -25,6 +25,7 @@ describe('supply line search contract', () => {
             supervisoryNodeId: 'unrelated-node',
             expand: 'supervisoryNode.requisitionGroup.memberFacilities',
             q: 'unsupported',
+            supplyLine: programId,
           }),
         ),
       ).toEqual({

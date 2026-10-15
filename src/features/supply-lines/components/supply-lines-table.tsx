@@ -32,6 +32,7 @@ import {
   toSupplyLinesQuery,
 } from '@/features/supply-lines/lib/search';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';
+import { markDialogOpened } from '@/hooks/use-search-navigation';
 import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -74,7 +75,7 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: t('supply-lines.actions'),
+      header: '',
       meta: { className: 'w-16' },
       enableHiding: false,
       cell: ({ row }) => <SupplyLineActions node={row.original} listSearch={listSearch} />,
@@ -113,10 +114,10 @@ function SupplyLineActions({
             <DropdownMenuItem
               render={
                 <Link
-                  params={{ id: node.id }}
-                  search={listSearch}
-                  state={{ supplyLinesListSearch: listSearch }}
-                  to="/administration/supply-lines/$id"
+                  search={{ ...listSearch, supplyLine: node.id }}
+                  state={markDialogOpened}
+                  resetScroll={false}
+                  to="/administration/supply-lines"
                 />
               }
             >

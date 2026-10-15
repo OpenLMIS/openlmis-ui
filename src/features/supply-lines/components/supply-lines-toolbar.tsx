@@ -9,6 +9,7 @@ import { DataTableFilters } from '@/components/data-table/data-table-filters-pop
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { LoadError } from '@/components/load-error';
+import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import {
   CLEARED_SUPPLY_LINE_FILTERS,
@@ -76,15 +77,25 @@ function FacilityFilter({ search, onFilterChange }: FilterProps) {
   );
   return (
     <div className="flex flex-col gap-2">
-      <DataTableComboboxFilter
-        label={t('supply-lines.supplying-facility')}
-        options={picked.options}
-        value={picked.value}
-        onValueChange={(id) =>
-          onFilterChange({ supplyingFacilityId: id || undefined, page: undefined })
-        }
-      />
-      {query.isPending && <p role="status">{t('supply-lines.facilities-loading')}</p>}
+      {query.isPending ? (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label={t('supply-lines.facilities-loading')}
+          className="h-8 w-full"
+        >
+          <Skeleton fill />
+        </div>
+      ) : (
+        <DataTableComboboxFilter
+          label={t('supply-lines.supplying-facility')}
+          options={picked.options}
+          value={picked.value}
+          onValueChange={(id) =>
+            onFilterChange({ supplyingFacilityId: id || undefined, page: undefined })
+          }
+        />
+      )}
       {query.isError && (
         <LoadError
           error={query.error}
@@ -110,13 +121,23 @@ function ProgramFilter({ search, onFilterChange }: FilterProps) {
   );
   return (
     <div className="flex flex-col gap-2">
-      <DataTableSelectFilter
-        label={t('supply-lines.program')}
-        options={picked.options}
-        value={picked.value}
-        onValueChange={(id) => onFilterChange({ programId: id || undefined, page: undefined })}
-      />
-      {query.isPending && <p role="status">{t('supply-lines.programs-loading')}</p>}
+      {query.isPending ? (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label={t('supply-lines.programs-loading')}
+          className="h-8 w-full"
+        >
+          <Skeleton fill />
+        </div>
+      ) : (
+        <DataTableSelectFilter
+          label={t('supply-lines.program')}
+          options={picked.options}
+          value={picked.value}
+          onValueChange={(id) => onFilterChange({ programId: id || undefined, page: undefined })}
+        />
+      )}
       {query.isError && (
         <LoadError
           error={query.error}

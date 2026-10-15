@@ -24,6 +24,7 @@ export const DEFAULT_SUPPLY_LINES_SORT: DefaultSort = {
 };
 
 export const supplyLinesSearchSchema = tableSearchSchema(SUPPLY_LINE_SORT_FIELDS).extend({
+  supplyLine: z.string().optional().catch(undefined),
   supplyingFacilityId: z.guid().optional().catch(undefined),
   programId: z.guid().optional().catch(undefined),
 });

@@ -7,15 +7,16 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { ErrorFallback } from '@/components/error-fallback';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchMinimalFacilities, fetchPrograms } from '@/features/reference-data/api/api';
 import { fetchSupplyLine, fetchSupplyLinesPage } from '@/features/supply-lines/api/api';
 import type { SupplyLinesSearch } from '@/features/supply-lines/lib/search';
 import { Route as ListRoute } from '@/routes/(protected)/_protected.administration.supply-lines';
-import { Route } from '@/routes/(protected)/_protected.administration.supply-lines_.$id';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -23,6 +24,10 @@ vi.mock('@/features/supply-lines/api/api', () => ({
   fetchSupplyLine: vi.fn(),
   fetchSupplyLinesPage: vi.fn(),
   fetchServedFacilities: vi.fn(),
+}));
+vi.mock('@/features/reference-data/api/api', () => ({
+  fetchMinimalFacilities: vi.fn(),
+  fetchPrograms: vi.fn(),
 }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 
@@ -39,7 +44,7 @@ const query = new URLSearchParams(
   Object.entries(search).map(([key, value]) => [key, String(value)]),
 ).toString();
 const listPath = '/administration/supply-lines';
-const detailPath = `${listPath}/${id}?${query}`;
+const detailPath = `${listPath}?${query}&supplyLine=${id}`;
 const line = {
   id,
   program: { name: 'Essential Meds' },
@@ -48,11 +53,13 @@ const line = {
   description: 'First line\nSecond line',
 };
 
-function renderRoute(path = `${listPath}?${query}`, historySearch?: SupplyLinesSearch) {
+function renderRoute(path = `${listPath}?${query}`) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
-  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+    errorComponent: ErrorFallback,
+  });
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
   const list = createRoute({
@@ -64,21 +71,10 @@ function renderRoute(path = `${listPath}?${query}`, historySearch?: SupplyLinesS
     component: ListRoute.options.component,
     pendingComponent: ListRoute.options.pendingComponent,
   } as never);
-  const detail = createRoute({
-    getParentRoute: () => layout,
-    path: 'administration/supply-lines/$id',
-    validateSearch: Route.options.validateSearch,
-    loader: Route.options.loader,
-    component: Route.options.component,
-    pendingComponent: Route.options.pendingComponent,
-    errorComponent: Route.options.errorComponent,
-    staticData: Route.options.staticData,
-  } as never);
   const history = createMemoryHistory({ initialEntries: [path] });
-  if (historySearch) history.replace(path, { supplyLinesListSearch: historySearch });
   const router = createRouter({
     routeTree: root.addChildren([
-      group.addChildren([layout.addChildren([list, detail] as never)] as never),
+      group.addChildren([layout.addChildren([list] as never)] as never),
     ] as never),
     context: { queryClient },
     history,
@@ -111,84 +107,144 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it.each(['cancel', 'breadcrumb'])(
-  'returns through %s after the real row View action, preserving full list search',
+it.each(['cancel', 'escape'])(
+  'closes through %s after real row View and supports Back/Forward without changing the table',
   async (way) => {
     const user = userEvent.setup();
     const router = renderRoute();
-    await user.click(await screen.findByRole('button', { name: 'supply-lines.actions-for' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'supply-lines.view' }));
-    await screen.findByRole('heading', { name: 'supply-lines.view.title' });
-    expect(router.state.location.search).toEqual(search);
-    expect(router.state.location.state.supplyLinesListSearch).toEqual(search);
-    expect((await screen.findByText('First line Second line')).textContent).toBe(line.description);
-    await user.click(
-      way === 'cancel'
-        ? screen.getByRole('button', { name: 'supply-lines.view.cancel' })
-        : screen.getByRole('link', { name: 'nav.administration.supply-lines' }),
+    const action = await screen.findByRole('button', { name: 'supply-lines.actions-for' });
+    await user.click(action);
+    const view = await screen.findByRole('menuitem', { name: 'supply-lines.view' });
+    expect(view.getAttribute('href')).toContain(`supplyLine=${id}`);
+    await user.click(view);
+    const dialog = await screen.findByRole('dialog');
+    expect((await within(dialog).findByText('First line Second line')).textContent).toBe(
+      line.description,
     );
-    await waitFor(() => expect(router.state.location.pathname).toBe(listPath));
-    expect(router.state.location.search).toEqual(search);
+    expect(router.state.location.search).toEqual({ ...search, supplyLine: id });
+    expect(fetchSupplyLinesPage).toHaveBeenCalledTimes(1);
+    if (way === 'cancel')
+      await user.click(within(dialog).getByRole('button', { name: 'supply-lines.view.cancel' }));
+    else await user.keyboard('{Escape}');
+    await waitFor(() => expect(router.state.location.search).toEqual(search));
+    expect(router.state.location.pathname).toBe(listPath);
+    expect(await screen.findByRole('button', { name: 'supply-lines.actions-for' })).toBe(action);
+    act(() => router.history.forward());
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(router.state.location.search.supplyLine).toBe(id));
+    act(() => router.history.back());
+    await waitFor(() => expect(router.state.location.search).toEqual(search));
+    expect(fetchSupplyLinesPage).toHaveBeenCalledTimes(1);
   },
 );
 
-it('returns from a reloaded or directly shared detail URL without history state', async () => {
-  const user = userEvent.setup();
+it('closes a shared or reloaded dialog URL on the list by replacing its search', async () => {
   const router = renderRoute(detailPath);
-  await screen.findByText('Supplier Clinic');
-  const crumb = screen.getByRole('link', { name: 'nav.administration.supply-lines' });
-  expect(
-    Object.fromEntries(new URL(crumb.getAttribute('href') ?? '', 'http://localhost').searchParams),
-  ).toEqual(Object.fromEntries(new URLSearchParams(query)));
-  await user.click(screen.getByRole('button', { name: 'supply-lines.view.cancel' }));
-  await waitFor(() => expect(router.state.location.pathname).toBe(listPath));
-  expect(router.state.location.search).toEqual(search);
+  const dialog = await screen.findByRole('dialog');
+  await within(dialog).findByText('First line Second line');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'supply-lines.view.cancel' }));
+  await waitFor(() => expect(router.state.location.search).toEqual(search));
+  expect(router.state.location.pathname).toBe(listPath);
+  expect(router.history.length).toBe(1);
 });
 
-it('prefers the captured originating history search for Cancel', async () => {
-  const origin = { ...search, page: 1, dir: 'asc' as const };
-  const router = renderRoute(detailPath, origin);
-  await screen.findByText('Supplier Clinic');
-  await userEvent.click(screen.getByRole('button', { name: 'supply-lines.view.cancel' }));
-  await waitFor(() => expect(router.state.location.pathname).toBe(listPath));
-  expect(router.state.location.search).toEqual(origin);
-});
-
-it('keeps Cancel usable during navigation to a pending detail, using the latest URL search', async () => {
-  const router = renderRoute(listPath);
-  await screen.findByRole('button', { name: 'supply-lines.actions-for' });
+it('keeps Cancel usable while the detail is pending', async () => {
   vi.mocked(fetchSupplyLine).mockReturnValue(new Promise(() => {}));
-  act(() => {
-    void router.navigate({ to: `${listPath}/$id`, params: { id }, search });
-  });
-  await userEvent.click(await screen.findByRole('button', { name: 'supply-lines.view.cancel' }));
-  await waitFor(() => expect(router.state.location.pathname).toBe(listPath));
-  expect(router.state.location.search).toEqual(search);
+  const router = renderRoute(detailPath);
+  const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'supply-lines.view.cancel' }));
+  await waitFor(() => expect(router.state.location.search).toEqual(search));
+  expect(router.state.location.pathname).toBe(listPath);
 });
 
-it.each(['malformed', 'missing', 'failed'])(
-  'keeps the filtered return from a %s detail',
+it.each(['malformed', 'missing', 'failed', 'refused'])(
+  'handles a %s detail in the dialog and retains the list search',
   async (kind) => {
     if (kind !== 'malformed')
-      vi.mocked(fetchSupplyLine).mockRejectedValue(httpError(kind === 'missing' ? 404 : 500));
-    const router = renderRoute(kind === 'malformed' ? `${listPath}/bad-id?${query}` : detailPath);
-    const back = await screen.findByRole('button', { name: 'supply-lines.view.back' });
-    expect(
-      await screen.findByRole('heading', {
-        name:
-          kind === 'failed' ? 'supply-lines.view.error-title' : 'supply-lines.view.not-found-title',
-      }),
-    ).toBeInTheDocument();
+      vi.mocked(fetchSupplyLine).mockRejectedValue(
+        httpError(kind === 'missing' ? 404 : kind === 'refused' ? 403 : 500),
+      );
+    const router = renderRoute(
+      kind === 'malformed' ? `${listPath}?${query}&supplyLine=bad-id` : detailPath,
+    );
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(
+      kind === 'failed'
+        ? 'supply-lines.view.error-title'
+        : kind === 'refused'
+          ? 'no-access.description'
+          : 'supply-lines.view.not-found-description',
+    );
     if (kind === 'malformed') expect(fetchSupplyLine).not.toHaveBeenCalled();
-    await userEvent.click(back);
-    await waitFor(() => expect(router.state.location.pathname).toBe(listPath));
-    expect(router.state.location.search).toEqual(search);
+    if (kind === 'failed') {
+      vi.mocked(fetchSupplyLine).mockResolvedValue(line);
+      await userEvent.click(within(dialog).getByRole('button', { name: 'error.try-again' }));
+      await within(dialog).findByText('First line Second line');
+    }
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(router.state.location.search).toEqual(search));
+    expect(router.state.location.pathname).toBe(listPath);
   },
 );
 
-it('checks the right before validating the id or requesting the detail', async () => {
-  vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
-  renderRoute(`${listPath}/bad-id?${query}`);
-  expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+it('resolves the right before any feature GET, including a directly linked dialog', async () => {
+  let resolve!: (rights: string[]) => void;
+  vi.mocked(fetchPermissionStrings).mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  renderRoute(detailPath);
+  await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalled());
   expect(fetchSupplyLine).not.toHaveBeenCalled();
+  expect(fetchSupplyLinesPage).not.toHaveBeenCalled();
+  await act(async () => resolve([]));
+  await screen.findByRole('heading', { name: 'no-access.title' });
+  expect(fetchSupplyLine).not.toHaveBeenCalled();
+  expect(fetchSupplyLinesPage).not.toHaveBeenCalled();
+});
+
+it('replaces pending lookup controls and keeps the program usable through a facility error and retry', async () => {
+  let rejectFacilities!: (error: Error) => void;
+  let resolvePrograms!: (programs: never[]) => void;
+  vi.mocked(fetchMinimalFacilities).mockReturnValue(
+    new Promise((_, reject) => {
+      rejectFacilities = reject;
+    }),
+  );
+  vi.mocked(fetchPrograms).mockReturnValue(
+    new Promise((resolve) => {
+      resolvePrograms = resolve;
+    }),
+  );
+  renderRoute();
+  await screen.findByRole('button', { name: 'supply-lines.actions-for' });
+  await userEvent.click(screen.getByRole('button', { name: /Filters/ }));
+  const filters = await screen.findByRole('dialog', { name: 'Filters' });
+  expect(
+    within(filters).getByRole('status', { name: 'supply-lines.facilities-loading' }),
+  ).toHaveAttribute('aria-busy', 'true');
+  expect(
+    within(filters).getByRole('status', { name: 'supply-lines.programs-loading' }),
+  ).toHaveAttribute('aria-busy', 'true');
+  expect(within(filters).queryByRole('combobox')).toBeNull();
+  await act(async () => {
+    resolvePrograms([{ id, code: 'MED', name: 'Essential Meds' }] as never);
+    rejectFacilities(httpError(500));
+  });
+  expect(
+    await within(filters).findByRole('combobox', { name: 'supply-lines.program' }),
+  ).toBeEnabled();
+  await within(filters).findByText('supply-lines.facilities-error');
+  vi.mocked(fetchMinimalFacilities).mockResolvedValue([
+    { id, name: 'Supplier Clinic', code: 'SUP' },
+  ] as never);
+  await userEvent.click(within(filters).getByRole('button', { name: 'Try Again' }));
+  await waitFor(() =>
+    expect(within(filters).queryByText('supply-lines.facilities-error')).toBeNull(),
+  );
+  expect(fetchMinimalFacilities).toHaveBeenCalledTimes(2);
+  expect(
+    await within(filters).findByRole('combobox', { name: 'supply-lines.supplying-facility' }),
+  ).toBeEnabled();
 });

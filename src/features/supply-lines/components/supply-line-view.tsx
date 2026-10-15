@@ -1,26 +1,85 @@
-import { Link } from '@tanstack/react-router';
-import { RouteIcon } from 'lucide-react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
+import { DialogLoadError, DialogNotFound, ErrorAlert } from '@/components/dialog-parts';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Workspace,
-  WorkspaceContent,
-  WorkspaceDescription,
-  WorkspaceFooter,
-  WorkspaceHeader,
-  WorkspaceHeading,
-  WorkspaceIcon,
-  WorkspaceTitle,
-} from '@/components/workspace';
-import type { SupplyLinesSearch } from '@/features/supply-lines/lib/search';
+  FormDialog,
+  FormDialogBody,
+  FormDialogCancel,
+  FormDialogDescription,
+  FormDialogFooter,
+  FormDialogHeader,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { QueryBoundary } from '@/components/query-boundary';
+import { Skeleton } from '@/components/ui/skeleton';
+import { supplyLineOptions } from '@/features/supply-lines/api/queries';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';
 import { orEmpty } from '@/lib/empty-value';
+import { isNotFound, isRefused } from '@/lib/http';
 
-type SupplyLineViewProps = { line?: SupplyLine; listSearch: SupplyLinesSearch };
+export function SupplyLineViewDialog({
+  target,
+  onClose,
+}: {
+  target: string | undefined;
+  onClose: () => void;
+}) {
+  const { shown, dialogProps } = useDialogTarget(target, onClose);
+  return (
+    <FormDialog {...dialogProps()}>
+      {shown !== undefined && <SupplyLineDialogContent target={shown} />}
+    </FormDialog>
+  );
+}
 
-export function SupplyLineView({ line, listSearch }: SupplyLineViewProps) {
+function SupplyLineDialogContent({ target }: { target: string }) {
+  const { t } = useTranslation();
+  const title = t('supply-lines.view.title');
+  const notFound = (
+    <DialogNotFound title={title} description={t('supply-lines.view.not-found-description')} />
+  );
+  if (!z.guid().safeParse(target).success) return notFound;
+  return (
+    <QueryBoundary
+      resetKey={target}
+      pendingFallback={<SupplyLineView />}
+      errorComponent={({ error, reset }) =>
+        isNotFound(error) ? (
+          notFound
+        ) : isRefused(error) ? (
+          <>
+            <FormDialogHeader>
+              <FormDialogTitle>{title}</FormDialogTitle>
+            </FormDialogHeader>
+            <ErrorAlert title={t('no-access.title')} description={t('no-access.description')} />
+            <FormDialogFooter>
+              <FormDialogCancel>{t('supply-lines.view.cancel')}</FormDialogCancel>
+            </FormDialogFooter>
+          </>
+        ) : (
+          <DialogLoadError
+            title={title}
+            error={error}
+            errorTitle={t('supply-lines.view.error-title')}
+            onRetry={reset}
+          />
+        )
+      }
+    >
+      <LoadedSupplyLine id={target} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedSupplyLine({ id }: { id: string }) {
+  const { data } = useSuspenseQuery(supplyLineOptions(id));
+  return <SupplyLineView line={data} />;
+}
+
+function SupplyLineView({ line }: { line?: SupplyLine }) {
   const { t } = useTranslation();
   const values = [
     { label: t('supply-lines.program'), value: line?.program?.name, dir: 'auto' },
@@ -34,46 +93,32 @@ export function SupplyLineView({ line, listSearch }: SupplyLineViewProps) {
   ];
   return (
     <>
-      <Workspace width="narrow">
-        <WorkspaceHeader>
-          <WorkspaceHeading>
-            <WorkspaceIcon>
-              <RouteIcon />
-            </WorkspaceIcon>
-            <WorkspaceTitle>{t('supply-lines.view.title')}</WorkspaceTitle>
-            <WorkspaceDescription>{t('supply-lines.view.page-description')}</WorkspaceDescription>
-          </WorkspaceHeading>
-        </WorkspaceHeader>
-        <WorkspaceContent>
-          <div aria-busy={!line}>
-            <SettingsList>
-              {values.map(({ label, value, dir }) => (
-                <SettingsItem key={label} label={label}>
-                  {line ? (
-                    <span className="whitespace-pre-wrap" dir={dir}>
-                      {orEmpty(value)}
-                    </span>
-                  ) : (
-                    <span className="block h-5 w-32 max-w-full">
-                      <Skeleton fill />
-                    </span>
-                  )}
-                </SettingsItem>
-              ))}
-            </SettingsList>
-          </div>
-        </WorkspaceContent>
-      </Workspace>
-      <WorkspaceFooter width="narrow">
-        <Button
-          nativeButton={false}
-          render={<Link to="/administration/supply-lines" search={listSearch} />}
-          size="lg"
-          variant="outline"
-        >
-          {t('supply-lines.view.cancel')}
-        </Button>
-      </WorkspaceFooter>
+      <FormDialogHeader>
+        <FormDialogTitle>{t('supply-lines.view.title')}</FormDialogTitle>
+        <FormDialogDescription>{t('supply-lines.view.page-description')}</FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <div aria-busy={!line}>
+          <SettingsList>
+            {values.map(({ label, value, dir }) => (
+              <SettingsItem key={label} label={label}>
+                {line ? (
+                  <span className="whitespace-pre-wrap" dir={dir}>
+                    {orEmpty(value)}
+                  </span>
+                ) : (
+                  <span className="block h-5 w-32 max-w-full">
+                    <Skeleton fill />
+                  </span>
+                )}
+              </SettingsItem>
+            ))}
+          </SettingsList>
+        </div>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('supply-lines.view.cancel')}</FormDialogCancel>
+      </FormDialogFooter>
     </>
   );
 }

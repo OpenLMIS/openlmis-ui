@@ -1,10 +1,19 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { useQuery } from '@tanstack/react-query';
+import { Building2Icon, InfoIcon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '@/components/load-error';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
 import { servedFacilitiesOptions } from '@/features/supply-lines/api/queries';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';
 
@@ -37,7 +46,9 @@ export function ServedFacilitiesPopover({ line }: { line: SupplyLine }) {
         render={
           <Button
             size="sm"
-            variant="link"
+            variant="ghost"
+            padding="none"
+            align="start"
             aria-label={t('supply-lines.served-facilities-for', {
               supplier: line.supplyingFacility?.name ?? '',
               node: node.code,
@@ -47,6 +58,7 @@ export function ServedFacilitiesPopover({ line }: { line: SupplyLine }) {
         }
       >
         <span dir="ltr">{node.code}</span>
+        <InfoIcon data-icon="inline-end" />
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -71,7 +83,19 @@ export function ServedFacilitiesPopover({ line }: { line: SupplyLine }) {
 function ServedFacilities({ nodeId }: { nodeId: string }) {
   const { t } = useTranslation();
   const query = useQuery(servedFacilitiesOptions(nodeId));
-  if (query.isPending) return <p role="status">{t('supply-lines.membership-loading')}</p>;
+  if (query.isPending)
+    return (
+      <div aria-busy="true" className="flex flex-col gap-2">
+        <span className="sr-only" role="status">
+          {t('supply-lines.membership-loading')}
+        </span>
+        {[0, 1, 2].map((line) => (
+          <div className="h-4 w-full" key={line}>
+            <Skeleton fill />
+          </div>
+        ))}
+      </div>
+    );
   if (query.isError)
     return (
       <LoadError
@@ -83,7 +107,18 @@ function ServedFacilities({ nodeId }: { nodeId: string }) {
         description={t('supply-lines.membership-error-description')}
       />
     );
-  if (query.data.length === 0) return <p>{t('supply-lines.membership-empty')}</p>;
+  if (query.data.length === 0)
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Building2Icon />
+          </EmptyMedia>
+          <EmptyTitle>{t('supply-lines.membership-empty')}</EmptyTitle>
+          <EmptyDescription>{t('supply-lines.membership-empty-description')}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   return (
     <ul className="flex flex-col gap-1">
       {query.data.map((facility, index) => (
