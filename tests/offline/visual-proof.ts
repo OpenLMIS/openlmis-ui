@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
-const runLabel = process.env.OFFLINE_PROOF_LABEL || 'fm-165';
+const runLabel = process.env.OFFLINE_PROOF_LABEL || 'offline-proof';
 const output = process.env.OFFLINE_PROOF_OUTPUT || `.screenshots/${runLabel}`;
 for (const programName of ['Fixture Medicines', 'Expanded Program on Immunization']) {
   const variant = programName === 'Fixture Medicines' ? '' : '-long-program';

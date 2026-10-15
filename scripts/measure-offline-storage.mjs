@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 
 const base = process.env.OFFLINE_PREVIEW_URL || 'http://127.0.0.1:9166/v2/';
-const output = '.offline/stage-9-storage.json';
+const output = '.offline/storage-measurement.json';
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
 const report = {
