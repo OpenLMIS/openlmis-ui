@@ -103,7 +103,7 @@ export const NAV_GROUPS: NavGroup[] = [
             to: '/stock-management/physical-inventory',
           },
           { titleKey: 'nav.stock-management.adjustments', to: '/stock-management/adjustments' },
-          { titleKey: 'device-events.title', to: '/stock-management/device-events' },
+          { titleKey: 'nav.stock-management.device-events', to: '/stock-management/device-events' },
           {
             titleKey: 'nav.stock-management.stock-on-hand',
             to: '/stock-management/stock-on-hand',

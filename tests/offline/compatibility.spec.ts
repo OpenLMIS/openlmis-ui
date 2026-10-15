@@ -56,6 +56,7 @@ test('sign-out and a different sign-in isolate device work and the original owne
     .getByRole('button', { name: 'Sign Out', exact: true })
     .click();
   await expect(page).toHaveURL(/login/);
+  await expect(page.getByRole('textbox', { name: 'Username', exact: true })).toBeVisible();
   await context.setOffline(false);
   await stub(context, async () => 'finish', undefined, 'other-user');
   await login(page, 'other-user');
@@ -74,6 +75,7 @@ test('sign-out and a different sign-in isolate device work and the original owne
   await page.getByRole('button', { name: 'Account Menu' }).click();
   await page.getByRole('menuitem', { name: 'Log Out', exact: true }).click();
   await expect(page).toHaveURL(/login/);
+  await expect(page.getByRole('textbox', { name: 'Username', exact: true })).toBeVisible();
   await stub(context, async () => 'finish');
   let posts = 0;
   await context.route('**/api/stockEvents', (route) => {

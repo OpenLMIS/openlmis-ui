@@ -572,6 +572,7 @@
   "nav.requisitions.view": "View",
   "nav.stock-management": "Stock Management",
   "nav.stock-management.adjustments": "Adjustments",
+  "nav.stock-management.device-events": "Device Events",
   "nav.stock-management.issue": "Issue",
   "nav.stock-management.physical-inventory": "Physical Inventory",
   "nav.stock-management.receive": "Receive",

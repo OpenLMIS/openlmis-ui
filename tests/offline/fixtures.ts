@@ -3,13 +3,16 @@ import type { BrowserContext, Page } from '@playwright/test';
 export async function stub(
   context: BrowserContext,
   stock: () => Promise<'finish' | 'fail'>,
-  ids = { home: 'home', program: 'program' },
+  ids: { home: string; program: string; programName?: string } = {
+    home: 'home',
+    program: 'program',
+  },
   userId = 'download-user',
 ) {
   const programs = [ids.program, 'never'].map((id) => ({
     id,
     code: id,
-    name: id === ids.program ? 'Fixture Medicines' : 'Never Downloaded',
+    name: id === ids.program ? (ids.programName ?? 'Fixture Medicines') : 'Never Downloaded',
     active: true,
   }));
   await context.route('**/api{,/**,?*}', async (route) => {
@@ -115,13 +118,17 @@ export async function stub(
     route.fulfill({ json: { timeZoneId: 'UTC' } }),
   );
 }
-export async function login(page: Page, username = 'download-user') {
+export async function login(
+  page: Page,
+  username = 'download-user',
+  programName = 'Fixture Medicines',
+) {
   await page.goto('./login?redirect=%2Fstock-management%2Fadjustments');
   await page.getByRole('textbox', { name: 'Username', exact: true }).fill(username);
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
   await page.waitForURL(/\/stock-management\/adjustments$/);
-  await page.getByRole('cell', { name: 'Fixture Medicines', exact: true }).waitFor();
+  await page.getByRole('cell', { name: programName, exact: true }).waitFor();
 }
 export async function generation(page: Page) {
   return page.evaluate(async () => {

@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { test } from './browser-fixtures';
+import { test, waitForOfflineShell } from './browser-fixtures';
 
 test('signed-in access and home programs survive an offline reload', {
   tag: '@offline-shell',
@@ -56,42 +56,40 @@ test('signed-in access and home programs survive an offline reload', {
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'Fixture Medicines', exact: true })).toBeVisible();
-  await page.waitForFunction(async () => {
-    const databases = await indexedDB.databases();
-    const name = databases.find((db) => db.name?.endsWith(':offline-user'))?.name;
-    if (!name) return false;
-    return new Promise<boolean>((resolve, reject) => {
-      const request = indexedDB.open(name);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains('offlineAccess')) {
-          db.close();
-          resolve(false);
-          return;
-        }
-        const read = db
-          .transaction('offlineAccess')
-          .objectStore('offlineAccess')
-          .get('offline-user');
-        read.onsuccess = () => {
-          db.close();
-          resolve(Boolean(read.result));
-        };
-        read.onerror = () => {
-          db.close();
-          reject(read.error);
-        };
-      };
-    });
-  });
-  await page.waitForFunction(() =>
-    navigator.serviceWorker.controller?.scriptURL.endsWith('/v2/sw.js'),
-  );
-  await page.waitForFunction(async () => {
-    const cache = await caches.open('openlmis-ui-locales');
-    return Boolean(await cache.match(new URL('/v2/locales/en.json', location.origin)));
-  });
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const databases = await indexedDB.databases();
+        const name = databases.find((db) => db.name?.endsWith(':offline-user'))?.name;
+        if (!name) return false;
+        return new Promise<boolean>((resolve, reject) => {
+          const request = indexedDB.open(name);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('offlineAccess')) {
+              db.close();
+              resolve(false);
+              return;
+            }
+            const read = db
+              .transaction('offlineAccess')
+              .objectStore('offlineAccess')
+              .get('offline-user');
+            read.onsuccess = () => {
+              db.close();
+              resolve(Boolean(read.result));
+            };
+            read.onerror = () => {
+              db.close();
+              reject(read.error);
+            };
+          };
+        });
+      }),
+    )
+    .toBe(true);
+  await waitForOfflineShell(page);
   offline = true;
   await context.setOffline(true);
   await page.reload();

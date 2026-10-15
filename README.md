@@ -123,17 +123,18 @@ and stop their own preview server. Install test binaries with `pnpm exec playwri
 chromium firefox webkit`. Chrome and Edge channels run when their Linux installations are
 available. WebKit also needs host libraries from `pnpm exec playwright install-deps webkit`
 (with permission to install system packages), or the Docker route below. The browser runner
-records missing binaries or host dependencies separately from test results in `.offline/browser-verification.json`; an unavailable engine is not a pass.
+records missing binaries or host dependencies separately from test results in
+`.offline/browser-verification.json`; an unavailable engine is not a pass.
 `pnpm test:offline` stays Chromium-only. Visual proof writes screenshots and verification JSON
 to `.screenshots/fm-165-stage-9/`.
 
 For Linux hosts missing WebKit libraries or Edge, use the matching official image
-`mcr.microsoft.com/playwright:v1.63.0-noble` (`docker pull` first). On x86_64 Linux, run with
+`mcr.microsoft.com/playwright:v1.64.1-noble` (`docker pull` first). On x86_64 Linux, run with
 `--network host --ipc host` and mount this worktree read-only. Copy `node_modules`,
 `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `playwright.config.ts`, `tests` and
 `scripts` to a writable container directory. Install Edge there as container root with
-`npx playwright install msedge`; WebKit is already installed. Enable the pinned pnpm through
-Corepack. Edge's Linux channel requires x86_64.
+`corepack pnpm exec playwright install msedge`; WebKit is already installed. Enable the pinned pnpm
+through Corepack. Edge's Linux channel requires x86_64.
 
 On the host, build with `VITE_BASE_PATH=/v2 pnpm build`, copy
 `tests/offline/config.json` to `dist/config.json`, then start
@@ -149,13 +150,18 @@ OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ corepack pnpm exec playwright test
 
 Copy `.offline/browser-results.json` out before removing the container and stop the host
 preview afterwards. Keep container writes in its local copy to avoid root-owned host files.
-WebKit currently runs with service workers blocked so API fixtures remain effective; eight
-`@offline-shell` cases are explicitly skipped. The native timeout case uses a delayed local
-HTTP response and runs in every engine. `node scripts/diagnose-offline-webkit.mjs` compares
-WebKit and Chromium against a synthetic worker and loopback server, reproducing routing and
-offline-navigation limits without application code. Set `OFFLINE_PREVIEW_URL` to add the
-actual application's offline-reload diagnostic with no routes installed. Playwright WebKit
-on Linux verifies that engine; actual Safari and Apple devices still need testing.
+WebKit's `@offline-shell` cases allow service workers. Six cases pass with the real worker cache: saved access, stale
+bundles, exact draft restart, direct-route gates, bare shell reload and offline Submit restart.
+Two cases require fixture-backed same-user renewal or connected submission after worker
+takeover, which WebKit 27.2 bypasses. They skip only with Playwright 1.64.1 / WebKit 27.2;
+a future version reruns them. Other WebKit cases block workers so their API fixtures remain
+effective and do not prove app-shell caching. The native timeout case runs in every engine
+using a delayed local HTTP response. `node scripts/diagnose-offline-webkit.mjs` compares
+WebKit and Chromium against a synthetic worker and loopback server. It reproduces the fixture
+bypass and shows that native offline worker navigation now works. Set `OFFLINE_PREVIEW_URL`
+to include the actual app reload with no request interception. Shell tests await worker
+control, then poll until config and all five language catalogs are readable from the cache.
+WebKit on Linux verifies that engine; actual Safari and Apple devices still need testing.
 
 For read-only local storage sizing, preview a production `/v2` build with real runtime OAuth
 settings in `dist/config.json` (not the browser fixture config), the configured

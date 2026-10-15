@@ -1,25 +1,19 @@
 import { expect } from '@playwright/test';
-import { test } from './browser-fixtures';
+import { test, waitForOfflineShell } from './browser-fixtures';
 
 test('production shell reloads offline under /v2 after worker takeover', {
   tag: '@offline-shell',
-}, async ({ page, context }) => {
+}, async ({ page, context, baseURL }) => {
   await context.route('**/api{,/**,?*}', (route) => route.abort());
   await context.route('**/localeSettings{,/**,?*}', (route) => route.abort());
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
-  await page.waitForFunction(() =>
-    navigator.serviceWorker.controller?.scriptURL.endsWith('/v2/sw.js'),
-  );
-  await page.waitForFunction(async () => {
-    const cache = await caches.open('openlmis-ui-locales');
-    return Boolean(await cache.match(new URL('/v2/locales/en.json', location.origin)));
-  });
+  await waitForOfflineShell(page);
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/\/v2\/login/);
-  expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toContain(
-    '/v2/sw.js',
+  await expect(page).toHaveURL(new URL('login', baseURL).href);
+  expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toBe(
+    new URL('sw.js', baseURL).href,
   );
 });

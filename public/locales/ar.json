@@ -572,6 +572,7 @@
   "nav.requisitions.view": "عرض",
   "nav.stock-management": "إدارة المخزون",
   "nav.stock-management.adjustments": "التعديلات",
+  "nav.stock-management.device-events": "أحداث الجهاز",
   "nav.stock-management.issue": "الصرف",
   "nav.stock-management.physical-inventory": "الجرد الفعلي",
   "nav.stock-management.receive": "الاستلام",

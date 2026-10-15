@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect } from '@playwright/test';
-import { test } from './browser-fixtures';
+import { test, waitForOfflineShell } from './browser-fixtures';
 
 import { generation, login, stub } from './fixtures';
 
@@ -39,16 +39,7 @@ test('stale bundle survives offline restart with its download time and missing p
     await login(page);
     await expect(page.getByText('Ready Offline', { exact: true })).toBeVisible();
     await expect.poll(() => generation(page)).not.toBeNull();
-    await page.waitForFunction(() =>
-      navigator.serviceWorker.controller?.scriptURL.endsWith('/v2/sw.js'),
-    );
-    await page.waitForFunction(async () =>
-      Boolean(
-        await (await caches.open('openlmis-ui-locales')).match(
-          new URL('/v2/locales/en.json', location.origin),
-        ),
-      ),
-    );
+    await waitForOfflineShell(page);
     const downloadedAt = await page.getByText(/^Downloaded /).textContent();
     await page.evaluate(async () => {
       const name = (await indexedDB.databases()).find((db) =>
