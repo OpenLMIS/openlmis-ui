@@ -664,6 +664,61 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
     }),
   ]);
 }
+function useMemberColumnView() {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const view = useColumnVisibility(
+    MEMBER_COLUMNS,
+    useStoredState('requisition-group-members.column-visibility', visibilitySchema, {}),
+    width,
+  );
+  return { measure, view };
+}
+function MembersToolbar({
+  view,
+  readOnly,
+  query,
+  disabled = false,
+  addRef,
+  onAdd,
+  onQueryChange,
+}: {
+  view: ReturnType<typeof useColumnVisibility>;
+  readOnly: boolean;
+  query: string | undefined;
+  disabled?: boolean;
+  addRef?: Ref<HTMLButtonElement>;
+  onAdd?: () => void;
+  onQueryChange?: (query: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <DataTableToolbar>
+      <div className="w-full @2xl/main:w-72">
+        <DataTableSearch
+          disabled={disabled}
+          value={query ?? ''}
+          placeholder={t('requisition-groups.form.member-search')}
+          onValueChange={(q) => onQueryChange?.(q)}
+        />
+      </div>
+      <div className="ms-auto">
+        <DataTableViewOptions
+          columns={MEMBER_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          disabled={disabled}
+          visibility={view.visibility}
+          onVisibilityChange={view.onVisibilityChange}
+          onReset={view.onReset}
+        />
+      </div>
+      {!readOnly && (
+        <Button ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+          <PlusIcon data-icon="inline-start" />
+          {t('requisition-groups.form.add-facility')}
+        </Button>
+      )}
+    </DataTableToolbar>
+  );
+}
 function MembersFields({
   form,
   readOnly,
@@ -680,12 +735,7 @@ function MembersFields({
   const tableRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const [adding, setAdding] = useState(false);
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const view = useColumnVisibility(
-    MEMBER_COLUMNS,
-    useStoredState('requisition-group-members.column-visibility', visibilitySchema, {}),
-    width,
-  );
+  const { measure, view } = useMemberColumnView();
   const page = useMemo(() => memberPage(rows, search), [rows, search]);
   const remove = useCallback(
     (id: string, visible: number) => {
@@ -727,31 +777,16 @@ function MembersFields({
   }, [page.page, search.page, onSearchChange]);
   return (
     <div className="flex flex-col gap-4" ref={measure}>
-      <DataTableToolbar>
-        <div className="w-full @2xl/main:w-72">
-          <DataTableSearch
-            value={search.q ?? ''}
-            placeholder={t('requisition-groups.form.member-search')}
-            onValueChange={(q) =>
-              onSearchChange({ q: q || undefined, page: undefined }, true, { resetScroll: false })
-            }
-          />
-        </div>
-        <div className="ms-auto">
-          <DataTableViewOptions
-            columns={MEMBER_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-            visibility={view.visibility}
-            onVisibilityChange={view.onVisibilityChange}
-            onReset={view.onReset}
-          />
-        </div>
-        {!readOnly && (
-          <Button ref={addRef} variant="outline" onClick={() => setAdding(true)}>
-            <PlusIcon data-icon="inline-start" />
-            {t('requisition-groups.form.add-facility')}
-          </Button>
-        )}
-      </DataTableToolbar>
+      <MembersToolbar
+        view={view}
+        readOnly={readOnly}
+        query={search.q}
+        addRef={addRef}
+        onAdd={() => setAdding(true)}
+        onQueryChange={(q) =>
+          onSearchChange({ q: q || undefined, page: undefined }, true, { resetScroll: false })
+        }
+      />
       {!readOnly && (
         <AddFacilityDialog
           open={adding}
@@ -1087,21 +1122,15 @@ export function RequisitionGroupEditorSkeleton({
   title,
   description,
   readOnly = false,
+  search = {},
 }: {
   title?: string;
   description: string;
   readOnly?: boolean;
+  search?: RequisitionGroupEditorSearch;
 }) {
   const { t } = useTranslation();
-  const { measure, view } = useProgramColumnView();
-  const columns = useMemo(() => programColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
-  const table = useTable({
-    features: dataTableFeatures,
-    columns,
-    data: [],
-    enableSorting: false,
-    state: { columnVisibility: view.visibility },
-  });
+  const tab = search.tab ?? 'programs';
   return (
     <>
       <Workspace width="narrow">
@@ -1115,13 +1144,14 @@ export function RequisitionGroupEditorSkeleton({
                 ))}
               </div>
             </FieldGroup>
-            <Tabs spacing="page" value="programs">
+            <Tabs spacing="page" value={tab}>
               <EditorTabs />
-              <TabsContent value="programs">
-                <div className="flex flex-col gap-4" ref={measure}>
-                  <ProgramsToolbar view={view} readOnly={readOnly} disabled />
-                  <DataTableSkeleton table={table} rowCount={3} />
-                </div>
+              <TabsContent value={tab}>
+                {tab === 'facilities' ? (
+                  <MembersSkeleton readOnly={readOnly} query={search.q} />
+                ) : (
+                  <ProgramsSkeleton readOnly={readOnly} />
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -1138,5 +1168,41 @@ export function RequisitionGroupEditorSkeleton({
         )}
       </WorkspaceFooter>
     </>
+  );
+}
+function ProgramsSkeleton({ readOnly }: { readOnly: boolean }) {
+  const { t } = useTranslation();
+  const { measure, view } = useProgramColumnView();
+  const columns = useMemo(() => programColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
+  const table = useTable({
+    features: dataTableFeatures,
+    columns,
+    data: [],
+    enableSorting: false,
+    state: { columnVisibility: view.visibility },
+  });
+  return (
+    <div className="flex flex-col gap-4" ref={measure}>
+      <ProgramsToolbar view={view} readOnly={readOnly} disabled />
+      <DataTableSkeleton table={table} rowCount={3} />
+    </div>
+  );
+}
+function MembersSkeleton({ readOnly, query }: { readOnly: boolean; query: string | undefined }) {
+  const { t } = useTranslation();
+  const { measure, view } = useMemberColumnView();
+  const columns = useMemo(() => memberColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
+  const table = useTable({
+    features: dataTableFeatures,
+    columns,
+    data: [],
+    enableSorting: false,
+    state: { columnVisibility: view.visibility },
+  });
+  return (
+    <div className="flex flex-col gap-4" ref={measure}>
+      <MembersToolbar view={view} readOnly={readOnly} query={query} disabled />
+      <DataTableSkeleton table={table} rowCount={10} />
+    </div>
   );
 }

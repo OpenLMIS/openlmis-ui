@@ -48,8 +48,10 @@ function ViewGroupPage() {
 }
 function ViewGroupPending() {
   const { t } = useTranslation();
+  const search = Route.useSearch();
   return (
     <RequisitionGroupEditorSkeleton
+      search={search}
       description={t('requisition-groups.form.view-description')}
       readOnly
     />

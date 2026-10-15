@@ -56,7 +56,11 @@ function EditGroupPage() {
 }
 function EditGroupPending() {
   const { t } = useTranslation();
+  const search = Route.useSearch();
   return (
-    <RequisitionGroupEditorSkeleton description={t('requisition-groups.form.edit-description')} />
+    <RequisitionGroupEditorSkeleton
+      search={search}
+      description={t('requisition-groups.form.edit-description')}
+    />
   );
 }

@@ -49,8 +49,10 @@ function AddGroupPage() {
 }
 function AddGroupPending() {
   const { t } = useTranslation();
+  const search = Route.useSearch();
   return (
     <RequisitionGroupEditorSkeleton
+      search={search}
       title={t('requisition-groups.form.add-title')}
       description={t('requisition-groups.form.add-description')}
     />
