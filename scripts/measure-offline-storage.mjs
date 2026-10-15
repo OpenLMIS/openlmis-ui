@@ -6,7 +6,7 @@ const output = '.offline/stage-9-storage.json';
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
 const report = {
-  date: '2026-10-15',
+  date: new Date().toISOString(),
   browser: browser.version(),
   base,
   stockPosts: 0,
@@ -195,7 +195,7 @@ try {
       reasonId: reason.id,
       reasonFreeText: '',
       quantity: { doses: '1', packs: '', remainder: '' },
-      occurredDate: '2026-10-15',
+      occurredDate: new Date().toISOString().slice(0, 10),
       vvmStatus: '',
     };
     const tx = db.transaction(
@@ -226,7 +226,7 @@ try {
           orderableId: card.orderable.id,
           lotId: card.lot?.id,
           quantity: 1,
-          occurredDate: '2026-10-15',
+          occurredDate: new Date().toISOString().slice(0, 10),
           reasonId: reason.id,
         })),
       };
