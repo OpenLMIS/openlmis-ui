@@ -58,7 +58,7 @@ test('logout gives one retained-work warning offline and online and retains the 
     await page.getByRole('menuitem', { name: 'Log Out' }).click();
     const warning = page.getByRole('alertdialog');
     await expect(warning).toContainText('saved only on this device');
-    await expect(warning).toContainText('log in again as this user');
+    await expect(warning).toContainText('sign in again as this user');
     await expect(warning).toHaveCount(1);
     await warning.getByRole('button', { name: 'Stay Logged In' }).click();
   }

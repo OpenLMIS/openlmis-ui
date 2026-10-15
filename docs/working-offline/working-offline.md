@@ -24,7 +24,7 @@ The app cannot download new data while disconnected.
 
 ## Drafts And Submit Offline
 
-Open Adjustments and choose a program. Edits save automatically. Wait for Saved on this device
+Open Adjustments and choose a program. Edits save automatically. Wait for Saved On This Device
 before closing the browser. If saving fails, keep the page open and use Retry. A failed save
 is not confirmation that your latest edits are stored.
 
@@ -57,7 +57,7 @@ unknown results and recent receipts. Use each row's menu to review signed detail
 - Refused means the server rejected the whole event. Review the full reason. Copy For
   Correction makes an editable copy and keeps the original refusal. A stock-changed refusal
   can include backdated movements that would make a later balance negative.
-- Uncertain means the app did not receive a reliable result. The server may have recorded it.
+- Needs Review means the app did not receive a reliable result. The server may have recorded it.
   Later events for that facility and program wait; other programs can continue.
 - Synced means a server acceptance was recorded. Marked As Recorded By You identifies a
   manual decision rather than a server answer.
@@ -68,10 +68,10 @@ choice without sending again. Send Again requires a warning because it may recor
 and change stock twice. Cancel leaves the event waiting for review. Reconnecting or restarting
 never authorizes an automatic resend of an uncertain event.
 
-## Signing Out And Keeping Work
+## Log Out And Keep Work
 
-Signing out warns about work saved only on this device, even while connected. Stay Signed In
-keeps access. Confirming Sign Out retains committed work, but signing in again needs a
+Log Out warns about work saved only on this device, even while connected. Stay Logged In
+keeps access. Confirming Log Out retains committed work, but signing in again needs a
 connection. Only the original user can resume that user's work in the app.
 
 Device work does not move to another computer, browser profile or deployment. Do not clear site

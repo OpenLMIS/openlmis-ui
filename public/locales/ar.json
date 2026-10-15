@@ -1720,7 +1720,7 @@
   "sign-out-device.title": "لم تتم مزامنة عمل الجهاز",
   "sign-out-offline.confirm": "تسجيل الخروج",
   "sign-out-offline.description": "تحتاج إلى اتصال لتسجيل الدخول مجددًا.",
-  "sign-out-offline.stay": "البقاء مسجّلاً",
+  "sign-out-offline.stay": "البقاء قيد تسجيل الدخول",
   "sign-out-offline.title": "تسجيل الخروج دون اتصال؟",
   "stock-adjustment.editor-crumb": "إجراء تعديلات",
   "stock-adjustment.editor-description": "أضف المنتجات التي تغيّرت، وحدّد لكل منها سببًا وكمية وتاريخًا، ثم أرسلها معًا.",

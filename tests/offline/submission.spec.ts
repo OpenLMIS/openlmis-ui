@@ -37,7 +37,11 @@ test('offline Submit retains its committed event through persistent restart', {
     await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
     await page.getByRole('button', { name: 'Confirm', exact: true }).dblclick();
     await expect(page).toHaveURL(/\/adjustments$/);
-    await expect(page.getByText('Saved On This Device', { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'Notifications alt+T' })
+        .getByText('Saved On This Device', { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
     ).toBeVisible();
@@ -96,7 +100,11 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0]).not.toHaveProperty('documentNumber');
   await expect(page).toHaveURL(new RegExp(`/adjustments/${program}$`));
-  await expect(page.getByText('Saved On This Device', { exact: true })).not.toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Notifications alt+T' })
+      .getByText('Saved On This Device', { exact: true }),
+  ).not.toBeVisible();
   await answer();
   await expect(page).toHaveURL(
     new RegExp(`stock-on-hand.*facilityId=${home}.*programId=${program}`),

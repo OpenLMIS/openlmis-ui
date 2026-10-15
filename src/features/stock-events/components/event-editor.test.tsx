@@ -1109,7 +1109,7 @@ describe('EventEditor', () => {
       await operation;
     });
     expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('32');
-    await screen.findByText('Saved on this device');
+    await screen.findByText('Saved On This Device');
     cleanup();
     setup();
     expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
@@ -2263,16 +2263,16 @@ it.each([
 it('shows failed local commits with Retry and leave protection until a successful retry', async () => {
   const { user, router } = setup(true, undefined, { browserHistory: true });
   await add(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
   await screen.findByText('Could not save on this device. Your latest edits are not saved.');
-  expect(screen.queryByText('Saved on this device')).not.toBeInTheDocument();
+  expect(screen.queryByText('Saved On This Device')).not.toBeInTheDocument();
   const unload = new Event('beforeunload', { cancelable: true });
   fireEvent(window, unload);
   expect(unload.defaultPrevented).toBe(true);
   await user.click(screen.getByRole('button', { name: /^Retry$/ }));
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const savedUnload = new Event('beforeunload', { cancelable: true });
   fireEvent(window, savedUnload);
   expect(savedUnload.defaultPrevented).toBe(false);
@@ -2283,7 +2283,7 @@ it('flushes the final edit on unmount and restores exact quantities without a di
   const { user } = setup();
   await add(user);
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const leave = vi.fn();
   act(() => whenLeaveAllowed(leave));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
@@ -2304,7 +2304,7 @@ it('flushes the final edit on unmount and restores exact quantities without a di
 it('keeps committed lines when signing out after a failed device save', async () => {
   const { user } = setup();
   await add(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const table = getLocalDb().table('stockEventDrafts');
   const before = await table.toArray();
   vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
@@ -2322,11 +2322,11 @@ it.each(['navigation', 'sign-out'])(
   async (destination) => {
     const { user, router } = setup(true, undefined, { browserHistory: true });
     await add(user);
-    await screen.findByText('Saved on this device');
+    await screen.findByText('Saved On This Device');
     fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
       target: { value: '0018' },
     });
-    expect(screen.getByText('Saving on this device')).toBeVisible();
+    expect(screen.getByText('Saving On This Device')).toBeVisible();
     if (!router) throw new Error('Missing test router');
     const leave = vi.fn();
     if (destination === 'navigation')
@@ -2348,7 +2348,7 @@ it.each(['navigation', 'sign-out'])(
 it('explains a failed device flush when Submit is clicked', async () => {
   const { user } = setup();
   await validLine(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
   fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
     target: { value: '18' },
@@ -2361,7 +2361,7 @@ it('explains a failed device flush when Submit is clicked', async () => {
 it('refreshes resumed stock and product snapshots while keeping typed values and enforcing the new debit cap', async () => {
   const { user } = setup();
   await validLine(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const context = createStockEventContext({
     kind: 'adjustment',
     facilityId: 'facility',
@@ -2381,7 +2381,7 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
   expect(
     await screen.findByRole('textbox', { name: /^Quantity, Fresh Aspirin FRESH/ }),
   ).toHaveValue('17');
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const saved = await readStockEventDraft(context);
   expect(saved?.lines[0]).toMatchObject({
     orderable: fresh.orderable,
@@ -2406,7 +2406,7 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
 it('keeps a resumed missing stock line highlighted and explains why it cannot submit', async () => {
   const { user } = setup();
   await validLine(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   cleanup();
   const next = setup(true, (client) => client.setQueryData(editorStockOptions().queryKey, [other]));
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
@@ -2428,7 +2428,7 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
     }),
   );
   await validLine(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const context = createStockEventContext({
     kind: 'adjustment',
     facilityId: 'facility',
@@ -2455,7 +2455,7 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
   expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('0030');
   expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
   expect((await readStockEventDraft(context))?.revision).toBe(2);
-  expect(screen.queryByText('Saving on this device')).not.toBeInTheDocument();
+  expect(screen.queryByText('Saving On This Device')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Archived Copies' }));
   dialog = await screen.findByRole('dialog', { name: 'Archived Copies' });
   await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));
@@ -2495,7 +2495,7 @@ it('keeps resumed lines when cold stock and reason lookups finish after the devi
     client.removeQueries({ queryKey: editorStockOptions().queryKey });
     client.removeQueries({ queryKey: editorReasonsOptions().queryKey });
   });
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   await act(async () => {
     finishReasons([{ reason, hidden: false }]);
     finishCards([{ ...card, stockOnHand: 5 }, other]);
@@ -2503,7 +2503,7 @@ it('keeps resumed lines when cold stock and reason lookups finish after the devi
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
     '0012',
   );
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   expect((await readStockEventDraft(context))?.lines[0].stockOnHand).toBe(5);
 });
 
@@ -2533,7 +2533,7 @@ it.each(['no stock rights', 'failed read'])(
 it('allows a resumed expired-lot Adjustment to submit', async () => {
   const { user } = setup();
   await validLine(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   cleanup();
   const next = setup(true, (client) =>
     client.setQueryData(editorStockOptions().queryKey, [
@@ -2553,7 +2553,7 @@ it('allows a resumed expired-lot Adjustment to submit', async () => {
 it('keeps delete failures out of Archived Copies and restore failures out of Delete', async () => {
   const { user } = setup();
   await validLine(user);
-  await screen.findByText('Saved on this device');
+  await screen.findByText('Saved On This Device');
   const context = createStockEventContext({
     kind: 'adjustment',
     facilityId: 'facility',

@@ -362,8 +362,8 @@ by a proxy or service worker as an offline substitute.
 
 Offline download and upload coordination requires Web Locks. Browsers without it show an
 explanation and keep connected reads available, but cannot automatically send queued work.
-Edge has full automated browser coverage on Linux in Docker. WebKit has partial coverage,
-including six worker-backed shell/restart scenarios; actual Safari has not run. Test
+Edge has full automated browser coverage on Linux in Docker. WebKit has partial coverage
+of worker-backed shell/restart behavior; actual Safari has not run. Test
 managed browsers and real phones separately. The
 [offline support guide](../offline-plan/offline-plan.md#verification-and-rollout-limits)
 describes the verification limits.
