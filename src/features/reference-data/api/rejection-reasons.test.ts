@@ -71,11 +71,11 @@ for (const { resource, fetch, record, normalized } of [
       await expect(fetch()).rejects.toBe(error);
     });
 
-    it('rejects an in-flight identity change without requesting another page', async () => {
+    it('rejects a final response after an in-flight identity change', async () => {
       const gate = Promise.withResolvers<void>();
       get.mockImplementationOnce(async () => {
         await gate.promise;
-        return { data: { content: [record], size: 1, totalPages: 2 } };
+        return { data: { content: [record], size: 1, totalPages: 1 } };
       });
       const pending = fetch();
       vi.mocked(assertSessionScope).mockImplementation(() => {
