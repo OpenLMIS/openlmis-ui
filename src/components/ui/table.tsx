@@ -85,13 +85,16 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
 function TableRow({
   className,
   surface = "default",
+  drag = false,
   ...props
-}: React.ComponentProps<"tr"> & { surface?: "default" | "muted" | "primary" }) {
+}: React.ComponentProps<"tr"> & { surface?: "default" | "muted" | "primary"; drag?: boolean | "overlay" }) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        drag === true && "relative z-1 border-b-0 bg-card shadow-[inset_0_-1px_0_var(--color-border)] [transform:var(--row-transform)] [transition:var(--row-transition)] hover:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] data-[dragging=true]:z-0 data-[dragging=true]:bg-muted data-[dragging=true]:hover:bg-muted [&[data-dragging=true]>td>*]:invisible",
+        drag === "overlay" && "cursor-grabbing border-b-0 bg-[color-mix(in_srgb,var(--primary)_8%,var(--background))] shadow-lg hover:bg-[color-mix(in_srgb,var(--primary)_8%,var(--background))]",
         surface === "muted" && "bg-muted/30 font-medium has-aria-expanded:bg-muted/30",
         surface === "primary" && "bg-primary text-primary-foreground font-medium hover:bg-primary has-aria-expanded:bg-primary data-[state=selected]:bg-primary",
         className
@@ -101,12 +104,17 @@ function TableRow({
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({
+  className,
+  width = "default",
+  ...props
+}: React.ComponentProps<"th"> & { width?: "default" | "icon" }) {
   return (
     <th
       data-slot="table-head"
       className={cn(
         "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground",
+        width === "icon" && "w-16",
         className
       )}
       {...props}

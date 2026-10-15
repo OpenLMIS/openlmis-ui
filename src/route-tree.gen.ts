@@ -24,6 +24,7 @@ import { Route as protectedProtectedAdministrationProcessingSchedulesRouteImport
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
 import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
 import { Route as protectedProtectedAdministrationReasonsRouteImport } from './routes/(protected)/_protected.administration.reasons'
+import { Route as protectedProtectedAdministrationRequisitionTemplatesRouteImport } from './routes/(protected)/_protected.administration.requisition-templates'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
 import { Route as protectedProtectedAdministrationSupervisoryNodesRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes'
@@ -48,6 +49,7 @@ import { Route as protectedProtectedAdministrationFacilitiesNewRouteImport } fro
 import { Route as protectedProtectedAdministrationProductsIdRouteImport } from './routes/(protected)/_protected.administration.products_.$id'
 import { Route as protectedProtectedAdministrationReasonsIdRouteImport } from './routes/(protected)/_protected.administration.reasons_.$id'
 import { Route as protectedProtectedAdministrationReasonsNewRouteImport } from './routes/(protected)/_protected.administration.reasons_.new'
+import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementIssueProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.issue_.$programId'
@@ -145,6 +147,12 @@ const protectedProtectedAdministrationReasonsRoute =
   protectedProtectedAdministrationReasonsRouteImport.update({
     id: '/administration/reasons',
     path: '/administration/reasons',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationRequisitionTemplatesRoute =
+  protectedProtectedAdministrationRequisitionTemplatesRouteImport.update({
+    id: '/administration/requisition-templates',
+    path: '/administration/requisition-templates',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationRolesRoute =
@@ -291,6 +299,12 @@ const protectedProtectedAdministrationReasonsNewRoute =
     path: '/administration/reasons/new',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedAdministrationRequisitionTemplatesIdRoute =
+  protectedProtectedAdministrationRequisitionTemplatesIdRouteImport.update({
+    id: '/administration/requisition-templates_/$id',
+    path: '/administration/requisition-templates/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedAdministrationSupervisoryNodesIdRoute =
   protectedProtectedAdministrationSupervisoryNodesIdRouteImport.update({
     id: '/administration/supervisory-nodes_/$id',
@@ -401,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
+  '/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
@@ -425,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -454,6 +470,7 @@ export interface FileRoutesByTo {
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
+  '/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
@@ -477,6 +494,7 @@ export interface FileRoutesByTo {
   '/administration/facilities/new': typeof protectedProtectedAdministrationFacilitiesNewRoute
   '/administration/reasons/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/administration/reasons/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -510,6 +528,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
   '/(protected)/_protected/administration/reasons': typeof protectedProtectedAdministrationReasonsRoute
+  '/(protected)/_protected/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/(protected)/_protected/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
@@ -534,6 +553,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id': typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   '/(protected)/_protected/administration/reasons_/$id': typeof protectedProtectedAdministrationReasonsIdRoute
   '/(protected)/_protected/administration/reasons_/new': typeof protectedProtectedAdministrationReasonsNewRoute
+  '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/issue_/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -567,6 +587,7 @@ export interface FileRouteTypes {
     | '/administration/products'
     | '/administration/programs'
     | '/administration/reasons'
+    | '/administration/requisition-templates'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/supervisory-nodes'
@@ -591,6 +612,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
@@ -620,6 +642,7 @@ export interface FileRouteTypes {
     | '/administration/products'
     | '/administration/programs'
     | '/administration/reasons'
+    | '/administration/requisition-templates'
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/supervisory-nodes'
@@ -643,6 +666,7 @@ export interface FileRouteTypes {
     | '/administration/facilities/new'
     | '/administration/reasons/$id'
     | '/administration/reasons/new'
+    | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
@@ -675,6 +699,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products'
     | '/(protected)/_protected/administration/programs'
     | '/(protected)/_protected/administration/reasons'
+    | '/(protected)/_protected/administration/requisition-templates'
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
     | '/(protected)/_protected/administration/supervisory-nodes'
@@ -699,6 +724,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id'
     | '/(protected)/_protected/administration/reasons_/$id'
     | '/(protected)/_protected/administration/reasons_/new'
+    | '/(protected)/_protected/administration/requisition-templates_/$id'
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/issue_/$programId'
@@ -829,6 +855,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/reasons'
       fullPath: '/administration/reasons'
       preLoaderRoute: typeof protectedProtectedAdministrationReasonsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/requisition-templates': {
+      id: '/(protected)/_protected/administration/requisition-templates'
+      path: '/administration/requisition-templates'
+      fullPath: '/administration/requisition-templates'
+      preLoaderRoute: typeof protectedProtectedAdministrationRequisitionTemplatesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/roles': {
@@ -997,6 +1030,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/reasons/new'
       fullPath: '/administration/reasons/new'
       preLoaderRoute: typeof protectedProtectedAdministrationReasonsNewRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/requisition-templates_/$id': {
+      id: '/(protected)/_protected/administration/requisition-templates_/$id'
+      path: '/administration/requisition-templates/$id'
+      fullPath: '/administration/requisition-templates/$id'
+      preLoaderRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/supervisory-nodes_/$id': {
@@ -1183,6 +1223,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
   protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
   protectedProtectedAdministrationReasonsRoute: typeof protectedProtectedAdministrationReasonsRoute
+  protectedProtectedAdministrationRequisitionTemplatesRoute: typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationSupervisoryNodesRoute: typeof protectedProtectedAdministrationSupervisoryNodesRoute
@@ -1201,6 +1242,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationProductsIdRoute: typeof protectedProtectedAdministrationProductsIdRouteWithChildren
   protectedProtectedAdministrationReasonsIdRoute: typeof protectedProtectedAdministrationReasonsIdRoute
   protectedProtectedAdministrationReasonsNewRoute: typeof protectedProtectedAdministrationReasonsNewRoute
+  protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementIssueProgramIdRoute: typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -1231,6 +1273,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationProgramsRoute,
   protectedProtectedAdministrationReasonsRoute:
     protectedProtectedAdministrationReasonsRoute,
+  protectedProtectedAdministrationRequisitionTemplatesRoute:
+    protectedProtectedAdministrationRequisitionTemplatesRoute,
   protectedProtectedAdministrationRolesRoute:
     protectedProtectedAdministrationRolesRoute,
   protectedProtectedAdministrationServiceAccountsRoute:
@@ -1267,6 +1311,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationReasonsIdRoute,
   protectedProtectedAdministrationReasonsNewRoute:
     protectedProtectedAdministrationReasonsNewRoute,
+  protectedProtectedAdministrationRequisitionTemplatesIdRoute:
+    protectedProtectedAdministrationRequisitionTemplatesIdRoute,
   protectedProtectedAdministrationSupervisoryNodesIdRoute:
     protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedStockManagementAdjustmentsProgramIdRoute:

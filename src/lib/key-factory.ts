@@ -8,6 +8,7 @@ export const createQueryKeys = <T extends string>(scope: T) => ({
 export const queryKeys = {
   appConfiguration: createQueryKeys('appConfiguration'),
   auth: createQueryKeys('auth'),
+  availableRequisitionColumns: createQueryKeys('availableRequisitionColumns'),
   facilities: createQueryKeys('facilities'),
   facilityOperators: createQueryKeys('facilityOperators'),
   facilityTypeApprovedProducts: createQueryKeys('facilityTypeApprovedProducts'),
@@ -27,6 +28,7 @@ export const queryKeys = {
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
   reasons: createQueryKeys('reasons'),
+  requisitionTemplates: createQueryKeys('requisitionTemplates'),
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
   serviceAccounts: createQueryKeys('serviceAccounts'),

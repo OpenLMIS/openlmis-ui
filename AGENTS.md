@@ -254,6 +254,7 @@ edits, which have no prop for TypeScript to detect:
 | File | Required customization |
 |---|---|
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
+| `table.tsx` | Preserve TableRow `drag` with transform and transition from CSS custom properties |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
@@ -504,7 +505,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
   default, `default` for compact tables needing room, `compact` for tighter cell padding;
   `layout="fixed"` by default, `auto`
-  for content-sized columns such as bin cards.
+  for content-sized columns such as bin cards. `DataTableSkeleton pagination={false}` omits
+  the pager placeholder for unpaged tables; pagination defaults to true.
 - URL/table state stays in `src/lib/table-search.ts` as app glue.
 
 TanStack Table is **v9**: use `useTable` and `dataTableFeatures`, never v8 `useReactTable`.
@@ -559,8 +561,8 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 
 | Field | Contract |
 |---|---|
-| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row |
-| `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber` |
+| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row; `TextField controlSize="sm"` opts into 28px controls, including inline fields |
+| `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber`; `controlSize="sm"` opts into small controls |
 | `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` uses Input's `full-minimum` mode to divide the wrapper equally while reserving the same content minimum with full input padding |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
@@ -572,6 +574,10 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
+- `TextField`/`NumberField`, `TextareaField` and `SelectField` accept `errorDescriptionId`
+  to mark the control invalid and reference an existing visible error instead of rendering another
+  error or tooltip. `TextareaField describedBy` adds a description such as a character counter.
+  `ComboboxField invalid` and `describedBy` associate a separate selection field error with its picker.
 - Inline `SelectField`, `TextareaField`, `QuantityField` and `DateField` accept `hideErrors`.
   Editor line tables use it to hide error text, retain `aria-invalid` and
   screen-reader descriptions, and show the message on field hover or focus through Tooltip without

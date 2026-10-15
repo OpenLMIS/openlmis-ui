@@ -271,7 +271,7 @@ type DataTableSkeletonProps<TData extends RowData> = {
   density?: 'default' | 'comfortable' | 'compact';
   layout?: 'fixed' | 'auto';
   height?: 'auto' | 'fill';
-  pagination?: 'default' | 'centered';
+  pagination?: 'default' | 'centered' | 'none';
 };
 
 export function DataTableSkeleton<TData extends RowData>({
@@ -304,9 +304,11 @@ export function DataTableSkeleton<TData extends RowData>({
             </TableBody>
           </Table>
         </div>
-        <DataTableFooter>
-          <DataTablePaginationSkeleton layout={pagination} />
-        </DataTableFooter>
+        {pagination !== 'none' && (
+          <DataTableFooter>
+            <DataTablePaginationSkeleton layout={pagination} />
+          </DataTableFooter>
+        )}
       </DataTableCard>
     </div>
   );
