@@ -195,11 +195,9 @@ it('keeps concurrent notes visible and announces only download changes through c
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
   expect(screen.getAllByRole('status')).toHaveLength(1);
   expect(screen.getAllByRole('note')).toHaveLength(2);
-  expect(
-    screen
-      .getAllByRole('note')
-      .some((note) => note.textContent?.includes('offline.download.fetching')),
-  ).toBe(true);
+  expect(screen.getAllByRole('note').map((note) => note.textContent)).toEqual(
+    expect.arrayContaining([expect.stringContaining('offline.download.fetching')]),
+  );
   act(() => setDownloadStatus({ phase: 'complete', failed: [] }));
   expect(screen.getAllByRole('note')).toHaveLength(1);
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
