@@ -118,83 +118,22 @@ VITE_BASE_PATH=/v2 pnpm build
 VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
 ```
 
-The offline suites use fixture API responses and intercept all stock-event POSTs. They build
-and stop their own preview server. Install test binaries with `pnpm exec playwright install
-chromium firefox webkit`. Chrome and Edge channels run when their Linux installations are
-available. WebKit also needs host libraries from `pnpm exec playwright install-deps webkit`
-(with permission to install system packages), or the Docker route below. The browser runner
-records missing binaries or host dependencies separately from test results in
-`.offline/browser-verification.json`; an unavailable engine is not a pass.
-`pnpm test:offline` stays Chromium-only. Reporter JSON is separate for each command:
-`.offline/chromium-results.json`, `.offline/browsers-results.json` and
-`.offline/visual-results.json`. Their artifact directories use the corresponding names.
-Visual proof runs six English/Arabic cases: both program names on desktop, and the long
-program name on phone. Screenshots and verification JSON default to `.screenshots/fm-165/`,
-with `fm-165-` filenames. Set `OFFLINE_PROOF_LABEL` to change the run label and default folder,
-or `OFFLINE_PROOF_OUTPUT` to choose another output directory. Persistent browser profiles
-are temporary directories under the operating system's temp folder.
-Vitest covers the no-Web-Locks fallback; the browser suite does not certify it.
-
-The 16-scenario matrix rerun on 2026-10-15 with Playwright 1.64.1 recorded
-Chromium 16 passed/0 skipped/0 failed, Chrome 13 passed/3 skipped/0 failed, Firefox
-16 passed/0 skipped/0 failed, Docker Edge 16 passed/0 skipped/0 failed and Docker WebKit
-15 passed/1 skipped/0 failed. Versions: Chromium 156.0.8078.4, Chrome 152.0.7977.64,
-Firefox 157.0, Edge 155.0.4283.45 and WebKit 27.2.
-The first Docker WebKit run had 14 passed, 1 skipped and 1 failed: the saved-access case
-stayed on Sign In before reaching offline reload. A separate full WebKit rerun passed
-15 with 1 skip and no failures. This intermittent sign-in failure remains unresolved; the
-passing rerun does not establish a failure-free suite.
-Vitest covers refusal policy and download timeouts as well as the no-Web-Locks fallback.
-
-For Linux hosts missing WebKit libraries or Edge, use the matching official image
-`mcr.microsoft.com/playwright:v1.64.1-noble` (`docker pull` first). On x86_64 Linux, run with
-`--network host --ipc host` and mount this worktree read-only. Copy `node_modules`,
-`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `playwright.config.ts`, `tests`,
-`public/locales` and `scripts` to a writable container directory. Install Edge there as container
-root with
-`corepack pnpm exec playwright install msedge`; WebKit is already installed. Enable the pinned pnpm
-through Corepack. Edge's Linux channel requires x86_64.
-
-On the host, build with `VITE_BASE_PATH=/v2 pnpm build`, copy
-`tests/offline/config.json` to `dist/config.json`, then start
-`VITE_BASE_PATH=/v2 VITE_API_PROXY_TARGET=http://172.17.0.1 node scripts/preview-offline-tests.mjs`.
-Here `172.17.0.1` is the local Docker bridge address; set `VITE_API_PROXY_TARGET` for your
-backend, or omit it for the default localhost target. This guarded preview rejects API
-fall-through. From the writable container directory, run:
+The offline scripts build and stop their own guarded preview server. API responses are fixtures;
+stock-event POSTs are stubbed or blocked. Install the required browser binaries, then run:
 
 ```bash
-OFFLINE_BROWSER_MATRIX=1 OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ \
-  corepack pnpm exec playwright test \
-  --config playwright.config.ts --project=webkit --project=msedge
+pnpm exec playwright install chromium firefox webkit
+pnpm test:offline              # Chromium scenarios
+pnpm test:offline:browsers     # Installed browser engines and channels
+pnpm test:offline:proof        # English/Arabic visual checks
 ```
 
-Copy `.offline/browsers-results.json` out before removing the container and stop the host
-preview afterwards. Keep container writes in its local copy to avoid root-owned host files.
-WebKit's `@offline-shell` cases allow service workers. Six cases pass with the real worker cache:
-saved access, stale bundles, exact draft restart, direct-route gates, bare shell reload and
-offline Submit restart.
-The offline expiry/edit/reload/renewal case requires fixture-backed renewal after worker
-takeover, which WebKit 27.2 bypasses. It skips only with Playwright 1.64.1 / WebKit 27.2;
-a future version reruns it. Other WebKit cases block workers so their API fixtures remain
-effective and do not prove app-shell caching. Download timeouts are covered by Vitest.
-`node scripts/diagnose-offline-webkit.mjs` compares
-WebKit and Chromium against a synthetic worker and loopback server. It reproduces the fixture
-bypass and shows that native offline worker navigation now works. Set `OFFLINE_PREVIEW_URL`
-to include the actual app reload with no request interception. Shell tests await worker
-control, then poll until config and every catalog in `public/locales` are readable from the cache.
-WebKit on Linux verifies that engine; actual Safari and Apple devices still need testing.
-
-For read-only local storage sizing, preview a production `/v2` build with real runtime OAuth
-settings in `dist/config.json` (not the browser fixture config), the configured
-`VITE_API_PROXY_TARGET` and port 9166. Then run `node scripts/measure-offline-storage.mjs`.
-It needs local demo data: `administrator`, Comfort Health Clinic, Essential Meds and Family
-Planning. Supply `OFFLINE_MEASUREMENT_PASSWORD` if the demo password differs. This ordinary
-preview must proxy read-only API calls, unlike the guarded test preview. The script blocks
-business writes and inserts sizing fixtures only in an isolated browser database. Output is
-`.offline/stage-9-storage.json`, with a `completed` flag. `OFFLINE_PREVIEW_URL` selects another
-preview URL (default `http://127.0.0.1:9166/v2/`). Results in `.offline/` and screenshots in
-`.screenshots/` are local-only, gitignored artifacts. `scripts/measure-offline-bundle.mjs`
-remains the separate read-only test-server payload/timing probe.
+WebKit needs its host libraries (`pnpm exec playwright install-deps webkit`); Chrome and Edge
+need their Linux channels installed. Missing browsers are reported separately from test results.
+Reports go to `.offline/`; visual proof defaults to `.screenshots/offline-proof/`.
+Set `OFFLINE_PROOF_LABEL`, `OFFLINE_PROOF_OUTPUT` or `OFFLINE_PREVIEW_URL` to override those
+run settings. For a configured read-only demo preview, run
+`node scripts/measure-offline-storage.mjs` or `node scripts/measure-offline-bundle.mjs`.
 
 ## Contributing
 

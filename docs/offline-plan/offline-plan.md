@@ -62,30 +62,11 @@ refusals, archived copies and retained sync errors are not pruned automatically.
 
 ## Verification And Rollout Limits
 
-The production `/v2` browser suite has 16 scenarios covering offline restart, exact saved text,
-reconnect ordering, expiry, interrupted uploads, concurrent tabs and two users. Vitest covers
-refusal policy and the no-Web-Locks fallback.
-Checks include English/Arabic phone/desktop views and local storage measurements. These checks
-are not a guarantee for a different browser version, a managed profile or a physical phone.
-
-Automated tests on 2026-10-15 with Playwright 1.64.1 recorded
-Chromium 16 passed/0 skipped/0 failed, Chrome 13 passed/3 skipped/0 failed, Firefox
-16 passed/0 skipped/0 failed, Docker Edge 16 passed/0 skipped/0 failed and Docker WebKit
-15 passed/1 skipped/0 failed. Versions were Chromium 156.0.8078.4,
-Chrome 152.0.7977.64, Firefox 157.0, Edge 155.0.4283.45 and WebKit 27.2.
-The first Docker WebKit run had 14 passed, 1 skipped and 1 failed: the saved-access case
-stayed on Sign In before reaching offline reload. A separate full WebKit rerun passed
-15 with 1 skip and no failures. This intermittent sign-in failure remains unresolved; the
-passing rerun does not establish a failure-free suite.
-Six WebKit scenarios exercise the real worker cache: saved access, stale bundles, exact
-draft restart, direct-route gates, bare shell reload and offline Submit restart. Nine pass
-with service workers blocked and do not verify app-shell/offline caching. One scenario
-remains skipped because worker-controlled renewal requests bypass test fixtures: same-user
-renewal. That skip applies only to this Playwright/WebKit version pairing. Connected
-acceptance is tested without persistent restart. The actual Safari browser and Apple devices
-were not run.
-The [developer verification detail](../../plans/FM-165.md#stage-9-browser-and-visual-proof-2026-10-15) records exact
-versions, results and diagnostic evidence.
+Headless checks cover Chromium, Chrome, Firefox and Edge on Linux. WebKit checks cover its
+engine on Linux with some gaps in offline renewal testing; they do not certify Safari or
+Apple devices. Safari and physical devices still need verification before rollout. English
+and Arabic have been checked at phone and desktop widths. Automated checks cannot guarantee
+behavior for a different browser version, managed profile or physical phone.
 
 Use HTTPS and test the actual target devices before rollout. Browser storage is not a backup:
 quotas, private browsing, clearing site data, eviction and device loss can remove work. The app
