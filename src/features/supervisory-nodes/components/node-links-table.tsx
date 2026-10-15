@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link, useLocation, useSearch } from '@tanstack/react-router';
-import { createColumnHelper, useTable } from '@tanstack/react-table';
+import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { NetworkIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import {
@@ -23,6 +23,11 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import {
+  type ResponsiveColumn,
+  resolveColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -53,6 +58,8 @@ import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/
 const CLOSED_DIALOGS = {};
 const NO_SORT = { id: 'name', desc: false };
 const NO_ROWS: LinkRow[] = [];
+const LINK_COLUMNS: ResponsiveColumn[] = [{ id: 'facilityName', hideBelow: 'lg' }];
+const NO_CHOICES = {};
 const noop = () => {};
 type LinkRow = DraftNode & { facilityName: string | null };
 type NodeLinksTableProps = {
@@ -86,6 +93,11 @@ export function NodeLinksTable({
   const requestedPage = search[pageKey] ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
   const tableRegion = useRef<HTMLDivElement>(null);
+  const [measureTable, tableWidth] = useElementWidth<HTMLDivElement>();
+  const columnVisibility = useMemo(
+    () => resolveColumnVisibility(LINK_COLUMNS, NO_CHOICES, tableWidth),
+    [tableWidth],
+  );
   const pickerRegion = useRef<HTMLDivElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const [removing, setRemoving] = useState<string>();
@@ -172,7 +184,12 @@ export function NodeLinksTable({
           }}
         />
       </NodeLinksHeader>
-      <div ref={tableRegion}>
+      <div
+        ref={(element) => {
+          tableRegion.current = element;
+          measureTable(element);
+        }}
+      >
         <QueryBoundary
           errorComponent={({ error, reset }) => (
             <LoadError
@@ -185,6 +202,7 @@ export function NodeLinksTable({
           pendingFallback={
             <NodeLinksTableSkeleton
               kind={kind}
+              columnVisibility={columnVisibility}
               page={page}
               size={size}
               rowCount={Math.min(size, Math.max(0, rows.length - (page - 1) * size))}
@@ -194,6 +212,7 @@ export function NodeLinksTable({
         >
           <NodeLinksRows
             kind={kind}
+            columnVisibility={columnVisibility}
             rows={rows}
             savedIds={savedIds}
             page={page}
@@ -337,6 +356,7 @@ function createColumns(
 
 type LinksTableOptions = {
   kind: NodeLinkKind;
+  columnVisibility: ColumnVisibilityState;
   page: number;
   size: number;
   rows: LinkRow[];
@@ -347,6 +367,7 @@ type LinksTableOptions = {
 };
 function useLinksTable({
   kind,
+  columnVisibility,
   page,
   size,
   rows,
@@ -376,22 +397,26 @@ function useLinksTable({
     enableSorting: false,
     enableHiding: false,
     ...searchState,
+    state: { ...searchState.state, columnVisibility },
   });
 }
 
 function NodeLinksTableSkeleton({
   kind,
+  columnVisibility,
   page = 1,
   size = 10,
   rowCount,
 }: {
   kind: NodeLinkKind;
+  columnVisibility: ColumnVisibilityState;
   page?: number;
   size?: number;
   rowCount: number;
 }) {
   const table = useLinksTable({
     kind,
+    columnVisibility,
     page,
     size,
     rows: NO_ROWS,
@@ -509,7 +534,20 @@ export function NodeLinksSectionSkeleton({ kind }: { kind: NodeLinkKind }) {
       <NodeLinksHeader kind={kind}>
         <AddNodePickerSkeleton kind={kind} />
       </NodeLinksHeader>
-      <NodeLinksTableSkeleton kind={kind} rowCount={2} />
+      <MeasuredLinksSkeleton kind={kind} />
     </section>
+  );
+}
+
+function MeasuredLinksSkeleton({ kind }: { kind: NodeLinkKind }) {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const columnVisibility = useMemo(
+    () => resolveColumnVisibility(LINK_COLUMNS, NO_CHOICES, width),
+    [width],
+  );
+  return (
+    <div ref={measure}>
+      <NodeLinksTableSkeleton kind={kind} columnVisibility={columnVisibility} rowCount={2} />
+    </div>
   );
 }
