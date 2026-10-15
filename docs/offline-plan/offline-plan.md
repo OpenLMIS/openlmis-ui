@@ -67,11 +67,15 @@ expiry, refusal, interrupted uploads, concurrent tabs, two users and the no-Web-
 Checks include English/Arabic phone/desktop views and local storage measurements. These checks
 are not a guarantee for a different browser version, a managed profile or a physical phone.
 
-Automated tests on 2026-10-15 passed all 24 scenarios in Edge 155.0.4283.45. WebKit 26.6 passed
-16 scenarios; eight offline reload/restart scenarios remain unverified because of test tool
-limitations. This is partial engine coverage. The actual Safari browser and Apple devices were
-not run. The [developer verification
-detail](../../plans/FM-165.md#stage-9-browser-and-visual-proof-2026-10-15) records exact
+Automated tests on 2026-10-15 passed all 24 scenarios in Edge 155.0.4283.45 on Linux in Docker.
+With Playwright 1.64.1, WebKit 27.2 passed 22 scenarios. Six exercise the real worker cache:
+saved access, stale bundles, exact draft restart, direct-route gates, bare shell reload and
+offline Submit restart. The other 16 run with service workers blocked, so they do not verify
+app-shell/offline caching. Two scenarios remain unverified because worker-controlled API
+requests bypass test fixtures: same-user renewal and connected Submit through restart. Their
+skips apply only to that Playwright/WebKit version pairing. Offline worker navigation now
+passes the no-fixture diagnostic. The actual Safari browser and Apple devices were not run.
+The [developer verification detail](../../plans/FM-165.md#stage-9-browser-and-visual-proof-2026-10-15) records exact
 versions, results and diagnostic evidence.
 
 Use HTTPS and test the actual target devices before rollout. Browser storage is not a backup:

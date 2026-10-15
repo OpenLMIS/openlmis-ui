@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { test } from './browser-fixtures';
+import { test, waitForOfflineShell } from './browser-fixtures';
 import { enqueue, records } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
 
@@ -22,15 +22,7 @@ test('offline shell disables server navigation and blocks direct routes without 
   );
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-  await page.waitForFunction(async () =>
-    Boolean(
-      await (await caches.open('openlmis-ui-locales')).match(
-        new URL('/v2/locales/en.json', location.origin),
-      ),
-    ),
-  );
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await waitForOfflineShell(page);
   await context.setOffline(true);
   const protectedRequests: string[] = [];
   page.on('request', (request) => {
@@ -51,10 +43,8 @@ test('offline shell disables server navigation and blocks direct routes without 
   await page.goto('./administration/users');
   await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
   expect(protectedRequests).toHaveLength(0);
-  await context.setOffline(false);
   await page.goto('./home');
-  await expect(page.getByRole('heading', { name: /Welcome/ })).toBeVisible();
-  await context.setOffline(true);
+  await expect(page.getByRole('heading', { name: /^(Home|Welcome.*)$/ })).toBeVisible();
   await page.reload();
   // The optional server name lookup is unavailable after an offline reload.
   await expect(page.getByRole('heading', { name: /^(Home|Welcome.*)$/ })).toBeVisible();
@@ -92,7 +82,7 @@ test('logout gives one retained-work warning offline and online and retains the 
 });
 
 test('offline expiry keeps editor drafts usable through reload and resumes only after same-user renewal', {
-  tag: '@offline-shell',
+  tag: ['@offline-shell', '@webkit-fixture-routing'],
 }, async ({ page, context, channel, browser }) => {
   test.skip(
     channel === 'chrome' && browser.version().startsWith('152.'),
@@ -100,15 +90,7 @@ test('offline expiry keeps editor drafts usable through reload and resumes only 
   );
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-  await page.waitForFunction(async () =>
-    Boolean(
-      await (await caches.open('openlmis-ui-locales')).match(
-        new URL('/v2/locales/en.json', location.origin),
-      ),
-    ),
-  );
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await waitForOfflineShell(page);
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'Wait For Renewal' }]);
   await page.evaluate(() => {

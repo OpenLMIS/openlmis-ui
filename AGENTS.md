@@ -366,8 +366,8 @@ App-shell pages compose `src/components/workspace.tsx`:
   Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
   disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
-  the real translated Button size. Hide optional readiness below the xl table-container width
-  in both loaded and pending program tables, keeping Program and Action separate.
+  the real translated Button size. Keep Program, Status/readiness and Action
+  separate at phone widths in both loaded and pending tables. Wrap text between words.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a

@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
-import { chromium, webkit } from '@playwright/test';
+import { chromium, expect, webkit } from '@playwright/test';
+import playwrightPackage from '@playwright/test/package.json' with { type: 'json' };
 
 for (const engine of [webkit, chromium]) {
   const server = createServer((request, response) => {
@@ -25,6 +26,10 @@ self.addEventListener('fetch', event => {
   let browser;
   try {
     browser = await engine.launch({ headless: true });
+    console.log(engine.name(), 'versions', {
+      browser: browser.version(),
+      playwright: playwrightPackage.version,
+    });
     const context = await browser.newContext();
     await context.route('**/api', (route) => route.fulfill({ body: 'fixture' }));
     const page = await context.newPage();
@@ -111,6 +116,29 @@ self.addEventListener('fetch', event => {
       const page = await app.newPage();
       await page.goto(new URL('login', process.env.OFFLINE_PREVIEW_URL).href);
       await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+      const baseURL = process.env.OFFLINE_PREVIEW_URL;
+      await expect
+        .poll(() =>
+          page.evaluate(async (baseURL) => {
+            const files = [
+              ['openlmis-ui-config', 'config.json'],
+              ...['en', 'ar', 'es', 'fr', 'pt'].map((language) => [
+                'openlmis-ui-locales',
+                `locales/${language}.json`,
+              ]),
+            ];
+            const ready = await Promise.all(
+              files.map(async ([cache, path]) => {
+                const response = await (await caches.open(cache)).match(
+                  new URL(path, baseURL).href,
+                );
+                return response ? Boolean(await response.json()) : false;
+              }),
+            );
+            return ready.every(Boolean);
+          }, baseURL),
+        )
+        .toBe(true);
       await app.setOffline(true);
       console.log(engine.name(), 'app-native-online', await page.evaluate(() => navigator.onLine));
       try {

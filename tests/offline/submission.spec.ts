@@ -1,12 +1,12 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect } from '@playwright/test';
-import { test } from './browser-fixtures';
+import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
 for (const offline of [true, false]) {
   test(`${offline ? 'offline' : 'connected'} Submit retains its committed event through persistent restart`, {
-    tag: '@offline-shell',
+    tag: offline ? '@offline-shell' : ['@offline-shell', '@webkit-fixture-routing'],
   }, async ({ persistentContext, channel, browser }) => {
     test.skip(
       offline && channel === 'chrome' && browser.version().startsWith('152.'),
@@ -24,20 +24,11 @@ for (const offline of [true, false]) {
       let page = context.pages()[0];
       await login(page);
       await expect.poll(() => generation(page)).not.toBeNull();
-      await page.waitForFunction(() =>
-        navigator.serviceWorker.controller?.scriptURL.endsWith('/v2/sw.js'),
-      );
-      await page.waitForFunction(async () =>
-        Boolean(
-          await (await caches.open('openlmis-ui-locales')).match(
-            new URL('/v2/locales/en.json', location.origin),
-          ),
-        ),
-      );
+      await waitForOfflineShell(page);
+      if (offline) await context.setOffline(true);
       await page.goto('./stock-management/device-events');
       await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
       await page.goto('./stock-management/adjustments/program');
-      if (offline) await context.setOffline(true);
       await page.getByRole('button', { name: 'Add', exact: true }).click();
       await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('12');
       await page.getByRole('combobox', { name: /^Reason, Fixture Product/ }).click();
@@ -120,6 +111,8 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
   await expect(page).toHaveURL(
     new RegExp(`stock-on-hand.*facilityId=${home}.*programId=${program}`),
   );
-  await expect(page.getByText('Synced', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Notifications alt+T' }).getByText('Synced', { exact: true }),
+  ).toBeVisible();
   expect(posts).toBe(1);
 });

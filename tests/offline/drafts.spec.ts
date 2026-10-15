@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect, type Page } from '@playwright/test';
-import { test } from './browser-fixtures';
+import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
 const editorUrl = './stock-management/adjustments/program';
@@ -50,16 +50,7 @@ test('offline edits restore exact quantity text after reload and persistent brow
     let page = context.pages()[0];
     await login(page);
     await expect.poll(() => generation(page)).not.toBeNull();
-    await page.waitForFunction(() =>
-      navigator.serviceWorker.controller?.scriptURL.endsWith('/v2/sw.js'),
-    );
-    await page.waitForFunction(async () =>
-      Boolean(
-        await (await caches.open('openlmis-ui-locales')).match(
-          new URL('/v2/locales/en.json', location.origin),
-        ),
-      ),
-    );
+    await waitForOfflineShell(page);
     await page.goto(editorUrl);
     await context.setOffline(true);
     await addLine(page);

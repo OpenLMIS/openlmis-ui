@@ -50,8 +50,8 @@ function ProgramTable({
     <DataTableCard>
       <Table density="default" layout="fixed">
         <colgroup>
-          <col className={statusLabel ? 'w-1/4 @xl/main:w-2/5' : 'w-2/5'} />
-          {statusLabel ? <col className="w-1/3" /> : null}
+          <col className={statusLabel ? 'w-1/3 @xl/main:w-2/5' : 'w-2/5'} />
+          {statusLabel ? <col className="w-3/10 @xl/main:w-1/3" /> : null}
           <col />
         </colgroup>
         <TableHeader surface="muted">
@@ -110,11 +110,11 @@ export function StockProgramPicker({
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
-              <div className="whitespace-normal break-words font-medium">{row.label}</div>
+              <div className="whitespace-normal font-medium">{row.label}</div>
             </TableCell>
             {statusLabel ? (
               <TableCell>
-                <div className="min-w-0 whitespace-normal break-words">{row.status}</div>
+                <div className="min-w-0 whitespace-normal">{row.status}</div>
               </TableCell>
             ) : null}
             <TableCell>
@@ -128,7 +128,7 @@ export function StockProgramPicker({
                   size="xl"
                   width="shrink"
                 >
-                  <span className="min-w-0 whitespace-normal break-words">
+                  <span className="min-w-0 whitespace-normal">
                     {row.actionLabel ?? actionLabel}
                   </span>
                 </Button>
@@ -172,7 +172,7 @@ export function StockProgramPickerSkeleton({
                 <div className="relative">
                   <div className="invisible" aria-hidden="true">
                     <Button size="xl" width="shrink" disabled tabIndex={-1}>
-                      <span className="min-w-0 whitespace-normal break-words">{actionLabel}</span>
+                      <span className="min-w-0 whitespace-normal">{actionLabel}</span>
                     </Button>
                   </div>
                   <div className="absolute inset-0">

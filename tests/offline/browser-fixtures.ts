@@ -1,4 +1,5 @@
-import { type BrowserContext, test as base } from '@playwright/test';
+import { type BrowserContext, test as base, expect, type Page } from '@playwright/test';
+import playwrightPackage from '@playwright/test/package.json' with { type: 'json' };
 
 // Firefox interception disables its worker cache; remove routes only while truly offline.
 function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = false) {
@@ -41,13 +42,21 @@ function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = 
 export const test = base.extend<{
   persistentContext: (directory: string, offline?: boolean) => Promise<BrowserContext>;
   firefoxWorkerCache: undefined;
-  offlineShell: undefined;
+  webkitFixtureRouting: undefined;
 }>({
-  offlineShell: [
-    async ({ browserName }, use, testInfo) => {
+  serviceWorkers: async ({ browserName }, use, testInfo) => {
+    await use(
+      browserName === 'webkit' && !testInfo.tags.includes('@offline-shell') ? 'block' : 'allow',
+    );
+  },
+  webkitFixtureRouting: [
+    async ({ browser, browserName }, use, testInfo) => {
       test.skip(
-        browserName === 'webkit' && testInfo.tags.includes('@offline-shell'),
-        'WebKit 26.6 / Playwright 1.63 fails native offline navigation even with a literal worker response; worker-controlled requests bypass API fixtures. Reproduce with scripts/diagnose-offline-webkit.mjs.',
+        browserName === 'webkit' &&
+          browser.version() === '27.2' &&
+          playwrightPackage.version === '1.64.1' &&
+          testInfo.tags.includes('@webkit-fixture-routing'),
+        'WebKit 27.2 / Playwright 1.64.1 worker-controlled API requests bypass fixtures, including sign-in, access refresh and submission. Offline worker navigation is fixed. Reproduce with scripts/diagnose-offline-webkit.mjs.',
       );
       await use(undefined);
     },
@@ -74,3 +83,34 @@ export const test = base.extend<{
     });
   },
 });
+
+export async function waitForOfflineShell(page: Page) {
+  const baseURL = test.info().project.use.baseURL;
+  if (!baseURL) throw new Error('Offline tests require a base URL');
+  await page.waitForFunction(
+    (worker) => navigator.serviceWorker.controller?.scriptURL === worker,
+    new URL('sw.js', baseURL).href,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        async (files) => {
+          const ready = await Promise.all(
+            files.map(async ({ cache, url }) => {
+              const response = await (await caches.open(cache)).match(url);
+              return response ? Boolean(await response.json()) : false;
+            }),
+          );
+          return ready.every(Boolean);
+        },
+        [
+          { cache: 'openlmis-ui-config', url: new URL('config.json', baseURL).href },
+          ...['en', 'ar', 'es', 'fr', 'pt'].map((language) => ({
+            cache: 'openlmis-ui-locales',
+            url: new URL(`locales/${language}.json`, baseURL).href,
+          })),
+        ],
+      ),
+    )
+    .toBe(true);
+}

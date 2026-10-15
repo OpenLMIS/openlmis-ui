@@ -124,7 +124,7 @@ describe('getNavTrail', () => {
   it('places Device Events under Stock Management', () => {
     expect(getBreadcrumbTrail('/stock-management/device-events')).toEqual([
       { titleKey: 'nav.stock-management' },
-      { titleKey: 'device-events.title', to: '/stock-management/device-events' },
+      { titleKey: 'nav.stock-management.device-events', to: '/stock-management/device-events' },
     ]);
   });
 
