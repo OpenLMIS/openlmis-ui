@@ -115,12 +115,13 @@ describe('saveReason', () => {
   });
 
   it('reports the pairs that failed, with the first error, and sends the rest', async () => {
+    const firstError = httpError(500);
     const refused = httpError(400, { message: 'Program not found' });
     vi.mocked(createValidReason).mockImplementation(async (pair) => {
       if (pair.program.id === 'p1') throw refused;
       return { id: 'new', ...pair };
     });
-    vi.mocked(deleteValidReason).mockRejectedValue(httpError(500));
+    vi.mocked(deleteValidReason).mockRejectedValue(firstError);
 
     const result = await saveReason({
       id: 'r1',
@@ -137,6 +138,7 @@ describe('saveReason', () => {
       { programId: 'p1', facilityTypeId: 't1' },
     ]);
     expect(createValidReason).toHaveBeenCalledTimes(2);
+    expect(result.error).toBe(firstError);
   });
 
   it('does not add a replaced pair whose old one could not be removed', async () => {

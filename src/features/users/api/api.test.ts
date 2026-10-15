@@ -87,15 +87,20 @@ describe('fetchUsers', () => {
 
 describe('findMatchingUserIds', () => {
   it('merges matches on username, first name, last name and email', async () => {
+    const shared = { ...ada, id: 'u5' };
     get.mockImplementation(async (url, config) => {
       const params = (config?.params ?? {}) as Record<string, unknown>;
-      if (url === '/userContactDetails') return page([contact('u3', 'a@t.org')]);
-      if (params.username) return page([ada]);
-      if (params.firstName) return page([ada, alan]);
+      if (url === '/userContactDetails') return page([contact('u4', 'a@t.org')]);
+      if (params.username) return page([ada, shared]);
+      if (params.firstName) return page([alan, shared]);
+      if (params.lastName) return page([{ ...ada, id: 'u3' }]);
       return page([]);
     });
 
-    expect(new Set(await findMatchingUserIds('a'))).toEqual(new Set(['u1', 'u2', 'u3']));
+    const ids = await findMatchingUserIds('a');
+
+    expect(ids).toHaveLength(5);
+    expect(ids).toEqual(expect.arrayContaining(['u1', 'u2', 'u3', 'u4', 'u5']));
   });
 
   it('also matches a full name across the first and last name', async () => {

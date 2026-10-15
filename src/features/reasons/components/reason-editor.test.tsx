@@ -278,7 +278,9 @@ describe('ReasonEditor', () => {
   });
 
   it('names the pairs that failed, keeps the draft, and retries only those on the same reason', async () => {
-    vi.mocked(createValidReason).mockRejectedValueOnce(httpError(500));
+    vi.mocked(createValidReason).mockRejectedValueOnce(
+      httpError(400, { message: 'Program is no longer active.' }),
+    );
     const { user, onSaved } = renderEditor();
 
     await user.type(await screen.findByRole('textbox', { name: /^Name/ }), 'Expired');
@@ -289,6 +291,7 @@ describe('ReasonEditor', () => {
 
     expect(await screen.findByText('Some Places Not Saved')).toBeVisible();
     expect(screen.getByText(/these places are not: EPI, Health Center/)).toBeVisible();
+    expect(screen.getByText(/Program is no longer active\./)).toBeVisible();
     expect(onSaved).not.toHaveBeenCalled();
     expect(within(pairsTable()).getByText('EPI')).toBeVisible();
 

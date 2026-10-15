@@ -68,16 +68,17 @@ beforeEach(() => {
 });
 
 describe('product edit loader', () => {
-  it('opens on a fresh read even after a hover preloaded the page', async () => {
+  it('waits until entry to read a fresh product after hovering', async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(productDetailOptions('o1').queryKey, version('Old'));
-    fetchMock.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(version('New')), 20)),
-    );
+    let current = version('At Hover');
+    fetchMock.mockImplementation(async () => current);
     const router = productRouter(queryClient);
     await router.load();
 
     await router.preloadRoute({ to: '/products/$id', params: { id: 'o1' } } as never);
+    expect(fetchMock).not.toHaveBeenCalled();
+    current = version('New');
     await router.navigate({ to: '/products/$id', params: { id: 'o1' } } as never);
 
     expect(queryClient.getQueryData(productDetailOptions('o1').queryKey)).toEqual(version('New'));

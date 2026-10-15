@@ -81,6 +81,7 @@ describe('ProductGeneralForm', () => {
   });
 
   it('saves the whole product with the change, keeps the new version and goes back', async () => {
+    vi.spyOn(toast, 'success').mockImplementation(() => '');
     const saved = { ...product, fullProductName: 'Levora Plus' };
     update.mockResolvedValueOnce(saved);
     const { queryClient, onDone } = renderForm();
@@ -90,16 +91,6 @@ describe('ProductGeneralForm', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith('o1', saved);
     expect(queryClient.getQueryData(productDetailOptions('o1').queryKey)).toEqual(saved);
-  });
-
-  it('says the product is saved once the save goes through', async () => {
-    vi.spyOn(toast, 'success').mockImplementation(() => '');
-    update.mockImplementationOnce(async (_, body) => body);
-    const { onDone } = renderForm();
-
-    await rename('Levora Plus');
-
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(toast.success).toHaveBeenCalledWith('products.edit.saved-title', {
       description: 'products.edit.saved',
     });

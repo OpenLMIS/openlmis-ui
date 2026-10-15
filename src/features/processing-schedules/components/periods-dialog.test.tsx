@@ -93,7 +93,7 @@ describe('PeriodsDialog', () => {
     scroller.scrollTop = 100;
     scroller.scrollLeft = 50;
     const next = screen.getByRole('button', { name: 'Next Page' });
-    next.focus();
+    act(() => next.focus());
     await user.keyboard('{Enter}');
     await screen.findByRole('cell', { name: 'February' });
     expect(next).toHaveFocus();
