@@ -31,8 +31,8 @@ Lefthook runs staged Biome fixes, translation sorting and `tsc --noEmit` before 
 Biome, design-system lint, typecheck and the full test suite before pushes.
 
 Several agents often share one machine. While iterating, run only the test files your change
-touches; leave the full suite to the pre-push hook unless asked. Keep the `maxWorkers` cap in
-`vite.config.ts`.
+touches; leave the full suite to the pre-push hook unless asked. Keep the local `maxWorkers`
+cap in `vite.config.ts`; CI uses Vitest's default workers across two test shards.
 
 ## Architecture
 
