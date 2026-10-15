@@ -66,7 +66,7 @@ function SupervisoryNodesPage() {
   const { updateSearch } = useSearchNavigation<SupervisoryNodesSearch>({});
 
   return (
-    <Workspace>
+    <Workspace width="large">
       <SupervisoryNodesHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
@@ -121,7 +121,7 @@ function SupervisoryNodesHeader() {
 
 function SupervisoryNodesPagePending() {
   return (
-    <Workspace>
+    <Workspace width="large">
       <SupervisoryNodesHeader />
       <WorkspaceContent>
         <SupervisoryNodesTableSkeleton columnVisibility={{}} search={{}} />

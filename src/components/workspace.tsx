@@ -13,7 +13,12 @@ type WorkspaceWidthProps = WorkspaceProps & {
   width?: keyof typeof MAX_WIDTH;
 };
 
-const MAX_WIDTH = { default: 'max-w-6xl', narrow: 'max-w-4xl', wide: 'max-w-none' } as const;
+const MAX_WIDTH = {
+  default: 'max-w-6xl',
+  narrow: 'max-w-4xl',
+  large: 'max-w-336',
+  wide: 'max-w-none',
+} as const;
 
 export function Workspace({ children, width = 'default' }: WorkspaceWidthProps) {
   return (
