@@ -74,3 +74,14 @@ for (const reason of ['access-changed', 'draft-changed'] as const)
       .put({ ...event, pauseReason: reason });
     expect(await waitForStockEventReceipt(event)).toEqual({ kind: 'held', reason });
   });
+
+it('waits for its own access hold when an earlier event is access-paused', async () => {
+  const queue = getLocalDb().table('stockEventQueue');
+  const next = { ...event, sequence: 2 };
+  await queue.bulkPut([{ ...event, localEventId: 'earlier', pauseReason: 'access-changed' }, next]);
+  const filter = vi.spyOn(queue, 'filter');
+  const result = waitForStockEventReceipt(next);
+  await waitFor(() => expect(filter).toHaveBeenCalled());
+  await queue.update(next.sequence, { pauseReason: 'access-changed' });
+  expect(await result).toEqual({ kind: 'held', reason: 'access-changed' });
+});

@@ -44,7 +44,7 @@
   "data-table.view": "View",
   "device-events.access-changed": "Access Changed",
   "device-events.access-changed-description": "Your access to this facility or program changed, so its events will stay queued until access returns or you remove them.",
-  "device-events.access-changed-held-description": "Restore access to sync.",
+  "device-events.access-changed-held-description": "Ask for access to sync.",
   "device-events.action-failed": "Could Not Update Device Event",
   "device-events.action-failed-description": "Your event is still on this device. Try again.",
   "device-events.attempted-at": "Attempted At",

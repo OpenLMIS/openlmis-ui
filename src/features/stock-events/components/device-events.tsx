@@ -45,6 +45,7 @@ import {
 } from '@/components/workspace';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useStoredState } from '@/hooks/use-stored-state';
@@ -72,12 +73,6 @@ const hideable = [
   { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: '3xl' },
   { id: 'status', labelKey: 'device-events.status' },
 ] as const;
-export const kindLabels = {
-  adjustment: 'nav.stock-management.adjustments',
-  issue: 'nav.stock-management.issue',
-  receive: 'nav.stock-management.receive',
-  unpack: 'nav.stock-management.unpack',
-} as const;
 type EventRow = DeviceEvent & { lineIndex: number };
 const defaultSort = { id: 'queuedAt', desc: false };
 
