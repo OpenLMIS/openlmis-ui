@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { CheckIcon, EllipsisIcon, FolderXIcon, PencilIcon, PlusIcon, XIcon } from 'lucide-react';
+import { EllipsisIcon, FolderXIcon, PencilIcon, PlusIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { Badge } from '@/components/ui/badge';
+import { FlagBadge } from '@/components/flag-badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -66,18 +66,13 @@ function createColumns(t: TFunction, listSearch: CategoriesListSearch) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('rejection-reason-categories.active')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <Badge variant="success">
-            <CheckIcon data-icon="inline-start" />
-            {t('rejection-reason-categories.active')}
-          </Badge>
-        ) : (
-          <Badge variant="destructive">
-            <XIcon data-icon="inline-start" />
-            {t('rejection-reason-categories.inactive-label')}
-          </Badge>
-        ),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('rejection-reason-categories.active')}
+          falseLabel={t('rejection-reason-categories.inactive-label')}
+        />
+      ),
       meta: { className: 'w-32' },
     }),
     columnHelper.display({
