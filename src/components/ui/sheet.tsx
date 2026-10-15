@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useCloseOnPageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen } from "@/components/page-visibility"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
@@ -14,21 +14,13 @@ function Sheet({
   onOpenChange,
   ...props
 }: SheetPrimitive.Root.Props) {
-  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
-  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
-    setLocalOpen(false)
-    onOpenChange?.(false, details)
-  })
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
   return (
     <SheetPrimitive.Root
       data-slot="sheet"
       {...props}
-      open={!hidden && (open ?? localOpen)}
-      onOpenChange={(next, details) => {
-        if (hidden) return
-        setLocalOpen(next)
-        onOpenChange?.(next, details)
-      }}
+      open={gated.open}
+      onOpenChange={gated.onOpenChange}
     />
   )
 }

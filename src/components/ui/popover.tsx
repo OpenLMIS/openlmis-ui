@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useCloseOnPageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen } from "@/components/page-visibility"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "cn"
 
@@ -9,21 +9,13 @@ function Popover({
   onOpenChange,
   ...props
 }: PopoverPrimitive.Root.Props) {
-  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
-  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
-    setLocalOpen(false)
-    onOpenChange?.(false, details)
-  })
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
   return (
     <PopoverPrimitive.Root
       data-slot="popover"
       {...props}
-      open={!hidden && (open ?? localOpen)}
-      onOpenChange={(next, details) => {
-        if (hidden) return
-        setLocalOpen(next)
-        onOpenChange?.(next, details)
-      }}
+      open={gated.open}
+      onOpenChange={gated.onOpenChange}
     />
   )
 }

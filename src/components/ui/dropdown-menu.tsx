@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useCloseOnPageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen } from "@/components/page-visibility"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "cn"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
@@ -10,21 +10,13 @@ function DropdownMenu({
   onOpenChange,
   ...props
 }: MenuPrimitive.Root.Props) {
-  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
-  const hidden = useCloseOnPageHidden(open ?? localOpen, (details) => {
-    setLocalOpen(false)
-    onOpenChange?.(false, details)
-  })
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
   return (
     <MenuPrimitive.Root
       data-slot="dropdown-menu"
       {...props}
-      open={!hidden && (open ?? localOpen)}
-      onOpenChange={(next, details) => {
-        if (hidden) return
-        setLocalOpen(next)
-        onOpenChange?.(next, details)
-      }}
+      open={gated.open}
+      onOpenChange={gated.onOpenChange}
     />
   )
 }

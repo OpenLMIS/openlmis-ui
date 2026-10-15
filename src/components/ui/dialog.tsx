@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen, usePageHidden } from "@/components/page-visibility"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -28,19 +28,15 @@ function Dialog({
   onOpenChangeComplete,
   ...props
 }: DialogPrimitive.Root.Props) {
-  const hidden = usePageHidden()
-  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange, closeOnHide: false })
+  const { hidden } = gated
   return (
-    <DialogOpenContext value={open ?? localOpen}>
+    <DialogOpenContext value={gated.currentOpen}>
       <DialogPrimitive.Root
         data-slot="dialog"
         {...props}
-        open={!hidden && (open ?? localOpen)}
-        onOpenChange={(next, details) => {
-          if (hidden) return
-          setLocalOpen(next)
-          onOpenChange?.(next, details)
-        }}
+        open={gated.open}
+        onOpenChange={gated.onOpenChange}
         onOpenChangeComplete={(next) => {
           if (!hidden) onOpenChangeComplete?.(next)
         }}

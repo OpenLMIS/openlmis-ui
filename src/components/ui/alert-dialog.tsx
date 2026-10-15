@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen, usePageHidden } from "@/components/page-visibility"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import { cn } from "cn"
 
@@ -14,19 +14,15 @@ function AlertDialog({
   onOpenChangeComplete,
   ...props
 }: AlertDialogPrimitive.Root.Props) {
-  const hidden = usePageHidden()
-  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange, closeOnHide: false })
+  const { hidden } = gated
   return (
-    <AlertDialogOpenContext value={open ?? localOpen}>
+    <AlertDialogOpenContext value={gated.currentOpen}>
       <AlertDialogPrimitive.Root
         data-slot="alert-dialog"
         {...props}
-        open={!hidden && (open ?? localOpen)}
-        onOpenChange={(next, details) => {
-          if (hidden) return
-          setLocalOpen(next)
-          onOpenChange?.(next, details)
-        }}
+        open={gated.open}
+        onOpenChange={gated.onOpenChange}
         onOpenChangeComplete={(next) => {
           if (!hidden) onOpenChangeComplete?.(next)
         }}
