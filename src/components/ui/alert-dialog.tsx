@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageGatedOpen, usePageHidden } from "@/components/page-visibility"
+import { usePageGatedOpen, useRetainedPortal } from "@/components/page-visibility"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import { cn } from "cn"
 
@@ -38,17 +38,13 @@ function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
 }
 
 function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
-  const hidden = usePageHidden()
-  const retained = React.useRef(false)
-  const open = React.use(AlertDialogOpenContext)
-  if (hidden) retained.current = true
-  else if (!open) retained.current = false
+  const { hidden, keepMounted } = useRetainedPortal(React.use(AlertDialogOpenContext))
   return (
     <AlertDialogPrimitive.Portal
       data-slot="alert-dialog-portal"
       container={typeof document === "undefined" ? undefined : document.body}
       {...props}
-      keepMounted={retained.current || props.keepMounted}
+      keepMounted={keepMounted || props.keepMounted}
       hidden={hidden || props.hidden}
       inert={hidden || props.inert}
     />

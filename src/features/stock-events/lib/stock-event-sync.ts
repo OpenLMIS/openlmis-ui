@@ -9,7 +9,7 @@ import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-q
 import { QueueNotSentError } from '@/lib/queue-transport';
 import { assertSessionScope } from '@/lib/session-scope';
 
-export type UploadResponse = { status: number; data: unknown };
+type UploadResponse = { status: number; data: unknown };
 export type StockEventSyncError = {
   localEventId: string;
   facilityId: string;
@@ -285,7 +285,6 @@ async function beginAttempt(db: Dexie, event: QueuedStockEvent, check: () => voi
       status: 'sending',
       attemptId: crypto.randomUUID(),
       attemptStartedAt: Date.now(),
-      postBody: matched.row.postBody,
     };
     await db.table('stockEventQueue').put(sending);
     check();
@@ -454,15 +453,19 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
     }
   }
 }
+function ownerCheck(context: StockEventContext, userId: string) {
+  return () => {
+    assertSessionScope(context.sessionScope);
+    if (userId !== context.userId) throw new Error('Wrong device event owner');
+  };
+}
+
 export async function resolveUncertain(
   context: StockEventContext,
   event: QueuedStockEvent,
   choice: 'recorded' | 'resend',
 ) {
-  const check = () => {
-    assertSessionScope(context.sessionScope);
-    if (event.userId !== context.userId) throw new Error('Wrong device event owner');
-  };
+  const check = ownerCheck(context, event.userId);
   check();
   if (choice === 'recorded') return acceptStockEvent(context.db, event, { source: 'user' }, check);
   return context.db.transaction('rw', tables(context.db), async () => {
@@ -484,10 +487,7 @@ export async function resolveUncertain(
   });
 }
 export async function removeQueuedEvent(context: StockEventContext, event: QueuedStockEvent) {
-  const check = () => {
-    assertSessionScope(context.sessionScope);
-    if (event.userId !== context.userId) throw new Error('Wrong device event owner');
-  };
+  const check = ownerCheck(context, event.userId);
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
     const row = await context.db.table<QueuedStockEvent>('stockEventQueue').get(event.sequence);
@@ -522,10 +522,7 @@ export async function removeQueuedEvent(context: StockEventContext, event: Queue
   });
 }
 export async function copyRefusedEvent(context: StockEventContext, error: StockEventSyncError) {
-  const check = () => {
-    assertSessionScope(context.sessionScope);
-    if (error.event.userId !== context.userId) throw new Error('Wrong device event owner');
-  };
+  const check = ownerCheck(context, error.event.userId);
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
     const stored = await context.db
@@ -567,10 +564,7 @@ export async function copyRefusedEvent(context: StockEventContext, error: StockE
   });
 }
 export async function dismissRefusedEvent(context: StockEventContext, error: StockEventSyncError) {
-  const check = () => {
-    assertSessionScope(context.sessionScope);
-    if (error.event.userId !== context.userId) throw new Error('Wrong device event owner');
-  };
+  const check = ownerCheck(context, error.event.userId);
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
     const stored = await context.db

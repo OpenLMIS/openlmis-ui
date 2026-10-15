@@ -1,38 +1,15 @@
-import { useSyncExternalStore } from 'react';
-import { getSessionScope } from '@/lib/session-scope';
+import { createScopedAnnouncement } from '@/lib/scoped-announcement';
 
-type Announcement = {
-  key:
-    | 'stock-events.draft-failed'
-    | 'stock-events.draft-saved'
-    | 'stock-events.draft-copy-saved'
-    | 'stock-events.draft-restored'
-    | 'device-events.recorded-by-you'
-    | 'device-events.status-queued'
-    | 'device-events.removed'
-    | 'device-events.synced';
-  scope: number;
-} | null;
-let announcement: Announcement = null;
-let timer: ReturnType<typeof setTimeout> | undefined;
-const listeners = new Set<() => void>();
-export function announceDeviceSave(key: NonNullable<Announcement>['key']) {
-  clearTimeout(timer);
-  announcement = { key, scope: getSessionScope() };
-  for (const listener of listeners) listener();
-  timer = setTimeout(() => {
-    announcement = null;
-    for (const listener of listeners) listener();
-  }, 4000);
-}
-export function useDeviceSaveAnnouncement() {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    () => (announcement?.scope === getSessionScope() ? announcement.key : null),
-  );
-}
+type Announcement =
+  | 'stock-events.draft-failed'
+  | 'stock-events.draft-saved'
+  | 'stock-events.draft-copy-saved'
+  | 'stock-events.draft-restored'
+  | 'device-events.recorded-by-you'
+  | 'device-events.status-queued'
+  | 'device-events.removed'
+  | 'device-events.synced';
+
+const announcement = createScopedAnnouncement<Announcement>();
+export const announceDeviceSave = announcement.announce;
+export const useDeviceSaveAnnouncement = announcement.useAnnouncement;

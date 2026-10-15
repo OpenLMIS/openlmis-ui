@@ -24,11 +24,8 @@ import {
   readAdjustmentBundle,
 } from '@/lib/adjustment-bundle';
 import { getFlag } from '@/lib/feature-flags';
-import { isAccessFallbackError } from '@/lib/http';
 import { adjustmentBundleKeys, queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError } from '@/lib/local-data';
-import { isOnline } from '@/lib/online';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 
 export const adjustmentScope = (
   filter: EventStockCardsFilter,
@@ -59,24 +56,20 @@ export async function fetchAdjustmentTradeItem(
   filter: AdjustmentScope,
   gtin: string,
 ) {
-  const scope = getSessionScope();
-  if (isOnline()) {
-    try {
-      const tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(gtin));
-      assertSessionScope(scope);
-      return { tradeItem, offline: false };
-    } catch (error) {
-      assertSessionScope(scope);
-      if (!isAccessFallbackError(error)) throw error;
-    }
-  }
-  const bundle = await readAdjustmentBundle(filter);
-  assertSessionScope(scope);
-  if (!bundle.scanning) throw new LocalDataUnavailableError();
-  return {
-    tradeItem: bundle.tradeItems.find((item) => item.gtin === gtin) ?? null,
-    offline: true,
-  };
+  return onlineOrDevice(
+    async () => ({
+      tradeItem: await queryClient.fetchQuery(tradeItemByGtinOptions(gtin)),
+      offline: false,
+    }),
+    async () => {
+      const bundle = await readAdjustmentBundle(filter);
+      if (!bundle.scanning) throw new LocalDataUnavailableError();
+      return {
+        tradeItem: bundle.tradeItems.find((item) => item.gtin === gtin) ?? null,
+        offline: true,
+      };
+    },
+  );
 }
 
 export const stockEventsOptions = (query: StockEventsQuery) =>

@@ -37,7 +37,6 @@ export function useDiscardGuard(
     try {
       if (await flushBeforeLeave?.()) {
         setPendingLeave(null);
-        setFlushingLeave(false);
         proceed();
       }
     } finally {

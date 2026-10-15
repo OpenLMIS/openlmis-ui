@@ -1,31 +1,13 @@
 import { useSyncExternalStore } from 'react';
+import { createScopedAnnouncement } from '@/lib/scoped-announcement';
 import { getSessionScope } from '@/lib/session-scope';
 
-let queued: { count: number; scope: number } | null = null;
-let timer: ReturnType<typeof setTimeout> | undefined;
+const queued = createScopedAnnouncement<{ count: number }>();
+export const announceQueuedEvents = (count: number) => queued.announce({ count });
+export const useQueuedAnnouncement = queued.useAnnouncement;
 const listeners = new Set<() => void>();
-export function announceQueuedEvents(count: number) {
-  clearTimeout(timer);
-  queued = { count, scope: getSessionScope() };
-  for (const listener of listeners) listener();
-  timer = setTimeout(() => {
-    queued = null;
-    for (const listener of listeners) listener();
-  }, 4000);
-}
-export function useQueuedAnnouncement() {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    () => (queued?.scope === getSessionScope() ? queued : null),
-  );
-}
 
-export type SyncPhase = 'idle' | 'syncing' | 'session' | 'unsupported' | 'receipt' | 'failed';
+type SyncPhase = 'idle' | 'syncing' | 'session' | 'unsupported' | 'receipt' | 'failed';
 let sync: { phase: SyncPhase; scope: number } = { phase: 'idle', scope: getSessionScope() };
 export function setSyncPhase(phase: SyncPhase) {
   if (sync.phase === phase && sync.scope === getSessionScope()) return;
