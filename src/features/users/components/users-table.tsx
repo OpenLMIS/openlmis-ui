@@ -3,14 +3,12 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import {
-  CheckIcon,
   EllipsisIcon,
   KeyRoundIcon,
   PencilIcon,
   SearchXIcon,
   ShieldIcon,
   UsersIcon,
-  XIcon,
 } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +21,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { Badge } from '@/components/ui/badge';
+import { FlagBadge } from '@/components/flag-badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -69,18 +67,13 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     columnHelper.accessor('active', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.status')} />,
       meta: { className: 'w-32' },
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <Badge variant="success">
-            <CheckIcon data-icon="inline-start" />
-            {t('users.active')}
-          </Badge>
-        ) : (
-          <Badge variant="destructive">
-            <XIcon data-icon="inline-start" />
-            {t('users.inactive')}
-          </Badge>
-        ),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('users.active')}
+          falseLabel={t('users.inactive')}
+        />
+      ),
     }),
     columnHelper.display({
       id: 'actions',

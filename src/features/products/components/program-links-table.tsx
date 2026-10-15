@@ -12,6 +12,7 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
+import { FlagBadge } from '@/components/flag-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,7 +76,13 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('products.programs.full-supply')} />
       ),
-      cell: ({ getValue }) => t(getValue() ? 'products.programs.yes' : 'products.programs.no'),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue() ?? false}
+          trueLabel={t('products.programs.yes')}
+          falseLabel={t('products.programs.no')}
+        />
+      ),
       meta: { className: 'w-28' },
     }),
     columnHelper.accessor('pricePerPack', {

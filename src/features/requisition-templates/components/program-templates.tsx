@@ -10,6 +10,7 @@ import {
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
+import { FlagBadge } from '@/components/flag-badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
@@ -47,12 +48,13 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         helper.accessor('requisitionReportOnly', {
           header: t('requisition-templates.report-only'),
           meta: { className: 'min-w-32' },
-          cell: ({ getValue }) =>
-            getValue() ? (
-              t('requisition-templates.yes')
-            ) : (
-              <span className="text-muted-foreground">{t('requisition-templates.no')}</span>
-            ),
+          cell: ({ getValue }) => (
+            <FlagBadge
+              value={getValue()}
+              trueLabel={t('requisition-templates.yes')}
+              falseLabel={t('requisition-templates.no')}
+            />
+          ),
         }),
         helper.display({
           id: 'actions',

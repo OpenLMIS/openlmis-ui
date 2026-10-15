@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { CheckIcon, EllipsisIcon, LayersIcon, PencilIcon, PlusIcon, XIcon } from 'lucide-react';
+import { EllipsisIcon, LayersIcon, PencilIcon, PlusIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,7 +13,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { Badge } from '@/components/ui/badge';
+import { FlagBadge } from '@/components/flag-badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -59,18 +59,13 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('programs.status')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <Badge variant="success">
-            <CheckIcon data-icon="inline-start" />
-            {t('programs.active')}
-          </Badge>
-        ) : (
-          <Badge variant="destructive">
-            <XIcon data-icon="inline-start" />
-            {t('programs.inactive')}
-          </Badge>
-        ),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue() ?? false}
+          trueLabel={t('programs.active')}
+          falseLabel={t('programs.inactive')}
+        />
+      ),
       meta: { className: 'w-32' },
     }),
     columnHelper.display({

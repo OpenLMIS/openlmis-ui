@@ -7,7 +7,7 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { CalendarRangeIcon, CheckIcon, InfoIcon } from 'lucide-react';
+import { CalendarRangeIcon, InfoIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,6 +20,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { FlagBadge } from '@/components/flag-badge';
 import { formatDateValue } from '@/components/form/date-value';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -96,16 +97,13 @@ function createColumns(t: TFunction, language: string) {
       header: () => (
         <DataTableHeaderLabel>{t('processing-schedules.periods.report-only')}</DataTableHeaderLabel>
       ),
-      cell: ({ row }) =>
-        isReportOnly(row.original.extraData) ? (
-          <span
-            className="flex justify-start"
-            role="img"
-            aria-label={t('processing-schedules.periods.report-only')}
-          >
-            <CheckIcon aria-hidden="true" className="size-4" />
-          </span>
-        ) : null,
+      cell: ({ row }) => (
+        <FlagBadge
+          value={isReportOnly(row.original.extraData)}
+          trueLabel={t('processing-schedules.periods.yes')}
+          falseLabel={t('processing-schedules.periods.no')}
+        />
+      ),
     }),
   ]);
 }
