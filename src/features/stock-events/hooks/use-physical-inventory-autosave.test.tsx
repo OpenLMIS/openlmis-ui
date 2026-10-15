@@ -25,12 +25,13 @@ const copy: InventoryLocalCopy = {
   savedAt: 1,
 };
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
   signIn('autosave-user');
 });
 it('keeps pending edits serialized and clears the indicator when the copy is cleared', async () => {
   const finish = Promise.withResolvers<void>();
-  vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise).mockResolvedValue(undefined);
+  vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise);
   const view = renderHook(
     ({ value }) => {
       const form = usePhysicalInventoryForm([], false);
@@ -54,28 +55,34 @@ it('keeps pending edits serialized and clears the indicator when the copy is cle
   view.rerender({ value: null });
   await waitFor(() => expect(view.result.current.status).toBe('saved'));
 });
-it('drops queued writes and their completion after a user change', async () => {
-  const finish = Promise.withResolvers<void>();
-  vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise);
-  const view = renderHook(
-    ({ value }) => {
-      const form = usePhysicalInventoryForm([], false);
-      const getCopy = useCallback(() => value, [value]);
-      return usePhysicalInventoryAutosave(getCopy, form);
-    },
-    {
-      initialProps: { value: null as InventoryLocalCopy | null },
-    },
-  );
-  view.rerender({ value: copy });
-  view.rerender({ value: { ...copy, savedAt: 2 } });
-  signIn('next-user');
-  await act(async () => {
-    finish.resolve();
-    await view.result.current.flush();
-  });
-  expect(writeInventoryLocal).toHaveBeenCalledTimes(1);
-});
+it.each(['next-user', 'autosave-user'])(
+  'drops queued writes after switching to %s',
+  async (nextUser) => {
+    const finish = Promise.withResolvers<void>();
+    vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise);
+    const view = renderHook(
+      ({ value }) => {
+        const form = usePhysicalInventoryForm([], false);
+        const getCopy = useCallback(() => value, [value]);
+        return usePhysicalInventoryAutosave(getCopy, form);
+      },
+      {
+        initialProps: { value: null as InventoryLocalCopy | null },
+      },
+    );
+    view.rerender({ value: copy });
+    view.rerender({ value: { ...copy, savedAt: 2 } });
+    act(() => {
+      signIn('next-user');
+      signIn(nextUser);
+    });
+    await act(async () => {
+      finish.resolve();
+      await view.result.current.flush();
+    });
+    expect(writeInventoryLocal).toHaveBeenCalledTimes(1);
+  },
+);
 
 it('can reset a failed indicator after a successful server action', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('full'));

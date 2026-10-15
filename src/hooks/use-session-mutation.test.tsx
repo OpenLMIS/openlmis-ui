@@ -15,43 +15,52 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 beforeEach(() => useLoginData.getState().setLoginData(ada));
 
 describe('useSessionMutation', () => {
-  it('refuses a draft callback retained across a user switch', async () => {
+  it.each([alan, ada])('refuses a retained draft after switching to $username', async (next) => {
     const send = vi.fn(async () => 'saved');
     const { result } = renderHook(() => useSessionMutation({ mutationFn: send }), { wrapper });
     const save = result.current.mutateAsync;
-    act(() => useLoginData.getState().setLoginData(alan));
+    act(() => {
+      useLoginData.getState().setLoginData(alan);
+      useLoginData.getState().setLoginData(next);
+    });
     await expect(save()).rejects.toBeInstanceOf(SessionEndedError);
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('does not publish a save completion into the next user cache or navigate', async () => {
-    let release = () => {};
-    const onSuccess = vi.fn();
-    const onError = vi.fn();
-    const onSettled = vi.fn();
-    const { result } = renderHook(
-      () =>
-        useSessionMutation({
-          mutationFn: () =>
-            new Promise<string>((resolve) => {
-              release = () => resolve('saved');
-            }),
-          onSuccess,
-          onError,
-          onSettled,
-        }),
-      { wrapper },
-    );
-    const saving = result.current.mutateAsync();
-    const rejection = expect(saving).rejects.toBeInstanceOf(SessionEndedError);
-    await waitFor(() => expect(result.current.isPending).toBe(true));
-    act(() => useLoginData.getState().setLoginData(alan));
-    release();
-    await rejection;
-    expect(onSuccess).not.toHaveBeenCalled();
-    expect(onError).not.toHaveBeenCalled();
-    expect(onSettled).not.toHaveBeenCalled();
-  });
+  it.each(['success', 'failure'])(
+    'does not publish a save %s into the next user cache or navigate',
+    async (outcome) => {
+      const finish = Promise.withResolvers<string>();
+      const send = vi.fn(() => finish.promise);
+      const failure = new Error('Save refused');
+      const onSuccess = vi.fn();
+      const onError = vi.fn();
+      const onSettled = vi.fn();
+      const { result } = renderHook(
+        () =>
+          useSessionMutation({
+            mutationFn: send,
+            onSuccess,
+            onError,
+            onSettled,
+          }),
+        { wrapper },
+      );
+      const saving = result.current.mutateAsync();
+      const rejection =
+        outcome === 'success'
+          ? expect(saving).rejects.toBeInstanceOf(SessionEndedError)
+          : expect(saving).rejects.toBe(failure);
+      await waitFor(() => expect(send).toHaveBeenCalledOnce());
+      act(() => useLoginData.getState().setLoginData(alan));
+      if (outcome === 'success') finish.resolve('saved');
+      else finish.reject(failure);
+      await rejection;
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(onSettled).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not run a per-call completion after an async settlement crosses identities', async () => {
     let release = () => {};

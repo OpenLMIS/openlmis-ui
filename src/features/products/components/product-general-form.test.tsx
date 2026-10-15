@@ -129,14 +129,15 @@ describe('ProductGeneralForm', () => {
   });
 
   it('leaves the user where they went when the save ends after they left', async () => {
-    let finish: (saved: ProductDetail) => void = () => {};
-    update.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
-    const { onDone } = renderForm();
+    const finish = Promise.withResolvers<ProductDetail>();
+    update.mockReturnValueOnce(finish.promise);
+    const { onDone, queryClient } = renderForm();
     await rename('Levora Plus');
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
 
     cleanup();
-    finish({ ...product, fullProductName: 'Levora Plus' });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(async () => finish.resolve({ ...product, fullProductName: 'Levora Plus' }));
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0));
 
     expect(onDone).not.toHaveBeenCalled();
   });

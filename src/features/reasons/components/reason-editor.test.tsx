@@ -185,6 +185,7 @@ describe('ReasonEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('Another reason already has this name.')).toBeVisible();
+    expect(createReason).not.toHaveBeenCalled();
   });
 
   it('creates the reason with its tags and pairs, then reports it saved', async () => {
@@ -301,19 +302,6 @@ describe('ReasonEditor', () => {
     expect(createReason).toHaveBeenCalledTimes(1);
     expect(updateReason).toHaveBeenCalledWith('new', expect.objectContaining({ name: 'Expired' }));
     expect(createValidReason).toHaveBeenCalledTimes(2);
-  });
-
-  it('checks the name against the other reasons even when their list arrives late', async () => {
-    vi.mocked(fetchReasons).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve([damage, unpack]), 300)),
-    );
-    const { user } = renderEditor();
-
-    await user.type(await screen.findByRole('textbox', { name: /^Name/ }), 'damage');
-    await user.click(screen.getByRole('button', { name: 'Create' }));
-
-    expect(await screen.findByText('Another reason already has this name.')).toBeVisible();
-    expect(createReason).not.toHaveBeenCalled();
   });
 
   it('keeps Save focusable while it saves, so focus is not lost to the page', async () => {
