@@ -3,42 +3,6 @@ import { test } from './browser-fixtures';
 import { enqueue, records } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
 
-test('without Web Locks online reads and local drafts work but downloads and uploads stay disabled', async ({
-  context,
-  page,
-}) => {
-  await context.addInitScript(() => {
-    Object.defineProperty(navigator, 'locks', { value: undefined });
-  });
-  await stub(context, async () => 'finish');
-  let posts = 0;
-  await context.route('**/api/stockEvents', (route) => {
-    posts++;
-    return route.abort();
-  });
-  await login(page);
-  await expect(page.getByRole('cell', { name: 'Fixture Medicines', exact: true })).toBeVisible();
-  await expect(page.getByText('Offline Download Unavailable', { exact: true })).toBeVisible();
-  expect(await generation(page)).toBeNull();
-  await page.goto('./stock-management/adjustments/program');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('3');
-  await page.getByRole('combobox', { name: /^Reason, Fixture Product/ }).click();
-  await page.getByRole('option', { name: 'Damaged', exact: true }).click();
-  await expect(page.getByRole('note').filter({ hasText: 'Saved on this device' })).toBeVisible();
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('No Locks');
-  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect(page).toHaveURL(/adjustments$/);
-  await page.goto('./stock-management/device-events');
-  await expect(page.getByRole('table')).toContainText('Queued');
-  await expect(page.getByText('Automatic Sync Unavailable', { exact: true })).toBeVisible();
-  await page.reload();
-  expect(await records(page, 'stockEventQueue')).toHaveLength(1);
-  expect(await generation(page)).toBeNull();
-  expect(posts).toBe(0);
-});
-
 test('sign-out and a different sign-in isolate device work and the original owner recovers it', async ({
   context,
   page,

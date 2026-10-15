@@ -2,6 +2,7 @@ import { onlineManager } from '@tanstack/react-query';
 import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { startOfflineCoordinator } from '@/components/offline-coordinator';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
@@ -11,6 +12,8 @@ import {
   readAdjustmentBundle,
 } from '@/lib/adjustment-bundle';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import type { AccessReaders } from '@/lib/offline-access';
+import { getDownloadStatus } from '@/lib/offline-download-status';
 
 const filter = { facilityId: 'home', programId: 'program', facilityTypeId: 'type', scanning: true };
 const product = (versionNumber: number) => ({
@@ -327,4 +330,55 @@ it('restarts its own read when coordinator trade items fail with 500', async () 
   await rejected;
   expect((await foreground).cards).toHaveLength(2);
   expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(4);
+});
+
+it('rejects a missing lot and the coordinator retains the previous complete generation', async () => {
+  const saved = await fetchAdjustmentBundle({ ...filter, scanning: false });
+  await getLocalDb().table('adjustmentDownloads').put(saved);
+  const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+  client.defaults.adapter = async (config) =>
+    config.url === '/lots'
+      ? { data: { content: [], totalPages: 1 }, status: 200, statusText: 'OK', config, headers: {} }
+      : adapter(config);
+  await expect(fetchAdjustmentBundle(filter)).rejects.toThrow('lot not found');
+  vi.stubGlobal('navigator', {
+    locks: { request: async (_name: string, _options: unknown, run: () => Promise<void>) => run() },
+  });
+  const program = { id: 'program', code: 'P', name: 'Program', active: true };
+  const access = {
+    permissions: async () => ['STOCK_ADJUST|home|program', 'STOCK_CARDS_VIEW|home|program'],
+    user: async () => ({
+      id: 'bundle-user',
+      username: 'user',
+      firstName: '',
+      lastName: '',
+      active: true,
+      roleAssignments: [],
+      homeFacilityId: 'home',
+    }),
+    programs: async () => [program],
+    home: async () => ({
+      id: 'home',
+      code: 'H',
+      name: 'Home',
+      active: true,
+      enabled: true,
+      type: { id: 'type', code: 'T', name: 'Type' },
+      geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'District' } },
+      supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: true }],
+    }),
+  } satisfies AccessReaders;
+  const download = vi.fn(fetchAdjustmentBundle);
+  const stop = startOfflineCoordinator({ access, bundle: download });
+  try {
+    onlineManager.setOnline(false);
+    onlineManager.setOnline(true);
+    await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
+    expect(download).toHaveBeenCalled();
+    await expect(download.mock.results.at(-1)?.value).rejects.toThrow('lot not found');
+    expect(await getLocalDb().table('adjustmentDownloads').get(['home', 'program'])).toEqual(saved);
+  } finally {
+    stop();
+    vi.unstubAllGlobals();
+  }
 });

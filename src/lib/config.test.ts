@@ -121,13 +121,6 @@ describe('getNavTrail', () => {
     ]);
   });
 
-  it('places Device Events under Stock Management', () => {
-    expect(getBreadcrumbTrail('/stock-management/device-events')).toEqual([
-      { titleKey: 'nav.stock-management' },
-      { titleKey: 'nav.stock-management.device-events', to: '/stock-management/device-events' },
-    ]);
-  });
-
   it('does not match a path that only starts with the same letters', () => {
     expect(getNavTrail('/administration/users-archive')).toEqual([]);
   });

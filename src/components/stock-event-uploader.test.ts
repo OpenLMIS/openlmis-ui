@@ -1,5 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
+import { AxiosError } from 'axios';
+import Dexie from 'dexie';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { startStockEventUploader } from '@/components/stock-event-uploader';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -9,6 +11,7 @@ import {
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import type { OfflineAccess } from '@/lib/offline-access';
@@ -32,6 +35,7 @@ const snapshot = {
   programs: [{ id: 'one' }],
 } as OfflineAccess;
 const accepted = { status: 201, data: '11111111-1111-4111-8111-111111111111' };
+const originalAdapter = client.defaults.adapter;
 let stops: (() => void)[] = [];
 beforeEach(async () => {
   useLoginData.getState().setLoginData(owner);
@@ -58,6 +62,7 @@ beforeEach(async () => {
 afterEach(() => {
   for (const stop of stops) stop();
   stops = [];
+  client.defaults.adapter = originalAdapter;
   vi.unstubAllGlobals();
 });
 async function enqueue() {
@@ -166,4 +171,60 @@ it('missing fresh grants pause the queue without dispatch or fake refusals, then
   wakeStockEventSync();
   await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
   expect(send).toHaveBeenCalledOnce();
+});
+
+it('maps real transport refusals and saves a late acceptance in the original owner database', async () => {
+  const refused = await enqueue();
+  const ownerName = getLocalDb().name;
+  let posts = 0;
+  let answer!: () => void;
+  client.defaults.adapter = async (config) => {
+    expect(config.url).toBe('/stockEvents');
+    expect(config.data).toBe(posts === 0 ? refused.postBody : acceptedEvent.postBody);
+    posts++;
+    if (posts === 1) {
+      throw new AxiosError('Negative stock', AxiosError.ERR_BAD_REQUEST, config, undefined, {
+        data: { messageKey: 'stockmanagement.error.event.debitQuantityExceedSoh' },
+        status: 400,
+        statusText: 'Bad Request',
+        config,
+        headers: {},
+      });
+    }
+    await new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    return { ...accepted, statusText: 'Created', config, headers: {} };
+  };
+  stops.push(startStockEventUploader({ access: async () => snapshot }));
+  onlineManager.setOnline(true);
+  await waitFor(async () =>
+    expect(
+      await getLocalDb().table('stockEventSyncErrors').get(refused.localEventId),
+    ).toMatchObject({ category: 'stock-changed', httpStatus: 400 }),
+  );
+  const acceptedEvent = await enqueue();
+  await waitFor(() => expect(answer).toBeTypeOf('function'));
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: 'other-uploader',
+    username: 'Other',
+    accessToken: 'other',
+  });
+  answer();
+  const originalOwner = new Dexie(ownerName);
+  try {
+    await originalOwner.open();
+    await waitFor(async () =>
+      expect(
+        await originalOwner
+          .table('stockEventReceipts')
+          .get([acceptedEvent.draftId, acceptedEvent.revision]),
+      ).toMatchObject({ serverEventId: accepted.data }),
+    );
+    expect(await originalOwner.table('stockEventQueue').count()).toBe(0);
+    expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+    expect(posts).toBe(2);
+  } finally {
+    originalOwner.close();
+  }
 });

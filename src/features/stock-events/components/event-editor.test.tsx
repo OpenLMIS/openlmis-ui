@@ -70,6 +70,7 @@ import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb } from '@/integrations/local-db';
+import { queryKeys } from '@/lib/key-factory';
 import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -859,7 +860,7 @@ describe('EventEditor', () => {
       description: 'device-events.draft-changed-held-description',
     },
   ] as const)(
-    '$kind delivery warns with its cause and uses the program-list landing',
+    '$kind $reason delivery warns with its cause and uses the program-list landing',
     async (outcome) => {
       vi.mocked(waitForStockEventReceipt).mockResolvedValueOnce(outcome);
       const { user, onSubmitted } = setup();
@@ -1333,7 +1334,8 @@ describe('Issue editor', () => {
 
   it('copies the destination comments, filters the destination name and submits its node id', async () => {
     vi.mocked(submitStockEvent).mockResolvedValue('issue-event');
-    const { user, onSubmitted } = issueSetup();
+    const { user, onSubmitted, queryClient } = issueSetup();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await add(user, 'OTHER');
     await user.click(screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ }));
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
@@ -1352,6 +1354,12 @@ describe('Issue editor', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('issue-event'));
+    for (const queryKey of [
+      queryKeys.stockEvents.all,
+      queryKeys.stockCards.all,
+      queryKeys.stockCardSummaries.all,
+    ])
+      expect(invalidate).toHaveBeenCalledWith({ queryKey });
     expect(submitStockEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         eventOrigin: 'ISSUE',
@@ -1728,8 +1736,10 @@ describe('Receive editor', () => {
     ).toHaveValue('TYPED-LOT');
   });
 
-  it('edits a new lot from its line, applying a code to that line and an expiry to its twins', async () => {
-    const { user } = receiveSetup();
+  it('edits new lot codes and shared expiry, then invalidates lots after submission', async () => {
+    vi.mocked(submitStockEvent).mockResolvedValue('receive-event');
+    const { user, queryClient, onSubmitted } = receiveSetup();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await pick(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
@@ -1771,6 +1781,16 @@ describe('Receive editor', () => {
     expect(
       screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-2, Line 2' }),
     ).toBeInTheDocument();
+    for (const quantity of screen.getAllByRole('textbox', { name: /^Quantity, Aspirin/ }))
+      await user.type(quantity, '2');
+    for (const source of screen.getAllByRole('combobox', { name: /^Received From,/ })) {
+      await user.click(source);
+      await user.click(await screen.findByRole('option', { name: 'Hospital' }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event'));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.lots.all });
   });
 
   describe('scanning', () => {
@@ -2222,7 +2242,7 @@ it('shows failed local commits with Retry and leave protection until a successfu
   router?.history.destroy();
 });
 
-it('resumes exact typed quantities and lines after the editor remounts without a discard prompt', async () => {
+it('flushes the final edit on unmount and restores exact quantities without a discard prompt', async () => {
   const { user } = setup();
   await add(user);
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
@@ -2230,10 +2250,17 @@ it('resumes exact typed quantities and lines after the editor remounts without a
   const leave = vi.fn();
   act(() => whenLeaveAllowed(leave));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+  fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
+    target: { value: '0019' },
+  });
   cleanup();
+  await waitFor(async () => {
+    const [saved] = await getLocalDb().table('stockEventDrafts').toArray();
+    expect(saved.lines[0].quantity.doses).toBe('0019');
+  });
   setup();
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
-    '0012',
+    '0019',
   );
 });
 
@@ -2251,20 +2278,6 @@ it('keeps committed lines when signing out after a failed device save', async ()
   await user.click(await screen.findByRole('button', { name: 'Sign Out' }));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
   expect(await table.toArray()).toEqual(before);
-});
-
-it('commits the final debounced edit when the editor unmounts', async () => {
-  const { user } = setup();
-  await add(user);
-  await screen.findByText('Saved on this device');
-  fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
-    target: { value: '0019' },
-  });
-  cleanup();
-  await waitFor(async () => {
-    const [saved] = await getLocalDb().table('stockEventDrafts').toArray();
-    expect(saved.lines[0].quantity.doses).toBe('0019');
-  });
 });
 
 it.each(['navigation', 'sign-out'])(
@@ -2353,34 +2366,22 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
   expect(submitStockEvent).not.toHaveBeenCalled();
 });
 
-it.each(['missing'])(
-  'keeps a resumed %s stock line highlighted and explains why it cannot submit',
-  async (problem) => {
-    const { user } = setup();
-    await validLine(user);
-    await screen.findByText('Saved on this device');
-    cleanup();
-    const next = setup(true, (client) =>
-      client.setQueryData(
-        editorStockOptions().queryKey,
-        problem === 'missing'
-          ? [other]
-          : [{ ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } }, other],
-      ),
-    );
-    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
-      '17',
-    );
-    expect(
-      screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }).closest('tr'),
-    ).toHaveAttribute('aria-invalid', 'true');
-    await next.user.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-      en['stock-events.draft-stock-invalid'],
-    );
-    expect(submitStockEvent).not.toHaveBeenCalled();
-  },
-);
+it('keeps a resumed missing stock line highlighted and explains why it cannot submit', async () => {
+  const { user } = setup();
+  await validLine(user);
+  await screen.findByText('Saved on this device');
+  cleanup();
+  const next = setup(true, (client) => client.setQueryData(editorStockOptions().queryKey, [other]));
+  expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
+  expect(
+    screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }).closest('tr'),
+  ).toHaveAttribute('aria-invalid', 'true');
+  await next.user.click(screen.getByRole('button', { name: 'Submit' }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    en['stock-events.draft-stock-invalid'],
+  );
+  expect(submitStockEvent).not.toHaveBeenCalled();
+});
 
 it('restores an archived copy, retains the replaced draft, and requires confirmation before deleting it', async () => {
   const { user } = setup(true, (client) =>

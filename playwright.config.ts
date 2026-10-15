@@ -1,21 +1,23 @@
 import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
 
+const run = process.env.OFFLINE_VISUAL_PROOF
+  ? 'visual'
+  : process.env.OFFLINE_BROWSER_MATRIX
+    ? 'browsers'
+    : 'chromium';
+
 export default defineConfig({
   testDir: './tests/offline',
   testMatch: process.env.OFFLINE_VISUAL_PROOF ? '**/visual-proof.ts' : '**/*.spec.ts',
-  outputDir: process.env.OFFLINE_VISUAL_PROOF
-    ? './.offline/visual-results'
-    : './.offline/test-results',
+  outputDir: `./.offline/${run}-results`,
   workers: 1,
   reporter: [
     ['list'],
     [
       'json',
       {
-        outputFile: process.env.OFFLINE_VISUAL_PROOF
-          ? '.offline/visual-results.json'
-          : '.offline/browser-results.json',
+        outputFile: `.offline/${run}-results.json`,
       },
     ],
   ],

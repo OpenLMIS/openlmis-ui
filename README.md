@@ -125,14 +125,22 @@ available. WebKit also needs host libraries from `pnpm exec playwright install-d
 (with permission to install system packages), or the Docker route below. The browser runner
 records missing binaries or host dependencies separately from test results in
 `.offline/browser-verification.json`; an unavailable engine is not a pass.
-`pnpm test:offline` stays Chromium-only. Visual proof writes screenshots and verification JSON
-to `.screenshots/fm-165-stage-9/`.
+`pnpm test:offline` stays Chromium-only. Reporter JSON is separate for each command:
+`.offline/chromium-results.json`, `.offline/browsers-results.json` and
+`.offline/visual-results.json`. Their artifact directories use the corresponding names.
+Visual proof runs six English/Arabic cases: both program names on desktop, and the long
+program name on phone. Screenshots and verification JSON default to `.screenshots/fm-165/`,
+with `fm-165-` filenames. Set `OFFLINE_PROOF_LABEL` to change the run label and default folder,
+or `OFFLINE_PROOF_OUTPUT` to choose another output directory. Persistent browser profiles
+are temporary directories under the operating system's temp folder.
+Vitest covers the no-Web-Locks fallback; the browser suite does not certify it.
 
 For Linux hosts missing WebKit libraries or Edge, use the matching official image
 `mcr.microsoft.com/playwright:v1.64.1-noble` (`docker pull` first). On x86_64 Linux, run with
 `--network host --ipc host` and mount this worktree read-only. Copy `node_modules`,
-`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `playwright.config.ts`, `tests` and
-`scripts` to a writable container directory. Install Edge there as container root with
+`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `playwright.config.ts`, `tests`,
+`public/locales` and `scripts` to a writable container directory. Install Edge there as container
+root with
 `corepack pnpm exec playwright install msedge`; WebKit is already installed. Enable the pinned pnpm
 through Corepack. Edge's Linux channel requires x86_64.
 
@@ -144,24 +152,25 @@ backend, or omit it for the default localhost target. This guarded preview rejec
 fall-through. From the writable container directory, run:
 
 ```bash
-OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ corepack pnpm exec playwright test \
+OFFLINE_BROWSER_MATRIX=1 OFFLINE_PREVIEW_URL=http://127.0.0.1:9165/v2/ \
+  corepack pnpm exec playwright test \
   --config playwright.config.ts --project=webkit --project=msedge
 ```
 
-Copy `.offline/browser-results.json` out before removing the container and stop the host
+Copy `.offline/browsers-results.json` out before removing the container and stop the host
 preview afterwards. Keep container writes in its local copy to avoid root-owned host files.
 WebKit's `@offline-shell` cases allow service workers. Six cases pass with the real worker cache:
 saved access, stale bundles, exact draft restart, direct-route gates, bare shell reload and
 offline Submit restart.
-Two cases require fixture-backed same-user renewal or connected submission after worker
-takeover, which WebKit 27.2 bypasses. They skip only with Playwright 1.64.1 / WebKit 27.2;
-a future version reruns them. Other WebKit cases block workers so their API fixtures remain
-effective and do not prove app-shell caching. The native timeout case runs in every engine
-using a delayed local HTTP response. `node scripts/diagnose-offline-webkit.mjs` compares
+The offline expiry/edit/reload/renewal case requires fixture-backed renewal after worker
+takeover, which WebKit 27.2 bypasses. It skips only with Playwright 1.64.1 / WebKit 27.2;
+a future version reruns it. Other WebKit cases block workers so their API fixtures remain
+effective and do not prove app-shell caching. Download timeouts are covered by Vitest.
+`node scripts/diagnose-offline-webkit.mjs` compares
 WebKit and Chromium against a synthetic worker and loopback server. It reproduces the fixture
 bypass and shows that native offline worker navigation now works. Set `OFFLINE_PREVIEW_URL`
 to include the actual app reload with no request interception. Shell tests await worker
-control, then poll until config and all five language catalogs are readable from the cache.
+control, then poll until config and every catalog in `public/locales` are readable from the cache.
 WebKit on Linux verifies that engine; actual Safari and Apple devices still need testing.
 
 For read-only local storage sizing, preview a production `/v2` build with real runtime OAuth

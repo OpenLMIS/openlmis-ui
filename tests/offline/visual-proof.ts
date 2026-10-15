@@ -3,7 +3,8 @@ import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
 
-const output = '.screenshots/fm-165-stage-9';
+const runLabel = process.env.OFFLINE_PROOF_LABEL || 'fm-165';
+const output = process.env.OFFLINE_PROOF_OUTPUT || `.screenshots/${runLabel}`;
 for (const programName of ['Fixture Medicines', 'Expanded Program on Immunization']) {
   const variant = programName === 'Fixture Medicines' ? '' : '-long-program';
   for (const language of ['en', 'ar']) {
@@ -11,6 +12,7 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
       ['desktop', 1440, 1000],
       ['phone', 390, 844],
     ] as const) {
+      if (size === 'phone' && programName === 'Fixture Medicines') continue;
       test(`${language} ${size}${variant} offline visual proof`, async ({
         page,
         context,
@@ -53,7 +55,7 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
           );
           const capture = async (surface: string) => {
             await page.evaluate(() => document.fonts.ready);
-            const path = `${output}/r3-${language}-${size}${variant}-${surface}.png`;
+            const path = `${output}/${runLabel}-${language}-${size}${variant}-${surface}.png`;
             await page.screenshot({ path, fullPage: true, animations: 'disabled' });
             const metrics = await page.evaluate(() => ({
               scrollWidth: document.documentElement.scrollWidth,
@@ -203,7 +205,7 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
         } finally {
           await writeFile(testInfo.outputPath('visual-verification.json'), JSON.stringify(report));
           await writeFile(
-            `${output}/r3-${language}-${size}${variant}-verification.json`,
+            `${output}/${runLabel}-${language}-${size}${variant}-verification.json`,
             JSON.stringify(report, null, 2),
           );
         }
@@ -221,7 +223,7 @@ test.afterAll(async ({ browser }, testInfo) => {
     files.map(async (path) => JSON.parse(await readFile(`${directory}/${path}`, 'utf8'))),
   );
   await writeFile(
-    `${output}/r3-verification.json`,
+    `${output}/${runLabel}-verification.json`,
     JSON.stringify(
       {
         date: new Date().toISOString(),

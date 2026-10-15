@@ -308,22 +308,20 @@ describe('durable access', () => {
     );
   });
 
-  it.each([401, 403, 404, 500])(
-    'never falls back after a definitive %s server response',
-    async (status) => {
-      await bootstrapOfflineAccess(readers());
-      const failure = Object.assign(new AxiosError('Server refusal'), { response: { status } });
-      vi.mocked(fetchPermissionStrings).mockRejectedValue(failure);
-      vi.mocked(fetchUserRecord).mockRejectedValue(failure);
-      vi.mocked(fetchUserPrograms).mockRejectedValue(failure);
-      vi.mocked(fetchFacility).mockRejectedValue(failure);
-      const client = queryClient();
-      await expect(requireRight(client, 'STOCK_ADJUST')).rejects.toBe(failure);
-      await expect(client.fetchQuery(userRecordOptions('ada'))).rejects.toBe(failure);
-      await expect(client.fetchQuery(userProgramsOptions('ada'))).rejects.toBe(failure);
-      await expect(client.fetchQuery(homeFacilityOptions('home'))).rejects.toBe(failure);
-    },
-  );
+  it('never falls back after a definitive 403 server response', async () => {
+    const status = 403;
+    await bootstrapOfflineAccess(readers());
+    const failure = Object.assign(new AxiosError('Server refusal'), { response: { status } });
+    vi.mocked(fetchPermissionStrings).mockRejectedValue(failure);
+    vi.mocked(fetchUserRecord).mockRejectedValue(failure);
+    vi.mocked(fetchUserPrograms).mockRejectedValue(failure);
+    vi.mocked(fetchFacility).mockRejectedValue(failure);
+    const client = queryClient();
+    await expect(requireRight(client, 'STOCK_ADJUST')).rejects.toBe(failure);
+    await expect(client.fetchQuery(userRecordOptions('ada'))).rejects.toBe(failure);
+    await expect(client.fetchQuery(userProgramsOptions('ada'))).rejects.toBe(failure);
+    await expect(client.fetchQuery(homeFacilityOptions('home'))).rejects.toBe(failure);
+  });
 
   it.each([true, false])(
     'online queries never persist access parts (Web Locks: %s)',

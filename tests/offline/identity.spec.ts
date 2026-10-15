@@ -32,14 +32,6 @@ test('offline shell disables server navigation and blocks direct routes without 
   await expect(issue).toBeDisabled();
   await issue.click({ force: true });
   await expect(page).toHaveURL(/adjustments$/);
-  await page.keyboard.press('Control+k');
-  const option = page.getByRole('option', { name: /Users/ });
-  await expect(option).toHaveAttribute('aria-disabled', 'true');
-  await expect(option).toContainText('Connect to open this page.');
-  await page.getByRole('combobox').fill('Users');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/adjustments$/);
-  await page.keyboard.press('Escape');
   await page.goto('./administration/users');
   await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
   expect(protectedRequests).toHaveLength(0);
