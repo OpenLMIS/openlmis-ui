@@ -3,12 +3,12 @@ import { ClipboardListIcon, PlusIcon } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { DataTableToolbar } from '@/components/data-table/data-table';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
+  WorkspaceActions,
   WorkspaceContent,
   WorkspaceDescription,
   WorkspaceHeader,
@@ -46,7 +46,7 @@ export const Route = createFileRoute(
   component: TemplatesPage,
 });
 
-function TemplatesHeader() {
+function TemplatesHeader({ pending = false, onAdd }: { pending?: boolean; onAdd?: () => void }) {
   const { t } = useTranslation();
   return (
     <WorkspaceHeader>
@@ -57,21 +57,13 @@ function TemplatesHeader() {
         <WorkspaceTitle>{t('requisition-templates.title')}</WorkspaceTitle>
         <WorkspaceDescription>{t('requisition-templates.description')}</WorkspaceDescription>
       </WorkspaceHeading>
-    </WorkspaceHeader>
-  );
-}
-
-function TemplatesToolbar({ pending = false, onAdd }: { pending?: boolean; onAdd?: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <DataTableToolbar>
-      <div className="ms-auto">
-        <Button disabled={pending} onClick={onAdd}>
+      <WorkspaceActions>
+        <Button disabled={pending} onClick={onAdd} size="lg">
           <PlusIcon data-icon="inline-start" />
           {t('requisition-templates.add')}
         </Button>
-      </div>
-    </DataTableToolbar>
+      </WorkspaceActions>
+    </WorkspaceHeader>
   );
 }
 
@@ -85,26 +77,23 @@ function TemplatesPage() {
     void loadDialog();
   }, []);
   return (
-    <Workspace>
-      <TemplatesHeader />
+    <Workspace width="narrow">
+      <TemplatesHeader onAdd={() => void openDialog({ template: 'new' })} />
       <WorkspaceContent>
-        <div className="flex min-w-0 flex-col gap-4">
-          <TemplatesToolbar onAdd={() => void openDialog({ template: 'new' })} />
-          <QueryBoundary
-            errorComponent={({ error, reset }) => (
-              <ListError
-                title={t('requisition-templates.error-title')}
-                description={t('requisition-templates.error-description')}
-                error={error}
-                reset={reset}
-              />
-            )}
-            pendingFallback={<TemplatesSkeleton />}
-            resetKey="requisition-templates"
-          >
-            <ProgramTemplateSections />
-          </QueryBoundary>
-        </div>
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <ListError
+              title={t('requisition-templates.error-title')}
+              description={t('requisition-templates.error-description')}
+              error={error}
+              reset={reset}
+            />
+          )}
+          pendingFallback={<TemplatesSkeleton />}
+          resetKey="requisition-templates"
+        >
+          <ProgramTemplateSections />
+        </QueryBoundary>
         {dialogMounted && (
           <Suspense fallback={null}>
             <AddTemplateDialog target={target} onClose={closeDialog} />
@@ -117,13 +106,10 @@ function TemplatesPage() {
 
 function TemplatesPagePending() {
   return (
-    <Workspace>
-      <TemplatesHeader />
+    <Workspace width="narrow">
+      <TemplatesHeader pending />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4">
-          <TemplatesToolbar pending />
-          <TemplatesSkeleton />
-        </div>
+        <TemplatesSkeleton />
       </WorkspaceContent>
     </Workspace>
   );

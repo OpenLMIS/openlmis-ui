@@ -2,6 +2,7 @@ import {
   type CollisionDetection,
   closestCenter,
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   pointerWithin,
@@ -16,17 +17,20 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useStore } from '@tanstack/react-form';
-import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTableCard } from '@/components/data-table/data-table';
 import { SettingsList } from '@/components/form/settings-list';
 import { Table, TableBody } from '@/components/ui/table';
-import { ColumnRow } from '@/features/requisition-templates/components/column-row';
+import {
+  ColumnRow,
+  ColumnRowPreview,
+} from '@/features/requisition-templates/components/column-row';
 import { TemplateColumnsHeader } from '@/features/requisition-templates/components/template-columns-header';
 import type { TemplateEditorForm } from '@/features/requisition-templates/components/template-editor';
 import { movableRuns, moveColumn } from '@/features/requisition-templates/lib/column-order';
-import { setStockFlag } from '@/features/requisition-templates/lib/template-draft';
+import { columnOrder, setStockFlag } from '@/features/requisition-templates/lib/template-draft';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
 
 export function ColumnsTab({
@@ -37,7 +41,9 @@ export function ColumnsTab({
   saved: RequisitionTemplate;
 }) {
   const { t } = useTranslation();
-  const order = useStore(form.store, (state) => state.values.order);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const orderText = useStore(form.store, (state) => columnOrder(state.values).join('|'));
+  const order = useMemo(() => orderText.split('|'), [orderText]);
   const rows = useMemo(
     () =>
       order
@@ -48,13 +54,11 @@ export function ColumnsTab({
     [order, saved],
   );
   const orderRows = () =>
-    Object.entries(form.state.values.columns)
-      .map(([id, column]) => ({
-        id,
-        canChangeOrder: form.state.values.columnDefinitions[id].canChangeOrder,
-        displayOrder: column.displayOrder,
-      }))
-      .sort((a, b) => a.displayOrder - b.displayOrder);
+    columnOrder(form.state.values).map((id) => ({
+      id,
+      canChangeOrder: form.state.values.columnDefinitions[id].canChangeOrder,
+      displayOrder: form.state.values.columns[id].displayOrder,
+    }));
   const runs = movableRuns(orderRows()).map((run) => run.map((row) => row.id));
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -73,6 +77,7 @@ export function ColumnsTab({
     if (hits.length) return hits;
     return closestCenter(filtered);
   };
+  const activeRow = rows.find((row) => row.columnDefinition.id === activeId);
   const label = (id: string | number) => form.state.values.columns[String(id)]?.label ?? '';
   const position = (id: string | number) => order.indexOf(String(id)) + 1;
   return (
@@ -123,7 +128,10 @@ export function ColumnsTab({
               t('requisition-templates.configure.drag-cancel', { label: label(active.id) }),
           },
         }}
+        onDragStart={({ active }) => setActiveId(String(active.id))}
+        onDragCancel={() => setActiveId(null)}
         onDragEnd={({ active, over }) => {
+          setActiveId(null);
           if (active.id === over?.id) return;
           const currentRows = orderRows();
           const moved = over ? moveColumn(currentRows, String(active.id), String(over.id)) : null;
@@ -141,17 +149,13 @@ export function ColumnsTab({
               ]),
             ),
           );
-          form.setFieldValue(
-            'order',
-            currentRows.toSorted((a, b) => moved[a.id] - moved[b.id]).map((column) => column.id),
-          );
         }}
       >
         <DataTableCard>
           <Table
             layout="fixed"
             width="measured"
-            style={{ '--table-width': '88rem' } as React.CSSProperties}
+            style={{ '--table-width': '70rem' } as React.CSSProperties}
           >
             <TemplateColumnsHeader />
             <TableBody>
@@ -177,6 +181,9 @@ export function ColumnsTab({
             </TableBody>
           </Table>
         </DataTableCard>
+        <DragOverlay>
+          {activeRow && <ColumnRowPreview form={form} column={activeRow} />}
+        </DragOverlay>
       </DndContext>
     </div>
   );

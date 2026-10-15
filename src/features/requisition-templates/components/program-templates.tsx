@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
+import { ClipboardListIcon, SettingsIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,6 +11,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { buttonVariants } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { FacilityType, Program } from '@/features/reference-data/lib/types';
@@ -54,16 +56,26 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         }),
         helper.display({
           id: 'actions',
-          header: t('requisition-templates.action'),
-          meta: { className: 'min-w-36 w-36' },
+          header: () => <span className="sr-only">{t('requisition-templates.action')}</span>,
+          meta: { className: 'w-16' },
           cell: ({ row }) => (
-            <Link
-              className={buttonVariants({ size: 'sm', variant: 'outline' })}
-              to="/administration/requisition-templates/$id"
-              params={{ id: row.original.id }}
-            >
-              {t('requisition-templates.configure')}
-            </Link>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    aria-label={t('requisition-templates.configure-template', {
+                      template: row.original.name,
+                    })}
+                    className={buttonVariants({ size: 'icon-sm', variant: 'ghost' })}
+                    to="/administration/requisition-templates/$id"
+                    params={{ id: row.original.id }}
+                  />
+                }
+              >
+                <SettingsIcon />
+              </TooltipTrigger>
+              <TooltipContent>{t('requisition-templates.configure')}</TooltipContent>
+            </Tooltip>
           ),
         }),
       ]),
@@ -99,6 +111,7 @@ function ProgramTemplates({
         table={table}
         empty={
           <DataTableEmpty
+            icon={<ClipboardListIcon />}
             title={t('requisition-templates.empty-program', { program: programName(program) })}
             description={t('requisition-templates.empty-program-description')}
           />
@@ -117,6 +130,7 @@ export function ProgramTemplateSections() {
   if (!groups.length)
     return (
       <DataTableEmpty
+        icon={<ClipboardListIcon />}
         title={t('requisition-templates.no-programs')}
         description={t('requisition-templates.no-programs-description')}
       />

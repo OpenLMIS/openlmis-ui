@@ -163,3 +163,9 @@ export function tagChoices(draft: TemplateDraft, key: string, tags: readonly str
     ...new Set([...tags.filter((tag) => !used.has(tag) && tag !== own), ...(own ? [own] : [])]),
   ].sort();
 }
+
+export function columnOrder(draft: Pick<TemplateDraft, 'order' | 'columns'>) {
+  return draft.order.toSorted(
+    (a, b) => draft.columns[a].displayOrder - draft.columns[b].displayOrder,
+  );
+}

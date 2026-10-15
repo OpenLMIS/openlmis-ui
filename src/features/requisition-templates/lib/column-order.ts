@@ -43,18 +43,17 @@ export function moveColumn(
   }
   const upper = max || 999999999999999;
   const inArea = (order: number) => order > min && order < upper;
-  const newOrder = target.displayOrder;
-  if (!inArea(newOrder)) return null;
-  const movingUp = draggedIndex > targetIndex;
-  return Object.fromEntries(
-    sorted.map((row) => {
-      let order = row.displayOrder;
-      if (inArea(order) && row.canChangeOrder) {
-        if (row.id === draggedKey) order = newOrder;
-        else if (movingUp && order >= newOrder && order < dragged.displayOrder) order++;
-        else if (order <= newOrder && order > dragged.displayOrder) order--;
-      }
-      return [row.id, order];
-    }),
-  );
+  if (!inArea(target.displayOrder)) return null;
+  const run = sorted.filter((row) => row.canChangeOrder && inArea(row.displayOrder));
+  const from = run.indexOf(dragged);
+  const to = run.indexOf(target);
+  const moved = run.toSpliced(from, 1).toSpliced(to, 0, dragged);
+  const orders: Record<string, number> = {};
+  let previous = Number.NEGATIVE_INFINITY;
+  moved.forEach((row, index) => {
+    previous = Math.max(run[index].displayOrder, previous + 1);
+    orders[row.id] = previous;
+  });
+  if (max !== undefined && previous >= max) return null;
+  return Object.fromEntries(sorted.map((row) => [row.id, orders[row.id] ?? row.displayOrder]));
 }

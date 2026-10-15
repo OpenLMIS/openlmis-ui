@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { FieldGroup } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import { createRequisitionTemplate } from '@/features/requisition-templates/api/api';
@@ -61,7 +62,7 @@ export function AddTemplateDialog({
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const pending = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
   return (
-    <FormDialog size="xl" {...dialogProps(pending)}>
+    <FormDialog size="lg" {...dialogProps(pending)}>
       {shown && <AddTemplateForm />}
     </FormDialog>
   );
@@ -174,6 +175,7 @@ function AddTemplateForm() {
             <form.AppField name="requisitionReportOnly" listeners={{ onChange: clearTypes }}>
               {(field) => <field.SwitchField label={t('requisition-templates.report-only')} />}
             </form.AppField>
+            <Separator />
             <LookupBoundary
               label={t('requisition-templates.form.facility-type')}
               errorTitle={t('requisition-templates.form.lookup-error')}
@@ -263,7 +265,7 @@ function AddFacilityTypes({ form }: { form: TemplateForm }) {
             field.handleBlur();
           }}
           disabled={!values.programId}
-          description={
+          placeholder={
             !values.programId ? t('requisition-templates.form.select-program-first') : undefined
           }
           error={

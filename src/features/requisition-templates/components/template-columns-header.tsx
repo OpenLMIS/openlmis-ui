@@ -6,15 +6,7 @@ export function TemplateColumnsHeader() {
   const { t } = useTranslation();
   return (
     <>
-      <colgroup>
-        <col className="w-12" />
-        <col className="w-20" />
-        <col className="w-16" />
-        <col className="w-64" />
-        <col className="w-96" />
-        <col className="w-52" />
-        <col className="w-72" />
-      </colgroup>
+      <TemplateColumnsColgroup />
       <TableHeader surface="muted">
         <TableRow>
           <TableHead>
@@ -51,5 +43,19 @@ export function TemplateColumnsHeader() {
         </TableRow>
       </TableHeader>
     </>
+  );
+}
+
+export function TemplateColumnsColgroup() {
+  return (
+    <colgroup>
+      <col className="w-10" />
+      <col className="w-18" />
+      <col className="w-12" />
+      <col className="w-56" />
+      <col className="w-72" />
+      <col className="w-44" />
+      <col className="w-68" />
+    </colgroup>
   );
 }

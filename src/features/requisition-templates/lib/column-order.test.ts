@@ -57,10 +57,19 @@ it('refuses locked rows, crossing locks, missing targets and the legacy zero low
   }));
   expect(moveColumn(columns, '3', '0')).toBeNull();
 });
-it('preserves tied orders instead of repairing them', () => {
+it('moves a column past tied neighbours, renumbering only as far as the tie reaches', () => {
   const columns = rows();
   columns[3].displayOrder = 3;
-  expect(moveColumn(columns, '3', '4')).toEqual({ 0: 0, 1: 1, 3: 3, 4: 3, 6: 6, 7: 7, 8: 8 });
+  expect(moveColumn(columns, '4', '3')).toEqual({ 0: 0, 1: 1, 3: 4, 4: 3, 6: 6, 7: 7, 8: 8 });
+  const tied = [
+    { id: 'R', canChangeOrder: false, displayOrder: 3 },
+    { id: 'D', canChangeOrder: true, displayOrder: 7 },
+    { id: 'TC', canChangeOrder: true, displayOrder: 7 },
+    { id: 'X', canChangeOrder: true, displayOrder: 8 },
+    { id: 'TD', canChangeOrder: true, displayOrder: 8 },
+    { id: 'K', canChangeOrder: true, displayOrder: 17 },
+  ];
+  expect(moveColumn(tied, 'TC', 'D')).toEqual({ R: 3, TC: 7, D: 8, X: 9, TD: 10, K: 17 });
 });
 
 it('shifts every intervening row by one and leaves other runs unchanged', () => {

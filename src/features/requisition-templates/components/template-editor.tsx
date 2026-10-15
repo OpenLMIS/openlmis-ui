@@ -162,7 +162,7 @@ export function TemplateEditor({
   });
   return (
     <>
-      <Workspace width="wide">
+      <Workspace width="large">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -218,7 +218,7 @@ export function TemplateEditor({
           />
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter width="wide">
+      <WorkspaceFooter width="large">
         <Button disabled={save.isPending} onClick={onCancel} size="lg" variant="outline">
           {t('requisition-templates.configure.cancel')}
         </Button>

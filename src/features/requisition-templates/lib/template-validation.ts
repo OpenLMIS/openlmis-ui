@@ -1,7 +1,8 @@
 import type { ParseKeys } from 'i18next';
-import type {
-  ColumnDraft,
-  TemplateDraft,
+import {
+  type ColumnDraft,
+  columnOrder,
+  type TemplateDraft,
 } from '@/features/requisition-templates/lib/template-draft';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
@@ -189,14 +190,10 @@ function namedColumns(draft: TemplateDraft) {
   );
 }
 
-export function getRowError(draft: TemplateDraft, key: string) {
-  return rowError(key, draft, namedColumns(draft));
-}
-
 export function getRowErrors(draft: TemplateDraft): Record<string, RowError> {
   const columns = namedColumns(draft);
   const errors: Record<string, RowError> = {};
-  for (const key of draft.order) {
+  for (const key of columnOrder(draft)) {
     const error = rowError(key, draft, columns);
     if (error) errors[key] = error;
   }

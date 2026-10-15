@@ -1,12 +1,6 @@
+import { InfoIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
@@ -25,17 +19,20 @@ export function FacilityTypesCell({
   });
   if (names.length <= 1) return <span dir="auto">{names[0]}</span>;
   return (
-    <Popover>
-      <PopoverTrigger render={<Button size="sm" variant="link" />}>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            className="inline-flex cursor-help items-center gap-1 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            type="button"
+          />
+        }
+      >
         {t('requisition-templates.facility-type-count', { count: names.length })}
-      </PopoverTrigger>
-      <PopoverContent align="start">
-        <PopoverHeader>
-          <PopoverTitle>
-            {t('requisition-templates.facility-types-title', { template: template.name })}
-          </PopoverTitle>
-        </PopoverHeader>
-        <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+        <InfoIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      </TooltipTrigger>
+      <TooltipContent>
+        <ul className="flex flex-col gap-0.5">
           {names.map((name, index) =>
             name ? (
               <li dir="auto" key={template.facilityTypes[index].id}>
@@ -44,7 +41,7 @@ export function FacilityTypesCell({
             ) : null,
           )}
         </ul>
-      </PopoverContent>
-    </Popover>
+      </TooltipContent>
+    </Tooltip>
   );
 }

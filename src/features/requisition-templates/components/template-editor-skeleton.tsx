@@ -31,7 +31,7 @@ export function TemplateEditorSkeleton({
   const { t } = useTranslation();
   return (
     <>
-      <Workspace width="wide">
+      <Workspace width="large">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -69,7 +69,7 @@ export function TemplateEditorSkeleton({
                   <Table
                     layout="fixed"
                     width="measured"
-                    style={{ '--table-width': '88rem' } as React.CSSProperties}
+                    style={{ '--table-width': '70rem' } as React.CSSProperties}
                   >
                     <TemplateColumnsHeader />
                     <TableBody>
@@ -124,7 +124,7 @@ export function TemplateEditorSkeleton({
           </Tabs>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter width="wide">
+      <WorkspaceFooter width="large">
         <Button disabled size="lg" variant="outline">
           {t('requisition-templates.configure.cancel')}
         </Button>
