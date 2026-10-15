@@ -137,6 +137,7 @@ async function addProgram(name = 'ARV') {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   vi.mocked(createRequisitionGroup).mockResolvedValue(group);
   vi.mocked(updateRequisitionGroup).mockResolvedValue(group);
 });
@@ -172,7 +173,17 @@ describe('RequisitionGroupEditor', () => {
     );
   });
   it('validates the add dialog, excludes listed programs and moves focus after removal', async () => {
+    localStorage.setItem(
+      'requisition-group-programs.column-visibility',
+      JSON.stringify({ dropOffFacility: true }),
+    );
     renderEditor({ saved: group });
+    const dropOff = await screen.findByRole('columnheader', {
+      name: 'requisition-groups.form.drop-off',
+    });
+    expect(
+      within(dropOff.closest('table') as HTMLElement).getByText('First Facility'),
+    ).toBeVisible();
     await click('requisition-groups.form.add-program');
     const dialog = await screen.findByRole('dialog');
     await userEvent
@@ -407,6 +418,10 @@ describe('RequisitionGroupEditor', () => {
     expect(queryClient.getQueryData(queryKeys.requisitionGroups.detail(group.id))).toBeUndefined();
   });
   it('disables the legacy view fields without required marks and keeps member filtering and paging available', async () => {
+    localStorage.setItem(
+      'requisition-group-programs.column-visibility',
+      JSON.stringify({ dropOffFacility: true }),
+    );
     renderEditor({
       saved: {
         ...group,
@@ -427,6 +442,9 @@ describe('RequisitionGroupEditor', () => {
     ).toBeNull();
     expect(
       screen.queryByRole('button', { name: 'requisition-groups.form.remove-program' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('columnheader', { name: 'requisition-groups.form.drop-off' }),
     ).toBeNull();
     await userEvent
       .setup()

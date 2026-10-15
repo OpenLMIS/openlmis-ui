@@ -2,6 +2,7 @@ import { revalidateLogic, useStore } from '@tanstack/react-form';
 import {
   type QueryClient,
   useIsMutating,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
@@ -414,6 +415,7 @@ function NodeControl({
 }
 const PROGRAM_COLUMNS = [
   { id: 'directDelivery', labelKey: 'requisition-groups.form.direct-delivery', hideBelow: '3xl' },
+  { id: 'dropOffFacility', labelKey: 'requisition-groups.form.drop-off', hideBelow: 'xl' },
 ] as const;
 const MEMBER_COLUMNS = [
   { id: 'type', labelKey: 'requisition-groups.form.type', hideBelow: '3xl' },
@@ -461,6 +463,16 @@ function yesNoBadge(value: boolean, t: TFunction) {
     </Badge>
   );
 }
+function DropOffName({ id }: { id: string | undefined }) {
+  const { data, isPending } = useQuery(REQUISITION_GROUP_LOOKUPS.facilities);
+  if (!id) return null;
+  if (isPending) return <Block className="h-4 w-24" />;
+  return (
+    <span className="whitespace-normal break-words" dir="auto">
+      {tableValue(data?.find((facility) => facility.id === id)?.name)}
+    </span>
+  );
+}
 function programColumns(t: TFunction, remove?: (index: number) => void) {
   return programColumn.columns([
     programColumn.accessor((row) => tableValue(row.program.name), {
@@ -491,6 +503,17 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
         ),
       },
     ),
+    ...(remove
+      ? [
+          programColumn.display({
+            id: 'dropOffFacility',
+            header: () => (
+              <DataTableHeaderLabel>{t('requisition-groups.form.drop-off')}</DataTableHeaderLabel>
+            ),
+            cell: ({ row }) => <DropOffName id={row.original.dropOffFacility?.id} />,
+          }),
+        ]
+      : []),
     programColumn.accessor('directDelivery', {
       meta: { className: 'w-36' },
       header: () => (
@@ -544,7 +567,9 @@ function ProgramsToolbar({
     <DataTableToolbar>
       <div className="ms-auto">
         <DataTableViewOptions
-          columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          columns={PROGRAM_COLUMNS.filter(({ id }) => !readOnly || id !== 'dropOffFacility').map(
+            ({ id, labelKey }) => ({ id, label: t(labelKey) }),
+          )}
           disabled={disabled}
           visibility={view.visibility}
           onVisibilityChange={view.onVisibilityChange}
