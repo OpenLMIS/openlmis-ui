@@ -5,6 +5,8 @@ import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 
+const AlertDialogOpenContext = React.createContext(false)
+
 function AlertDialog({
   open,
   defaultOpen,
@@ -15,19 +17,21 @@ function AlertDialog({
   const hidden = usePageHidden()
   const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
   return (
-    <AlertDialogPrimitive.Root
-      data-slot="alert-dialog"
-      {...props}
-      open={!hidden && (open ?? localOpen)}
-      onOpenChange={(next, details) => {
-        if (hidden) return
-        setLocalOpen(next)
-        onOpenChange?.(next, details)
-      }}
-      onOpenChangeComplete={(next) => {
-        if (!hidden) onOpenChangeComplete?.(next)
-      }}
-    />
+    <AlertDialogOpenContext value={open ?? localOpen}>
+      <AlertDialogPrimitive.Root
+        data-slot="alert-dialog"
+        {...props}
+        open={!hidden && (open ?? localOpen)}
+        onOpenChange={(next, details) => {
+          if (hidden) return
+          setLocalOpen(next)
+          onOpenChange?.(next, details)
+        }}
+        onOpenChangeComplete={(next) => {
+          if (!hidden) onOpenChangeComplete?.(next)
+        }}
+      />
+    </AlertDialogOpenContext>
   )
 }
 
@@ -40,7 +44,9 @@ function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
 function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
   const hidden = usePageHidden()
   const retained = React.useRef(false)
+  const open = React.use(AlertDialogOpenContext)
   if (hidden) retained.current = true
+  else if (!open) retained.current = false
   return (
     <AlertDialogPrimitive.Portal
       data-slot="alert-dialog-portal"

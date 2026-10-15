@@ -1,10 +1,29 @@
 import * as React from "react"
+import { usePageHidden } from "@/components/page-visibility"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "cn"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
-function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
-  return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+function DropdownMenu({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: MenuPrimitive.Root.Props) {
+  const hidden = usePageHidden()
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  return (
+    <MenuPrimitive.Root
+      data-slot="dropdown-menu"
+      {...props}
+      open={!hidden && (open ?? localOpen)}
+      onOpenChange={(next, details) => {
+        if (hidden) return
+        setLocalOpen(next)
+        onOpenChange?.(next, details)
+      }}
+    />
+  )
 }
 
 function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { PageVisibility } from '@/components/page-visibility';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,22 +36,24 @@ export function DiscardChangesDialog({
 }: DiscardChangesDialogProps) {
   const { t } = useTranslation();
   return (
-    <AlertDialog onOpenChange={(next) => !next && !pending && onKeepEditing()} open={open}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title ?? t('discard-changes.title')}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>
-            {t('discard-changes.keep-editing')}
-          </AlertDialogCancel>
-          <Button disabled={pending} onClick={onDiscard} variant="destructive">
-            {actionLabel ??
-              t(signingOut ? 'discard-changes.discard-sign-out' : 'discard-changes.discard')}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <PageVisibility hidden={false}>
+      <AlertDialog onOpenChange={(next) => !next && !pending && onKeepEditing()} open={open}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{title ?? t('discard-changes.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>
+              {t('discard-changes.keep-editing')}
+            </AlertDialogCancel>
+            <Button disabled={pending} onClick={onDiscard} variant="destructive">
+              {actionLabel ??
+                t(signingOut ? 'discard-changes.discard-sign-out' : 'discard-changes.discard')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageVisibility>
   );
 }

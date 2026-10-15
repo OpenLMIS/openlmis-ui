@@ -21,7 +21,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import {
+  useDeviceEvents,
+  useHasDeviceEvents,
+} from '@/features/stock-events/hooks/use-device-events';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useOfflineSession } from '@/hooks/use-offline-session';
 import { useQueuedAnnouncement, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
@@ -53,7 +56,8 @@ function useNotices(): Notice[] {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const canAdjust = useHasRight(RIGHTS.stockAdjust);
-  const { events } = useDeviceEvents();
+  const hasDeviceEvents = useHasDeviceEvents();
+  const { events } = useDeviceEvents(canAdjust || hasDeviceEvents);
   const ownPhase = useSyncPhase();
   const phase =
     ownPhase === 'idle' && events?.some((event) => event.status === 'sending')

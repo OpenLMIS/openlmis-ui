@@ -80,3 +80,25 @@ export function useDeviceEvents(enabled = true) {
     retry: () => setRetry((value) => value + 1),
   };
 }
+
+export function useHasDeviceEvents() {
+  const scope = useSessionScope();
+  const [state, setState] = useState({ scope, present: false });
+  useEffect(() => {
+    const subscription = liveQuery(async () => {
+      assertSessionScope(scope);
+      const db = getLocalDb();
+      const counts = await Promise.all([
+        db.table('stockEventQueue').count(),
+        db.table('stockEventSyncErrors').count(),
+      ]);
+      assertSessionScope(scope);
+      return counts.some((count) => count > 0);
+    }).subscribe({
+      next: (present) => setState({ scope, present }),
+      error: () => setState({ scope, present: false }),
+    });
+    return () => subscription.unsubscribe();
+  }, [scope]);
+  return state.scope === scope && state.present;
+}

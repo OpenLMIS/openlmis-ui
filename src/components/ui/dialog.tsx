@@ -19,6 +19,8 @@ function DialogCloseLabelProvider({
   return <DialogCloseLabelContext value={label}>{children}</DialogCloseLabelContext>
 }
 
+const DialogOpenContext = React.createContext(false)
+
 function Dialog({
   open,
   defaultOpen,
@@ -29,19 +31,21 @@ function Dialog({
   const hidden = usePageHidden()
   const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
   return (
-    <DialogPrimitive.Root
-      data-slot="dialog"
-      {...props}
-      open={!hidden && (open ?? localOpen)}
-      onOpenChange={(next, details) => {
-        if (hidden) return
-        setLocalOpen(next)
-        onOpenChange?.(next, details)
-      }}
-      onOpenChangeComplete={(next) => {
-        if (!hidden) onOpenChangeComplete?.(next)
-      }}
-    />
+    <DialogOpenContext value={open ?? localOpen}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        {...props}
+        open={!hidden && (open ?? localOpen)}
+        onOpenChange={(next, details) => {
+          if (hidden) return
+          setLocalOpen(next)
+          onOpenChange?.(next, details)
+        }}
+        onOpenChangeComplete={(next) => {
+          if (!hidden) onOpenChangeComplete?.(next)
+        }}
+      />
+    </DialogOpenContext>
   )
 }
 
@@ -52,7 +56,9 @@ function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
   const hidden = usePageHidden()
   const retained = React.useRef(false)
+  const open = React.use(DialogOpenContext)
   if (hidden) retained.current = true
+  else if (!open) retained.current = false
   return (
     <DialogPrimitive.Portal
       data-slot="dialog-portal"

@@ -1698,6 +1698,7 @@
   "sidebar.theme.light": "Claro",
   "sidebar.toggle-sidebar": "Mostrar u ocultar barra lateral",
   "sign-out-device.check-failed": "No se pudo revisar este dispositivo; el trabajo guardado permanece aquí.",
+  "sign-out-device.check-failed-title": "No Se Pudo Comprobar El Trabajo Del Dispositivo",
   "sign-out-device.description": "{count, plural, one {# elemento está guardado} other {# elementos están guardados}} solo en este dispositivo. Permanecen aquí hasta que vuelva a iniciar sesión con este usuario; entonces se enviarán los eventos en espera de sincronización.",
   "sign-out-device.title": "Trabajo Del Dispositivo Sin Sincronizar",
   "sign-out-offline.confirm": "Cerrar sesión",

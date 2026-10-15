@@ -12,7 +12,15 @@ const basepath = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const router = createRouter({
   routeTree,
   basepath,
-  context: { queryClient, getResolvedPathname: () => router.state.resolvedLocation?.pathname },
+  context: {
+    queryClient,
+    getResolvedPathname: (): string | undefined =>
+      router.state.matches.some(
+        (match) => match.routeId === '/(protected)/_protected' && match.status === 'success',
+      )
+        ? router.state.resolvedLocation?.pathname
+        : undefined,
+  },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
   defaultErrorComponent: ErrorFallback,
