@@ -34,6 +34,7 @@ import {
   useCategoryForm,
 } from '@/features/rejection-reasons/components/use-category-form';
 import { useDialogDiscardGuard } from '@/features/rejection-reasons/components/use-dialog-discard-guard';
+import { useDialogOpeningKey } from '@/features/rejection-reasons/components/use-dialog-opening-key';
 import { useOpening } from '@/hooks/use-opening';
 import { isNotFound } from '@/lib/http';
 
@@ -44,6 +45,7 @@ export function CategoryFormDialog({
   target: string | undefined;
   onClose: () => void;
 }) {
+  const openingKey = useDialogOpeningKey(target);
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const pending = useIsMutating({ mutationKey: categorySaveKey }) > 0;
   return (
@@ -55,7 +57,7 @@ export function CategoryFormDialog({
     >
       {shown && (
         <CategoryDialogContent
-          key={shown}
+          key={openingKey}
           target={shown}
           active={target === shown}
           onSaved={close}

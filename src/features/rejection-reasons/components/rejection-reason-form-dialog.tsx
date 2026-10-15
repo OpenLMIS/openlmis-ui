@@ -30,6 +30,7 @@ import type { RejectionReason } from '@/features/reference-data/lib/types';
 import { rejectionReasonDetailOptions } from '@/features/rejection-reasons/api/queries';
 import { RejectionReasonFields } from '@/features/rejection-reasons/components/rejection-reason-fields';
 import { useDialogDiscardGuard } from '@/features/rejection-reasons/components/use-dialog-discard-guard';
+import { useDialogOpeningKey } from '@/features/rejection-reasons/components/use-dialog-opening-key';
 import {
   rejectionReasonSaveKey,
   useRejectionReasonForm,
@@ -44,6 +45,7 @@ export function RejectionReasonFormDialog({
   target: string | undefined;
   onClose: () => void;
 }) {
+  const openingKey = useDialogOpeningKey(target);
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const pending = useIsMutating({ mutationKey: rejectionReasonSaveKey }) > 0;
   return (
@@ -55,7 +57,7 @@ export function RejectionReasonFormDialog({
     >
       {shown && (
         <RejectionReasonDialogContent
-          key={shown}
+          key={openingKey}
           target={shown}
           active={target === shown}
           onSaved={close}
