@@ -50,7 +50,9 @@ test('signed-in access and home programs survive an offline reload', {
     if (!(path in fixtures)) return route.fulfill({ status: 404, json: {} });
     return route.fulfill({ json: fixtures[path] });
   });
-  await context.route('**/localeSettings{,/**,?*}', (route) => route.abort());
+  await context.route('**/localeSettings{,/**,?*}', (route) =>
+    offline ? route.abort() : route.fulfill({ json: { timeZoneId: 'UTC' } }),
+  );
   await page.goto('./login?redirect=%2Fstock-management%2Fadjustments');
   await page.getByRole('textbox', { name: 'Username', exact: true }).fill('offline-user');
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
