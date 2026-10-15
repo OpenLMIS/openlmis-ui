@@ -683,7 +683,7 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
     }),
     memberColumn.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
+      header: () => remove && <span className="sr-only">{t('requisition-groups.actions')}</span>,
       meta: { className: 'w-16' },
       cell: ({ row }) =>
         remove && (
@@ -1155,12 +1155,12 @@ export function RequisitionGroupEditorSkeleton({
   title,
   description,
   readOnly = false,
-  search = {},
+  search,
 }: {
   title?: string;
   description: string;
   readOnly?: boolean;
-  search?: RequisitionGroupEditorSearch;
+  search: RequisitionGroupEditorSearch;
 }) {
   const { t } = useTranslation();
   const tab = search.tab ?? 'programs';
@@ -1181,7 +1181,7 @@ export function RequisitionGroupEditorSkeleton({
               <EditorTabs />
               <TabsContent value={tab}>
                 {tab === 'facilities' ? (
-                  <MembersSkeleton readOnly={readOnly} query={search.q} />
+                  <MembersSkeleton readOnly={readOnly} search={search} />
                 ) : (
                   <ProgramsSkeleton readOnly={readOnly} />
                 )}
@@ -1221,7 +1221,13 @@ function ProgramsSkeleton({ readOnly }: { readOnly: boolean }) {
     </div>
   );
 }
-function MembersSkeleton({ readOnly, query }: { readOnly: boolean; query: string | undefined }) {
+function MembersSkeleton({
+  readOnly,
+  search,
+}: {
+  readOnly: boolean;
+  search: RequisitionGroupEditorSearch;
+}) {
   const { t } = useTranslation();
   const { measure, view } = useMemberColumnView();
   const columns = useMemo(() => memberColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
@@ -1234,8 +1240,8 @@ function MembersSkeleton({ readOnly, query }: { readOnly: boolean; query: string
   });
   return (
     <div className="flex flex-col gap-4" ref={measure}>
-      <MembersToolbar view={view} readOnly={readOnly} query={query} disabled />
-      <DataTableSkeleton table={table} rowCount={10} />
+      <MembersToolbar view={view} readOnly={readOnly} query={search.q} disabled />
+      <DataTableSkeleton table={table} rowCount={search.size ?? 10} />
     </div>
   );
 }
