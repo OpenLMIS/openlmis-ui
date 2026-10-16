@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -40,13 +40,14 @@ import {
   fetchValidAssignments,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
-import { facilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
+import { homeFacilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
 import {
   fetchEventStockCards,
   fetchEventStockOnHand,
   submitStockEvent,
 } from '@/features/stock-events/api/api';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
@@ -57,7 +58,11 @@ import { Route as ReceivePickerRoute } from '@/routes/(protected)/_protected.sto
 import { Route as ReceiveEditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
 import { Route as UnpackPickerRoute } from '@/routes/(protected)/_protected.stock-management.unpack';
 import { Route as UnpackEditorRoute } from '@/routes/(protected)/_protected.stock-management.unpack_.$programId';
-import { loadStockEventEditor, StockEventPending } from '@/routes/(protected)/-stock-event-editor';
+import {
+  loadStockEventEditor,
+  StockEventPending,
+  useStockEventPrint,
+} from '@/routes/(protected)/-stock-event-editor';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { renderPage } from '@/tests/render-page';
 
@@ -70,6 +75,8 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  storedTimeZone: () => 'UTC',
+  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
   fetchReasons: vi.fn(),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
@@ -80,6 +87,25 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacilityOrderableFulfills: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
   fetchLotsByTradeItems: vi.fn(),
+}));
+
+vi.mock('@/lib/adjustment-bundle', async (original) => ({
+  ...(await original<typeof import('@/lib/adjustment-bundle')>()),
+  getAdjustmentBundle: async (filter: {
+    facilityId: string;
+    programId: string;
+    facilityTypeId: string;
+  }) => ({
+    cards: await fetchEventStockCards({
+      facilityId: filter.facilityId,
+      programId: filter.programId,
+    }),
+    reasons: await fetchValidReasons({
+      program: filter.programId,
+      facilityType: filter.facilityTypeId,
+    }),
+    tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
+  }),
 }));
 
 vi.mock('@/features/stock-events/api/api', () => ({
@@ -190,9 +216,14 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       pendingComponent: EditorRoute.options.pendingComponent as never,
       staticData: EditorRoute.options.staticData,
     }).update({ id: `/stock-management/${kind}_/$programId` } as never);
+    const stock = createRoute({
+      getParentRoute: () => layout,
+      path: 'stock-management/stock-on-hand',
+      component: () => <h1>Stock landing</h1>,
+    });
     const router = createRouter({
       routeTree: root.addChildren([
-        group.addChildren([layout.addChildren([picker, editor] as never)] as never),
+        group.addChildren([layout.addChildren([picker, editor, stock] as never)] as never),
       ] as never),
       context: { queryClient },
       defaultErrorComponent: ErrorFallback,
@@ -285,8 +316,8 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         within(table)
           .getAllByRole('row')
           .slice(1)
-          .map((row) => row.textContent),
-      ).toEqual([`Essential Meds${copy}.make`, `Family Planning${copy}.make`]);
+          .map((row) => within(row).getAllByRole('cell')[0]?.textContent),
+      ).toEqual(['Essential Meds', 'Family Planning']);
       const row = screen.getByText('Essential Meds').closest('tr') as HTMLElement;
       const link = within(row).getByRole('link', { name: `${copy}.make` });
       expect(link).toHaveAttribute('href', `${PICKER}/${EM}`);
@@ -366,6 +397,52 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     });
   });
 
+  if (kind === 'adjustments') {
+    it('queues with a signature and returns to Adjustments without offering print', async () => {
+      vi.mocked(fetchPermissionStrings).mockResolvedValue([
+        ...grants,
+        `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+      ]);
+      vi.mocked(fetchEventStockCards).mockResolvedValue([
+        { stockOnHand: 50, orderable: ASPIRIN, lot: null },
+      ]);
+      vi.mocked(fetchValidReasons).mockResolvedValue([
+        {
+          id: 'assignment',
+          hidden: false,
+          reason: {
+            id: 'lost',
+            name: 'Lost',
+            reasonType: 'DEBIT',
+            reasonCategory: 'ADJUSTMENT',
+            isFreeTextAllowed: false,
+            tags: [],
+          },
+        },
+      ]);
+      vi.mocked(submitStockEvent).mockResolvedValue('event-id');
+      const user = userEvent.setup();
+      const { router } = renderRoute(`${PICKER}/${FP}`);
+      const add = await screen.findByRole('button', { name: 'stock-events.add' });
+      await waitFor(() => expect(add).toBeEnabled());
+      await user.click(add);
+      await user.click(screen.getByRole('combobox', { name: 'stock-events.field-of' }));
+      await user.click(await screen.findByRole('option', { name: 'Lost' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'stock-events.field-of' }), {
+        target: { value: '2' },
+      });
+      await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+      await user.type(
+        await screen.findByRole('textbox', { name: 'stock-events.signature' }),
+        'Ada',
+      );
+      await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe(PICKER));
+      expect(submitStockEvent).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  }
+
   if (kind === 'unpack') return;
 
   describe(`${kind} editor access`, () => {
@@ -388,7 +465,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         roleAssignments: [],
         homeFacilityId: HOME,
       });
-      queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
+      queryClient.setQueryData(homeFacilityOptions(HOME).queryKey, homeFacility);
       const router = renderPage(
         <I18nextProvider i18n={i18n}>
           <StockEventPending kind={eventKind} programId={FP} />
@@ -439,9 +516,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       await user.click(await screen.findByRole('combobox', { name: 'stock-events.product' }));
       await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
       await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
-      const quantity = document.querySelector(
-        '[name="lines[0].quantity.doses"]',
-      ) as HTMLInputElement;
+      const quantity = screen.getByRole('textbox', { name: 'stock-events.field-of' });
       expect(quantity).toBeInTheDocument();
       await user.type(quantity, '65');
       let finish!: (permissions: string[]) => void;
@@ -456,7 +531,9 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('other'));
       await act(async () => finish(rights));
       await screen.findByRole('heading', { name: `${copy}.editor-title` });
-      expect(document.querySelector('[name="lines[0].quantity.doses"]')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('textbox', { name: 'stock-events.field-of' }),
+      ).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
     });
 
@@ -752,10 +829,9 @@ describe('Unpack policies', () => {
       const add = await screen.findByRole('button', { name: 'stock-events.add' });
       await waitFor(() => expect(add).toBeEnabled());
       await user.click(add);
-      fireEvent.change(
-        document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
-        { target: { value: '2' } },
-      );
+      fireEvent.change(screen.getByRole('textbox', { name: 'stock-events.field-of' }), {
+        target: { value: '2' },
+      });
       await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
       await user.click(await screen.findByRole('button', { name: 'stock-events.confirm' }));
       expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
@@ -773,4 +849,30 @@ describe('Unpack policies', () => {
       });
     }
   });
+});
+
+it('returns to the available program list when connection drops before print Skip', async () => {
+  function SubmittedEvent() {
+    const print = useStockEventPrint({
+      kind: 'issue',
+      copy: EVENT_KINDS.issue.print,
+      userId: USER,
+      facilityId: HOME,
+      programId: FP,
+    });
+    return (
+      <>
+        <button type="button" onClick={() => print.onSubmitted('event')}>
+          Submitted
+        </button>
+        {print.dialog}
+      </>
+    );
+  }
+  const router = renderPage(<SubmittedEvent />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Submitted' }));
+  await screen.findByRole('alertdialog');
+  await act(() => onlineManager.setOnline(false));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-issue.print-skip' }));
+  await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/issue'));
 });

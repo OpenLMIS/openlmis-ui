@@ -1,6 +1,10 @@
 import { useQueryErrorResetBoundary } from '@tanstack/react-query';
-import { CatchBoundary, type ErrorRouteComponent } from '@tanstack/react-router';
-import { type ReactNode, Suspense } from 'react';
+import {
+  CatchBoundary,
+  type ErrorComponentProps,
+  type ErrorRouteComponent,
+} from '@tanstack/react-router';
+import { type ReactNode, Suspense, useCallback } from 'react';
 
 type QueryBoundaryProps = {
   /** A change clears a caught error, e.g. new filters after a failed request. */
@@ -19,21 +23,21 @@ export function QueryBoundary({
 }: QueryBoundaryProps) {
   const { reset } = useQueryErrorResetBoundary();
 
+  const RenderError = useCallback(
+    (props: ErrorComponentProps) => (
+      <ErrorComponent
+        {...props}
+        reset={() => {
+          reset();
+          props.reset();
+        }}
+      />
+    ),
+    [ErrorComponent, reset],
+  );
   return (
     // Reset again on retry: another reader of the same query may have cleared the reset on catch.
-    <CatchBoundary
-      errorComponent={(props) => (
-        <ErrorComponent
-          {...props}
-          reset={() => {
-            reset();
-            props.reset();
-          }}
-        />
-      )}
-      getResetKey={() => resetKey}
-      onCatch={reset}
-    >
+    <CatchBoundary errorComponent={RenderError} getResetKey={() => resetKey} onCatch={reset}>
       <Suspense fallback={pendingFallback}>{children}</Suspense>
     </CatchBoundary>
   );

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -8,6 +9,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import type { EventPrintCopy } from '@/features/stock-events/lib/event-kinds';
+import { useOnline } from '@/lib/online';
 
 type Props = {
   copy: EventPrintCopy;
@@ -18,6 +20,7 @@ type Props = {
 
 export function PrintEventDialog({ copy, open, onPrint, onSkip }: Props) {
   const { t } = useTranslation();
+  const online = useOnline();
   return (
     <AlertDialog
       open={open}
@@ -33,7 +36,16 @@ export function PrintEventDialog({ copy, open, onPrint, onSkip }: Props) {
           <Button variant="outline" onClick={onSkip}>
             {t(copy.skip)}
           </Button>
-          <Button onClick={onPrint}>{t('stock-event.print')}</Button>
+          <ActionTooltip reason={online ? undefined : t('offline.print-description')}>
+            <Button
+              disabled={!online}
+              focusableWhenDisabled={!online}
+              aria-description={!online ? t('offline.print-description') : undefined}
+              onClick={onPrint}
+            >
+              {t('stock-event.print')}
+            </Button>
+          </ActionTooltip>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -1,6 +1,8 @@
 import axios, { isAxiosError } from 'axios';
 import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { reportConnectionFailure, reportConnectionSuccess } from '@/lib/online';
+import { QueueNotSentError, QueueReceiptError, type QueueTransport } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 declare module 'axios' {
@@ -8,6 +10,8 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** `false` for signing in and out, whose refusal is never an expired session. */
     session?: boolean;
+    backgroundRead?: boolean;
+    queueTransport?: QueueTransport;
     sessionScope?: number;
     /** The user the request was sent for, so a refusal is never resent as someone else. */
     sentFor?: string | null;
@@ -36,19 +40,37 @@ const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined)
 // While the session is expired a request waits for the user to sign in again rather than fail.
 client.interceptors.request.use(async (config) => {
   const { accessToken, expired, referenceDataUserId } = useLoginData.getState();
+  if (config.queueTransport) {
+    try {
+      assertSessionScope(config.sessionScope ?? getSessionScope());
+      if (
+        config.session === false ||
+        config.anonymous ||
+        expired ||
+        !accessToken ||
+        !useLoginData.getState().isAuthenticated ||
+        config.queueTransport.userId !== referenceDataUserId ||
+        (config.sentFor != null && config.sentFor !== referenceDataUserId)
+      )
+        throw new QueueNotSentError();
+    } catch {
+      throw new QueueNotSentError();
+    }
+  }
   config.sentFor ??= referenceDataUserId;
-  if (config.session !== false && !config.anonymous) {
+  if (!config.anonymous) {
     config.sessionScope ??= getSessionScope();
     assertSessionScope(config.sessionScope);
     if (config.sentFor !== referenceDataUserId) throw new SessionEndedError();
   }
+  if (config.backgroundRead && expired) throw new Error('The download session expired.');
   if (config.headers.Authorization || config.anonymous) return config;
 
   const token =
     expired && referenceDataUserId && config.session !== false
       ? await waitForSession(referenceDataUserId)
       : accessToken;
-  if (config.session !== false) assertSessionScope(config.sessionScope ?? getSessionScope());
+  if (!config.anonymous) assertSessionScope(config.sessionScope ?? getSessionScope());
   const authorization = bearer(token);
   if (authorization) config.headers.Authorization = authorization;
 
@@ -58,17 +80,34 @@ client.interceptors.request.use(async (config) => {
 // A refused token keeps the page as it is: the request waits for a new session, then is sent again.
 client.interceptors.response.use(
   (response) => {
-    if (response.config.session !== false && !response.config.anonymous) {
-      assertSessionScope(response.config.sessionScope ?? getSessionScope());
+    reportConnectionSuccess();
+    if (!response.config.anonymous) {
+      try {
+        assertSessionScope(response.config.sessionScope ?? getSessionScope());
+      } catch (error) {
+        if (
+          response.status === 201 &&
+          response.config.queueTransport &&
+          response.config.sentFor === response.config.queueTransport.userId
+        )
+          throw new QueueReceiptError({ status: response.status, data: response.data });
+        throw error;
+      }
     }
     return response;
   },
   async (error) => {
+    reportConnectionFailure(error);
     const config = isAxiosError(error) ? error.config : undefined;
-    if (config && config.session !== false && !config.anonymous) {
+    if (config && !config.anonymous) {
       assertSessionScope(config.sessionScope ?? getSessionScope());
     }
     const { isAuthenticated, accessToken, expired, referenceDataUserId } = useLoginData.getState();
+    if (config?.queueTransport || config?.backgroundRead) {
+      if (error.response?.status === 401 && config.headers.Authorization === bearer(accessToken))
+        useLoginData.getState().expireSession();
+      throw error;
+    }
     if (
       error.response?.status !== 401 ||
       !config ||

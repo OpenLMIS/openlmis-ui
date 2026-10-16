@@ -9,7 +9,7 @@ const rows = [
 const linkFor = (row: { id: string }) => <a href={`/adjustments/${row.id}`}>Make Adjustments</a>;
 
 describe('StockProgramPicker', () => {
-  it('adds statuses and row action labels while retaining the default action', () => {
+  it("shows workflow status and each program's available action", () => {
     render(
       <StockProgramPicker
         actionLabel="Start"

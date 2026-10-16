@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
@@ -61,6 +62,21 @@ describe('client', () => {
     });
     await expect(request).rejects.toBeInstanceOf(SessionEndedError);
     expect(sent).toEqual([]);
+  });
+
+  it('does not send a queued background read with the next user token', async () => {
+    const { sent } = serve('alan-token');
+    const request = client.get('/users/ada-id/permissionStrings', {
+      session: false,
+    });
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'alan-id',
+      username: 'alan',
+      accessToken: 'alan-token',
+    });
+    await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+    expect(sent).toEqual([]);
+    expect(useLoginData.getState().expired).toBe(false);
   });
 
   it('rejects a stale successful read before a save can continue as another user', async () => {
@@ -300,4 +316,79 @@ describe('client', () => {
     ).rejects.toMatchObject({ response: { status: 401 } });
     expect(useLoginData.getState()).toMatchObject({ isAuthenticated: false, expired: false });
   });
+});
+
+it('queue transport rejects an expired session before dispatch with no renewal wait', async () => {
+  const { adapter } = serve('old-token');
+  useLoginData.getState().expireSession();
+  const { QueueNotSentError } = await import('@/lib/queue-transport');
+  await expect(
+    client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } }),
+  ).rejects.toBeInstanceOf(QueueNotSentError);
+  expect(adapter).not.toHaveBeenCalled();
+});
+it('queue transport scope switch before dispatch is typed not-sent', async () => {
+  const { adapter } = serve('other');
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+  const { QueueNotSentError } = await import('@/lib/queue-transport');
+  await expect(request).rejects.toBeInstanceOf(QueueNotSentError);
+  expect(adapter).not.toHaveBeenCalled();
+});
+it('queue transport never intercepts and replays a service 401', async () => {
+  const { adapter } = serve('renewed');
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  await expect(request).rejects.toMatchObject({ response: { status: 401 } });
+  expect(useLoginData.getState().expired).toBe(true);
+  useLoginData.getState().setLoginData({ ...ada, accessToken: 'renewed' });
+  await flush();
+  expect(adapter).toHaveBeenCalledTimes(1);
+});
+it('queue transport retains response identity errors as potentially dispatched', async () => {
+  let finish!: () => void;
+  const { adapter } = serve(
+    'old-token',
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  await flush();
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+  finish();
+  await expect(request).rejects.toBeInstanceOf(SessionEndedError);
+  expect(adapter).toHaveBeenCalledTimes(1);
+});
+
+it('queue 201 after identity change exposes its receipt only through the owner-bound error', async () => {
+  const data = '11111111-1111-4111-8111-111111111111';
+  const adapter = vi.fn(async (config) => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
+    return { status: 201, statusText: 'Created', data, headers: {}, config };
+  });
+  client.defaults.adapter = adapter;
+  const { QueueReceiptError } = await import('@/lib/queue-transport');
+  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  await expect(request).rejects.toBeInstanceOf(QueueReceiptError);
+  await expect(request).rejects.toMatchObject({ response: { status: 201, data } });
+  expect(adapter).toHaveBeenCalledOnce();
+});
+
+it('ends a refused session wait on connection loss without replaying the request', async () => {
+  const { sent } = serve('new-token');
+  const pending = client.get('/users/ada-id').catch((error) => error);
+  await flush();
+  expect(useLoginData.getState().expired).toBe(true);
+  onlineManager.setOnline(false);
+  await expect(pending).resolves.toMatchObject({ code: 'ERR_NETWORK' });
+  expect(sent).toEqual(['/users/ada-id Bearer old-token']);
+  useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+  await flush();
+  expect(sent).toHaveLength(1);
 });

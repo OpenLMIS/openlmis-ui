@@ -1,7 +1,8 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { ChevronRightIcon } from 'lucide-react';
+import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
@@ -37,6 +38,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
+import { useOnline } from '@/lib/online';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
@@ -44,6 +46,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
+  const online = useOnline();
   const navGroups = useNavGroups();
   const accountLinks = useAccountLinks();
   const sidebarGroups = navGroups.map((group) => ({
@@ -94,6 +97,11 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {!online && !isCollapsed && (
+          <p className="px-4 py-2 text-xs text-sidebar-foreground/70">
+            {t('offline.navigation-description')}
+          </p>
+        )}
         {sidebarGroups.map((group) => (
           <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
             {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
@@ -117,7 +125,9 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarNotices />
+        <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
+          <SidebarNotices />
+        </div>
         <div className="flex items-center group-data-[collapsible=icon]:hidden">
           <ThemeSwitcher tone="sidebar" />
           <LanguageSwitcher tone="sidebar" />
@@ -178,11 +188,29 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={pathname === item.to || pathname.startsWith(`${item.to}/`)}
-        render={<Link onClick={onNavigate} to={item.to} />}
-        tooltip={title}
+        aria-disabled={item.disabled || undefined}
+        aria-description={item.disabled ? t('offline.connection-required') : undefined}
+        aria-label={title}
+        render={
+          item.disabled ? <button type="button" /> : <Link onClick={onNavigate} to={item.to} />
+        }
+        tooltip={
+          item.disabled
+            ? {
+                children: (
+                  <span>
+                    <span className="block">{title}</span>
+                    <span className="block">{t('offline.connection-required')}</span>
+                  </span>
+                ),
+                hidden: false,
+              }
+            : title
+        }
       >
         {item.icon && <item.icon />}
         <span className="truncate">{title}</span>
+        {item.disabled && <WifiOffIcon aria-hidden="true" />}
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
@@ -213,13 +241,25 @@ function NavCollapsible({
         <SidebarMenuSub end="flush">
           {item.items.map((child) => (
             <SidebarMenuSubItem key={child.titleKey}>
-              <SidebarMenuSubButton
-                isActive={isNavActive(pathname, child.to)}
-                render={<Link onClick={onNavigate} to={child.to} />}
-              >
-                {child.icon && <child.icon />}
-                <span className="truncate">{t(child.titleKey)}</span>
-              </SidebarMenuSubButton>
+              <ActionTooltip reason={child.disabled ? t('offline.connection-required') : undefined}>
+                <SidebarMenuSubButton
+                  isActive={isNavActive(pathname, child.to)}
+                  aria-disabled={child.disabled || undefined}
+                  aria-description={child.disabled ? t('offline.connection-required') : undefined}
+                  aria-label={t(child.titleKey)}
+                  render={
+                    child.disabled ? (
+                      <button type="button" />
+                    ) : (
+                      <Link onClick={onNavigate} to={child.to} />
+                    )
+                  }
+                >
+                  {child.icon && <child.icon />}
+                  <span className="truncate">{t(child.titleKey)}</span>
+                  {child.disabled && <WifiOffIcon aria-hidden="true" />}
+                </SidebarMenuSubButton>
+              </ActionTooltip>
             </SidebarMenuSubItem>
           ))}
         </SidebarMenuSub>
@@ -242,10 +282,22 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
         <DropdownMenuContent align="start" side="inline-end" sideOffset={12} width="wide">
           <DropdownMenuGroup>
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
+            {item.items.some((child) => child.disabled) && (
+              <p className="px-2 py-1 text-xs text-muted-foreground">
+                {t('offline.navigation-description')}
+              </p>
+            )}
+
             {item.items.map((child) => (
-              <DropdownMenuItem key={child.titleKey} render={<Link to={child.to} />}>
+              <DropdownMenuItem
+                key={child.titleKey}
+                disabled={child.disabled}
+                aria-description={child.disabled ? t('offline.connection-required') : undefined}
+                render={child.disabled ? undefined : <Link to={child.to} />}
+              >
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
+                {child.disabled && <WifiOffIcon aria-hidden="true" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>

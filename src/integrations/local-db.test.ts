@@ -24,22 +24,31 @@ describe('localDatabaseName', () => {
 });
 
 describe('getLocalDb', () => {
-  it('adds the inventory draft table while upgrading a version one database', async () => {
-    signIn('inventory-upgrade');
-    const name = getLocalDb().name;
-    const old = new Dexie(name);
+  it.each([1, 2])('upgrades version %s without losing inventory drafts', async (version) => {
+    signIn(`inventory-upgrade-${version}`);
+    const old = new Dexie(getLocalDb().name);
     old.version(1).stores({});
-    await old.open();
+    const draft = { draftId: 'existing-count', lines: [{ quantity: '12' }], savedAt: 123 };
+    if (version === 2) {
+      old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+      await old.table('physicalInventoryDrafts').put(draft);
+    } else {
+      await old.open();
+    }
     old.close();
+
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(2);
-    await db.table('physicalInventoryDrafts').put({ draftId: 'draft', lines: [] });
-    expect(await db.table('physicalInventoryDrafts').get('draft')).toEqual({
-      draftId: 'draft',
-      lines: [],
-    });
+    expect(db.verno).toBe(7);
+    if (version === 1) await db.table('physicalInventoryDrafts').put(draft);
+    expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
+    expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
+    expect(db.table('adjustmentDownloads').schema.primKey.keyPath).toEqual([
+      'facilityId',
+      'programId',
+    ]);
   });
+
   it('needs someone signed in, since every database belongs to a user', () => {
     expect(() => getLocalDb()).toThrow();
   });
@@ -92,4 +101,41 @@ describe('getLocalDb', () => {
 
     expect(adas.isOpen()).toBe(false);
   });
+});
+
+it('opens an existing v6 database at v7 while preserving every offline record', async () => {
+  signIn('queue-upgrade-v6');
+  const old = new Dexie(getLocalDb().name);
+  old.version(1).stores({});
+  old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+  old.version(3).stores({ offlineAccess: 'userId', adjustmentDownloads: '[facilityId+programId]' });
+  old
+    .version(4)
+    .stores({ stockEventDrafts: 'draftId, [kind+facilityId+programId+state], updatedAt' });
+  old.version(5).stores({
+    stockEventQueue: '++sequence, &localEventId, draftId, [status+sequence]',
+    stockEventSyncErrors: '&localEventId, [facilityId+programId], failedAt',
+    stockEventReceipts: '[draftId+revision], &localEventId, serverEventId',
+  });
+  old.version(6).stores({});
+  const rows = {
+    physicalInventoryDrafts: { draftId: 'pi', lines: [{ quantity: '12' }] },
+    offlineAccess: { userId: 'queue-upgrade-v6', generation: 'access' },
+    adjustmentDownloads: { facilityId: 'facility', programId: 'program', generation: 'bundle' },
+    stockEventDrafts: { draftId: 'draft', revision: 7, state: 'uncertain', lines: [] },
+    stockEventQueue: { sequence: 1, localEventId: 'queued', status: 'uncertain', revision: 7 },
+    stockEventSyncErrors: { localEventId: 'refused', history: [] },
+    stockEventReceipts: { draftId: 'accepted', revision: 1, localEventId: 'accepted' },
+  };
+  for (const [table, row] of Object.entries(rows)) await old.table(table).put(row);
+  old.close();
+  const db = getLocalDb();
+  await db.open();
+  expect(db.verno).toBe(7);
+  for (const [table, row] of Object.entries(rows))
+    expect(await db.table(table).toArray()).toEqual([row]);
+  for (const table of ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'])
+    expect(
+      (db.table(table).schema.idxByName.localEventId ?? db.table(table).schema.primKey).unique,
+    ).toBe(true);
 });

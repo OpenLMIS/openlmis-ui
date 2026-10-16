@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -106,5 +106,24 @@ describe('AppSidebar account links', () => {
     await waitFor(() => {
       expect(screen.queryByRole('link', { name: 'nav-user.account' })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('offline navigation', () => {
+  it('keeps rights-visible server pages disabled while Adjustments stays usable', async () => {
+    onlineManager.setOnline(false);
+    renderSidebar(['STOCK_ADJUST', 'USERS_MANAGE'], { path: '/stock-management/adjustments' });
+    const issue = await screen.findByRole('button', { name: 'nav.stock-management.issue' });
+    expect(issue).toHaveAttribute('aria-disabled', 'true');
+    expect(issue).not.toHaveAttribute('href');
+    expect(issue).toHaveAccessibleDescription('offline.connection-required');
+    expect(screen.getByRole('link', { name: 'nav.stock-management.adjustments' })).toHaveAttribute(
+      'href',
+      '/stock-management/adjustments',
+    );
+    fireEvent.click(issue);
+    expect(screen.getByRole('link', { name: 'nav.stock-management.adjustments' })).toHaveAttribute(
+      'data-active',
+    );
   });
 });

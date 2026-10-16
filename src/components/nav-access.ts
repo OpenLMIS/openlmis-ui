@@ -2,11 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { useMemo } from 'react';
+import { useDeviceWork } from '@/components/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
+import { isOfflineCapable } from '@/lib/offline-capability';
+import { useOnline } from '@/lib/online';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
 /** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
@@ -35,6 +38,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
   '/stock-management/transaction-history': RIGHTS.stockCardsView,
   '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,
+  '/stock-management/device-events': RIGHTS.stockAdjust,
   '/stock-management/adjustments': RIGHTS.stockAdjust,
   '/stock-management/issue': RIGHTS.stockAdjust,
   '/stock-management/receive': RIGHTS.stockAdjust,
@@ -42,7 +46,12 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
-export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | undefined) {
+export function canOpen(
+  to: LiveNavLink['to'],
+  rights: ReadonlySet<string> | undefined,
+  hasDeviceEvents = false,
+) {
+  if (to === '/stock-management/device-events' && hasDeviceEvents) return true;
   const right = to && NAV_RIGHTS[to];
   return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
@@ -51,8 +60,9 @@ export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | und
 export function navWithinRights(
   groups: LiveNavGroup[],
   rights: ReadonlySet<string> | undefined,
+  hasDeviceEvents = false,
 ): LiveNavGroup[] {
-  const allowed = (link: LiveNavLink) => canOpen(link.to, rights);
+  const allowed = (link: LiveNavLink) => canOpen(link.to, rights, hasDeviceEvents);
   return groups
     .map((group) => ({
       ...group,
@@ -74,7 +84,20 @@ function useSignedInRights() {
 /** The signed-in user's nav, for the sidebar and the command palette. */
 export function useNavGroups() {
   const rights = useSignedInRights();
-  return useMemo(() => navWithinRights(LIVE_NAV_GROUPS, rights), [rights]);
+  const { hasDeviceEvents } = useDeviceWork();
+  const online = useOnline();
+  return useMemo<LiveNavGroup[]>(() => {
+    const mark = (link: LiveNavLink) => ({
+      ...link,
+      disabled: !online && !isOfflineCapable(link.to ?? ''),
+    });
+    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents).map((group) => ({
+      ...group,
+      items: group.items.map((item) =>
+        isNavParent(item) ? { ...item, items: item.items.map(mark) } : mark(item),
+      ),
+    }));
+  }, [rights, online, hasDeviceEvents]);
 }
 
 export function useHasRight(right: string) {
@@ -84,19 +107,35 @@ export function useHasRight(right: string) {
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
   const rights = useSignedInRights();
-  return (to: LiveNavLink['to']) => canOpen(to, rights);
+  const { hasDeviceEvents } = useDeviceWork();
+  const online = useOnline();
+  return (to: LiveNavLink['to']) =>
+    canOpen(to, rights, hasDeviceEvents) && (online || isOfflineCapable(to ?? ''));
 }
 
-export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; icon: LucideIcon };
+type AccountLink = {
+  titleKey: ParseKeys;
+  to: '/profile' | '/settings';
+  icon: LucideIcon;
+  disabled?: boolean;
+};
 
 export function useAccountLinks(): AccountLink[] {
+  const online = useOnline();
   const mayManageSettings = useHasRight(RIGHTS.systemSettingsManage);
   const settingsOn = useFlag('SYSTEM_SETTINGS');
   const canManageSettings = mayManageSettings && settingsOn;
   return [
-    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
+    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon, disabled: !online },
     ...(canManageSettings
-      ? [{ titleKey: 'nav-user.settings', to: '/settings', icon: SettingsIcon } as const]
+      ? [
+          {
+            titleKey: 'nav-user.settings',
+            to: '/settings',
+            icon: SettingsIcon,
+            disabled: !online,
+          } as const,
+        ]
       : []),
   ];
 }

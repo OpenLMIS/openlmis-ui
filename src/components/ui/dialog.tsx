@@ -1,4 +1,5 @@
 import * as React from "react"
+import { usePageGatedOpen, useRetainedPortal } from "@/components/page-visibility"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -18,8 +19,30 @@ function DialogCloseLabelProvider({
   return <DialogCloseLabelContext value={label}>{children}</DialogCloseLabelContext>
 }
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+const DialogOpenContext = React.createContext(false)
+
+function Dialog({
+  open,
+  defaultOpen,
+  onOpenChange,
+  onOpenChangeComplete,
+  ...props
+}: DialogPrimitive.Root.Props) {
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange, closeOnHide: false })
+  const { hidden } = gated
+  return (
+    <DialogOpenContext value={gated.currentOpen}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        {...props}
+        open={gated.open}
+        onOpenChange={gated.onOpenChange}
+        onOpenChangeComplete={(next) => {
+          if (!hidden) onOpenChangeComplete?.(next)
+        }}
+      />
+    </DialogOpenContext>
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -27,7 +50,17 @@ function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" container={typeof document === "undefined" ? undefined : document.body} {...props} />
+  const { hidden, keepMounted } = useRetainedPortal(React.use(DialogOpenContext))
+  return (
+    <DialogPrimitive.Portal
+      data-slot="dialog-portal"
+      container={typeof document === "undefined" ? undefined : document.body}
+      {...props}
+      keepMounted={keepMounted || props.keepMounted}
+      hidden={hidden || props.hidden}
+      inert={hidden || props.inert}
+    />
+  )
 }
 
 function DialogClose({ ...props }: DialogPrimitive.Close.Props) {

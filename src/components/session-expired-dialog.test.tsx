@@ -27,6 +27,10 @@ import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { httpError } from '@/tests/http-error';
 
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
+}));
+
 vi.mock('@/features/auth/api/api', async (original) => ({
   ...(await original<typeof import('@/features/auth/api/api')>()),
   login: vi.fn(),
@@ -297,20 +301,30 @@ describe('SessionExpiredDialog', () => {
     expect(within(dialog).getByRole('button', { name: 'sidebar.change-language' })).toBeVisible();
   });
 
-  it('tries to sign in and out even while offline, rather than waiting for the network', async () => {
+  it('keeps offline editing available after expiry and asks for renewal on reconnect', async () => {
     onlineManager.setOnline(false);
-    vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
-    vi.mocked(authApi.logout).mockResolvedValue();
     useLoginData.getState().expireSession();
-    const router = await renderAt('/users');
+    await renderAt('/users', undefined, <input aria-label="Local Draft" />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Local Draft' }), 'retained');
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('session.expired-title');
+    expect(screen.getByLabelText('Local Draft')).toHaveValue('retained');
+  });
 
+  it('offers offline continuation after renewal cannot connect and retries on reconnect', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
     await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
     await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
-    expect(await screen.findByText('session.cannot-connect')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'session.sign-out' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'sign-out-offline.confirm' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    await screen.findByText('session.cannot-connect');
+    await userEvent.click(screen.getByRole('button', { name: 'session.continue-offline' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(useLoginData.getState().expired).toBe(true);
+    act(() => onlineManager.setOnline(false));
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('holds both buttons while signing out', async () => {
@@ -320,7 +334,9 @@ describe('SessionExpiredDialog', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'session.sign-out' }));
 
-    expect(screen.getByRole('button', { name: 'session.sign-out' })).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'session.sign-out' })).toBeDisabled(),
+    );
     expect(screen.getByRole('button', { name: 'session.sign-in' })).toBeDisabled();
   });
 

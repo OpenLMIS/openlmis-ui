@@ -24,7 +24,7 @@ import {
   toProfileFormValues,
 } from '@/features/profile/lib/profile-form';
 import type { Profile } from '@/features/profile/lib/types';
-import { facilityOptions } from '@/features/reference-data/api/queries';
+import { homeFacilityOptions } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 
@@ -249,7 +249,7 @@ function None() {
 
 function FacilityName({ id }: { id: string }) {
   const { t } = useTranslation();
-  const { data, isPending, isError } = useQuery(facilityOptions(id));
+  const { data, isPending, isError } = useQuery(homeFacilityOptions(id));
 
   if (isPending) {
     return (

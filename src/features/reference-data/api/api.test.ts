@@ -21,6 +21,7 @@ import {
   fetchReasons,
   fetchSupervisedFacilities,
   fetchTradeItemByGtin,
+  fetchTradeItemsByIds,
   fetchUserPrograms,
   fetchUserRecord,
   fetchValidAssignments,
@@ -297,7 +298,7 @@ describe('fetchUserRecord', () => {
     get.mockResolvedValueOnce({ data: { id: 'u1', homeFacilityId: 'f1' } });
 
     await expect(fetchUserRecord('u1')).resolves.toEqual({ id: 'u1', homeFacilityId: 'f1' });
-    expect(get).toHaveBeenCalledWith('/users/u1');
+    expect(get).toHaveBeenCalledWith('/users/u1', undefined);
   });
 });
 
@@ -308,7 +309,7 @@ describe('fetchUserPrograms', () => {
     await expect(fetchUserPrograms('u1')).resolves.toEqual([
       { id: 'p1', code: 'EM', name: 'Essential Meds' },
     ]);
-    expect(get).toHaveBeenCalledWith('/users/u1/programs');
+    expect(get).toHaveBeenCalledWith('/users/u1/programs', undefined);
   });
 });
 
@@ -615,6 +616,26 @@ it('reads every processing schedules lookup page', async () => {
     params: { page: 1, size: 100 },
   });
 });
+
+it.each([fetchOrderablesByIds, fetchLotsByIds, fetchTradeItemsByIds])(
+  '%s keeps background cancellation and session policy across ID batches and pages',
+  async (lookup) => {
+    const signal = new AbortController().signal;
+    const config = { backgroundRead: true, signal };
+    get.mockResolvedValue({ data: { content: [], totalPages: 2 } });
+
+    await lookup(
+      Array.from({ length: 101 }, (_, index) => `id${index}`),
+      config,
+    );
+
+    expect(get).toHaveBeenCalledTimes(4);
+    for (const [, request] of get.mock.calls) {
+      expect(request).toMatchObject({ backgroundRead: true });
+      expect(request?.signal).toBe(signal);
+    }
+  },
+);
 
 it('batches saved facilities at 100 ids so hydration cannot exceed URL limits', async () => {
   get.mockResolvedValue(page([]));

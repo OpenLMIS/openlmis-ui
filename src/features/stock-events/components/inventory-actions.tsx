@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import {
   FormDialog,
@@ -424,14 +425,19 @@ export function InventoryActions(props: Props) {
           <Button variant="outline" onClick={closePrint}>
             {t('physical-inventory.no')}
           </Button>
-          <Button
-            onClick={() => {
-              print.print();
-              closePrint();
-            }}
-          >
-            {t('physical-inventory.print')}
-          </Button>
+          <ActionTooltip reason={print.disabledReason}>
+            <Button
+              disabled={print.offline}
+              focusableWhenDisabled={print.offline}
+              aria-description={print.disabledReason}
+              onClick={() => {
+                print.print();
+                closePrint();
+              }}
+            >
+              {t('physical-inventory.print')}
+            </Button>
+          </ActionTooltip>
         </FormDialogFooter>
       </FormDialog>
     </>

@@ -45,6 +45,7 @@ import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(p
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
 import { Route as protectedProtectedStockManagementAdjustmentsRouteImport } from './routes/(protected)/_protected.stock-management.adjustments'
+import { Route as protectedProtectedStockManagementDeviceEventsRouteImport } from './routes/(protected)/_protected.stock-management.device-events'
 import { Route as protectedProtectedStockManagementIssueRouteImport } from './routes/(protected)/_protected.stock-management.issue'
 import { Route as protectedProtectedStockManagementPhysicalInventoryRouteImport } from './routes/(protected)/_protected.stock-management.physical-inventory'
 import { Route as protectedProtectedStockManagementReceiveRouteImport } from './routes/(protected)/_protected.stock-management.receive'
@@ -288,6 +289,12 @@ const protectedProtectedStockManagementAdjustmentsRoute =
     path: '/stock-management/adjustments',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedStockManagementDeviceEventsRoute =
+  protectedProtectedStockManagementDeviceEventsRouteImport.update({
+    id: '/stock-management/device-events',
+    path: '/stock-management/device-events',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementIssueRoute =
   protectedProtectedStockManagementIssueRouteImport.update({
     id: '/stock-management/issue',
@@ -527,6 +534,7 @@ export interface FileRoutesByFullPath {
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
+  '/stock-management/device-events': typeof protectedProtectedStockManagementDeviceEventsRoute
   '/stock-management/issue': typeof protectedProtectedStockManagementIssueRoute
   '/stock-management/physical-inventory': typeof protectedProtectedStockManagementPhysicalInventoryRoute
   '/stock-management/receive': typeof protectedProtectedStockManagementReceiveRoute
@@ -595,6 +603,7 @@ export interface FileRoutesByTo {
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
+  '/stock-management/device-events': typeof protectedProtectedStockManagementDeviceEventsRoute
   '/stock-management/issue': typeof protectedProtectedStockManagementIssueRoute
   '/stock-management/physical-inventory': typeof protectedProtectedStockManagementPhysicalInventoryRoute
   '/stock-management/receive': typeof protectedProtectedStockManagementReceiveRoute
@@ -666,6 +675,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/(protected)/_protected/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
+  '/(protected)/_protected/stock-management/device-events': typeof protectedProtectedStockManagementDeviceEventsRoute
   '/(protected)/_protected/stock-management/issue': typeof protectedProtectedStockManagementIssueRoute
   '/(protected)/_protected/stock-management/physical-inventory': typeof protectedProtectedStockManagementPhysicalInventoryRoute
   '/(protected)/_protected/stock-management/receive': typeof protectedProtectedStockManagementReceiveRoute
@@ -738,6 +748,7 @@ export interface FileRouteTypes {
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/adjustments'
+    | '/stock-management/device-events'
     | '/stock-management/issue'
     | '/stock-management/physical-inventory'
     | '/stock-management/receive'
@@ -806,6 +817,7 @@ export interface FileRouteTypes {
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/adjustments'
+    | '/stock-management/device-events'
     | '/stock-management/issue'
     | '/stock-management/physical-inventory'
     | '/stock-management/receive'
@@ -876,6 +888,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings/feature-flags'
     | '/(protected)/_protected/settings/theme'
     | '/(protected)/_protected/stock-management/adjustments'
+    | '/(protected)/_protected/stock-management/device-events'
     | '/(protected)/_protected/stock-management/issue'
     | '/(protected)/_protected/stock-management/physical-inventory'
     | '/(protected)/_protected/stock-management/receive'
@@ -1173,6 +1186,13 @@ declare module '@tanstack/react-router' {
       path: '/stock-management/adjustments'
       fullPath: '/stock-management/adjustments'
       preLoaderRoute: typeof protectedProtectedStockManagementAdjustmentsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/stock-management/device-events': {
+      id: '/(protected)/_protected/stock-management/device-events'
+      path: '/stock-management/device-events'
+      fullPath: '/stock-management/device-events'
+      preLoaderRoute: typeof protectedProtectedStockManagementDeviceEventsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/stock-management/issue': {
@@ -1500,6 +1520,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
+  protectedProtectedStockManagementDeviceEventsRoute: typeof protectedProtectedStockManagementDeviceEventsRoute
   protectedProtectedStockManagementIssueRoute: typeof protectedProtectedStockManagementIssueRoute
   protectedProtectedStockManagementPhysicalInventoryRoute: typeof protectedProtectedStockManagementPhysicalInventoryRoute
   protectedProtectedStockManagementReceiveRoute: typeof protectedProtectedStockManagementReceiveRoute
@@ -1578,6 +1599,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidSourcesRoute,
   protectedProtectedStockManagementAdjustmentsRoute:
     protectedProtectedStockManagementAdjustmentsRoute,
+  protectedProtectedStockManagementDeviceEventsRoute:
+    protectedProtectedStockManagementDeviceEventsRoute,
   protectedProtectedStockManagementIssueRoute:
     protectedProtectedStockManagementIssueRoute,
   protectedProtectedStockManagementPhysicalInventoryRoute:

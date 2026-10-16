@@ -1,5 +1,9 @@
-import { queryOptions } from '@tanstack/react-query';
-import { approvedProductsOptions } from '@/features/reference-data/api/queries';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
+import { fetchValidReasons } from '@/features/reference-data/api/api';
+import {
+  approvedProductsOptions,
+  tradeItemByGtinOptions,
+} from '@/features/reference-data/api/queries';
 import {
   fetchAllStockEventLines,
   fetchEventStockCards,
@@ -14,13 +18,59 @@ import type {
   PageQuery,
   StockEventsQuery,
 } from '@/features/stock-events/lib/types';
-import { queryKeys } from '@/lib/key-factory';
+import {
+  type AdjustmentScope,
+  getAdjustmentBundle,
+  readAdjustmentBundle,
+} from '@/lib/adjustment-bundle';
+import { getFlag } from '@/lib/feature-flags';
+import { adjustmentBundleKeys, queryKeys } from '@/lib/key-factory';
+import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 
-export const eventStockCardsOptions = (filter: EventStockCardsFilter) =>
+export const adjustmentScope = (
+  filter: EventStockCardsFilter,
+  facilityTypeId: string,
+): AdjustmentScope => ({ ...filter, facilityTypeId, scanning: getFlag('GS1_SCANNING') });
+
+export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: AdjustmentScope) =>
   queryOptions({
-    queryKey: queryKeys.stockEvents.list(filter),
-    queryFn: () => fetchEventStockCards(filter),
+    queryKey: bundle ? adjustmentBundleKeys.cards(bundle) : queryKeys.stockEvents.list(filter),
+    queryFn: async () =>
+      bundle ? (await getAdjustmentBundle(bundle)).cards : fetchEventStockCards(filter),
+    networkMode: 'always',
   });
+
+export const eventValidReasonsOptions = (
+  filter: { program: string; facilityType: string },
+  bundle?: AdjustmentScope,
+) =>
+  queryOptions({
+    queryKey: bundle ? adjustmentBundleKeys.reasons(bundle) : queryKeys.validReasons.list(filter),
+    queryFn: async () =>
+      bundle ? (await getAdjustmentBundle(bundle)).reasons : fetchValidReasons(filter),
+    networkMode: 'always',
+  });
+
+export async function fetchAdjustmentTradeItem(
+  queryClient: QueryClient,
+  filter: AdjustmentScope,
+  gtin: string,
+) {
+  return onlineOrDevice(
+    async () => ({
+      tradeItem: await queryClient.fetchQuery(tradeItemByGtinOptions(gtin)),
+      offline: false,
+    }),
+    async () => {
+      const bundle = await readAdjustmentBundle(filter);
+      if (!bundle.scanning) throw new LocalDataUnavailableError();
+      return {
+        tradeItem: bundle.tradeItems.find((item) => item.gtin === gtin) ?? null,
+        offline: true,
+      };
+    },
+  );
+}
 
 export const stockEventsOptions = (query: StockEventsQuery) =>
   queryOptions({

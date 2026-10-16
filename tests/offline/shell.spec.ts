@@ -1,0 +1,19 @@
+import { expect } from '@playwright/test';
+import { test, waitForOfflineShell } from './browser-fixtures';
+
+test('production shell reloads offline under /v2 after worker takeover', {
+  tag: '@offline-shell',
+}, async ({ page, context, baseURL }) => {
+  await context.route('**/api{,/**,?*}', (route) => route.abort());
+  await context.route('**/localeSettings{,/**,?*}', (route) => route.abort());
+  await page.goto('./');
+  await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
+  await waitForOfflineShell(page);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new URL('login', baseURL).href);
+  expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toBe(
+    new URL('sw.js', baseURL).href,
+  );
+});

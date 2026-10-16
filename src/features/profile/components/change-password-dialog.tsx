@@ -16,10 +16,10 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { PasswordRequirements } from '@/components/password-requirements';
 import { FieldGroup } from '@/components/ui/field';
 import { changePassword } from '@/features/profile/api/api';
-import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { newPasswordSchema } from '@/lib/password-form';
@@ -58,6 +58,7 @@ function ChangePasswordForm({
 }: Pick<ChangePasswordDialogProps, 'user' | 'onChanged'>) {
   const { t } = useTranslation();
   const requirementsId = useId();
+  const { confirm, dialog } = useOfflineSignOut();
   const save = useSessionMutation({
     mutationKey: passwordKey,
     mutationFn: (password: string) => changePassword(user.username, password),
@@ -71,11 +72,12 @@ function ChangePasswordForm({
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
     // A new password signs the user out, so unsaved changes on the page are asked about first.
-    onSubmit: ({ value }) => whenLeaveAllowed(() => save.mutate(value.password)),
+    onSubmit: ({ value }) => confirm(() => save.mutate(value.password)),
   });
 
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
+      {dialog}
       <FormDialogHeader>
         <FormDialogTitle>{t('profile.password.title')}</FormDialogTitle>
         <FormDialogDescription>{t('profile.password.description')}</FormDialogDescription>

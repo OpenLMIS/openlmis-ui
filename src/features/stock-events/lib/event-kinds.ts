@@ -57,6 +57,17 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 }
 
 export type EventKindConfig = {
+  listRoute:
+    | '/stock-management/adjustments'
+    | '/stock-management/issue'
+    | '/stock-management/receive'
+    | '/stock-management/unpack';
+  editorRoute:
+    | '/stock-management/adjustments/$programId'
+    | '/stock-management/issue/$programId'
+    | '/stock-management/receive/$programId'
+    | '/stock-management/unpack/$programId';
+  historyType: 'adjustment' | 'issue' | 'receive';
   eventOrigin: NonNullable<StockEvent['eventOrigin']> | null;
   contents:
     | { type: 'none' }
@@ -78,6 +89,8 @@ export type EventKindConfig = {
     | { type: 'signature' }
     | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
   scanning: boolean;
+  download: 'adjustment' | null;
+  drafts: 'device' | null;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
   twoLineSelectMinWidth: number | null;
@@ -116,6 +129,11 @@ export type EventKindConfig = {
 
 export const EVENT_KINDS = {
   adjustment: {
+    listRoute: '/stock-management/adjustments',
+    editorRoute: '/stock-management/adjustments/$programId',
+    historyType: 'adjustment',
+    download: 'adjustment',
+    drafts: 'device',
     eventOrigin: 'ADJUSTMENT',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -156,6 +174,11 @@ export const EVENT_KINDS = {
     formId: 'adjustment-form',
   },
   issue: {
+    listRoute: '/stock-management/issue',
+    editorRoute: '/stock-management/issue/$programId',
+    historyType: 'issue',
+    download: null,
+    drafts: null,
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -205,6 +228,11 @@ export const EVENT_KINDS = {
     formId: 'issue-form',
   },
   receive: {
+    listRoute: '/stock-management/receive',
+    editorRoute: '/stock-management/receive/$programId',
+    historyType: 'receive',
+    download: null,
+    drafts: null,
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -254,6 +282,11 @@ export const EVENT_KINDS = {
     formId: 'receive-form',
   },
   unpack: {
+    listRoute: '/stock-management/unpack',
+    editorRoute: '/stock-management/unpack/$programId',
+    historyType: 'adjustment',
+    download: null,
+    drafts: null,
     eventOrigin: null,
     contents: {
       type: 'kit',
@@ -311,7 +344,3 @@ export const EVENT_KINDS = {
 } as const satisfies Record<'adjustment' | 'issue' | 'receive' | 'unpack', EventKindConfig>;
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
-
-export type PrintableEventKind = {
-  [Kind in ConfiguredEventKind]: (typeof EVENT_KINDS)[Kind]['print'] extends null ? never : Kind;
-}[ConfiguredEventKind];

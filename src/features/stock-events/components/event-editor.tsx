@@ -5,10 +5,19 @@ import {
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -24,6 +33,7 @@ import { LoadError } from '@/components/load-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { ScanStatus } from '@/components/scan-status';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -40,12 +50,19 @@ import {
   orderablesByIdsOptions,
   reasonsOptions,
   tradeItemByGtinOptions,
-  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  adjustmentScope,
+  eventStockCardsOptions,
+  eventValidReasonsOptions,
+  fetchAdjustmentTradeItem,
+} from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
+import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
+import { EventArchivedCopies } from '@/features/stock-events/components/event-archived-copies';
+import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import {
   EventLineTable,
   EventLineTableSkeleton,
@@ -59,6 +76,7 @@ import {
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
 import { SubmitConfirmDialog } from '@/features/stock-events/components/submit-confirm-dialog';
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
+import { useStockEventAutosave } from '@/features/stock-events/hooks/use-stock-event-autosave';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
   type EventLineCandidate,
@@ -86,8 +104,19 @@ import {
   type ApprovedScanProduct,
   approvedScanProduct,
 } from '@/features/stock-events/lib/scan-products';
+import {
+  type StockEventDelivery,
+  waitForStockEventReceipt,
+} from '@/features/stock-events/lib/stock-event-delivery';
+import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
+import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
+import {
+  copyRefusedEvent,
+  type StockEventSyncError,
+} from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
+import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -98,6 +127,7 @@ import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
 import { queryKeys } from '@/lib/key-factory';
+import { useOnline } from '@/lib/online';
 import {
   acknowledgeScanExpiry,
   isScanExpiryAcknowledged,
@@ -124,7 +154,8 @@ type Props = {
   canManageLots?: boolean;
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
-  onSubmitted: (eventId: string) => void | Promise<void>;
+  deviceDisplay: StockEventDisplay;
+  onSubmitted: (eventId: string, synced?: boolean) => void | Promise<void>;
 };
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 const EMPTY_LOOKUP: never[] = [];
@@ -143,9 +174,12 @@ export function EventEditor({
   search,
   onSearchChange,
   onSubmitted,
+  deviceDisplay,
 }: Props) {
   const { t, i18n } = useTranslation();
   const config: EventKindConfig = EVENT_KINDS[kind];
+  const deviceDrafts = config.drafts === 'device';
+  const online = useOnline();
   const queryClient = useQueryClient();
   const today = toDateValue(new Date());
   const { products } = config;
@@ -155,12 +189,18 @@ export function EventEditor({
       products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
     [products, today],
   );
+  const bundleScope = config.download
+    ? adjustmentScope({ facilityId, programId }, facilityTypeId)
+    : undefined;
+  const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);
+  const validOptions = eventValidReasonsOptions(
+    { program: programId, facilityType: facilityTypeId },
+    bundleScope,
+  );
   const needsKitContents = config.contents.type === 'kit';
-  const reasonOptions = needsKitContents
-    ? reasonsOptions()
-    : validReasonsOptions({ program: programId, facilityType: facilityTypeId });
+  const reasonOptions = needsKitContents ? reasonsOptions() : validOptions;
   const reasonsQuery = useQuery({
-    ...validReasonsOptions({ program: programId, facilityType: facilityTypeId }),
+    ...validOptions,
     enabled: canViewStock && !needsKitContents && config.reasons !== null,
   });
   const reasons = useMemo(
@@ -179,14 +219,15 @@ export function EventEditor({
     enabled: canViewStock && needsCounterparty,
   });
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
-  const ready =
+  const lookupsReady =
     (config.reasons === null || reasonsQuery.data !== undefined) &&
     (!needsKitContents || kitReasons.ok) &&
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
-    ...eventStockCardsOptions({ facilityId, programId }),
+    ...stockOptions,
     enabled: canViewStock && fromCards,
   });
+  const ready = lookupsReady && (!deviceDrafts || cardsQuery.data !== undefined);
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data ?? []),
     [cardsQuery.data, filterCards],
@@ -194,9 +235,39 @@ export function EventEditor({
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
   const quantityUnit = useQuantityUnit();
   const scanning = useFlag('GS1_SCANNING') && config.scanning;
+  const navigate = useNavigate();
+  const [refusal, setRefusal] = useState<StockEventSyncError | null>(null);
+  const [reviewRefusal, setReviewRefusal] = useState(false);
+  const correction = useSessionMutation({
+    mutationFn: async () =>
+      refusal ? copyRefusedEvent(createStockEventContext(refusal.event), refusal) : undefined,
+    retry: false,
+  });
+  const correctRefusal = async () => {
+    try {
+      const copy = await correction.mutateAsync();
+      if (!correction.isCurrent()) return;
+      if (!copy) {
+        toast.warning(t('device-events.changed-title'), {
+          description: t('device-events.changed-description'),
+        });
+        return;
+      }
+      setFailure(null);
+      setRefusal(null);
+      posting.current = false;
+      draft.reload();
+    } catch {
+      if (correction.isCurrent())
+        toast.error(t('device-events.action-failed'), {
+          description: t('device-events.action-failed-description'),
+        });
+    }
+  };
   const [submitted, setSubmitted] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [failure, setFailure] = useState<{
     title: ParseKeys;
@@ -206,6 +277,7 @@ export function EventEditor({
   const [validationOpen, setValidationOpen] = useState(false);
   const alertTarget = useRef<{ name: string; page: number } | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
+  const correctionButton = useRef<HTMLButtonElement>(null);
   const [focusField, setFocusField] = useState<{ name: string; page: number } | null>(null);
   const confirming = useRef(false);
   confirming.current = confirmationOpen;
@@ -247,9 +319,21 @@ export function EventEditor({
       },
       true,
     );
+    if (issue.message === 'stock-events.draft-stock-invalid')
+      setFailure({
+        title: config.copy.invalidTitle,
+        description: t('stock-events.draft-stock-invalid'),
+      });
     setValidationOpen(true);
   };
   const lines = useStore(form.store, (state) => state.values.lines);
+  const draft = useStockEventAutosave(
+    deviceDrafts && canViewStock,
+    { kind, facilityId, programId },
+    form,
+    cardsQuery.data,
+    today,
+  );
   const hasLots =
     !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
   const hasVVM =
@@ -325,13 +409,46 @@ export function EventEditor({
     lines.length > 0 && filtered.length === 0,
   );
   const mutation = useSessionMutation({
-    mutationFn: (body: Parameters<typeof submitStockEvent>[0]) => submitStockEvent(body),
+    mutationFn: async (body: Parameters<typeof submitStockEvent>[0]) => {
+      if (deviceDrafts) {
+        const queued = await draft.submit(body, {
+          ...deviceDisplay,
+          stockCards: (queryClient.getQueryData(stockOptions.queryKey) ?? [])
+            .filter((card) =>
+              body.lineItems.some(
+                (item) =>
+                  item.orderableId === card.orderable.id &&
+                  (item.lotId ?? null) === (card.lot?.id ?? null),
+              ),
+            )
+            .flatMap((card) =>
+              card.id ? [{ id: card.id, orderableId: card.orderable.id, lotId: card.lot?.id }] : [],
+            ),
+          reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
+        });
+        const delivery = await waitForStockEventReceipt(queued);
+        return {
+          eventId:
+            delivery.kind === 'accepted'
+              ? (delivery.receipt.serverEventId ?? queued.localEventId)
+              : queued.localEventId,
+          synced: delivery.kind === 'accepted',
+          delivery,
+        };
+      }
+      return { eventId: await submitStockEvent(body), synced: true, delivery: undefined };
+    },
     retry: false,
   });
-  const pending = refreshing || mutation.isPending;
-  const guard = useDiscardGuard(lines.length > 0 && !submitted, {
+  const pending =
+    refreshing ||
+    mutation.isPending ||
+    (deviceDrafts && canViewStock && (draft.loading || draft.busy));
+  const locked = pending || submitted || !!refusal;
+  const guard = useDiscardGuard((deviceDrafts ? draft.protected : lines.length > 0) && !submitted, {
     allowLeave: () => leaving.current,
-    pending,
+    pending: !draft.readFailed && pending,
+    flushBeforeLeave: deviceDrafts ? draft.flush : undefined,
   });
   const clearFilter = () => onSearchChange({ keyword: undefined, page: undefined }, true);
   useEffect(() => {
@@ -343,7 +460,7 @@ export function EventEditor({
     }
   }, [focusField, search.keyword, search.page]);
   const add = (candidate: EventLineCandidate, hasLotsOfProduct: boolean) => {
-    if (!ready || submitted || pending) return;
+    if (!ready || submitted || refusal || pending) return;
     const next = newEventLine(candidate, lastAdded.current, today, {
       ...lineOptions,
       productHasLots: hasLotsOfProduct,
@@ -377,6 +494,17 @@ export function EventEditor({
   };
   const submit = async () => {
     if (!mutation.isCurrent()) return;
+    if (deviceDrafts) {
+      const saved = await draft.flush();
+      if (!mutation.isCurrent()) return;
+      if (!saved) {
+        setFailure({
+          title: 'stock-events.draft-save-error-title',
+          description: t('stock-events.draft-failed'),
+        });
+        return;
+      }
+    }
     if (config.contents.type !== 'kit') {
       void validateAndSubmit();
       return;
@@ -403,7 +531,7 @@ export function EventEditor({
           }),
         });
         queryClient.invalidateQueries({
-          queryKey: eventStockCardsOptions({ facilityId, programId }).queryKey,
+          queryKey: stockOptions.queryKey,
           exact: true,
         });
         return;
@@ -431,9 +559,12 @@ export function EventEditor({
       return;
     }
     posting.current = true;
+    const hadUnknownOutcome = unknownOutcome;
     setFailure(null);
     setUnknownOutcome(false);
     let eventId: string;
+    let synced = false;
+    let delivery: StockEventDelivery | undefined;
     const payload = eventPayload({
       kind,
       assignments,
@@ -444,26 +575,82 @@ export function EventEditor({
       lines: form.state.values.lines,
     });
     try {
-      eventId = await mutation.mutateAsync(payload);
+      const result = await mutation.mutateAsync(payload);
+      eventId = result.eventId;
+      synced = result.synced;
+      delivery = result.delivery;
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      const unknown = isAxiosError(error) && !error.response;
-      const description = unknown
-        ? t('stock-events.unknown-outcome-description')
-        : (serverMessage(error) ?? t(config.copy.submitErrorDescription));
+      const local = deviceDrafts;
+      const unknown = !local && isAxiosError(error) && !error.response;
       setFailure({
-        title: unknown ? 'stock-events.unknown-outcome-title' : config.copy.submitErrorTitle,
-        description,
+        title: local
+          ? 'stock-events.draft-save-error-title'
+          : unknown
+            ? 'stock-events.unknown-outcome-title'
+            : config.copy.submitErrorTitle,
+        description: local
+          ? t('stock-events.draft-failed')
+          : unknown
+            ? t('stock-events.unknown-outcome-description')
+            : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
       });
-      setUnknownOutcome(unknown);
+      setUnknownOutcome(unknown || (!local && hadUnknownOutcome));
       setConfirmationOpen(false);
       posting.current = false;
+      setRefreshing(false);
       return;
     }
     if (!mutation.isCurrent()) return;
+    if (delivery?.kind === 'refused') {
+      setRefusal(delivery.error);
+      setFailure({ title: config.copy.submitErrorTitle, description: delivery.error.message });
+      setConfirmationOpen(false);
+      posting.current = false;
+      setRefreshing(false);
+      return;
+    }
+    flushSync(() => setSubmitted(true));
     setConfirmationOpen(false);
     leaving.current = true;
-    flushSync(() => setSubmitted(true));
+    setRefreshing(false);
+    if (deviceDrafts) {
+      if (
+        delivery?.kind === 'uncertain' ||
+        delivery?.kind === 'blocked' ||
+        delivery?.kind === 'held'
+      ) {
+        toast.warning(
+          t(
+            delivery.kind === 'uncertain'
+              ? 'device-events.needs-review'
+              : delivery.kind === 'held'
+                ? `device-events.${delivery.reason}`
+                : 'device-events.blocked-title',
+          ),
+          {
+            description: t(
+              delivery.kind === 'uncertain'
+                ? 'device-events.needs-review-description'
+                : delivery.kind === 'held'
+                  ? `device-events.${delivery.reason}-held-description`
+                  : 'device-events.blocked-description',
+            ),
+            action: {
+              label: t('device-events.review'),
+              onClick: () => void navigate({ to: '/stock-management/device-events' }),
+            },
+          },
+        );
+      } else
+        toast.success(t(synced ? 'device-events.synced' : 'stock-events.queued-title'), {
+          description: t(
+            synced ? config.copy.submittedDescription : 'stock-events.queued-description',
+          ),
+        });
+      if (!guard.leaveIfAsked()) await onSubmitted(eventId, synced);
+      return;
+    }
     toast.success(t(config.copy.submittedTitle), {
       description: t(config.copy.submittedDescription),
     });
@@ -486,13 +673,21 @@ export function EventEditor({
     parsed: Gs1Result,
     signal: AbortSignal,
   ): Promise<ScanMessage | undefined> => {
-    if (!ready || submitted || pending) return;
+    if (!ready || submitted || refusal || pending) return;
     if (!parsed.ok) return scanMessage(parsed.error);
     const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
     let tradeItem: TradeItem | null;
     try {
-      tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
+      if (bundleScope) {
+        const result = await fetchAdjustmentTradeItem(queryClient, bundleScope, parsed.gtin);
+        if (stale()) return;
+        if (result.offline && !result.tradeItem)
+          return scanMessage('productNotOnScreen', { gtin: parsed.gtin });
+        tradeItem = result.tradeItem;
+      } else {
+        tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
+      }
     } catch {
       return stale() ? undefined : scanMessage('gtinLookupFailed');
     }
@@ -501,9 +696,7 @@ export function EventEditor({
     let scanProducts: readonly ScanProduct<EventStockCard>[];
     let hasLotsOf: (orderableId: string) => boolean;
     if (products.from === 'stock-cards') {
-      const cards = queryClient.getQueryData(
-        eventStockCardsOptions({ facilityId, programId }).queryKey,
-      );
+      const cards = queryClient.getQueryData(stockOptions.queryKey);
       if (!cards) return { key: 'scan.not-resolved' };
       const offered = filterCards(cards);
       scanProducts = eventProductOptions(offered);
@@ -593,6 +786,7 @@ export function EventEditor({
       canViewStock &&
       ready &&
       !submitted &&
+      !refusal &&
       !pending &&
       !confirmationOpen &&
       !validationOpen &&
@@ -615,13 +809,28 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
+            {refusal && (
+              <Alert variant="destructive" role="note">
+                <AlertTitle>{t(config.copy.submitErrorTitle)}</AlertTitle>
+                <AlertDescription>
+                  {refusal.message}
+                  <Button
+                    ref={correctionButton}
+                    variant="outline"
+                    onClick={() => setReviewRefusal(true)}
+                  >
+                    {t('device-events.copy')}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <form
               className="flex min-w-0 flex-col gap-4"
               id={config.formId}
               noValidate
               onSubmit={async (event) => {
                 event.preventDefault();
-                if (lines.length && ready && !submitted && !pending) void submit();
+                if (lines.length && ready && !submitted && !refusal && !pending) void submit();
               }}
             >
               {canViewStock && (
@@ -631,10 +840,11 @@ export function EventEditor({
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
+                    bundleScope={bundleScope}
                     kind={kind}
                     facilityId={facilityId}
                     programId={programId}
-                    disabled={pending || submitted || !ready}
+                    disabled={locked || !ready}
                     {...(fromCards
                       ? { cardFilter: filterCards }
                       : { from: 'approved-products' as const, canManageLots, lines })}
@@ -643,6 +853,20 @@ export function EventEditor({
                     {scanning && <ScanStatus {...scanStatus} />}
                   </ProductLotPicker>
                 </QueryBoundary>
+              )}
+              {deviceDrafts && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(lines.length > 0 || draft.status !== 'saved') && (
+                    <EventDraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
+                  )}
+                  <EventArchivedCopies
+                    kind={kind}
+                    facilityId={facilityId}
+                    programId={programId}
+                    disabled={locked}
+                    onRestore={draft.restore}
+                  />
+                </div>
               )}
               {unknownOutcome && (
                 <ErrorAlert
@@ -676,7 +900,7 @@ export function EventEditor({
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
-                      disabled={pending || submitted}
+                      disabled={locked}
                     />
                   </div>
                 )}
@@ -713,11 +937,7 @@ export function EventEditor({
                   pendingFallback={tablePending}
                 >
                   <ReasonsReady options={reasonOptions}>
-                    <StockCardsReady
-                      needed={fromCards}
-                      facilityId={facilityId}
-                      programId={programId}
-                    >
+                    <StockCardsReady needed={fromCards} options={stockOptions}>
                       <CounterpartyReady
                         pendingFallback={tablePending}
                         side={needsCounterparty ? side : null}
@@ -735,7 +955,7 @@ export function EventEditor({
                           assignments={assignments}
                           unit={quantityUnit.unit}
                           today={today}
-                          disabled={pending || submitted}
+                          disabled={locked}
                           onRemove={remove}
                           search={search}
                           onSearchChange={onSearchChange}
@@ -753,7 +973,7 @@ export function EventEditor({
       </Workspace>
       <WorkspaceFooter width={config.width}>
         <Button
-          disabled={!filtered.length || pending || submitted}
+          disabled={!filtered.length || locked}
           onClick={() => setClearOpen(true)}
           size="lg"
           variant="outline"
@@ -761,14 +981,14 @@ export function EventEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
-          disabled={!lines.length || pending || submitted || !ready}
+          disabled={!lines.length || locked || !ready}
           ref={submitButton}
           form={config.formId}
           size="lg"
           type="submit"
         >
           {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
-          {t('stock-events.submit')}
+          {t(deviceDrafts && !online ? 'stock-events.submit-offline' : 'stock-events.submit')}
         </Button>
       </WorkspaceFooter>
       <AlertDialog
@@ -785,7 +1005,10 @@ export function EventEditor({
           alertTarget.current = null;
         }}
       >
-        <AlertDialogContent finalFocus={alertTarget.current ? false : submitButton}>
+        <AlertDialogContent
+          size={refusal ? 'lg' : 'default'}
+          finalFocus={alertTarget.current ? false : refusal ? correctionButton : submitButton}
+        >
           <AlertDialogHeader>
             <AlertDialogMedia>
               <CircleAlertIcon className="text-destructive" />
@@ -793,13 +1016,60 @@ export function EventEditor({
             <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
+              {refusal && <span className="block pt-2">{t('device-events.copy-warning')}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+            <div
+              className={
+                refusal ? 'flex w-full flex-col gap-2 sm:flex-row sm:justify-end' : 'contents'
+              }
+            >
+              {refusal && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => void navigate({ to: '/stock-management/device-events' })}
+                  >
+                    {t('device-events.review')}
+                  </Button>
+                  <Button disabled={correction.isPending} onClick={() => void correctRefusal()}>
+                    {t('device-events.copy')}
+                  </Button>
+                </>
+              )}
+              <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {refusal && reviewRefusal && (
+        <QueryBoundary
+          resetKey={refusal.localEventId}
+          pendingFallback={null}
+          errorComponent={({ error, reset }) => (
+            <LoadError
+              error={error}
+              reset={reset}
+              title={t('device-events.error-title')}
+              description={t('device-events.error-description')}
+            />
+          )}
+        >
+          <RefusalRecovery
+            event={{ ...refusal.event, status: 'refused', error: refusal }}
+            canView={canViewStock}
+            canSend
+            onClose={() => setReviewRefusal(false)}
+            onCopied={() => {
+              setReviewRefusal(false);
+              setRefusal(null);
+              posting.current = false;
+              draft.reload();
+            }}
+          />
+        </QueryBoundary>
+      )}
       <ClearLinesDialog
         kind={kind}
         open={clearOpen}
@@ -808,6 +1078,13 @@ export function EventEditor({
         count={filtered.length}
         onClear={() => {
           const keys = new Set(filtered.map((line) => line.key));
+          if (deviceDrafts) {
+            void draft.clear(keys).then((cleared) => {
+              if (cleared && mutation.isCurrent() && !form.state.values.lines.length)
+                setUnknownOutcome(false);
+            });
+            return;
+          }
           form.setFieldValue('lines', (current) => current.filter((line) => !keys.has(line.key)));
         }}
       />
@@ -832,7 +1109,41 @@ export function EventEditor({
           onConfirm={() => confirmSubmit()}
         />
       )}
-      <DiscardChangesDialog {...guard.dialog} description={t('stock-events.discard-description')} />
+      <DiscardChangesDialog
+        {...guard.dialog}
+        pending={discarding}
+        title={deviceDrafts ? t('stock-events.draft-leave-title') : undefined}
+        actionLabel={
+          deviceDrafts
+            ? t(
+                guard.dialog.signingOut
+                  ? 'stock-events.draft-sign-out'
+                  : 'stock-events.draft-leave',
+              )
+            : undefined
+        }
+        description={t(
+          deviceDrafts
+            ? guard.dialog.signingOut
+              ? 'stock-events.draft-sign-out-description'
+              : 'stock-events.draft-leave-description'
+            : 'stock-events.discard-description',
+        )}
+        onDiscard={async () => {
+          if (discarding) return;
+          if (deviceDrafts && !guard.dialog.signingOut) {
+            setDiscarding(true);
+            const discarded = await draft.discard();
+            if (!mutation.isCurrent()) return;
+            setDiscarding(false);
+            if (!discarded) {
+              guard.dialog.onKeepEditing();
+              return;
+            }
+          }
+          guard.dialog.onDiscard();
+        }}
+      />
       <AlertDialog
         open={!!expiryPrompt}
         onOpenChange={(open) => {
@@ -879,7 +1190,7 @@ function ReasonsReady({
   options,
   children,
 }: {
-  options: ReturnType<typeof reasonsOptions> | ReturnType<typeof validReasonsOptions>;
+  options: ReturnType<typeof reasonsOptions> | ReturnType<typeof eventValidReasonsOptions>;
   children: ReactNode;
 }) {
   useSuspenseQueries({ queries: [options] });
@@ -963,33 +1274,25 @@ function CounterpartyLookup({
 
 function StockCardsReady({
   needed,
-  facilityId,
-  programId,
+  options,
   children,
 }: {
   needed: boolean;
-  facilityId: string;
-  programId: string;
+  options: ReturnType<typeof eventStockCardsOptions>;
   children: ReactNode;
 }) {
   if (!needed) return children;
-  return (
-    <StockCardsLookup facilityId={facilityId} programId={programId}>
-      {children}
-    </StockCardsLookup>
-  );
+  return <StockCardsLookup options={options}>{children}</StockCardsLookup>;
 }
 
 function StockCardsLookup({
-  facilityId,
-  programId,
+  options,
   children,
 }: {
-  facilityId: string;
-  programId: string;
+  options: ReturnType<typeof eventStockCardsOptions>;
   children: ReactNode;
 }) {
-  useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }));
+  useSuspenseQuery(options);
   return children;
 }
 
@@ -1002,4 +1305,9 @@ function LookupError({
   const { t } = useTranslation();
   if (isRefused(error)) return <p>{t('no-access.description')}</p>;
   return <LoadError error={error} reset={reset} title={t(title)} description={t(description)} />;
+}
+
+function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
+  const timeZone = useDeploymentTimeZone();
+  return <DeviceEventRecovery {...props} timeZone={timeZone} />;
 }

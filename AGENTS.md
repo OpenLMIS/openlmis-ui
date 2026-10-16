@@ -145,8 +145,9 @@ Reasons do.
   Unpack read legacy's v2 stock list and resolve its cards' products and lots through the id
   lookups above; Receive pages approved products and offers every lot of the picked product's
   trade item. Stock-card filters take `(cards, today)`; Unpack keeps expired kit lots.
-- Every event kind sets `columnFit`, `measuredFitKeep`, `products`, `print` and `newLots`,
-  plus `contents`, `confirmation`, `scanning`, nullable `reasons` and nullable `eventOrigin`.
+- Every event kind sets `columnFit`, `measuredFitKeep`, `products`, `print`, `newLots`,
+  `download`, `drafts`, `contents`, `confirmation`, `scanning`, nullable `reasons` and nullable
+  `eventOrigin`.
   Components read policies, never kind names. Unpack expands fresh kit contents, verifies
   runtime reason ids against the reasons list, uses simple confirmation and omits
   origin/signature. Other kinds keep signature confirmation; Issue and Receive retain printing
@@ -255,9 +256,12 @@ edits, which have no prop for TypeScript to detect:
 
 | File | Required customization |
 |---|---|
+| `dialog.tsx` | Keep the app `@/components/page-visibility` dependency, hidden portal state and release after visible close |
+| `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` | Keep page-visibility gates and close transient overlays when the page hides |
+| `alert-dialog.tsx` | Keep the page-visibility gate and retained close target; DiscardChangesDialog opts out so navigation/logout remain answerable. Preserve the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
+| `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
-| `table.tsx` | Preserve TableRow `drag` with transform and transition from CSS custom properties |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
@@ -266,7 +270,9 @@ edits, which have no prop for TypeScript to detect:
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
-| `combobox.tsx` | Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
+| `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so disabled offline entries remain focusable with tooltips |
+| `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `aria-invalid:bg-destructive/10` for invalid draft lines |
+| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 
 ### Integrations
 
@@ -362,7 +368,8 @@ App-shell pages compose `src/components/workspace.tsx`:
   Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
   disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
-  the real translated Button size.
+  the real translated Button size. Keep Program, Status/readiness and Action
+  separate at phone widths in both loaded and pending tables. Wrap text between words.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -516,6 +523,12 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
   `className`s in the registry. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
+- Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
+  `@/components/page-visibility` gate. Its context defaults to false, keeping these primitives
+  stock-like outside the app. This is an accepted app dependency exception; strip the gate
+  when moving them into the registry.
+- `isRowInvalid` row tint depends on app `table.tsx` aria-invalid styling; carry that styling
+  into the registry.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
@@ -567,7 +580,7 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 
 **Whole-record saves require fresh reads:**
 
-- Edit Facility passes fresh `saved` data to `src/features/facilities/components/facility-editor.tsx`.
+- Edit Facility passes fresh `saved` data to its `facility-editor.tsx`.
   Pages reading fresh records for whole-record saves, including Edit Reason, set
   `preload: false` to prevent hover-cache reuse.
 - Dialogs fetch fresh on each opening: add a per-opening number from `useOpening()`
@@ -649,6 +662,10 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
 `ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width/wrap`, `Button align/width`,
 `PopoverContent width/padding`.
+The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
+import `@/components/page-visibility`; form-dialog and form-fields inherit this dependency.
+This is an accepted app dependency exception. The context defaults to false, keeping them
+stock-like outside the app. Strip the gate when moving these components into the registry.
 
 **Every toast has a short Title Case title and a detail sentence as `description`**, displayed
 at most two lines. `Toaster` supplies the translated close button; callers never pass one.
@@ -662,7 +679,8 @@ scanning follows the kind policy; Unpack keeps it off, as legacy.
 
 ## Facility and program picker
 
-Facility/program screens use `FacilityProgramSelector` (`src/components/facility-program-selector/`).
+Facility/program screens use `FacilityProgramSelector`
+(`src/components/facility-program-selector/`).
 `facilityProgramOptions` (`src/lib/facility-program-selection.ts`) builds options from the
 home facility, user programs, all facilities and page grants, following legacy:
 
@@ -714,8 +732,10 @@ home facility, user programs, all facilities and page grants, following legacy:
 router navigation. It registers `useLeaveGuard` for exits outside the router; sign-out,
 password changes and other deliberate sign-outs call `whenLeaveAllowed` before acting.
 Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
-during a save without offering Discard. Reload/tab close uses only the
-browser's native prompt. External identity changes follow Authentication below.
+during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
+before navigation/sign-out; only a failed flush asks first, and sign-out retains saved work.
+Reload/tab close uses only the browser's native prompt. External identity changes follow
+Authentication below.
 
 **Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,
 one hue light-to-dark, checked for even steps/contrast in both modes. Use the ramp in order
@@ -754,16 +774,15 @@ and every locale; add its template entry in `docker/config.json.template`, expor
 Login sends `POST /api/oauth/token?grant_type=password`. The service authenticates the client
 first with `Basic base64(VITE_AUTH_SERVER_CLIENT_ID:VITE_AUTH_SERVER_CLIENT_SECRET)`, resolved
 through runtime config. The persisted zustand store (`src/features/auth/store/login-data.ts`)
-supplies bearer tokens
-to Axios and identity to router guards. `_protected.tsx` redirects anonymous users to
-`/login?redirect=<page>`; login returns authenticated users through `safeRedirect()`
-(`src/lib/redirect.ts`) or `/home`.
+supplies bearer tokens to Axios and identity to router guards. `_protected.tsx` redirects
+anonymous users to `/login?redirect=<page>`; login returns authenticated users through
+`safeRedirect()` (`src/lib/redirect.ts`) or `/home`.
 
 ### Expiry and requests
 
 - **A `401` keeps the page and drafts.** Axios marks the session `expired`, preserving user
   and refused token so legacy's old token cannot look new. Root `SessionExpiredDialog`
-  asks the same user for a password.
+  asks the same user for a password when connected; offline editing remains available.
 - Refused requests and new requests while expired await `waitForSession()`
   (`src/features/auth/lib/session.ts`), then replay once with the new token.
 - Sign-out, another user signing in, or a refusal for an obsolete `sentFor` identity fails
@@ -774,9 +793,10 @@ to Axios and identity to router guards. `_protected.tsx` redirects anonymous use
   `anonymous: true`: no bearer and no session wait. Hide the dialog on `isSignInPage()` routes.
 - Queries never retry `401`/`403`. Server expiry slides on calls: `expiresAt` from `expires_in`
   is only the earliest expiry, never a sign-out timer. Let `401` decide.
-- Deliberate sign-outs use `useOfflineSignOut()` (`src/components/offline-sign-out.tsx`)
-  before `whenLeaveAllowed`; offline re-login needs the server, so ask first. A failed
-  server connection counts as offline even when the browser claims online.
+- Deliberate sign-outs call `useOfflineSignOut()` (`src/components/offline-sign-out.tsx`).
+  It owns `whenLeaveAllowed`, flushing edits before counting device work and asking once.
+  Never wrap its callback in another leave check. Offline re-login needs the server; a
+  failed renewal connection offers Continue Offline even when the browser claims online.
 
 ### Shared-origin sessions
 
@@ -858,55 +878,151 @@ Read the applicable skill before using it.
 
 ## Offline
 
-Follow the [offline plan](docs/offline-plan/offline-plan.md). The foundation exists; stock
-screens ship online first, then offline data/drafts. Tickets with offline criteria stay open
-until those criteria are met.
+Follow the [offline plan](docs/offline-plan/offline-plan.md). Adjustments supports offline
+downloads, drafts, submission and recovery. Other stock screens follow in FM-166. Tickets with
+offline criteria stay open until those criteria are met.
+
+### Browser tests
+
+- Specs import `test` from `tests/offline/browser-fixtures.ts`; persistent profiles use its
+  `persistentContext` fixture so the selected engine, channel and base URL are respected.
+  Create persistent profiles under `os.tmpdir()` and remove them after the scenario.
+  Fixture handlers abort on exceptions before surfacing the failure. The preview server also
+  refuses all `/api` requests independently of interception. Stock event POSTs must always be
+  stubbed or blocked; a failed handler must never fall through to a backend.
+- Vitest covers the no-Web-Locks fallback: coordinator/uploader stay disabled while online
+  bundle reads remain available. The browser suite does not certify that fallback.
+- Keep page URLs relative to `baseURL`, such as `./stock-management/adjustments`.
+- Run `pnpm test:offline` (Chromium) during development and `pnpm test:offline:browsers`
+  for the installed-engine matrix. Reproduction recipes belong in the ticket plan.
+- Firefox removes request routes only while natively offline to preserve its worker cache,
+  then re-dispatches online/offline events. This does not prove native reconnect events after
+  navigation. WebKit skips must name the unavailable behavior and retain diagnostic evidence.
 
 ### Service worker
 
-- `vite-plugin-pwa` in `vite.config.ts` precaches `**/*.{js,css,html,png,svg,woff2}` at
-  `BASE_URL` scope. Runtime-cache only `config.json` and `locales/*.json`, network-first,
-  so deployments can correct strings/OAuth config without rebuilding.
-- Never cache `/api` or other data in the worker; use Dexie. Cache names are `openlmis-ui-*`
-  to coexist with legacy's root worker. `clientsClaim` controls the first visit.
-- Only `registerServiceWorker()` in `src/lib/service-worker.ts` registers it, once from
-  `src/index.tsx` in production. Once it controls the page, fetch config and every
-  `SUPPORTED_LANGUAGES` catalog for offline use. Check updates hourly and notify all tabs
-  through `useUpdateReady()`.
-- `applyUpdate()` activates/reloads only this tab on takeover, or reloads if another tab
-  already activated the worker. Never use `virtual:pwa-register` hooks; they register per
-  mount and reload all tabs.
-- Dev never registers it. Verify with `VITE_BASE_PATH=/v2 pnpm build` then
-  `VITE_BASE_PATH=/v2 pnpm preview`; preview proxies `/api` too. Copy `config.json` into `dist/`
-  first, or preview serves HTML for it.
+- Only `registerServiceWorker()` in `src/lib/service-worker.ts` registers the worker, once
+  from `src/index.tsx` in production. Never use `virtual:pwa-register` hooks or register on mount.
+  Keep scope and asset/catalog URLs under `BASE_URL`; use Dexie for business data, never API caches.
+- Precache app assets and network-first runtime config/catalogs. Use `openlmis-ui-*` cache
+  names to coexist with the legacy worker; `clientsClaim` controls the first visit. Fetch config
+  and every supported catalog after takeover. Check updates hourly and notify all tabs.
+- `applyUpdate()` activates/reloads only the requesting tab, or reloads if another tab already
+  activated the worker.
+- Reload calls `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Call `allowUnload()` just
+  before reload to avoid a second prompt; retain guards if reload never comes. Verify offline
+  behavior using a production build, not the dev server.
 
 ### Connection failures and notices
 
-- Queries use `networkMode: 'always'` to fail immediately offline. `seedOnline()` seeds boot
-  state; TanStack otherwise only hears online/offline events. Use `src/lib/online.ts`:
-  `useOnline()`, `isOnline()`, `useOnReconnect()`, `useBackOnline()`. Never read
-  `navigator.onLine` directly.
-- No-response failures (`isOfflineError`) show "Connect To Download This Data" through
-  `useOfflineFailure(error, retry)`, which retries on reconnect. Use `OfflineNotice` through
-  `ErrorFallback` for pages/blocking loaders; `ListError` for server-paged boundaries (also
-  No Access); `LoadError` inside features without auth imports; `DialogLoadError` or Home's
-  `WidgetError`, passing the error. New retry views use the same hook.
-- Custom route errors render `ErrorFallback` with title/description. Its retry calls
-  `router.invalidate()` before `reset()` to rerun failed loaders. `reportCaughtError`
-  (`src/lib/report-error.ts`), passed to `createRoot`, suppresses offline errors and logs other
-  caught errors with component stacks.
-- `SidebarNotices` above footer buttons shows You're Offline (warning, no close), You're Back
-  Online (success, 4 s), and Update Available (info, Reload). Collapsed rail: tooltip icons,
-  only Reload clickable. `OfflineDot` marks the header menu when the sidebar is closed.
-- Visual notices are notes, never live regions. Header `StatusAnnouncer` is the single
-  always-mounted `role="status"` so announcements survive sidebar visibility changes.
-- Reload uses `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Run `allowUnload()` just
-  before reload to avoid a second browser prompt; the guard stays active if reload never comes.
+- Use `online.ts` hooks/helpers, never `navigator.onLine` outside that module. No-response
+  network failures establish disconnection; cancellation, local absence and timeouts do not.
+  Browser hints/retries request a probe rather than asserting server reachability. Keep probe
+  backoff across public-probe success until a real API request succeeds; retries may replace
+  a waiting timer but never overlap an active probe.
+- Queries use `networkMode: 'always'`. Pass errors to `ErrorFallback` for pages/blocking
+  loaders, `ListError` for paged boundaries, `LoadError` inside features without auth imports,
+  `DialogLoadError` for dialogs and Home's `WidgetError` for widgets. They use `OfflineNotice`
+  and `useOfflineFailure(error, retry)`; new retry views use the same hook for reconnect retries.
+- Custom route errors use `ErrorFallback`; retry reseeds connection state and invalidates failed
+  loaders before reset only while online. Pass `reportCaughtError` (`src/lib/report-error.ts`)
+  to `createRoot` to suppress offline errors and log other caught errors with component stacks.
+- `SidebarNotices` above footer buttons shows You're Offline (warning, persistent), You're Back
+  Online (success, four seconds) and Update Available (info, Reload). `OfflineDot` marks the
+  header menu while the sidebar is closed. Collapsed actions remain clickable with tooltips.
+- Visual notices are notes. The shell `StatusAnnouncer` is the single persistent live region;
+  device saves and sync outcomes announce through it. Keep notice ids stable and cap/scroll
+  the sidebar footer. Collapsed actions have translated action-first accessible names.
+
+### Shell capabilities and identity
+
+- `src/lib/offline-capability.ts` owns route capabilities, separately from downloaded readiness and
+  rights. Keep unavailable navigation focusable with explanations and omit its links. Block
+  online-only direct routes/preloads before child loaders. Palette selection explains its gate.
+- An already-open server page may hide while retaining its draft/guards. Same-path changes
+  reuse it only after a successful protected match for the current session scope. Hidden
+  Dialog/AlertDialog portals retain drafts until a visible close; transient overlays close.
+  DiscardChangesDialog opts out so navigation and logout decisions remain answerable.
+- Guard Print/Refresh/server actions before work and after asynchronous permission reads.
+  Use focusable disabled controls, tooltips and accessible descriptions.
+- Logout flushes drafts, then counts owner-scoped unsynced work once and offers one combined
+  retention/offline warning. Deduplicate event ids; exclude accepted/resolved work. Failed or
+  bounded-out checks offer a neutral unknown-count warning. Confirmation is identity-scoped,
+  closes on identity change and never deletes device work. Password changes use this path too.
+- Offline expiry preserves editing without a blocking dialog. Sign In To Sync appears only
+  with adjustment access or pending device work; a warning never expires auth on a timer.
+  Session waits reject on connection loss, enabling device fallback without request replay.
+- Route composition supplies shell device-work summaries/counting callbacks. Share subscriptions
+  and avoid full event reads for users without adjustment rights or owned device work. Start
+  offline services through dynamic imports after sign-in; clean up on unmount.
 
 ### Local data
 
-Use Dexie with one database per deployment/user. `getLocalDb()` (`src/integrations/local-db.ts`)
-opens `openlmis-ui:<deployment>:<userId>` for the signed-in user, closes on identity change or
-sign-out, and never deletes it. Screens add tables with a new `version()`. Offline reads
-return data, unavailable or a handled error; local absence is never a server 404. Tests use
-`fake-indexeddb`; `src/tests/setup.ts` restores online state after each test.
+- `getLocalDb()` opens one deployment/user database and closes it on identity change without
+  deleting records. Preserve released schema data when upgrading. Keep development-version
+  compatibility and migration evidence in the ticket plan, not coding guidance.
+- Local data tests use `fake-indexeddb`; `src/tests/setup.ts` restores online state after each test.
+- Only the coordinator publishes complete access/bundle generations under `offlineDownloadLock`.
+  Online foreground reads never persist partial generations. Keep the upload lock separate.
+- Use `onlineOrDevice` for fallback after unreachable reads, timeouts or non-JSON gateway
+  errors. Definitive service errors/cancellations never fall back. Missing data uses
+  `LocalDataUnavailableError`, never a server 404. Check session scope after async boundaries.
+- `offlineAccessQuery` preserves device markers, bounds device freshness and makes saved access
+  stale on reconnect before checking rights. `homeFacilityOptions` uses the stripped snapshot;
+  whole-record `facilityOptions` reads remain server-only.
+- Foreground bundle reads may join background downloads but retain ordinary renewal/replay;
+  only coordinator downloads use fail-fast `backgroundRead`. Retain complete older bundles
+  after refresh failure. Accepted events request nonblocking scoped refreshes.
+- Scans consult saved mappings only when offline/unreachable. Absence in a complete scan-enabled
+  bundle means not in local stock, never globally unregistered.
+
+### Stock event device drafts
+
+- Kind policies enable device drafts/downloads independently. Preserve the existing behavior of
+  kinds whose offline pass has not shipped. Keep kind-specific routes/copy in configuration.
+- Capture database owner/session scope. Check after awaits inside write transactions so stale
+  operations roll back. Keep display snapshots and every typed `QuantityValue` text part.
+- Enforce one editing draft per kind/facility/program. Compare draft id and revision for every
+  durable transition; increment editing revisions. Conflicts stop writes until explicit Load or
+  Copy. Subscriptions must never replace edits. Copy/Restore archive the active edits atomically.
+- Use one serial autosave writer. Stage immediately for leave protection and flush before
+  durable transitions/navigation/logout. Announce Saved On This Device only after commit.
+  Failures remain visible during retries. Logout retains committed drafts.
+- Refresh resumed product/lot snapshots by identity while preserving typed text. Explain missing
+  cards/invalid lots through the existing invalid-submit dialog and the kind's card policy.
+- Offline submission never POSTs from the editor. Flush, validate, collect signature and atomically
+  revision-check/freeze the draft with one immutable queue row. Preserve its exact body and unique
+  localEventId; repeated confirmation reuses it. Queued drafts cannot autosave or be discarded.
+- Uploader POSTs are serialized by the owner database's Web Lock. Without Web Locks automatic
+  sync is disabled; never substitute a timeout lease. Fresh identity/session/connection-scoped
+  access and exact grants precede dispatch. Missing grants pause work without inventing refusals.
+- Queue transport never waits for renewal or replays a 401. Typed not-sent failures return to
+  the original owner's queue and clear attempt metadata. Disable mutation retries. Teardown
+  removes polling/listeners; successful passes and owner changes reset retry state.
+- Commit sending status and attempt metadata before dispatch. Send oldest eligible work once.
+  Sending/uncertain work blocks later events in that facility/program. Recover orphaned sending
+  only under the upload lock. Draft mismatches pause for review; recheck pauses on later passes.
+- A verified 201 UUID atomically saves receipt/accepted state and removes the queue row. Late
+  results may persist only in the captured owner's database; never update the next user's UI.
+  Receipt-write failures retry local persistence while holding the lock, never POST again.
+- Definite service refusals retain original/error data. Recognized service 401 pauses until
+  same-user renewal and fresh grants. Timeout, abort, gateway errors, unrecognized responses,
+  crashes before receipt commit and post-dispatch scope failures stay uncertain. Never auto-resend.
+- Unknown-result recovery checks exact owner/revision/status/attempt in one transaction.
+  It Was Recorded writes a user receipt without POST; Send Again requires the duplicate warning
+  and retains body/sequence/history. Stale decisions explain that the event changed.
+- Refusal Copy For Correction makes an editable copy in one explained confirmation. Dismiss
+  hides the refusal from review/counts while retaining audit data. Only never-attempted queued
+  events may be removed; delete the linked draft only if it still matches.
+- Device Events uses one row per product/lot and event-based pagination. Products/actions stay
+  visible; Status defaults visible at every width. Optional columns hide by container width.
+  Recovery dialogs live in URL search via `useSearchNavigation`/`CLOSED_DIALOGS`, retaining their
+  target during close; missing events use DialogNotFound. Unknown reason ids stay blank.
+- Device Events/nav require adjustment rights or owned non-accepted work. Non-sending recovery
+  stays available without adjustment rights; Send Again still needs its scoped grant. History
+  links require exact viewing rights, no preloading and a connection explanation when offline.
+  Receipt metadata appears only for receipts. Never expose raw transport JSON or saved revisions.
+- Prune only accepted receipts/drafts. Keep queue rows, refusals, sync errors and archived copies.
+  Pending counts exclude pauses. Offer Review once on the most severe note. Sign In To Sync
+  leaves reauthentication to SessionExpiredDialog. Timing/retention values and sequencing
+  evidence belong in the ticket plan.

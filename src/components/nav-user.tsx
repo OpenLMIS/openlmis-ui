@@ -16,7 +16,6 @@ import {
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
-import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { fullName } from '@/lib/text';
 
 type NavUserProps = {
@@ -49,7 +48,13 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             {accountLinks.map((link) => (
-              <DropdownMenuItem key={link.to} render={<Link to={link.to} />}>
+              <DropdownMenuItem
+                key={link.to}
+                disabled={link.disabled}
+                title={link.disabled ? t('offline.connection-required') : undefined}
+                aria-description={link.disabled ? t('offline.connection-required') : undefined}
+                render={link.disabled ? undefined : <Link to={link.to} />}
+              >
                 <link.icon />
                 {t(link.titleKey)}
               </DropdownMenuItem>
@@ -57,9 +62,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() =>
-              offlineSignOut.confirm(() => whenLeaveAllowed(() => void handleLogout()))
-            }
+            onClick={() => offlineSignOut.confirm(() => void handleLogout())}
             variant="destructive"
           >
             <LogOutIcon className="rtl:rotate-180" />

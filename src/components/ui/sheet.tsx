@@ -1,14 +1,28 @@
 "use client"
 
 import * as React from "react"
+import { usePageGatedOpen } from "@/components/page-visibility"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-function Sheet({ ...props }: SheetPrimitive.Root.Props) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+function Sheet({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: SheetPrimitive.Root.Props) {
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
+  return (
+    <SheetPrimitive.Root
+      data-slot="sheet"
+      {...props}
+      open={gated.open}
+      onOpenChange={gated.onOpenChange}
+    />
+  )
 }
 
 function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props) {

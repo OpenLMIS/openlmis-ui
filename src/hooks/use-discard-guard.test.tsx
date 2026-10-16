@@ -7,7 +7,7 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -18,10 +18,15 @@ let guard: ReturnType<typeof useDiscardGuard>;
 
 let leaving = false;
 let saving = false;
+let flushBeforeLeave: (() => Promise<boolean>) | undefined;
 
 function Draft({ dirty }: { dirty: boolean }) {
   const [allowed, setAllowed] = useState(false);
-  guard = useDiscardGuard(dirty, { allowLeave: () => allowed || leaving, pending: saving });
+  guard = useDiscardGuard(dirty, {
+    allowLeave: () => allowed || leaving,
+    pending: saving,
+    flushBeforeLeave,
+  });
   const { open, signingOut } = guard.dialog;
   return (
     <>
@@ -33,7 +38,8 @@ function Draft({ dirty }: { dirty: boolean }) {
   );
 }
 
-async function renderAt(dirty: boolean, pending = false) {
+async function renderAt(dirty: boolean, pending = false, flush?: () => Promise<boolean>) {
+  flushBeforeLeave = flush;
   leaving = false;
   saving = pending;
   const root = createRootRoute({ component: Outlet });
@@ -179,4 +185,40 @@ it('does not ask before unload once leaving is allowed', async () => {
   window.dispatchEvent(unload);
   expect(unload.defaultPrevented).toBe(false);
   router.history.destroy();
+});
+
+it.each(['navigation', 'sign-out'])(
+  'flushes device edits before %s and proceeds without discarding',
+  async (destination) => {
+    let finish!: (saved: boolean) => void;
+    const flush = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const router = await renderAt(true, false, flush);
+    const signOut = vi.fn();
+    act(() => {
+      if (destination === 'navigation') void router.navigate({ to: '/profile/roles' });
+      else whenLeaveAllowed(signOut);
+    });
+    await waitFor(() => expect(flush).toHaveBeenCalledOnce());
+    expect(guard.dialog.open).toBe(false);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe('/profile');
+    await act(async () => finish(true));
+    if (destination === 'navigation')
+      expect(await screen.findByText('/profile/roles')).toBeInTheDocument();
+    else expect(signOut).toHaveBeenCalledOnce();
+  },
+);
+it('offers leaving after a failed device flush', async () => {
+  await renderAt(true, false, async () => false);
+  const signOut = vi.fn();
+  act(() => whenLeaveAllowed(signOut));
+  await screen.findByText('asking to sign out');
+  expect(signOut).not.toHaveBeenCalled();
+  act(() => guard.dialog.onDiscard());
+  expect(signOut).toHaveBeenCalledOnce();
 });

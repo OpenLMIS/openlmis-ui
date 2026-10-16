@@ -1,128 +1,81 @@
 # Offline Plan
 
-How the new UI will keep working without a connection. It uses the tools the app already has,
-plus local storage in the browser, and needs nothing new on the server.
+Adjustments is the first complete offline workflow. It proves downloading, draft recovery,
+submission, ordered sync and failure recovery before the same approach is added to other pages.
+See [Working Offline](../working-offline/working-offline.md) for day-to-day instructions.
 
-## Where Things Stand
+## Available Behavior
 
-| Part | Status |
-| --- | --- |
-| The app opens and reloads offline after one online visit, in every language | Done (FM-175) |
-| Pages say "Connect To Download This Data" instead of loading forever | Done (FM-175) |
-| The sidebar says when you are offline, back online, or when an update is ready | Done (FM-175) |
-| A private local database for each user and each deployment | Done (FM-175); physical inventory drafts are saved automatically on the device |
-| A screen whose data and drafts work offline, then sync | Planned for the offline pass after the initial online stock screens (FM-166) |
+The app's files and all language catalogs are saved after an online visit. Home, Adjustments and
+Device Events can then reopen offline, including after a browser restart. Other pages and
+print/PDF actions explain that they need a connection.
 
-## The Tools
+At sign-in, the app downloads permitted home-facility Adjustments programs in the background.
+Each program becomes ready only when its complete bundle is stored. The sidebar reports progress
+and failures. Reconnect and same-user renewal refresh access and bundles; connected boot reuses
+complete data younger than 30 minutes. Older complete copies remain usable offline and show
+their downloaded time. A failed refresh keeps the previous complete copy.
 
-| Tool | What it does |
-| --- | --- |
-| TanStack Query | Data for pages: loading, errors, a short-lived memory cache, refetching |
-| Dexie (IndexedDB) | Downloaded data, editable drafts and pending changes, kept on the device |
-| Zustand | The session and shared screen state, never a second copy of business records |
-| Axios | Calls the existing OpenLMIS APIs |
-| vite-plugin-pwa (Workbox) | Keeps the app's own files, so it can open or reload offline |
+This workflow permits a new local Adjustment, not just editing an existing server draft. Issue,
+Receive, Stock On Hand, Stock Card and Physical Inventory still need their offline passes in
+FM-166. Full pending-events and sync-error pages remain FM-168 and FM-169; Device Events already
+provides the recovery decisions needed by the Adjustments spike.
 
-## How a Page Reads Data
+## Data And Saves
 
-A page asks TanStack Query for its data. Behind that sits one shared load function that knows
-the rules for the API and for local storage, so the page never has to switch tools.
+Page data held in memory is temporary. Business data saved on the device is kept separately for
+each deployment and user. The browser saves app files, runtime configuration and translations,
+never API responses or tokens.
 
-- **Online:** fetch through Axios, keep a copy of the server's answer in Dexie, and give the
-  data to the page. Also download what the workflow depends on, such as its template and
-  products.
-- **Offline:** data already on screen stays visible. After a reload or a browser restart, the
-  app opens from its saved files and the load function reads the saved copy from Dexie.
-- **Never downloaded:** say "Connect To Download This Data". A read made offline always ends
-  with data, a "not available" answer or a handled error. It never leaves a page loading. Data
-  missing on the device is not the same as a record missing on the server.
+Background downloads save complete access and program copies. Opening an online page does not
+make a partial download available offline. Adjustments downloads include last-known rights,
+home/program context, stock summaries with referenced product versions and lots, valid reasons
+and referenced barcode mappings when scanning is enabled. Full stock-card history and the full
+Receive catalog are separate datasets and are not implied by Adjustments readiness.
 
-Query and Dexie do not keep each other up to date on their own. Our data helpers save and read
-records, and update the matching Query data when something changes locally. We set that
-pattern up in the first workflow before we reuse it elsewhere.
+Autosave saves editable drafts before showing Saved on this device. Checks on the saved version
+stop one tab from overwriting another. Signed submission saves a fixed copy and adds it to the
+events waiting to send. Refreshing server data never overwrites local edits or signed events.
+Sign-in information and preferences are kept separately from business records and device work.
 
-**One durable store.** Query is a memory cache that can be thrown away; Dexie holds what must
-survive a restart. We do not also save the whole Query cache.
+## Delivery And Recovery
 
-The service worker keeps only the app's own files, never API or sign-in responses. A workflow
-is available offline only after one online visit and once its data has been downloaded.
+Only one tab at a time can send a user's saved events. Sending waits for a valid sign-in and
+fresh access checks. Without the browser's Web Locks capability, downloads and automatic sync
+are disabled; ordinary connected reads and draft saving remain available. Sending stops when the
+app closes. Keep the app open.
 
-## Save Locally, Sync When Possible
+Synced appears after the server accepts an event and that answer is saved on the device. A
+definitive refusal retains the signed original and reason, with explicit Copy For Correction.
+Session expiry pauses sending without deleting local work. Signing out warns and retains
+committed work for the same user; a different sign-in cannot resume it.
 
-The first offline workflow stays narrow: editing and saving an existing draft. Submitting,
-authorising and approving can follow separately.
+The server cannot recognize and discard a repeated submission. A lost answer or a crash during
+sending therefore leaves an uncertain event. It blocks later events only for that
+facility/program. The user checks server history and chooses It Was Recorded or explicitly
+confirms Send Again with the duplicate warning. The app never infers success from current stock
+or retries unknown results silently. Normal server document numbers are preserved; no client
+marker is substituted.
 
-1. The editor saves. One Dexie transaction stores the new draft revision and a pending change
-   together.
-2. The screen says "Saved on this device".
-3. Later, when the session is valid and the device is online, a sync step reads the pending
-   changes and sends them through the existing API.
-4. The server accepts or rejects each one, and the result is recorded in Dexie and on screen.
+Accepted receipts and accepted draft rows are pruned after 30 days. Events waiting to send,
+refusals, archived copies and retained sync errors are not pruned automatically.
 
-"Saved on this device" means saved locally. Only an answer from the server means "Synced".
+## Verification And Rollout Limits
 
-## What We Keep in Dexie
+Headless checks cover Chromium, Chrome, Firefox and Edge on Linux. WebKit checks cover its
+engine on Linux with some gaps in offline renewal testing; they do not certify Safari or
+Apple devices. Safari and physical devices still need verification before rollout. English
+and Arabic have been checked at phone and desktop widths. Automated checks cannot guarantee
+behavior for a different browser version, managed profile or physical phone.
 
-- **Three kinds of data, kept apart:** downloaded server copies, editable local drafts and
-  pending changes.
-- **Per deployment and user:** each deployment and each user has its own database, and each
-  document keeps its facility and program.
-- **A refresh from the server** never overwrites a draft that was edited on the device.
-- **Saving:** a local save is committed before the screen says it succeeded, with the draft
-  and its pending change written in one transaction when both change.
-- **Revisions:** each save gets a revision, so the answer to an older upload can never mark
-  newer edits as synced.
+Use HTTPS and test the actual target devices before rollout. Browser storage is not a backup:
+quotas, private browsing, clearing site data, eviction and device loss can remove work. The app
+does not request persistent storage. Safari's storage policy includes pressure-based eviction;
+its tracking prevention can remove script-writable data after seven days of Safari use without
+interaction with the site. Home-screen app behavior has separate rules. See [WebKit storage
+policy](https://webkit.org/blog/14403/updates-to-storage-policy/) and [WebKit tracking
+prevention](https://webkit.org/tracking-prevention/).
 
-## Signing In and Reconnecting
-
-- **The first sign-in needs a connection.** After that, a user who signed in before can keep
-  doing permitted work on the device, using their saved rights.
-- **When the session expires,** uploads pause and the app asks the user to sign in again. It
-  never deletes drafts or throws the user out of the editor. This is in place since FM-14.
-- **Signing out on purpose** still ends access on the device. The app warns first when there
-  is unsynced work, and, since FM-14, when signing out offline.
-- **After reconnecting,** once the session is valid again, eligible pending changes are sent
-  through the existing APIs.
-  - Each answer is recorded.
-  - A rejected or conflicting change is explained, and the draft is kept.
-  - A lost answer may mean the server already applied the change, so a change is only retried
-    where the API makes that safe.
-
-## Order of Work
-
-1. **Fix sign-in handling and study the chosen API.** Settle the rules for local access, and
-   check how saving, retrying and conflicts behave, and how much data one workflow needs.
-   (FM-14, done.)
-2. **Lay the foundation.** Cache the app's files, fail cleanly offline, show the offline state,
-   and add the per-user database. (FM-175, done.)
-3. **Build one working online draft screen.** Open, edit and save an existing draft against the
-   real APIs, with its template and validation, through shared data functions.
-4. **Add offline storage** for that screen, and prove that the app and a saved draft reopen
-   offline.
-5. **Add syncing.** Test reconnecting, an expired session, newer local edits and an interrupted
-   upload in a real browser, and each rule in unit tests.
-
-**Rules that never bend:**
-
-- No saved draft is ever deleted silently.
-- One user's data is never mixed with another's.
-- A change whose result is unknown is never retried blindly.
-- Browser storage is not a backup against losing the device or clearing the site's data.
-
-**Later, maybe:**
-
-- more offline workflows;
-- rollout controls;
-- better diagnostics;
-- background sync;
-- encrypted offline access for several users on one device.
-
-Basic failure messages and recovery come with the first workflow.
-
-## References
-
-- [TanStack Query network modes](https://tanstack.com/query/latest/docs/framework/react/guides/network-mode)
-- [Dexie transactions](https://dexie.org/docs/Dexie/Dexie.transaction())
-- [Vite PWA](https://vite-pwa-org.netlify.app/)
-
-All three are free and open source; no paid service is needed.
+Storage estimates include origin-wide overhead and app caches, not just business data. The small
+two-program local fixture is a sizing floor. Typical users, large facilities, Receive's catalog
+and stock-card histories need independent measurement before FM-166 rollout sizing.

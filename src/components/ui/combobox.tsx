@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePageGatedOpen } from "@/components/page-visibility"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "cn"
@@ -14,7 +15,21 @@ import {
 } from "@/components/ui/input-group"
 import { ChevronDownIcon, ChevronUpIcon, XIcon, CheckIcon } from "lucide-react"
 
-const Combobox = ComboboxPrimitive.Root
+function Combobox<Value, Multiple extends boolean | undefined = false, Item = Value>({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
+  const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
+  return (
+    <ComboboxPrimitive.Root
+      {...props}
+      open={gated.open}
+      onOpenChange={gated.onOpenChange}
+    />
+  )
+}
 
 function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
   return <ComboboxPrimitive.Value data-slot="combobox-value" {...props} />

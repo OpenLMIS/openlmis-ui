@@ -56,6 +56,9 @@ at startup. Feature flags have no `.env` fallback.
 | `pnpm format` | Format |
 | `pnpm test` | Vitest watch mode |
 | `pnpm test:run` | Vitest single run |
+| `pnpm test:offline` | Production `/v2` offline suite in headless Chromium |
+| `pnpm test:offline:browsers` | Same suite in each runnable browser, with an availability report |
+| `pnpm test:offline:proof` | English/Arabic desktop/phone captures in headless Chromium |
 | `pnpm sort-messages` | Alphabetize translation keys |
 
 Local test runs use Vitest's `25%` worker limit. CI runs two test shards with its default
@@ -102,7 +105,8 @@ adding the service to `openlmis-deployment`.
 ## Offline support
 
 After one online visit, the service worker lets the app open/reload offline in every
-supported language. Offline data and drafts are planned; see the
+supported language. Adjustments downloads, device drafts, queued submission and recovery are
+available. See [Working Offline](docs/working-offline/working-offline.md) and the
 [offline plan](docs/offline-plan/offline-plan.md).
 
 The worker runs only in production builds. To try it locally, supply `dist/config.json`
@@ -113,6 +117,23 @@ VITE_BASE_PATH=/v2 pnpm build
 # Place config.json in dist/ before previewing.
 VITE_BASE_PATH=/v2 pnpm preview   # http://localhost:4173/v2/
 ```
+
+The offline scripts build and stop their own guarded preview server. API responses are fixtures;
+stock-event POSTs are stubbed or blocked. Install the required browser binaries, then run:
+
+```bash
+pnpm exec playwright install chromium firefox webkit
+pnpm test:offline              # Chromium scenarios
+pnpm test:offline:browsers     # Installed browser engines and channels
+pnpm test:offline:proof        # English/Arabic visual checks
+```
+
+WebKit needs its host libraries (`pnpm exec playwright install-deps webkit`); Chrome and Edge
+need their Linux channels installed. Missing browsers are reported separately from test results.
+Reports go to `.offline/`; visual proof defaults to `.screenshots/offline-proof/`.
+Set `OFFLINE_PROOF_LABEL`, `OFFLINE_PROOF_OUTPUT` or `OFFLINE_PREVIEW_URL` to override those
+run settings. For a configured read-only demo preview, run
+`node scripts/measure-offline-storage.mjs` or `node scripts/measure-offline-bundle.mjs`.
 
 ## Contributing
 
