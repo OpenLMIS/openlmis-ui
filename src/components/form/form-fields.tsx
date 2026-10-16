@@ -101,6 +101,8 @@ type FieldFrameProps = FieldProps & {
   badge?: ReactNode;
   /** After the badge in a row, or at the end of a stacked label's line, such as a Reset or a link. */
   action?: ReactNode;
+  /** Immediately beside a stacked label, outside its label element. */
+  labelAction?: ReactNode;
   state: ReturnType<typeof useFieldErrors>;
   /** `end` lines a row's error up with a value set at the end, such as an image preview. */
   errorAlign?: 'end';
@@ -194,6 +196,7 @@ function FieldFrame({
   label,
   badge,
   action,
+  labelAction,
   description,
   required,
   disabled,
@@ -290,18 +293,26 @@ function FieldFrame({
       {labelText}
     </FieldLabel>
   );
+  const stackedHeading = labelAction ? (
+    <div className="flex items-center gap-1">
+      {stackedLabel}
+      {labelAction}
+    </div>
+  ) : (
+    stackedLabel
+  );
   return (
     <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
       {action ? (
         // Beside the label on screen, after the input in tab order, and wrapping when cramped.
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <div className="shrink-0">{stackedLabel}</div>
+          <div className="shrink-0">{stackedHeading}</div>
           <div className="order-last basis-full">{children}</div>
           <div className="ms-auto">{action}</div>
         </div>
       ) : (
         <>
-          {stackedLabel}
+          {stackedHeading}
           {children}
         </>
       )}
@@ -711,7 +722,7 @@ type SwitchFieldProps = Omit<FieldProps, 'required' | 'label'> &
   Pick<FieldFrameProps, 'action'> & { label: string };
 
 /** An info button that shows a field's description in a popover. */
-function FieldAbout({ label, description }: { label: string; description: ReactNode }) {
+export function FieldAbout({ label, description }: { label: string; description: ReactNode }) {
   const aboutLabel = useAboutLabel();
   return (
     <Popover>
@@ -1203,21 +1214,23 @@ export type ComboboxFieldItem = {
   description?: string;
 };
 
-type ComboboxFieldProps = FieldProps & {
-  invalid?: boolean;
-  describedBy?: string;
-  items: readonly ComboboxFieldItem[];
-  placeholder?: string;
-  emptyMessage: ReactNode;
-  /** Names the button that empties the field, for screen readers. */
-  clearLabel: string;
-  /** Most matches rendered at once, so a list of thousands stays quick to type into. */
-  limit?: number;
-};
+type ComboboxFieldProps = FieldProps &
+  Pick<FieldFrameProps, 'labelAction'> & {
+    invalid?: boolean;
+    describedBy?: string;
+    items: readonly ComboboxFieldItem[];
+    placeholder?: string;
+    emptyMessage: ReactNode;
+    /** Names the button that empties the field, for screen readers. */
+    clearLabel: string;
+    /** Most matches rendered at once, so a list of thousands stays quick to type into. */
+    limit?: number;
+  };
 
 /** Picks one item by typing to filter; the field's value is the item's `value`, or null for none. */
 export function ComboboxField({
   label,
+  labelAction,
   layout,
   description,
   required,
@@ -1240,6 +1253,7 @@ export function ComboboxField({
 
   return (
     <FieldFrame
+      labelAction={labelAction}
       description={description}
       disabled={disabled}
       label={label}

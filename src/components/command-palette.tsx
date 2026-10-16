@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SearchIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/command';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { isNavParent } from '@/lib/config';
+import { hasOpenDialog } from '@/lib/has-open-dialog';
 import type { LiveNavItem, LiveNavLink } from '@/lib/types';
 
 type PaletteSection = {
@@ -39,6 +40,7 @@ export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const paletteRef = useRef<HTMLDivElement>(null);
   const navGroups = useNavGroups();
   const accountLinks = useAccountLinks();
   const accountHeading = t('nav-user.account-menu');
@@ -51,6 +53,10 @@ export function CommandPalette() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
+        if (
+          hasOpenDialog({ exclude: paletteRef.current?.closest('[role=dialog]'), modalOnly: true })
+        )
+          return;
         setOpen((isOpen) => !isOpen);
       }
     };
@@ -80,7 +86,7 @@ export function CommandPalette() {
         open={open}
         title={t('command.title')}
       >
-        <Command>
+        <Command ref={paletteRef}>
           <CommandInput placeholder={t('command.placeholder')} />
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>

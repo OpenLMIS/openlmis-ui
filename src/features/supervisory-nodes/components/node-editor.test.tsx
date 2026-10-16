@@ -7,7 +7,7 @@ import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { fetchMinimalFacilities, fetchSupervisoryNodes } from '@/features/reference-data/api/api';
-import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
+import { supervisoryNodesByIdsOptions } from '@/features/reference-data/api/queries';
 import { NodeEditor } from '@/features/supervisory-nodes/components/node-editor';
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
 import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
@@ -17,10 +17,14 @@ import { renderPage } from '@/tests/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), put: vi.fn() } }));
-vi.mock('@/features/reference-data/api/api', () => ({
-  fetchSupervisoryNodes: vi.fn(async () => []),
-  fetchMinimalFacilities: vi.fn(async () => []),
-}));
+vi.mock('@/features/reference-data/api/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/reference-data/api/api')>();
+  return {
+    ...actual,
+    fetchSupervisoryNodes: vi.fn(async () => []),
+    fetchMinimalFacilities: vi.fn(async () => []),
+  };
+});
 
 const saved = { id: 'node', code: 'SN', name: 'Original', childNodes: [], partnerNodes: [] };
 function renderEditor(node: SupervisoryNode = saved, path = '/') {

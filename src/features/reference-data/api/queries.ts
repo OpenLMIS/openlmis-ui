@@ -2,12 +2,14 @@ import { queryOptions } from '@tanstack/react-query';
 import {
   type ApprovedProductsFilter,
   type FacilityProgramFilter,
+  type FacilityTypeApprovedOrderablesFilter,
   fetchApprovedProducts,
   fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
   fetchFacilityOrderableFulfills,
+  fetchFacilityTypeApprovedOrderables,
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
@@ -27,7 +29,9 @@ import {
   fetchRejectionReasonCategories,
   fetchRejectionReasons,
   fetchRoles,
+  fetchSupervisedFacilities,
   fetchSupervisoryNodes,
+  fetchSupervisoryNodesByIds,
   fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
@@ -35,6 +39,7 @@ import {
   fetchValidReasons,
   type OrderableIdentity,
   type OrderableSearch,
+  type SupervisedFacilitiesFilter,
   storedTimeZone,
   type ValidAssignmentsFilter,
 } from '@/features/reference-data/api/api';
@@ -85,6 +90,34 @@ export const supervisoryNodesOptions = () =>
     queryFn: fetchSupervisoryNodes,
     staleTime: LOOKUP_STALE_TIME,
   });
+
+export const supervisoryNodesByIdsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.supervisoryNodes.all, 'byIds', ids] as const,
+    queryFn: () => fetchSupervisoryNodesByIds(ids),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const supervisedFacilitiesOptions = (filter: SupervisedFacilitiesFilter) =>
+  queryOptions({
+    queryKey: [...queryKeys.supervisoryNodes.all, 'facilities', filter] as const,
+    queryFn: () => fetchSupervisedFacilities(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const facilityTypeApprovedOrderablesOptions = (
+  filter: FacilityTypeApprovedOrderablesFilter,
+) => {
+  const normalized = {
+    ...filter,
+    facilityTypeCodes: [...new Set(filter.facilityTypeCodes)].sort(),
+  };
+  return queryOptions({
+    queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'types', normalized] as const,
+    queryFn: () => fetchFacilityTypeApprovedOrderables(normalized),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+};
 
 export const facilityTypesOptions = (filter: { active?: boolean } = {}) =>
   queryOptions({

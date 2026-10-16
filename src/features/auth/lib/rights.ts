@@ -12,6 +12,7 @@ export const RIGHTS = {
   supplyLinesManage: 'SUPPLY_LINES_MANAGE',
   geographicZonesManage: 'GEOGRAPHIC_ZONES_MANAGE',
   supervisoryNodesManage: 'SUPERVISORY_NODES_MANAGE',
+  supplyPartnersManage: 'SUPPLY_PARTNERS_MANAGE',
   programsManage: 'PROGRAMS_MANAGE',
   processingSchedulesManage: 'PROCESSING_SCHEDULES_MANAGE',
   usersManage: 'USERS_MANAGE',

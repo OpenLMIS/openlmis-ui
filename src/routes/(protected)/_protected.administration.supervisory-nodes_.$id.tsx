@@ -19,11 +19,11 @@ import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   minimalFacilitiesOptions,
+  supervisoryNodesByIdsOptions,
   supervisoryNodesOptions,
 } from '@/features/reference-data/api/queries';
 import {
   supervisoryNodeOptions,
-  supervisoryNodesByIdsOptions,
   supervisoryNodesPageOptions,
 } from '@/features/supervisory-nodes/api/queries';
 import {
