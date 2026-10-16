@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DialogNotFound, ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
+import { FieldAbout } from '@/components/form/form-fields';
 import {
   FormDialog,
   FormDialogBody,
@@ -350,6 +351,12 @@ function AssociationForm({
               {(field) => (
                 <field.ComboboxField
                   label={t('supply-partners.node')}
+                  labelAction={
+                    <FieldAbout
+                      label={t('supply-partners.node')}
+                      description={t('supply-partners.program-node-note')}
+                    />
+                  }
                   required
                   disabled={Boolean(editingKey) || busy || !nodes.isSuccess}
                   clearLabel={t('data-table.clear-selection')}
@@ -365,17 +372,22 @@ function AssociationForm({
               )}
             </form.AppField>
           </div>
-          {!editingKey && (
-            <p className="text-muted-foreground text-sm">
-              {t('supply-partners.program-node-note')}
-            </p>
-          )}
           {paired && <ReferenceStatus associations={[draft]} />}
           <section className="flex flex-col gap-3" aria-labelledby="association-facilities">
-            <h3 className="font-medium" id="association-facilities">
-              {t('supply-partners.facilities')}
-            </h3>
-            <p className="text-muted-foreground text-sm">{t('supply-partners.facilities-note')}</p>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <h3 className="font-medium" id="association-facilities">
+                  {t('supply-partners.facilities')}
+                </h3>
+                <FieldAbout
+                  label={t('supply-partners.facilities')}
+                  description={t('supply-partners.removal-warning')}
+                />
+              </div>
+              <p className="text-muted-foreground text-sm">
+                {t('supply-partners.facilities-note')}
+              </p>
+            </div>
             {refused && (
               <ErrorAlert
                 title={t('no-access.title')}
@@ -407,7 +419,6 @@ function AssociationForm({
               />
             )}
             <Separator />
-            <p className="text-muted-foreground text-sm">{t('supply-partners.removal-warning')}</p>
             {removal.isError && (
               <ErrorAlert
                 title={t('supply-partners.lookup-error-title')}
@@ -460,25 +471,28 @@ function AssociationForm({
             />
           </section>
           <section className="flex flex-col gap-3" aria-labelledby="association-products">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-medium" id="association-products">
-                {t('supply-partners.products')}
-              </h3>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy || !canPickProducts}
-                onClick={onOpenProducts}
-              >
-                {t('supply-partners.add-products')}
-              </Button>
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
+                  <h3 className="font-medium" id="association-products">
+                    {t('supply-partners.products')}
+                  </h3>
+                  <FieldAbout
+                    label={t('supply-partners.products')}
+                    description={t('supply-partners.add-facility-first')}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || !canPickProducts}
+                  onClick={onOpenProducts}
+                >
+                  {t('supply-partners.add-products')}
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-sm">{t('supply-partners.products-note')}</p>
             </div>
-            <p className="text-muted-foreground text-sm">{t('supply-partners.products-note')}</p>
-            {!draft.facilityIds.length && (
-              <p className="text-muted-foreground text-sm">
-                {t('supply-partners.add-facility-first')}
-              </p>
-            )}
             {options.isError && (
               <ListError
                 error={options.error}
