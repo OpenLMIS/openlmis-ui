@@ -5,7 +5,11 @@ import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -67,6 +71,7 @@ const NO_REVERSALS: ShownReversals = { reversing: false, reversedBy: false };
 
 function useEventLayout(reversals: ShownReversals = NO_REVERSALS) {
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const columns = useMemo(
     () => withShownReversals(STOCK_EVENT_HIDEABLE_COLUMNS, reversals),
     [reversals],
@@ -74,9 +79,9 @@ function useEventLayout(reversals: ShownReversals = NO_REVERSALS) {
   const columnView = useColumnVisibility(
     columns,
     useStoredState('stock-event.column-visibility', columnChoicesSchema, {}),
-    width,
+    cards ? undefined : width,
   );
-  return { measure, columnView };
+  return { measure, columnView, cards };
 }
 
 export const Route = createFileRoute(
@@ -133,7 +138,7 @@ function StockEventPage() {
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView } = useEventLayout(useShownReversals(search));
+  const { measure, columnView, cards } = useEventLayout(useShownReversals(search));
   const userId = useReloadForUser(
     data?.userId,
     stockEventOptions(Route.useParams().eventId).queryKey,
@@ -168,16 +173,21 @@ function StockEventPage() {
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockEventColumns columnView={columnView} canSwitch={canSwitch} />
+            <StockEventColumns cards={cards} columnView={columnView} canSwitch={canSwitch} />
           </div>
           <QueryBoundary
             resetKey={`${data.event.id}:${search.detailPage}:${search.detailSize}`}
             errorComponent={EventLinesError}
             pendingFallback={
-              <EventLinesSkeleton search={search} columnVisibility={columnView.visibility} />
+              <EventLinesSkeleton
+                cards={cards}
+                search={search}
+                columnVisibility={columnView.visibility}
+              />
             }
           >
             <EventLines
+              cards={cards}
               eventId={data.event.id}
               search={search}
               onSearchChange={updateSearch}
@@ -203,9 +213,11 @@ function useShownReversals(search: DetailPagingSearch) {
 }
 
 function StockEventColumns({
+  cards,
   columnView,
   canSwitch,
 }: {
+  cards: boolean;
   columnView: ReturnType<typeof useColumnVisibility>;
   canSwitch: boolean;
 }) {
@@ -213,6 +225,7 @@ function StockEventColumns({
   return (
     <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
+        layout={cards ? 'cards' : 'table'}
         columns={STOCK_EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
           id,
           label: t(labelKey),
@@ -298,7 +311,7 @@ function StockEventPending() {
   const { canSwitch } = useQuantityUnit();
   useReloadForUser(userId, stockEventOptions(Route.useParams().eventId).queryKey);
   const search = Route.useSearch();
-  const { measure, columnView } = useEventLayout();
+  const { measure, columnView, cards } = useEventLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -341,7 +354,11 @@ function StockEventPending() {
               <Skeleton fill />
             </div>
           </div>
-          <EventLinesSkeleton search={search} columnVisibility={columnView.visibility} />
+          <EventLinesSkeleton
+            cards={cards}
+            search={search}
+            columnVisibility={columnView.visibility}
+          />
         </div>
       </WorkspaceContent>
     </Workspace>
