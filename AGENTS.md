@@ -720,6 +720,8 @@ never color alone.
 - Read flags through `useFlag(key)` or `getFlag(key)` outside React. Precedence:
   administrator, deployment `config.json`, code default. `getDeploymentFlags()` has no
   `import.meta.env` fallback; dev gets defaults/admin values unless config supplies flags.
+- `deploymentOnly` flags ignore administrator values and use deployment `config.json` or the
+  code default. `CATCHMENT_POPULATION_CALC_AUTO` defaults off and must match the referencedata backend.
 
 To add a flag, add its type/default/message keys to `FEATURE_FLAGS` (`src/lib/feature-flags.ts`)
 and every locale; add its template entry in `docker/config.json.template`, export and
