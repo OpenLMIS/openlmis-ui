@@ -4,7 +4,7 @@ import { DownloadIcon, Loader2Icon, UploadIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, FieldSkeleton, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import {
   FileTransferExport,
@@ -13,7 +13,11 @@ import {
   FileTransferUpload,
 } from '@/components/file-transfer-panel';
 import { useAppForm } from '@/components/form/form';
+import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   exportIdealStockAmounts,
   uploadIdealStockAmounts,
@@ -92,77 +96,84 @@ export function IdealStockAmountsUpload() {
 
   return (
     <>
-      <FileTransferPanel>
-        <FileTransferExport>
-          <span>{t('ideal-stock-amounts.export-label')}</span>
-          <Button
-            disabled={exporting.isPending}
-            focusableWhenDisabled={exporting.isPending}
-            onClick={() => {
-              if (!exporting.isPending) exporting.mutate();
-            }}
-            type="button"
-            variant="outline"
-          >
-            {exporting.isPending ? (
-              <Loader2Icon className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <DownloadIcon data-icon="inline-start" />
-            )}
-            {t('ideal-stock-amounts.export')}
-          </Button>
-        </FileTransferExport>
-        <FileTransferInstructions>{t('ideal-stock-amounts.instructions')}</FileTransferInstructions>
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!selected || form.state.isSubmitting || upload.isPending) return;
-            upload.reset();
-            setAttempt((previous) => previous + 1);
-            void form.handleSubmit();
-          }}
-        >
-          <FileTransferUpload>
-            <form.AppField listeners={{ onChange: () => upload.reset() }} name="file">
-              {(field) => (
-                <field.FileField
-                  accept=".csv"
-                  chooseLabel={t('ideal-stock-amounts.choose-file')}
-                  describedBy={upload.isError ? errorId : undefined}
-                  disabled={pending}
-                  emptyLabel={t('ideal-stock-amounts.no-file')}
-                  label={t('ideal-stock-amounts.file')}
-                  removeLabel={t('ideal-stock-amounts.remove-file')}
-                  required
-                />
-              )}
-            </form.AppField>
-            {upload.isError && (
-              <div id={errorId} key={attempt}>
-                <ErrorAlert
-                  description={errorMessage(upload.error, t('ideal-stock-amounts.upload-error'))}
-                  title={t('ideal-stock-amounts.upload-error-title')}
-                />
-              </div>
-            )}
-            <div className="flex justify-end">
+      <div className="flex flex-col gap-4">
+        <FileTransferPanel>
+          <FileTransferExport>
+            <CurrentValuesHeading />
+            <div className="ms-auto">
               <Button
-                disabled={!selected || pending}
-                focusableWhenDisabled={pending || upload.isSuccess}
-                type="submit"
+                disabled={exporting.isPending}
+                focusableWhenDisabled={exporting.isPending}
+                onClick={() => {
+                  if (!exporting.isPending) exporting.mutate();
+                }}
+                type="button"
+                variant="outline"
               >
-                {pending ? (
+                {exporting.isPending ? (
                   <Loader2Icon className="animate-spin" data-icon="inline-start" />
                 ) : (
-                  <UploadIcon data-icon="inline-start" />
+                  <DownloadIcon data-icon="inline-start" />
                 )}
-                {t('ideal-stock-amounts.upload')}
+                {t('ideal-stock-amounts.export')}
               </Button>
             </div>
-          </FileTransferUpload>
-        </form>
-      </FileTransferPanel>
+          </FileTransferExport>
+          <Separator />
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!selected || form.state.isSubmitting || upload.isPending) return;
+              upload.reset();
+              setAttempt((previous) => previous + 1);
+              void form.handleSubmit();
+            }}
+          >
+            <FileTransferUpload>
+              <UploadValuesHeading />
+              <form.AppField listeners={{ onChange: () => upload.reset() }} name="file">
+                {(field) => (
+                  <field.FileField
+                    accept=".csv"
+                    align="end"
+                    chooseLabel={t('ideal-stock-amounts.choose-file')}
+                    describedBy={upload.isError ? errorId : undefined}
+                    disabled={pending}
+                    emptyLabel={t('ideal-stock-amounts.no-file')}
+                    label={t('ideal-stock-amounts.file')}
+                    removeLabel={t('ideal-stock-amounts.remove-file')}
+                    required
+                  />
+                )}
+              </form.AppField>
+              {upload.isError && (
+                <div id={errorId} key={attempt}>
+                  <ErrorAlert
+                    description={errorMessage(upload.error, t('ideal-stock-amounts.upload-error'))}
+                    title={t('ideal-stock-amounts.upload-error-title')}
+                  />
+                </div>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  disabled={!selected || pending}
+                  focusableWhenDisabled={pending || upload.isSuccess}
+                  type="submit"
+                >
+                  {pending ? (
+                    <Loader2Icon className="animate-spin" data-icon="inline-start" />
+                  ) : (
+                    <UploadIcon data-icon="inline-start" />
+                  )}
+                  {t('ideal-stock-amounts.upload')}
+                </Button>
+              </div>
+            </FileTransferUpload>
+          </form>
+        </FileTransferPanel>
+        <FullUpdateInstructions />
+      </div>
       <DiscardChangesDialog
         description={t('ideal-stock-amounts.discard-description')}
         {...guard.dialog}
@@ -174,18 +185,35 @@ export function IdealStockAmountsUpload() {
 export function IdealStockAmountsUploadSkeleton() {
   const { t } = useTranslation();
   return (
-    <div aria-busy>
+    <div aria-busy className="flex flex-col gap-4">
       <FileTransferPanel>
         <FileTransferExport>
-          <span>{t('ideal-stock-amounts.export-label')}</span>
-          <Button disabled variant="outline">
-            <DownloadIcon data-icon="inline-start" />
-            {t('ideal-stock-amounts.export')}
-          </Button>
+          <CurrentValuesHeading />
+          <div className="ms-auto">
+            <Button disabled variant="outline">
+              <DownloadIcon data-icon="inline-start" />
+              {t('ideal-stock-amounts.export')}
+            </Button>
+          </div>
         </FileTransferExport>
-        <FileTransferInstructions>{t('ideal-stock-amounts.instructions')}</FileTransferInstructions>
+        <Separator />
         <FileTransferUpload>
-          <FieldSkeleton label={t('ideal-stock-amounts.file')} required />
+          <UploadValuesHeading />
+          <Field spacing="tight">
+            <FieldLabel>
+              <FieldLabelText label={t('ideal-stock-amounts.file')} required />
+            </FieldLabel>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="h-4 w-24">
+                <Skeleton fill />
+              </div>
+              <div className="ms-auto shrink-0">
+                <Button disabled variant="outline">
+                  {t('ideal-stock-amounts.choose-file')}
+                </Button>
+              </div>
+            </div>
+          </Field>
           <div className="flex justify-end">
             <Button disabled>
               <UploadIcon data-icon="inline-start" />
@@ -194,6 +222,41 @@ export function IdealStockAmountsUploadSkeleton() {
           </div>
         </FileTransferUpload>
       </FileTransferPanel>
+      <FullUpdateInstructions />
     </div>
+  );
+}
+
+function CurrentValuesHeading() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <h2 className="font-medium">{t('ideal-stock-amounts.export-label')}</h2>
+      <p className="text-muted-foreground text-sm">{t('ideal-stock-amounts.export-hint')}</p>
+    </div>
+  );
+}
+
+function UploadValuesHeading() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-1">
+      <h2 className="font-medium">{t('ideal-stock-amounts.upload-label')}</h2>
+      <p className="text-muted-foreground text-sm">{t('ideal-stock-amounts.upload-hint')}</p>
+    </div>
+  );
+}
+
+function FullUpdateInstructions() {
+  const { t } = useTranslation();
+  return (
+    <details>
+      <summary className="w-fit cursor-pointer rounded-sm text-muted-foreground text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+        {t('ideal-stock-amounts.instructions-label')}
+      </summary>
+      <div className="mt-3 border-s-2 ps-4">
+        <FileTransferInstructions>{t('ideal-stock-amounts.instructions')}</FileTransferInstructions>
+      </div>
+    </details>
   );
 }

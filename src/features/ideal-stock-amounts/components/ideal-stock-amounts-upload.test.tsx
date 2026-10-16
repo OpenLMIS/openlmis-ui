@@ -46,7 +46,7 @@ async function renderUpload() {
     user: userEvent.setup({ applyAccept: false }),
     input: screen.getByLabelText(/^CSV File/, { selector: 'input' }),
     submit: screen.getByRole('button', { name: 'Upload' }),
-    chooser: () => screen.getByRole('button', { name: /^CSV File Select File/ }),
+    chooser: () => screen.getByRole('button', { name: /^CSV File Select CSV File/ }),
   };
 }
 
@@ -99,7 +99,7 @@ it('retains a refused file through export failure, supports same-file retry and 
       rejectExport = reject;
     }),
   );
-  const exportButton = screen.getByRole('button', { name: 'Export' });
+  const exportButton = screen.getByRole('button', { name: 'Export CSV' });
   exportButton.focus();
   await user.keyboard('{Enter}');
   await waitFor(() => expect(exportButton).toHaveAttribute('aria-disabled', 'true'));

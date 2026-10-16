@@ -813,6 +813,7 @@ function IconAction({ label, icon, ...props }: IconActionProps) {
 }
 
 type FileFieldProps = Omit<FieldProps, 'layout' | 'hideErrors'> & {
+  align?: 'start' | 'end';
   accept: string;
   chooseLabel: string;
   emptyLabel: string;
@@ -821,6 +822,7 @@ type FileFieldProps = Omit<FieldProps, 'layout' | 'hideErrors'> & {
 };
 
 export function FileField({
+  align = 'start',
   label,
   description,
   required,
@@ -843,6 +845,23 @@ export function FileField({
     [describedBy, required ? requiredId : ''].filter(Boolean).join(' '),
   );
   const file = field.state.value;
+  const chooser = (
+    <Button
+      aria-controls={`${field.name}-input`}
+      aria-describedby={state.describedBy}
+      aria-invalid={state.isInvalid}
+      aria-labelledby={`${field.name}-label ${chooseId} ${filenameId}`}
+      disabled={disabled}
+      id={field.name}
+      onBlur={field.handleBlur}
+      onClick={() => input.current?.click()}
+      ref={choose}
+      type="button"
+      variant="outline"
+    >
+      <span id={chooseId}>{chooseLabel}</span>
+    </Button>
+  );
 
   return (
     <FieldFrame
@@ -853,22 +872,16 @@ export function FileField({
       state={state}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <Button
-          aria-controls={`${field.name}-input`}
-          aria-describedby={state.describedBy}
-          aria-invalid={state.isInvalid}
-          aria-labelledby={`${field.name}-label ${chooseId} ${filenameId}`}
-          disabled={disabled}
-          id={field.name}
-          onBlur={field.handleBlur}
-          onClick={() => input.current?.click()}
-          ref={choose}
-          type="button"
-          variant="outline"
+        {align === 'start' && chooser}
+        <span
+          className={
+            align === 'end'
+              ? 'min-w-0 truncate text-muted-foreground'
+              : 'min-w-0 flex-1 truncate text-muted-foreground'
+          }
+          dir="auto"
+          id={filenameId}
         >
-          <span id={chooseId}>{chooseLabel}</span>
-        </Button>
-        <span className="min-w-0 flex-1 truncate text-muted-foreground" dir="auto" id={filenameId}>
           {file?.name ?? emptyLabel}
         </span>
         {file && (
@@ -892,6 +905,7 @@ export function FileField({
             variant="ghost"
           />
         )}
+        {align === 'end' && <div className="ms-auto shrink-0">{chooser}</div>}
         {required && (
           <span className="sr-only" id={requiredId}>
             {requiredLabel}
