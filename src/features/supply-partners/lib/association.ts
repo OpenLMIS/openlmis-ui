@@ -1,4 +1,4 @@
-import type { SupervisoryNode } from '@/features/reference-data/lib/types';
+import type { Program, SupervisoryNode } from '@/features/reference-data/lib/types';
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
 
 export const associationKey = (
@@ -17,6 +17,20 @@ export function availablePartnerNodes(
   return nodes.filter(
     (node) =>
       node.partnerNodeOf && !used.has(associationKey({ programId, supervisoryNodeId: node.id })),
+  );
+}
+
+export function availablePrograms(
+  programs: readonly Program[],
+  supervisoryNodeId: string,
+  associations: readonly AssociationDraft[],
+  editingKey?: string,
+) {
+  const used = new Set(
+    associations.filter((item) => associationKey(item) !== editingKey).map(associationKey),
+  );
+  return programs.filter(
+    (program) => !used.has(associationKey({ programId: program.id, supervisoryNodeId })),
   );
 }
 

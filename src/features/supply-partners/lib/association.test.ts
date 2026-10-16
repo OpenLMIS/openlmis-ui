@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   associationKey,
   availablePartnerNodes,
+  availablePrograms,
   pruneAssociationProducts,
 } from '@/features/supply-partners/lib/association';
 import { matchesNameOrCode } from '@/features/supply-partners/lib/search';
@@ -19,8 +20,20 @@ const nodes = [
 ];
 
 describe('association membership', () => {
-  it('offers only partner nodes and excludes only pairs used for this program, retaining an edited pair', () => {
+  it('offers partner nodes and programs excluding used pairs while retaining an edited pair', () => {
     expect(associationKey(association)).toBe('p1:n1');
+    const programs = [
+      { id: 'p1', code: 'P1', name: 'Program one', active: true },
+      { id: 'p2', code: 'P2', name: 'Program two', active: true },
+    ];
+    expect(
+      [
+        availablePrograms(programs, 'n1', [association]),
+        availablePrograms(programs, 'n2', [association]),
+        availablePrograms(programs, 'n1', [association], 'p1:n1'),
+      ].map((offered) => offered.map(({ id }) => id)),
+    ).toEqual([['p2'], ['p1', 'p2'], ['p1', 'p2']]);
+
     expect(availablePartnerNodes(nodes, 'p1', [association]).map(({ id }) => id)).toEqual(['n2']);
     expect(availablePartnerNodes(nodes, 'p2', [association]).map(({ id }) => id)).toEqual([
       'n1',

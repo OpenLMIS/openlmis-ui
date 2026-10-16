@@ -633,10 +633,13 @@ it('reads supervision in one unpaged request, without slicing an unordered Set',
   });
 });
 
-it('reads every active FTAP page by type and program codes, deduping to the latest product version', async () => {
-  get.mockResolvedValueOnce(page([{ orderable: orderable('o1', undefined, 3) }], 2));
+it('reads active FTAPs in one unpaged request by codes, deduping to the latest product version', async () => {
   get.mockResolvedValueOnce(
-    page([{ orderable: orderable('o1', undefined, 1) }, { orderable: orderable('o2') }], 2),
+    page([
+      { orderable: orderable('o1', undefined, 3) },
+      { orderable: orderable('o1', undefined, 1) },
+      { orderable: orderable('o2') },
+    ]),
   );
   await expect(
     fetchFacilityTypeApprovedOrderables({
@@ -644,22 +647,17 @@ it('reads every active FTAP page by type and program codes, deduping to the late
       programCode: 'EM',
     }),
   ).resolves.toEqual([orderable('o1', undefined, 3), orderable('o2')]);
-  expect(get).toHaveBeenNthCalledWith(1, '/facilityTypeApprovedProducts', {
-    params: { facilityType: ['HC', 'HOSP'], program: 'EM', page: 0, size: 100 },
-    paramsSerializer: { indexes: null },
-  });
-  expect(get).toHaveBeenLastCalledWith('/facilityTypeApprovedProducts', {
-    params: { facilityType: ['HC', 'HOSP'], program: 'EM', page: 1, size: 100 },
+  expect(get).toHaveBeenCalledExactlyOnceWith('/facilityTypeApprovedProducts', {
+    params: { facilityType: ['HC', 'HOSP'], program: 'EM' },
     paramsSerializer: { indexes: null },
   });
 });
 
-it('does not request unfiltered approvals without facility types, or return partial approvals on failure', async () => {
+it('does not request unfiltered approvals without facility types, or swallow a lookup failure', async () => {
   await expect(
     fetchFacilityTypeApprovedOrderables({ facilityTypeCodes: [], programCode: 'EM' }),
   ).resolves.toEqual([]);
   expect(get).not.toHaveBeenCalled();
-  get.mockResolvedValueOnce(page([{ orderable: orderable('o1') }], 2));
   get.mockRejectedValueOnce(new Error('Approval lookup failed'));
   await expect(
     fetchFacilityTypeApprovedOrderables({ facilityTypeCodes: ['HC'], programCode: 'EM' }),

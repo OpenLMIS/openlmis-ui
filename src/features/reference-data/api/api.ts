@@ -98,19 +98,11 @@ export async function fetchFacilityTypeApprovedOrderables({
 }: FacilityTypeApprovedOrderablesFilter): Promise<Orderable[]> {
   const types = [...new Set(facilityTypeCodes)];
   if (types.length === 0) return [];
-  const scope = getSessionScope();
-  const orderables: Orderable[] = [];
-  for (let page = 0; ; page += 1) {
-    assertSessionScope(scope);
-    const { data } = await client.get<Page<ApprovedProduct>>('/facilityTypeApprovedProducts', {
-      params: { facilityType: types, program: programCode, page, size: 100 },
-      paramsSerializer: { indexes: null },
-    });
-    assertSessionScope(scope);
-    orderables.push(...data.content.map(({ orderable }) => orderable));
-    if (page + 1 >= data.totalPages) break;
-  }
-  return latestVersions(orderables);
+  const { data } = await client.get<Page<ApprovedProduct>>('/facilityTypeApprovedProducts', {
+    params: { facilityType: types, program: programCode },
+    paramsSerializer: { indexes: null },
+  });
+  return latestVersions(data.content.map(({ orderable }) => orderable));
 }
 
 export async function fetchFacilityTypes(
