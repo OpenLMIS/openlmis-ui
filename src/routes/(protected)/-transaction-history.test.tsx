@@ -17,7 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -124,6 +124,7 @@ const headers = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  widthOf(1200);
   useLoginData.setState({ referenceDataUserId: USER });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
@@ -354,22 +355,90 @@ describe('transaction history page', () => {
     expect(fetchStockEvents).not.toHaveBeenCalled();
   });
 
-  it('keeps the identifying columns on a phone and offers the rest from the View menu', async () => {
+  it('shows event cards on phones with ordered details, stored choices and a View link', async () => {
     const user = userEvent.setup();
     widthOf(390);
-    renderRoute(appliedPath());
-
-    await screen.findByText('FM71-ISS-1');
-    expect(headers()).toEqual([
-      'transaction-history.document-number',
-      'transaction-history.date',
-      'transaction-history.actions',
-    ]);
-    await user.click(screen.getByRole('button', { name: 'View' }));
-    await user.click(
-      await screen.findByRole('menuitemcheckbox', { name: 'transaction-history.signature' }),
+    localStorage.setItem(
+      'transaction-history.column-visibility',
+      JSON.stringify({ performedBy: false }),
     );
-    expect(headers()).toContain('transaction-history.signature');
+    const { router } = renderRoute(appliedPath('&documentNumber=FM71&type=issue'));
+
+    const first = (await screen.findByText('FM71-ISS-1')).closest('li') as HTMLElement;
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(
+      within(first)
+        .getAllByText(/^transaction-history\.(type|date|entries-count|signature)$/)
+        .map((label) => label.textContent),
+    ).toEqual([
+      'transaction-history.type',
+      'transaction-history.date',
+      'transaction-history.entries-count',
+      'transaction-history.signature',
+    ]);
+    expect(within(first).getByText('transaction-history.type-issue')).toBeInTheDocument();
+    expect(within(first).getByText('Oct 8, 2026')).toBeInTheDocument();
+    expect(within(first).queryByText('administrator')).not.toBeInTheDocument();
+    const fallbackLink = screen.getAllByRole('button', {
+      name: 'transaction-history.view-event',
+    })[1] as HTMLElement;
+    const second = fallbackLink.closest('li') as HTMLElement;
+    expect(within(second).getAllByText('Oct 6, 2026')).toHaveLength(2);
+    expect(within(second).getByText(EMPTY_VALUE)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('menuitemcheckbox', { name: 'transaction-history.performed-by' }),
+    ).toHaveAttribute('aria-checked', 'false');
+    await user.keyboard('{Escape}');
+    await user.click(within(first).getByRole('button', { name: 'transaction-history.view-event' }));
+    expect(await screen.findByText('event detail')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/stock-management/transaction-history/${EVENT}`);
+    expect(router.state.location.search).toMatchObject({
+      mode: 'my',
+      facilityId: HOME,
+      programId: FP,
+      documentNumber: 'FM71',
+      type: 'issue',
+    });
+  });
+
+  it('opens paged cards at the first card without scrolling for filters or past-end redirects', async () => {
+    const user = userEvent.setup();
+    widthOf(390);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    vi.mocked(fetchStockEvents).mockImplementation(async ({ page: number }) => ({
+      content: number === 3 ? [] : [event({ documentNumber: `event-page-${number}` })],
+      totalElements: 3,
+      totalPages: 3,
+      number,
+      size: 1,
+    }));
+    const { router } = renderRoute(appliedPath('&size=1&page=4'));
+    await screen.findByText('event-page-2');
+    expect(router.state.location.search).toHaveProperty('page', 3);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Previous Page' }));
+    const current = await screen.findByText('event-page-1');
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(document.activeElement).toBe(current.closest('ul'));
+    expect(scrollIntoView.mock.contexts[0]).toBe(current.closest('ul'));
+    expect(router.state.location.search).toHaveProperty('page', 2);
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'transaction-history.search-document-number' }),
+      'F',
+    );
+    await screen.findByText('event-page-0');
+    expect(router.state.location.search).not.toHaveProperty('page');
+    expect(router.state.location.search).toHaveProperty('documentNumber', 'F');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
   it('shows an error with a retry when the events fail to load', async () => {

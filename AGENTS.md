@@ -446,12 +446,12 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `isPageInvalid` turns pages holding invalid rows red, with no icon: solid for the current
   page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
-- Stock On Hand is the model for phone cards, with Stock Card the second user. Below a width
-  measured with `useElementWidth` under `CONTAINER_WIDTHS['2xl']`, they compose `CardList`,
+- Stock On Hand is the model for phone cards, also used by Stock Card and Transaction History.
+  Below a width measured with `useElementWidth` under `CONTAINER_WIDTHS['2xl']`, they compose `CardList`,
   `CardListItem`, `CardBand`, `CardRows` and their skeletons (`src/components/card-list.tsx`).
   Stock On Hand gives each product a card with its lots as bands (lot label, View) over
-  `SettingsItem` rows; Stock Card gives each line a card under a date band. Cards ignore width
-  defaults, so stored View choices apply; every visible detail is a row, `EMPTY_VALUE` when
+  `SettingsItem` rows; Stock Card uses a date band, Transaction History a document/date and View
+  band. Cards ignore width defaults, so stored View choices apply; every visible detail is a row, `EMPTY_VALUE` when
   empty. View passes `layout="cards"` (Toggle Details). Pager changes call
   `usePageStart().request()` (`src/hooks/use-page-start.ts`) and page with `resetScroll: false`,
   so each new page opens at its first card below the header; filters never scroll. Other lists

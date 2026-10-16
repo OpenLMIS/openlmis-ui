@@ -6,7 +6,11 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -114,16 +118,17 @@ function TransactionHistoryHeader() {
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-type ColumnView = ReturnType<typeof useColumnVisibility>;
+type ColumnView = ReturnType<typeof useColumnVisibility> & { cards: boolean };
 
 function useColumnView() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const columnView = useColumnVisibility(
     EVENT_HIDEABLE_COLUMNS,
     useStoredState('transaction-history.column-visibility', columnChoicesSchema, {}),
-    width,
+    cards ? undefined : width,
   );
-  return [measure, columnView] as const;
+  return [measure, { ...columnView, cards }] as const;
 }
 
 function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
@@ -131,6 +136,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   return (
     <div>
       <DataTableViewOptions
+        layout={columnView.cards ? 'cards' : 'table'}
         columns={EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
@@ -162,7 +168,11 @@ function TransactionHistoryListSkeleton({
           view={<ColumnsMenu columnView={columnView} />}
         />
       </fieldset>
-      <TransactionHistoryResultsSkeleton columns={columnView.visibility} search={search} />
+      <TransactionHistoryResultsSkeleton
+        cards={columnView.cards}
+        columns={columnView.visibility}
+        search={search}
+      />
     </div>
   );
 }
@@ -460,11 +470,16 @@ function TransactionHistoryList({
             />
           )}
           pendingFallback={
-            <TransactionHistoryResultsSkeleton columns={columnView.visibility} search={search} />
+            <TransactionHistoryResultsSkeleton
+              cards={columnView.cards}
+              columns={columnView.visibility}
+              search={search}
+            />
           }
           resetKey={JSON.stringify(query)}
         >
           <TransactionHistoryResults
+            cards={columnView.cards}
             columns={columnView.visibility}
             facilityId={selection.facilityId}
             onSearchChange={onSearchChange}
