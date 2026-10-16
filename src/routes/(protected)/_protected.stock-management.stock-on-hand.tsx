@@ -143,6 +143,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
     <div>
       <DataTableViewOptions
         columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+        layout={columnView.cards ? 'cards' : 'table'}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
         visibility={columnView.visibility}

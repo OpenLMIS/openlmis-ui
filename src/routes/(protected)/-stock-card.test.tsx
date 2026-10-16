@@ -17,7 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -361,6 +361,29 @@ describe('stock card display and paging', () => {
     await act(() => router.history.back());
     expect(await screen.findByText('person24')).toBeInTheDocument();
     expect(fetchStockCard).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [390, true],
+    [1400, false],
+  ])('starts a new page at its first card at content width %i: %s', async (width, cards) => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width,
+    } as DOMRect);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lineItems: manyLines });
+    renderRoute();
+    await screen.findByText('person24');
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    await screen.findByText('person14');
+    expect(scrollIntoView).toHaveBeenCalledTimes(cards ? 1 : 0);
   });
 
   it('changes header and row quantities together when packs are chosen', async () => {

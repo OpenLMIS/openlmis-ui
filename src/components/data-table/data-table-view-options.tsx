@@ -26,6 +26,8 @@ type DataTableViewOptionsProps = {
   onVisibilityChange: (visibility: ColumnVisibilityState) => void;
   /** Returns every column to its default, e.g. the one suited to the screen size. */
   onReset?: () => void;
+  /** `cards` names the choices as details shown on each card. */
+  layout?: 'table' | 'cards';
 };
 
 export function DataTableViewOptions({
@@ -34,6 +36,7 @@ export function DataTableViewOptions({
   visibility,
   onVisibilityChange,
   onReset,
+  layout = 'table',
 }: DataTableViewOptionsProps) {
   const labels = useDataTableLabels();
   const isVisible = (id: string) => visibility[id] !== false;
@@ -46,7 +49,9 @@ export function DataTableViewOptions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" width="auto">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>{labels.toggleColumns}</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            {layout === 'cards' ? labels.toggleDetails : labels.toggleColumns}
+          </DropdownMenuLabel>
           {columns.map((column) => (
             <DropdownMenuCheckboxItem
               checked={isVisible(column.id)}
@@ -63,7 +68,7 @@ export function DataTableViewOptions({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onReset} variant="destructive">
-              {labels.resetColumns}
+              {layout === 'cards' ? labels.resetDetails : labels.resetColumns}
             </DropdownMenuItem>
           </>
         )}

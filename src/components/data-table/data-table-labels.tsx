@@ -9,6 +9,8 @@ export type DataTableLabels = {
   view: string;
   toggleColumns: string;
   resetColumns: string;
+  toggleDetails: string;
+  resetDetails: string;
   rowsPerPage: string;
   page: (page: number) => string;
   invalidPage: string;
@@ -36,6 +38,8 @@ export const defaultDataTableLabels: DataTableLabels = {
   view: 'View',
   toggleColumns: 'Toggle Columns',
   resetColumns: 'Reset Columns',
+  toggleDetails: 'Toggle Details',
+  resetDetails: 'Reset Details',
   rowsPerPage: 'Rows Per Page',
   page: (page) => `Page ${page}`,
   invalidPage: 'Contains Invalid Rows',

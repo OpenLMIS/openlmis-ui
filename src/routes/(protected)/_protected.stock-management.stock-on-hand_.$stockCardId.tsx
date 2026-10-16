@@ -164,7 +164,7 @@ function StockCardPage() {
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockCardColumns columnView={columnView} canSwitch={canSwitch} />
+            <StockCardColumns columnView={columnView} canSwitch={canSwitch} cards={cards} />
           </div>
           <StockCardLines
             cards={cards}
@@ -184,9 +184,11 @@ function StockCardPage() {
 function StockCardColumns({
   columnView,
   canSwitch,
+  cards,
 }: {
   columnView: ReturnType<typeof useColumnVisibility>;
   canSwitch: boolean;
+  cards: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -196,6 +198,7 @@ function StockCardColumns({
           id,
           label: t(labelKey),
         }))}
+        layout={cards ? 'cards' : 'table'}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
         visibility={columnView.visibility}

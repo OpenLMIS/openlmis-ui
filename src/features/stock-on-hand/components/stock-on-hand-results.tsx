@@ -2,7 +2,7 @@ import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
 import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
-import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
+import { type ReactNode, type Ref, useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -40,6 +40,7 @@ import {
 } from '@/features/stock-on-hand/lib/search';
 import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-groups';
 import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { tableValue } from '@/lib/empty-value';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
@@ -87,11 +88,16 @@ export function StockOnHandResults({
   const toggle = (id: string, open: boolean) =>
     setCollapsed(open ? collapsed.filter((item) => item !== id) : [...collapsed, id]);
 
+  const onPageChange = useCallback<SearchChange<StockOnHandSearch>>(
+    (update) => onSearchChange(update, false, cards ? { resetScroll: false } : undefined),
+    [onSearchChange, cards],
+  );
   const searchState = useTableSearchState({
     search: deferredSearch,
     defaultSort: NO_SORT,
-    onSearchChange,
+    onSearchChange: onPageChange,
   });
+  const start = usePageStart<HTMLUListElement>(searchState.state.pagination.pageIndex, cards);
   const table = useTable({
     features: dataTableFeatures,
     columns: [],
@@ -164,7 +170,7 @@ export function StockOnHandResults({
   };
 
   return cards ? (
-    <GroupedCards {...view} columns={columns} />
+    <GroupedCards {...view} columns={columns} start={start} />
   ) : (
     <GroupedTable {...view} columns={columns} />
   );
@@ -454,7 +460,8 @@ function GroupedCards({
   footer,
   isStale,
   columns,
-}: GroupedViewProps & { columns: ColumnVisibilityState }) {
+  start,
+}: GroupedViewProps & { columns: ColumnVisibilityState; start: Ref<HTMLUListElement> }) {
   const { t } = useTranslation();
   const text = useStockText();
 
@@ -463,7 +470,7 @@ function GroupedCards({
       {groups.length === 0 ? (
         <DataTableCard>{empty}</DataTableCard>
       ) : (
-        <ul className="flex flex-col gap-4">
+        <ul className="flex scroll-mt-page-start flex-col gap-4" ref={start}>
           {groups.map((group) => {
             const open = !collapsed.includes(group.id);
             const name = text.productLabel(group.product);

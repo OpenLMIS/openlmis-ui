@@ -27,6 +27,7 @@ import {
   changeCardPaging,
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { tableValue } from '@/lib/empty-value';
 import type { FacilityProgramSelection } from '@/lib/facility-program-selection';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
@@ -267,9 +268,13 @@ export function StockCardLines({
   const columns = useLineColumns(card.orderable.netContent, unit, eventSearch);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
     (update, replace) => {
-      onSearchChange((previous) => changeCardPaging(previous, update), replace);
+      onSearchChange(
+        (previous) => changeCardPaging(previous, update),
+        replace,
+        cards ? { resetScroll: false } : undefined,
+      );
     },
-    [onSearchChange],
+    [onSearchChange, cards],
   );
   const searchState = useTableSearchState({
     search: cardTableSearch(search),
@@ -279,6 +284,7 @@ export function StockCardLines({
   const { pageIndex, pageSize } = toPaginationState(cardTableSearch(search));
   const pageCount = Math.max(1, Math.ceil(lines.length / pageSize));
   const clampedIndex = Math.min(pageIndex, pageCount - 1);
+  const start = usePageStart<HTMLUListElement>(clampedIndex, cards);
   const rows = useMemo(
     () => lines.slice(clampedIndex * pageSize, (clampedIndex + 1) * pageSize),
     [lines, clampedIndex, pageSize],
@@ -313,7 +319,7 @@ export function StockCardLines({
         {rows.length === 0 ? (
           <DataTableCard>{empty}</DataTableCard>
         ) : (
-          <ul className="flex flex-col gap-4">
+          <ul className="flex scroll-mt-page-start flex-col gap-4" ref={start}>
             {rows.map((line) => (
               <li key={line.rowId}>
                 <LineCard

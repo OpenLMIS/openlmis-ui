@@ -448,7 +448,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
 - Stock On Hand and Stock Card use cards below measured `@2xl/main`: Stock On Hand per product,
   each lot a band with View over settings rows, ignoring width defaults; Stock Card per line, a
-  date band over one settings row per visible column, blank when empty. Other lists keep tables at every width, hiding lower-priority columns and allowing
+  date band over one settings row per visible column, blank when empty. Their View menu passes
+  `layout="cards"` (Toggle Details), and `usePageStart` opens each page at its first card,
+  paging with `resetScroll: false`. Other lists keep tables at every width, hiding lower-priority columns and allowing
   sideways scrolling on phones. Keep headers on one line; every table header uses
   `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
