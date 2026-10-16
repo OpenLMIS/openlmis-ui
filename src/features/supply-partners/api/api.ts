@@ -69,6 +69,15 @@ export async function removeSupplyPartnerFacility(
   assertSessionScope(scope);
   const remaining = association.facilityIds.filter((id) => id !== facilityId);
   if (!remaining.length) return pruneAssociationProducts(association, [], []);
+  const unresolved = remaining.some((id) => !facilities.some((facility) => facility.id === id));
+  if (unresolved) {
+    if (facilities.some((facility) => facility.id === facilityId))
+      throw new Error('A remaining selected facility is unavailable');
+    return {
+      association: { ...association, facilityIds: remaining },
+      removedOrderableIds: [],
+    };
+  }
   const types = remaining.map((id) => {
     const facility = facilities.find((item) => item.id === id);
     if (!facility) throw new Error('A selected facility is unavailable');

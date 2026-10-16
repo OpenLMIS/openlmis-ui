@@ -430,11 +430,12 @@ function AssociationForm({
                   removeDisabled:
                     draft.facilityIds.length > 1 &&
                     (!program ||
-                      draft.facilityIds.some(
-                        (remainingId) =>
-                          remainingId !== id &&
-                          !facilityRecords.some((facility) => facility.id === remainingId),
-                      )),
+                      (Boolean(item) &&
+                        draft.facilityIds.some(
+                          (remainingId) =>
+                            remainingId !== id &&
+                            !facilityRecords.some((facility) => facility.id === remainingId),
+                        ))),
                   code: item?.code ?? '',
                   note:
                     canManageNodes &&

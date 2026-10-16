@@ -169,42 +169,73 @@ it('shows loading members and prevents facility pruning until changed product re
   );
 });
 
-it('recovers a missing facility only when the remaining facility types are resolved', async () => {
+it('recovers missing facilities sequentially without pruning until every remaining type is resolved', async () => {
   const queryClient = seededClient();
   const facility = queryClient.getQueryData<Facility[]>(
     facilitiesByIdsOptions(['f']).queryKey,
   )?.[0];
   if (!facility) throw new Error('Missing test fixture');
   const remaining = [facility, { ...facility, id: 'f2', code: 'F2', name: 'Facility Two' }];
-  queryClient.setQueryData(facilitiesByIdsOptions(['f', 'f2', 'missing']).queryKey, remaining);
-  queryClient.setQueryData(facilitiesByIdsOptions(['f', 'f2']).queryKey, remaining);
+  for (const ids of [
+    ['f', 'f2', 'missing-a', 'missing-b'],
+    ['f', 'f2', 'missing-b'],
+    ['f', 'f2'],
+  ]) {
+    queryClient.setQueryData(facilitiesByIdsOptions(ids).queryKey, remaining);
+  }
+  queryClient.setQueryData(orderablesByIdsOptions(['o', 'o2']).queryKey, [
+    { id: 'o', productCode: 'O', fullProductName: 'Product One', description: null },
+    { id: 'o2', productCode: 'O2', fullProductName: 'Product Two', description: null },
+  ]);
   const record = {
     ...saved,
     associations: [
-      { ...saved.associations[0], facilities: [{ id: 'f' }, { id: 'f2' }, { id: 'missing' }] },
+      {
+        ...saved.associations[0],
+        facilities: [{ id: 'f' }, { id: 'f2' }, { id: 'missing-a' }, { id: 'missing-b' }],
+        orderables: [{ id: 'o' }, { id: 'o2' }],
+      },
     ],
   };
-  vi.mocked(client.get).mockResolvedValueOnce({
-    data: {
-      content: [{ orderable: { id: 'o', productCode: 'O', fullProductName: 'Product One' } }],
-    },
-  });
+  vi.mocked(client.get)
+    .mockClear()
+    .mockResolvedValueOnce({
+      data: {
+        content: [{ orderable: { id: 'o', productCode: 'O', fullProductName: 'Product One' } }],
+      },
+    });
   const user = userEvent.setup();
   renderPage(<Harness record={record} />, { queryClient, path: '/?association=p:n' });
   const association = await screen.findByRole('dialog', { name: 'Edit Association' });
-  const missing = await within(association).findByRole('button', { name: 'Remove Unavailable' });
-  expect(missing).toBeEnabled();
+  const missing = await within(association).findAllByRole('button', { name: 'Remove Unavailable' });
+  expect(missing[0]).toBeEnabled();
+  expect(missing[1]).toBeEnabled();
   expect(within(association).getByRole('button', { name: 'Remove Facility One' })).toBeDisabled();
   expect(within(association).getByRole('button', { name: 'Remove Facility Two' })).toBeDisabled();
   expect(within(association).getByRole('button', { name: 'Update Association' })).toBeDisabled();
-  await user.click(missing);
+  await user.click(missing[0]);
+  await waitFor(() =>
+    expect(within(association).getAllByRole('button', { name: 'Remove Unavailable' })).toHaveLength(
+      1,
+    ),
+  );
+  expect(within(association).getByText('Product One')).toBeVisible();
+  expect(within(association).getByText('Product Two')).toBeVisible();
+  expect(within(association).getByRole('button', { name: 'Update Association' })).toBeDisabled();
+  expect(within(association).getByRole('button', { name: 'Remove Facility One' })).toBeDisabled();
+  expect(client.get).not.toHaveBeenCalled();
+  await user.click(within(association).getByRole('button', { name: 'Remove Unavailable' }));
   await waitFor(() =>
     expect(
       within(association).queryByRole('button', { name: 'Remove Unavailable' }),
     ).not.toBeInTheDocument(),
   );
+  expect(client.get).toHaveBeenCalledTimes(1);
   expect(within(association).getByText('Facility One')).toBeVisible();
   expect(within(association).getByText('Facility Two')).toBeVisible();
   expect(within(association).getByText('Product One')).toBeVisible();
+  expect(
+    within(association).queryByRole('button', { name: 'Remove Product Two' }),
+  ).not.toBeInTheDocument();
   expect(within(association).getByRole('button', { name: 'Update Association' })).toBeEnabled();
 });
