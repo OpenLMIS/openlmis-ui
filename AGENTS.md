@@ -351,7 +351,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 ```
 
 - Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
-  one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
+  one-sentence `WorkspaceDescription`; omit unused icons/actions. Below `@xl/main` the
+  description is screen-reader only and the title centres on the icon. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
   `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
   Nodes, and `width="wide"` for uncapped tables.
