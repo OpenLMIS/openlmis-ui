@@ -58,6 +58,10 @@ export function useAboutLabel() {
   return use(FormMessagesContext).aboutLabel;
 }
 
+export function useRequiredLabel() {
+  return use(FormMessagesContext).requiredLabel;
+}
+
 export function useDateMessages() {
   const { requiredLabel, dateLanguage, loadDateLocale } = use(FormMessagesContext);
   return { requiredLabel, dateLanguage, loadDateLocale };
