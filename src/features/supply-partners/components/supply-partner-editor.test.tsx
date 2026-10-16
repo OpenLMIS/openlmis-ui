@@ -46,6 +46,11 @@ function Harness() {
         onSearchChange={(update) =>
           setSearch((old) => ({ ...old, ...(typeof update === 'function' ? update(old) : update) }))
         }
+        canManageNodes={false}
+        onAssociation={vi.fn()}
+        onCloseAssociation={vi.fn()}
+        onOpenProducts={vi.fn()}
+        onCloseProducts={vi.fn()}
         onView={vi.fn()}
         onCloseView={vi.fn()}
         onCancel={vi.fn()}

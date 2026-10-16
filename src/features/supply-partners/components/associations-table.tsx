@@ -1,5 +1,5 @@
 import { createColumnHelper, useTable } from '@tanstack/react-table';
-import { EllipsisIcon, Trash2Icon, TruckIcon } from 'lucide-react';
+import { EllipsisIcon, PencilIcon, Trash2Icon, TruckIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,6 +46,7 @@ function useAssociationTable({
   onSearchChange,
   onRemove,
   onView,
+  onEdit,
   pending,
 }: {
   rows: AssociationDraft[];
@@ -53,6 +54,7 @@ function useAssociationTable({
   onSearchChange: SearchChange<SupplyPartnerEditSearch>;
   onRemove: (key: string, index: number) => void;
   onView: (kind: 'facilities' | 'products', key: string) => void;
+  onEdit?: (key: string) => void;
   pending: boolean;
 }) {
   const { t } = useTranslation();
@@ -166,6 +168,12 @@ function useAssociationTable({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" width="auto">
                     <DropdownMenuGroup>
+                      {onEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(associationKey(row.original))}>
+                          <PencilIcon />
+                          {t('supply-partners.edit-association')}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => onRemove(associationKey(row.original), row.index)}
@@ -189,6 +197,7 @@ function useAssociationTable({
       refs.nodes.isPending,
       onRemove,
       onView,
+      onEdit,
       pending,
     ],
   );
@@ -216,6 +225,7 @@ export function AssociationsTable({
   search,
   onSearchChange,
   onView,
+  onEdit,
   onChange,
   pending,
 }: {
@@ -223,6 +233,7 @@ export function AssociationsTable({
   search: SupplyPartnerEditSearch;
   onSearchChange: SearchChange<SupplyPartnerEditSearch>;
   onView: (kind: 'facilities' | 'products', key: string) => void;
+  onEdit?: (key: string) => void;
   onChange: (rows: AssociationDraft[]) => void;
   pending: boolean;
 }) {
@@ -235,6 +246,7 @@ export function AssociationsTable({
     search,
     onSearchChange,
     onView,
+    onEdit,
     onRemove: (key, index) => setRemoving({ key, index }),
     pending,
   });

@@ -1,8 +1,13 @@
+import type { QueryClient } from '@tanstack/react-query';
+import { facilityTypeApprovedOrderablesOptions } from '@/features/reference-data/api/queries';
+import type { Facility } from '@/features/reference-data/lib/types';
+import { pruneAssociationProducts } from '@/features/supply-partners/lib/association';
 import {
   canonicalSupplyPartner,
   toSupplyPartnerBody,
 } from '@/features/supply-partners/lib/supply-partner-form';
 import type {
+  AssociationDraft,
   SupplyPartner,
   SupplyPartnerDraft,
   SupplyPartnersQuery,
@@ -51,4 +56,32 @@ export async function saveSupplyPartner(saved: SupplyPartner, draft: SupplyPartn
   const { data } = await client.put<SupplyPartner>(`/supplyPartners/${saved.id}`, body);
   assertSessionScope(scope);
   return data;
+}
+
+export async function removeSupplyPartnerFacility(
+  queryClient: QueryClient,
+  association: AssociationDraft,
+  facilityId: string,
+  facilities: readonly Pick<Facility, 'id' | 'type'>[],
+  programCode: string,
+) {
+  const scope = getSessionScope();
+  assertSessionScope(scope);
+  const remaining = association.facilityIds.filter((id) => id !== facilityId);
+  if (!remaining.length) return pruneAssociationProducts(association, [], []);
+  const types = remaining.map((id) => {
+    const facility = facilities.find((item) => item.id === id);
+    if (!facility) throw new Error('A selected facility is unavailable');
+    return facility.type.code;
+  });
+  const approved = await queryClient.fetchQuery({
+    ...facilityTypeApprovedOrderablesOptions({ facilityTypeCodes: types, programCode }),
+    staleTime: 0,
+  });
+  assertSessionScope(scope);
+  return pruneAssociationProducts(
+    association,
+    remaining,
+    approved.map(({ id }) => id),
+  );
 }

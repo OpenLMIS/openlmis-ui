@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   createFileRoute,
   type ErrorComponentProps,
+  redirect,
   useNavigate,
   useRouter,
 } from '@tanstack/react-router';
@@ -31,13 +32,20 @@ import {
   supplyPartnerEditSearchSchema,
   supplyPartnerListSearch,
 } from '@/features/supply-partners/lib/search';
+import type { SupplyPartner } from '@/features/supply-partners/lib/types';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { SearchChange } from '@/lib/table-search';
 
-const CLOSED = { view: undefined, viewAssociation: undefined };
+const CLOSED = {
+  view: undefined,
+  viewAssociation: undefined,
+  association: undefined,
+  products: undefined,
+};
+const CLOSED_PRODUCTS = { products: undefined };
 export const Route = createFileRoute('/(protected)/_protected/administration/supply-partners_/$id')(
   {
     validateSearch: supplyPartnerEditSearchSchema,
@@ -47,13 +55,36 @@ export const Route = createFileRoute('/(protected)/_protected/administration/sup
         supplyPartnerListSearch(supplyPartnerEditSearchSchema.parse(search)),
     },
     preload: false,
+    beforeLoad: ({ search, cause, params }) => {
+      const products =
+        search.association && !(cause === 'enter' && search.association === 'new')
+          ? search.products
+          : undefined;
+      const view = search.association ? undefined : search.view;
+      const viewAssociation = view ? search.viewAssociation : undefined;
+      if (
+        products !== search.products ||
+        view !== search.view ||
+        viewAssociation !== search.viewAssociation
+      )
+        throw redirect({
+          to: '/administration/supply-partners/$id',
+          params,
+          search: { ...search, products, view, viewAssociation },
+          replace: true,
+        });
+    },
     loader: async ({ context: { queryClient }, params, cause }) => {
-      await requireRight(queryClient, RIGHTS.supplyPartnersManage);
+      const rights = await requireRight(queryClient, RIGHTS.supplyPartnersManage);
       const options = supplyPartnerOptions(params.id);
       const saved = await (cause === 'stay'
         ? queryClient.ensureQueryData(options)
         : queryClient.fetchQuery({ ...options, staleTime: 0 }));
-      return { saved, readAt: queryClient.getQueryState(options.queryKey)?.dataUpdatedAt ?? 0 };
+      return {
+        saved,
+        readAt: queryClient.getQueryState(options.queryKey)?.dataUpdatedAt ?? 0,
+        canManageNodes: rights.has(RIGHTS.supervisoryNodesManage),
+      };
     },
     component: EditorPage,
     pendingComponent: EditorPending,
@@ -64,9 +95,13 @@ function EditorPage() {
   const initial = Route.useLoaderData();
   return <EditorEntry key={initial.saved.id} initial={initial} />;
 }
-function EditorEntry({ initial }: { initial: ReturnType<typeof Route.useLoaderData> }) {
+function EditorEntry({
+  initial,
+}: {
+  initial: { saved: SupplyPartner; readAt: number; canManageNodes: boolean };
+}) {
   const { t } = useTranslation();
-  const [entry, setEntry] = useState(initial);
+  const [entry, setEntry] = useState(() => ({ saved: initial.saved, readAt: initial.readAt }));
   const queryClient = useQueryClient();
   const search = Route.useSearch();
   const router = useRouter();
@@ -75,6 +110,7 @@ function EditorEntry({ initial }: { initial: ReturnType<typeof Route.useLoaderDa
     () => router.state.location.state.supplyPartnersListSearch ?? supplyPartnerListSearch(search),
   );
   const { openDialog, closeDialog } = useSearchNavigation<SupplyPartnerEditSearch>(CLOSED);
+  const productsNavigation = useSearchNavigation<SupplyPartnerEditSearch>(CLOSED_PRODUCTS);
   const back = () =>
     navigate({
       to: '/administration/supply-partners',
@@ -100,6 +136,11 @@ function EditorEntry({ initial }: { initial: ReturnType<typeof Route.useLoaderDa
       onSearchChange={onSearchChange}
       onView={(kind, key) => void openDialog({ view: kind, viewAssociation: key })}
       onCloseView={closeDialog}
+      canManageNodes={initial.canManageNodes}
+      onAssociation={(key) => void openDialog({ association: key })}
+      onCloseAssociation={closeDialog}
+      onOpenProducts={() => void productsNavigation.openDialog({ products: true })}
+      onCloseProducts={productsNavigation.closeDialog}
       onCancel={() => void back()}
       onSaved={async (saved) => {
         if (saved) {

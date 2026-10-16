@@ -1,6 +1,9 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { facilityTypeApprovedOrderablesOptions } from '@/features/reference-data/api/queries';
 import {
   fetchSupplyPartners,
+  removeSupplyPartnerFacility,
   SupplyPartnerConflictError,
   saveSupplyPartner,
 } from '@/features/supply-partners/api/api';
@@ -83,4 +86,39 @@ it('stops before PUT when the session changes during the fresh read', async () =
     saveSupplyPartner(saved, { ...toSupplyPartnerDraft(saved), name: 'Edited' }),
   ).rejects.toThrow('Session ended');
   expect(put).not.toHaveBeenCalled();
+});
+
+it('refreshes approvals before pruning and keeps the original memberships when that refresh fails', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const association = {
+    programId: 'p',
+    supervisoryNodeId: 'n',
+    facilityIds: ['a', 'b'],
+    orderableIds: ['o1', 'o2'],
+  };
+  const facilities = [
+    { id: 'a', type: { id: 'ta', code: 'A', name: 'Type A' } },
+    { id: 'b', type: { id: 'tb', code: 'B', name: 'Type B' } },
+  ];
+  const options = facilityTypeApprovedOrderablesOptions({
+    facilityTypeCodes: ['B'],
+    programCode: 'P',
+  });
+  queryClient.setQueryData(options.queryKey, [
+    { id: 'o1', productCode: 'O1', fullProductName: 'Old Approval', description: null },
+  ]);
+  get.mockRejectedValueOnce(new Error('Approval read failed'));
+  await expect(
+    removeSupplyPartnerFacility(queryClient, association, 'a', facilities, 'P'),
+  ).rejects.toThrow('Approval read failed');
+  expect(association.facilityIds).toEqual(['a', 'b']);
+  expect(association.orderableIds).toEqual(['o1', 'o2']);
+  get.mockResolvedValueOnce({ data: { content: [{ orderable: { id: 'o2' } }] } });
+  await expect(
+    removeSupplyPartnerFacility(queryClient, association, 'a', facilities, 'P'),
+  ).resolves.toEqual({
+    association: { ...association, facilityIds: ['b'], orderableIds: ['o2'] },
+    removedOrderableIds: ['o1'],
+  });
+  expect(get).toHaveBeenCalledTimes(2);
 });

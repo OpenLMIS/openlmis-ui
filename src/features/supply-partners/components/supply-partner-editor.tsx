@@ -1,6 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { Loader2Icon, TruckIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { FieldSkeleton, serverMessage } from '@/components/dialog-parts';
@@ -29,6 +29,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { SupplyPartnerConflictError, saveSupplyPartner } from '@/features/supply-partners/api/api';
+import { AssociationDialog } from '@/features/supply-partners/components/association-dialog';
 import {
   AssociationsTable,
   AssociationsTableSkeleton,
@@ -37,7 +38,9 @@ import {
   ReferenceStatus,
   usePartnerReferences,
 } from '@/features/supply-partners/components/supply-partner-references';
+import { useAssociationDiscardGuard } from '@/features/supply-partners/components/use-association-discard-guard';
 import { ViewItemsDialog } from '@/features/supply-partners/components/view-items-dialog';
+import { associationKey } from '@/features/supply-partners/lib/association';
 import type { SupplyPartnerEditSearch } from '@/features/supply-partners/lib/search';
 import {
   canonicalSupplyPartner,
@@ -74,6 +77,11 @@ export function SupplyPartnerEditor({
   onSearchChange,
   onView,
   onCloseView,
+  onAssociation,
+  onCloseAssociation,
+  onOpenProducts,
+  onCloseProducts,
+  canManageNodes,
   onCancel,
   onSaved,
   onReload,
@@ -83,6 +91,11 @@ export function SupplyPartnerEditor({
   onSearchChange: SearchChange<SupplyPartnerEditSearch>;
   onView: (kind: 'facilities' | 'products', key: string) => void;
   onCloseView: () => void;
+  onAssociation: (key: string) => void;
+  onCloseAssociation: () => void;
+  onOpenProducts: () => void;
+  onCloseProducts: () => void;
+  canManageNodes: boolean;
   onCancel: () => void;
   onSaved: (saved: SupplyPartner | null) => void | Promise<void>;
   onReload: () => Promise<unknown>;
@@ -93,6 +106,14 @@ export function SupplyPartnerEditor({
   const [alert, setAlert] = useState(false);
   const [reloading, setReloading] = useState(false);
   const leaving = useRef(false);
+  const allowAssociationClose = useRef(false);
+  const [associationDirty, setAssociationDirty] = useState(false);
+  const [productsDirty, setProductsDirty] = useState(false);
+  const [childPending, setChildPending] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new URL target resets the commit bypass.
+  useEffect(() => {
+    allowAssociationClose.current = false;
+  }, [search.association]);
   const mutation = useSessionMutation({
     mutationFn: (draft: SupplyPartnerDraft) => saveSupplyPartner(saved, draft),
     onSuccess: (record) => {
@@ -115,8 +136,17 @@ export function SupplyPartnerEditor({
   const dirty =
     canonicalSupplyPartner(toSupplyPartnerBody(saved, draft)) !== canonicalSupplyPartner(saved);
   const refs = usePartnerReferences(draft.associations);
-  const pending = mutation.isPending || reloading;
-  const guard = useDiscardGuard(dirty, { pending, allowLeave: () => leaving.current });
+  const pending = mutation.isPending || reloading || childPending;
+  const guard = useDiscardGuard(dirty || associationDirty || productsDirty || childPending, {
+    pending,
+    allowLeave: () => leaving.current,
+  });
+  const associationGuard = useAssociationDiscardGuard(
+    associationDirty || productsDirty,
+    childPending,
+    allowAssociationClose,
+  );
+  const discard = guard.dialog.open ? guard.dialog : associationGuard;
   return (
     <>
       <Workspace>
@@ -159,9 +189,19 @@ export function SupplyPartnerEditor({
                 className="flex flex-col gap-4"
                 aria-labelledby="supply-partner-associations"
               >
-                <h2 className="font-semibold text-lg" id="supply-partner-associations">
-                  {t('supply-partners.associations')}
-                </h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="font-semibold text-lg" id="supply-partner-associations">
+                    {t('supply-partners.associations')}
+                  </h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => onAssociation('new')}
+                  >
+                    {t('supply-partners.add-association')}
+                  </Button>
+                </div>
                 {draft.associations.length > 0 && (
                   <ReferenceStatus associations={draft.associations} />
                 )}
@@ -171,14 +211,23 @@ export function SupplyPartnerEditor({
                   onSearchChange={onSearchChange}
                   pending={pending}
                   onView={onView}
+                  onEdit={onAssociation}
                   onChange={(rows) => form.setFieldValue('associations', rows)}
                 />
               </section>
             </FieldGroup>
           </form>
           <DiscardChangesDialog
-            description={t('supply-partners.discard-description')}
-            {...guard.dialog}
+            {...discard}
+            description={t(
+              guard.dialog.open
+                ? 'supply-partners.discard-description'
+                : 'supply-partners.discard-association',
+            )}
+            onKeepEditing={() => {
+              guard.dialog.onKeepEditing();
+              associationGuard.onKeepEditing();
+            }}
           />
         </WorkspaceContent>
       </Workspace>
@@ -191,6 +240,33 @@ export function SupplyPartnerEditor({
           {t('supply-partners.update')}
         </Button>
       </WorkspaceFooter>
+      <AssociationDialog
+        target={search.association}
+        associations={draft.associations}
+        canManageNodes={canManageNodes}
+        productsOpen={Boolean(search.products)}
+        onClose={onCloseAssociation}
+        onOpenProducts={onOpenProducts}
+        onCloseProducts={onCloseProducts}
+        onDirtyChange={setAssociationDirty}
+        onProductsDirtyChange={setProductsDirty}
+        onPendingChange={setChildPending}
+        onCommit={(association) => {
+          const key = search.association;
+          form.setFieldValue(
+            'associations',
+            key === 'new'
+              ? [...form.state.values.associations, association]
+              : form.state.values.associations.map((item) =>
+                  associationKey(item) === key ? association : item,
+                ),
+          );
+          allowAssociationClose.current = true;
+          setAssociationDirty(false);
+          setProductsDirty(false);
+          onCloseAssociation();
+        }}
+      />
       <ViewItemsDialog
         search={search}
         associations={draft.associations}

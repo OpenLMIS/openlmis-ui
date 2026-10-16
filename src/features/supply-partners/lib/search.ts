@@ -21,6 +21,8 @@ export function matchesNameOrCode(item: { name: string | null; code: string }, s
 export const supplyPartnerEditSearchSchema = tableSearchSchema(['name'])
   .omit({ sort: true, dir: true })
   .extend({
+    association: z.string().min(1).optional().catch(undefined),
+    products: z.literal(true).optional().catch(undefined),
     view: z.enum(['facilities', 'products']).optional().catch(undefined),
     viewAssociation: z.string().optional().catch(undefined),
     listPage: z.number().int().min(1).optional().catch(undefined),
