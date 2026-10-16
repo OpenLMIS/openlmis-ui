@@ -489,7 +489,9 @@ function GroupedCards({
                         {packSize && (
                           <>
                             <span>·</span>
-                            <bdi>{packSize}</bdi>
+                            <span>
+                              {t('stock-on-hand.pack-size')} <bdi>{packSize}</bdi>
+                            </span>
                           </>
                         )}
                       </div>
@@ -551,10 +553,10 @@ function StockLotRow({
       <div className="min-w-0 flex-1 wrap-anywhere">
         {card.product?.id !== group.product?.id && (
           <div className="font-medium">
-            <Wrapped>{text.productLabel(card.product)}</Wrapped>
+            <bdi>{text.productLabel(card.product)}</bdi>
           </div>
         )}
-        <Wrapped>{text.lotLabel(card)}</Wrapped>
+        {text.lotLabel(card)}
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground text-xs">
           {columns.expiry !== false && card.lot?.expirationDate && (
             <span>
@@ -691,7 +693,7 @@ export function StockOnHandResultsSkeleton({
                     <ToggleSkeleton />
                     <div className="flex min-w-0 flex-1 flex-col gap-2">
                       {bar('w-3/4')}
-                      {bar(columns.packSize !== false ? 'w-24' : 'w-12')}
+                      {bar(columns.packSize !== false ? 'w-40' : 'w-12')}
                     </div>
                     {bar('w-10')}
                   </div>

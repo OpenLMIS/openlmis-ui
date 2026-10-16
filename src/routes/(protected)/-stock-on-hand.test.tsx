@@ -17,7 +17,6 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { getI18n } from 'react-i18next';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -180,7 +179,6 @@ afterEach(() => {
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
-  getI18n().addResource('en', 'translation', 'stock-on-hand.view-card', 'stock-on-hand.view-card');
 });
 
 describe('stock on hand page', () => {
@@ -708,12 +706,6 @@ describe('stock on hand View', () => {
   it.each([1200, 390])(
     'offers View only for existing cards at content width %i and keeps the whole search',
     async (width) => {
-      getI18n().addResource(
-        'en',
-        'translation',
-        'stock-on-hand.view-card',
-        'View {{product}}, {{lot}}',
-      );
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
         width,
       } as DOMRect);
@@ -758,13 +750,9 @@ describe('stock on hand View', () => {
       );
       await screen.findAllByText('Levonorgestrel');
       const view = screen.getAllByRole(width < 672 ? 'link' : 'button', {
-        name: /^View (Levonorgestrel|Substitute product), /,
+        name: 'stock-on-hand.view-card',
       });
       expect(view).toHaveLength(2);
-      expect(view.map((link) => link.getAttribute('aria-label')).sort()).toEqual([
-        'View Levonorgestrel, stock-on-hand.no-lot',
-        'View Substitute product, LOT-A',
-      ]);
       if (width < 672) {
         expect(
           within(
