@@ -1,6 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
+  type ColumnVisibilityState,
   createColumnHelper,
   type Row,
   type RowSelectionState,
@@ -22,12 +23,10 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import {
-  CardBand,
   CardList,
   CardListItem,
-  CardRowSkeleton,
+  CardListSkeleton,
   CardRows,
   CardSelectBand,
   SkeletonBar,
@@ -40,16 +39,8 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import {
-  DataTablePagination,
-  DataTablePaginationSkeleton,
-} from '@/components/data-table/data-table-pagination';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import {
-  CONTAINER_WIDTHS,
-  useColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
 import { serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue } from '@/components/form/date-value';
@@ -109,11 +100,11 @@ import type {
   StockEventLineReason,
   StockEventSummary,
 } from '@/features/stock-events/lib/types';
+import { useCardView } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
@@ -153,7 +144,6 @@ const REVERSE_HIDEABLE_COLUMNS = [
 ] as const;
 type TableRow = { id: string; line: StockEventLine };
 const helper = createColumnHelper<DataTableFeatures, TableRow>();
-const choicesSchema = z.record(z.string(), z.boolean());
 const NO_CURRENT: EventStockOnHand = {};
 const NO_LINES: StockEventLine[] = [];
 const NO_REASONS: StockEventLineReason[] = [];
@@ -211,12 +201,9 @@ export function ReverseEditor({
   const alertTarget = useRef<{ id: string; page: number } | null>(null);
   const leaving = useRef(false);
   const posting = useRef(false);
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     REVERSE_HIDEABLE_COLUMNS,
-    useStoredState('stock-event-reverse.columns', choicesSchema, {}),
-    cards ? undefined : width,
+    'stock-event-reverse.columns',
   );
   const form = useReverseForm();
   const draft = useStore(form.store, (state) => state.values);
@@ -244,7 +231,7 @@ export function ReverseEditor({
   const size = search.reverseSize ?? 10;
   const requestedPage = search.reversePage ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
-  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`);
+  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`, cards);
   useEffect(() => {
     if (linesQuery.data && requestedPage !== page)
       onSearchChange({ reversePage: page === 1 ? undefined : page }, true, { resetScroll: false });
@@ -373,9 +360,9 @@ export function ReverseEditor({
       onSearchChange(
         (previous) => changeReversePaging(previous, update),
         replace,
-        cards ? { resetScroll: false } : undefined,
+        pageStart.navigation,
       ),
-    [onSearchChange, cards],
+    [onSearchChange, pageStart.navigation],
   );
   const searchState = useTableSearchState({
     search: { ...reverseTableSearch(search), page },
@@ -425,10 +412,7 @@ export function ReverseEditor({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: (updater) => {
-      if (cards) pageStart.request();
-      searchState.onPaginationChange(updater);
-    },
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: {
       ...searchState.state,
       columnVisibility: columnView.visibility,
@@ -519,7 +503,7 @@ export function ReverseEditor({
                 <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
                     {...columnView}
-                    layout={cards ? 'cards' : 'table'}
+                    layout={layout}
                     columns={REVERSE_HIDEABLE_COLUMNS.filter(
                       (column) => !cards || column.id !== 'code',
                     ).map((column) => ({
@@ -533,10 +517,7 @@ export function ReverseEditor({
                 resetKey={event.id}
                 pendingFallback={
                   cards ? (
-                    <ReverseCardsSkeleton
-                      count={size}
-                      visible={(id) => table.getColumn(id)?.getIsVisible() !== false}
-                    />
+                    <ReverseCardsSkeleton count={size} visibility={columnView.visibility} />
                   ) : (
                     <DataTableSkeleton
                       table={table}
@@ -557,7 +538,11 @@ export function ReverseEditor({
                         footer={footer}
                       >
                         {table.getRowModel().rows.map((row) => (
-                          <ReverseLineCard key={row.id} row={row} />
+                          <ReverseLineCard
+                            key={row.id}
+                            row={row}
+                            visibility={columnView.visibility}
+                          />
                         ))}
                       </CardList>
                     ) : (
@@ -971,7 +956,13 @@ function ReverseReadOnlyCell(props: CellProps) {
   }
 }
 
-function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
+function ReverseLineCard({
+  row,
+  visibility,
+}: {
+  row: Row<DataTableFeatures, TableRow>;
+  visibility: ColumnVisibilityState;
+}) {
   const { t } = useTranslation();
   const props: CellProps = {
     row,
@@ -994,9 +985,7 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
       </CardSelectBand>
       <ReverseLineError {...props} />
       <CardRows>
-        {READ_ONLY_COLUMNS.filter(([id]) =>
-          row.getVisibleCells().some((cell) => cell.column.id === id),
-        ).map(([id, key]) => (
+        {READ_ONLY_COLUMNS.filter(([id]) => visibility[id] !== false).map(([id, key]) => (
           <SettingsItem key={id} label={t(key)}>
             <ReverseReadOnlyCell {...props} id={id} keyLabel={key} />
           </SettingsItem>
@@ -1011,22 +1000,20 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
             keyLabel="stock-event-reverse.cancel-reason"
           />
         </SettingsRowFrame>
-        {rowDraft &&
-          reason?.isFreeTextAllowed &&
-          row.getVisibleCells().some((cell) => cell.column.id === 'comments') && (
-            <SettingsRowFrame
-              value="control"
-              label={
-                <span className="text-sm">{t('stock-event-reverse.cancel-reason-comments')}</span>
-              }
-            >
-              <ReverseCommentsCell
-                {...props}
-                id="comments"
-                keyLabel="stock-event-reverse.cancel-reason-comments"
-              />
-            </SettingsRowFrame>
-          )}
+        {rowDraft && reason?.isFreeTextAllowed && visibility.comments !== false && (
+          <SettingsRowFrame
+            value="control"
+            label={
+              <span className="text-sm">{t('stock-event-reverse.cancel-reason-comments')}</span>
+            }
+          >
+            <ReverseCommentsCell
+              {...props}
+              id="comments"
+              keyLabel="stock-event-reverse.cancel-reason-comments"
+            />
+          </SettingsRowFrame>
+        )}
         <SettingsRowFrame
           label={<strong className="text-sm">{t('stock-event-reverse.new-stock-on-hand')}</strong>}
         >
@@ -1047,36 +1034,25 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
   );
 }
 
-const SKELETON_CARDS = ['a', 'b', 'c'];
-
 function ReverseCardsSkeleton({
   count,
-  visible,
+  visibility,
 }: {
   count: number;
-  visible: (id: string) => boolean;
+  visibility: ColumnVisibilityState;
 }) {
   return (
-    <CardList footer={<DataTablePaginationSkeleton />}>
-      {SKELETON_CARDS.slice(0, count).map((id) => (
-        <CardListItem key={id}>
-          <CardBand>
-            <div className="flex items-center gap-3">
-              <div className="size-4">
-                <Skeleton fill />
-              </div>
-              <SkeletonBar width="w-40" />
-            </div>
-          </CardBand>
-          <CardRows>
-            {READ_ONLY_COLUMNS.filter(([column]) => visible(column)).map(([column]) => (
-              <CardRowSkeleton key={column} />
-            ))}
-            <CardRowSkeleton />
-            <CardRowSkeleton />
-          </CardRows>
-        </CardListItem>
-      ))}
-    </CardList>
+    <CardListSkeleton
+      count={Math.min(3, count)}
+      rows={READ_ONLY_COLUMNS.filter(([id]) => visibility[id] !== false).length + 2}
+      band={
+        <div className="flex items-center gap-3">
+          <div className="size-4">
+            <Skeleton fill />
+          </div>
+          <SkeletonBar width="w-40" />
+        </div>
+      }
+    />
   );
 }

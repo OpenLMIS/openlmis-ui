@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from 'react';
 import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-table';
+import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -93,5 +94,34 @@ export function SkeletonBar({ width }: { width: string }) {
     <div className={cn('h-4', width)}>
       <Skeleton fill />
     </div>
+  );
+}
+
+export function CardListSkeleton({
+  count,
+  rows,
+  band = <SkeletonBar width="w-24" />,
+  pagination = true,
+}: {
+  count: number;
+  rows: number;
+  band?: ReactNode;
+  pagination?: boolean;
+}) {
+  const cards = Array.from({ length: count }, (_, index) => index);
+  const details = Array.from({ length: rows }, (_, index) => index);
+  return (
+    <CardList footer={pagination && <DataTablePaginationSkeleton />}>
+      {cards.map((id) => (
+        <CardListItem key={id}>
+          <CardBand>{band}</CardBand>
+          <CardRows>
+            {details.map((id) => (
+              <CardRowSkeleton key={id} />
+            ))}
+          </CardRows>
+        </CardListItem>
+      ))}
+    </CardList>
   );
 }

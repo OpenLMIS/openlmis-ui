@@ -8,9 +8,8 @@ import {
   CardBand,
   CardList,
   CardListItem,
-  CardRowSkeleton,
+  CardListSkeleton,
   CardRows,
-  SkeletonBar,
 } from '@/components/card-list';
 import {
   DataTable,
@@ -20,10 +19,7 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import {
-  DataTablePagination,
-  DataTablePaginationSkeleton,
-} from '@/components/data-table/data-table-pagination';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { stockEventLinesOptions } from '@/features/stock-events/api/queries';
@@ -249,22 +245,22 @@ export function EventLines({
     stockEventLinesOptions(eventId, { page: paging.pageIndex, size: paging.pageSize }),
   );
   const columns = useLineColumns(unit);
+  const pageStart = usePageStart<HTMLUListElement>(`${paging.pageIndex}:${paging.pageSize}`, cards);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
     (update, replace) => {
       onSearchChange(
         (previous) => changeDetailPaging(previous, update),
         replace,
-        cards ? { resetScroll: false } : undefined,
+        pageStart.navigation,
       );
     },
-    [onSearchChange, cards],
+    [onSearchChange, pageStart.navigation],
   );
   const searchState = useTableSearchState({
     search: detailTableSearch(deferredSearch),
     defaultSort: NO_SORT,
     onSearchChange: onTableSearchChange,
   });
-  const pageStart = usePageStart<HTMLUListElement>(`${paging.pageIndex}:${paging.pageSize}`);
   const table = useTable({
     features: dataTableFeatures,
     columns,
@@ -275,10 +271,7 @@ export function EventLines({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: (updater) => {
-      if (cards) pageStart.request();
-      searchState.onPaginationChange(updater);
-    },
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   const lastPageIndex = Math.max(0, Math.ceil(data.totalElements / paging.pageSize) - 1);
@@ -326,8 +319,6 @@ export function EventLines({
   );
 }
 
-const SKELETON_CARDS = ['a', 'b', 'c'];
-
 export function EventLinesSkeleton({
   cards,
   search,
@@ -348,22 +339,10 @@ export function EventLinesSkeleton({
   const rowCount = toPaginationState(detailTableSearch(search)).pageSize;
   if (cards) {
     return (
-      <CardList footer={<DataTablePaginationSkeleton />}>
-        {SKELETON_CARDS.slice(0, rowCount).map((id) => (
-          <CardListItem key={id}>
-            <CardBand>
-              <SkeletonBar width="w-24" />
-            </CardBand>
-            <CardRows>
-              {CARD_ROWS.filter(([column]) => columnVisibility[column] !== false).map(
-                ([column]) => (
-                  <CardRowSkeleton key={column} />
-                ),
-              )}
-            </CardRows>
-          </CardListItem>
-        ))}
-      </CardList>
+      <CardListSkeleton
+        count={Math.min(3, rowCount)}
+        rows={CARD_ROWS.filter(([column]) => columnVisibility[column] !== false).length}
+      />
     );
   }
   return <DataTableSkeleton table={table} rowCount={rowCount} density="default" layout="auto" />;

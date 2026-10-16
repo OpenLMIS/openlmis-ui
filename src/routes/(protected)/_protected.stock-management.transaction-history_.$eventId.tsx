@@ -3,13 +3,7 @@ import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react
 import { ClipboardListIcon, PrinterIcon, Undo2Icon } from 'lucide-react';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import {
-  CONTAINER_WIDTHS,
-  useColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -48,11 +42,11 @@ import {
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
+import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
@@ -64,24 +58,15 @@ let shownEventId: string | undefined;
 const stockEventSearchSchema = transactionHistorySearchSchema.extend(detailPagingSchema.shape);
 const NO_DIALOGS = {};
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 type ShownReversals = { reversing: boolean; reversedBy: boolean };
 const NO_REVERSALS: ShownReversals = { reversing: false, reversedBy: false };
 
 function useEventLayout(reversals: ShownReversals = NO_REVERSALS) {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const columns = useMemo(
     () => withShownReversals(STOCK_EVENT_HIDEABLE_COLUMNS, reversals),
     [reversals],
   );
-  const columnView = useColumnVisibility(
-    columns,
-    useStoredState('stock-event.column-visibility', columnChoicesSchema, {}),
-    cards ? undefined : width,
-  );
-  return { measure, columnView, cards };
+  return useCardView(columns, 'stock-event.column-visibility');
 }
 
 export const Route = createFileRoute(
@@ -138,7 +123,7 @@ function StockEventPage() {
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView, cards } = useEventLayout(useShownReversals(search));
+  const { measure, columnView, cards, layout } = useEventLayout(useShownReversals(search));
   const userId = useReloadForUser(
     data?.userId,
     stockEventOptions(Route.useParams().eventId).queryKey,
@@ -173,7 +158,7 @@ function StockEventPage() {
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockEventColumns cards={cards} columnView={columnView} canSwitch={canSwitch} />
+            <StockEventColumns layout={layout} columnView={columnView} canSwitch={canSwitch} />
           </div>
           <QueryBoundary
             resetKey={`${data.event.id}:${search.detailPage}:${search.detailSize}`}
@@ -213,19 +198,19 @@ function useShownReversals(search: DetailPagingSearch) {
 }
 
 function StockEventColumns({
-  cards,
+  layout,
   columnView,
   canSwitch,
 }: {
-  cards: boolean;
-  columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'cards' | 'table';
+  columnView: ReturnType<typeof useCardView>['columnView'];
   canSwitch: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
-        layout={cards ? 'cards' : 'table'}
+        layout={layout}
         columns={STOCK_EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
           id,
           label: t(labelKey),

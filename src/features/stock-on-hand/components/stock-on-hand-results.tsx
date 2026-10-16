@@ -96,17 +96,17 @@ export function StockOnHandResults({
   const toggle = (id: string, open: boolean) =>
     setCollapsed(open ? collapsed.filter((item) => item !== id) : [...collapsed, id]);
 
+  const { pageIndex, pageSize } = toPaginationState(deferredSearch);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
   const onPageChange = useCallback<SearchChange<StockOnHandSearch>>(
-    (update) => onSearchChange(update, false, cards ? { resetScroll: false } : undefined),
-    [onSearchChange, cards],
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
   );
   const searchState = useTableSearchState({
     search: deferredSearch,
     defaultSort: NO_SORT,
     onSearchChange: onPageChange,
   });
-  const { pageIndex, pageSize } = searchState.state.pagination;
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`);
   const table = useTable({
     features: dataTableFeatures,
     columns: [],
@@ -116,10 +116,7 @@ export function StockOnHandResults({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: (updater) => {
-      if (cards) pageStart.request();
-      searchState.onPaginationChange(updater);
-    },
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 

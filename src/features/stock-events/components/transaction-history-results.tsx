@@ -8,7 +8,7 @@ import {
   CardBand,
   CardList,
   CardListItem,
-  CardRowSkeleton,
+  CardListSkeleton,
   CardRows,
   SkeletonBar,
 } from '@/components/card-list';
@@ -20,10 +20,7 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import {
-  DataTablePagination,
-  DataTablePaginationSkeleton,
-} from '@/components/data-table/data-table-pagination';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
@@ -251,9 +248,11 @@ function useEventsTable({
   stale: boolean;
 }) {
   const columnDefs = useEventColumns(search, eventDay, stale);
+  const { pageIndex, pageSize } = toPaginationState(search, EVENTS_PAGE_SIZE);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
   const onPageChange = useCallback<SearchChange<TransactionHistorySearch>>(
-    (update) => onSearchChange(update, false, cards ? { resetScroll: false } : undefined),
-    [onSearchChange, cards],
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
   );
   const searchState = useTableSearchState({
     search,
@@ -261,8 +260,6 @@ function useEventsTable({
     defaultPageSize: EVENTS_PAGE_SIZE,
     onSearchChange: onPageChange,
   });
-  const { pageIndex, pageSize } = searchState.state.pagination;
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`);
   const table = useTable({
     features: dataTableFeatures,
     columns: columnDefs,
@@ -273,10 +270,7 @@ function useEventsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: (updater) => {
-      if (cards) pageStart.request();
-      searchState.onPaginationChange(updater);
-    },
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility: columns },
   });
   return { table, pageStart };
@@ -368,8 +362,6 @@ export function TransactionHistoryResults({
   );
 }
 
-const SKELETON_CARDS = ['a', 'b', 'c'];
-
 export function TransactionHistoryResultsSkeleton({
   cards,
   search,
@@ -388,23 +380,18 @@ export function TransactionHistoryResultsSkeleton({
   const rowCount = toPaginationState(search, EVENTS_PAGE_SIZE).pageSize;
   if (cards) {
     return (
-      <CardList footer={<DataTablePaginationSkeleton />}>
-        {SKELETON_CARDS.slice(0, rowCount).map((id) => (
-          <CardListItem key={id}>
-            <CardBand>
-              <SkeletonBar width="w-24" />
-              <div className="h-7 w-16">
-                <Skeleton fill />
-              </div>
-            </CardBand>
-            <CardRows>
-              {CARD_ROWS.filter(([column]) => columns[column] !== false).map(([column]) => (
-                <CardRowSkeleton key={column} />
-              ))}
-            </CardRows>
-          </CardListItem>
-        ))}
-      </CardList>
+      <CardListSkeleton
+        count={Math.min(3, rowCount)}
+        rows={CARD_ROWS.filter(([column]) => columns[column] !== false).length}
+        band={
+          <>
+            <SkeletonBar width="w-24" />
+            <div className="h-7 w-16">
+              <Skeleton fill />
+            </div>
+          </>
+        }
+      />
     );
   }
   return <DataTableSkeleton density="default" layout="auto" rowCount={rowCount} table={table} />;
