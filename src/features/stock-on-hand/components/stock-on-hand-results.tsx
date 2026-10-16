@@ -686,7 +686,7 @@ export function StockOnHandResultsSkeleton({
                   <li className="divide-y" key={card}>
                     <CardBand>
                       {bar('w-20')}
-                      <div className="h-8 w-16">
+                      <div className="h-7 w-16">
                         <Skeleton fill />
                       </div>
                     </CardBand>

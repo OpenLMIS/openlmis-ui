@@ -139,9 +139,11 @@ function ViewEvent({
   event,
   search,
   eventDay,
+  disabled,
 }: {
   event: StockEventSummary;
   search: TransactionHistorySearch;
+  disabled: boolean;
   eventDay: EventDay;
 }) {
   const { t } = useTranslation();
@@ -149,6 +151,7 @@ function ViewEvent({
   return (
     <Button
       aria-label={t('transaction-history.view-event', { document })}
+      disabled={disabled}
       nativeButton={false}
       render={
         <Link
@@ -164,7 +167,7 @@ function ViewEvent({
   );
 }
 
-function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay) {
+function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay, stale: boolean) {
   const { t } = useTranslation();
   return useMemo(
     () =>
@@ -181,10 +184,12 @@ function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay) {
           header: () => (
             <DataTableHeaderLabel>{t('transaction-history.actions')}</DataTableHeaderLabel>
           ),
-          cell: ({ row }) => <ViewEvent event={row.original} eventDay={eventDay} search={search} />,
+          cell: ({ row }) => (
+            <ViewEvent disabled={stale} event={row.original} eventDay={eventDay} search={search} />
+          ),
         }),
       ]),
-    [t, search, eventDay],
+    [t, search, eventDay, stale],
   );
 }
 
@@ -193,11 +198,13 @@ function EventCard({
   search,
   columns,
   eventDay,
+  stale,
 }: {
   event: StockEventSummary;
   search: TransactionHistorySearch;
   columns: ColumnVisibilityState;
   eventDay: EventDay;
+  stale: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -206,7 +213,7 @@ function EventCard({
         <div className="min-w-0 wrap-anywhere">
           <bdi>{event.documentNumber || eventDay(event.processedDate)}</bdi>
         </div>
-        <ViewEvent event={event} eventDay={eventDay} search={search} />
+        <ViewEvent disabled={stale} event={event} eventDay={eventDay} search={search} />
       </CardBand>
       <CardRows>
         {CARD_ROWS.filter(([id]) => columns[id] !== false).map(([id, key]) => (
@@ -236,12 +243,14 @@ function useEventsTable({
   columns,
   onSearchChange,
   eventDay,
+  stale,
 }: Pick<ResultsProps, 'cards' | 'search' | 'columns' | 'onSearchChange'> & {
   data: StockEventSummary[];
   rowCount: number;
   eventDay: EventDay;
+  stale: boolean;
 }) {
-  const columnDefs = useEventColumns(search, eventDay);
+  const columnDefs = useEventColumns(search, eventDay, stale);
   const onPageChange = useCallback<SearchChange<TransactionHistorySearch>>(
     (update) => onSearchChange(update, false, cards ? { resetScroll: false } : undefined),
     [onSearchChange, cards],
@@ -287,6 +296,7 @@ export function TransactionHistoryResults({
     stockEventsOptions(toEventsQuery(deferredSearch, { facilityId, programId })),
   );
   const eventDay = useEventDay(useDeploymentTimeZone());
+  const isStale = search !== deferredSearch;
   const { table, pageStart } = useEventsTable({
     cards,
     data: page.content,
@@ -295,6 +305,7 @@ export function TransactionHistoryResults({
     columns,
     onSearchChange,
     eventDay,
+    stale: isStale,
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 
@@ -327,13 +338,14 @@ export function TransactionHistoryResults({
   if (cards) {
     return (
       <CardList
-        busy={search !== deferredSearch}
+        busy={isStale}
         empty={!isPastLastPage && page.content.length === 0 && empty}
         footer={footer}
         listRef={pageStart.ref}
       >
         {page.content.map((event) => (
           <EventCard
+            stale={isStale}
             columns={columns}
             event={event}
             eventDay={eventDay}
@@ -349,7 +361,7 @@ export function TransactionHistoryResults({
       density="default"
       empty={!isPastLastPage && empty}
       footer={footer}
-      isStale={search !== deferredSearch}
+      isStale={isStale}
       layout="auto"
       table={table}
     />
@@ -371,6 +383,7 @@ export function TransactionHistoryResultsSkeleton({
     search,
     columns,
     onSearchChange: noop,
+    stale: false,
   });
   const rowCount = toPaginationState(search, EVENTS_PAGE_SIZE).pageSize;
   if (cards) {
@@ -380,7 +393,7 @@ export function TransactionHistoryResultsSkeleton({
           <CardListItem key={id}>
             <CardBand>
               <SkeletonBar width="w-24" />
-              <div className="h-8 w-16">
+              <div className="h-7 w-16">
                 <Skeleton fill />
               </div>
             </CardBand>

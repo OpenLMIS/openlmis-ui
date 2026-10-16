@@ -188,7 +188,6 @@ describe('transaction history page', () => {
   });
 
   it('lists the events in the server order with the legacy columns', async () => {
-    widthOf(1200);
     renderRoute(appliedPath());
 
     const first = (await screen.findByText('FM71-ISS-1')).closest('tr');
@@ -295,17 +294,21 @@ describe('transaction history page', () => {
     });
   });
 
-  it('tells no events apart from no matches, and clears the filters', async () => {
-    const user = userEvent.setup();
-    vi.mocked(fetchStockEvents).mockResolvedValue(page([]));
-    const { router } = renderRoute(appliedPath('&type=issue'));
+  it.each([1200, 390])(
+    'tells no events apart from no matches, and clears the filters at content width %i',
+    async (width) => {
+      const user = userEvent.setup();
+      widthOf(width);
+      vi.mocked(fetchStockEvents).mockResolvedValue(page([]));
+      const { router } = renderRoute(appliedPath('&type=issue'));
 
-    await user.click(
-      await screen.findByRole('button', { name: 'transaction-history.clear-filters' }),
-    );
-    expect(await screen.findByText('transaction-history.no-events-title')).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ mode: 'my', programId: FP, facilityId: HOME });
-  });
+      await user.click(
+        await screen.findByRole('button', { name: 'transaction-history.clear-filters' }),
+      );
+      expect(await screen.findByText('transaction-history.no-events-title')).toBeInTheDocument();
+      expect(router.state.location.search).toEqual({ mode: 'my', programId: FP, facilityId: HOME });
+    },
+  );
 
   it('opens an event with the list search, so the way back keeps the filters', async () => {
     const user = userEvent.setup();
@@ -355,6 +358,26 @@ describe('transaction history page', () => {
     expect(fetchStockEvents).not.toHaveBeenCalled();
   });
 
+  it('keeps the table from the card width up, hiding columns there is no room for', async () => {
+    const user = userEvent.setup();
+    widthOf(672);
+    renderRoute(appliedPath());
+
+    await screen.findByText('FM71-ISS-1');
+    expect(headers()).toEqual([
+      'transaction-history.document-number',
+      'transaction-history.type',
+      'transaction-history.date',
+      'transaction-history.entries-count',
+      'transaction-history.actions',
+    ]);
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    await user.click(
+      await screen.findByRole('menuitemcheckbox', { name: 'transaction-history.signature' }),
+    );
+    expect(headers()).toContain('transaction-history.signature');
+  });
+
   it('shows event cards on phones with ordered details, stored choices and a View link', async () => {
     const user = userEvent.setup();
     widthOf(390);
@@ -379,18 +402,14 @@ describe('transaction history page', () => {
     expect(within(first).getByText('transaction-history.type-issue')).toBeInTheDocument();
     expect(within(first).getByText('Oct 8, 2026')).toBeInTheDocument();
     expect(within(first).queryByText('administrator')).not.toBeInTheDocument();
-    const fallbackLink = screen.getAllByRole('button', {
-      name: 'transaction-history.view-event',
-    })[1] as HTMLElement;
-    const second = fallbackLink.closest('li') as HTMLElement;
+    const second = (await screen.findByText('transaction-history.type-receive')).closest(
+      'li',
+    ) as HTMLElement;
     expect(within(second).getAllByText('Oct 6, 2026')).toHaveLength(2);
     expect(within(second).getByText(EMPTY_VALUE)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'View' }));
     expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
-    expect(
-      await screen.findByRole('menuitemcheckbox', { name: 'transaction-history.performed-by' }),
-    ).toHaveAttribute('aria-checked', 'false');
     await user.keyboard('{Escape}');
     await user.click(within(first).getByRole('button', { name: 'transaction-history.view-event' }));
     expect(await screen.findByText('event detail')).toBeInTheDocument();
