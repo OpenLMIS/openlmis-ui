@@ -585,3 +585,18 @@ it('opens a phone page at its first card', async () => {
     resetScroll: false,
   });
 });
+
+it('shows the resulting stock on hand in phone confirmation cards', async () => {
+  const user = userEvent.setup();
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  editor();
+  await tick();
+  await pick();
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).queryByRole('table')).not.toBeInTheDocument();
+  const card = within(dialog).getByRole('listitem');
+  expect(within(card).getByText('Vaccine (C1)')).toBeVisible();
+  expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
+  expect(within(card).getByText('50')).toBeVisible();
+});

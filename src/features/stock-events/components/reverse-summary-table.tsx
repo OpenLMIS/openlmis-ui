@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
+import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
+import { SettingsItem } from '@/components/form/settings-list';
 import {
   Table,
   TableBody,
@@ -10,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { StockEventLine } from '@/features/stock-events/lib/types';
-import { tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { namedWithFreeText } from '@/lib/stock-labels';
 
@@ -33,84 +36,150 @@ export function ReverseSummaryTable({
   unavailable?: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const quantity = (value: number | undefined, line: StockEventLine) =>
     tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
   return (
-    <DataTableCard>
-      <Table density="default" layout="auto">
-        {unavailable && <TableCaption>{t('stock-event-reverse.summary-unavailable')}</TableCaption>}
-        <TableHeader surface="muted">
-          <TableRow>
-            <TableHead>
-              <DataTableHeaderLabel>{t('stock-event.product')}</DataTableHeaderLabel>
-            </TableHead>
-            <TableHead>
-              <DataTableHeaderLabel>{t('stock-event.lot-code')}</DataTableHeaderLabel>
-            </TableHead>
-            <TableHead>
-              <DataTableHeaderLabel>{t('stock-event.reason')}</DataTableHeaderLabel>
-            </TableHead>
-            <TableHead>
-              <DataTableHeaderLabel>{t('stock-event.quantity')}</DataTableHeaderLabel>
-            </TableHead>
-            <TableHead>
-              <DataTableHeaderLabel>
-                {t(
-                  confirmation
-                    ? 'stock-event-reverse.current-stock-on-hand'
-                    : 'stock-event.stock-on-hand',
-                )}
-              </DataTableHeaderLabel>
-            </TableHead>
-            {confirmation && (
-              <TableHead>
-                <DataTableHeaderLabel>
-                  {t('stock-event-reverse.new-stock-on-hand')}
-                </DataTableHeaderLabel>
-              </TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map(({ line, reason, comments, current, balance }, index) => (
-            <TableRow key={line.stockEventLineItemId ?? index}>
-              <TableCell>
-                <span className="whitespace-nowrap">
-                  <bdi>{line.orderable.fullProductName}</bdi>{' '}
-                  <bdi className="whitespace-nowrap">({line.orderable.productCode})</bdi>
-                </span>
-              </TableCell>
-              <TableCell>
-                <bdi className="whitespace-nowrap">
-                  {line.lot?.lotCode ?? t('stock-event.no-lot')}
-                </bdi>
-              </TableCell>
-              <TableCell>
-                <span className="whitespace-nowrap">
-                  {tableValue(namedWithFreeText(reason, comments))}
-                </span>
-              </TableCell>
-              <TableCell>
-                <span className="whitespace-nowrap" dir="ltr">
-                  {quantity(line.quantity, line)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <span className="whitespace-nowrap" dir="ltr">
-                  {quantity(current, line)}
-                </span>
-              </TableCell>
-              {confirmation && (
-                <TableCell>
-                  <span className="whitespace-nowrap" dir="ltr">
-                    {quantity(balance, line)}
+    <div ref={measure}>
+      {cards ? (
+        <div className="flex flex-col gap-4">
+          {unavailable && (
+            <p className="text-muted-foreground text-sm">
+              {t('stock-event-reverse.summary-unavailable')}
+            </p>
+          )}
+          <CardList>
+            {rows.map(({ line, reason, comments, current, balance }, index) => (
+              <CardListItem key={line.stockEventLineItemId ?? index}>
+                <CardBand>
+                  <span className="min-w-0 wrap-anywhere">
+                    <bdi>
+                      {line.orderable.fullProductName} ({line.orderable.productCode})
+                    </bdi>
                   </span>
-                </TableCell>
-              )}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataTableCard>
+                </CardBand>
+                <CardRows>
+                  <SettingsItem label={t('stock-event.lot-code')}>
+                    <bdi>{orEmpty(line.lot?.lotCode ?? t('stock-event.no-lot'))}</bdi>
+                  </SettingsItem>
+                  <SettingsItem label={t('stock-event.reason')}>
+                    <bdi>{orEmpty(namedWithFreeText(reason, comments))}</bdi>
+                  </SettingsItem>
+                  <SettingsItem label={t('stock-event.quantity')}>
+                    <bdi>{quantity(line.quantity, line) ?? EMPTY_VALUE}</bdi>
+                  </SettingsItem>
+                  <SettingsItem
+                    label={
+                      confirmation ? (
+                        t('stock-event-reverse.current-stock-on-hand')
+                      ) : (
+                        <strong>{t('stock-event.stock-on-hand')}</strong>
+                      )
+                    }
+                  >
+                    <bdi>
+                      {confirmation ? (
+                        (quantity(current, line) ?? EMPTY_VALUE)
+                      ) : (
+                        <strong>{quantity(current, line) ?? EMPTY_VALUE}</strong>
+                      )}
+                    </bdi>
+                  </SettingsItem>
+                  {confirmation && (
+                    <SettingsItem
+                      label={<strong>{t('stock-event-reverse.new-stock-on-hand')}</strong>}
+                    >
+                      <bdi>
+                        <strong>{quantity(balance, line) ?? EMPTY_VALUE}</strong>
+                      </bdi>
+                    </SettingsItem>
+                  )}
+                </CardRows>
+              </CardListItem>
+            ))}
+          </CardList>
+        </div>
+      ) : (
+        <DataTableCard>
+          <Table density="default" layout="auto">
+            {unavailable && (
+              <TableCaption>{t('stock-event-reverse.summary-unavailable')}</TableCaption>
+            )}
+            <TableHeader surface="muted">
+              <TableRow>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('stock-event.product')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('stock-event.lot-code')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('stock-event.reason')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('stock-event.quantity')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>
+                    {t(
+                      confirmation
+                        ? 'stock-event-reverse.current-stock-on-hand'
+                        : 'stock-event.stock-on-hand',
+                    )}
+                  </DataTableHeaderLabel>
+                </TableHead>
+                {confirmation && (
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('stock-event-reverse.new-stock-on-hand')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(({ line, reason, comments, current, balance }, index) => (
+                <TableRow key={line.stockEventLineItemId ?? index}>
+                  <TableCell>
+                    <span className="whitespace-nowrap">
+                      <bdi>{line.orderable.fullProductName}</bdi>{' '}
+                      <bdi className="whitespace-nowrap">({line.orderable.productCode})</bdi>
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <bdi className="whitespace-nowrap">
+                      {line.lot?.lotCode ?? t('stock-event.no-lot')}
+                    </bdi>
+                  </TableCell>
+                  <TableCell>
+                    <span className="whitespace-nowrap">
+                      {tableValue(namedWithFreeText(reason, comments))}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="whitespace-nowrap" dir="ltr">
+                      {quantity(line.quantity, line)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="whitespace-nowrap" dir="ltr">
+                      {quantity(current, line)}
+                    </span>
+                  </TableCell>
+                  {confirmation && (
+                    <TableCell>
+                      <span className="whitespace-nowrap" dir="ltr">
+                        {quantity(balance, line)}
+                      </span>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DataTableCard>
+      )}
+    </div>
   );
 }
