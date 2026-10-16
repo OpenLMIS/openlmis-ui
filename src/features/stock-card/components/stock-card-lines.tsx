@@ -7,9 +7,8 @@ import {
   CardBand,
   CardList,
   CardListItem,
-  CardRowSkeleton,
+  CardListSkeleton,
   CardRows,
-  SkeletonBar,
 } from '@/components/card-list';
 import {
   DataTable,
@@ -19,10 +18,7 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import {
-  DataTablePagination,
-  DataTablePaginationSkeleton,
-} from '@/components/data-table/data-table-pagination';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
@@ -273,24 +269,20 @@ export function StockCardLines({
   const { t } = useTranslation();
   const lines = useMemo(() => toCardLines(card.lineItems), [card.lineItems]);
   const columns = useLineColumns(card.orderable.netContent, unit, eventSearch);
+  const { pageIndex, pageSize } = toPaginationState(cardTableSearch(search));
+  const pageCount = Math.max(1, Math.ceil(lines.length / pageSize));
+  const clampedIndex = Math.min(pageIndex, pageCount - 1);
+  const pageStart = usePageStart<HTMLUListElement>(`${clampedIndex}:${pageSize}`, cards);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
     (update) =>
-      onSearchChange(
-        (previous) => changeCardPaging(previous, update),
-        false,
-        cards ? { resetScroll: false } : undefined,
-      ),
-    [onSearchChange, cards],
+      onSearchChange((previous) => changeCardPaging(previous, update), false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
   );
   const searchState = useTableSearchState({
     search: cardTableSearch(search),
     defaultSort: NO_SORT,
     onSearchChange: onTableSearchChange,
   });
-  const { pageIndex, pageSize } = toPaginationState(cardTableSearch(search));
-  const pageCount = Math.max(1, Math.ceil(lines.length / pageSize));
-  const clampedIndex = Math.min(pageIndex, pageCount - 1);
-  const pageStart = usePageStart<HTMLUListElement>(`${clampedIndex}:${pageSize}`);
   const rows = useMemo(
     () => lines.slice(clampedIndex * pageSize, (clampedIndex + 1) * pageSize),
     [lines, clampedIndex, pageSize],
@@ -305,10 +297,7 @@ export function StockCardLines({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: (updater) => {
-      if (cards) pageStart.request();
-      searchState.onPaginationChange(updater);
-    },
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   useEffect(() => {
@@ -342,8 +331,6 @@ export function StockCardLines({
   return <DataTable table={table} empty={empty} footer={footer} density="default" layout="auto" />;
 }
 
-const SKELETON_CARDS = ['a', 'b', 'c'];
-
 export function StockCardLinesSkeleton({
   cards,
   search,
@@ -364,22 +351,10 @@ export function StockCardLinesSkeleton({
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
   if (cards) {
     return (
-      <CardList footer={<DataTablePaginationSkeleton />}>
-        {SKELETON_CARDS.slice(0, rowCount).map((id) => (
-          <CardListItem key={id}>
-            <CardBand>
-              <SkeletonBar width="w-24" />
-            </CardBand>
-            <CardRows>
-              {CARD_ROWS.filter(([column]) => columnVisibility[column] !== false).map(
-                ([column]) => (
-                  <CardRowSkeleton key={column} />
-                ),
-              )}
-            </CardRows>
-          </CardListItem>
-        ))}
-      </CardList>
+      <CardListSkeleton
+        count={Math.min(3, rowCount)}
+        rows={CARD_ROWS.filter(([column]) => columnVisibility[column] !== false).length}
+      />
     );
   }
   return <DataTableSkeleton table={table} rowCount={rowCount} density="default" layout="auto" />;

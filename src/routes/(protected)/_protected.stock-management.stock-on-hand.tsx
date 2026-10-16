@@ -3,14 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import {
-  CONTAINER_WIDTHS,
-  useColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -55,10 +49,10 @@ import {
   toSummariesQuery,
 } from '@/features/stock-on-hand/lib/search';
 import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
+import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
@@ -122,19 +116,17 @@ function StockOnHandHeader() {
   );
 }
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
-type ColumnView = ReturnType<typeof useColumnVisibility> & { cards: boolean };
+type ColumnView = ReturnType<typeof useCardView>['columnView'] & {
+  cards: boolean;
+  layout: 'cards' | 'table';
+};
 
 function useColumnView() {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     STOCK_HIDEABLE_COLUMNS,
-    useStoredState('stock-on-hand.column-visibility', columnChoicesSchema, {}),
-    cards ? undefined : width,
+    'stock-on-hand.column-visibility',
   );
-  return [measure, { ...columnView, cards }] as const;
+  return [measure, { ...columnView, cards, layout }] as const;
 }
 
 function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
@@ -143,7 +135,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
     <div>
       <DataTableViewOptions
         columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-        layout={columnView.cards ? 'cards' : 'table'}
+        layout={columnView.layout}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
         visibility={columnView.visibility}

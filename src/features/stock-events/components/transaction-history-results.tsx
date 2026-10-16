@@ -5,6 +5,14 @@ import { HistoryIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
@@ -14,7 +22,9 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatTimestamp } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {
@@ -26,7 +36,8 @@ import {
 } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { tableValue } from '@/lib/empty-value';
+import { usePageStart } from '@/hooks/use-page-start';
+import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const NO_SORT = { id: 'date', desc: true };
@@ -45,19 +56,26 @@ const COLUMNS = [
 ] as const;
 
 export const EVENT_HIDEABLE_COLUMNS = [
-  { id: 'type', labelKey: 'transaction-history.type', hideBelow: 440 },
-  { id: 'date', labelKey: 'transaction-history.date', hideBelow: 320 },
-  { id: 'entriesCount', labelKey: 'transaction-history.entries-count', hideBelow: 640 },
+  { id: 'type', labelKey: 'transaction-history.type' },
+  { id: 'date', labelKey: 'transaction-history.date' },
+  { id: 'entriesCount', labelKey: 'transaction-history.entries-count' },
   { id: 'performedBy', labelKey: 'transaction-history.performed-by', hideBelow: 768 },
   { id: 'signature', labelKey: 'transaction-history.signature', hideBelow: 896 },
 ] as const;
 
 type CellId = (typeof COLUMNS)[number][0];
+const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'documentNumber');
 
-function Wrapped({ children }: { children: string | number | null | undefined }) {
+function Wrapped({
+  children,
+  empty,
+}: {
+  children: string | number | null | undefined;
+  empty?: string;
+}) {
   return (
     <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{tableValue(children)}</bdi>
+      <bdi>{tableValue(children) ?? empty}</bdi>
     </span>
   );
 }
@@ -76,39 +94,41 @@ function EventCell({
   id,
   event,
   eventDay,
+  empty,
 }: {
   id: CellId;
   event: StockEventSummary;
   eventDay: EventDay;
+  empty?: string;
 }) {
   const { t, i18n } = useTranslation();
   switch (id) {
     case 'documentNumber':
       return (
         <span className="whitespace-nowrap">
-          <bdi>{tableValue(event.documentNumber)}</bdi>
+          <bdi>{tableValue(event.documentNumber) ?? empty}</bdi>
         </span>
       );
     case 'type': {
       const key = eventTypeKey(event.type);
-      return <Wrapped>{key && t(key)}</Wrapped>;
+      return <Wrapped empty={empty}>{key && t(key)}</Wrapped>;
     }
     case 'date':
       return (
         <span className="whitespace-nowrap">
-          <bdi>{tableValue(eventDay(event.processedDate))}</bdi>
+          <bdi>{tableValue(eventDay(event.processedDate)) ?? empty}</bdi>
         </span>
       );
     case 'entriesCount':
       return (
         <span className="tabular-nums">
-          {tableValue(event.entriesCount?.toLocaleString(i18n.language))}
+          <bdi>{tableValue(event.entriesCount?.toLocaleString(i18n.language)) ?? empty}</bdi>
         </span>
       );
     case 'performedBy':
-      return <Wrapped>{event.username}</Wrapped>;
+      return <Wrapped empty={empty}>{event.username}</Wrapped>;
     case 'signature':
-      return <Wrapped>{event.signature}</Wrapped>;
+      return <Wrapped empty={empty}>{event.signature}</Wrapped>;
   }
 }
 
@@ -116,9 +136,11 @@ function ViewEvent({
   event,
   search,
   eventDay,
+  disabled,
 }: {
   event: StockEventSummary;
   search: TransactionHistorySearch;
+  disabled: boolean;
   eventDay: EventDay;
 }) {
   const { t } = useTranslation();
@@ -126,6 +148,7 @@ function ViewEvent({
   return (
     <Button
       aria-label={t('transaction-history.view-event', { document })}
+      disabled={disabled}
       nativeButton={false}
       render={
         <Link
@@ -141,7 +164,7 @@ function ViewEvent({
   );
 }
 
-function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay) {
+function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay, stale: boolean) {
   const { t } = useTranslation();
   return useMemo(
     () =>
@@ -158,14 +181,50 @@ function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay) {
           header: () => (
             <DataTableHeaderLabel>{t('transaction-history.actions')}</DataTableHeaderLabel>
           ),
-          cell: ({ row }) => <ViewEvent event={row.original} eventDay={eventDay} search={search} />,
+          cell: ({ row }) => (
+            <ViewEvent disabled={stale} event={row.original} eventDay={eventDay} search={search} />
+          ),
         }),
       ]),
-    [t, search, eventDay],
+    [t, search, eventDay, stale],
+  );
+}
+
+function EventCard({
+  event,
+  search,
+  columns,
+  eventDay,
+  stale,
+}: {
+  event: StockEventSummary;
+  search: TransactionHistorySearch;
+  columns: ColumnVisibilityState;
+  eventDay: EventDay;
+  stale: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <CardListItem>
+      <CardBand>
+        <div className="min-w-0 wrap-anywhere">
+          <bdi>{event.documentNumber || eventDay(event.processedDate)}</bdi>
+        </div>
+        <ViewEvent disabled={stale} event={event} eventDay={eventDay} search={search} />
+      </CardBand>
+      <CardRows>
+        {CARD_ROWS.filter(([id]) => columns[id] !== false).map(([id, key]) => (
+          <SettingsItem key={id} label={t(key)}>
+            <EventCell empty={EMPTY_VALUE} event={event} eventDay={eventDay} id={id} />
+          </SettingsItem>
+        ))}
+      </CardRows>
+    </CardListItem>
   );
 }
 
 type ResultsProps = {
+  cards: boolean;
   search: TransactionHistorySearch;
   facilityId: string;
   programId: string;
@@ -174,25 +233,34 @@ type ResultsProps = {
 };
 
 function useEventsTable({
+  cards,
   data,
   rowCount,
   search,
   columns,
   onSearchChange,
-  timeZone,
-}: Pick<ResultsProps, 'search' | 'columns' | 'onSearchChange'> & {
+  eventDay,
+  stale,
+}: Pick<ResultsProps, 'cards' | 'search' | 'columns' | 'onSearchChange'> & {
   data: StockEventSummary[];
   rowCount: number;
-  timeZone?: string;
+  eventDay: EventDay;
+  stale: boolean;
 }) {
-  const columnDefs = useEventColumns(search, useEventDay(timeZone));
+  const columnDefs = useEventColumns(search, eventDay, stale);
+  const { pageIndex, pageSize } = toPaginationState(search, EVENTS_PAGE_SIZE);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onPageChange = useCallback<SearchChange<TransactionHistorySearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: NO_SORT,
     defaultPageSize: EVENTS_PAGE_SIZE,
-    onSearchChange,
+    onSearchChange: onPageChange,
   });
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns: columnDefs,
     data,
@@ -202,11 +270,14 @@ function useEventsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility: columns },
   });
+  return { table, pageStart };
 }
 
 export function TransactionHistoryResults({
+  cards,
   search,
   facilityId,
   programId,
@@ -218,13 +289,17 @@ export function TransactionHistoryResults({
   const { data: page } = useSuspenseQuery(
     stockEventsOptions(toEventsQuery(deferredSearch, { facilityId, programId })),
   );
-  const table = useEventsTable({
+  const eventDay = useEventDay(useDeploymentTimeZone());
+  const isStale = search !== deferredSearch;
+  const { table, pageStart } = useEventsTable({
+    cards,
     data: page.content,
     rowCount: page.totalElements,
     search: deferredSearch,
     columns,
     onSearchChange,
-    timeZone: useDeploymentTimeZone(),
+    eventDay,
+    stale: isStale,
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 
@@ -253,12 +328,34 @@ export function TransactionHistoryResults({
     />
   );
 
+  const footer = !isPastLastPage && page.totalElements > 0 && <DataTablePagination table={table} />;
+  if (cards) {
+    return (
+      <CardList
+        busy={isStale}
+        empty={page.totalElements === 0 && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+      >
+        {page.content.map((event) => (
+          <EventCard
+            stale={isStale}
+            columns={columns}
+            event={event}
+            eventDay={eventDay}
+            key={event.id}
+            search={deferredSearch}
+          />
+        ))}
+      </CardList>
+    );
+  }
   return (
     <DataTable
       density="default"
       empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && page.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
+      footer={footer}
+      isStale={isStale}
       layout="auto"
       table={table}
     />
@@ -266,22 +363,36 @@ export function TransactionHistoryResults({
 }
 
 export function TransactionHistoryResultsSkeleton({
+  cards,
   search,
   columns,
-}: Pick<ResultsProps, 'search' | 'columns'>) {
-  const table = useEventsTable({
+}: Pick<ResultsProps, 'cards' | 'search' | 'columns'>) {
+  const { table } = useEventsTable({
+    cards: false,
+    eventDay: useEventDay(undefined),
     data: NO_EVENTS,
     rowCount: 0,
     search,
     columns,
     onSearchChange: noop,
+    stale: false,
   });
-  return (
-    <DataTableSkeleton
-      density="default"
-      layout="auto"
-      rowCount={toPaginationState(search, EVENTS_PAGE_SIZE).pageSize}
-      table={table}
-    />
-  );
+  const rowCount = toPaginationState(search, EVENTS_PAGE_SIZE).pageSize;
+  if (cards) {
+    return (
+      <CardListSkeleton
+        count={Math.min(3, rowCount)}
+        rows={CARD_ROWS.filter(([column]) => columns[column] !== false).length}
+        band={
+          <>
+            <SkeletonBar width="w-24" />
+            <div className="h-7 w-16">
+              <Skeleton fill />
+            </div>
+          </>
+        }
+      />
+    );
+  }
+  return <DataTableSkeleton density="default" layout="auto" rowCount={rowCount} table={table} />;
 }

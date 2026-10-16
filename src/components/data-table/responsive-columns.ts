@@ -30,7 +30,7 @@ export function useElementWidth<T extends HTMLElement>() {
 
   useLayoutEffect(() => {
     if (!element) return;
-    setWidth(element.getBoundingClientRect().width);
+    setWidth(element.offsetWidth || element.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setWidth(entry.contentRect.width);
     });

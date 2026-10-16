@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { useCallback, useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
 import { cancelStockEvent, fetchEventStockOnHand } from '@/features/stock-events/api/api';
@@ -17,11 +18,12 @@ import type {
   StockEventLine,
   StockEventLineReason,
 } from '@/features/stock-events/lib/types';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 import type { SearchChange } from '@/lib/table-search';
 
 vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
-  useElementWidth: () => [vi.fn(), 944],
+  useElementWidth: vi.fn(() => [vi.fn(), 944]),
 }));
 vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
@@ -38,6 +40,7 @@ vi.mock('@/features/stock-events/api/api', () => ({
 }));
 vi.mock('@/features/reference-data/api/api', () => ({ fetchReasons: vi.fn() }));
 beforeEach(() => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 944]);
   useLoginData.setState({ referenceDataUserId: 'user' });
   vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
 });
@@ -381,6 +384,14 @@ it('marks overlong comments without visible field text and focuses after Close',
   await waitFor(() => expect(comments).toHaveFocus());
 });
 
+it('keeps the table with Lot Code and Reversed from the card width up', () => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 672]);
+  editor();
+  const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
+  expect(headers).toContain('stock-event.lot-code');
+  expect(headers).toContain('stock-event-reverse.reversed');
+});
+
 it('shows every reverse column at laptop content width with the sidebar open', () => {
   editor();
   expect(screen.getAllByRole('columnheader')).toHaveLength(14);
@@ -441,28 +452,32 @@ it('links comments and stock validation marks to their controls', async () => {
     document.getElementById(balance?.getAttribute('aria-describedby') ?? ''),
   ).toHaveTextContent('stock-event-reverse.negative-stock');
 });
-it('links a server line error and focuses its Reverse checkbox', async () => {
-  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
-    isAxiosError: true,
-    response: {
-      status: 400,
-      data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
-    },
-  });
-  editor();
-  await tick();
-  await pick();
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  await closeAlert();
-  expect(await screen.findByText('Line refused')).toBeVisible();
-  const checkbox = screen.getAllByRole('checkbox')[0];
-  expect(
-    document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
-  ).toHaveTextContent('Line refused');
-  await waitFor(() => expect(checkbox).toHaveFocus());
-});
+it.each([944, 350])(
+  'links a server line error and focuses its Reverse checkbox at content width %i',
+  async (width) => {
+    vi.mocked(useElementWidth).mockReturnValue([vi.fn(), width]);
+    vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
+      },
+    });
+    editor();
+    await tick();
+    await pick();
+    await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+    await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+    await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+    await closeAlert();
+    expect(await screen.findByText('Line refused')).toBeVisible();
+    const checkbox = screen.getAllByRole('checkbox')[0];
+    expect(
+      document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
+    ).toHaveTextContent('Line refused');
+    await waitFor(() => expect(checkbox).toHaveFocus());
+  },
+);
 
 it('drops comments when the new reason disallows them', async () => {
   editor();
@@ -525,4 +540,65 @@ it('hides selected balances while refreshing current stock', async () => {
   expect(balance.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
   await act(async () => resolveStock({ 'o/': 0 }));
   await waitFor(() => expect(balance).toHaveTextContent('20'));
+});
+
+it('edits a phone card and focuses its invalid reason after Close', async () => {
+  const user = userEvent.setup();
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  editor();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  const card = screen.getByText('Vaccine (C1)').closest('li');
+  if (!card) throw new Error('Missing line card');
+  expect(within(card).getByRole('combobox', { name: 'stock-events.field-of' })).toBeDisabled();
+  expect(within(card).getByText(EMPTY_VALUE, { selector: 'div' })).toBeInTheDocument();
+  await user.click(within(card).getByText('Vaccine (C1)'));
+  expect(within(card).getByRole('checkbox')).toBeChecked();
+  expect(within(card).getByText('stock-event-reverse.cancel-reason')).toBeVisible();
+  expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
+  await waitFor(() => expect(document.getElementById('balance-line')).toHaveTextContent('50'));
+  await user.click(screen.getByRole('button', { name: 'View' }));
+  expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole('menuitemcheckbox', { name: 'stock-event.lot-code' }));
+  await user.keyboard('{Escape}');
+  expect(within(card).queryByText('stock-event.lot-code')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  await waitFor(() => expect(trigger).toHaveFocus());
+  await pick();
+  expect(trigger).toHaveTextContent('Cancelled issue');
+  expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
+  expect(within(card).getByRole('textbox', { name: 'stock-events.field-of' })).toBeVisible();
+});
+
+it('opens a phone page at its first card', async () => {
+  const user = userEvent.setup();
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  const onSearchChange = vi.fn();
+  editor({}, true, { more: Array.from({ length: 10 }, () => ({})), onSearchChange });
+  await user.click(screen.getByRole('button', { name: 'Page 2' }));
+  await waitFor(() => expect(screen.getByRole('list')).toHaveFocus());
+  expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(1);
+  expect(onSearchChange).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
+    resetScroll: false,
+  });
+});
+
+it('shows the resulting stock on hand in phone confirmation cards', async () => {
+  const user = userEvent.setup();
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  editor();
+  await tick();
+  await pick();
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).queryByRole('table')).not.toBeInTheDocument();
+  const card = within(dialog).getByRole('listitem');
+  expect(within(card).getByText('Vaccine (C1)')).toBeVisible();
+  expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
+  expect(within(card).getByText('50')).toBeVisible();
 });

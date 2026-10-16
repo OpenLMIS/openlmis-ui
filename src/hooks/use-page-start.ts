@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react';
+import type { OnChangeFn, PaginationState } from '@tanstack/react-table';
+import { useEffect, useRef } from 'react';
 
-export function usePageStart<T extends HTMLElement>(page: string) {
+const CARD_NAVIGATION = { resetScroll: false };
+
+export function usePageStart<T extends HTMLElement>(page: string, cards: boolean) {
   const ref = useRef<T>(null);
   const shown = useRef(page);
   const requested = useRef(false);
@@ -12,8 +15,14 @@ export function usePageStart<T extends HTMLElement>(page: string) {
     ref.current?.scrollIntoView?.({ block: 'start' });
     ref.current?.focus({ preventScroll: true });
   }, [page]);
-  const request = useCallback(() => {
-    requested.current = true;
-  }, []);
-  return { ref, request };
+  return {
+    ref,
+    navigation: cards ? CARD_NAVIGATION : undefined,
+    onPaginationChange:
+      (original: OnChangeFn<PaginationState>): OnChangeFn<PaginationState> =>
+      (updater) => {
+        if (cards) requested.current = true;
+        original(updater);
+      },
+  };
 }
