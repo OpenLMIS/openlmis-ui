@@ -48,3 +48,18 @@ it('sends original CSV bytes as a multipart file with only its extension normali
   expect(file.name).toBe('Current Amounts.CSV');
   expect(new Uint8Array(await readBytes(uploaded))).toEqual(bytes);
 });
+
+it.each([{}, '<html>proxy login</html>'])(
+  'rejects a malformed successful upload response (%j)',
+  async (data) => {
+    client.defaults.adapter = async (config) => ({
+      data,
+      status: 200,
+      statusText: 'OK',
+      headers: { 'content-type': typeof data === 'string' ? 'text/html' : 'application/json' },
+      config,
+    });
+
+    await expect(uploadIdealStockAmounts(new File(['header'], 'values.csv'))).rejects.toThrow();
+  },
+);

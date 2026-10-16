@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
-export type IdealStockAmountsUploadResult = {
-  amount: number;
-};
+export const idealStockAmountsUploadResultSchema = z.object({
+  amount: z.number().int().nonnegative(),
+});
+
+export type IdealStockAmountsUploadResult = z.infer<typeof idealStockAmountsUploadResultSchema>;
 
 export const idealStockAmountsUploadSchema = z.object({
   file: z
