@@ -42,7 +42,7 @@ export function WorkspaceHeader({ children }: WorkspaceProps) {
   );
 }
 
-// With an icon, the icon spans both text rows; without one, the heading is a single column.
+// Phones show only the title, centred on the icon; the description stays for screen readers.
 export function WorkspaceHeading({ children }: WorkspaceProps) {
   return (
     <div className="grid min-w-0 content-start gap-y-1 has-data-[slot=workspace-icon]:grid-cols-label-value has-data-[slot=workspace-icon]:gap-x-3">
@@ -54,7 +54,7 @@ export function WorkspaceHeading({ children }: WorkspaceProps) {
 export function WorkspaceIcon({ children }: WorkspaceProps) {
   return (
     <div
-      className="row-span-2 flex size-10 items-center justify-center self-center rounded-lg border bg-card text-muted-foreground shadow-xs [&_svg]:size-5"
+      className="flex size-10 items-center justify-center self-center rounded-lg border bg-card text-muted-foreground shadow-xs @xl/main:row-span-2 [&_svg]:size-5"
       data-slot="workspace-icon"
     >
       {children}
@@ -64,13 +64,15 @@ export function WorkspaceIcon({ children }: WorkspaceProps) {
 
 export function WorkspaceTitle({ children }: WorkspaceProps) {
   return (
-    <h1 className="font-heading font-semibold text-xl leading-none tracking-tight">{children}</h1>
+    <h1 className="self-center font-heading font-semibold text-xl leading-none tracking-tight">
+      {children}
+    </h1>
   );
 }
 
 export function WorkspaceDescription({ children }: WorkspaceProps) {
   return (
-    <p className="min-w-0 break-words text-muted-foreground text-sm @2xl/main:truncate">
+    <p className="sr-only min-w-0 break-words text-muted-foreground text-sm @xl/main:not-sr-only @2xl/main:truncate">
       {children}
     </p>
   );
