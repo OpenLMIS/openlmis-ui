@@ -551,10 +551,8 @@ function StockLotDetails({
   const { t } = useTranslation();
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 border-y bg-muted/50 px-4 py-2">
-        <div className="min-w-0 wrap-anywhere text-start font-semibold text-sm">
-          {text.lotLabel(card)}
-        </div>
+      <div className="flex min-h-12 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-2">
+        <div className="min-w-0 wrap-anywhere font-semibold text-sm">{text.lotLabel(card)}</div>
         {card.stockCardId && (
           <StockCardView
             variant="outline"
@@ -702,7 +700,7 @@ export function StockOnHandResultsSkeleton({
                   <ul>
                     {product.cards.map((card) => (
                       <li key={card}>
-                        <div className="flex items-center justify-between gap-4 border-y bg-muted/50 px-4 py-2">
+                        <div className="flex min-h-12 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-2">
                           {bar('w-20')}
                           <div className="h-8 w-16">
                             <Skeleton fill />
