@@ -10,6 +10,7 @@ export const RIGHTS = {
   cceInventoryView: 'CCE_INVENTORY_VIEW',
   facilitiesManage: 'FACILITIES_MANAGE',
   supervisoryNodesManage: 'SUPERVISORY_NODES_MANAGE',
+  supplyPartnersManage: 'SUPPLY_PARTNERS_MANAGE',
   programsManage: 'PROGRAMS_MANAGE',
   processingSchedulesManage: 'PROCESSING_SCHEDULES_MANAGE',
   usersManage: 'USERS_MANAGE',

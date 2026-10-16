@@ -17,3 +17,17 @@ export function matchesNameOrCode(item: { name: string | null; code: string }, s
   const text = search.toLowerCase();
   return (item.name ?? '').toLowerCase().includes(text) || item.code.toLowerCase().startsWith(text);
 }
+
+export const supplyPartnerEditSearchSchema = tableSearchSchema(['name'])
+  .omit({ sort: true, dir: true })
+  .extend({
+    view: z.enum(['facilities', 'products']).optional().catch(undefined),
+    viewAssociation: z.string().optional().catch(undefined),
+    listPage: z.number().int().min(1).optional().catch(undefined),
+    listSize: z.number().int().min(1).max(100).optional().catch(undefined),
+  });
+export type SupplyPartnerEditSearch = z.infer<typeof supplyPartnerEditSearchSchema>;
+export const supplyPartnerListSearch = (search: SupplyPartnerEditSearch): SupplyPartnersSearch => ({
+  page: search.listPage,
+  size: search.listSize,
+});
