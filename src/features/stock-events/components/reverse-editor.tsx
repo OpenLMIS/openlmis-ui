@@ -518,7 +518,9 @@ export function ReverseEditor({
                   <DataTableViewOptions
                     {...columnView}
                     layout={cards ? 'cards' : 'table'}
-                    columns={REVERSE_HIDEABLE_COLUMNS.map((column) => ({
+                    columns={REVERSE_HIDEABLE_COLUMNS.filter(
+                      (column) => !cards || column.id !== 'code',
+                    ).map((column) => ({
                       id: column.id,
                       label: t(column.labelKey),
                     }))}
@@ -530,6 +532,7 @@ export function ReverseEditor({
                 pendingFallback={
                   cards ? (
                     <ReverseCardsSkeleton
+                      count={size}
                       visible={(id) => table.getColumn(id)?.getIsVisible() !== false}
                     />
                   ) : (
@@ -1034,10 +1037,18 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
   );
 }
 
-function ReverseCardsSkeleton({ visible }: { visible: (id: string) => boolean }) {
+const SKELETON_CARDS = ['a', 'b', 'c'];
+
+function ReverseCardsSkeleton({
+  count,
+  visible,
+}: {
+  count: number;
+  visible: (id: string) => boolean;
+}) {
   return (
     <CardList footer={<DataTablePaginationSkeleton />}>
-      {['a', 'b', 'c'].map((id) => (
+      {SKELETON_CARDS.slice(0, count).map((id) => (
         <CardListItem key={id}>
           <CardBand>
             <div className="flex items-center gap-3">

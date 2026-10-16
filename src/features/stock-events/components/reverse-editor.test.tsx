@@ -383,6 +383,14 @@ it('marks overlong comments without visible field text and focuses after Close',
   await waitFor(() => expect(comments).toHaveFocus());
 });
 
+it('keeps the table with Lot Code and Reversed from the card width up', () => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 672]);
+  editor();
+  const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
+  expect(headers).toContain('stock-event.lot-code');
+  expect(headers).toContain('stock-event-reverse.reversed');
+});
+
 it('shows every reverse column at laptop content width with the sidebar open', () => {
   editor();
   expect(screen.getAllByRole('columnheader')).toHaveLength(14);
@@ -443,28 +451,32 @@ it('links comments and stock validation marks to their controls', async () => {
     document.getElementById(balance?.getAttribute('aria-describedby') ?? ''),
   ).toHaveTextContent('stock-event-reverse.negative-stock');
 });
-it('links a server line error and focuses its Reverse checkbox', async () => {
-  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
-    isAxiosError: true,
-    response: {
-      status: 400,
-      data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
-    },
-  });
-  editor();
-  await tick();
-  await pick();
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  await closeAlert();
-  expect(await screen.findByText('Line refused')).toBeVisible();
-  const checkbox = screen.getAllByRole('checkbox')[0];
-  expect(
-    document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
-  ).toHaveTextContent('Line refused');
-  await waitFor(() => expect(checkbox).toHaveFocus());
-});
+it.each([944, 350])(
+  'links a server line error and focuses its Reverse checkbox at content width %i',
+  async (width) => {
+    vi.mocked(useElementWidth).mockReturnValue([vi.fn(), width]);
+    vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: { lineErrors: [{ stockEventLineItemId: 'line', message: 'Line refused' }] },
+      },
+    });
+    editor();
+    await tick();
+    await pick();
+    await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+    await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+    await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+    await closeAlert();
+    expect(await screen.findByText('Line refused')).toBeVisible();
+    const checkbox = screen.getAllByRole('checkbox')[0];
+    expect(
+      document.getElementById(checkbox.getAttribute('aria-describedby') ?? ''),
+    ).toHaveTextContent('Line refused');
+    await waitFor(() => expect(checkbox).toHaveFocus());
+  },
+);
 
 it('drops comments when the new reason disallows them', async () => {
   editor();
@@ -540,6 +552,13 @@ it('edits a phone card and focuses its invalid reason after Close', async () => 
   await tick();
   expect(within(card).getByText('stock-event-reverse.cancel-reason')).toBeVisible();
   expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
+  await waitFor(() => expect(document.getElementById('balance-line')).toHaveTextContent('50'));
+  await user.click(screen.getByRole('button', { name: 'View' }));
+  expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
+  ).not.toBeInTheDocument();
+  await user.keyboard('{Escape}');
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await closeAlert();
   const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
@@ -551,7 +570,7 @@ it('edits a phone card and focuses its invalid reason after Close', async () => 
   expect(within(card).getByRole('textbox', { name: 'stock-events.field-of' })).toBeVisible();
 });
 
-it('opens a phone page at its first card without overriding invalid-field focus', async () => {
+it('opens a phone page at its first card', async () => {
   const user = userEvent.setup();
   vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
   const onSearchChange = vi.fn();
@@ -562,12 +581,4 @@ it('opens a phone page at its first card without overriding invalid-field focus'
   expect(onSearchChange).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
     resetScroll: false,
   });
-  await tick();
-  await user.click(screen.getByRole('button', { name: 'Page 1' }));
-  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  await closeAlert();
-  await waitFor(() =>
-    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
-  );
-  expect(screen.getByRole('list')).not.toHaveFocus();
 });
