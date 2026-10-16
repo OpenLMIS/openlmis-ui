@@ -255,9 +255,9 @@ edits, which have no prop for TypeScript to detect:
 |---|---|
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
-| `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
+| `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
-| `select.tsx` | Default `alignItemWithTrigger` to `false`; trigger text `text-base md:text-sm`, matching `Input` |
+| `select.tsx` | Default `alignItemWithTrigger` to `false` |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
