@@ -79,6 +79,17 @@ describe('resolveFlag', () => {
       source: 'default',
     });
   });
+
+  it('keeps population editing policy with the deployment when an administrator disagrees', () => {
+    expect(
+      resolveFlag(
+        'CATCHMENT_POPULATION_CALC_AUTO',
+        { CATCHMENT_POPULATION_CALC_AUTO: false },
+        { CATCHMENT_POPULATION_CALC_AUTO: 'true' },
+      ),
+    ).toEqual({ value: true, source: 'deployment' });
+    expect(ADMIN_FLAG_KEYS).not.toContain('CATCHMENT_POPULATION_CALC_AUTO');
+  });
 });
 
 describe('ADMIN_FLAG_KEYS', () => {

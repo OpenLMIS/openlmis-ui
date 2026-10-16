@@ -29,6 +29,14 @@ const QUANTITY_UNIT_KEYS = {
 } as const;
 
 export const FEATURE_FLAGS = {
+  CATCHMENT_POPULATION_CALC_AUTO: {
+    type: 'boolean',
+    default: false,
+    deploymentOnly: true,
+    labelKey: 'feature-flags.catchment-population-calc-auto.label',
+    descriptionKey: 'feature-flags.catchment-population-calc-auto.description',
+    usedByKey: 'feature-flags.catchment-population-calc-auto.used-by',
+  },
   BATCH_APPROVE_SCREEN: {
     type: 'boolean',
     default: false,

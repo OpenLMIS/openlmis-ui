@@ -19,6 +19,7 @@ import { Route as protectedProtectedProfileRouteImport } from './routes/(protect
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
+import { Route as protectedProtectedAdministrationGeographicZonesRouteImport } from './routes/(protected)/_protected.administration.geographic-zones'
 import { Route as protectedProtectedAdministrationLotsRouteImport } from './routes/(protected)/_protected.administration.lots'
 import { Route as protectedProtectedAdministrationProcessingSchedulesRouteImport } from './routes/(protected)/_protected.administration.processing-schedules'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
@@ -126,6 +127,12 @@ const protectedProtectedAdministrationFacilityTypesRoute =
   protectedProtectedAdministrationFacilityTypesRouteImport.update({
     id: '/administration/facility-types',
     path: '/administration/facility-types',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationGeographicZonesRoute =
+  protectedProtectedAdministrationGeographicZonesRouteImport.update({
+    id: '/administration/geographic-zones',
+    path: '/administration/geographic-zones',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationLotsRoute =
@@ -475,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
+  '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
@@ -539,6 +547,7 @@ export interface FileRoutesByTo {
   '/home': typeof protectedProtectedHomeRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
+  '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
@@ -606,6 +615,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
+  '/(protected)/_protected/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
   '/(protected)/_protected/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/(protected)/_protected/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
@@ -674,6 +684,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/administration/facilities'
     | '/administration/facility-types'
+    | '/administration/geographic-zones'
     | '/administration/lots'
     | '/administration/processing-schedules'
     | '/administration/products'
@@ -738,6 +749,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/administration/facilities'
     | '/administration/facility-types'
+    | '/administration/geographic-zones'
     | '/administration/lots'
     | '/administration/processing-schedules'
     | '/administration/products'
@@ -804,6 +816,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/settings'
     | '/(protected)/_protected/administration/facilities'
     | '/(protected)/_protected/administration/facility-types'
+    | '/(protected)/_protected/administration/geographic-zones'
     | '/(protected)/_protected/administration/lots'
     | '/(protected)/_protected/administration/processing-schedules'
     | '/(protected)/_protected/administration/products'
@@ -939,6 +952,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/facility-types'
       fullPath: '/administration/facility-types'
       preLoaderRoute: typeof protectedProtectedAdministrationFacilityTypesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/geographic-zones': {
+      id: '/(protected)/_protected/administration/geographic-zones'
+      path: '/administration/geographic-zones'
+      fullPath: '/administration/geographic-zones'
+      preLoaderRoute: typeof protectedProtectedAdministrationGeographicZonesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/lots': {
@@ -1400,6 +1420,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
+  protectedProtectedAdministrationGeographicZonesRoute: typeof protectedProtectedAdministrationGeographicZonesRoute
   protectedProtectedAdministrationLotsRoute: typeof protectedProtectedAdministrationLotsRoute
   protectedProtectedAdministrationProcessingSchedulesRoute: typeof protectedProtectedAdministrationProcessingSchedulesRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
@@ -1454,6 +1475,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilitiesRoute,
   protectedProtectedAdministrationFacilityTypesRoute:
     protectedProtectedAdministrationFacilityTypesRoute,
+  protectedProtectedAdministrationGeographicZonesRoute:
+    protectedProtectedAdministrationGeographicZonesRoute,
   protectedProtectedAdministrationLotsRoute:
     protectedProtectedAdministrationLotsRoute,
   protectedProtectedAdministrationProcessingSchedulesRoute:
