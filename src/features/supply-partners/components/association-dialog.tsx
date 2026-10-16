@@ -4,6 +4,7 @@ import type { ParseKeys } from 'i18next';
 import { BuildingIcon } from 'lucide-react';
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { DialogNotFound, ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
@@ -22,6 +23,15 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { ListError } from '@/components/list-error';
 import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Combobox,
@@ -57,6 +67,7 @@ import {
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isRefused } from '@/lib/http';
+import { formatIsolatedList } from '@/lib/isolate-values';
 
 const EMPTY: AssociationDraft = {
   programId: '',
@@ -170,7 +181,14 @@ function AssociationForm({
     supervisoryNodeId: opening.supervisoryNodeId || null,
   }));
   const [error, setError] = useState<ParseKeys | null>(null);
-  const [pruned, setPruned] = useState<string[]>([]);
+  const [removing, setRemoving] = useState<string>();
+  const confirmation = useDialogTarget(removing, () => setRemoving(undefined));
+  const removalTrigger = useRef<HTMLButtonElement | null>(null);
+  const removalConfirmed = useRef(false);
+  const removalSucceeded = useRef(false);
+  const facilityRegion = useRef<HTMLElement>(null);
+  const facilityHeading = useRef<HTMLHeadingElement>(null);
+  const cancelRemoval = useRef<HTMLButtonElement>(null);
   const programs = useQuery(programsOptions());
   const nodes = useQuery(supervisoryNodesOptions());
   const form = useAppForm({
@@ -238,6 +256,8 @@ function AssociationForm({
   const removal = useSessionMutation({
     mutationFn: (id: string) => {
       const association = toAssociationDraft(form.state.values.association);
+      if (!association.facilityIds.includes(id))
+        throw new Error('The selected facility is unavailable');
       const lookup = queryClient.getQueryState<Facility[]>(
         facilitiesByIdsOptions([...new Set(association.facilityIds)].sort()).queryKey,
       );
@@ -250,18 +270,20 @@ function AssociationForm({
         lookup?.status === 'success' && lookup.fetchStatus === 'idle',
       );
     },
-    onMutate: () => setPruned([]),
     onSuccess: (result) => {
+      const names = result.removedOrderableIds.map((id) => {
+        const item = refs.products.data?.find((product) => product.id === id);
+        return item?.fullProductName ?? item?.productCode ?? t('supply-partners.unavailable');
+      });
       form.setFieldValue('association', result.association);
-      setPruned(
-        result.removedOrderableIds.map(
-          (id) =>
-            refs.products.data?.find((item) => item.id === id)?.fullProductName ??
-            refs.products.data?.find((item) => item.id === id)?.productCode ??
-            t('supply-partners.unavailable'),
-        ),
-      );
+      if (names.length)
+        toast.info(t('supply-partners.products-removed', { count: names.length }), {
+          description: formatIsolatedList(names, i18n.language),
+        });
+      removalSucceeded.current = true;
+      confirmation.close();
     },
+    onError: () => confirmation.close(),
   });
   const busy = removal.isPending;
   const dirty = snapshot(draft) !== snapshot(opening);
@@ -279,7 +301,6 @@ function AssociationForm({
       facilityIds: [],
       orderableIds: [],
     });
-    setPruned([]);
     removal.reset();
     setError(null);
   };
@@ -290,6 +311,22 @@ function AssociationForm({
       facilityRecords.length === draft.facilityIds.length &&
       options.isSuccess,
   );
+  const canRemoveFacility = (id: string) => {
+    if (!facilityLookupReady || refs.products.isPending || !draft.facilityIds.includes(id))
+      return false;
+    if (draft.facilityIds.length === 1) return true;
+    if (!program) return false;
+    return (
+      !facilityRecords.some((item) => item.id === id) ||
+      draft.facilityIds.every(
+        (remainingId) =>
+          remainingId === id || facilityRecords.some((item) => item.id === remainingId),
+      )
+    );
+  };
+  const removalTarget = refs.facilities.data?.find((item) => item.id === confirmation.shown);
+  const removalName =
+    removalTarget?.name || removalTarget?.code || t('supply-partners.unavailable');
   const missingMembers = paired && !refs.complete;
   return (
     <FormDialogForm
@@ -373,16 +410,21 @@ function AssociationForm({
             </form.AppField>
           </div>
           {paired && <ReferenceStatus associations={[draft]} />}
-          <section className="flex flex-col gap-3" aria-labelledby="association-facilities">
+          <section
+            ref={facilityRegion}
+            className="flex flex-col gap-3"
+            aria-labelledby="association-facilities"
+          >
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1">
-                <h3 className="font-medium" id="association-facilities">
+                <h3
+                  ref={facilityHeading}
+                  tabIndex={-1}
+                  className="font-medium"
+                  id="association-facilities"
+                >
                   {t('supply-partners.facilities')}
                 </h3>
-                <FieldAbout
-                  label={t('supply-partners.facilities')}
-                  description={t('supply-partners.removal-warning')}
-                />
               </div>
               <p className="text-muted-foreground text-sm">
                 {t('supply-partners.facilities-note')}
@@ -425,14 +467,6 @@ function AssociationForm({
                 description={serverMessage(removal.error) ?? t('supply-partners.prune-error')}
               />
             )}
-            {pruned.length > 0 && (
-              <p role="status" className="text-sm">
-                {t('supply-partners.pruned', {
-                  count: pruned.length,
-                  products: new Intl.ListFormat(i18n.language).format(pruned),
-                })}
-              </p>
-            )}
             <AssociationMembersTable
               kind="facilities"
               pending={busy || refs.products.isPending || !facilityLookupReady}
@@ -446,15 +480,7 @@ function AssociationForm({
                       ? null
                       : t('supply-partners.unavailable'),
                   loading: !item && refs.facilities.isPending,
-                  removeDisabled:
-                    draft.facilityIds.length > 1 &&
-                    (!program ||
-                      (Boolean(item) &&
-                        draft.facilityIds.some(
-                          (remainingId) =>
-                            remainingId !== id &&
-                            !facilityRecords.some((facility) => facility.id === remainingId),
-                        ))),
+                  removeDisabled: !canRemoveFacility(id),
                   code: item?.code ?? '',
                   note:
                     canManageNodes &&
@@ -464,9 +490,11 @@ function AssociationForm({
                       : undefined,
                 };
               })}
-              onRemove={(id) => {
-                if (draft.facilityIds.length > 1 && !program) return;
-                void removal.mutateAsync(id).catch(() => undefined);
+              onRemove={(id, trigger) => {
+                if (busy || !canRemoveFacility(id)) return;
+                removalTrigger.current = trigger;
+                removalSucceeded.current = false;
+                setRemoving(id);
               }}
             />
           </section>
@@ -537,6 +565,57 @@ function AssociationForm({
           {t(editingKey ? 'supply-partners.save-association' : 'supply-partners.add-association')}
         </FormDialogSubmit>
       </FormDialogFooter>
+      <AlertDialog
+        {...confirmation.dialogProps(busy)}
+        onOpenChange={(open) => {
+          if (!open && !busy && !removalConfirmed.current) confirmation.close();
+        }}
+        onOpenChangeComplete={(open) => {
+          confirmation.dialogProps(busy).onOpenChangeComplete(open);
+          if (open) return;
+          const trigger = removalTrigger.current;
+          if (!removalSucceeded.current && trigger?.isConnected && !trigger.disabled)
+            trigger.focus();
+          else {
+            const picker = facilityRegion.current?.querySelector<HTMLInputElement>(
+              'input:not([type=hidden]):not(:disabled)',
+            );
+            (picker ?? facilityHeading.current)?.focus();
+          }
+        }}
+      >
+        <AlertDialogContent initialFocus={cancelRemoval} finalFocus={false}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('supply-partners.remove-item', { item: removalName })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{t('supply-partners.removal-warning')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel ref={cancelRemoval} disabled={busy}>
+              {t('dialog.cancel')}
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy || !confirmation.shown || !canRemoveFacility(confirmation.shown)}
+              focusableWhenDisabled={busy}
+              onClick={() => {
+                if (!confirmation.shown || busy || removalConfirmed.current) return;
+                removalConfirmed.current = true;
+                void removal
+                  .mutateAsync(confirmation.shown)
+                  .catch(() => {})
+                  .finally(() => {
+                    removalConfirmed.current = false;
+                  });
+              }}
+            >
+              {t('supply-partners.remove')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AssociationProductsDialog
         open={
           productsOpen &&

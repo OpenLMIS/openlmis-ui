@@ -23,7 +23,7 @@ const helper = createColumnHelper<DataTableFeatures, Member>();
 type MemberActions = {
   kind: 'facilities' | 'products';
   pending: boolean;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, trigger: HTMLButtonElement) => void;
 };
 const MemberActionsContext = createContext<MemberActions | null>(null);
 function MemberRemoveCell({ row }: CellContext<DataTableFeatures, Member, unknown>) {
@@ -47,7 +47,7 @@ function MemberRemoveCell({ row }: CellContext<DataTableFeatures, Member, unknow
                 : 'supply-partners.products',
             ),
         })}
-        onClick={() => actions.onRemove(row.original.id)}
+        onClick={(event) => actions.onRemove(row.original.id, event.currentTarget)}
       >
         <Trash2Icon />
       </Button>
@@ -63,7 +63,7 @@ export function AssociationMembersTable({
   rows: Member[];
   kind: 'facilities' | 'products';
   pending: boolean;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useTranslation();
   const columns = useMemo(

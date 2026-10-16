@@ -55,7 +55,7 @@ type Props = {
 export function AssociationProductsDialog({ open, onClose, ...props }: Props) {
   const { shown, close, dialogProps } = useDialogTarget(open ? 'products' : undefined, onClose);
   return (
-    <FormDialog {...dialogProps()} size="xl" height="fixed">
+    <FormDialog {...dialogProps()} size="table">
       {shown && (
         <ProductsForm
           {...props}
@@ -106,16 +106,29 @@ function ProductsForm({
         helper.accessor('productCode', {
           header: t('supply-partners.code'),
           meta: { className: 'w-28' },
-          cell: ({ getValue }) => <span dir="auto">{getValue()}</span>,
+          cell: ({ getValue }) => (
+            <span className="block whitespace-normal wrap-anywhere" dir="auto">
+              {getValue()}
+            </span>
+          ),
         }),
         helper.accessor('fullProductName', {
           header: t('supply-partners.product'),
-          cell: ({ getValue }) => <span dir="auto">{getValue()}</span>,
+          cell: ({ getValue }) => (
+            <span className="block whitespace-normal wrap-anywhere" dir="auto">
+              {getValue()}
+            </span>
+          ),
         }),
         helper.accessor((item) => item.dispensable?.displayUnit ?? '', {
           id: 'unit',
           header: t('supply-partners.unit'),
           meta: { className: 'w-32' },
+          cell: ({ getValue }) => (
+            <span className="block whitespace-normal wrap-anywhere" dir="auto">
+              {getValue()}
+            </span>
+          ),
         }),
       ]),
     [t],
@@ -152,6 +165,7 @@ function ProductsForm({
       <FormDialogBody layout="table">
         <div className="flex flex-col gap-4" ref={measure}>
           <search
+            className="w-full max-w-sm"
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
@@ -170,7 +184,6 @@ function ProductsForm({
           </search>
           <DataTable
             table={table}
-            layout="auto"
             empty={
               <DataTableEmpty
                 icon={<PackageSearchIcon />}
@@ -214,14 +227,18 @@ function ProductsForm({
               })}
             </div>
           )}
-          <p className="text-muted-foreground text-sm" role="status">
-            {t('supply-partners.selected-count', { count: picked.size })}
-          </p>
         </div>
       </FormDialogBody>
       <FormDialogFooter>
-        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
-        <FormDialogSubmit>{t('supply-partners.add-products')}</FormDialogSubmit>
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+          <p className="text-muted-foreground text-sm" role="status">
+            {t('supply-partners.selected-count', { count: picked.size })}
+          </p>
+          <div className="ms-auto flex max-w-full flex-wrap justify-end gap-2">
+            <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+            <FormDialogSubmit>{t('supply-partners.add-products')}</FormDialogSubmit>
+          </div>
+        </div>
       </FormDialogFooter>
     </FormDialogForm>
   );

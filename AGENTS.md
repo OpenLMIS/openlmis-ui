@@ -256,6 +256,7 @@ edits, which have no prop for TypeScript to detect:
 | File | Required customization |
 |---|---|
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
+| `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve native nested-open parent shrink, dim and blur styles with reduced-motion support |
 | `table.tsx` | Preserve TableRow `drag` with transform and transition from CSS custom properties |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
@@ -519,6 +520,10 @@ TanStack Table is **v9**: use `useTable` and `dataTableFeatures`, never v8 `useR
 Version-matched guides live in `node_modules/@tanstack/react-table/skills/`.
 
 ## Forms and dialogs
+
+Nested modals use the shared popup defaults: Base UI's `data-nested-dialog-open` slightly
+shrinks, dims and blurs the parent while its content stays mounted. Keep child portals sharp;
+do not add feature-specific offsets, clipping or hidden parent content. Respect reduced motion.
 
 **Choose the container:**
 

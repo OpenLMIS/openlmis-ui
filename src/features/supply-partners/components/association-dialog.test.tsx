@@ -253,6 +253,22 @@ it('requires a successful facility retry before sequential missing-member recove
   expect(within(association).getByRole('button', { name: 'Remove Facility Two' })).toBeDisabled();
   expect(within(association).getByRole('button', { name: 'Update Association' })).toBeDisabled();
   await user.click(missing[0]);
+  const confirmation = await screen.findByRole('alertdialog', { name: 'Remove Unavailable' });
+  expect(client.get).not.toHaveBeenCalled();
+  await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('alertdialog', { name: 'Remove Unavailable' }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(within(association).getAllByRole('button', { name: 'Remove Unavailable' })).toHaveLength(
+    2,
+  );
+  expect(within(association).getByText('Product Two')).toBeVisible();
+  expect(client.get).not.toHaveBeenCalled();
+  await user.click(within(association).getAllByRole('button', { name: 'Remove Unavailable' })[0]);
+  const confirmed = await screen.findByRole('alertdialog', { name: 'Remove Unavailable' });
+  await user.click(within(confirmed).getByRole('button', { name: 'Remove' }));
   await waitFor(() =>
     expect(within(association).getAllByRole('button', { name: 'Remove Unavailable' })).toHaveLength(
       1,
@@ -264,6 +280,8 @@ it('requires a successful facility retry before sequential missing-member recove
   expect(within(association).getByRole('button', { name: 'Remove Facility One' })).toBeDisabled();
   expect(client.get).not.toHaveBeenCalled();
   await user.click(within(association).getByRole('button', { name: 'Remove Unavailable' }));
+  const finalConfirmation = await screen.findByRole('alertdialog', { name: 'Remove Unavailable' });
+  await user.click(within(finalConfirmation).getByRole('button', { name: 'Remove' }));
   await waitFor(() =>
     expect(
       within(association).queryByRole('button', { name: 'Remove Unavailable' }),
