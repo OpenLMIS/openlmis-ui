@@ -81,7 +81,7 @@ function useCardLayout(lines: readonly StockCardLine[] = NO_LINES) {
   const columnView = useColumnVisibility(
     columns,
     useStoredState('stock-card.column-visibility', columnChoicesSchema, {}),
-    cards ? undefined : width,
+    width,
   );
   return { measure, columnView, cards };
 }

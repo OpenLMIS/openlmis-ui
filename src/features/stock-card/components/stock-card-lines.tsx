@@ -66,29 +66,6 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
 type CellId = (typeof COLUMNS)[number][0];
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'date');
 
-function hasValue(id: CellId, line: CardLineRow) {
-  switch (id) {
-    case 'receiveFrom':
-      return Boolean(line.source);
-    case 'issueTo':
-      return Boolean(line.destination);
-    case 'reason':
-      return Boolean(line.reason);
-    case 'performedBy':
-      return Boolean(line.username);
-    case 'signature':
-      return Boolean(line.signature);
-    case 'document':
-      return Boolean(line.eventOrigin);
-    case 'reversing':
-      return Boolean(line.reversedEventId);
-    case 'reversedBy':
-      return Boolean(line.cancellationEventId);
-    default:
-      return true;
-  }
-}
-
 function Wrapped({ children }: { children: string | null | undefined }) {
   return (
     <span className="block max-w-60 whitespace-normal break-normal">
@@ -245,24 +222,22 @@ function LineCard({
         />
       </div>
       <div className="divide-y *:px-4 *:py-1.5">
-        {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false && hasValue(id, line)).map(
-          ([id, key]) => {
-            const cell = (
-              <LineCell
-                eventSearch={eventSearch}
-                id={id}
-                line={line}
-                netContent={netContent}
-                unit={unit}
-              />
-            );
-            return (
-              <SettingsItem key={id} label={t(key)}>
-                {id === 'balance' ? <strong>{cell}</strong> : cell}
-              </SettingsItem>
-            );
-          },
-        )}
+        {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false).map(([id, key]) => {
+          const cell = (
+            <LineCell
+              eventSearch={eventSearch}
+              id={id}
+              line={line}
+              netContent={netContent}
+              unit={unit}
+            />
+          );
+          return (
+            <SettingsItem key={id} label={t(key)}>
+              {id === 'balance' ? <strong>{cell}</strong> : cell}
+            </SettingsItem>
+          );
+        })}
       </div>
     </DataTableCard>
   );

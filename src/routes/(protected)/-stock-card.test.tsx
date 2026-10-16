@@ -392,7 +392,7 @@ describe('stock card display and paging', () => {
     ]);
   });
 
-  it('shows each line as a card on phones, skipping empty and hidden rows', async () => {
+  it('shows each line as a card on phones with the phone table columns', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 390,
     } as DOMRect);
@@ -414,18 +414,17 @@ describe('stock card display and paging', () => {
       ],
     });
     renderRoute();
-    const line = (await screen.findByText('Depot')).closest('li') as HTMLElement;
+    const line = (await screen.findByText('stock-card.adjustment')).closest('li') as HTMLElement;
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(
       within(line)
         .getAllByText(/^stock-card\./)
         .map((label) => label.textContent),
     ).toEqual([
-      'stock-card.receive-from',
+      'stock-card.reason',
       'stock-card.adjustment',
       'stock-card.stock-on-hand',
       'stock-card.performed-by',
-      'stock-card.document-number',
     ]);
   });
 
