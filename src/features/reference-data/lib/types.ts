@@ -96,6 +96,7 @@ export type SupervisoryNode = {
   code: string;
   name: string;
   facility?: { id: string } | null;
+  partnerNodeOf?: { id: string } | null;
 };
 
 export type FacilityType = {

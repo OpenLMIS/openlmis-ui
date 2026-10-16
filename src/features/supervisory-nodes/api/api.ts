@@ -1,4 +1,7 @@
-import { fetchFacilitiesByIds } from '@/features/reference-data/api/api';
+import {
+  fetchFacilitiesByIds,
+  fetchSupervisoryNodesByIds,
+} from '@/features/reference-data/api/api';
 import type { NodeBodyResult } from '@/features/supervisory-nodes/lib/node-form';
 import { toNodeRows } from '@/features/supervisory-nodes/lib/node-rows';
 import type {
@@ -6,7 +9,6 @@ import type {
   SupervisoryNodesQuery,
 } from '@/features/supervisory-nodes/lib/types';
 import { client } from '@/integrations/axios';
-import { fetchByIds } from '@/lib/fetch-by-ids';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
@@ -25,10 +27,6 @@ export async function fetchSupervisoryNodesPage({
     },
   });
   return data;
-}
-
-export function fetchSupervisoryNodesByIds(ids: readonly string[]) {
-  return fetchByIds<SupervisoryNode>('/supervisoryNodes', ids);
 }
 
 export async function fetchSupervisoryNodeRows(query: SupervisoryNodesQuery) {

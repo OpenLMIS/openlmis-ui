@@ -47,14 +47,8 @@ export async function fetchFacility(id: string): Promise<Facility> {
   return data;
 }
 
-/** The given facilities in one request; no ids would list every facility, so none is sent. */
-export async function fetchFacilitiesByIds(ids: readonly string[]): Promise<Facility[]> {
-  if (ids.length === 0) return [];
-  const { data } = await client.get<Page<Facility>>('/facilities', {
-    params: { id: ids },
-    paramsSerializer: { indexes: null },
-  });
-  return data.content;
+export function fetchFacilitiesByIds(ids: readonly string[]) {
+  return fetchByIds<Facility>('/facilities', ids);
 }
 
 export async function fetchRoles(): Promise<Role[]> {
@@ -71,6 +65,52 @@ export async function fetchPrograms(): Promise<Program[]> {
 export async function fetchSupervisoryNodes(): Promise<SupervisoryNode[]> {
   const { data } = await client.get<Page<SupervisoryNode>>('/supervisoryNodes');
   return data.content;
+}
+
+export function fetchSupervisoryNodesByIds(ids: readonly string[]) {
+  return fetchByIds<SupervisoryNode>('/supervisoryNodes', ids);
+}
+
+export type SupervisedFacilitiesFilter = { parentNodeId: string; programId: string };
+
+/** One unpaged request avoids slicing the endpoint's unordered set of facilities. */
+export async function fetchSupervisedFacilities({
+  parentNodeId,
+  programId,
+}: SupervisedFacilitiesFilter) {
+  const { data } = await client.get<Page<Facility>>(
+    `/supervisoryNodes/${parentNodeId}/facilities`,
+    {
+      params: { programId },
+    },
+  );
+  return data.content;
+}
+
+export type FacilityTypeApprovedOrderablesFilter = {
+  facilityTypeCodes: readonly string[];
+  programCode: string;
+};
+
+export async function fetchFacilityTypeApprovedOrderables({
+  facilityTypeCodes,
+  programCode,
+}: FacilityTypeApprovedOrderablesFilter): Promise<Orderable[]> {
+  const types = [...new Set(facilityTypeCodes)];
+  if (types.length === 0) return [];
+  const scope = getSessionScope();
+  const orderables: Orderable[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<ApprovedProduct>>('/facilityTypeApprovedProducts', {
+      params: { facilityType: types, program: programCode, page, size: 100 },
+      paramsSerializer: { indexes: null },
+    });
+    assertSessionScope(scope);
+    orderables.push(...data.content.map(({ orderable }) => orderable));
+    if (page + 1 >= data.totalPages) break;
+  }
+  return latestVersions(orderables);
 }
 
 export async function fetchFacilityTypes(

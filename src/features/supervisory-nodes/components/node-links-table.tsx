@@ -41,8 +41,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
-import { supervisoryNodesByIdsOptions } from '@/features/supervisory-nodes/api/queries';
+import {
+  minimalFacilitiesOptions,
+  supervisoryNodesByIdsOptions,
+} from '@/features/reference-data/api/queries';
 import {
   AddNodePicker,
   AddNodePickerSkeleton,

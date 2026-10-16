@@ -39,6 +39,7 @@ export const queryKeys = {
   stockCardSummaries: createQueryKeys('stockCardSummaries'),
   stockEvents: createQueryKeys('stockEvents'),
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
+  supplyPartners: createQueryKeys('supplyPartners'),
   tradeItems: createQueryKeys('tradeItems'),
   users: createQueryKeys('users'),
   validDestinations: createQueryKeys('validDestinations'),

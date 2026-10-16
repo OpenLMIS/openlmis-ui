@@ -20,9 +20,9 @@ vi.mock('@/features/auth/lib/access', () => ({
 }));
 vi.mock('@/features/supervisory-nodes/api/api', () => ({
   fetchSupervisoryNode: vi.fn(),
-  fetchSupervisoryNodesByIds: vi.fn(async () => []),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchSupervisoryNodesByIds: vi.fn(async () => []),
   fetchSupervisoryNodes: vi.fn(async () => []),
   fetchMinimalFacilities: vi.fn(async () => []),
 }));

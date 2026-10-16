@@ -5,6 +5,7 @@ import {
   fetchFacilitiesByIds,
   fetchFacilityOperators,
   fetchFacilityOrderableFulfills,
+  fetchFacilityTypeApprovedOrderables,
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
@@ -18,6 +19,7 @@ import {
   fetchOrganizations,
   fetchProcessingSchedules,
   fetchReasons,
+  fetchSupervisedFacilities,
   fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
@@ -104,13 +106,14 @@ describe('fetchFacilityOperators', () => {
 });
 
 describe('fetchFacilitiesByIds', () => {
-  it('asks for the given facilities in one request, repeating the id param', async () => {
+  it('reads every page of the given facilities, repeating the id param', async () => {
     const balaka = { id: 'f1', name: 'Balaka', geographicZone: { name: 'Balaka' } };
-    get.mockResolvedValueOnce({ data: { content: [balaka], totalElements: 1 } });
+    get.mockResolvedValueOnce({ data: { content: [balaka], totalPages: 2 } });
+    get.mockResolvedValueOnce({ data: { content: [{ id: 'f2' }], totalPages: 2 } });
 
-    await expect(fetchFacilitiesByIds(['f1', 'f2'])).resolves.toEqual([balaka]);
-    expect(get).toHaveBeenCalledWith('/facilities', {
-      params: { id: ['f1', 'f2'] },
+    await expect(fetchFacilitiesByIds(['f1', 'f2'])).resolves.toEqual([balaka, { id: 'f2' }]);
+    expect(get).toHaveBeenNthCalledWith(1, '/facilities', {
+      params: { id: ['f1', 'f2'], page: 0, size: 100 },
       paramsSerializer: { indexes: null },
     });
   });
@@ -611,4 +614,54 @@ it('reads every processing schedules lookup page', async () => {
   expect(get).toHaveBeenNthCalledWith(2, '/processingSchedules', {
     params: { page: 1, size: 100 },
   });
+});
+
+it('batches saved facilities at 100 ids so hydration cannot exceed URL limits', async () => {
+  get.mockResolvedValue(page([]));
+  const ids = Array.from({ length: 101 }, (_, index) => `f${index}`);
+  await fetchFacilitiesByIds(ids);
+  expect(get).toHaveBeenCalledTimes(2);
+  expect(get.mock.calls[0]?.[1]?.params).toMatchObject({ id: ids.slice(0, 100) });
+  expect(get.mock.calls[1]?.[1]?.params).toMatchObject({ id: ids.slice(100) });
+});
+
+it('reads supervision in one unpaged request, without slicing an unordered Set', async () => {
+  get.mockResolvedValueOnce(page([{ id: 'f1' }]));
+  await fetchSupervisedFacilities({ parentNodeId: 'parent', programId: 'p1' });
+  expect(get).toHaveBeenCalledWith('/supervisoryNodes/parent/facilities', {
+    params: { programId: 'p1' },
+  });
+});
+
+it('reads every active FTAP page by type and program codes, deduping to the latest product version', async () => {
+  get.mockResolvedValueOnce(page([{ orderable: orderable('o1', undefined, 3) }], 2));
+  get.mockResolvedValueOnce(
+    page([{ orderable: orderable('o1', undefined, 1) }, { orderable: orderable('o2') }], 2),
+  );
+  await expect(
+    fetchFacilityTypeApprovedOrderables({
+      facilityTypeCodes: ['HC', 'HC', 'HOSP'],
+      programCode: 'EM',
+    }),
+  ).resolves.toEqual([orderable('o1', undefined, 3), orderable('o2')]);
+  expect(get).toHaveBeenNthCalledWith(1, '/facilityTypeApprovedProducts', {
+    params: { facilityType: ['HC', 'HOSP'], program: 'EM', page: 0, size: 100 },
+    paramsSerializer: { indexes: null },
+  });
+  expect(get).toHaveBeenLastCalledWith('/facilityTypeApprovedProducts', {
+    params: { facilityType: ['HC', 'HOSP'], program: 'EM', page: 1, size: 100 },
+    paramsSerializer: { indexes: null },
+  });
+});
+
+it('does not request unfiltered approvals without facility types, or return partial approvals on failure', async () => {
+  await expect(
+    fetchFacilityTypeApprovedOrderables({ facilityTypeCodes: [], programCode: 'EM' }),
+  ).resolves.toEqual([]);
+  expect(get).not.toHaveBeenCalled();
+  get.mockResolvedValueOnce(page([{ orderable: orderable('o1') }], 2));
+  get.mockRejectedValueOnce(new Error('Approval lookup failed'));
+  await expect(
+    fetchFacilityTypeApprovedOrderables({ facilityTypeCodes: ['HC'], programCode: 'EM' }),
+  ).rejects.toThrow('Approval lookup failed');
 });
