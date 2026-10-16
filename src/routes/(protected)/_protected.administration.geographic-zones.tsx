@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { MapPinIcon } from 'lucide-react';
-import { useCallback } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
@@ -38,6 +38,18 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 
+const loadDialogs = () =>
+  Promise.all([
+    import('@/features/geographic-zones/components/geographic-zone-form-dialog'),
+    import('@/features/geographic-zones/components/geographic-zone-population-dialog'),
+  ]);
+const GeographicZoneFormDialog = lazy(() =>
+  loadDialogs().then(([module]) => ({ default: module.GeographicZoneFormDialog })),
+);
+const GeographicZonePopulationDialog = lazy(() =>
+  loadDialogs().then(([, module]) => ({ default: module.GeographicZonePopulationDialog })),
+);
+
 export const Route = createFileRoute('/(protected)/_protected/administration/geographic-zones')({
   validateSearch: geographicZonesSearchSchema,
   loaderDeps: ({ search }) => ({ query: toGeographicZonesQuery(search) }),
@@ -64,16 +76,28 @@ function GeographicZonesPage() {
     structuralSharing: true,
   });
   const automatic = useFlag('CATCHMENT_POPULATION_CALC_AUTO');
+  const zone = Route.useSearch({ select: (search) => search.zone });
+  const population = Route.useSearch({
+    select: (search) => (search.zone ? undefined : search.population),
+  });
   const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
   const columnView = useColumnVisibility(
     GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS,
     useStoredState('geographic-zones.column-visibility', columnChoicesSchema, {}),
     contentWidth,
   );
-  const { updateSearch, openDialog } = useSearchNavigation<GeographicZonesSearch>(CLOSED_DIALOGS);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<GeographicZonesSearch>(CLOSED_DIALOGS);
   const showDetail = useCallback((id: string) => openDialog({ zone: id }), [openDialog]);
   const showPopulation = useCallback((id: string) => openDialog({ population: id }), [openDialog]);
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
+  const [dialogsMounted, setDialogsMounted] = useState(
+    zone !== undefined || population !== undefined,
+  );
+  if ((zone !== undefined || population !== undefined) && !dialogsMounted) setDialogsMounted(true);
+  useEffect(() => {
+    void loadDialogs();
+  }, []);
 
   return (
     <Workspace>
@@ -112,6 +136,12 @@ function GeographicZonesPage() {
             />
           </QueryBoundary>
         </div>
+        {dialogsMounted && (
+          <Suspense fallback={null}>
+            <GeographicZoneFormDialog automatic={automatic} onClose={closeDialog} target={zone} />
+            <GeographicZonePopulationDialog onClose={closeDialog} target={population} />
+          </Suspense>
+        )}
       </WorkspaceContent>
     </Workspace>
   );
