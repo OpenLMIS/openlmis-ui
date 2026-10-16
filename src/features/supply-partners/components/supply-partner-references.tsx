@@ -89,6 +89,16 @@ function ResolvedStatus({ associations }: { associations: readonly AssociationDr
   const [programs, nodes, facilities, products] = useSuspenseQueries({
     queries: referenceQueries(associations),
   });
+  const failed = [programs, nodes, facilities, products].find((query) => query.isError);
+  if (failed)
+    return (
+      <ListError
+        error={failed.error}
+        reset={() => void failed.refetch()}
+        title={t('supply-partners.lookup-error-title')}
+        description={t('supply-partners.load-error')}
+      />
+    );
   const complete = referencesComplete(
     associations,
     programs.data,

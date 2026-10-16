@@ -100,6 +100,17 @@ it('refreshes approvals before pruning and keeps the original memberships when t
     { id: 'a', type: { id: 'ta', code: 'A', name: 'Type A' } },
     { id: 'b', type: { id: 'tb', code: 'B', name: 'Type B' } },
   ];
+  await expect(
+    removeSupplyPartnerFacility(
+      queryClient,
+      { ...association, facilityIds: ['a'] },
+      'a',
+      [],
+      'P',
+      false,
+    ),
+  ).rejects.toThrow('Selected facilities have not been resolved');
+  expect(get).not.toHaveBeenCalled();
   const options = facilityTypeApprovedOrderablesOptions({
     facilityTypeCodes: ['B'],
     programCode: 'P',
@@ -109,13 +120,13 @@ it('refreshes approvals before pruning and keeps the original memberships when t
   ]);
   get.mockRejectedValueOnce(new Error('Approval read failed'));
   await expect(
-    removeSupplyPartnerFacility(queryClient, association, 'a', facilities, 'P'),
+    removeSupplyPartnerFacility(queryClient, association, 'a', facilities, 'P', true),
   ).rejects.toThrow('Approval read failed');
   expect(association.facilityIds).toEqual(['a', 'b']);
   expect(association.orderableIds).toEqual(['o1', 'o2']);
   get.mockResolvedValueOnce({ data: { content: [{ orderable: { id: 'o2' } }] } });
   await expect(
-    removeSupplyPartnerFacility(queryClient, association, 'a', facilities, 'P'),
+    removeSupplyPartnerFacility(queryClient, association, 'a', facilities, 'P', true),
   ).resolves.toEqual({
     association: { ...association, facilityIds: ['b'], orderableIds: ['o2'] },
     removedOrderableIds: ['o1'],

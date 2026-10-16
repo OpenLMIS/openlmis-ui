@@ -169,7 +169,7 @@ it('shows loading members and prevents facility pruning until changed product re
   );
 });
 
-it('recovers missing facilities sequentially without pruning until every remaining type is resolved', async () => {
+it('requires a successful facility retry before sequential missing-member recovery and safe pruning', async () => {
   const queryClient = seededClient();
   const facility = queryClient.getQueryData<Facility[]>(
     facilitiesByIdsOptions(['f']).queryKey,
@@ -177,7 +177,6 @@ it('recovers missing facilities sequentially without pruning until every remaini
   if (!facility) throw new Error('Missing test fixture');
   const remaining = [facility, { ...facility, id: 'f2', code: 'F2', name: 'Facility Two' }];
   for (const ids of [
-    ['f', 'f2', 'missing-a', 'missing-b'],
     ['f', 'f2', 'missing-b'],
     ['f', 'f2'],
   ]) {
@@ -197,8 +196,18 @@ it('recovers missing facilities sequentially without pruning until every remaini
       },
     ],
   };
+  let failRefetch!: () => void;
   vi.mocked(client.get)
-    .mockClear()
+    .mockReset()
+    .mockRejectedValueOnce(new Error('Facility lookup failed'))
+    .mockResolvedValueOnce({ data: { content: remaining, totalPages: 1 } })
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          failRefetch = () => reject(new Error('Cached facility refresh failed'));
+        }),
+    )
+    .mockResolvedValueOnce({ data: { content: remaining, totalPages: 1 } })
     .mockResolvedValueOnce({
       data: {
         content: [{ orderable: { id: 'o', productCode: 'O', fullProductName: 'Product One' } }],
@@ -207,6 +216,36 @@ it('recovers missing facilities sequentially without pruning until every remaini
   const user = userEvent.setup();
   renderPage(<Harness record={record} />, { queryClient, path: '/?association=p:n' });
   const association = await screen.findByRole('dialog', { name: 'Edit Association' });
+  const retry = await within(association).findByRole('button', { name: 'Try Again' });
+  const failedRows = within(association).getAllByRole('button', { name: 'Remove Unavailable' });
+  expect(failedRows).toHaveLength(4);
+  for (const button of failedRows) expect(button).toBeDisabled();
+  expect(within(association).getByText('Product Two')).toBeVisible();
+  expect(within(association).getByRole('button', { name: 'Update Association' })).toBeDisabled();
+  await user.click(retry);
+  expect(await within(association).findByText('Facility One')).toBeVisible();
+  const refetch = queryClient.refetchQueries({
+    queryKey: facilitiesByIdsOptions(['f', 'f2', 'missing-a', 'missing-b']).queryKey,
+    exact: true,
+  });
+  await waitFor(() => {
+    for (const button of within(association).getAllByRole('button', { name: 'Remove Unavailable' }))
+      expect(button).toBeDisabled();
+  });
+  failRefetch();
+  await refetch;
+  const retryCached = await within(association).findByRole('button', { name: 'Try Again' });
+  for (const button of within(association).getAllByRole('button', { name: 'Remove Unavailable' }))
+    expect(button).toBeDisabled();
+  expect(within(association).getByText('Facility One')).toBeVisible();
+  expect(within(association).getByText('Product Two')).toBeVisible();
+  await user.click(retryCached);
+  await waitFor(() =>
+    expect(
+      within(association).getAllByRole('button', { name: 'Remove Unavailable' })[0],
+    ).toBeEnabled(),
+  );
+  vi.mocked(client.get).mockClear();
   const missing = await within(association).findAllByRole('button', { name: 'Remove Unavailable' });
   expect(missing[0]).toBeEnabled();
   expect(missing[1]).toBeEnabled();

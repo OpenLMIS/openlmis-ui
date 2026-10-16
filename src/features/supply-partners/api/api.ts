@@ -64,9 +64,11 @@ export async function removeSupplyPartnerFacility(
   facilityId: string,
   facilities: readonly Pick<Facility, 'id' | 'type'>[],
   programCode: string,
+  facilityLookupReady: boolean,
 ) {
   const scope = getSessionScope();
   assertSessionScope(scope);
+  if (!facilityLookupReady) throw new Error('Selected facilities have not been resolved');
   const remaining = association.facilityIds.filter((id) => id !== facilityId);
   if (!remaining.length) return pruneAssociationProducts(association, [], []);
   const unresolved = remaining.some((id) => !facilities.some((facility) => facility.id === id));

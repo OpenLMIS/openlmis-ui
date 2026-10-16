@@ -33,6 +33,7 @@ import {
 import { FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
 import {
+  facilitiesByIdsOptions,
   facilityTypeApprovedOrderablesOptions,
   programsOptions,
   supervisedFacilitiesOptions,
@@ -232,15 +233,22 @@ function AssociationForm({
       program && draft.facilityIds.length && facilityRecords.length === draft.facilityIds.length,
     ),
   });
+  const facilityLookupReady = refs.facilities.isSuccess && refs.facilities.fetchStatus === 'idle';
   const removal = useSessionMutation({
-    mutationFn: (id: string) =>
-      removeSupplyPartnerFacility(
+    mutationFn: (id: string) => {
+      const association = toAssociationDraft(form.state.values.association);
+      const lookup = queryClient.getQueryState<Facility[]>(
+        facilitiesByIdsOptions([...new Set(association.facilityIds)].sort()).queryKey,
+      );
+      return removeSupplyPartnerFacility(
         queryClient,
-        toAssociationDraft(form.state.values.association),
+        association,
         id,
-        facilityRecords,
+        lookup?.data ?? [],
         program?.code ?? '',
-      ),
+        lookup?.status === 'success' && lookup.fetchStatus === 'idle',
+      );
+    },
     onMutate: () => setPruned([]),
     onSuccess: (result) => {
       form.setFieldValue('association', result.association);
@@ -416,7 +424,7 @@ function AssociationForm({
             )}
             <AssociationMembersTable
               kind="facilities"
-              pending={busy || refs.products.isPending}
+              pending={busy || refs.products.isPending || !facilityLookupReady}
               rows={draft.facilityIds.map((id) => {
                 const item = refs.facilities.data?.find((record) => record.id === id);
                 return {
