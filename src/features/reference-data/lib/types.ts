@@ -39,7 +39,13 @@ export type GeographicZone = {
   id: string;
   code: string;
   name: string;
-  level: { name: string | null; levelNumber?: number };
+  level: { id?: string; code?: string; name: string | null; levelNumber?: number | null };
+  parent?: GeographicZone | null;
+  catchmentPopulation?: number | null;
+  longitude?: number | null;
+  latitude?: number | null;
+  boundary?: unknown;
+  extraData?: Record<string, unknown> | null;
 };
 
 export type GeographicLevel = {

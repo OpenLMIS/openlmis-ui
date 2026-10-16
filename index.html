@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/olmis.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // iOS zooms into fields under 16px on focus; maximum-scale stops that but iOS still allows pinch zoom.
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+        document.querySelector('meta[name="viewport"]').content += ', maximum-scale=1';
+      }
+    </script>
     <link href="/src/globals.css" rel="stylesheet" />
     <title id="app-title">OpenLMIS UI</title>
     <meta name="description" content="Web frontend for OpenLMIS." />

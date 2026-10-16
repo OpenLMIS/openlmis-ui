@@ -258,7 +258,7 @@ edits, which have no prop for TypeScript to detect:
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `table.tsx` | Preserve TableRow `drag` with transform and transition from CSS custom properties |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
-| `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
+| `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
 | `select.tsx` | Default `alignItemWithTrigger` to `false` |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
@@ -354,7 +354,8 @@ App-shell pages compose `src/components/workspace.tsx`:
 ```
 
 - Parts take `children`, no boolean props or `renderX` callbacks. Every page includes a
-  one-sentence `WorkspaceDescription`; omit unused icons/actions. `Workspace` and
+  one-sentence `WorkspaceDescription`; omit unused icons/actions. Below `@xl/main` the
+  description is screen-reader only and the title centres on the icon. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
   `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
   Nodes, and `width="wide"` for uncapped tables.
@@ -720,6 +721,8 @@ never color alone.
 - Read flags through `useFlag(key)` or `getFlag(key)` outside React. Precedence:
   administrator, deployment `config.json`, code default. `getDeploymentFlags()` has no
   `import.meta.env` fallback; dev gets defaults/admin values unless config supplies flags.
+- `deploymentOnly` flags ignore administrator values and use deployment `config.json` or the
+  code default. `CATCHMENT_POPULATION_CALC_AUTO` defaults off and must match the referencedata backend.
 
 To add a flag, add its type/default/message keys to `FEATURE_FLAGS` (`src/lib/feature-flags.ts`)
 and every locale; add its template entry in `docker/config.json.template`, export and
