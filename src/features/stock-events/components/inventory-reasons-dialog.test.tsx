@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
@@ -44,10 +44,17 @@ it('adds, edits and removes reasons and confirms an unaccounted update', async (
   await user.type(screen.getByRole('textbox', { name: 'stock-events.quantity' }), '2');
   await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
   const edit = screen.getByRole('textbox', { name: 'Return' });
+  const primary = screen.getByRole('dialog');
   await user.clear(edit);
   await user.type(edit, '1');
   await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
   expect(update).not.toHaveBeenCalled();
+  expect(primary).toHaveAttribute('data-nested-dialog-open');
+  const confirmation = screen.getByRole('dialog', { name: 'physical-inventory.update' });
+  await user.click(within(confirmation).getByRole('button', { name: 'stock-events.cancel' }));
+  expect(update).not.toHaveBeenCalled();
+  expect(await screen.findByRole('textbox', { name: 'Return' })).toHaveValue('1');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
   await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   expect(update).toHaveBeenCalledWith([
     { reason: expect.objectContaining({ id: 'r' }), quantity: 1 },

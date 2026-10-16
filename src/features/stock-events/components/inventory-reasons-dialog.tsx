@@ -121,52 +121,71 @@ export function InventoryReasonsDialog({
     setConfirm(false);
   };
   return (
-    <>
-      <FormDialog
-        open={open}
-        onOpenChangeComplete={onOpenChangeComplete}
-        onOpenChange={(open) => {
-          if (!open) onClose();
-        }}
-      >
-        <FormDialogForm onSubmit={() => void form.handleSubmit()}>
-          <FormDialogHeader>
-            <FormDialogTitle>{t('physical-inventory.reasons-title', { product })}</FormDialogTitle>
-            <FormDialogDescription>
-              {t('physical-inventory.reasons-difference', {
-                difference: display(unaccounted({ ...line, stockAdjustments: [] })),
-              })}
-            </FormDialogDescription>
-          </FormDialogHeader>
-          <FormDialogBody>
-            <div className="flex flex-col gap-4">
-              <fieldset
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    event.target instanceof HTMLInputElement &&
-                    !event.defaultPrevented
-                  ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void addForm.handleSubmit();
-                  }
-                }}
-              >
-                <FieldGroup>
-                  <addForm.AppField name="reasonId">
-                    {(field) => (
-                      <field.SelectField
-                        label={t('stock-events.reason')}
-                        required
-                        items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
-                      />
-                    )}
-                  </addForm.AppField>
-                  <addForm.AppField name="quantity">
+    <FormDialog
+      open={open}
+      onOpenChangeComplete={onOpenChangeComplete}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <FormDialogForm onSubmit={() => void form.handleSubmit()}>
+        <FormDialogHeader>
+          <FormDialogTitle>{t('physical-inventory.reasons-title', { product })}</FormDialogTitle>
+          <FormDialogDescription>
+            {t('physical-inventory.reasons-difference', {
+              difference: display(unaccounted({ ...line, stockAdjustments: [] })),
+            })}
+          </FormDialogDescription>
+        </FormDialogHeader>
+        <FormDialogBody>
+          <div className="flex flex-col gap-4">
+            <fieldset
+              onKeyDown={(event) => {
+                if (
+                  event.key === 'Enter' &&
+                  event.target instanceof HTMLInputElement &&
+                  !event.defaultPrevented
+                ) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void addForm.handleSubmit();
+                }
+              }}
+            >
+              <FieldGroup>
+                <addForm.AppField name="reasonId">
+                  {(field) => (
+                    <field.SelectField
+                      label={t('stock-events.reason')}
+                      required
+                      items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
+                    />
+                  )}
+                </addForm.AppField>
+                <addForm.AppField name="quantity">
+                  {(field) => (
+                    <field.QuantityField
+                      label={t('stock-events.quantity')}
+                      unit={unit}
+                      netContent={line.orderable.netContent}
+                      dosesLabel={t('quantity-unit.doses')}
+                      packsLabel={t('quantity-unit.packs')}
+                      required
+                    />
+                  )}
+                </addForm.AppField>
+              </FieldGroup>
+            </fieldset>
+            <Button type="button" onClick={() => void addForm.handleSubmit()}>
+              {t('stock-events.add')}
+            </Button>
+            {adjustments.map((item, index) => (
+              <div className="flex items-start gap-2" key={item.key}>
+                <div className="min-w-0 flex-1">
+                  <form.AppField name={`adjustments[${index}].quantity`}>
                     {(field) => (
                       <field.QuantityField
-                        label={t('stock-events.quantity')}
+                        label={item.reason.name ?? item.reason.id}
                         unit={unit}
                         netContent={line.orderable.netContent}
                         dosesLabel={t('quantity-unit.doses')}
@@ -174,63 +193,42 @@ export function InventoryReasonsDialog({
                         required
                       />
                     )}
-                  </addForm.AppField>
-                </FieldGroup>
-              </fieldset>
-              <Button type="button" onClick={() => void addForm.handleSubmit()}>
-                {t('stock-events.add')}
-              </Button>
-              {adjustments.map((item, index) => (
-                <div className="flex items-start gap-2" key={item.key}>
-                  <div className="min-w-0 flex-1">
-                    <form.AppField name={`adjustments[${index}].quantity`}>
-                      {(field) => (
-                        <field.QuantityField
-                          label={item.reason.name ?? item.reason.id}
-                          unit={unit}
-                          netContent={line.orderable.netContent}
-                          dosesLabel={t('quantity-unit.doses')}
-                          packsLabel={t('quantity-unit.packs')}
-                          required
-                        />
-                      )}
-                    </form.AppField>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    aria-label={t('stock-events.field-of', {
-                      field: t('stock-events.remove'),
-                      row: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
-                    })}
-                    onClick={() =>
-                      form.setFieldValue('adjustments', (current) =>
-                        current.filter((_, i) => i !== index),
-                      )
-                    }
-                  >
-                    {t('stock-events.remove')}
-                  </Button>
+                  </form.AppField>
                 </div>
-              ))}
-              <dl className="grid grid-cols-2 gap-2 text-sm">
-                <dt>{t('physical-inventory.unaccounted')}</dt>
-                <dd>
-                  <bdi>{display(difference)}</bdi>
-                </dd>
-                <dt>{t('physical-inventory.total')}</dt>
-                <dd>
-                  <bdi>{display(adjustmentTotal(values()))}</bdi>
-                </dd>
-              </dl>
-            </div>
-          </FormDialogBody>
-          <FormDialogFooter>
-            <FormDialogCancel>{t('stock-events.cancel')}</FormDialogCancel>
-            <FormDialogSubmit>{t('physical-inventory.update')}</FormDialogSubmit>
-          </FormDialogFooter>
-        </FormDialogForm>
-      </FormDialog>
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label={t('stock-events.field-of', {
+                    field: t('stock-events.remove'),
+                    row: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
+                  })}
+                  onClick={() =>
+                    form.setFieldValue('adjustments', (current) =>
+                      current.filter((_, i) => i !== index),
+                    )
+                  }
+                >
+                  {t('stock-events.remove')}
+                </Button>
+              </div>
+            ))}
+            <dl className="grid grid-cols-2 gap-2 text-sm">
+              <dt>{t('physical-inventory.unaccounted')}</dt>
+              <dd>
+                <bdi>{display(difference)}</bdi>
+              </dd>
+              <dt>{t('physical-inventory.total')}</dt>
+              <dd>
+                <bdi>{display(adjustmentTotal(values()))}</bdi>
+              </dd>
+            </dl>
+          </div>
+        </FormDialogBody>
+        <FormDialogFooter>
+          <FormDialogCancel>{t('stock-events.cancel')}</FormDialogCancel>
+          <FormDialogSubmit>{t('physical-inventory.update')}</FormDialogSubmit>
+        </FormDialogFooter>
+      </FormDialogForm>
       <FormDialog open={open && confirm} onOpenChange={setConfirm}>
         {confirm && (
           <FormDialogForm onSubmit={apply}>
@@ -247,6 +245,6 @@ export function InventoryReasonsDialog({
           </FormDialogForm>
         )}
       </FormDialog>
-    </>
+    </FormDialog>
   );
 }

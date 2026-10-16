@@ -1,8 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandPalette } from '@/components/command-palette';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { parsePermissions } from '@/lib/permissions';
@@ -19,11 +22,32 @@ vi.mock('@/lib/feature-flags', async (importOriginal) => {
   };
 });
 
-function renderPalette(rights: string[]) {
+function renderPalette(rights: string[], children?: ReactNode) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
   queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
-  renderPage(<CommandPalette />, { queryClient });
+  renderPage(
+    <>
+      <CommandPalette />
+      {children}
+    </>,
+    { queryClient },
+  );
+}
+
+function OtherDialog() {
+  const [open, setOpen] = useState(true);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogTitle>Unsaved form</DialogTitle>
+        <DialogDescription>Keep this workflow active.</DialogDescription>
+        <button type="button" onClick={() => setOpen(false)}>
+          Finish
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 afterEach(() => {
@@ -32,6 +56,32 @@ afterEach(() => {
 });
 
 describe('CommandPalette', () => {
+  it('ignores its shortcut during another dialog and still toggles its own palette', async () => {
+    renderPalette([], <OtherDialog />);
+    await screen.findByRole('dialog', { name: 'Unsaved form' });
+    const shortcut = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+    fireEvent(document, shortcut);
+    expect(shortcut.defaultPrevented).toBe(true);
+    expect(screen.queryByRole('option', { name: 'nav-user.account' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Unsaved form' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    await userEvent.keyboard('{Control>}k{/Control}');
+    expect(await screen.findByRole('option', { name: 'nav-user.account' })).toBeInTheDocument();
+    await userEvent.keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('option', { name: 'nav-user.account' })).not.toBeInTheDocument();
+  });
+  it('opens over a nonmodal popover instead of treating it as a blocking modal', async () => {
+    renderPalette(
+      [],
+      <Popover defaultOpen>
+        <PopoverTrigger>Help</PopoverTrigger>
+        <PopoverContent aria-label="Help content">Helpful information</PopoverContent>
+      </Popover>,
+    );
+    expect(await screen.findByRole('dialog', { name: 'Help content' })).toBeInTheDocument();
+    await userEvent.keyboard('{Control>}k{/Control}');
+    expect(await screen.findByRole('option', { name: 'nav-user.account' })).toBeInTheDocument();
+  });
   it('offers Account and, with the right, Settings', async () => {
     renderPalette(['SYSTEM_SETTINGS_MANAGE']);
 

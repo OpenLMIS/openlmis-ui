@@ -5,6 +5,7 @@ import {
   reduceScanCapture,
   type ScanCaptureEvent,
 } from '@/lib/gs1/scan-capture';
+import { hasOpenDialog } from '@/lib/has-open-dialog';
 import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
 
 export type BarcodeScanStatus = {
@@ -26,15 +27,6 @@ type FieldSnapshot = {
   end: number | null;
   direction: 'forward' | 'backward' | 'none' | null;
 };
-
-function hasOpenDialog() {
-  return (
-    document.querySelector(
-      '[role="dialog"]:not([data-closed]):not([hidden]):not([aria-hidden="true"]), ' +
-        '[role="alertdialog"]:not([data-closed]):not([hidden]):not([aria-hidden="true"]), dialog[open]',
-    ) !== null
-  );
-}
 
 function snapshotField(): FieldSnapshot | undefined {
   const field = document.activeElement;

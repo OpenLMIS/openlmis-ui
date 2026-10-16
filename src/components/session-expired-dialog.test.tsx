@@ -11,8 +11,16 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import i18n from 'i18next';
+import { useState } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import {
+  FormDialog,
+  FormDialogDescription,
+  FormDialogHeader,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
 import { SessionExpiredDialog } from '@/components/session-expired-dialog';
 import * as authApi from '@/features/auth/api/api';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
@@ -30,6 +38,27 @@ const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'old-
 function UnsavedDraft({ ask }: { ask: (proceed: () => void) => void }) {
   useLeaveGuard(true, ask);
   return null;
+}
+
+function UnsavedModalDraft() {
+  const [discard, setDiscard] = useState(false);
+  useLeaveGuard(true, () => setDiscard(true));
+  return (
+    <FormDialog open onOpenChange={() => {}}>
+      <FormDialogHeader>
+        <FormDialogTitle>Edit unsaved draft</FormDialogTitle>
+        <FormDialogDescription>Keep this draft until confirmed.</FormDialogDescription>
+      </FormDialogHeader>
+      <input aria-label="Draft" defaultValue="Unsaved value" />
+      <DiscardChangesDialog
+        open={discard}
+        signingOut
+        description="Keep the draft"
+        onKeepEditing={() => setDiscard(false)}
+        onDiscard={() => {}}
+      />
+    </FormDialog>
+  );
 }
 
 async function renderAt(path: string, ask?: (proceed: () => void) => void, page?: React.ReactNode) {
@@ -78,6 +107,21 @@ beforeAll(async () => {
 });
 
 describe('SessionExpiredDialog', () => {
+  it('shows a guarded sign-out prompt above the session interruption and preserves the modal draft', async () => {
+    await renderAt('/users', undefined, <UnsavedModalDraft />);
+    const draft = await screen.findByRole('textbox', { name: 'Draft' });
+    act(() => useLoginData.getState().expireSession());
+    const session = await screen.findByRole('dialog', { name: 'session.expired-title' });
+    await userEvent.click(within(session).getByRole('button', { name: 'session.sign-out' }));
+    const discard = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(discard).getByRole('button', { name: 'discard-changes.keep-editing' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('dialog', { name: 'session.expired-title' })).toBeInTheDocument();
+    await waitFor(() => expect(session.contains(document.activeElement)).toBe(true));
+    expect(draft).toHaveValue('Unsaved value');
+  });
   it.each([
     ['ACCESS_TOKEN', 'USER_ID', 'USERNAME'],
     ['ACCESS_TOKEN', 'USERNAME', 'USER_ID'],

@@ -256,7 +256,7 @@ edits, which have no prop for TypeScript to detect:
 | File | Required customization |
 |---|---|
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
-| `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve native nested-open parent shrink, dim and blur styles with reduced-motion support |
+| `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
 | `table.tsx` | Preserve TableRow `drag` with transform and transition from CSS custom properties |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
@@ -524,6 +524,13 @@ Version-matched guides live in `node_modules/@tanstack/react-table/skills/`.
 Nested modals use the shared popup defaults: Base UI's `data-nested-dialog-open` slightly
 shrinks, dims and blurs the parent while its content stays mounted. Keep child portals sharp;
 do not add feature-specific offsets, clipping or hidden parent content. Respect reduced motion.
+Child modal roots belong under their parent root in the React tree, even when portalled;
+sibling roots cannot activate native nesting. Keep HTML forms separate. Sequential dialogs
+replace one another rather than stacking. Global interruptions and page guards can have
+sibling roots; shared popups also use Base UI's standard `aria-hidden` on themselves or their
+portal ancestors to style covered modals consistently. Shared modal portals default their
+public `container` to `document.body`, preserving React nesting while preventing a new global
+prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve caller overrides.
 
 **Choose the container:**
 

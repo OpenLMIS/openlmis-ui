@@ -150,6 +150,20 @@ export function SupplyPartnerEditor({
     allowAssociationClose,
   );
   const discard = guard.dialog.open ? guard.dialog : associationGuard;
+  const discardDialog = (
+    <DiscardChangesDialog
+      {...discard}
+      description={t(
+        guard.dialog.open
+          ? 'supply-partners.discard-description'
+          : 'supply-partners.discard-association',
+      )}
+      onKeepEditing={() => {
+        guard.dialog.onKeepEditing();
+        associationGuard.onKeepEditing();
+      }}
+    />
+  );
   return (
     <>
       <Workspace>
@@ -218,18 +232,7 @@ export function SupplyPartnerEditor({
               </section>
             </FieldGroup>
           </form>
-          <DiscardChangesDialog
-            {...discard}
-            description={t(
-              guard.dialog.open
-                ? 'supply-partners.discard-description'
-                : 'supply-partners.discard-association',
-            )}
-            onKeepEditing={() => {
-              guard.dialog.onKeepEditing();
-              associationGuard.onKeepEditing();
-            }}
-          />
+          {!search.association && discardDialog}
         </WorkspaceContent>
       </Workspace>
       <WorkspaceFooter>
@@ -269,7 +272,9 @@ export function SupplyPartnerEditor({
           setProductsDirty(false);
           onCloseAssociation();
         }}
-      />
+      >
+        {search.association && discardDialog}
+      </AssociationDialog>
       <ViewItemsDialog
         search={search}
         associations={draft.associations}

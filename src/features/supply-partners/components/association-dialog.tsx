@@ -2,7 +2,14 @@ import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { BuildingIcon } from 'lucide-react';
-import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -98,6 +105,7 @@ const snapshot = (draft: AssociationDraft) =>
     orderableIds: draft.orderableIds.toSorted(),
   });
 type Props = {
+  children?: ReactNode;
   returnFocus?: RefObject<HTMLButtonElement | null>;
   target: string | undefined;
   associations: AssociationDraft[];
@@ -147,16 +155,20 @@ export function AssociationDialog({ target, onClose, returnFocus, ...props }: Pr
             onPendingChange={reportPending}
           />
         ) : (
-          <DialogNotFound
-            title={t('supply-partners.edit-association')}
-            description={t('supply-partners.unavailable')}
-          />
+          <>
+            <DialogNotFound
+              title={t('supply-partners.edit-association')}
+              description={t('supply-partners.unavailable')}
+            />
+            {props.children}
+          </>
         ))}
     </FormDialog>
   );
 }
 function AssociationForm({
   initial,
+  children,
   editingKey,
   associations,
   canManageNodes,
@@ -252,6 +264,13 @@ function AssociationForm({
       program && draft.facilityIds.length && facilityRecords.length === draft.facilityIds.length,
     ),
   });
+  const productsDialogOpen =
+    productsOpen &&
+    Boolean(
+      draft.facilityIds.length &&
+        facilityRecords.length === draft.facilityIds.length &&
+        options.data !== undefined,
+    );
   const facilityLookupReady = refs.facilities.isSuccess && refs.facilities.fetchStatus === 'idle';
   const removal = useSessionMutation({
     mutationFn: (id: string) => {
@@ -617,14 +636,7 @@ function AssociationForm({
         </AlertDialogContent>
       </AlertDialog>
       <AssociationProductsDialog
-        open={
-          productsOpen &&
-          Boolean(
-            draft.facilityIds.length &&
-              facilityRecords.length === draft.facilityIds.length &&
-              options.data !== undefined,
-          )
-        }
+        open={productsDialogOpen}
         selectedIds={draft.orderableIds}
         selectedProducts={refs.products.data ?? []}
         options={options.data ?? []}
@@ -634,7 +646,10 @@ function AssociationForm({
           form.setFieldValue('association.orderableIds', ids);
           setError(null);
         }}
-      />
+      >
+        {productsDialogOpen && children}
+      </AssociationProductsDialog>
+      {!productsDialogOpen && children}
     </FormDialogForm>
   );
 }

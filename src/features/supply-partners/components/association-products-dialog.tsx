@@ -5,7 +5,7 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import { PackageSearchIcon } from 'lucide-react';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -44,6 +44,7 @@ const productLabel = (product: Orderable) =>
     ? `${product.productCode} - ${product.fullProductName}`
     : product.productCode;
 type Props = {
+  children?: ReactNode;
   open: boolean;
   selectedIds: readonly string[];
   selectedProducts: readonly Orderable[];
@@ -52,7 +53,7 @@ type Props = {
   onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
 };
-export function AssociationProductsDialog({ open, onClose, ...props }: Props) {
+export function AssociationProductsDialog({ open, onClose, children, ...props }: Props) {
   const { shown, close, dialogProps } = useDialogTarget(open ? 'products' : undefined, onClose);
   return (
     <FormDialog {...dialogProps()} size="table">
@@ -65,6 +66,7 @@ export function AssociationProductsDialog({ open, onClose, ...props }: Props) {
           }}
         />
       )}
+      {children}
     </FormDialog>
   );
 }
