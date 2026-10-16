@@ -561,7 +561,9 @@ it('edits a phone card and focuses its invalid reason after Close', async () => 
   expect(
     screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
   ).not.toBeInTheDocument();
+  await user.click(screen.getByRole('menuitemcheckbox', { name: 'stock-event.lot-code' }));
   await user.keyboard('{Escape}');
+  expect(within(card).queryByText('stock-event.lot-code')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await closeAlert();
   const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
