@@ -757,6 +757,13 @@ describe('stock on hand View', () => {
           ?.closest('li');
         expect(lotBlock).not.toBeNull();
         const lot = within(lotBlock as HTMLElement);
+        const lotLabel = lot.getByText('LOT-A');
+        expect(
+          within(lotLabel.closest('div')?.parentElement as HTMLElement).getByRole('button', {
+            name: 'stock-on-hand.view-card',
+          }),
+        ).toHaveAttribute('href', expect.stringContaining('/c1?'));
+        expect(lot.queryByText('stock-on-hand.lot-code')).not.toBeInTheDocument();
         for (const [label, value] of [
           ['stock-on-hand.product', 'Substitute product'],
           ['stock-on-hand.product-code', 'C2'],
