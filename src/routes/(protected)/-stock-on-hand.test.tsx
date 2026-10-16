@@ -238,7 +238,7 @@ describe('stock on hand page', () => {
     localStorage.setItem('stock-on-hand.column-visibility', JSON.stringify({ expiry: false }));
     renderRoute(appliedPath());
 
-    await screen.findAllByRole('link', { name: 'stock-on-hand.view-card' });
+    await screen.findAllByRole('button', { name: 'stock-on-hand.view-card' });
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.getByText('16')).toBeInTheDocument();
     expect(screen.getAllByText(/stock-on-hand.last-update/)).not.toHaveLength(0);
@@ -749,16 +749,25 @@ describe('stock on hand View', () => {
         appliedPath(HOME, FP, 'my', '&page=2&size=20&productCode=C1&productName=Levo&lotCode=LOT'),
       );
       await screen.findAllByText('Levonorgestrel');
-      const view = screen.getAllByRole(width < 672 ? 'link' : 'button', {
+      const view = screen.getAllByRole('button', {
         name: 'stock-on-hand.view-card',
       });
       expect(view).toHaveLength(2);
       if (width < 672) {
-        expect(
-          within(
-            view.find((link) => link.getAttribute('href')?.includes('/c1')) as HTMLElement,
-          ).getByText('Substitute product'),
-        ).toBeInTheDocument();
+        const lotBlock = view
+          .find((button) => button.getAttribute('href')?.includes('/c1'))
+          ?.closest('li');
+        expect(lotBlock).not.toBeNull();
+        const lot = within(lotBlock as HTMLElement);
+        for (const [label, value] of [
+          ['stock-on-hand.product', 'Substitute product'],
+          ['stock-on-hand.product-code', 'C2'],
+          ['stock-on-hand.pack-size', '20'],
+        ]) {
+          const row = lot.getByText(label).closest('div.flex.items-start');
+          expect(row).not.toBeNull();
+          expect(within(row as HTMLElement).getByText(value)).toBeInTheDocument();
+        }
         expect(screen.getAllByText('stock-on-hand.no-lot')).toHaveLength(2);
       }
       const urls = view.map((link) => new URL((link as HTMLAnchorElement).href));

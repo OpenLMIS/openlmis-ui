@@ -1,7 +1,7 @@
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
-import { ChevronDownIcon, ChevronRightIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
+import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
 import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -17,6 +17,7 @@ import {
   DataTablePaginationSkeleton,
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -504,7 +505,7 @@ function GroupedCards({
                     </div>
                   </div>
                   {open && (
-                    <ul className="divide-y border-t">
+                    <ul className="divide-y-8 border-t">
                       {group.cards.map((card) => (
                         <li key={card.id}>
                           <StockLotRow
@@ -548,61 +549,56 @@ function StockLotRow({
   text: ReturnType<typeof useStockText>;
 }) {
   const { t } = useTranslation();
-  const content = (
-    <>
-      <div className="min-w-0 flex-1 wrap-anywhere">
-        {card.product?.id !== group.product?.id && (
-          <div className="font-medium">
+  return (
+    <div className="divide-y *:px-4 *:py-3">
+      {card.product?.id !== group.product?.id && (
+        <>
+          <SettingsItem label={t('stock-on-hand.product')}>
             <bdi>{text.productLabel(card.product)}</bdi>
-          </div>
-        )}
-        {text.lotLabel(card)}
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground text-xs">
-          {columns.expiry !== false && card.lot?.expirationDate && (
-            <span>
-              {t('stock-on-hand.expiry-date')} <bdi>{text.date(card.lot.expirationDate)}</bdi>
-            </span>
+          </SettingsItem>
+          <SettingsItem label={t('stock-on-hand.product-code')}>
+            <span className="flex justify-end">{text.productCode(card.product)}</span>
+          </SettingsItem>
+          {columns.packSize !== false && (
+            <SettingsItem label={t('stock-on-hand.pack-size')}>
+              {text.packSize(card.product)}
+            </SettingsItem>
           )}
-          {columns.lastUpdate !== false && card.occurredDate && (
-            <span>
-              {t('stock-on-hand.last-update')} <bdi>{text.date(card.occurredDate)}</bdi>
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="flex max-w-1/2 items-center gap-2 wrap-anywhere text-end">
-        <Quantity
-          unavailable={text.unavailable}
-          value={cardQuantity(card.stockOnHand, card.product?.netContent, unit, text.language)}
-        />
-        {card.stockCardId && (
-          <ChevronRightIcon
-            aria-hidden
-            className="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+        </>
+      )}
+      <SettingsItem label={t('stock-on-hand.lot-code')}>
+        <span className="flex justify-end">{text.lotLabel(card)}</span>
+      </SettingsItem>
+      {columns.expiry !== false && card.lot?.expirationDate && (
+        <SettingsItem label={t('stock-on-hand.expiry-date')}>
+          <bdi>{text.date(card.lot.expirationDate)}</bdi>
+        </SettingsItem>
+      )}
+      {columns.lastUpdate !== false && card.occurredDate && (
+        <SettingsItem label={t('stock-on-hand.last-update')}>
+          <bdi>{text.date(card.occurredDate)}</bdi>
+        </SettingsItem>
+      )}
+      <SettingsItem label={t('stock-on-hand.stock-on-hand')}>
+        <strong>
+          <Quantity
+            unavailable={text.unavailable}
+            value={cardQuantity(card.stockOnHand, card.product?.netContent, unit, text.language)}
           />
-        )}
-      </div>
-    </>
-  );
-  const rowClass = 'flex items-center justify-between gap-4 px-4 py-3 text-sm';
-  return card.stockCardId ? (
-    <Link
-      to="/stock-management/stock-on-hand/$stockCardId"
-      params={{ stockCardId: card.stockCardId }}
-      search={search}
-      disabled={isStale}
-      tabIndex={isStale ? -1 : undefined}
-      aria-disabled={isStale || undefined}
-      aria-label={t('stock-on-hand.view-card', {
-        product: text.productLabel(card.product),
-        lot: card.lot?.lotCode ?? t('stock-on-hand.no-lot'),
-      })}
-      className={`${rowClass} transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 aria-disabled:pointer-events-none`}
-    >
-      {content}
-    </Link>
-  ) : (
-    <div className={rowClass}>{content}</div>
+        </strong>
+      </SettingsItem>
+      {card.stockCardId && (
+        <div className="flex justify-end">
+          <StockCardView
+            card={card}
+            search={search}
+            disabled={isStale}
+            product={text.productLabel(card.product)}
+            lot={card.lot?.lotCode ?? t('stock-on-hand.no-lot')}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -697,16 +693,25 @@ export function StockOnHandResultsSkeleton({
                     </div>
                     {bar('w-10')}
                   </div>
-                  <ul className="divide-y border-t">
+                  <ul className="divide-y-8 border-t">
                     {product.cards.map((card) => (
-                      <li className="flex items-center justify-between gap-4 px-4 py-3" key={card}>
-                        <div className="flex min-w-0 flex-1 flex-col gap-2">
-                          {bar('w-20')}
-                          {columns.expiry !== false && bar('w-32')}
-                          {columns.lastUpdate !== false && bar('w-32')}
+                      <li className="divide-y *:px-4 *:py-3" key={card}>
+                        {['lotCode', 'expiry', 'lastUpdate', 'stockOnHand']
+                          .filter((key) => columns[key] !== false)
+                          .map((key) => (
+                            <div
+                              className="flex min-h-14 items-center justify-between gap-4"
+                              key={key}
+                            >
+                              {bar('w-24')}
+                              {bar('w-20')}
+                            </div>
+                          ))}
+                        <div className="flex justify-end">
+                          <div className="h-8 w-16">
+                            <Skeleton fill />
+                          </div>
                         </div>
-                        {bar('w-10')}
-                        <ChevronRightIcon className="size-4 text-muted-foreground rtl:rotate-180" />
                       </li>
                     ))}
                   </ul>
