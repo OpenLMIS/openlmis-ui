@@ -2,7 +2,7 @@ import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
 import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
+import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -555,7 +555,6 @@ function StockLotDetails({
         <div className="min-w-0 wrap-anywhere font-semibold text-sm">{text.lotLabel(card)}</div>
         {card.stockCardId && (
           <StockCardView
-            variant="outline"
             card={card}
             search={search}
             disabled={isStale}
@@ -609,21 +608,18 @@ function StockCardView({
   product,
   lot,
   disabled,
-  variant = 'default',
 }: {
   card: StockCardRow;
   search: StockOnHandSearch;
   product: string;
   lot: string;
   disabled: boolean;
-  variant?: ComponentProps<typeof Button>['variant'];
 }) {
   const { t } = useTranslation();
   if (!card.stockCardId) return null;
   return (
     <Button
       nativeButton={false}
-      variant={variant}
       size="sm"
       disabled={disabled}
       aria-label={t('stock-on-hand.view-card', { product, lot })}
