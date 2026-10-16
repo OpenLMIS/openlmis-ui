@@ -81,13 +81,14 @@ function createColumns(
           </span>
         </span>
       ),
+      meta: { className: '@xl/main:w-1/4' },
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('geographic-zones.code')} />
       ),
       cell: ({ getValue }) => text(getValue()),
-      meta: { className: 'w-28 @xl/main:w-36' },
+      meta: { className: 'w-40 @xl/main:w-48' },
     }),
     columnHelper.accessor('catchmentPopulation', {
       header: ({ column }) => (
