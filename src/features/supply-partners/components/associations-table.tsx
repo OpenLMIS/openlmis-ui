@@ -211,7 +211,6 @@ function useAssociationTable({
                   </span>
                   <Button
                     type="button"
-                    variant="link"
                     size="sm"
                     disabled={pending}
                     aria-label={t('supply-partners.view-for', {

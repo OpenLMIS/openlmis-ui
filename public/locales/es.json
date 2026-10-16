@@ -1973,7 +1973,6 @@
   "supply-partners.back": "Volver a socios de suministro",
   "supply-partners.clear-search": "Borrar búsqueda",
   "supply-partners.code": "Código",
-  "supply-partners.code-locked": "El código no se puede cambiar.",
   "supply-partners.code-required": "El código es obligatorio.",
   "supply-partners.conflict-description": "Este socio ha cambiado desde que lo abrió. Recargue para descartar el borrador y revisar el registro actual.",
   "supply-partners.conflict-title": "El socio ha cambiado",

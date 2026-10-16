@@ -1973,7 +1973,6 @@
   "supply-partners.back": "العودة إلى شركاء التوريد",
   "supply-partners.clear-search": "مسح البحث",
   "supply-partners.code": "الرمز",
-  "supply-partners.code-locked": "لا يمكن تغيير الرمز.",
   "supply-partners.code-required": "الرمز مطلوب.",
   "supply-partners.conflict-description": "تم تغيير شريك التوريد منذ فتحه. أعد التحميل لتجاهل المسودة ومراجعة السجل الحالي.",
   "supply-partners.conflict-title": "تم تغيير شريك التوريد",

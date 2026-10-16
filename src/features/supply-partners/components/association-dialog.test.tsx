@@ -131,7 +131,7 @@ it('keeps the dirty association copy open after Cancel is refused and commits no
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Edit Association' })).not.toBeInTheDocument(),
   );
-  expect(screen.getByText('1 product')).toBeVisible();
+  expect(screen.getByText('1 Product')).toBeVisible();
 });
 
 it('shows loading members and prevents facility pruning until changed product references resolve', async () => {

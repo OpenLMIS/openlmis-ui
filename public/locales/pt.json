@@ -1973,7 +1973,6 @@
   "supply-partners.back": "Voltar aos parceiros",
   "supply-partners.clear-search": "Limpar pesquisa",
   "supply-partners.code": "Código",
-  "supply-partners.code-locked": "O código não pode ser alterado.",
   "supply-partners.code-required": "O código é obrigatório.",
   "supply-partners.conflict-description": "Este parceiro foi alterado desde que o abriu. Recarregue para descartar o rascunho e rever o registo atual.",
   "supply-partners.conflict-title": "O parceiro foi alterado",

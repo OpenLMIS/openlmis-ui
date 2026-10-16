@@ -123,7 +123,7 @@ export function AssociationDialog({ target, onClose, returnFocus, ...props }: Pr
         if (!open && !pending) onClose();
       }}
       closeButton={!pending}
-      size="2xl"
+      size="table"
     >
       {shown &&
         (shown === 'new' || row ? (

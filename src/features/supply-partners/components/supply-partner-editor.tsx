@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Workspace,
@@ -166,17 +166,9 @@ export function SupplyPartnerEditor({
           >
             <FieldGroup>
               <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
-                <Field>
+                <Field data-disabled spacing="tight">
                   <FieldLabel htmlFor="supply-partner-code">{t('supply-partners.code')}</FieldLabel>
-                  <Input
-                    id="supply-partner-code"
-                    value={saved.code}
-                    readOnly
-                    aria-describedby="supply-partner-code-note"
-                  />
-                  <FieldDescription id="supply-partner-code-note">
-                    {t('supply-partners.code-locked')}
-                  </FieldDescription>
+                  <Input id="supply-partner-code" value={saved.code} disabled />
                 </Field>
                 <form.AppField name="name">
                   {(field) => (
