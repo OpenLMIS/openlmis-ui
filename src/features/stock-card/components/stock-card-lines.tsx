@@ -5,14 +5,21 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
+  DataTableCard,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableFooter,
   DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import {
+  DataTablePagination,
+  DataTablePaginationSkeleton,
+} from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,
@@ -57,6 +64,30 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
   { id: 'reversedBy', labelKey: 'stock-card.reversed-by', defaultHidden: true },
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
+const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'date');
+
+function hasValue(id: CellId, line: CardLineRow) {
+  switch (id) {
+    case 'receiveFrom':
+      return Boolean(line.source);
+    case 'issueTo':
+      return Boolean(line.destination);
+    case 'reason':
+      return Boolean(line.reason);
+    case 'performedBy':
+      return Boolean(line.username);
+    case 'signature':
+      return Boolean(line.signature);
+    case 'document':
+      return Boolean(line.eventOrigin);
+    case 'reversing':
+      return Boolean(line.reversedEventId);
+    case 'reversedBy':
+      return Boolean(line.cancellationEventId);
+    default:
+      return true;
+  }
+}
 
 function Wrapped({ children }: { children: string | null | undefined }) {
   return (
@@ -188,7 +219,57 @@ function useLineColumns(
   );
 }
 
+function LineCard({
+  line,
+  columnVisibility,
+  netContent,
+  unit,
+  eventSearch,
+}: {
+  line: CardLineRow;
+  columnVisibility: ColumnVisibilityState;
+  netContent: number | null | undefined;
+  unit: QuantityUnit;
+  eventSearch: EventSearch;
+}) {
+  const { t } = useTranslation();
+  return (
+    <DataTableCard>
+      <div className="flex min-h-10 items-center border-b bg-muted/50 px-4 py-1.5 font-semibold text-sm">
+        <LineCell
+          eventSearch={eventSearch}
+          id="date"
+          line={line}
+          netContent={netContent}
+          unit={unit}
+        />
+      </div>
+      <div className="divide-y *:px-4 *:py-1.5">
+        {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false && hasValue(id, line)).map(
+          ([id, key]) => {
+            const cell = (
+              <LineCell
+                eventSearch={eventSearch}
+                id={id}
+                line={line}
+                netContent={netContent}
+                unit={unit}
+              />
+            );
+            return (
+              <SettingsItem key={id} label={t(key)}>
+                {id === 'balance' ? <strong>{cell}</strong> : cell}
+              </SettingsItem>
+            );
+          },
+        )}
+      </div>
+    </DataTableCard>
+  );
+}
+
 type LinesProps = {
+  cards: boolean;
   card: StockCard;
   search: CardPagingSearch;
   onSearchChange: SearchChange<CardPagingSearch>;
@@ -198,6 +279,7 @@ type LinesProps = {
 };
 
 export function StockCardLines({
+  cards,
   card,
   search,
   onSearchChange,
@@ -250,13 +332,53 @@ export function StockCardLines({
     />
   );
   const footer = lines.length > 0 && <DataTablePagination table={table} />;
+  if (cards) {
+    return (
+      <div className="flex min-w-0 flex-col gap-4">
+        {rows.length === 0 ? (
+          <DataTableCard>{empty}</DataTableCard>
+        ) : (
+          <ul className="flex flex-col gap-4">
+            {rows.map((line) => (
+              <li key={line.rowId}>
+                <LineCard
+                  columnVisibility={columnVisibility}
+                  eventSearch={eventSearch}
+                  line={line}
+                  netContent={card.orderable.netContent}
+                  unit={unit}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {footer && (
+          <DataTableCard>
+            <DataTableFooter>{footer}</DataTableFooter>
+          </DataTableCard>
+        )}
+      </div>
+    );
+  }
   return <DataTable table={table} empty={empty} footer={footer} density="default" layout="auto" />;
 }
 
+const SKELETON_CARD_ROWS = ['reason', 'adjustment', 'balance', 'performedBy'];
+
+function SkeletonBar({ width }: { width: string }) {
+  return (
+    <div className={`h-4 ${width}`}>
+      <Skeleton fill />
+    </div>
+  );
+}
+
 export function StockCardLinesSkeleton({
+  cards,
   search,
   columnVisibility,
 }: {
+  cards: boolean;
   search: CardPagingSearch;
   columnVisibility: ColumnVisibilityState;
 }) {
@@ -269,5 +391,35 @@ export function StockCardLinesSkeleton({
     state: { columnVisibility },
   });
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
+  if (cards) {
+    return (
+      <div className="flex min-w-0 flex-col gap-4">
+        <ul className="flex flex-col gap-4">
+          {Array.from({ length: Math.min(rowCount, 3) }, (_, index) => index).map((index) => (
+            <li key={index}>
+              <DataTableCard>
+                <div className="flex min-h-10 items-center border-b bg-muted/50 px-4 py-1.5">
+                  <SkeletonBar width="w-24" />
+                </div>
+                <div className="divide-y *:px-4 *:py-1.5">
+                  {SKELETON_CARD_ROWS.filter((id) => columnVisibility[id] !== false).map((id) => (
+                    <div className="flex min-h-8 items-center justify-between gap-4" key={id}>
+                      <SkeletonBar width="w-24" />
+                      <SkeletonBar width="w-16" />
+                    </div>
+                  ))}
+                </div>
+              </DataTableCard>
+            </li>
+          ))}
+        </ul>
+        <DataTableCard>
+          <DataTableFooter>
+            <DataTablePaginationSkeleton />
+          </DataTableFooter>
+        </DataTableCard>
+      </div>
+    );
+  }
   return <DataTableSkeleton table={table} rowCount={rowCount} density="default" layout="auto" />;
 }

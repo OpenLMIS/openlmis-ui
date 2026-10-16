@@ -446,8 +446,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `isPageInvalid` turns pages holding invalid rows red, with no icon: solid for the current
   page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
-- Stock On Hand uses product cards below measured `@2xl/main`, with each lot
-  as settings rows ending in View. Other lists keep tables at every width, hiding lower-priority columns and allowing
+- Stock On Hand and Stock Card use cards below measured `@2xl/main`: Stock On Hand per product,
+  each lot a band with View over settings rows; Stock Card per line, a date band over settings
+  rows that skip empty values. Both apply stored View choices, not width defaults. Other lists keep tables at every width, hiding lower-priority columns and allowing
   sideways scrolling on phones. Keep headers on one line; every table header uses
   `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
