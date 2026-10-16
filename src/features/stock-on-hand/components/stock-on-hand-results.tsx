@@ -471,7 +471,7 @@ function GroupedCards({
             return (
               <li key={group.id}>
                 <DataTableCard>
-                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-3">
+                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
                     <Button
                       aria-expanded={open}
                       aria-label={t('stock-on-hand.toggle-product', { product: name })}
@@ -551,7 +551,7 @@ function StockLotDetails({
   const { t } = useTranslation();
   return (
     <div>
-      <div className="flex min-h-12 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-2">
+      <div className="flex min-h-10 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-1.5">
         <div className="min-w-0 wrap-anywhere font-semibold text-sm">{text.lotLabel(card)}</div>
         {card.stockCardId && (
           <StockCardView
@@ -564,7 +564,7 @@ function StockLotDetails({
           />
         )}
       </div>
-      <div className="divide-y *:px-4 *:py-3">
+      <div className="divide-y *:px-4 *:py-1.5">
         {card.product?.id !== group.product?.id && (
           <>
             <SettingsItem label={t('stock-on-hand.product')}>
@@ -689,7 +689,7 @@ export function StockOnHandResultsSkeleton({
             {products.map((product) => (
               <li key={product.id}>
                 <DataTableCard>
-                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-3">
+                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
                     <ToggleSkeleton />
                     <div className="flex min-w-0 flex-1 flex-col gap-2">
                       {bar('w-3/4')}
@@ -700,13 +700,13 @@ export function StockOnHandResultsSkeleton({
                   <ul>
                     {product.cards.map((card) => (
                       <li key={card}>
-                        <div className="flex min-h-12 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-2">
+                        <div className="flex min-h-10 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-1.5">
                           {bar('w-20')}
                           <div className="h-8 w-16">
                             <Skeleton fill />
                           </div>
                         </div>
-                        <div className="divide-y *:px-4 *:py-3">
+                        <div className="divide-y *:px-4 *:py-1.5">
                           {['expiry', 'lastUpdate', 'stockOnHand']
                             .filter((key) => columns[key] !== false)
                             .map((key) => (
