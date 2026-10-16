@@ -20,6 +20,7 @@ import { Route as protectedProtectedSettingsRouteImport } from './routes/(protec
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
 import { Route as protectedProtectedAdministrationGeographicZonesRouteImport } from './routes/(protected)/_protected.administration.geographic-zones'
+import { Route as protectedProtectedAdministrationIdealStockAmountsRouteImport } from './routes/(protected)/_protected.administration.ideal-stock-amounts'
 import { Route as protectedProtectedAdministrationLotsRouteImport } from './routes/(protected)/_protected.administration.lots'
 import { Route as protectedProtectedAdministrationProcessingSchedulesRouteImport } from './routes/(protected)/_protected.administration.processing-schedules'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
@@ -133,6 +134,12 @@ const protectedProtectedAdministrationGeographicZonesRoute =
   protectedProtectedAdministrationGeographicZonesRouteImport.update({
     id: '/administration/geographic-zones',
     path: '/administration/geographic-zones',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationIdealStockAmountsRoute =
+  protectedProtectedAdministrationIdealStockAmountsRouteImport.update({
+    id: '/administration/ideal-stock-amounts',
+    path: '/administration/ideal-stock-amounts',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationLotsRoute =
@@ -483,6 +490,7 @@ export interface FileRoutesByFullPath {
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
+  '/administration/ideal-stock-amounts': typeof protectedProtectedAdministrationIdealStockAmountsRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
@@ -548,6 +556,7 @@ export interface FileRoutesByTo {
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
+  '/administration/ideal-stock-amounts': typeof protectedProtectedAdministrationIdealStockAmountsRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
@@ -616,6 +625,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/(protected)/_protected/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
+  '/(protected)/_protected/administration/ideal-stock-amounts': typeof protectedProtectedAdministrationIdealStockAmountsRoute
   '/(protected)/_protected/administration/lots': typeof protectedProtectedAdministrationLotsRoute
   '/(protected)/_protected/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
@@ -685,6 +695,7 @@ export interface FileRouteTypes {
     | '/administration/facilities'
     | '/administration/facility-types'
     | '/administration/geographic-zones'
+    | '/administration/ideal-stock-amounts'
     | '/administration/lots'
     | '/administration/processing-schedules'
     | '/administration/products'
@@ -750,6 +761,7 @@ export interface FileRouteTypes {
     | '/administration/facilities'
     | '/administration/facility-types'
     | '/administration/geographic-zones'
+    | '/administration/ideal-stock-amounts'
     | '/administration/lots'
     | '/administration/processing-schedules'
     | '/administration/products'
@@ -817,6 +829,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/facilities'
     | '/(protected)/_protected/administration/facility-types'
     | '/(protected)/_protected/administration/geographic-zones'
+    | '/(protected)/_protected/administration/ideal-stock-amounts'
     | '/(protected)/_protected/administration/lots'
     | '/(protected)/_protected/administration/processing-schedules'
     | '/(protected)/_protected/administration/products'
@@ -959,6 +972,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/geographic-zones'
       fullPath: '/administration/geographic-zones'
       preLoaderRoute: typeof protectedProtectedAdministrationGeographicZonesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/ideal-stock-amounts': {
+      id: '/(protected)/_protected/administration/ideal-stock-amounts'
+      path: '/administration/ideal-stock-amounts'
+      fullPath: '/administration/ideal-stock-amounts'
+      preLoaderRoute: typeof protectedProtectedAdministrationIdealStockAmountsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/lots': {
@@ -1421,6 +1441,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
   protectedProtectedAdministrationGeographicZonesRoute: typeof protectedProtectedAdministrationGeographicZonesRoute
+  protectedProtectedAdministrationIdealStockAmountsRoute: typeof protectedProtectedAdministrationIdealStockAmountsRoute
   protectedProtectedAdministrationLotsRoute: typeof protectedProtectedAdministrationLotsRoute
   protectedProtectedAdministrationProcessingSchedulesRoute: typeof protectedProtectedAdministrationProcessingSchedulesRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
@@ -1477,6 +1498,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationFacilityTypesRoute,
   protectedProtectedAdministrationGeographicZonesRoute:
     protectedProtectedAdministrationGeographicZonesRoute,
+  protectedProtectedAdministrationIdealStockAmountsRoute:
+    protectedProtectedAdministrationIdealStockAmountsRoute,
   protectedProtectedAdministrationLotsRoute:
     protectedProtectedAdministrationLotsRoute,
   protectedProtectedAdministrationProcessingSchedulesRoute:

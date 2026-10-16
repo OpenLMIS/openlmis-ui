@@ -3,7 +3,9 @@ import {
   CalendarIcon,
   EyeIcon,
   EyeOffIcon,
+  FileIcon,
   InfoIcon,
+  PaperclipIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -20,7 +22,12 @@ import {
 } from 'react';
 import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
-import { useAboutLabel, useDateMessages, useFormatError } from '@/components/form/form-messages';
+import {
+  useAboutLabel,
+  useDateMessages,
+  useFormatError,
+  useRequiredLabel,
+} from '@/components/form/form-messages';
 import { type QuantityValue, updateQuantityValue } from '@/components/form/quantity-value';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { addTag, type TagRefusal, tagSuggestions } from '@/components/form/tags';
@@ -804,6 +811,118 @@ function IconAction({ label, icon, ...props }: IconActionProps) {
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
+  );
+}
+
+type FileFieldProps = Omit<FieldProps, 'layout' | 'hideErrors'> & {
+  accept: string;
+  emptyLabel: string;
+  removeLabel: string;
+  fileSize?: string;
+  describedBy?: string;
+};
+
+export function FileField({
+  label,
+  description,
+  required,
+  disabled,
+  accept,
+  emptyLabel,
+  removeLabel,
+  fileSize,
+  describedBy,
+}: FileFieldProps) {
+  const field = useFieldContext<File | undefined>();
+  const input = useRef<HTMLInputElement>(null);
+  const choose = useRef<HTMLButtonElement>(null);
+  const requiredLabel = useRequiredLabel();
+  const requiredId = `${field.name}-required`;
+  const filenameId = `${field.name}-filename`;
+  const state = useFieldErrors(
+    description,
+    [describedBy, required ? requiredId : ''].filter(Boolean).join(' '),
+  );
+  const file = field.state.value;
+
+  return (
+    <FieldFrame disabled={disabled} label={label} required={required} state={state}>
+      <div className="flex min-w-0 flex-col gap-2">
+        <Button
+          align="start"
+          aria-controls={`${field.name}-input`}
+          aria-describedby={state.describedBy}
+          aria-invalid={state.isInvalid}
+          aria-labelledby={`${field.name}-label ${filenameId}`}
+          disabled={disabled}
+          id={field.name}
+          onBlur={field.handleBlur}
+          onClick={() => input.current?.click()}
+          ref={choose}
+          type="button"
+          variant="outline"
+          width="full"
+        >
+          <PaperclipIcon data-icon="inline-start" />
+          <span className="min-w-0 flex-1 truncate text-start" dir="auto" id={filenameId}>
+            {file?.name ?? emptyLabel}
+          </span>
+        </Button>
+        {description && <FieldDescription id={state.descriptionId}>{description}</FieldDescription>}
+        {file ? (
+          <div className="flex min-w-0 items-center gap-3 rounded-lg border p-3">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+              <FileIcon className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm" dir="auto">
+                {file.name}
+              </p>
+              {fileSize && <p className="text-muted-foreground text-xs">{fileSize}</p>}
+            </div>
+            <IconAction
+              disabled={disabled}
+              icon={<Trash2Icon />}
+              label={removeLabel}
+              onClick={() => {
+                field.setValue(undefined, { dontValidate: true });
+                field.setMeta((previous) => ({
+                  ...previous,
+                  isTouched: false,
+                  isBlurred: false,
+                  isDirty: false,
+                  errorMap: {},
+                  errorSourceMap: {},
+                }));
+                if (input.current) input.current.value = '';
+                choose.current?.focus();
+              }}
+              variant="destructive"
+            />
+          </div>
+        ) : null}
+        {required && (
+          <span className="sr-only" id={requiredId}>
+            {requiredLabel}
+          </span>
+        )}
+        <input
+          accept={accept}
+          aria-labelledby={`${field.name}-label`}
+          disabled={disabled}
+          hidden
+          id={`${field.name}-input`}
+          name={field.name}
+          onChange={(event) => {
+            const selected = event.target.files?.[0];
+            if (selected) field.handleChange(selected);
+            event.target.value = '';
+          }}
+          ref={input}
+          type="file"
+        />
+      </div>
+    </FieldFrame>
   );
 }
 

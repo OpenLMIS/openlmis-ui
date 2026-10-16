@@ -577,6 +577,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `SelectField` | One choice from a short fixed list; opens below input (`alignItemWithTrigger: false`); `placeholder` shows when empty, unless an item's value is `''` |
 | `ComboboxField` | Searchable choices; item `description` appears muted after label |
 | `ImageField` | `undefined` keeps saved image, `null` removes it, `File` replaces it; validate `onChange` immediately |
+| `FileField` | `File` selects a file; `undefined` clears it and its errors; pass translated `emptyLabel`, `removeLabel`, `accept` and optional external `describedBy`; the entire paperclip/filename row opens the file chooser, and the selected-file card takes a caller-localized `fileSize` and a destructive clear control; required validation stays in the schema |
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 

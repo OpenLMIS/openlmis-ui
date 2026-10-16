@@ -19,6 +19,7 @@ export const RIGHTS = {
   rightsView: 'RIGHTS_VIEW',
   serviceAccountsManage: 'SERVICE_ACCOUNTS_MANAGE',
   systemSettingsManage: 'SYSTEM_SETTINGS_MANAGE',
+  systemIdealStockAmountsManage: 'SYSTEM_IDEAL_STOCK_AMOUNTS_MANAGE',
   orderablesManage: 'ORDERABLES_MANAGE',
   facilityApprovedOrderablesManage: 'FACILITY_APPROVED_ORDERABLES_MANAGE',
   stockDestinationsManage: 'STOCK_DESTINATIONS_MANAGE',
