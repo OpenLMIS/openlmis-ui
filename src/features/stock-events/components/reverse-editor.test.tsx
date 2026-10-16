@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { useCallback, useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
 import { cancelStockEvent, fetchEventStockOnHand } from '@/features/stock-events/api/api';
@@ -21,7 +22,7 @@ import type { SearchChange } from '@/lib/table-search';
 
 vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
-  useElementWidth: () => [vi.fn(), 944],
+  useElementWidth: vi.fn(() => [vi.fn(), 944]),
 }));
 vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
@@ -38,6 +39,7 @@ vi.mock('@/features/stock-events/api/api', () => ({
 }));
 vi.mock('@/features/reference-data/api/api', () => ({ fetchReasons: vi.fn() }));
 beforeEach(() => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 944]);
   useLoginData.setState({ referenceDataUserId: 'user' });
   vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
 });
@@ -525,4 +527,47 @@ it('hides selected balances while refreshing current stock', async () => {
   expect(balance.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
   await act(async () => resolveStock({ 'o/': 0 }));
   await waitFor(() => expect(balance).toHaveTextContent('20'));
+});
+
+it('edits a phone card and focuses its invalid reason after Close', async () => {
+  const user = userEvent.setup();
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  editor();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  const card = screen.getByText('Vaccine (C1)').closest('li');
+  if (!card) throw new Error('Missing line card');
+  expect(screen.queryByText('stock-event-reverse.cancel-reason')).not.toBeInTheDocument();
+  await tick();
+  expect(within(card).getByText('stock-event-reverse.cancel-reason')).toBeVisible();
+  expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  const trigger = screen.getByRole('combobox', { name: 'stock-events.field-of' });
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  await waitFor(() => expect(trigger).toHaveFocus());
+  await pick();
+  expect(trigger).toHaveTextContent('Cancelled issue');
+  expect(trigger).not.toHaveAttribute('aria-invalid', 'true');
+  expect(within(card).getByRole('textbox', { name: 'stock-events.field-of' })).toBeVisible();
+});
+
+it('opens a phone page at its first card without overriding invalid-field focus', async () => {
+  const user = userEvent.setup();
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  const onSearchChange = vi.fn();
+  editor({}, true, { more: Array.from({ length: 10 }, () => ({})), onSearchChange });
+  await user.click(screen.getByRole('button', { name: 'Page 2' }));
+  await waitFor(() => expect(screen.getByRole('list')).toHaveFocus());
+  expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(1);
+  expect(onSearchChange).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
+    resetScroll: false,
+  });
+  await tick();
+  await user.click(screen.getByRole('button', { name: 'Page 1' }));
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await closeAlert();
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'stock-events.field-of' })).toHaveFocus(),
+  );
+  expect(screen.getByRole('list')).not.toHaveFocus();
 });

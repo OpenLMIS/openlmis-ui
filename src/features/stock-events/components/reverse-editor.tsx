@@ -24,6 +24,14 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardRowSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
@@ -31,13 +39,21 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import {
+  DataTablePagination,
+  DataTablePaginationSkeleton,
+} from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
+import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
 import { LoadError } from '@/components/load-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -92,10 +108,11 @@ import type {
   StockEventSummary,
 } from '@/features/stock-events/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { tableValue } from '@/lib/empty-value';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
@@ -118,6 +135,9 @@ const COLUMNS = [
   ['comments', 'stock-event-reverse.cancel-reason-comments'],
   ['balance', 'stock-event-reverse.new-stock-on-hand'],
 ] as const;
+const READ_ONLY_COLUMNS = COLUMNS.filter(
+  ([id]) => !['reverse', 'code', 'product', 'cancelReason', 'comments', 'balance'].includes(id),
+);
 const REVERSE_HIDEABLE_COLUMNS = [
   { id: 'code', labelKey: 'stock-events.product-code', hideBelow: 470 },
   { id: 'lot', labelKey: 'stock-event.lot-code' },
@@ -190,10 +210,11 @@ export function ReverseEditor({
   const leaving = useRef(false);
   const posting = useRef(false);
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const columnView = useColumnVisibility(
     REVERSE_HIDEABLE_COLUMNS,
     useStoredState('stock-event-reverse.columns', choicesSchema, {}),
-    width,
+    cards ? undefined : width,
   );
   const form = useReverseForm();
   const draft = useStore(form.store, (state) => state.values);
@@ -221,6 +242,7 @@ export function ReverseEditor({
   const size = search.reverseSize ?? 10;
   const requestedPage = search.reversePage ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
+  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`);
   useEffect(() => {
     if (linesQuery.data && requestedPage !== page)
       onSearchChange({ reversePage: page === 1 ? undefined : page }, true, { resetScroll: false });
@@ -346,8 +368,12 @@ export function ReverseEditor({
   };
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
     (update, replace) =>
-      onSearchChange((previous) => changeReversePaging(previous, update), replace),
-    [onSearchChange],
+      onSearchChange(
+        (previous) => changeReversePaging(previous, update),
+        replace,
+        cards ? { resetScroll: false } : undefined,
+      ),
+    [onSearchChange, cards],
   );
   const searchState = useTableSearchState({
     search: { ...reverseTableSearch(search), page },
@@ -397,6 +423,10 @@ export function ReverseEditor({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: (updater) => {
+      if (cards) pageStart.request();
+      searchState.onPaginationChange(updater);
+    },
     state: {
       ...searchState.state,
       columnVisibility: columnView.visibility,
@@ -434,6 +464,20 @@ export function ReverseEditor({
       quantityUnit.unit,
       clearFieldMark,
     ],
+  );
+  const empty = (
+    <DataTableEmpty icon={<ClipboardListIcon />} title={t('stock-event-reverse.no-lines')} />
+  );
+  const footer = rows.length > 0 && (
+    <DataTablePagination
+      table={table}
+      disabled={pending}
+      isPageInvalid={(index) =>
+        rows
+          .slice(index * size, (index + 1) * size)
+          .some((row) => Object.keys(liveMarks[row.id] ?? {}).length > 0 || !!errors[row.id])
+      }
+    />
   );
   const closeSummary = async () => {
     if (!mutation.isCurrent()) return;
@@ -473,6 +517,7 @@ export function ReverseEditor({
                 <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
                     {...columnView}
+                    layout={cards ? 'cards' : 'table'}
                     columns={REVERSE_HIDEABLE_COLUMNS.map((column) => ({
                       id: column.id,
                       label: t(column.labelKey),
@@ -483,45 +528,42 @@ export function ReverseEditor({
               <QueryBoundary
                 resetKey={event.id}
                 pendingFallback={
-                  <DataTableSkeleton
-                    table={table}
-                    rowCount={size}
-                    density="compact"
-                    layout="auto"
-                  />
+                  cards ? (
+                    <ReverseCardsSkeleton
+                      visible={(id) => table.getColumn(id)?.getIsVisible() !== false}
+                    />
+                  ) : (
+                    <DataTableSkeleton
+                      table={table}
+                      rowCount={size}
+                      density="compact"
+                      layout="auto"
+                    />
+                  )
                 }
                 errorComponent={ReverseDataError}
               >
                 <ReverseDataReady eventId={event.id}>
                   <ReverseCells value={cells}>
-                    <DataTable
-                      table={table}
-                      density="compact"
-                      layout="auto"
-                      empty={
-                        <DataTableEmpty
-                          icon={<ClipboardListIcon />}
-                          title={t('stock-event-reverse.no-lines')}
-                        />
-                      }
-                      footer={
-                        rows.length > 0 && (
-                          <DataTablePagination
-                            table={table}
-                            disabled={pending}
-                            isPageInvalid={(index) =>
-                              rows
-                                .slice(index * size, (index + 1) * size)
-                                .some(
-                                  (row) =>
-                                    Object.keys(liveMarks[row.id] ?? {}).length > 0 ||
-                                    !!errors[row.id],
-                                )
-                            }
-                          />
-                        )
-                      }
-                    />
+                    {cards ? (
+                      <CardList
+                        listRef={pageStart.ref}
+                        empty={rows.length === 0 && empty}
+                        footer={footer}
+                      >
+                        {table.getRowModel().rows.map((row) => (
+                          <ReverseLineCard key={row.id} row={row} />
+                        ))}
+                      </CardList>
+                    ) : (
+                      <DataTable
+                        table={table}
+                        density="compact"
+                        layout="auto"
+                        empty={empty}
+                        footer={footer}
+                      />
+                    )}
                   </ReverseCells>
                 </ReverseDataReady>
               </QueryBoundary>
@@ -651,9 +693,11 @@ type CellProps = {
   row: Row<DataTableFeatures, TableRow>;
   id: (typeof COLUMNS)[number][0];
   keyLabel: (typeof COLUMNS)[number][1];
+  cards?: boolean;
 };
 
-function useReverseCell({ row, keyLabel: key }: CellProps) {
+function useReverseCell(props: CellProps) {
+  const { row, keyLabel: key } = props;
   const state = use(ReverseCells);
   if (!state) throw new Error('Reverse cells require their editor');
   const { t, i18n } = useTranslation();
@@ -668,16 +712,18 @@ function useReverseCell({ row, keyLabel: key }: CellProps) {
       row: `${line.orderable.fullProductName} (${line.orderable.productCode}) ${line.lot?.lotCode ?? t('stock-event.no-lot')} ${formatDateValue(line.occurredDate, i18n.language)}`,
     });
   const quantity = (value: number | undefined) => (
-    <span className="whitespace-nowrap tabular-nums" dir="ltr">
-      {tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language))}
-    </span>
+    <bdi className="whitespace-nowrap tabular-nums" dir="ltr">
+      {(props.cards ? orEmpty : tableValue)(
+        cardQuantity(value, line.orderable.netContent, unit, i18n.language),
+      )}
+    </bdi>
   );
 
   return { ...state, t, line, rowId, rowDraft, mark, reason, label, quantity };
 }
 
 function ReverseCheckboxCell(props: CellProps) {
-  const { t, line, rowId, label, errors, pending, fetching } = useReverseCell(props);
+  const { line, rowId, label, errors, pending, fetching } = useReverseCell(props);
   const { row } = props;
 
   const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
@@ -694,20 +740,30 @@ function ReverseCheckboxCell(props: CellProps) {
           onCheckedChange={(checked) => row.toggleSelected(checked)}
         />
       </div>
-      {error && (
-        <p
-          id={`reverse-error-${rowId}`}
-          className="flex min-w-0 w-48 items-start gap-1 whitespace-normal break-words text-start text-sm text-destructive"
-          role="alert"
-        >
-          <span className="shrink-0">
-            <CircleAlertIcon />
-          </span>
-          <span className="min-w-0">{'key' in error ? t(error.key) : error.message}</span>
-        </p>
-      )}
+      {!props.cards && <ReverseLineError {...props} />}
     </div>
   );
+}
+
+function ReverseLineError(props: CellProps) {
+  const { t, rowId, errors } = useReverseCell(props);
+  const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
+  return error ? (
+    <p
+      id={`reverse-error-${rowId}`}
+      className={
+        props.cards
+          ? 'flex min-w-0 items-start gap-1 px-4 py-1.5 text-sm text-destructive'
+          : 'flex min-w-0 w-48 items-start gap-1 whitespace-normal break-words text-start text-sm text-destructive'
+      }
+      role="alert"
+    >
+      <span className="shrink-0">
+        <CircleAlertIcon />
+      </span>
+      <span className="min-w-0">{'key' in error ? t(error.key) : error.message}</span>
+    </p>
+  ) : null;
 }
 
 function ReverseReasonCell(props: CellProps) {
@@ -727,7 +783,7 @@ function ReverseReasonCell(props: CellProps) {
   } = useReverseCell(props);
 
   return (
-    <div className="grid min-h-7 w-56 items-center">
+    <div className={props.cards ? 'min-w-0' : 'grid min-h-7 w-56 items-center'}>
       {rowDraft && (
         <form.AppField
           name={`lines.${rowId}.reasonId`}
@@ -781,7 +837,7 @@ function ReverseCommentsCell(props: CellProps) {
     value.length > 255 ? mark?.comments : undefined;
 
   return (
-    <div className="grid min-h-7 w-48 items-center">
+    <div className={props.cards ? 'min-w-0' : 'grid min-h-7 w-48 items-center'}>
       {rowDraft && reason?.isFreeTextAllowed && (
         <form.AppField
           name={`lines.${rowId}.comments`}
@@ -839,44 +895,44 @@ function ReverseBalanceCell(props: CellProps) {
 function ReverseReadOnlyCell(props: CellProps) {
   const { t, i18n } = useTranslation();
   const { line, quantity, current, fetching } = useReverseCell(props);
+  const value = props.cards ? orEmpty : tableValue;
+  const textClass = props.cards ? 'wrap-break-word' : 'whitespace-nowrap';
   switch (props.id) {
     case 'code':
-      return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
+      return <bdi className={textClass}>{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className="whitespace-nowrap">
+        <span className={textClass}>
           <bdi>{line.orderable.fullProductName}</bdi>
         </span>
       );
     case 'lot':
       return line.lot ? (
-        <bdi className="whitespace-nowrap">{line.lot.lotCode}</bdi>
+        <bdi className={textClass}>{value(line.lot.lotCode)}</bdi>
       ) : (
-        <span className="whitespace-nowrap">{t('stock-event.no-lot')}</span>
+        <span className={textClass}>{t('stock-event.no-lot')}</span>
       );
     case 'date':
       return (
-        <bdi className="whitespace-nowrap">
-          {tableValue(formatDateValue(line.occurredDate, i18n.language))}
-        </bdi>
+        <bdi className={textClass}>{value(formatDateValue(line.occurredDate, i18n.language))}</bdi>
       );
     case 'source':
       return (
-        <span className="whitespace-nowrap">
-          {tableValue(namedWithFreeText(line.source, line.sourceFreeText))}
-        </span>
+        <bdi className={textClass}>
+          {value(namedWithFreeText(line.source, line.sourceFreeText))}
+        </bdi>
       );
     case 'destination':
       return (
-        <span className="whitespace-nowrap">
-          {tableValue(namedWithFreeText(line.destination, line.destinationFreeText))}
-        </span>
+        <bdi className={textClass}>
+          {value(namedWithFreeText(line.destination, line.destinationFreeText))}
+        </bdi>
       );
     case 'reason':
       return (
-        <span className="whitespace-nowrap">
-          {tableValue(namedWithFreeText(line.reason, line.reasonFreeText))}
-        </span>
+        <bdi className={textClass}>
+          {value(namedWithFreeText(line.reason, line.reasonFreeText))}
+        </bdi>
       );
     case 'quantity':
       return quantity(line.quantity);
@@ -891,10 +947,113 @@ function ReverseReadOnlyCell(props: CellProps) {
     case 'reversed':
       return line.cancellationEventId ? (
         line.cancellationEventDocumentNumber ? (
-          <bdi className="whitespace-nowrap">{line.cancellationEventDocumentNumber}</bdi>
+          <bdi className={textClass}>{line.cancellationEventDocumentNumber}</bdi>
         ) : (
           <CheckIcon aria-label={t('stock-event-reverse.reversed')} role="img" />
         )
-      ) : null;
+      ) : (
+        value(null)
+      );
   }
+}
+
+function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
+  const { t } = useTranslation();
+  const props: CellProps = {
+    row,
+    id: 'reverse',
+    keyLabel: 'stock-event-reverse.reverse',
+    cards: true,
+  };
+  const { line, rowDraft, reason } = useReverseCell(props);
+  return (
+    <CardListItem>
+      <CardBand>
+        <div className="flex min-w-0 items-center gap-3">
+          <ReverseCheckboxCell {...props} />
+          <bdi className="min-w-0 wrap-break-word">
+            {line.orderable.fullProductName} ({line.orderable.productCode})
+          </bdi>
+        </div>
+      </CardBand>
+      <ReverseLineError {...props} />
+      <CardRows>
+        {READ_ONLY_COLUMNS.filter(([id]) =>
+          row.getVisibleCells().some((cell) => cell.column.id === id),
+        ).map(([id, key]) => (
+          <SettingsItem key={id} label={t(key)}>
+            <ReverseReadOnlyCell {...props} id={id} keyLabel={key} />
+          </SettingsItem>
+        ))}
+        {rowDraft && (
+          <>
+            <SettingsRowFrame
+              value="control"
+              label={<span className="text-sm">{t('stock-event-reverse.cancel-reason')}</span>}
+            >
+              <ReverseReasonCell
+                {...props}
+                id="cancelReason"
+                keyLabel="stock-event-reverse.cancel-reason"
+              />
+            </SettingsRowFrame>
+            {reason?.isFreeTextAllowed &&
+              row.getVisibleCells().some((cell) => cell.column.id === 'comments') && (
+                <SettingsRowFrame
+                  value="control"
+                  label={
+                    <span className="text-sm">
+                      {t('stock-event-reverse.cancel-reason-comments')}
+                    </span>
+                  }
+                >
+                  <ReverseCommentsCell
+                    {...props}
+                    id="comments"
+                    keyLabel="stock-event-reverse.cancel-reason-comments"
+                  />
+                </SettingsRowFrame>
+              )}
+            <SettingsRowFrame
+              label={
+                <strong className="text-sm">{t('stock-event-reverse.new-stock-on-hand')}</strong>
+              }
+            >
+              <div className="font-bold text-sm">
+                <ReverseBalanceCell
+                  {...props}
+                  id="balance"
+                  keyLabel="stock-event-reverse.new-stock-on-hand"
+                />
+              </div>
+            </SettingsRowFrame>
+          </>
+        )}
+      </CardRows>
+    </CardListItem>
+  );
+}
+
+function ReverseCardsSkeleton({ visible }: { visible: (id: string) => boolean }) {
+  return (
+    <CardList footer={<DataTablePaginationSkeleton />}>
+      {['a', 'b', 'c'].map((id) => (
+        <CardListItem key={id}>
+          <CardBand>
+            <div className="flex items-center gap-3">
+              <div className="size-4">
+                <Skeleton fill />
+              </div>
+              <SkeletonBar width="w-40" />
+            </div>
+          </CardBand>
+          <CardRows>
+            {READ_ONLY_COLUMNS.filter(([column]) => visible(column)).map(([column]) => (
+              <CardRowSkeleton key={column} />
+            ))}
+          </CardRows>
+        </CardListItem>
+      ))}
+    </CardList>
+  );
 }

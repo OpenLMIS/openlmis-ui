@@ -452,7 +452,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/components/card-list.tsx`). Stock On Hand gives each product a card with its lots as
   bands (lot label, View) over `SettingsItem` rows; Stock Card uses a date band, Transaction
   History a band with the document number (or date) and View. Transaction Details lines use a
-  product band. Cards ignore width defaults, so
+  product band. Reverse ticks lines in the band and reveals its fields on the card.
+  Cards ignore width defaults, so
   stored View choices apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes
   `layout="cards"` (Toggle Details). Pager changes call `usePageStart().request()`
   (`src/hooks/use-page-start.ts`) and page with `resetScroll: false`,

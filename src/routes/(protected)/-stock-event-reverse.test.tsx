@@ -448,7 +448,7 @@ it('keeps Reversed and Lot Code visible at phone content width', async () => {
     { ...line, cancellationEventId: 'cancelled', cancellationEventDocumentNumber: 'REV-1' },
   ]);
   renderRoute();
-  await screen.findByText('Vaccine');
+  await screen.findByText('Vaccine (C1)');
   expect(screen.getByText('REV-1')).toBeInTheDocument();
   expect(screen.getByText('LOT-A')).toBeInTheDocument();
 });
