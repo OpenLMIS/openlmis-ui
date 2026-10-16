@@ -31,6 +31,7 @@ import { Route as protectedProtectedAdministrationRequisitionTemplatesRouteImpor
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
 import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } from './routes/(protected)/_protected.administration.service-accounts'
 import { Route as protectedProtectedAdministrationSupervisoryNodesRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes'
+import { Route as protectedProtectedAdministrationSupplyLinesRouteImport } from './routes/(protected)/_protected.administration.supply-lines'
 import { Route as protectedProtectedAdministrationSupplyPartnersRouteImport } from './routes/(protected)/_protected.administration.supply-partners'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
 import { Route as protectedProtectedAdministrationValidDestinationsRouteImport } from './routes/(protected)/_protected.administration.valid-destinations'
@@ -199,6 +200,12 @@ const protectedProtectedAdministrationSupervisoryNodesRoute =
   protectedProtectedAdministrationSupervisoryNodesRouteImport.update({
     id: '/administration/supervisory-nodes',
     path: '/administration/supervisory-nodes',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationSupplyLinesRoute =
+  protectedProtectedAdministrationSupplyLinesRouteImport.update({
+    id: '/administration/supply-lines',
+    path: '/administration/supply-lines',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationSupplyPartnersRoute =
@@ -494,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
+  '/administration/supply-lines': typeof protectedProtectedAdministrationSupplyLinesRoute
   '/administration/supply-partners': typeof protectedProtectedAdministrationSupplyPartnersRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
@@ -559,6 +567,7 @@ export interface FileRoutesByTo {
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
+  '/administration/supply-lines': typeof protectedProtectedAdministrationSupplyLinesRoute
   '/administration/supply-partners': typeof protectedProtectedAdministrationSupplyPartnersRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
@@ -627,6 +636,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
   '/(protected)/_protected/administration/service-accounts': typeof protectedProtectedAdministrationServiceAccountsRoute
   '/(protected)/_protected/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
+  '/(protected)/_protected/administration/supply-lines': typeof protectedProtectedAdministrationSupplyLinesRoute
   '/(protected)/_protected/administration/supply-partners': typeof protectedProtectedAdministrationSupplyPartnersRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/(protected)/_protected/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
@@ -696,6 +706,7 @@ export interface FileRouteTypes {
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/supervisory-nodes'
+    | '/administration/supply-lines'
     | '/administration/supply-partners'
     | '/administration/users'
     | '/administration/valid-destinations'
@@ -761,6 +772,7 @@ export interface FileRouteTypes {
     | '/administration/roles'
     | '/administration/service-accounts'
     | '/administration/supervisory-nodes'
+    | '/administration/supply-lines'
     | '/administration/supply-partners'
     | '/administration/users'
     | '/administration/valid-destinations'
@@ -828,6 +840,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/roles'
     | '/(protected)/_protected/administration/service-accounts'
     | '/(protected)/_protected/administration/supervisory-nodes'
+    | '/(protected)/_protected/administration/supply-lines'
     | '/(protected)/_protected/administration/supply-partners'
     | '/(protected)/_protected/administration/users'
     | '/(protected)/_protected/administration/valid-destinations'
@@ -1036,6 +1049,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/supervisory-nodes'
       fullPath: '/administration/supervisory-nodes'
       preLoaderRoute: typeof protectedProtectedAdministrationSupervisoryNodesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/supply-lines': {
+      id: '/(protected)/_protected/administration/supply-lines'
+      path: '/administration/supply-lines'
+      fullPath: '/administration/supply-lines'
+      preLoaderRoute: typeof protectedProtectedAdministrationSupplyLinesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/supply-partners': {
@@ -1432,6 +1452,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
   protectedProtectedAdministrationServiceAccountsRoute: typeof protectedProtectedAdministrationServiceAccountsRoute
   protectedProtectedAdministrationSupervisoryNodesRoute: typeof protectedProtectedAdministrationSupervisoryNodesRoute
+  protectedProtectedAdministrationSupplyLinesRoute: typeof protectedProtectedAdministrationSupplyLinesRoute
   protectedProtectedAdministrationSupplyPartnersRoute: typeof protectedProtectedAdministrationSupplyPartnersRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
@@ -1499,6 +1520,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationServiceAccountsRoute,
   protectedProtectedAdministrationSupervisoryNodesRoute:
     protectedProtectedAdministrationSupervisoryNodesRoute,
+  protectedProtectedAdministrationSupplyLinesRoute:
+    protectedProtectedAdministrationSupplyLinesRoute,
   protectedProtectedAdministrationSupplyPartnersRoute:
     protectedProtectedAdministrationSupplyPartnersRoute,
   protectedProtectedAdministrationUsersRoute:
