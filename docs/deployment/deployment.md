@@ -131,6 +131,14 @@ Optional features are turned on or off in two places:
 During dual boot the legacy UI keeps reading its own container environment, so a flag changed in
 the new UI only reaches screens that have moved to the new UI.
 
+`CATCHMENT_POPULATION_CALC_AUTO` (`true` or `false`, off by default) controls Geographic Zones
+population editing. When enabled, administrators can edit populations only at the lowest
+configured geographic level, and the reference data service recalculates ancestor totals.
+Set the same value on the UI and reference data containers, and keep the legacy UI consistent
+during dual boot. The UI cannot detect a mismatch. This flag comes only from deployment
+configuration and is hidden from Settings > Feature Flags. For local development, set it
+under `featureFlags` in `public/config.json`.
+
 ## Working offline
 
 The app keeps its own files in the browser so it opens without a connection. A service worker,
