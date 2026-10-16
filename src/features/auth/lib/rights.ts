@@ -9,6 +9,7 @@ export const RIGHTS = {
   podsManage: 'PODS_MANAGE',
   cceInventoryView: 'CCE_INVENTORY_VIEW',
   facilitiesManage: 'FACILITIES_MANAGE',
+  supplyLinesManage: 'SUPPLY_LINES_MANAGE',
   supervisoryNodesManage: 'SUPERVISORY_NODES_MANAGE',
   programsManage: 'PROGRAMS_MANAGE',
   processingSchedulesManage: 'PROCESSING_SCHEDULES_MANAGE',
