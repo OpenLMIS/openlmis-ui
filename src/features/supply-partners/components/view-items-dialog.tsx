@@ -54,7 +54,7 @@ export function ViewItemsDialog({
   const [kind, ...pair] = (shown ?? '').split(':');
   const item = associations.find((row) => associationKey(row) === pair.join(':'));
   return (
-    <FormDialog {...dialogProps(pending)} closeButton={!pending} size="xl">
+    <FormDialog {...dialogProps(pending)} closeButton={!pending} size="table">
       {shown &&
         (item ? (
           <ViewItems
@@ -102,11 +102,20 @@ function ViewItems({
       helper.columns([
         helper.accessor('name', {
           header: t('supply-partners.name'),
-          cell: ({ getValue }) => <span dir="auto">{getValue()}</span>,
+          cell: ({ getValue }) => (
+            <span className="block whitespace-normal wrap-anywhere" dir="auto">
+              {getValue()}
+            </span>
+          ),
         }),
         helper.accessor('code', {
           header: t('supply-partners.code'),
-          cell: ({ getValue }) => <span dir="auto">{getValue()}</span>,
+          meta: { className: 'w-32' },
+          cell: ({ getValue }) => (
+            <span className="block whitespace-normal wrap-anywhere" dir="auto">
+              {getValue()}
+            </span>
+          ),
         }),
       ]),
     [t],
@@ -139,18 +148,19 @@ function ViewItems({
         <FormDialogDescription>{t('supply-partners.view-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody layout="table">
-        <DataTableSearch
-          value={query}
-          placeholder={t('supply-partners.search-items')}
-          onValueChange={(value) => {
-            setQuery(value);
-            setSearch((old) => ({ ...old, page: undefined }));
-          }}
-        />
+        <search className="w-full max-w-sm">
+          <DataTableSearch
+            value={query}
+            placeholder={t('supply-partners.search-items')}
+            onValueChange={(value) => {
+              setQuery(value);
+              setSearch((old) => ({ ...old, page: undefined }));
+            }}
+          />
+        </search>
         <ReferenceStatus associations={[association]} />
         {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
           <DataTable
-            layout="auto"
             table={table}
             empty={
               <DataTableEmpty
