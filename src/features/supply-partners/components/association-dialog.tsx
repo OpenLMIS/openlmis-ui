@@ -204,7 +204,7 @@ function AssociationForm({
   });
   const values = useStore(form.store, (state) => state.values.association);
   const draft = toAssociationDraft(values);
-  const invalidProducts = productsOpen && !editingKey && !draft.facilityIds.length;
+  const invalidProducts = productsOpen && !draft.facilityIds.length;
   useLayoutEffect(() => {
     if (invalidProducts) onInvalidProducts();
   }, [invalidProducts, onInvalidProducts]);
@@ -416,12 +416,7 @@ function AssociationForm({
             )}
             <AssociationMembersTable
               kind="facilities"
-              pending={
-                busy ||
-                refs.products.isPending ||
-                (draft.facilityIds.length > 1 &&
-                  (!program || facilityRecords.length !== draft.facilityIds.length))
-              }
+              pending={busy || refs.products.isPending}
               rows={draft.facilityIds.map((id) => {
                 const item = refs.facilities.data?.find((record) => record.id === id);
                 return {
@@ -432,6 +427,14 @@ function AssociationForm({
                       ? null
                       : t('supply-partners.unavailable'),
                   loading: !item && refs.facilities.isPending,
+                  removeDisabled:
+                    draft.facilityIds.length > 1 &&
+                    (!program ||
+                      draft.facilityIds.some(
+                        (remainingId) =>
+                          remainingId !== id &&
+                          !facilityRecords.some((facility) => facility.id === remainingId),
+                      )),
                   code: item?.code ?? '',
                   note:
                     canManageNodes &&

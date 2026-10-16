@@ -11,7 +11,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { ReferenceName } from '@/features/supply-partners/components/supply-partner-references';
 
-type Member = { id: string; name: string | null; code: string; note?: string; loading?: boolean };
+type Member = {
+  id: string;
+  name: string | null;
+  code: string;
+  note?: string;
+  loading?: boolean;
+  removeDisabled?: boolean;
+};
 const helper = createColumnHelper<DataTableFeatures, Member>();
 type MemberActions = {
   kind: 'facilities' | 'products';
@@ -27,7 +34,7 @@ function MemberRemoveCell({ row }: CellContext<DataTableFeatures, Member, unknow
     <div className="flex justify-end">
       <Button
         type="button"
-        disabled={actions.pending || row.original.loading}
+        disabled={actions.pending || row.original.loading || row.original.removeDisabled}
         variant="destructive-ghost"
         size="icon-sm"
         aria-label={t('supply-partners.remove-item', {

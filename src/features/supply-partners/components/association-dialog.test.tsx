@@ -15,6 +15,7 @@ import {
   supervisoryNodesByIdsOptions,
   supervisoryNodesOptions,
 } from '@/features/reference-data/api/queries';
+import type { Facility } from '@/features/reference-data/lib/types';
 import { SupplyPartnerEditor } from '@/features/supply-partners/components/supply-partner-editor';
 import {
   type SupplyPartnerEditSearch,
@@ -166,4 +167,44 @@ it('shows loading members and prevents facility pruning until changed product re
   await waitFor(() =>
     expect(within(association).getByRole('button', { name: 'Update Association' })).toBeEnabled(),
   );
+});
+
+it('recovers a missing facility only when the remaining facility types are resolved', async () => {
+  const queryClient = seededClient();
+  const facility = queryClient.getQueryData<Facility[]>(
+    facilitiesByIdsOptions(['f']).queryKey,
+  )?.[0];
+  if (!facility) throw new Error('Missing test fixture');
+  const remaining = [facility, { ...facility, id: 'f2', code: 'F2', name: 'Facility Two' }];
+  queryClient.setQueryData(facilitiesByIdsOptions(['f', 'f2', 'missing']).queryKey, remaining);
+  queryClient.setQueryData(facilitiesByIdsOptions(['f', 'f2']).queryKey, remaining);
+  const record = {
+    ...saved,
+    associations: [
+      { ...saved.associations[0], facilities: [{ id: 'f' }, { id: 'f2' }, { id: 'missing' }] },
+    ],
+  };
+  vi.mocked(client.get).mockResolvedValueOnce({
+    data: {
+      content: [{ orderable: { id: 'o', productCode: 'O', fullProductName: 'Product One' } }],
+    },
+  });
+  const user = userEvent.setup();
+  renderPage(<Harness record={record} />, { queryClient, path: '/?association=p:n' });
+  const association = await screen.findByRole('dialog', { name: 'Edit Association' });
+  const missing = await within(association).findByRole('button', { name: 'Remove Unavailable' });
+  expect(missing).toBeEnabled();
+  expect(within(association).getByRole('button', { name: 'Remove Facility One' })).toBeDisabled();
+  expect(within(association).getByRole('button', { name: 'Remove Facility Two' })).toBeDisabled();
+  expect(within(association).getByRole('button', { name: 'Update Association' })).toBeDisabled();
+  await user.click(missing);
+  await waitFor(() =>
+    expect(
+      within(association).queryByRole('button', { name: 'Remove Unavailable' }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(within(association).getByText('Facility One')).toBeVisible();
+  expect(within(association).getByText('Facility Two')).toBeVisible();
+  expect(within(association).getByText('Product One')).toBeVisible();
+  expect(within(association).getByRole('button', { name: 'Update Association' })).toBeEnabled();
 });
