@@ -257,7 +257,7 @@ edits, which have no prop for TypeScript to detect:
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
-| `select.tsx` | Default `alignItemWithTrigger` to `false` |
+| `select.tsx` | Default `alignItemWithTrigger` to `false`; trigger text `text-base md:text-sm`, matching `Input` |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
