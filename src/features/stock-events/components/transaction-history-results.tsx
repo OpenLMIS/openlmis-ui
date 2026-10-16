@@ -339,7 +339,7 @@ export function TransactionHistoryResults({
     return (
       <CardList
         busy={isStale}
-        empty={!isPastLastPage && page.content.length === 0 && empty}
+        empty={page.totalElements === 0 && empty}
         footer={footer}
         listRef={pageStart.ref}
       >
@@ -376,7 +376,7 @@ export function TransactionHistoryResultsSkeleton({
   columns,
 }: Pick<ResultsProps, 'cards' | 'search' | 'columns'>) {
   const { table } = useEventsTable({
-    cards,
+    cards: false,
     eventDay: useEventDay(undefined),
     data: NO_EVENTS,
     rowCount: 0,

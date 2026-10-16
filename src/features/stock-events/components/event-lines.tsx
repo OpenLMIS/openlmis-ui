@@ -79,9 +79,10 @@ type CellId = (typeof COLUMNS)[number][0];
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'product');
 
 function Wrapped({ children, empty }: { children: string | null | undefined; empty?: string }) {
+  if (empty !== undefined) return <bdi>{tableValue(children) ?? empty}</bdi>;
   return (
-    <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{tableValue(children) ?? empty}</bdi>
+    <span className="whitespace-nowrap">
+      <bdi>{tableValue(children)}</bdi>
     </span>
   );
 }
@@ -101,15 +102,11 @@ function LineCell({
   switch (id) {
     case 'product':
       return (
-        <Wrapped
-          empty={empty}
-        >{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</Wrapped>
+        <Wrapped>{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</Wrapped>
       );
     case 'lot':
       return (
-        <Wrapped empty={empty}>
-          {line.lot ? tableValue(line.lot.lotCode) : t('stock-event.no-lot')}
-        </Wrapped>
+        <Wrapped empty={empty}>{line.lot ? line.lot.lotCode : t('stock-event.no-lot')}</Wrapped>
       );
     case 'expiry':
     case 'date':

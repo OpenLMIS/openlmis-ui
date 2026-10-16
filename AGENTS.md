@@ -452,15 +452,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/components/card-list.tsx`). Stock On Hand gives each product a card with its lots as
   bands (lot label, View) over `SettingsItem` rows; Stock Card uses a date band, Transaction
   History a band with the document number (or date) and View. Transaction Details lines use a
-  product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`), which tints, and
-  enables the card's reason field. Cards ignore width defaults, so
-  stored View choices apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes
-  `layout="cards"` (Toggle Details). Pager changes call `usePageStart().request()`
-  (`src/hooks/use-page-start.ts`) and page with `resetScroll: false`,
-  so each new page opens at its first card below the header; filters never scroll. Other lists
-  keep tables at every width, hiding lower-priority columns and allowing sideways scrolling on
-  phones. Keep headers on one line; every table header uses `DataTableHeaderLabel`'s style,
-  including loading skeletons.
+  product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`), which tints,
+  and enables the card's reason field. Cards ignore width defaults, so stored View choices
+  apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes `layout="cards"`
+  (Toggle Details). Pager changes call `usePageStart().request()`
+  (`src/hooks/use-page-start.ts`) and page with `resetScroll: false`, so each new page opens at
+  its first card below the header; filters never scroll. Other lists keep tables at every width,
+  hiding lower-priority columns and allowing sideways scrolling on phones. Keep headers on one
+  line; every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,

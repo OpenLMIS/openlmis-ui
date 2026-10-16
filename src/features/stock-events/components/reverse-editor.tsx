@@ -141,9 +141,9 @@ const READ_ONLY_COLUMNS = COLUMNS.filter(
   ([id]) => !['reverse', 'code', 'product', 'cancelReason', 'comments', 'balance'].includes(id),
 );
 const REVERSE_HIDEABLE_COLUMNS = [
-  { id: 'code', labelKey: 'stock-events.product-code', hideBelow: 470 },
+  { id: 'code', labelKey: 'stock-events.product-code' },
   { id: 'lot', labelKey: 'stock-event.lot-code' },
-  { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 603 },
+  { id: 'date', labelKey: 'stock-event.line-date' },
   { id: 'source', labelKey: 'stock-event.source', hideBelow: 944 },
   { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 944 },
   { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 944 },
@@ -724,28 +724,30 @@ function useReverseCell(props: CellProps) {
     </bdi>
   );
 
-  return { ...state, t, line, rowId, rowDraft, mark, reason, label, quantity };
+  const disabled = state.pending || state.fetching || !canReverseLine(line);
+  return { ...state, t, line, rowId, rowDraft, mark, reason, label, quantity, disabled };
 }
 
 function ReverseCheckboxCell(props: CellProps) {
-  const { line, rowId, label, errors, pending, fetching } = useReverseCell(props);
+  const { rowId, label, errors, disabled } = useReverseCell(props);
   const { row } = props;
-
-  const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
+  const invalid = !!errors[rowId];
+  const checkbox = (
+    <Checkbox
+      id={`reverse-${rowId}`}
+      aria-invalid={invalid}
+      aria-describedby={invalid ? `reverse-error-${rowId}` : undefined}
+      aria-label={label()}
+      disabled={disabled}
+      checked={row.getIsSelected()}
+      onCheckedChange={(checked) => row.toggleSelected(checked)}
+    />
+  );
+  if (props.cards) return checkbox;
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <div className="flex items-center justify-center">
-        <Checkbox
-          id={`reverse-${rowId}`}
-          aria-invalid={!!error}
-          aria-describedby={error ? `reverse-error-${rowId}` : undefined}
-          aria-label={label()}
-          disabled={pending || fetching || !canReverseLine(line)}
-          checked={row.getIsSelected()}
-          onCheckedChange={(checked) => row.toggleSelected(checked)}
-        />
-      </div>
-      {!props.cards && <ReverseLineError {...props} />}
+      <div className="flex items-center justify-center">{checkbox}</div>
+      <ReverseLineError {...props} />
     </div>
   );
 }
@@ -911,10 +913,10 @@ function ReverseReadOnlyCell(props: CellProps) {
   const textClass = props.cards ? 'wrap-break-word' : 'whitespace-nowrap';
   switch (props.id) {
     case 'code':
-      return <bdi className={textClass}>{line.orderable.productCode}</bdi>;
+      return <bdi className="whitespace-nowrap">{line.orderable.productCode}</bdi>;
     case 'product':
       return (
-        <span className={textClass}>
+        <span className="whitespace-nowrap">
           <bdi>{line.orderable.fullProductName}</bdi>
         </span>
       );
@@ -977,16 +979,16 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
     keyLabel: 'stock-event-reverse.reverse',
     cards: true,
   };
-  const { line, rowId, rowDraft, reason, pending, fetching } = useReverseCell(props);
+  const { line, rowId, rowDraft, reason, disabled } = useReverseCell(props);
   return (
     <CardListItem>
       <CardSelectBand
         htmlFor={`reverse-${rowId}`}
-        disabled={pending || fetching || !canReverseLine(line)}
+        disabled={disabled}
         selected={row.getIsSelected()}
       >
         <ReverseCheckboxCell {...props} />
-        <bdi className="min-w-0 wrap-break-word">
+        <bdi aria-hidden className="min-w-0 wrap-break-word">
           {line.orderable.fullProductName} ({line.orderable.productCode})
         </bdi>
       </CardSelectBand>
@@ -1070,6 +1072,8 @@ function ReverseCardsSkeleton({
             {READ_ONLY_COLUMNS.filter(([column]) => visible(column)).map(([column]) => (
               <CardRowSkeleton key={column} />
             ))}
+            <CardRowSkeleton />
+            <CardRowSkeleton />
           </CardRows>
         </CardListItem>
       ))}
