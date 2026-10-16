@@ -5,7 +5,11 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { ErrorFallback } from '@/components/error-fallback';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
@@ -73,12 +77,13 @@ function useCardLayout(lines: readonly StockCardLine[] = NO_LINES) {
     () => withShownReversals(STOCK_CARD_HIDEABLE_COLUMNS, { reversing, reversedBy }),
     [reversing, reversedBy],
   );
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const columnView = useColumnVisibility(
     columns,
     useStoredState('stock-card.column-visibility', columnChoicesSchema, {}),
-    width,
+    cards ? undefined : width,
   );
-  return { measure, columnView };
+  return { measure, columnView, cards };
 }
 
 export const Route = createFileRoute(
@@ -126,7 +131,7 @@ function StockCardPage() {
   );
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView } = useCardLayout(data?.card.lineItems);
+  const { measure, columnView, cards } = useCardLayout(data?.card.lineItems);
   const userId = useReloadForUser(
     data?.userId,
     stockCardOptions(Route.useParams().stockCardId).queryKey,
@@ -159,9 +164,10 @@ function StockCardPage() {
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockCardColumns columnView={columnView} canSwitch={canSwitch} />
+            <StockCardColumns columnView={columnView} canSwitch={canSwitch} cards={cards} />
           </div>
           <StockCardLines
+            cards={cards}
             card={data.card}
             search={search}
             onSearchChange={updateSearch}
@@ -178,9 +184,11 @@ function StockCardPage() {
 function StockCardColumns({
   columnView,
   canSwitch,
+  cards,
 }: {
   columnView: ReturnType<typeof useColumnVisibility>;
   canSwitch: boolean;
+  cards: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -190,6 +198,7 @@ function StockCardColumns({
           id,
           label: t(labelKey),
         }))}
+        layout={cards ? 'cards' : 'table'}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
         visibility={columnView.visibility}
@@ -240,7 +249,7 @@ function StockCardPending() {
     stockCardOptions(Route.useParams().stockCardId).queryKey,
   );
   const search = Route.useSearch();
-  const { measure, columnView } = useCardLayout();
+  const { measure, columnView, cards } = useCardLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -278,7 +287,11 @@ function StockCardPending() {
               <Skeleton fill />
             </div>
           </div>
-          <StockCardLinesSkeleton search={search} columnVisibility={columnView.visibility} />
+          <StockCardLinesSkeleton
+            cards={cards}
+            search={search}
+            columnVisibility={columnView.visibility}
+          />
         </div>
       </WorkspaceContent>
     </Workspace>

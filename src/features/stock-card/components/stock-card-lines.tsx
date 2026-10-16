@@ -4,6 +4,14 @@ import { ClipboardListIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardRowSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
@@ -11,8 +19,12 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import {
+  DataTablePagination,
+  DataTablePaginationSkeleton,
+} from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,
@@ -20,7 +32,8 @@ import {
   changeCardPaging,
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
-import { tableValue } from '@/lib/empty-value';
+import { usePageStart } from '@/hooks/use-page-start';
+import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
 import type { FacilityProgramSelection } from '@/lib/facility-program-selection';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type EventLink, eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
@@ -57,11 +70,12 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
   { id: 'reversedBy', labelKey: 'stock-card.reversed-by', defaultHidden: true },
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
+const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'date');
 
-function Wrapped({ children }: { children: string | null | undefined }) {
+function Wrapped({ children, empty }: { children: string | null | undefined; empty?: string }) {
   return (
     <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{tableValue(children)}</bdi>
+      <bdi>{tableValue(children) ?? empty}</bdi>
     </span>
   );
 }
@@ -72,12 +86,14 @@ function EventCell({
   link,
   search,
   name,
+  empty,
 }: {
   link: EventLink | null;
   search: EventSearch;
   name?: string | undefined;
+  empty?: string | undefined;
 }) {
-  if (!link?.eventId) return <Wrapped>{link?.label}</Wrapped>;
+  if (!link?.eventId) return <Wrapped empty={empty}>{link?.label}</Wrapped>;
   return (
     <span className="whitespace-nowrap">
       <Link
@@ -99,12 +115,14 @@ function LineCell({
   netContent,
   unit,
   eventSearch,
+  empty,
 }: {
   id: CellId;
   line: CardLineRow;
   netContent: number | null | undefined;
   unit: QuantityUnit;
   eventSearch: EventSearch;
+  empty?: string;
 }) {
   const { t, i18n } = useTranslation();
   switch (id) {
@@ -115,11 +133,17 @@ function LineCell({
         </span>
       );
     case 'receiveFrom':
-      return <Wrapped>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
+      return <Wrapped empty={empty}>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
     case 'issueTo':
-      return <Wrapped>{namedWithFreeText(line.destination, line.destinationFreeText)}</Wrapped>;
+      return (
+        <Wrapped empty={empty}>
+          {namedWithFreeText(line.destination, line.destinationFreeText)}
+        </Wrapped>
+      );
     case 'reason':
-      return <Wrapped>{reasonLabel(line, t('stock-card.physical-inventory'))}</Wrapped>;
+      return (
+        <Wrapped empty={empty}>{reasonLabel(line, t('stock-card.physical-inventory'))}</Wrapped>
+      );
     case 'adjustment':
     case 'balance':
       return (
@@ -133,9 +157,9 @@ function LineCell({
         </span>
       );
     case 'performedBy':
-      return <Wrapped>{line.username}</Wrapped>;
+      return <Wrapped empty={empty}>{line.username}</Wrapped>;
     case 'signature':
-      return <Wrapped>{line.signature}</Wrapped>;
+      return <Wrapped empty={empty}>{line.signature}</Wrapped>;
     case 'document':
     case 'reversing':
     case 'reversedBy': {
@@ -151,6 +175,7 @@ function LineCell({
               : undefined
           }
           search={eventSearch}
+          empty={empty}
         />
       );
     }
@@ -188,7 +213,46 @@ function useLineColumns(
   );
 }
 
+function LineCard({
+  line,
+  columnVisibility,
+  netContent,
+  unit,
+  eventSearch,
+}: {
+  line: CardLineRow;
+  columnVisibility: ColumnVisibilityState;
+  netContent: number | null | undefined;
+  unit: QuantityUnit;
+  eventSearch: EventSearch;
+}) {
+  const { t } = useTranslation();
+  const cell = (id: CellId) => (
+    <LineCell
+      empty={EMPTY_VALUE}
+      eventSearch={eventSearch}
+      id={id}
+      line={line}
+      netContent={netContent}
+      unit={unit}
+    />
+  );
+  return (
+    <CardListItem>
+      <CardBand>{cell('date')}</CardBand>
+      <CardRows>
+        {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false).map(([id, key]) => (
+          <SettingsItem key={id} label={t(key)}>
+            {id === 'balance' ? <strong>{cell(id)}</strong> : cell(id)}
+          </SettingsItem>
+        ))}
+      </CardRows>
+    </CardListItem>
+  );
+}
+
 type LinesProps = {
+  cards: boolean;
   card: StockCard;
   search: CardPagingSearch;
   onSearchChange: SearchChange<CardPagingSearch>;
@@ -198,6 +262,7 @@ type LinesProps = {
 };
 
 export function StockCardLines({
+  cards,
   card,
   search,
   onSearchChange,
@@ -209,10 +274,13 @@ export function StockCardLines({
   const lines = useMemo(() => toCardLines(card.lineItems), [card.lineItems]);
   const columns = useLineColumns(card.orderable.netContent, unit, eventSearch);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
-    (update, replace) => {
-      onSearchChange((previous) => changeCardPaging(previous, update), replace);
-    },
-    [onSearchChange],
+    (update) =>
+      onSearchChange(
+        (previous) => changeCardPaging(previous, update),
+        false,
+        cards ? { resetScroll: false } : undefined,
+      ),
+    [onSearchChange, cards],
   );
   const searchState = useTableSearchState({
     search: cardTableSearch(search),
@@ -222,6 +290,7 @@ export function StockCardLines({
   const { pageIndex, pageSize } = toPaginationState(cardTableSearch(search));
   const pageCount = Math.max(1, Math.ceil(lines.length / pageSize));
   const clampedIndex = Math.min(pageIndex, pageCount - 1);
+  const pageStart = usePageStart<HTMLUListElement>(`${clampedIndex}:${pageSize}`);
   const rows = useMemo(
     () => lines.slice(clampedIndex * pageSize, (clampedIndex + 1) * pageSize),
     [lines, clampedIndex, pageSize],
@@ -236,6 +305,10 @@ export function StockCardLines({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: (updater) => {
+      if (cards) pageStart.request();
+      searchState.onPaginationChange(updater);
+    },
     state: { ...searchState.state, columnVisibility },
   });
   useEffect(() => {
@@ -250,13 +323,33 @@ export function StockCardLines({
     />
   );
   const footer = lines.length > 0 && <DataTablePagination table={table} />;
+  if (cards) {
+    return (
+      <CardList empty={rows.length === 0 && empty} footer={footer} listRef={pageStart.ref}>
+        {rows.map((line) => (
+          <LineCard
+            columnVisibility={columnVisibility}
+            eventSearch={eventSearch}
+            key={line.rowId}
+            line={line}
+            netContent={card.orderable.netContent}
+            unit={unit}
+          />
+        ))}
+      </CardList>
+    );
+  }
   return <DataTable table={table} empty={empty} footer={footer} density="default" layout="auto" />;
 }
 
+const SKELETON_CARDS = ['a', 'b', 'c'];
+
 export function StockCardLinesSkeleton({
+  cards,
   search,
   columnVisibility,
 }: {
+  cards: boolean;
   search: CardPagingSearch;
   columnVisibility: ColumnVisibilityState;
 }) {
@@ -269,5 +362,25 @@ export function StockCardLinesSkeleton({
     state: { columnVisibility },
   });
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
+  if (cards) {
+    return (
+      <CardList footer={<DataTablePaginationSkeleton />}>
+        {SKELETON_CARDS.slice(0, rowCount).map((id) => (
+          <CardListItem key={id}>
+            <CardBand>
+              <SkeletonBar width="w-24" />
+            </CardBand>
+            <CardRows>
+              {CARD_ROWS.filter(([column]) => columnVisibility[column] !== false).map(
+                ([column]) => (
+                  <CardRowSkeleton key={column} />
+                ),
+              )}
+            </CardRows>
+          </CardListItem>
+        ))}
+      </CardList>
+    );
+  }
   return <DataTableSkeleton table={table} rowCount={rowCount} density="default" layout="auto" />;
 }

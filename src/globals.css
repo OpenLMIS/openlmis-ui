@@ -80,6 +80,7 @@
 }
 
 @theme inline {
+  --spacing-page-start: calc(var(--app-header-height) + 1rem);
   --font-sans: "Geist Variable", "Noto Sans Arabic Variable", sans-serif;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);

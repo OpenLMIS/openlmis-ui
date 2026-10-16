@@ -291,7 +291,7 @@ export function FacilityProgramSelectorSkeleton() {
           </div>
         }
         search={
-          <div className="h-8 w-24">
+          <div className="h-8 w-full @3xl/main:w-24">
             <Skeleton fill />
           </div>
         }

@@ -2,9 +2,17 @@ import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
 import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
-import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
+import { type ReactNode, type Ref, useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardRowSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -17,6 +25,7 @@ import {
   DataTablePaginationSkeleton,
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -39,12 +48,14 @@ import {
 } from '@/features/stock-on-hand/lib/search';
 import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-groups';
 import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { tableValue } from '@/lib/empty-value';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
+  cards: boolean;
   search: StockOnHandSearch;
   facilityId: string;
   programId: string;
@@ -59,6 +70,7 @@ const collapsedSchema = z.array(z.string());
 const NO_SORT = { id: 'productCode', desc: false };
 
 export function StockOnHandResults({
+  cards,
   search,
   facilityId,
   programId,
@@ -84,11 +96,17 @@ export function StockOnHandResults({
   const toggle = (id: string, open: boolean) =>
     setCollapsed(open ? collapsed.filter((item) => item !== id) : [...collapsed, id]);
 
+  const onPageChange = useCallback<SearchChange<StockOnHandSearch>>(
+    (update) => onSearchChange(update, false, cards ? { resetScroll: false } : undefined),
+    [onSearchChange, cards],
+  );
   const searchState = useTableSearchState({
     search: deferredSearch,
     defaultSort: NO_SORT,
-    onSearchChange,
+    onSearchChange: onPageChange,
   });
+  const { pageIndex, pageSize } = searchState.state.pagination;
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`);
   const table = useTable({
     features: dataTableFeatures,
     columns: [],
@@ -98,6 +116,10 @@ export function StockOnHandResults({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: (updater) => {
+      if (cards) pageStart.request();
+      searchState.onPaginationChange(updater);
+    },
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 
@@ -160,7 +182,11 @@ export function StockOnHandResults({
     isStale,
   };
 
-  return <GroupedTable {...view} columns={columns} />;
+  return cards ? (
+    <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
+  ) : (
+    <GroupedTable {...view} columns={columns} />
+  );
 }
 
 type GroupedViewProps = {
@@ -422,6 +448,158 @@ function GroupedTable({
   );
 }
 
+function GroupedCards({
+  search,
+  groups,
+  unit,
+  collapsed,
+  onToggle,
+  empty,
+  footer,
+  isStale,
+  columns,
+  listRef,
+}: GroupedViewProps & { columns: ColumnVisibilityState; listRef: Ref<HTMLUListElement> }) {
+  const { t } = useTranslation();
+  const text = useStockText();
+
+  return (
+    <CardList busy={isStale} empty={groups.length === 0 && empty} footer={footer} listRef={listRef}>
+      {groups.map((group) => {
+        const open = !collapsed.includes(group.id);
+        const name = text.productLabel(group.product);
+        const packSize = columns.packSize !== false && text.packSize(group.product);
+        return (
+          <CardListItem key={group.id}>
+            <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
+              <Button
+                aria-expanded={open}
+                aria-label={t('stock-on-hand.toggle-product', { product: name })}
+                onClick={() => onToggle(group.id, !open)}
+                size="icon-sm"
+                variant="ghost"
+              >
+                <ToggleIcon open={open} />
+              </Button>
+              <div className="min-w-0 flex-1 wrap-anywhere">
+                <div className="font-semibold text-sm">
+                  <Wrapped>{name}</Wrapped>
+                </div>
+                <div className="flex flex-wrap items-center gap-1 text-muted-foreground text-xs">
+                  {text.productCode(group.product)}
+                  {packSize && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>
+                        {t('stock-on-hand.pack-size')} <bdi>{packSize}</bdi>
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="max-w-1/2 wrap-anywhere text-end font-semibold text-sm">
+                <span className="sr-only">{t('stock-on-hand.stock-on-hand')} </span>
+                <Quantity
+                  unavailable={text.unavailable}
+                  value={groupBalance(group, unit, text.language)}
+                />
+              </div>
+            </div>
+            {open && (
+              <ul className="divide-y">
+                {group.cards.map((card) => (
+                  <li className="divide-y" key={card.id}>
+                    <StockLotDetails
+                      card={card}
+                      group={group}
+                      columns={columns}
+                      unit={unit}
+                      search={search}
+                      isStale={isStale}
+                      text={text}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardListItem>
+        );
+      })}
+    </CardList>
+  );
+}
+
+function StockLotDetails({
+  card,
+  group,
+  columns,
+  unit,
+  search,
+  isStale,
+  text,
+}: {
+  card: StockCardRow;
+  group: StockProductGroup;
+  columns: ColumnVisibilityState;
+  unit: QuantityUnit;
+  search: StockOnHandSearch;
+  isStale: boolean;
+  text: ReturnType<typeof useStockText>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <CardBand>
+        <div className="min-w-0 wrap-anywhere">{text.lotLabel(card)}</div>
+        {card.stockCardId && (
+          <StockCardView
+            card={card}
+            search={search}
+            disabled={isStale}
+            product={text.productLabel(card.product)}
+            lot={card.lot?.lotCode ?? t('stock-on-hand.no-lot')}
+          />
+        )}
+      </CardBand>
+      <CardRows>
+        {card.product?.id !== group.product?.id && (
+          <>
+            <SettingsItem label={t('stock-on-hand.product')}>
+              <bdi>{text.productLabel(card.product)}</bdi>
+            </SettingsItem>
+            <SettingsItem label={t('stock-on-hand.product-code')}>
+              <span className="flex justify-end">{text.productCode(card.product)}</span>
+            </SettingsItem>
+            {columns.packSize !== false && (
+              <SettingsItem label={t('stock-on-hand.pack-size')}>
+                {text.packSize(card.product)}
+              </SettingsItem>
+            )}
+          </>
+        )}
+        {columns.expiry !== false && (
+          <SettingsItem label={t('stock-on-hand.expiry-date')}>
+            <bdi>{orEmpty(text.date(card.lot?.expirationDate))}</bdi>
+          </SettingsItem>
+        )}
+        {columns.lastUpdate !== false && (
+          <SettingsItem label={t('stock-on-hand.last-update')}>
+            <bdi>{orEmpty(text.date(card.occurredDate))}</bdi>
+          </SettingsItem>
+        )}
+        <SettingsItem label={t('stock-on-hand.stock-on-hand')}>
+          <strong>
+            <Quantity
+              unavailable={text.unavailable}
+              value={cardQuantity(card.stockOnHand, card.product?.netContent, unit, text.language)}
+            />
+          </strong>
+        </SettingsItem>
+      </CardRows>
+    </>
+  );
+}
+
 function StockCardView({
   card,
   search,
@@ -456,14 +634,6 @@ function StockCardView({
   );
 }
 
-function SkeletonBar({ width }: { width: string }) {
-  return (
-    <div className={`h-4 ${width}`}>
-      <Skeleton fill />
-    </div>
-  );
-}
-
 function ToggleSkeleton() {
   return (
     <span className="flex size-7 shrink-0 items-center justify-center text-muted-foreground">
@@ -481,9 +651,11 @@ const SKELETON_PRODUCTS = [
 ];
 
 export function StockOnHandResultsSkeleton({
+  cards,
   search,
   columns,
 }: {
+  cards: boolean;
   search: StockOnHandSearch;
   columns: ColumnVisibilityState;
 }) {
@@ -495,6 +667,45 @@ export function StockOnHandResultsSkeleton({
   );
 
   const bar = (width: string) => <SkeletonBar width={width} />;
+  if (cards) {
+    return (
+      <div aria-busy>
+        <CardList footer={<DataTablePaginationSkeleton />}>
+          {products.map((product) => (
+            <CardListItem key={product.id}>
+              <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
+                <ToggleSkeleton />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  {bar('w-3/4')}
+                  {bar(columns.packSize !== false ? 'w-40' : 'w-12')}
+                </div>
+                {bar('w-10')}
+              </div>
+              <ul className="divide-y">
+                {product.cards.map((card) => (
+                  <li className="divide-y" key={card}>
+                    <CardBand>
+                      {bar('w-20')}
+                      <div className="h-8 w-16">
+                        <Skeleton fill />
+                      </div>
+                    </CardBand>
+                    <CardRows>
+                      {['expiry', 'lastUpdate', 'stockOnHand']
+                        .filter((key) => columns[key] !== false)
+                        .map((key) => (
+                          <CardRowSkeleton key={key} />
+                        ))}
+                    </CardRows>
+                  </li>
+                ))}
+              </ul>
+            </CardListItem>
+          ))}
+        </CardList>
+      </div>
+    );
+  }
   return (
     <div aria-busy>
       <DataTableCard>

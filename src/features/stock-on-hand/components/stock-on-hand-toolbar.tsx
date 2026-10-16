@@ -79,8 +79,12 @@ export function StockOnHandToolbar({
           <QuantityUnitToggle disabled={disabled} onUnitChange={onUnitChange} unit={unit} />
         </div>
       )}
-      <div className="shrink-0">{view}</div>
-      {print && <div className="w-full @2xl/main:w-auto">{print}</div>}
+      {(view || print) && (
+        <div className="flex w-full items-center gap-2 @2xl/main:w-auto">
+          <div className="shrink-0">{view}</div>
+          {print && <div className="min-w-0 flex-1 @2xl/main:flex-none">{print}</div>}
+        </div>
+      )}
     </div>
   );
 }

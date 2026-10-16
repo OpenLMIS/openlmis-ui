@@ -17,7 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -363,6 +363,26 @@ describe('stock card display and paging', () => {
     expect(fetchStockCard).toHaveBeenCalledTimes(1);
   });
 
+  it('opens a new page of cards at its first card', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    vi.mocked(fetchStockCard).mockResolvedValue({ ...card, lineItems: manyLines });
+    renderRoute();
+    await screen.findByText('person24');
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    await screen.findByText('person14');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
   it('changes header and row quantities together when packs are chosen', async () => {
     const user = userEvent.setup();
     renderRoute();
@@ -378,7 +398,7 @@ describe('stock card display and paging', () => {
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent);
     width.mockReturnValue({ width: 1400 } as DOMRect);
-    const first = renderRoute();
+    renderRoute();
     await screen.findByRole('table');
     expect(headers()).toEqual([
       'stock-card.date',
@@ -390,17 +410,47 @@ describe('stock card display and paging', () => {
       'stock-card.performed-by',
       'stock-card.document-number',
     ]);
-    first.unmount();
-    width.mockReturnValue({ width: 390 } as DOMRect);
+  });
+
+  it('shows each line as a card on phones, with who stock moved to or from and its document', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    vi.mocked(fetchStockCard).mockResolvedValue({
+      ...card,
+      lineItems: [
+        {
+          id: 'line1',
+          occurredDate: '2026-01-01',
+          quantity: 23,
+          stockOnHand: 23,
+          source: { name: 'Depot' },
+          username: 'clerk',
+          signature: 'signed',
+          eventOrigin: 'RECEIVE',
+          originEventId: 'event0',
+          documentNumber: 'DOC-1',
+        },
+      ],
+    });
     renderRoute();
-    await screen.findByRole('table');
-    expect(headers()).toEqual([
-      'stock-card.date',
+    const line = (await screen.findByText('stock-card.adjustment')).closest('li') as HTMLElement;
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(
+      within(line)
+        .getAllByText(/^stock-card\./)
+        .map((label) => label.textContent),
+    ).toEqual([
+      'stock-card.receive-from',
+      'stock-card.issue-to',
       'stock-card.reason',
       'stock-card.adjustment',
       'stock-card.stock-on-hand',
       'stock-card.performed-by',
+      'stock-card.document-number',
     ]);
+    expect(within(line).getAllByText(EMPTY_VALUE)).toHaveLength(2);
+    expect(within(line).getByRole('link', { name: 'DOC-1' })).toBeInTheDocument();
   });
 
   it('shows the document links on a laptop, and each reversal column the card has values for', async () => {
@@ -434,20 +484,36 @@ describe('stock card display and paging', () => {
     expect(headers).not.toContain('stock-card.reversing');
   });
 
-  it('brings a hidden column back from the View menu', async () => {
-    const user = userEvent.setup();
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      width: 390,
-    } as DOMRect);
-    renderRoute();
-    await screen.findByRole('table');
+  it.each([800, 390])(
+    'brings a hidden column back from the View menu at content width %i',
+    async (width) => {
+      const user = userEvent.setup();
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        width,
+      } as DOMRect);
+      vi.mocked(fetchStockCard).mockResolvedValue({
+        ...card,
+        lineItems: [
+          {
+            id: 'line1',
+            occurredDate: '2026-01-01',
+            quantity: 23,
+            stockOnHand: 23,
+            signature: 'signed',
+          },
+        ],
+      });
+      renderRoute();
+      await screen.findByText('stock-card.adjustment');
+      expect(screen.queryByText('signed')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'View' }));
-    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'stock-card.signature' }));
-    expect(
-      within(screen.getByRole('table')).getByRole('columnheader', { name: 'stock-card.signature' }),
-    ).toBeInTheDocument();
-  });
+      await user.click(screen.getByRole('button', { name: 'View' }));
+      await user.click(
+        await screen.findByRole('menuitemcheckbox', { name: 'stock-card.signature' }),
+      );
+      expect(await screen.findByText('signed')).toBeInTheDocument();
+    },
+  );
 
   it('links each document to its event, keeping the facility and program for the way back', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({

@@ -16,6 +16,8 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
       view: t('data-table.view'),
       toggleColumns: t('data-table.toggle-columns'),
       resetColumns: t('data-table.reset-columns'),
+      toggleDetails: t('data-table.toggle-details'),
+      resetDetails: t('data-table.reset-details'),
       rowsPerPage: t('data-table.rows-per-page'),
       page: (page) => t('data-table.page', { page }),
       invalidPage: t('data-table.invalid-page'),

@@ -2,7 +2,7 @@ import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { useLayoutEffect, useState } from 'react';
 
 /** Tailwind's container sizes in px, so defaults switch where `@md:`-style classes do. */
-const CONTAINER_WIDTHS = {
+export const CONTAINER_WIDTHS = {
   sm: 384,
   md: 448,
   lg: 512,
