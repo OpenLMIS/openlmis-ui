@@ -21,8 +21,11 @@ import {
   supplyPartnerEditSearchSchema,
 } from '@/features/supply-partners/lib/search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { client } from '@/integrations/axios';
 import { renderPage } from '@/tests/render-page';
 import en from '../../../../public/locales/en.json';
+
+vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 
 const CLOSED = {
   association: undefined,
@@ -43,13 +46,13 @@ const saved = {
     },
   ],
 };
-function Harness() {
+function Harness({ record = saved }: { record?: typeof saved }) {
   const search = supplyPartnerEditSearchSchema.parse(useLocation().search);
   const nav = useSearchNavigation<SupplyPartnerEditSearch>(CLOSED);
   return (
     <TranslatedFormMessages>
       <SupplyPartnerEditor
-        saved={saved}
+        saved={record}
         search={search}
         canManageNodes={false}
         onSearchChange={nav.updateSearch}
@@ -57,6 +60,7 @@ function Harness() {
         onCloseAssociation={nav.closeDialog}
         onOpenProducts={vi.fn()}
         onCloseProducts={vi.fn()}
+        onInvalidProducts={vi.fn()}
         onView={vi.fn()}
         onCloseView={vi.fn()}
         onCancel={vi.fn()}
@@ -77,7 +81,7 @@ beforeAll(async () => {
       resources: { en: { translation: en } },
     });
 });
-it('keeps the dirty association copy open after Cancel is refused and commits none of its changes to the page', async () => {
+function seededClient() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -105,6 +109,10 @@ it('keeps the dirty association copy open after Cancel is refused and commits no
     facilityTypeApprovedOrderablesOptions({ facilityTypeCodes: ['FT'], programCode: 'P' }).queryKey,
     [product],
   );
+  return queryClient;
+}
+it('keeps the dirty association copy open after Cancel is refused and commits none of its changes to the page', async () => {
+  const queryClient = seededClient();
   const user = userEvent.setup();
   renderPage(<Harness />, { queryClient, path: '/?association=p:n' });
   const association = await screen.findByRole('dialog', { name: 'Edit Association' });
@@ -123,4 +131,39 @@ it('keeps the dirty association copy open after Cancel is refused and commits no
     expect(screen.queryByRole('dialog', { name: 'Edit Association' })).not.toBeInTheDocument(),
   );
   expect(screen.getByText('1 product')).toBeVisible();
+});
+
+it('shows loading members and prevents facility pruning until changed product references resolve', async () => {
+  const queryClient = seededClient();
+  const second = { id: 'o2', productCode: 'O2', fullProductName: 'Product Two', description: null };
+  const first = { id: 'o', productCode: 'O', fullProductName: 'Product One', description: null };
+  queryClient.setQueryData(orderablesByIdsOptions(['o', 'o2']).queryKey, [first, second]);
+  queryClient.setQueryData(
+    facilityTypeApprovedOrderablesOptions({ facilityTypeCodes: ['FT'], programCode: 'P' }).queryKey,
+    [first, second],
+  );
+  let finish!: (response: unknown) => void;
+  vi.mocked(client.get).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const record = {
+    ...saved,
+    associations: [{ ...saved.associations[0], orderables: [{ id: 'o' }, { id: 'o2' }] }],
+  };
+  const user = userEvent.setup();
+  renderPage(<Harness record={record} />, { queryClient, path: '/?association=p:n' });
+  const association = await screen.findByRole('dialog', { name: 'Edit Association' });
+  await user.click(await within(association).findByRole('button', { name: 'Remove Product One' }));
+  await waitFor(() => expect(client.get).toHaveBeenCalled());
+  expect(within(association).queryByText('Unavailable', { exact: true })).not.toBeInTheDocument();
+  expect(within(association).getByRole('button', { name: 'Remove Facility One' })).toBeDisabled();
+  expect(within(association).getByRole('button', { name: 'Update Association' })).toBeDisabled();
+  finish({ data: { content: [second], totalPages: 1 } });
+  expect(await within(association).findByText('Product Two')).toBeVisible();
+  await waitFor(() =>
+    expect(within(association).getByRole('button', { name: 'Update Association' })).toBeEnabled(),
+  );
 });

@@ -81,6 +81,7 @@ export function SupplyPartnerEditor({
   onCloseAssociation,
   onOpenProducts,
   onCloseProducts,
+  onInvalidProducts,
   canManageNodes,
   onCancel,
   onSaved,
@@ -95,6 +96,7 @@ export function SupplyPartnerEditor({
   onCloseAssociation: () => void;
   onOpenProducts: () => void;
   onCloseProducts: () => void;
+  onInvalidProducts: () => void;
   canManageNodes: boolean;
   onCancel: () => void;
   onSaved: (saved: SupplyPartner | null) => void | Promise<void>;
@@ -248,6 +250,7 @@ export function SupplyPartnerEditor({
         onClose={onCloseAssociation}
         onOpenProducts={onOpenProducts}
         onCloseProducts={onCloseProducts}
+        onInvalidProducts={onInvalidProducts}
         onDirtyChange={setAssociationDirty}
         onProductsDirtyChange={setProductsDirty}
         onPendingChange={setChildPending}

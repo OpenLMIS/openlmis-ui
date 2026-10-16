@@ -51,6 +51,7 @@ function Harness() {
         onCloseAssociation={vi.fn()}
         onOpenProducts={vi.fn()}
         onCloseProducts={vi.fn()}
+        onInvalidProducts={vi.fn()}
         onView={vi.fn()}
         onCloseView={vi.fn()}
         onCancel={vi.fn()}

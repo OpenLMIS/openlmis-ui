@@ -9,8 +9,9 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
+import { ReferenceName } from '@/features/supply-partners/components/supply-partner-references';
 
-type Member = { id: string; name: string | null; code: string; note?: string };
+type Member = { id: string; name: string | null; code: string; note?: string; loading?: boolean };
 const helper = createColumnHelper<DataTableFeatures, Member>();
 export function AssociationMembersTable({
   rows,
@@ -31,7 +32,7 @@ export function AssociationMembersTable({
           header: t('supply-partners.name'),
           cell: ({ row }) => (
             <div className="flex flex-col gap-1">
-              <span dir="auto">{row.original.name}</span>
+              <ReferenceName name={row.original.name} pending={Boolean(row.original.loading)} />
               {row.original.note && (
                 <span className="text-muted-foreground text-xs">{row.original.note}</span>
               )}
@@ -50,11 +51,18 @@ export function AssociationMembersTable({
             <div className="flex justify-end">
               <Button
                 type="button"
-                disabled={pending}
+                disabled={pending || row.original.loading}
                 variant="destructive-ghost"
                 size="icon-sm"
                 aria-label={t('supply-partners.remove-item', {
-                  item: row.original.name || row.original.code,
+                  item:
+                    row.original.name ||
+                    row.original.code ||
+                    t(
+                      kind === 'facilities'
+                        ? 'supply-partners.facilities'
+                        : 'supply-partners.products',
+                    ),
                 })}
                 onClick={() => onRemove(row.original.id)}
               >
@@ -64,7 +72,7 @@ export function AssociationMembersTable({
           ),
         }),
       ]),
-    [t, onRemove, pending],
+    [t, onRemove, pending, kind],
   );
   const table = useTable({
     features: dataTableFeatures,

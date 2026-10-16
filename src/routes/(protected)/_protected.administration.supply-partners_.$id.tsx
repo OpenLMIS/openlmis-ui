@@ -128,6 +128,15 @@ function EditorEntry({
     },
     [navigate],
   );
+  const onInvalidProducts = useCallback(() => {
+    void navigate({
+      to: '.',
+      search: (old) => ({ ...old, products: undefined }),
+      state: (old) => ({ ...old, dialogOpenedHere: false }),
+      replace: true,
+      resetScroll: false,
+    });
+  }, [navigate]);
   return (
     <SupplyPartnerEditor
       key={`${entry.saved.id}:${entry.readAt}`}
@@ -141,6 +150,7 @@ function EditorEntry({
       onCloseAssociation={closeDialog}
       onOpenProducts={() => void productsNavigation.openDialog({ products: true })}
       onCloseProducts={productsNavigation.closeDialog}
+      onInvalidProducts={onInvalidProducts}
       onCancel={() => void back()}
       onSaved={async (saved) => {
         if (saved) {

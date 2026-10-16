@@ -91,6 +91,7 @@ type Props = {
   productsOpen: boolean;
   onOpenProducts: () => void;
   onCloseProducts: () => void;
+  onInvalidProducts: () => void;
   onClose: () => void;
   onCommit: (draft: AssociationDraft) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -144,6 +145,7 @@ function AssociationForm({
   productsOpen,
   onOpenProducts,
   onCloseProducts,
+  onInvalidProducts,
   onCommit,
   onDirtyChange,
   onProductsDirtyChange,
@@ -194,6 +196,10 @@ function AssociationForm({
   });
   const values = useStore(form.store, (state) => state.values.association);
   const draft = toAssociationDraft(values);
+  const invalidProducts = productsOpen && !editingKey && !draft.facilityIds.length;
+  useLayoutEffect(() => {
+    if (invalidProducts) onInvalidProducts();
+  }, [invalidProducts, onInvalidProducts]);
   const paired = Boolean(draft.programId && draft.supervisoryNodeId);
   const refs = usePartnerReferences(paired ? [draft] : []);
   const program = programs.data?.find(({ id }) => id === draft.programId);
@@ -404,6 +410,7 @@ function AssociationForm({
               kind="facilities"
               pending={
                 busy ||
+                refs.products.isPending ||
                 (draft.facilityIds.length > 1 &&
                   (!program || facilityRecords.length !== draft.facilityIds.length))
               }
@@ -411,7 +418,12 @@ function AssociationForm({
                 const item = refs.facilities.data?.find((record) => record.id === id);
                 return {
                   id,
-                  name: item ? item.name : t('supply-partners.unavailable'),
+                  name: item
+                    ? item.name
+                    : refs.facilities.isPending
+                      ? null
+                      : t('supply-partners.unavailable'),
+                  loading: !item && refs.facilities.isPending,
                   code: item?.code ?? '',
                   note:
                     canManageNodes &&
@@ -462,7 +474,12 @@ function AssociationForm({
                 const item = refs.products.data?.find((record) => record.id === id);
                 return {
                   id,
-                  name: item ? item.fullProductName : t('supply-partners.unavailable'),
+                  name: item
+                    ? item.fullProductName
+                    : refs.products.isPending
+                      ? null
+                      : t('supply-partners.unavailable'),
+                  loading: !item && refs.products.isPending,
                   code: item?.productCode ?? '',
                   note:
                     options.isSuccess && !options.data.some((record) => record.id === id)
