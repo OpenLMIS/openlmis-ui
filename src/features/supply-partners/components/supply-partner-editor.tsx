@@ -108,7 +108,8 @@ export function SupplyPartnerEditor({
     defaultValues: initial,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
-    onSubmit: ({ value }) => mutation.mutateAsync(value).catch(() => undefined),
+    onSubmit: ({ value }) =>
+      mutation.mutateAsync({ ...value, name: value.name.trim() }).catch(() => undefined),
   });
   const draft = useStore(form.store, (state) => state.values);
   const dirty =

@@ -1927,6 +1927,7 @@
   "supply-partners.actions-for": "Ações para {partner}",
   "supply-partners.add": "Adicionar parceiro de abastecimento",
   "supply-partners.add-associations": "Adicionar associações",
+  "supply-partners.association-actions-for": "Ações para {program}, {node}",
   "supply-partners.associations": "Associações",
   "supply-partners.back": "Voltar aos parceiros",
   "supply-partners.clear-search": "Limpar pesquisa",

@@ -1927,6 +1927,7 @@
   "supply-partners.actions-for": "إجراءات {partner}",
   "supply-partners.add": "إضافة شريك توريد",
   "supply-partners.add-associations": "إضافة ارتباطات",
+  "supply-partners.association-actions-for": "إجراءات {program}، {node}",
   "supply-partners.associations": "الارتباطات",
   "supply-partners.back": "العودة إلى شركاء التوريد",
   "supply-partners.clear-search": "مسح البحث",

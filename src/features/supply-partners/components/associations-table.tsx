@@ -158,9 +158,7 @@ function useAssociationTable({
                         disabled={pending}
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={t('supply-partners.actions-for', {
-                          partner: `${program}, ${node}`,
-                        })}
+                        aria-label={t('supply-partners.association-actions-for', { program, node })}
                       />
                     }
                   >

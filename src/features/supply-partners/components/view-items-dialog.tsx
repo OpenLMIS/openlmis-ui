@@ -148,7 +148,7 @@ function ViewItems({
           }}
         />
         <ReferenceStatus associations={[association]} />
-        {refs.complete && (
+        {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
           <DataTable
             layout="auto"
             table={table}
