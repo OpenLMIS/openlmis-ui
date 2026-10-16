@@ -6,7 +6,11 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -120,16 +124,17 @@ function StockOnHandHeader() {
 
 const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-type ColumnView = ReturnType<typeof useColumnVisibility>;
+type ColumnView = ReturnType<typeof useColumnVisibility> & { cards: boolean };
 
 function useColumnView() {
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const columnView = useColumnVisibility(
     STOCK_HIDEABLE_COLUMNS,
     useStoredState('stock-on-hand.column-visibility', columnChoicesSchema, {}),
-    width,
+    cards ? undefined : width,
   );
-  return [measure, columnView] as const;
+  return [measure, { ...columnView, cards }] as const;
 }
 
 function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
@@ -178,7 +183,11 @@ function StockOnHandListSkeleton({
           view={<ColumnsMenu columnView={columnView} />}
         />
       </fieldset>
-      <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
+      <StockOnHandResultsSkeleton
+        cards={columnView.cards}
+        columns={columnView.visibility}
+        search={search}
+      />
     </div>
   );
 }
@@ -456,11 +465,16 @@ function StockOnHandList({
           />
         )}
         pendingFallback={
-          <StockOnHandResultsSkeleton columns={columnView.visibility} search={search} />
+          <StockOnHandResultsSkeleton
+            cards={columnView.cards}
+            columns={columnView.visibility}
+            search={search}
+          />
         }
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
+          cards={columnView.cards}
           collapsedKey={collapsedKey}
           facilityId={selection.facilityId}
           key={collapsedKey}

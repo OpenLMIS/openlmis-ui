@@ -1,7 +1,7 @@
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
-import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
 import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -45,6 +45,7 @@ import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
+  cards: boolean;
   search: StockOnHandSearch;
   facilityId: string;
   programId: string;
@@ -59,6 +60,7 @@ const collapsedSchema = z.array(z.string());
 const NO_SORT = { id: 'productCode', desc: false };
 
 export function StockOnHandResults({
+  cards,
   search,
   facilityId,
   programId,
@@ -160,7 +162,11 @@ export function StockOnHandResults({
     isStale,
   };
 
-  return <GroupedTable {...view} columns={columns} />;
+  return cards ? (
+    <GroupedCards {...view} columns={columns} />
+  ) : (
+    <GroupedTable {...view} columns={columns} />
+  );
 }
 
 type GroupedViewProps = {
@@ -175,10 +181,25 @@ type GroupedViewProps = {
 };
 
 function ResultsFrame({
+  cards = false,
   isStale,
   footer,
   children,
-}: Pick<GroupedViewProps, 'isStale' | 'footer'> & { children: ReactNode }) {
+}: Pick<GroupedViewProps, 'isStale' | 'footer'> & { cards?: boolean; children: ReactNode }) {
+  if (cards) {
+    return (
+      <div className="@container/table flex min-w-0 flex-col gap-4">
+        <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
+          {children}
+        </div>
+        {footer && (
+          <DataTableCard>
+            <DataTableFooter>{footer}</DataTableFooter>
+          </DataTableCard>
+        )}
+      </div>
+    );
+  }
   return (
     <DataTableCard>
       <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
@@ -422,6 +443,167 @@ function GroupedTable({
   );
 }
 
+function GroupedCards({
+  search,
+  groups,
+  unit,
+  collapsed,
+  onToggle,
+  empty,
+  footer,
+  isStale,
+  columns,
+}: GroupedViewProps & { columns: ColumnVisibilityState }) {
+  const { t } = useTranslation();
+  const text = useStockText();
+
+  return (
+    <ResultsFrame cards footer={footer} isStale={isStale}>
+      {groups.length === 0 ? (
+        <DataTableCard>{empty}</DataTableCard>
+      ) : (
+        <ul className="flex flex-col gap-4">
+          {groups.map((group) => {
+            const open = !collapsed.includes(group.id);
+            const name = text.productLabel(group.product);
+            const packSize = columns.packSize !== false && text.packSize(group.product);
+            return (
+              <li key={group.id}>
+                <DataTableCard>
+                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-3">
+                    <Button
+                      aria-expanded={open}
+                      aria-label={t('stock-on-hand.toggle-product', { product: name })}
+                      onClick={() => onToggle(group.id, !open)}
+                      size="icon-sm"
+                      variant="ghost"
+                    >
+                      <ToggleIcon open={open} />
+                    </Button>
+                    <div className="min-w-0 flex-1 wrap-anywhere">
+                      <div className="font-semibold text-sm">
+                        <Wrapped>{name}</Wrapped>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1 text-muted-foreground text-xs">
+                        {text.productCode(group.product)}
+                        {packSize && (
+                          <>
+                            <span>·</span>
+                            <bdi>{packSize}</bdi>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="max-w-1/2 wrap-anywhere text-end font-semibold text-sm">
+                      <Quantity
+                        unavailable={text.unavailable}
+                        value={groupBalance(group, unit, text.language)}
+                      />
+                    </div>
+                  </div>
+                  {open && (
+                    <ul className="divide-y border-t">
+                      {group.cards.map((card) => (
+                        <li key={card.id}>
+                          <StockLotRow
+                            card={card}
+                            group={group}
+                            columns={columns}
+                            unit={unit}
+                            search={search}
+                            isStale={isStale}
+                            text={text}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DataTableCard>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ResultsFrame>
+  );
+}
+
+function StockLotRow({
+  card,
+  group,
+  columns,
+  unit,
+  search,
+  isStale,
+  text,
+}: {
+  card: StockCardRow;
+  group: StockProductGroup;
+  columns: ColumnVisibilityState;
+  unit: QuantityUnit;
+  search: StockOnHandSearch;
+  isStale: boolean;
+  text: ReturnType<typeof useStockText>;
+}) {
+  const { t } = useTranslation();
+  const content = (
+    <>
+      <div className="min-w-0 flex-1 wrap-anywhere">
+        {card.product?.id !== group.product?.id && (
+          <div className="font-medium">
+            <Wrapped>{text.productLabel(card.product)}</Wrapped>
+          </div>
+        )}
+        <Wrapped>{text.lotLabel(card)}</Wrapped>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground text-xs">
+          {columns.expiry !== false && card.lot?.expirationDate && (
+            <span>
+              {t('stock-on-hand.expiry-date')} <bdi>{text.date(card.lot.expirationDate)}</bdi>
+            </span>
+          )}
+          {columns.lastUpdate !== false && card.occurredDate && (
+            <span>
+              {t('stock-on-hand.last-update')} <bdi>{text.date(card.occurredDate)}</bdi>
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex max-w-1/2 items-center gap-2 wrap-anywhere text-end">
+        <Quantity
+          unavailable={text.unavailable}
+          value={cardQuantity(card.stockOnHand, card.product?.netContent, unit, text.language)}
+        />
+        {card.stockCardId && (
+          <ChevronRightIcon
+            aria-hidden
+            className="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+          />
+        )}
+      </div>
+    </>
+  );
+  const rowClass = 'flex items-center justify-between gap-4 px-4 py-3 text-sm';
+  return card.stockCardId ? (
+    <Link
+      to="/stock-management/stock-on-hand/$stockCardId"
+      params={{ stockCardId: card.stockCardId }}
+      search={search}
+      disabled={isStale}
+      tabIndex={isStale ? -1 : undefined}
+      aria-disabled={isStale || undefined}
+      aria-label={t('stock-on-hand.view-card', {
+        product: text.productLabel(card.product),
+        lot: card.lot?.lotCode ?? t('stock-on-hand.no-lot'),
+      })}
+      className={`${rowClass} transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 aria-disabled:pointer-events-none`}
+    >
+      {content}
+    </Link>
+  ) : (
+    <div className={rowClass}>{content}</div>
+  );
+}
+
 function StockCardView({
   card,
   search,
@@ -481,9 +663,11 @@ const SKELETON_PRODUCTS = [
 ];
 
 export function StockOnHandResultsSkeleton({
+  cards,
   search,
   columns,
 }: {
+  cards: boolean;
   search: StockOnHandSearch;
   columns: ColumnVisibilityState;
 }) {
@@ -495,6 +679,43 @@ export function StockOnHandResultsSkeleton({
   );
 
   const bar = (width: string) => <SkeletonBar width={width} />;
+  if (cards) {
+    return (
+      <div aria-busy>
+        <ResultsFrame cards isStale={false} footer={<DataTablePaginationSkeleton />}>
+          <ul className="flex flex-col gap-4">
+            {products.map((product) => (
+              <li key={product.id}>
+                <DataTableCard>
+                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-3">
+                    <ToggleSkeleton />
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      {bar('w-3/4')}
+                      {bar(columns.packSize !== false ? 'w-24' : 'w-12')}
+                    </div>
+                    {bar('w-10')}
+                  </div>
+                  <ul className="divide-y border-t">
+                    {product.cards.map((card) => (
+                      <li className="flex items-center justify-between gap-4 px-4 py-3" key={card}>
+                        <div className="flex min-w-0 flex-1 flex-col gap-2">
+                          {bar('w-20')}
+                          {columns.expiry !== false && bar('w-32')}
+                          {columns.lastUpdate !== false && bar('w-32')}
+                        </div>
+                        {bar('w-10')}
+                        <ChevronRightIcon className="size-4 text-muted-foreground rtl:rotate-180" />
+                      </li>
+                    ))}
+                  </ul>
+                </DataTableCard>
+              </li>
+            ))}
+          </ul>
+        </ResultsFrame>
+      </div>
+    );
+  }
   return (
     <div aria-busy>
       <DataTableCard>

@@ -446,7 +446,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `isPageInvalid` turns pages holding invalid rows red, with no icon: solid for the current
   page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
-- Keep tables at every width, never stacked cards. Hide lower-priority columns and allow
+- Stock On Hand uses product cards below measured `@2xl/main`, with lot rows linking to Stock
+  Cards. Other lists keep tables at every width, hiding lower-priority columns and allowing
   sideways scrolling on phones. Keep headers on one line; every table header uses
   `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when

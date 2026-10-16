@@ -17,6 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { getI18n } from 'react-i18next';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -137,6 +138,9 @@ const appliedPath = (facility = HOME, program = FP, mode = 'my', extra = '') =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 1200,
+  } as DOMRect);
   useLoginData.setState({ referenceDataUserId: USER });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
@@ -176,6 +180,7 @@ afterEach(() => {
   useLoginData.setState({ referenceDataUserId: null });
   localStorage.clear();
   vi.restoreAllMocks();
+  getI18n().addResource('en', 'translation', 'stock-on-hand.view-card', 'stock-on-hand.view-card');
 });
 
 describe('stock on hand page', () => {
@@ -227,24 +232,29 @@ describe('stock on hand page', () => {
     expect(screen.queryByText('LOT-A')).not.toBeInTheDocument();
   });
 
-  it('lists products in a table at every width, keeping the core columns on a phone', async () => {
+  it('shows optional card details on phones, respecting stored choices and Reset Columns', async () => {
+    const user = userEvent.setup();
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 390,
     } as DOMRect);
+    localStorage.setItem('stock-on-hand.column-visibility', JSON.stringify({ expiry: false }));
     renderRoute(appliedPath());
 
-    const table = await screen.findByRole('table');
+    await screen.findAllByRole('link', { name: 'stock-on-hand.view-card' });
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText('16')).toBeInTheDocument();
+    expect(screen.getAllByText(/stock-on-hand.last-update/)).not.toHaveLength(0);
+    expect(screen.queryByText(/stock-on-hand.expiry-date/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'View' }));
     expect(
-      within(table)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual([
-      'stock-on-hand.product-code',
-      'stock-on-hand.product',
-      'stock-on-hand.lot-code',
-      'stock-on-hand.stock-on-hand',
-      'stock-on-hand.actions',
-    ]);
+      await screen.findByRole('menuitemcheckbox', { name: 'stock-on-hand.pack-size' }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: 'stock-on-hand.expiry-date' }),
+    ).not.toBeChecked();
+    await user.click(screen.getByRole('menuitem', { name: 'Reset Columns' }));
+    expect(await screen.findByText(/stock-on-hand.expiry-date/)).toBeInTheDocument();
   });
 
   it('keeps the table on a laptop, hiding the columns there is no room for', async () => {
@@ -698,15 +708,39 @@ describe('stock on hand View', () => {
   it.each([1200, 390])(
     'offers View only for existing cards at content width %i and keeps the whole search',
     async (width) => {
+      getI18n().addResource(
+        'en',
+        'translation',
+        'stock-on-hand.view-card',
+        'View {{product}}, {{lot}}',
+      );
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
         width,
       } as DOMRect);
+      vi.mocked(fetchOrderablesByIds).mockResolvedValue([
+        {
+          id: 'o1',
+          productCode: 'C1',
+          fullProductName: 'Levonorgestrel',
+          description: null,
+          netContent: 16,
+        },
+        {
+          id: 'o2',
+          productCode: 'C2',
+          fullProductName: 'Substitute product',
+          description: null,
+          netContent: 20,
+        },
+      ]);
       vi.mocked(fetchStockCardSummaries).mockResolvedValue(
         page([
           {
             ...summary,
             canFulfillForMe: [
-              ...summary.canFulfillForMe,
+              ...summary.canFulfillForMe.map((entry) =>
+                entry.stockCard?.id === 'c1' ? { ...entry, orderable: { id: 'o2' } } : entry,
+              ),
               {
                 orderable: { id: 'o1' },
                 stockOnHand: 0,
@@ -723,8 +757,22 @@ describe('stock on hand View', () => {
         appliedPath(HOME, FP, 'my', '&page=2&size=20&productCode=C1&productName=Levo&lotCode=LOT'),
       );
       await screen.findAllByText('Levonorgestrel');
-      const view = screen.getAllByRole('button', { name: 'stock-on-hand.view-card' });
+      const view = screen.getAllByRole(width < 672 ? 'link' : 'button', {
+        name: /^View (Levonorgestrel|Substitute product), /,
+      });
       expect(view).toHaveLength(2);
+      expect(view.map((link) => link.getAttribute('aria-label')).sort()).toEqual([
+        'View Levonorgestrel, stock-on-hand.no-lot',
+        'View Substitute product, LOT-A',
+      ]);
+      if (width < 672) {
+        expect(
+          within(
+            view.find((link) => link.getAttribute('href')?.includes('/c1')) as HTMLElement,
+          ).getByText('Substitute product'),
+        ).toBeInTheDocument();
+        expect(screen.getAllByText('stock-on-hand.no-lot')).toHaveLength(2);
+      }
       const urls = view.map((link) => new URL((link as HTMLAnchorElement).href));
       expect(urls.map((url) => url.pathname).sort()).toEqual([
         '/stock-management/stock-on-hand/c1',
