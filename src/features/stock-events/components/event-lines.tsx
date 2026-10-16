@@ -68,9 +68,9 @@ export const STOCK_EVENT_HIDEABLE_COLUMNS = [
   { id: 'expiry', labelKey: 'stock-event.expiry-date', hideBelow: 900 },
   { id: 'source', labelKey: 'stock-event.source', hideBelow: 900 },
   { id: 'destination', labelKey: 'stock-event.destination', hideBelow: 900 },
-  { id: 'date', labelKey: 'stock-event.line-date', hideBelow: 600 },
-  { id: 'reason', labelKey: 'stock-event.reason', hideBelow: 640 },
-  { id: 'balance', labelKey: 'stock-event.stock-on-hand', hideBelow: 450 },
+  { id: 'date', labelKey: 'stock-event.line-date' },
+  { id: 'reason', labelKey: 'stock-event.reason' },
+  { id: 'balance', labelKey: 'stock-event.stock-on-hand' },
   { id: 'reversing', labelKey: 'stock-event.reversing', defaultHidden: true },
   { id: 'reversedBy', labelKey: 'stock-event.reversed-by', defaultHidden: true },
 ] as const;
@@ -212,7 +212,11 @@ function LineCard({
   const cell = (id: CellId) => <LineCell id={id} line={line} unit={unit} empty={EMPTY_VALUE} />;
   return (
     <CardListItem>
-      <CardBand>{cell('product')}</CardBand>
+      <CardBand>
+        <div className="min-w-0 wrap-anywhere">
+          <bdi>{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</bdi>
+        </div>
+      </CardBand>
       <CardRows>
         {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false).map(([id, key]) => (
           <SettingsItem key={id} label={t(key)}>
@@ -292,11 +296,12 @@ export function EventLines({
       description={t('stock-event.no-lines-description')}
     />
   );
-  const footer = data.totalElements > 0 && <DataTablePagination table={table} />;
+  const pastEnd = data.content.length === 0 && data.totalElements > 0;
+  const footer = !pastEnd && data.totalElements > 0 && <DataTablePagination table={table} />;
   if (cards) {
     return (
       <CardList
-        empty={data.content.length === 0 && empty}
+        empty={data.totalElements === 0 && empty}
         footer={footer}
         busy={search !== deferredSearch}
         listRef={pageStart.ref}
@@ -315,7 +320,7 @@ export function EventLines({
   return (
     <DataTable
       table={table}
-      empty={empty}
+      empty={!pastEnd && empty}
       footer={footer}
       isStale={search !== deferredSearch}
       density="default"

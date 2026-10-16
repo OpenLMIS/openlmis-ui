@@ -59,9 +59,9 @@ const COLUMNS = [
 ] as const;
 
 export const EVENT_HIDEABLE_COLUMNS = [
-  { id: 'type', labelKey: 'transaction-history.type', hideBelow: 440 },
-  { id: 'date', labelKey: 'transaction-history.date', hideBelow: 320 },
-  { id: 'entriesCount', labelKey: 'transaction-history.entries-count', hideBelow: 640 },
+  { id: 'type', labelKey: 'transaction-history.type' },
+  { id: 'date', labelKey: 'transaction-history.date' },
+  { id: 'entriesCount', labelKey: 'transaction-history.entries-count' },
   { id: 'performedBy', labelKey: 'transaction-history.performed-by', hideBelow: 768 },
   { id: 'signature', labelKey: 'transaction-history.signature', hideBelow: 896 },
 ] as const;

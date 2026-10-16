@@ -328,6 +328,20 @@ describe('stock event detail', () => {
     expect(fetchStockEvent).toHaveBeenCalledTimes(1);
   });
 
+  it.each([1400, 390])(
+    'shows no empty state or pager for a page past the end at content width %i',
+    async (width) => {
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width } as DOMRect);
+      vi.mocked(fetchStockEventLines).mockImplementation((_, query) =>
+        query.page > 2 ? Promise.resolve(linesPage([], 25)) : new Promise(() => {}),
+      );
+      const { router } = renderRoute(path('?detailPage=99'));
+      await waitFor(() => expect(router.state.location.search).toMatchObject({ detailPage: 3 }));
+      expect(screen.queryByText('stock-event.no-lines-title')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Next Page' })).not.toBeInTheDocument();
+    },
+  );
+
   it('keeps the header while lines are loading and disables Print', async () => {
     vi.mocked(fetchStockEventLines).mockReturnValue(new Promise(() => {}));
     renderRoute();
@@ -343,13 +357,17 @@ describe('stock event detail', () => {
     expect(screen.getByText('8 ( +1 )')).toBeInTheDocument();
   });
 
-  it('shows empty lines, disables Print and clamps to the first page', async () => {
-    vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([], 0));
-    const { router } = renderRoute(path('?detailPage=99'));
-    await screen.findByText('stock-event.no-lines-title');
-    expect(screen.getByRole('button', { name: 'stock-event.print' })).toBeDisabled();
-    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('detailPage'));
-  });
+  it.each([1400, 390])(
+    'shows empty lines, disables Print and clamps to the first page at content width %i',
+    async (width) => {
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width } as DOMRect);
+      vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([], 0));
+      const { router } = renderRoute(path('?detailPage=99'));
+      await screen.findByText('stock-event.no-lines-title');
+      expect(screen.getByRole('button', { name: 'stock-event.print' })).toBeDisabled();
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('detailPage'));
+    },
+  );
 
   it('retries a lines failure inside its boundary while keeping the header', async () => {
     const failure = httpError(500);
@@ -675,6 +693,13 @@ describe('stock event detail', () => {
       'stock-event.reason',
       'stock-event.stock-on-hand',
     ]);
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+    await userEvent.click(
+      await screen.findByRole('menuitemcheckbox', { name: 'stock-event.lot-code' }),
+    );
+    expect(
+      within(table).getByRole('columnheader', { name: 'stock-event.lot-code' }),
+    ).toBeInTheDocument();
   });
 
   it('fetches the header fresh on each entry even when cached', async () => {
