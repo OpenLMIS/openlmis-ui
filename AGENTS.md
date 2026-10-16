@@ -260,7 +260,7 @@ edits, which have no prop for TypeScript to detect:
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
-| `select.tsx` | Default `alignItemWithTrigger` to `false` |
+| `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
@@ -452,8 +452,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/components/card-list.tsx`). Stock On Hand gives each product a card with its lots as
   bands (lot label, View) over `SettingsItem` rows; Stock Card uses a date band, Transaction
   History a band with the document number (or date) and View. Transaction Details lines use a
-  product band. Reverse ticks lines in the band and reveals its fields on the card.
-  Cards ignore width defaults, so
+  product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`), which tints, and
+  enables the card's reason field. Cards ignore width defaults, so
   stored View choices apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes
   `layout="cards"` (Toggle Details). Pager changes call `usePageStart().request()`
   (`src/hooks/use-page-start.ts`) and page with `resetScroll: false`,

@@ -29,6 +29,7 @@ import {
   CardListItem,
   CardRowSkeleton,
   CardRows,
+  CardSelectBand,
   SkeletonBar,
 } from '@/components/card-list';
 import {
@@ -68,6 +69,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
@@ -112,7 +114,7 @@ import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { orEmpty, tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
@@ -787,6 +789,13 @@ function ReverseReasonCell(props: CellProps) {
 
   return (
     <div className={props.cards ? 'min-w-0' : 'grid min-h-7 w-56 items-center'}>
+      {props.cards && !rowDraft && (
+        <Select disabled>
+          <SelectTrigger aria-label={label()} width="full">
+            <SelectValue placeholder={t('stock-event-reverse.select-option')} />
+          </SelectTrigger>
+        </Select>
+      )}
       {rowDraft && (
         <form.AppField
           name={`lines.${rowId}.reasonId`}
@@ -824,7 +833,7 @@ function ReverseReasonCell(props: CellProps) {
               hideErrors
               placeholder={t('stock-event-reverse.select-option')}
               required
-              size="sm"
+              size={props.cards ? 'default' : 'sm'}
             />
           )}
         </form.AppField>
@@ -968,17 +977,19 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
     keyLabel: 'stock-event-reverse.reverse',
     cards: true,
   };
-  const { line, rowDraft, reason } = useReverseCell(props);
+  const { line, rowId, rowDraft, reason, pending, fetching } = useReverseCell(props);
   return (
     <CardListItem>
-      <CardBand>
-        <div className="flex min-w-0 items-center gap-3">
-          <ReverseCheckboxCell {...props} />
-          <bdi className="min-w-0 wrap-break-word">
-            {line.orderable.fullProductName} ({line.orderable.productCode})
-          </bdi>
-        </div>
-      </CardBand>
+      <CardSelectBand
+        htmlFor={`reverse-${rowId}`}
+        disabled={pending || fetching || !canReverseLine(line)}
+        selected={row.getIsSelected()}
+      >
+        <ReverseCheckboxCell {...props} />
+        <bdi className="min-w-0 wrap-break-word">
+          {line.orderable.fullProductName} ({line.orderable.productCode})
+        </bdi>
+      </CardSelectBand>
       <ReverseLineError {...props} />
       <CardRows>
         {READ_ONLY_COLUMNS.filter(([id]) =>
@@ -988,50 +999,47 @@ function ReverseLineCard({ row }: { row: Row<DataTableFeatures, TableRow> }) {
             <ReverseReadOnlyCell {...props} id={id} keyLabel={key} />
           </SettingsItem>
         ))}
-        {rowDraft && (
-          <>
+        <SettingsRowFrame
+          value="control"
+          label={<span className="text-sm">{t('stock-event-reverse.cancel-reason')}</span>}
+        >
+          <ReverseReasonCell
+            {...props}
+            id="cancelReason"
+            keyLabel="stock-event-reverse.cancel-reason"
+          />
+        </SettingsRowFrame>
+        {rowDraft &&
+          reason?.isFreeTextAllowed &&
+          row.getVisibleCells().some((cell) => cell.column.id === 'comments') && (
             <SettingsRowFrame
               value="control"
-              label={<span className="text-sm">{t('stock-event-reverse.cancel-reason')}</span>}
-            >
-              <ReverseReasonCell
-                {...props}
-                id="cancelReason"
-                keyLabel="stock-event-reverse.cancel-reason"
-              />
-            </SettingsRowFrame>
-            {reason?.isFreeTextAllowed &&
-              row.getVisibleCells().some((cell) => cell.column.id === 'comments') && (
-                <SettingsRowFrame
-                  value="control"
-                  label={
-                    <span className="text-sm">
-                      {t('stock-event-reverse.cancel-reason-comments')}
-                    </span>
-                  }
-                >
-                  <ReverseCommentsCell
-                    {...props}
-                    id="comments"
-                    keyLabel="stock-event-reverse.cancel-reason-comments"
-                  />
-                </SettingsRowFrame>
-              )}
-            <SettingsRowFrame
               label={
-                <strong className="text-sm">{t('stock-event-reverse.new-stock-on-hand')}</strong>
+                <span className="text-sm">{t('stock-event-reverse.cancel-reason-comments')}</span>
               }
             >
-              <div className="font-bold text-sm">
-                <ReverseBalanceCell
-                  {...props}
-                  id="balance"
-                  keyLabel="stock-event-reverse.new-stock-on-hand"
-                />
-              </div>
+              <ReverseCommentsCell
+                {...props}
+                id="comments"
+                keyLabel="stock-event-reverse.cancel-reason-comments"
+              />
             </SettingsRowFrame>
-          </>
-        )}
+          )}
+        <SettingsRowFrame
+          label={<strong className="text-sm">{t('stock-event-reverse.new-stock-on-hand')}</strong>}
+        >
+          <div className="font-bold text-sm">
+            {rowDraft ? (
+              <ReverseBalanceCell
+                {...props}
+                id="balance"
+                keyLabel="stock-event-reverse.new-stock-on-hand"
+              />
+            ) : (
+              EMPTY_VALUE
+            )}
+          </div>
+        </SettingsRowFrame>
       </CardRows>
     </CardListItem>
   );

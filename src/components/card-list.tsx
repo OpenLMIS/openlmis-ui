@@ -51,6 +51,31 @@ export function CardBand({ children }: { children: ReactNode }) {
   );
 }
 
+export function CardSelectBand({
+  htmlFor,
+  selected,
+  disabled = false,
+  children,
+}: {
+  htmlFor: string;
+  selected: boolean;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className={cn(
+        'flex min-h-10 items-center gap-3 px-4 py-1.5 font-semibold text-sm transition-colors',
+        selected ? 'bg-primary/5' : 'bg-muted/50',
+        !disabled && 'cursor-pointer',
+      )}
+    >
+      {children}
+    </label>
+  );
+}
+
 export function CardRows({ children }: { children: ReactNode }) {
   return <div className="divide-y *:px-4 *:py-1.5">{children}</div>;
 }

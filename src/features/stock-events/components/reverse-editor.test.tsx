@@ -18,6 +18,7 @@ import type {
   StockEventLine,
   StockEventLineReason,
 } from '@/features/stock-events/lib/types';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 import type { SearchChange } from '@/lib/table-search';
 
 vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
@@ -548,8 +549,10 @@ it('edits a phone card and focuses its invalid reason after Close', async () => 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   const card = screen.getByText('Vaccine (C1)').closest('li');
   if (!card) throw new Error('Missing line card');
-  expect(screen.queryByText('stock-event-reverse.cancel-reason')).not.toBeInTheDocument();
-  await tick();
+  expect(within(card).getByRole('combobox', { name: 'stock-events.field-of' })).toBeDisabled();
+  expect(within(card).getByText(EMPTY_VALUE, { selector: 'div' })).toBeInTheDocument();
+  await user.click(within(card).getByText('Vaccine (C1)'));
+  expect(within(card).getByRole('checkbox')).toBeChecked();
   expect(within(card).getByText('stock-event-reverse.cancel-reason')).toBeVisible();
   expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
   await waitFor(() => expect(document.getElementById('balance-line')).toHaveTextContent('50'));
