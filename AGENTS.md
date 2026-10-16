@@ -447,8 +447,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
 - Stock On Hand and Stock Card use cards below measured `@2xl/main`: Stock On Hand per product,
-  each lot a band with View over settings rows, ignoring width defaults; Stock Card per line, a
-  date band over one settings row per visible column, blank when empty. Their View menu passes
+  each lot a band with View, ignoring width defaults; Stock Card per line, under a date band.
+  Each visible column is a settings row, `EMPTY_VALUE` when empty. The pager sits alone in
+  `DataTablePagerCard`. Their View menu passes
   `layout="cards"` (Toggle Details), and `usePageStart` opens each page at its first card,
   paging with `resetScroll: false`. Other lists keep tables at every width, hiding lower-priority columns and allowing
   sideways scrolling on phones. Keep headers on one line; every table header uses

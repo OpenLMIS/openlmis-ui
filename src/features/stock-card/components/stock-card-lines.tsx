@@ -8,8 +8,8 @@ import {
   DataTableCard,
   DataTableEmpty,
   type DataTableFeatures,
-  DataTableFooter,
   DataTableHeaderLabel,
+  DataTablePagerCard,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -28,7 +28,7 @@ import {
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
 import { usePageStart } from '@/hooks/use-page-start';
-import { tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
 import type { FacilityProgramSelection } from '@/lib/facility-program-selection';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type EventLink, eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
@@ -66,6 +66,29 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'date');
+
+function hasValue(id: CellId, line: CardLineRow) {
+  switch (id) {
+    case 'receiveFrom':
+      return Boolean(line.source);
+    case 'issueTo':
+      return Boolean(line.destination);
+    case 'reason':
+      return Boolean(line.reason);
+    case 'performedBy':
+      return Boolean(line.username);
+    case 'signature':
+      return Boolean(line.signature);
+    case 'document':
+      return Boolean(line.eventOrigin);
+    case 'reversing':
+      return Boolean(line.reversedEventId);
+    case 'reversedBy':
+      return Boolean(line.cancellationEventId);
+    default:
+      return true;
+  }
+}
 
 function Wrapped({ children }: { children: string | null | undefined }) {
   return (
@@ -224,7 +247,9 @@ function LineCard({
       </div>
       <div className="divide-y *:px-4 *:py-1.5">
         {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false).map(([id, key]) => {
-          const cell = (
+          const cell = !hasValue(id, line) ? (
+            EMPTY_VALUE
+          ) : (
             <LineCell
               eventSearch={eventSearch}
               id={id}
@@ -333,11 +358,7 @@ export function StockCardLines({
             ))}
           </ul>
         )}
-        {footer && (
-          <DataTableCard>
-            <DataTableFooter>{footer}</DataTableFooter>
-          </DataTableCard>
-        )}
+        {footer && <DataTablePagerCard>{footer}</DataTablePagerCard>}
       </div>
     );
   }
@@ -394,11 +415,9 @@ export function StockCardLinesSkeleton({
             </li>
           ))}
         </ul>
-        <DataTableCard>
-          <DataTableFooter>
-            <DataTablePaginationSkeleton />
-          </DataTableFooter>
-        </DataTableCard>
+        <DataTablePagerCard>
+          <DataTablePaginationSkeleton />
+        </DataTablePagerCard>
       </div>
     );
   }

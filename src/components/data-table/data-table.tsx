@@ -214,6 +214,15 @@ export function DataTableFooter({ children }: { children: ReactNode }) {
   return <div className="border-t bg-muted/30 px-4 py-3">{children}</div>;
 }
 
+/** The pagination in a card of its own, below a list of cards rather than a table. */
+export function DataTablePagerCard({ children }: { children: ReactNode }) {
+  return (
+    <DataTableCard>
+      <div className="px-4 py-3">{children}</div>
+    </DataTableCard>
+  );
+}
+
 function ariaSort<TData extends RowData>(column: Column<DataTableFeatures, TData>) {
   if (!column.getCanSort()) return undefined;
   const direction = column.getIsSorted();

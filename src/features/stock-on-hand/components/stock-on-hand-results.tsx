@@ -10,6 +10,7 @@ import {
   DataTableEmpty,
   DataTableFooter,
   DataTableHeaderLabel,
+  DataTablePagerCard,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import {
@@ -42,7 +43,7 @@ import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-gr
 import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
 import { usePageStart } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { tableValue } from '@/lib/empty-value';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -199,11 +200,7 @@ function ResultsFrame({
         <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
           {children}
         </div>
-        {footer && (
-          <DataTableCard>
-            <DataTableFooter>{footer}</DataTableFooter>
-          </DataTableCard>
-        )}
+        {footer && <DataTablePagerCard>{footer}</DataTablePagerCard>}
       </div>
     );
   }
@@ -586,14 +583,14 @@ function StockLotDetails({
             )}
           </>
         )}
-        {columns.expiry !== false && card.lot?.expirationDate && (
+        {columns.expiry !== false && (
           <SettingsItem label={t('stock-on-hand.expiry-date')}>
-            <bdi>{text.date(card.lot.expirationDate)}</bdi>
+            <bdi>{orEmpty(text.date(card.lot?.expirationDate))}</bdi>
           </SettingsItem>
         )}
-        {columns.lastUpdate !== false && card.occurredDate && (
+        {columns.lastUpdate !== false && (
           <SettingsItem label={t('stock-on-hand.last-update')}>
-            <bdi>{text.date(card.occurredDate)}</bdi>
+            <bdi>{orEmpty(text.date(card.occurredDate))}</bdi>
           </SettingsItem>
         )}
         <SettingsItem label={t('stock-on-hand.stock-on-hand')}>

@@ -449,6 +449,7 @@ describe('stock card display and paging', () => {
       'stock-card.stock-on-hand',
       'stock-card.performed-by',
     ]);
+    expect(within(line).getByText(EMPTY_VALUE)).toBeInTheDocument();
   });
 
   it('shows the document links on a laptop, and each reversal column the card has values for', async () => {
