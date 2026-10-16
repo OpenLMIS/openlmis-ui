@@ -189,7 +189,7 @@ function ResultsFrame({
 }: Pick<GroupedViewProps, 'isStale' | 'footer'> & { cards?: boolean; children: ReactNode }) {
   if (cards) {
     return (
-      <div className="@container/table flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
           {children}
         </div>
@@ -489,7 +489,7 @@ function GroupedCards({
                         {text.productCode(group.product)}
                         {packSize && (
                           <>
-                            <span>·</span>
+                            <span aria-hidden>·</span>
                             <span>
                               {t('stock-on-hand.pack-size')} <bdi>{packSize}</bdi>
                             </span>
@@ -508,7 +508,7 @@ function GroupedCards({
                     <ul className="divide-y-8 border-t">
                       {group.cards.map((card) => (
                         <li key={card.id}>
-                          <StockLotRow
+                          <StockLotDetails
                             card={card}
                             group={group}
                             columns={columns}
@@ -531,7 +531,7 @@ function GroupedCards({
   );
 }
 
-function StockLotRow({
+function StockLotDetails({
   card,
   group,
   columns,

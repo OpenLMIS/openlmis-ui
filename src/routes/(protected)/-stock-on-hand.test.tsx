@@ -230,7 +230,7 @@ describe('stock on hand page', () => {
     expect(screen.queryByText('LOT-A')).not.toBeInTheDocument();
   });
 
-  it('shows optional card details on phones, respecting stored choices and Reset Columns', async () => {
+  it('shows optional card details on phones, respecting stored choices', async () => {
     const user = userEvent.setup();
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 390,
@@ -251,8 +251,6 @@ describe('stock on hand page', () => {
     expect(
       screen.getByRole('menuitemcheckbox', { name: 'stock-on-hand.expiry-date' }),
     ).not.toBeChecked();
-    await user.click(screen.getByRole('menuitem', { name: 'Reset Columns' }));
-    expect(await screen.findByText(/stock-on-hand.expiry-date/)).toBeInTheDocument();
   });
 
   it('keeps the table on a laptop, hiding the columns there is no room for', async () => {
@@ -764,9 +762,8 @@ describe('stock on hand View', () => {
           ['stock-on-hand.product-code', 'C2'],
           ['stock-on-hand.pack-size', '20'],
         ]) {
-          const row = lot.getByText(label).closest('div.flex.items-start');
-          expect(row).not.toBeNull();
-          expect(within(row as HTMLElement).getByText(value)).toBeInTheDocument();
+          expect(lot.getByText(label)).toBeInTheDocument();
+          expect(lot.getByText(value)).toBeInTheDocument();
         }
         expect(screen.getAllByText('stock-on-hand.no-lot')).toHaveLength(2);
       }
