@@ -2,7 +2,7 @@ import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { BuildingIcon } from 'lucide-react';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { DialogNotFound, ErrorAlert, serverMessage } from '@/components/dialog-parts';
@@ -85,6 +85,7 @@ const snapshot = (draft: AssociationDraft) =>
     orderableIds: draft.orderableIds.toSorted(),
   });
 type Props = {
+  returnFocus?: RefObject<HTMLButtonElement | null>;
   target: string | undefined;
   associations: AssociationDraft[];
   canManageNodes: boolean;
@@ -98,7 +99,7 @@ type Props = {
   onProductsDirtyChange: (dirty: boolean) => void;
   onPendingChange: (pending: boolean) => void;
 };
-export function AssociationDialog({ target, onClose, ...props }: Props) {
+export function AssociationDialog({ target, onClose, returnFocus, ...props }: Props) {
   const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const [pending, setPending] = useState(false);
@@ -113,6 +114,10 @@ export function AssociationDialog({ target, onClose, ...props }: Props) {
   return (
     <FormDialog
       {...dialogProps(pending)}
+      onOpenChangeComplete={(open) => {
+        dialogProps(pending).onOpenChangeComplete(open);
+        if (!open) returnFocus?.current?.focus();
+      }}
       onOpenChange={(open) => {
         if (!open && !pending) onClose();
       }}
@@ -150,7 +155,10 @@ function AssociationForm({
   onDirtyChange,
   onProductsDirtyChange,
   onPendingChange,
-}: Omit<Props, 'target' | 'onClose'> & { initial: AssociationDraft; editingKey?: string }) {
+}: Omit<Props, 'target' | 'onClose' | 'returnFocus'> & {
+  initial: AssociationDraft;
+  editingKey?: string;
+}) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [opening] = useState(() => structuredClone(initial));

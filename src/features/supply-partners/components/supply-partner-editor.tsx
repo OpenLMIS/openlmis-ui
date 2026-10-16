@@ -108,6 +108,7 @@ export function SupplyPartnerEditor({
   const [alert, setAlert] = useState(false);
   const [reloading, setReloading] = useState(false);
   const leaving = useRef(false);
+  const associationReturnFocus = useRef<HTMLButtonElement | null>(null);
   const allowAssociationClose = useRef(false);
   const [associationDirty, setAssociationDirty] = useState(false);
   const [productsDirty, setProductsDirty] = useState(false);
@@ -199,7 +200,10 @@ export function SupplyPartnerEditor({
                     type="button"
                     variant="outline"
                     disabled={pending}
-                    onClick={() => onAssociation('new')}
+                    onClick={(event) => {
+                      associationReturnFocus.current = event.currentTarget;
+                      onAssociation('new');
+                    }}
                   >
                     {t('supply-partners.add-association')}
                   </Button>
@@ -213,7 +217,10 @@ export function SupplyPartnerEditor({
                   onSearchChange={onSearchChange}
                   pending={pending}
                   onView={onView}
-                  onEdit={onAssociation}
+                  onEdit={(key, trigger) => {
+                    associationReturnFocus.current = trigger;
+                    onAssociation(key);
+                  }}
                   onChange={(rows) => form.setFieldValue('associations', rows)}
                 />
               </section>
@@ -243,6 +250,7 @@ export function SupplyPartnerEditor({
         </Button>
       </WorkspaceFooter>
       <AssociationDialog
+        returnFocus={associationReturnFocus}
         target={search.association}
         associations={draft.associations}
         canManageNodes={canManageNodes}
