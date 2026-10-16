@@ -26,7 +26,6 @@ type DataTableViewOptionsProps = {
   onVisibilityChange: (visibility: ColumnVisibilityState) => void;
   /** Returns every column to its default, e.g. the one suited to the screen size. */
   onReset?: () => void;
-  /** `cards` names the choices as details shown on each card. */
   layout?: 'table' | 'cards';
 };
 

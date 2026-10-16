@@ -18,7 +18,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { permissionsOptions } from '@/features/auth/api/queries';
@@ -216,19 +216,25 @@ describe('stock on hand page', () => {
     expect(screen.queryByRole('button', { name: /^Filters/ })).not.toBeInTheDocument();
   });
 
-  it('keeps a product folded away after the page is opened again', async () => {
-    const user = userEvent.setup();
-    const first = renderRoute(appliedPath());
+  it.each([1200, 390])(
+    'keeps a product folded away after the page is opened again at content width %i',
+    async (width) => {
+      const user = userEvent.setup();
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        width,
+      } as DOMRect);
+      const first = renderRoute(appliedPath());
 
-    await screen.findByText('LOT-A');
-    await user.click(screen.getByRole('button', { name: 'stock-on-hand.toggle-product' }));
-    await waitFor(() => expect(screen.queryByText('LOT-A')).not.toBeInTheDocument());
-    first.unmount();
-    renderRoute(appliedPath());
+      await screen.findByText('LOT-A');
+      await user.click(screen.getByRole('button', { name: 'stock-on-hand.toggle-product' }));
+      await waitFor(() => expect(screen.queryByText('LOT-A')).not.toBeInTheDocument());
+      first.unmount();
+      renderRoute(appliedPath());
 
-    expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
-    expect(screen.queryByText('LOT-A')).not.toBeInTheDocument();
-  });
+      expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+      expect(screen.queryByText('LOT-A')).not.toBeInTheDocument();
+    },
+  );
 
   it('shows optional card details on phones, respecting stored choices', async () => {
     const user = userEvent.setup();
@@ -536,20 +542,63 @@ describe('stock on hand page', () => {
     expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
   });
 
-  it('shows each balance in packs once packs are picked', async () => {
+  it.each([1200, 390])(
+    'shows each balance in packs once packs are picked at content width %i',
+    async (width) => {
+      const user = userEvent.setup();
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        width,
+      } as DOMRect);
+      renderRoute(appliedPath());
+
+      await screen.findAllByText('Levonorgestrel');
+      await user.click(
+        within(screen.getByRole('radiogroup', { name: 'quantity-unit.label' })).getByRole('radio', {
+          name: 'quantity-unit.packs',
+        }),
+      );
+
+      expect(screen.getByText('5 ( +10 )')).toBeInTheDocument();
+      expect(screen.getByText('10 ( +10 )')).toBeInTheDocument();
+      expect(screen.getByText('5 ( +0 )')).toBeInTheDocument();
+    },
+  );
+
+  it('opens a page of cards at its first card only when the pager changes the page', async () => {
     const user = userEvent.setup();
-    renderRoute(appliedPath());
-
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    vi.mocked(fetchStockCardSummaries).mockImplementation(async ({ page: number }) => ({
+      content: [summary],
+      totalElements: 3,
+      totalPages: 3,
+      number,
+      size: 1,
+    }));
+    const { router } = renderRoute(appliedPath(HOME, FP, 'my', '&size=1&page=2'));
     await screen.findAllByText('Levonorgestrel');
-    await user.click(
-      within(screen.getByRole('radiogroup', { name: 'quantity-unit.label' })).getByRole('radio', {
-        name: 'quantity-unit.packs',
-      }),
-    );
 
-    expect(screen.getByText('5 ( +10 )')).toBeInTheDocument();
-    expect(screen.getByText('10 ( +10 )')).toBeInTheDocument();
-    expect(screen.getByText('5 ( +0 )')).toBeInTheDocument();
+    await user.type(
+      screen.getByRole('textbox', { name: 'stock-on-hand.search-product-name' }),
+      'L',
+    );
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('page'));
+    await waitFor(() =>
+      expect(fetchStockCardSummaries).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 0, orderableName: 'L' }),
+      ),
+    );
+    await screen.findAllByText('Levonorgestrel');
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
   });
 
   it('goes back to the last page when the page asked for is past the end', async () => {
@@ -700,6 +749,45 @@ describe('stock on hand page', () => {
   });
 });
 
+function substituteFixture() {
+  vi.mocked(fetchOrderablesByIds).mockResolvedValue([
+    {
+      id: 'o1',
+      productCode: 'C1',
+      fullProductName: 'Levonorgestrel',
+      description: null,
+      netContent: 16,
+    },
+    {
+      id: 'o2',
+      productCode: 'C2',
+      fullProductName: 'Substitute product',
+      description: null,
+      netContent: 20,
+    },
+  ]);
+  vi.mocked(fetchStockCardSummaries).mockResolvedValue(
+    page([
+      {
+        ...summary,
+        canFulfillForMe: [
+          ...summary.canFulfillForMe.map((entry) =>
+            entry.stockCard?.id === 'c1' ? { ...entry, orderable: { id: 'o2' } } : entry,
+          ),
+          {
+            orderable: { id: 'o1' },
+            stockOnHand: 0,
+            occurredDate: null,
+            active: true,
+            stockCard: null,
+            lot: null,
+          },
+        ],
+      },
+    ]),
+  );
+}
+
 describe('stock on hand View', () => {
   it.each([1200, 390])(
     'offers View only for existing cards at content width %i and keeps the whole search',
@@ -707,42 +795,7 @@ describe('stock on hand View', () => {
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
         width,
       } as DOMRect);
-      vi.mocked(fetchOrderablesByIds).mockResolvedValue([
-        {
-          id: 'o1',
-          productCode: 'C1',
-          fullProductName: 'Levonorgestrel',
-          description: null,
-          netContent: 16,
-        },
-        {
-          id: 'o2',
-          productCode: 'C2',
-          fullProductName: 'Substitute product',
-          description: null,
-          netContent: 20,
-        },
-      ]);
-      vi.mocked(fetchStockCardSummaries).mockResolvedValue(
-        page([
-          {
-            ...summary,
-            canFulfillForMe: [
-              ...summary.canFulfillForMe.map((entry) =>
-                entry.stockCard?.id === 'c1' ? { ...entry, orderable: { id: 'o2' } } : entry,
-              ),
-              {
-                orderable: { id: 'o1' },
-                stockOnHand: 0,
-                occurredDate: null,
-                active: true,
-                stockCard: null,
-                lot: null,
-              },
-            ],
-          },
-        ]),
-      );
+      substituteFixture();
       renderRoute(
         appliedPath(HOME, FP, 'my', '&page=2&size=20&productCode=C1&productName=Levo&lotCode=LOT'),
       );
@@ -751,29 +804,6 @@ describe('stock on hand View', () => {
         name: 'stock-on-hand.view-card',
       });
       expect(view).toHaveLength(2);
-      if (width < 672) {
-        const lotBlock = view
-          .find((button) => button.getAttribute('href')?.includes('/c1'))
-          ?.closest('li');
-        expect(lotBlock).not.toBeNull();
-        const lot = within(lotBlock as HTMLElement);
-        const lotLabel = lot.getByText('LOT-A');
-        expect(
-          within(lotLabel.closest('div')?.parentElement as HTMLElement).getByRole('button', {
-            name: 'stock-on-hand.view-card',
-          }),
-        ).toHaveAttribute('href', expect.stringContaining('/c1?'));
-        expect(lot.queryByText('stock-on-hand.lot-code')).not.toBeInTheDocument();
-        for (const [label, value] of [
-          ['stock-on-hand.product', 'Substitute product'],
-          ['stock-on-hand.product-code', 'C2'],
-          ['stock-on-hand.pack-size', '20'],
-        ]) {
-          expect(lot.getByText(label)).toBeInTheDocument();
-          expect(lot.getByText(value)).toBeInTheDocument();
-        }
-        expect(screen.getAllByText('stock-on-hand.no-lot')).toHaveLength(2);
-      }
       const urls = view.map((link) => new URL((link as HTMLAnchorElement).href));
       expect(urls.map((url) => url.pathname).sort()).toEqual([
         '/stock-management/stock-on-hand/c1',
@@ -793,4 +823,28 @@ describe('stock on hand View', () => {
       }
     },
   );
+
+  it('puts a substitute product inside its own lot on phones', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    substituteFixture();
+    renderRoute(appliedPath());
+    await screen.findAllByText('Levonorgestrel');
+    const lot = within(screen.getByText('LOT-A').closest('li') as HTMLElement);
+    expect(lot.getByRole('button', { name: 'stock-on-hand.view-card' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/c1?'),
+    );
+    expect(lot.queryByText('stock-on-hand.lot-code')).not.toBeInTheDocument();
+    for (const [label, value] of [
+      ['stock-on-hand.product', 'Substitute product'],
+      ['stock-on-hand.product-code', 'C2'],
+      ['stock-on-hand.pack-size', '20'],
+    ]) {
+      expect(lot.getByText(label)).toBeInTheDocument();
+      expect(lot.getByText(value)).toBeInTheDocument();
+    }
+    expect(screen.getAllByText('stock-on-hand.no-lot')).toHaveLength(2);
+  });
 });

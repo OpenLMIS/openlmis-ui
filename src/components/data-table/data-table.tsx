@@ -214,7 +214,6 @@ export function DataTableFooter({ children }: { children: ReactNode }) {
   return <div className="border-t bg-muted/30 px-4 py-3">{children}</div>;
 }
 
-/** The pagination in a card of its own, below a list of cards rather than a table. */
 export function DataTablePagerCard({ children }: { children: ReactNode }) {
   return (
     <DataTableCard>

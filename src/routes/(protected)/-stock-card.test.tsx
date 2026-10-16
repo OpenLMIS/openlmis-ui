@@ -363,13 +363,10 @@ describe('stock card display and paging', () => {
     expect(fetchStockCard).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    [390, true],
-    [1400, false],
-  ])('starts a new page at its first card at content width %i: %s', async (width, cards) => {
+  it('opens a new page of cards at its first card', async () => {
     const user = userEvent.setup();
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      width,
+      width: 390,
     } as DOMRect);
     const scrollIntoView = vi.fn();
     HTMLElement.prototype.scrollIntoView = scrollIntoView;
@@ -383,7 +380,7 @@ describe('stock card display and paging', () => {
 
     await user.click(screen.getByRole('button', { name: 'Next Page' }));
     await screen.findByText('person14');
-    expect(scrollIntoView).toHaveBeenCalledTimes(cards ? 1 : 0);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
   it('changes header and row quantities together when packs are chosen', async () => {
@@ -415,7 +412,7 @@ describe('stock card display and paging', () => {
     ]);
   });
 
-  it('shows each line as a card on phones with the phone table columns', async () => {
+  it('shows each line as a card on phones, with who stock moved to or from and its document', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 390,
     } as DOMRect);
@@ -444,12 +441,16 @@ describe('stock card display and paging', () => {
         .getAllByText(/^stock-card\./)
         .map((label) => label.textContent),
     ).toEqual([
+      'stock-card.receive-from',
+      'stock-card.issue-to',
       'stock-card.reason',
       'stock-card.adjustment',
       'stock-card.stock-on-hand',
       'stock-card.performed-by',
+      'stock-card.document-number',
     ]);
-    expect(within(line).getByText(EMPTY_VALUE)).toBeInTheDocument();
+    expect(within(line).getAllByText(EMPTY_VALUE)).toHaveLength(2);
+    expect(within(line).getByRole('link', { name: 'DOC-1' })).toBeInTheDocument();
   });
 
   it('shows the document links on a laptop, and each reversal column the card has values for', async () => {

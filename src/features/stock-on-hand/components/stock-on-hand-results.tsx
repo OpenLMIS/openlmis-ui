@@ -6,11 +6,18 @@ import { type ReactNode, type Ref, useCallback, useDeferredValue, useEffect, use
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardRowSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
   DataTableCard,
   DataTableEmpty,
   DataTableFooter,
   DataTableHeaderLabel,
-  DataTablePagerCard,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import {
@@ -98,7 +105,8 @@ export function StockOnHandResults({
     defaultSort: NO_SORT,
     onSearchChange: onPageChange,
   });
-  const start = usePageStart<HTMLUListElement>(searchState.state.pagination.pageIndex, cards);
+  const { pageIndex, pageSize } = searchState.state.pagination;
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`);
   const table = useTable({
     features: dataTableFeatures,
     columns: [],
@@ -108,6 +116,10 @@ export function StockOnHandResults({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: (updater) => {
+      if (cards) pageStart.request();
+      searchState.onPaginationChange(updater);
+    },
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 
@@ -171,7 +183,7 @@ export function StockOnHandResults({
   };
 
   return cards ? (
-    <GroupedCards {...view} columns={columns} start={start} />
+    <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
   ) : (
     <GroupedTable {...view} columns={columns} />
   );
@@ -189,21 +201,10 @@ type GroupedViewProps = {
 };
 
 function ResultsFrame({
-  cards = false,
   isStale,
   footer,
   children,
-}: Pick<GroupedViewProps, 'isStale' | 'footer'> & { cards?: boolean; children: ReactNode }) {
-  if (cards) {
-    return (
-      <div className="flex min-w-0 flex-col gap-4">
-        <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
-          {children}
-        </div>
-        {footer && <DataTablePagerCard>{footer}</DataTablePagerCard>}
-      </div>
-    );
-  }
+}: Pick<GroupedViewProps, 'isStale' | 'footer'> & { children: ReactNode }) {
   return (
     <DataTableCard>
       <div aria-busy={isStale} className="transition-opacity aria-busy:opacity-60">
@@ -457,81 +458,74 @@ function GroupedCards({
   footer,
   isStale,
   columns,
-  start,
-}: GroupedViewProps & { columns: ColumnVisibilityState; start: Ref<HTMLUListElement> }) {
+  listRef,
+}: GroupedViewProps & { columns: ColumnVisibilityState; listRef: Ref<HTMLUListElement> }) {
   const { t } = useTranslation();
   const text = useStockText();
 
   return (
-    <ResultsFrame cards footer={footer} isStale={isStale}>
-      {groups.length === 0 ? (
-        <DataTableCard>{empty}</DataTableCard>
-      ) : (
-        <ul className="flex scroll-mt-page-start flex-col gap-4" ref={start}>
-          {groups.map((group) => {
-            const open = !collapsed.includes(group.id);
-            const name = text.productLabel(group.product);
-            const packSize = columns.packSize !== false && text.packSize(group.product);
-            return (
-              <li key={group.id}>
-                <DataTableCard>
-                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
-                    <Button
-                      aria-expanded={open}
-                      aria-label={t('stock-on-hand.toggle-product', { product: name })}
-                      onClick={() => onToggle(group.id, !open)}
-                      size="icon-sm"
-                      variant="ghost"
-                    >
-                      <ToggleIcon open={open} />
-                    </Button>
-                    <div className="min-w-0 flex-1 wrap-anywhere">
-                      <div className="font-semibold text-sm">
-                        <Wrapped>{name}</Wrapped>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1 text-muted-foreground text-xs">
-                        {text.productCode(group.product)}
-                        {packSize && (
-                          <>
-                            <span aria-hidden>·</span>
-                            <span>
-                              {t('stock-on-hand.pack-size')} <bdi>{packSize}</bdi>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="max-w-1/2 wrap-anywhere text-end font-semibold text-sm">
-                      <Quantity
-                        unavailable={text.unavailable}
-                        value={groupBalance(group, unit, text.language)}
-                      />
-                    </div>
-                  </div>
-                  {open && (
-                    <ul>
-                      {group.cards.map((card) => (
-                        <li key={card.id}>
-                          <StockLotDetails
-                            card={card}
-                            group={group}
-                            columns={columns}
-                            unit={unit}
-                            search={search}
-                            isStale={isStale}
-                            text={text}
-                          />
-                        </li>
-                      ))}
-                    </ul>
+    <CardList busy={isStale} empty={groups.length === 0 && empty} footer={footer} listRef={listRef}>
+      {groups.map((group) => {
+        const open = !collapsed.includes(group.id);
+        const name = text.productLabel(group.product);
+        const packSize = columns.packSize !== false && text.packSize(group.product);
+        return (
+          <CardListItem key={group.id}>
+            <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
+              <Button
+                aria-expanded={open}
+                aria-label={t('stock-on-hand.toggle-product', { product: name })}
+                onClick={() => onToggle(group.id, !open)}
+                size="icon-sm"
+                variant="ghost"
+              >
+                <ToggleIcon open={open} />
+              </Button>
+              <div className="min-w-0 flex-1 wrap-anywhere">
+                <div className="font-semibold text-sm">
+                  <Wrapped>{name}</Wrapped>
+                </div>
+                <div className="flex flex-wrap items-center gap-1 text-muted-foreground text-xs">
+                  {text.productCode(group.product)}
+                  {packSize && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>
+                        {t('stock-on-hand.pack-size')} <bdi>{packSize}</bdi>
+                      </span>
+                    </>
                   )}
-                </DataTableCard>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </ResultsFrame>
+                </div>
+              </div>
+              <div className="max-w-1/2 wrap-anywhere text-end font-semibold text-sm">
+                <span className="sr-only">{t('stock-on-hand.stock-on-hand')} </span>
+                <Quantity
+                  unavailable={text.unavailable}
+                  value={groupBalance(group, unit, text.language)}
+                />
+              </div>
+            </div>
+            {open && (
+              <ul className="divide-y">
+                {group.cards.map((card) => (
+                  <li className="divide-y" key={card.id}>
+                    <StockLotDetails
+                      card={card}
+                      group={group}
+                      columns={columns}
+                      unit={unit}
+                      search={search}
+                      isStale={isStale}
+                      text={text}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardListItem>
+        );
+      })}
+    </CardList>
   );
 }
 
@@ -554,9 +548,9 @@ function StockLotDetails({
 }) {
   const { t } = useTranslation();
   return (
-    <div>
-      <div className="flex min-h-10 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-1.5">
-        <div className="min-w-0 wrap-anywhere font-semibold text-sm">{text.lotLabel(card)}</div>
+    <>
+      <CardBand>
+        <div className="min-w-0 wrap-anywhere">{text.lotLabel(card)}</div>
         {card.stockCardId && (
           <StockCardView
             card={card}
@@ -566,8 +560,8 @@ function StockLotDetails({
             lot={card.lot?.lotCode ?? t('stock-on-hand.no-lot')}
           />
         )}
-      </div>
-      <div className="divide-y *:px-4 *:py-1.5">
+      </CardBand>
+      <CardRows>
         {card.product?.id !== group.product?.id && (
           <>
             <SettingsItem label={t('stock-on-hand.product')}>
@@ -601,8 +595,8 @@ function StockLotDetails({
             />
           </strong>
         </SettingsItem>
-      </div>
-    </div>
+      </CardRows>
+    </>
   );
 }
 
@@ -637,14 +631,6 @@ function StockCardView({
     >
       {t('stock-on-hand.view')}
     </Button>
-  );
-}
-
-function SkeletonBar({ width }: { width: string }) {
-  return (
-    <div className={`h-4 ${width}`}>
-      <Skeleton fill />
-    </div>
   );
 }
 
@@ -684,49 +670,39 @@ export function StockOnHandResultsSkeleton({
   if (cards) {
     return (
       <div aria-busy>
-        <ResultsFrame cards isStale={false} footer={<DataTablePaginationSkeleton />}>
-          <ul className="flex flex-col gap-4">
-            {products.map((product) => (
-              <li key={product.id}>
-                <DataTableCard>
-                  <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
-                    <ToggleSkeleton />
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      {bar('w-3/4')}
-                      {bar(columns.packSize !== false ? 'w-40' : 'w-12')}
-                    </div>
-                    {bar('w-10')}
-                  </div>
-                  <ul>
-                    {product.cards.map((card) => (
-                      <li key={card}>
-                        <div className="flex min-h-10 items-center justify-between gap-4 border-y bg-muted/50 px-4 py-1.5">
-                          {bar('w-20')}
-                          <div className="h-8 w-16">
-                            <Skeleton fill />
-                          </div>
-                        </div>
-                        <div className="divide-y *:px-4 *:py-1.5">
-                          {['expiry', 'lastUpdate', 'stockOnHand']
-                            .filter((key) => columns[key] !== false)
-                            .map((key) => (
-                              <div
-                                className="flex min-h-14 items-center justify-between gap-4"
-                                key={key}
-                              >
-                                {bar('w-24')}
-                                {bar('w-20')}
-                              </div>
-                            ))}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </DataTableCard>
-              </li>
-            ))}
-          </ul>
-        </ResultsFrame>
+        <CardList footer={<DataTablePaginationSkeleton />}>
+          {products.map((product) => (
+            <CardListItem key={product.id}>
+              <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
+                <ToggleSkeleton />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  {bar('w-3/4')}
+                  {bar(columns.packSize !== false ? 'w-40' : 'w-12')}
+                </div>
+                {bar('w-10')}
+              </div>
+              <ul className="divide-y">
+                {product.cards.map((card) => (
+                  <li className="divide-y" key={card}>
+                    <CardBand>
+                      {bar('w-20')}
+                      <div className="h-8 w-16">
+                        <Skeleton fill />
+                      </div>
+                    </CardBand>
+                    <CardRows>
+                      {['expiry', 'lastUpdate', 'stockOnHand']
+                        .filter((key) => columns[key] !== false)
+                        .map((key) => (
+                          <CardRowSkeleton key={key} />
+                        ))}
+                    </CardRows>
+                  </li>
+                ))}
+              </ul>
+            </CardListItem>
+          ))}
+        </CardList>
       </div>
     );
   }

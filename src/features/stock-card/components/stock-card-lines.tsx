@@ -4,12 +4,18 @@ import { ClipboardListIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardRowSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
   DataTable,
-  DataTableCard,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableHeaderLabel,
-  DataTablePagerCard,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -19,7 +25,6 @@ import {
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { Skeleton } from '@/components/ui/skeleton';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,
@@ -67,33 +72,10 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
 type CellId = (typeof COLUMNS)[number][0];
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'date');
 
-function hasValue(id: CellId, line: CardLineRow) {
-  switch (id) {
-    case 'receiveFrom':
-      return Boolean(line.source);
-    case 'issueTo':
-      return Boolean(line.destination);
-    case 'reason':
-      return Boolean(line.reason);
-    case 'performedBy':
-      return Boolean(line.username);
-    case 'signature':
-      return Boolean(line.signature);
-    case 'document':
-      return Boolean(line.eventOrigin);
-    case 'reversing':
-      return Boolean(line.reversedEventId);
-    case 'reversedBy':
-      return Boolean(line.cancellationEventId);
-    default:
-      return true;
-  }
-}
-
-function Wrapped({ children }: { children: string | null | undefined }) {
+function Wrapped({ children, empty }: { children: string | null | undefined; empty?: string }) {
   return (
     <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{tableValue(children)}</bdi>
+      <bdi>{tableValue(children) ?? empty}</bdi>
     </span>
   );
 }
@@ -104,12 +86,14 @@ function EventCell({
   link,
   search,
   name,
+  empty,
 }: {
   link: EventLink | null;
   search: EventSearch;
   name?: string | undefined;
+  empty?: string | undefined;
 }) {
-  if (!link?.eventId) return <Wrapped>{link?.label}</Wrapped>;
+  if (!link?.eventId) return <Wrapped empty={empty}>{link?.label}</Wrapped>;
   return (
     <span className="whitespace-nowrap">
       <Link
@@ -131,12 +115,14 @@ function LineCell({
   netContent,
   unit,
   eventSearch,
+  empty,
 }: {
   id: CellId;
   line: CardLineRow;
   netContent: number | null | undefined;
   unit: QuantityUnit;
   eventSearch: EventSearch;
+  empty?: string;
 }) {
   const { t, i18n } = useTranslation();
   switch (id) {
@@ -147,11 +133,17 @@ function LineCell({
         </span>
       );
     case 'receiveFrom':
-      return <Wrapped>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
+      return <Wrapped empty={empty}>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
     case 'issueTo':
-      return <Wrapped>{namedWithFreeText(line.destination, line.destinationFreeText)}</Wrapped>;
+      return (
+        <Wrapped empty={empty}>
+          {namedWithFreeText(line.destination, line.destinationFreeText)}
+        </Wrapped>
+      );
     case 'reason':
-      return <Wrapped>{reasonLabel(line, t('stock-card.physical-inventory'))}</Wrapped>;
+      return (
+        <Wrapped empty={empty}>{reasonLabel(line, t('stock-card.physical-inventory'))}</Wrapped>
+      );
     case 'adjustment':
     case 'balance':
       return (
@@ -165,9 +157,9 @@ function LineCell({
         </span>
       );
     case 'performedBy':
-      return <Wrapped>{line.username}</Wrapped>;
+      return <Wrapped empty={empty}>{line.username}</Wrapped>;
     case 'signature':
-      return <Wrapped>{line.signature}</Wrapped>;
+      return <Wrapped empty={empty}>{line.signature}</Wrapped>;
     case 'document':
     case 'reversing':
     case 'reversedBy': {
@@ -183,6 +175,7 @@ function LineCell({
               : undefined
           }
           search={eventSearch}
+          empty={empty}
         />
       );
     }
@@ -234,38 +227,27 @@ function LineCard({
   eventSearch: EventSearch;
 }) {
   const { t } = useTranslation();
+  const cell = (id: CellId) => (
+    <LineCell
+      empty={EMPTY_VALUE}
+      eventSearch={eventSearch}
+      id={id}
+      line={line}
+      netContent={netContent}
+      unit={unit}
+    />
+  );
   return (
-    <DataTableCard>
-      <div className="flex min-h-10 items-center border-b bg-muted/50 px-4 py-1.5 font-semibold text-sm">
-        <LineCell
-          eventSearch={eventSearch}
-          id="date"
-          line={line}
-          netContent={netContent}
-          unit={unit}
-        />
-      </div>
-      <div className="divide-y *:px-4 *:py-1.5">
-        {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false).map(([id, key]) => {
-          const cell = !hasValue(id, line) ? (
-            EMPTY_VALUE
-          ) : (
-            <LineCell
-              eventSearch={eventSearch}
-              id={id}
-              line={line}
-              netContent={netContent}
-              unit={unit}
-            />
-          );
-          return (
-            <SettingsItem key={id} label={t(key)}>
-              {id === 'balance' ? <strong>{cell}</strong> : cell}
-            </SettingsItem>
-          );
-        })}
-      </div>
-    </DataTableCard>
+    <CardListItem>
+      <CardBand>{cell('date')}</CardBand>
+      <CardRows>
+        {CARD_ROWS.filter(([id]) => columnVisibility[id] !== false).map(([id, key]) => (
+          <SettingsItem key={id} label={t(key)}>
+            {id === 'balance' ? <strong>{cell(id)}</strong> : cell(id)}
+          </SettingsItem>
+        ))}
+      </CardRows>
+    </CardListItem>
   );
 }
 
@@ -292,13 +274,12 @@ export function StockCardLines({
   const lines = useMemo(() => toCardLines(card.lineItems), [card.lineItems]);
   const columns = useLineColumns(card.orderable.netContent, unit, eventSearch);
   const onTableSearchChange = useCallback<SearchChange<TableSearch>>(
-    (update, replace) => {
+    (update) =>
       onSearchChange(
         (previous) => changeCardPaging(previous, update),
-        replace,
+        false,
         cards ? { resetScroll: false } : undefined,
-      );
-    },
+      ),
     [onSearchChange, cards],
   );
   const searchState = useTableSearchState({
@@ -309,7 +290,7 @@ export function StockCardLines({
   const { pageIndex, pageSize } = toPaginationState(cardTableSearch(search));
   const pageCount = Math.max(1, Math.ceil(lines.length / pageSize));
   const clampedIndex = Math.min(pageIndex, pageCount - 1);
-  const start = usePageStart<HTMLUListElement>(clampedIndex, cards);
+  const pageStart = usePageStart<HTMLUListElement>(`${clampedIndex}:${pageSize}`);
   const rows = useMemo(
     () => lines.slice(clampedIndex * pageSize, (clampedIndex + 1) * pageSize),
     [lines, clampedIndex, pageSize],
@@ -324,6 +305,10 @@ export function StockCardLines({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: (updater) => {
+      if (cards) pageStart.request();
+      searchState.onPaginationChange(updater);
+    },
     state: { ...searchState.state, columnVisibility },
   });
   useEffect(() => {
@@ -340,40 +325,24 @@ export function StockCardLines({
   const footer = lines.length > 0 && <DataTablePagination table={table} />;
   if (cards) {
     return (
-      <div className="flex min-w-0 flex-col gap-4">
-        {rows.length === 0 ? (
-          <DataTableCard>{empty}</DataTableCard>
-        ) : (
-          <ul className="flex scroll-mt-page-start flex-col gap-4" ref={start}>
-            {rows.map((line) => (
-              <li key={line.rowId}>
-                <LineCard
-                  columnVisibility={columnVisibility}
-                  eventSearch={eventSearch}
-                  line={line}
-                  netContent={card.orderable.netContent}
-                  unit={unit}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-        {footer && <DataTablePagerCard>{footer}</DataTablePagerCard>}
-      </div>
+      <CardList empty={rows.length === 0 && empty} footer={footer} listRef={pageStart.ref}>
+        {rows.map((line) => (
+          <LineCard
+            columnVisibility={columnVisibility}
+            eventSearch={eventSearch}
+            key={line.rowId}
+            line={line}
+            netContent={card.orderable.netContent}
+            unit={unit}
+          />
+        ))}
+      </CardList>
     );
   }
   return <DataTable table={table} empty={empty} footer={footer} density="default" layout="auto" />;
 }
 
-const SKELETON_CARD_ROWS = ['reason', 'adjustment', 'balance', 'performedBy'];
-
-function SkeletonBar({ width }: { width: string }) {
-  return (
-    <div className={`h-4 ${width}`}>
-      <Skeleton fill />
-    </div>
-  );
-}
+const SKELETON_CARDS = ['a', 'b', 'c'];
 
 export function StockCardLinesSkeleton({
   cards,
@@ -395,30 +364,22 @@ export function StockCardLinesSkeleton({
   const rowCount = toPaginationState(cardTableSearch(search)).pageSize;
   if (cards) {
     return (
-      <div className="flex min-w-0 flex-col gap-4">
-        <ul className="flex flex-col gap-4">
-          {Array.from({ length: Math.min(rowCount, 3) }, (_, index) => index).map((index) => (
-            <li key={index}>
-              <DataTableCard>
-                <div className="flex min-h-10 items-center border-b bg-muted/50 px-4 py-1.5">
-                  <SkeletonBar width="w-24" />
-                </div>
-                <div className="divide-y *:px-4 *:py-1.5">
-                  {SKELETON_CARD_ROWS.filter((id) => columnVisibility[id] !== false).map((id) => (
-                    <div className="flex min-h-8 items-center justify-between gap-4" key={id}>
-                      <SkeletonBar width="w-24" />
-                      <SkeletonBar width="w-16" />
-                    </div>
-                  ))}
-                </div>
-              </DataTableCard>
-            </li>
-          ))}
-        </ul>
-        <DataTablePagerCard>
-          <DataTablePaginationSkeleton />
-        </DataTablePagerCard>
-      </div>
+      <CardList footer={<DataTablePaginationSkeleton />}>
+        {SKELETON_CARDS.slice(0, rowCount).map((id) => (
+          <CardListItem key={id}>
+            <CardBand>
+              <SkeletonBar width="w-24" />
+            </CardBand>
+            <CardRows>
+              {CARD_ROWS.filter(([column]) => columnVisibility[column] !== false).map(
+                ([column]) => (
+                  <CardRowSkeleton key={column} />
+                ),
+              )}
+            </CardRows>
+          </CardListItem>
+        ))}
+      </CardList>
     );
   }
   return <DataTableSkeleton table={table} rowCount={rowCount} density="default" layout="auto" />;

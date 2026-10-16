@@ -1,13 +1,19 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-/** Brings the returned element into view when `page` changes, so each page of cards starts at its first card. */
-export function usePageStart<T extends HTMLElement>(page: number, enabled: boolean) {
+export function usePageStart<T extends HTMLElement>(page: string) {
   const ref = useRef<T>(null);
   const shown = useRef(page);
+  const requested = useRef(false);
   useEffect(() => {
     if (shown.current === page) return;
     shown.current = page;
-    if (enabled) ref.current?.scrollIntoView?.({ block: 'start' });
-  }, [page, enabled]);
-  return ref;
+    if (!requested.current) return;
+    requested.current = false;
+    ref.current?.scrollIntoView?.({ block: 'start' });
+    ref.current?.focus({ preventScroll: true });
+  }, [page]);
+  const request = useCallback(() => {
+    requested.current = true;
+  }, []);
+  return { ref, request };
 }
