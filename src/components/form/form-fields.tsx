@@ -3,7 +3,9 @@ import {
   CalendarIcon,
   EyeIcon,
   EyeOffIcon,
+  FileIcon,
   InfoIcon,
+  PaperclipIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -813,24 +815,22 @@ function IconAction({ label, icon, ...props }: IconActionProps) {
 }
 
 type FileFieldProps = Omit<FieldProps, 'layout' | 'hideErrors'> & {
-  align?: 'start' | 'end';
   accept: string;
-  chooseLabel: string;
   emptyLabel: string;
   removeLabel: string;
+  fileSize?: string;
   describedBy?: string;
 };
 
 export function FileField({
-  align = 'start',
   label,
   description,
   required,
   disabled,
   accept,
-  chooseLabel,
   emptyLabel,
   removeLabel,
+  fileSize,
   describedBy,
 }: FileFieldProps) {
   const field = useFieldContext<File | undefined>();
@@ -838,74 +838,69 @@ export function FileField({
   const choose = useRef<HTMLButtonElement>(null);
   const requiredLabel = useRequiredLabel();
   const requiredId = `${field.name}-required`;
-  const chooseId = `${field.name}-choose`;
   const filenameId = `${field.name}-filename`;
   const state = useFieldErrors(
     description,
     [describedBy, required ? requiredId : ''].filter(Boolean).join(' '),
   );
   const file = field.state.value;
-  const chooser = (
-    <Button
-      aria-controls={`${field.name}-input`}
-      aria-describedby={state.describedBy}
-      aria-invalid={state.isInvalid}
-      aria-labelledby={`${field.name}-label ${chooseId} ${filenameId}`}
-      disabled={disabled}
-      id={field.name}
-      onBlur={field.handleBlur}
-      onClick={() => input.current?.click()}
-      ref={choose}
-      type="button"
-      variant="outline"
-    >
-      <span id={chooseId}>{chooseLabel}</span>
-    </Button>
-  );
 
   return (
-    <FieldFrame
-      description={description}
-      disabled={disabled}
-      label={label}
-      required={required}
-      state={state}
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        {align === 'start' && chooser}
-        <span
-          className={
-            align === 'end'
-              ? 'min-w-0 truncate text-muted-foreground'
-              : 'min-w-0 flex-1 truncate text-muted-foreground'
-          }
-          dir="auto"
-          id={filenameId}
+    <FieldFrame disabled={disabled} label={label} required={required} state={state}>
+      <div className="flex min-w-0 flex-col gap-2">
+        <Button
+          align="start"
+          aria-controls={`${field.name}-input`}
+          aria-describedby={state.describedBy}
+          aria-invalid={state.isInvalid}
+          aria-labelledby={`${field.name}-label ${filenameId}`}
+          disabled={disabled}
+          id={field.name}
+          onBlur={field.handleBlur}
+          onClick={() => input.current?.click()}
+          ref={choose}
+          type="button"
+          variant="outline"
+          width="full"
         >
-          {file?.name ?? emptyLabel}
-        </span>
-        {file && (
-          <IconAction
-            disabled={disabled}
-            icon={<XIcon />}
-            label={removeLabel}
-            onClick={() => {
-              field.setValue(undefined, { dontValidate: true });
-              field.setMeta((previous) => ({
-                ...previous,
-                isTouched: false,
-                isBlurred: false,
-                isDirty: false,
-                errorMap: {},
-                errorSourceMap: {},
-              }));
-              if (input.current) input.current.value = '';
-              choose.current?.focus();
-            }}
-            variant="ghost"
-          />
-        )}
-        {align === 'end' && <div className="ms-auto shrink-0">{chooser}</div>}
+          <PaperclipIcon data-icon="inline-start" />
+          <span className="min-w-0 flex-1 truncate text-start" dir="auto" id={filenameId}>
+            {file?.name ?? emptyLabel}
+          </span>
+        </Button>
+        {description && <FieldDescription id={state.descriptionId}>{description}</FieldDescription>}
+        {file ? (
+          <div className="flex min-w-0 items-center gap-3 rounded-lg border p-3">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+              <FileIcon className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm" dir="auto">
+                {file.name}
+              </p>
+              {fileSize && <p className="text-muted-foreground text-xs">{fileSize}</p>}
+            </div>
+            <IconAction
+              disabled={disabled}
+              icon={<Trash2Icon />}
+              label={removeLabel}
+              onClick={() => {
+                field.setValue(undefined, { dontValidate: true });
+                field.setMeta((previous) => ({
+                  ...previous,
+                  isTouched: false,
+                  isBlurred: false,
+                  isDirty: false,
+                  errorMap: {},
+                  errorSourceMap: {},
+                }));
+                if (input.current) input.current.value = '';
+                choose.current?.focus();
+              }}
+              variant="destructive"
+            />
+          </div>
+        ) : null}
         {required && (
           <span className="sr-only" id={requiredId}>
             {requiredLabel}

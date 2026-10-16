@@ -14,14 +14,6 @@ export function FileTransferExport({ children }: { children: ReactNode }) {
   );
 }
 
-export function FileTransferInstructions({ children }: { children: ReactNode }) {
-  return (
-    <p className="whitespace-pre-line wrap-break-word text-muted-foreground text-sm leading-relaxed">
-      {children}
-    </p>
-  );
-}
-
 export function FileTransferUpload({ children }: { children: ReactNode }) {
   return (
     <CardContent>

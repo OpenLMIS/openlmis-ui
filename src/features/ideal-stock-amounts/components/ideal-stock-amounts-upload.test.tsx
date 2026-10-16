@@ -44,9 +44,9 @@ async function renderUpload() {
   await screen.findByRole('button', { name: 'Upload' });
   return {
     user: userEvent.setup({ applyAccept: false }),
-    input: screen.getByLabelText(/^CSV File/, { selector: 'input' }),
+    input: screen.getByLabelText(/^CSV File/, { selector: 'input[type=file]' }),
     submit: screen.getByRole('button', { name: 'Upload' }),
-    chooser: () => screen.getByRole('button', { name: /^CSV File Select CSV File/ }),
+    chooser: () => screen.getByRole('button', { name: /^CSV File/ }),
   };
 }
 
@@ -73,7 +73,7 @@ it('validates chosen files, preserves a canceled selection and clears errors wit
   expect(await screen.findByText('Selected file is empty')).toBeVisible();
   expect(uploadIdealStockAmounts).not.toHaveBeenCalled();
   fireEvent.change(input, { target: { files: [] } });
-  expect(screen.getByText('empty.csv')).toBeVisible();
+  expect(chooser()).toHaveAccessibleName('CSV File empty.csv');
   await user.click(screen.getByRole('button', { name: 'Remove File' }));
   expect(chooser()).toHaveFocus();
   expect(screen.queryByText('Selected file is empty')).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ it('retains a refused file through export failure, supports same-file retry and 
   await user.click(submit);
   expect(await screen.findByRole('alert')).toHaveTextContent('Row 2: unknown facility.');
   expect(chooser()).toHaveAccessibleDescription(/Row 2: unknown facility\./);
-  expect(screen.getByText('Amounts.CSV')).toBeVisible();
+  expect(chooser()).toHaveAccessibleName('CSV File Amounts.CSV');
   let rejectExport: (error: Error) => void = () => undefined;
   vi.mocked(exportIdealStockAmounts).mockReturnValueOnce(
     new Promise((_resolve, reject) => {
@@ -110,7 +110,7 @@ it('retains a refused file through export failure, supports same-file retry and 
   await waitFor(() => expect(exportError).toHaveBeenCalledWith('Export Failed', expect.anything()));
   expect(exportButton).toHaveFocus();
   expect(screen.getByRole('alert')).toHaveTextContent('Row 2: unknown facility.');
-  expect(screen.getByText('Amounts.CSV')).toBeVisible();
+  expect(chooser()).toHaveAccessibleName('CSV File Amounts.CSV');
 
   await user.upload(input, file);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -130,7 +130,7 @@ it('retains a refused file through export failure, supports same-file retry and 
   fireEvent.submit(submit.closest('form') as HTMLFormElement);
   expect(uploadIdealStockAmounts).toHaveBeenCalledTimes(2);
   await act(async () => complete({ amount: 7080 }));
-  await waitFor(() => expect(screen.getByText('No File Chosen')).toBeVisible());
+  await waitFor(() => expect(chooser()).toHaveAccessibleName('CSV File No File Chosen'));
   expect(success).toHaveBeenLastCalledWith('Upload Complete', {
     description: 'File uploaded successfully. Number of records processed: 7,080',
   });
@@ -142,7 +142,7 @@ it('retains a refused file through export failure, supports same-file retry and 
   vi.mocked(uploadIdealStockAmounts).mockResolvedValueOnce({ amount: 0 });
   await user.upload(input, file);
   await user.click(submit);
-  await waitFor(() => expect(screen.getByText('No File Chosen')).toBeVisible());
+  await waitFor(() => expect(chooser()).toHaveAccessibleName('CSV File No File Chosen'));
   expect(success).toHaveBeenLastCalledWith('Upload Complete', {
     description: 'File uploaded successfully. Number of records processed: 0',
   });
@@ -172,7 +172,7 @@ it.each([
     await user.upload(input, new File(['header'], 'values.csv'));
     await user.click(submit);
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
-    expect(screen.getByText('values.csv')).toBeVisible();
+    expect(chooser()).toHaveAccessibleName('CSV File values.csv');
     await user.click(screen.getByRole('button', { name: 'Remove File' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(chooser()).toHaveFocus();

@@ -1,6 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { isAxiosError } from 'axios';
-import { DownloadIcon, Loader2Icon, UploadIcon } from 'lucide-react';
+import { DownloadIcon, Loader2Icon, PaperclipIcon, UploadIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -8,16 +8,14 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import {
   FileTransferExport,
-  FileTransferInstructions,
   FileTransferPanel,
   FileTransferUpload,
 } from '@/components/file-transfer-panel';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   exportIdealStockAmounts,
   uploadIdealStockAmounts,
@@ -50,7 +48,7 @@ function transferErrorMessage(
 }
 
 export function IdealStockAmountsUpload() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const errorId = useId();
   const [attempt, setAttempt] = useState(0);
   const errorMessage = (error: unknown, fallback: string) =>
@@ -131,48 +129,59 @@ export function IdealStockAmountsUpload() {
             }}
           >
             <FileTransferUpload>
-              <UploadValuesHeading />
-              <form.AppField listeners={{ onChange: () => upload.reset() }} name="file">
-                {(field) => (
-                  <field.FileField
-                    accept=".csv"
-                    align="end"
-                    chooseLabel={t('ideal-stock-amounts.choose-file')}
-                    describedBy={upload.isError ? errorId : undefined}
-                    disabled={pending}
-                    emptyLabel={t('ideal-stock-amounts.no-file')}
-                    label={t('ideal-stock-amounts.file')}
-                    removeLabel={t('ideal-stock-amounts.remove-file')}
-                    required
-                  />
-                )}
-              </form.AppField>
-              {upload.isError && (
-                <div id={errorId} key={attempt}>
-                  <ErrorAlert
-                    description={errorMessage(upload.error, t('ideal-stock-amounts.upload-error'))}
-                    title={t('ideal-stock-amounts.upload-error-title')}
-                  />
+              <div className="grid min-w-0 gap-5 @2xl/main:grid-cols-2">
+                <UploadValuesHeading />
+                <div className="ms-auto w-full min-w-0 max-w-xs">
+                  <FieldGroup>
+                    <form.AppField listeners={{ onChange: () => upload.reset() }} name="file">
+                      {(field) => (
+                        <field.FileField
+                          accept=".csv"
+                          describedBy={upload.isError ? errorId : undefined}
+                          disabled={pending}
+                          emptyLabel={t('ideal-stock-amounts.no-file')}
+                          fileSize={
+                            field.state.value
+                              ? formatFileSize(field.state.value.size, i18n.language)
+                              : undefined
+                          }
+                          label={t('ideal-stock-amounts.file')}
+                          removeLabel={t('ideal-stock-amounts.remove-file')}
+                          required
+                        />
+                      )}
+                    </form.AppField>
+                    {upload.isError && (
+                      <div id={errorId} key={attempt}>
+                        <ErrorAlert
+                          description={errorMessage(
+                            upload.error,
+                            t('ideal-stock-amounts.upload-error'),
+                          )}
+                          title={t('ideal-stock-amounts.upload-error-title')}
+                        />
+                      </div>
+                    )}
+                    <div className="flex justify-end">
+                      <Button
+                        disabled={!selected || pending}
+                        focusableWhenDisabled={pending || upload.isSuccess}
+                        type="submit"
+                      >
+                        {pending ? (
+                          <Loader2Icon className="animate-spin" data-icon="inline-start" />
+                        ) : (
+                          <UploadIcon data-icon="inline-start" />
+                        )}
+                        {t('ideal-stock-amounts.upload')}
+                      </Button>
+                    </div>
+                  </FieldGroup>
                 </div>
-              )}
-              <div className="flex justify-end">
-                <Button
-                  disabled={!selected || pending}
-                  focusableWhenDisabled={pending || upload.isSuccess}
-                  type="submit"
-                >
-                  {pending ? (
-                    <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                  ) : (
-                    <UploadIcon data-icon="inline-start" />
-                  )}
-                  {t('ideal-stock-amounts.upload')}
-                </Button>
               </div>
             </FileTransferUpload>
           </form>
         </FileTransferPanel>
-        <FullUpdateInstructions />
       </div>
       <DiscardChangesDialog
         description={t('ideal-stock-amounts.discard-description')}
@@ -198,31 +207,32 @@ export function IdealStockAmountsUploadSkeleton() {
         </FileTransferExport>
         <Separator />
         <FileTransferUpload>
-          <UploadValuesHeading />
-          <Field spacing="tight">
-            <FieldLabel>
-              <FieldLabelText label={t('ideal-stock-amounts.file')} required />
-            </FieldLabel>
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="h-4 w-24">
-                <Skeleton fill />
-              </div>
-              <div className="ms-auto shrink-0">
-                <Button disabled variant="outline">
-                  {t('ideal-stock-amounts.choose-file')}
-                </Button>
-              </div>
+          <div className="grid min-w-0 gap-5 @2xl/main:grid-cols-2">
+            <UploadValuesHeading />
+            <div className="ms-auto w-full min-w-0 max-w-xs">
+              <FieldGroup>
+                <Field spacing="tight">
+                  <FieldLabel>
+                    <FieldLabelText label={t('ideal-stock-amounts.file')} required />
+                  </FieldLabel>
+                  <Button align="start" disabled variant="outline" width="full">
+                    <PaperclipIcon data-icon="inline-start" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {t('ideal-stock-amounts.no-file')}
+                    </span>
+                  </Button>
+                </Field>
+                <div className="flex justify-end">
+                  <Button disabled>
+                    <UploadIcon data-icon="inline-start" />
+                    {t('ideal-stock-amounts.upload')}
+                  </Button>
+                </div>
+              </FieldGroup>
             </div>
-          </Field>
-          <div className="flex justify-end">
-            <Button disabled>
-              <UploadIcon data-icon="inline-start" />
-              {t('ideal-stock-amounts.upload')}
-            </Button>
           </div>
         </FileTransferUpload>
       </FileTransferPanel>
-      <FullUpdateInstructions />
     </div>
   );
 }
@@ -247,16 +257,13 @@ function UploadValuesHeading() {
   );
 }
 
-function FullUpdateInstructions() {
-  const { t } = useTranslation();
-  return (
-    <details>
-      <summary className="w-fit cursor-pointer rounded-sm text-muted-foreground text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-        {t('ideal-stock-amounts.instructions-label')}
-      </summary>
-      <div className="mt-3 border-s-2 ps-4">
-        <FileTransferInstructions>{t('ideal-stock-amounts.instructions')}</FileTransferInstructions>
-      </div>
-    </details>
-  );
+function formatFileSize(bytes: number, language: string) {
+  const divisor = bytes >= 1_000_000 ? 1_000_000 : bytes >= 1_000 ? 1_000 : 1;
+  const unit = divisor === 1_000_000 ? 'megabyte' : divisor === 1_000 ? 'kilobyte' : 'byte';
+  return new Intl.NumberFormat(language, {
+    style: 'unit',
+    unit,
+    unitDisplay: unit === 'byte' ? 'long' : 'short',
+    maximumFractionDigits: 1,
+  }).format(bytes / divisor);
 }
