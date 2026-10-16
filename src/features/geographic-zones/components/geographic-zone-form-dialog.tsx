@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -25,6 +25,8 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { updateGeographicZone } from '@/features/geographic-zones/api/api';
 import { geographicZoneDetailOptions } from '@/features/geographic-zones/api/queries';
 import {
@@ -120,7 +122,7 @@ function ZoneDetails({
   return <ZoneReadOnly invalidConfiguration={!policy} zone={zone} />;
 }
 
-function ZoneValues({ zone, population }: { zone: GeographicZone; population?: ReactNode }) {
+function ZoneValues({ zone }: { zone: GeographicZone }) {
   const { t, i18n } = useTranslation();
   const number = new Intl.NumberFormat(i18n.language);
   return (
@@ -137,13 +139,9 @@ function ZoneValues({ zone, population }: { zone: GeographicZone; population?: R
       <SettingsItem label={t('geographic-zones.parent')}>
         <span dir="auto">{orEmpty(zone.parent?.name)}</span>
       </SettingsItem>
-      {population ?? (
-        <SettingsItem label={t('geographic-zones.population')}>
-          {zone.catchmentPopulation == null
-            ? orEmpty(null)
-            : number.format(zone.catchmentPopulation)}
-        </SettingsItem>
-      )}
+      <SettingsItem label={t('geographic-zones.population')}>
+        {zone.catchmentPopulation == null ? orEmpty(null) : number.format(zone.catchmentPopulation)}
+      </SettingsItem>
       <SettingsItem label={t('geographic-zones.longitude')}>
         <span dir="ltr">{orEmpty(zone.longitude)}</span>
       </SettingsItem>
@@ -254,21 +252,31 @@ function ZoneEditForm({
               title={t('geographic-zones.save-error-title')}
             />
           )}
-          <ZoneValues
-            zone={zone}
-            population={
-              <form.AppField name="catchmentPopulation">
-                {(field) => (
-                  <field.NumberField
-                    description={t('geographic-zones.population-description')}
-                    disabled={save.isPending}
-                    label={t('geographic-zones.population')}
-                    layout="row"
-                  />
-                )}
-              </form.AppField>
-            }
-          />
+          <FieldGroup>
+            <DisabledZoneField label={t('geographic-zones.name')} value={zone.name} />
+            <DisabledZoneField label={t('geographic-zones.code')} value={zone.code} />
+            <DisabledZoneField label={t('geographic-zones.level')} value={zone.level.name} />
+            <DisabledZoneField label={t('geographic-zones.parent')} value={zone.parent?.name} />
+            <form.AppField name="catchmentPopulation">
+              {(field) => (
+                <field.NumberField
+                  description={t('geographic-zones.population-description')}
+                  disabled={save.isPending}
+                  label={t('geographic-zones.population')}
+                />
+              )}
+            </form.AppField>
+            <DisabledZoneField
+              dir="ltr"
+              label={t('geographic-zones.longitude')}
+              value={zone.longitude}
+            />
+            <DisabledZoneField
+              dir="ltr"
+              label={t('geographic-zones.latitude')}
+              value={zone.latitude}
+            />
+          </FieldGroup>
         </div>
       </FormDialogBody>
       <FormDialogFooter>
@@ -276,6 +284,24 @@ function ZoneEditForm({
         <FormDialogSubmit pending={save.isPending}>{t('geographic-zones.save')}</FormDialogSubmit>
       </FormDialogFooter>
     </FormDialogForm>
+  );
+}
+
+function DisabledZoneField({
+  label,
+  value,
+  dir = 'auto',
+}: {
+  label: string;
+  value: string | number | null | undefined;
+  dir?: 'auto' | 'ltr';
+}) {
+  const id = useId();
+  return (
+    <Field data-disabled>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input dir={dir} disabled id={id} value={value ?? ''} />
+    </Field>
   );
 }
 

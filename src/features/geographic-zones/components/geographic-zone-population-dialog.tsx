@@ -104,7 +104,7 @@ function PopulationContent({ zoneId, opening }: { zoneId: string; opening: numbe
         </FormDialogTitle>
         <FormDialogDescription>{t('geographic-zones.population-summary')}</FormDialogDescription>
       </FormDialogHeader>
-      <FormDialogBody layout="table">
+      <div className="shrink-0">
         <SettingsList>
           <SettingsItem label={t('geographic-zones.name')}>
             <span dir="auto">{orEmpty(zone.name)}</span>
@@ -118,6 +118,8 @@ function PopulationContent({ zoneId, opening }: { zoneId: string; opening: numbe
               : number.format(zone.catchmentPopulation)}
           </SettingsItem>
         </SettingsList>
+      </div>
+      <FormDialogBody layout="table">
         <PopulationTable zones={children} number={number} />
       </FormDialogBody>
       <FormDialogFooter>
@@ -138,8 +140,8 @@ function PopulationTable({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border">
-      <Table density="compact">
+    <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
+      <Table density="compact" scroll="both">
         <TableHeader surface="muted">
           <TableRow>
             {POPULATION_COLUMNS.map((column) => (
@@ -193,7 +195,7 @@ function PopulationSkeleton() {
         <FormDialogTitle>{t('geographic-zones.visualize')}</FormDialogTitle>
         <SkeletonLine width="medium" />
       </FormDialogHeader>
-      <FormDialogBody layout="table">
+      <div className="shrink-0">
         <SettingsList>
           {(['name', 'level', 'total-population'] as const).map((key) => (
             <SettingsItem key={key} label={t(`geographic-zones.${key}`)}>
@@ -201,8 +203,10 @@ function PopulationSkeleton() {
             </SettingsItem>
           ))}
         </SettingsList>
-        <div className="rounded-lg border">
-          <Table density="compact">
+      </div>
+      <FormDialogBody layout="table">
+        <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
+          <Table density="compact" scroll="both">
             <TableHeader surface="muted">
               <TableRow>
                 {POPULATION_COLUMNS.map((column) => (
