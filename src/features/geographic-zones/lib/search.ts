@@ -3,6 +3,13 @@ import type { GeographicZonesQuery } from '@/features/geographic-zones/lib/types
 import { tableSearchSchema, textFilterSchema, toPaginationState } from '@/lib/table-search';
 import { MAX_WHOLE_NUMBER } from '@/lib/whole-number';
 
+export const GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS = [
+  { id: 'code', labelKey: 'geographic-zones.code', hideBelow: 'lg' },
+  { id: 'catchmentPopulation', labelKey: 'geographic-zones.population', hideBelow: '2xl' },
+  { id: 'level', labelKey: 'geographic-zones.level', hideBelow: 'md' },
+  { id: 'parent', labelKey: 'geographic-zones.parent', hideBelow: '4xl' },
+] as const;
+
 export const geographicZonesSearchSchema = tableSearchSchema(['name']).extend({
   sort: z
     .literal('name')
