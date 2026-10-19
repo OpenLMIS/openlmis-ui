@@ -212,7 +212,7 @@ export function PhysicalInventoryGrid({
         {bands.map((band) => (
           <Fragment key={band.category}>
             <li>
-              <h2 className="px-4 text-muted-foreground text-sm">
+              <h2 className="px-1 pt-2 font-semibold text-base">
                 <bdi>{band.category}</bdi>
               </h2>
             </li>
