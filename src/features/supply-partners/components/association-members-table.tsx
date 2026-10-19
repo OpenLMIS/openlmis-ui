@@ -3,13 +3,14 @@ import type { TFunction } from 'i18next';
 import { Trash2Icon } from 'lucide-react';
 import { createContext, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { TableCards } from '@/components/table-cards';
+import { TableCards, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { ReferenceName } from '@/features/supply-partners/components/supply-partner-references';
 
@@ -31,24 +32,40 @@ const MemberActionsContext = createContext<MemberActions | null>(null);
 function MemberRemoveCell({ row }: CellContext<DataTableFeatures, Member, unknown>) {
   const actions = useContext(MemberActionsContext);
   const { t } = useTranslation();
+  const cards = useInCards();
   if (!actions) return null;
+  const name = t('supply-partners.remove-item', {
+    item:
+      row.original.name ||
+      row.original.code ||
+      t(actions.kind === 'facilities' ? 'supply-partners.facilities' : 'supply-partners.products'),
+  });
+  const disabled = actions.pending || row.original.loading || row.original.removeDisabled;
+  if (cards) {
+    return (
+      <CardActions
+        actions={[
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label: t('supply-partners.remove'),
+            name,
+            destructive: true,
+            disabled,
+            onSelect: (trigger) => actions.onRemove(row.original.id, trigger),
+          },
+        ]}
+      />
+    );
+  }
   return (
     <div className="flex justify-end">
       <Button
         type="button"
-        disabled={actions.pending || row.original.loading || row.original.removeDisabled}
+        disabled={disabled}
         variant="destructive-ghost"
         size="icon-sm"
-        aria-label={t('supply-partners.remove-item', {
-          item:
-            row.original.name ||
-            row.original.code ||
-            t(
-              actions.kind === 'facilities'
-                ? 'supply-partners.facilities'
-                : 'supply-partners.products',
-            ),
-        })}
+        aria-label={name}
         onClick={(event) => actions.onRemove(row.original.id, event.currentTarget)}
       >
         <Trash2Icon />

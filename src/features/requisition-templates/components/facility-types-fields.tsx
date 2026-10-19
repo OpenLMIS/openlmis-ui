@@ -1,6 +1,7 @@
 import { Building2Icon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import { CardBand, CardList, CardListItem } from '@/components/card-list';
 import {
   DataTableCard,
@@ -142,20 +143,18 @@ export function FacilityTypesFields({
                   <div className="min-w-0 font-medium wrap-anywhere">
                     <bdi>{row.name}</bdi>
                   </div>
-                  <div className="shrink-0">
-                    <Button
-                      type="button"
-                      variant="destructive-ghost"
-                      size="icon-sm"
-                      data-remove-type
-                      aria-label={t('requisition-templates.form.remove-type', {
-                        type: row.name,
-                      })}
-                      onClick={() => remove(row.id, index)}
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </div>
+                  <CardActions
+                    actions={[
+                      {
+                        id: 'remove',
+                        icon: <Trash2Icon />,
+                        label: t('requisition-templates.form.remove-type', { type: row.name }),
+                        destructive: true,
+                        data: { 'data-remove-type': true },
+                        onSelect: () => remove(row.id, index),
+                      },
+                    ]}
+                  />
                 </CardBand>
               </CardListItem>
             ))}

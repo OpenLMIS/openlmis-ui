@@ -491,7 +491,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
   history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
-  Components inside cells read `useInCards()`, e.g. for the ghost Remove button in editor cards.
+  Components inside cells read `useInCards()` to render `CardActions` instead of their table
+  action. Every card band action, Stock included, goes through `CardActions`
+  (`src/components/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
+  table's accessible name, tinted `destructive` for destructive ones, inside a group named like
+  the table's "..." menu. Up to three show as buttons; four or more show two plus a "..." menu
+  holding the rest, destructive last. The main action (Edit, then Configure, then View) sits at
+  the band's end, other actions before it; skeletons pass the same count to
+  `CardActionsSkeleton` or `TableCardsSkeleton actions`.
   Editor tables (product tabs, requisition groups, supervisory node links, supply partner
   associations, user roles) switch to cards too. Dialog tables switch to cards as well, measured
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
@@ -506,8 +513,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
-  may hide. Row actions use an end-of-row "..." menu at every width. Draft editor line tables
-  whose only row action is Remove use a trash icon button.
+  may hide. Table row actions use an end-of-row "..." menu; cards use `CardActions`. Draft
+  editor line tables whose only row action is Remove use a trash icon button.
 - Put Create at the toolbar's end, after View.
 
 **Filters and states:**

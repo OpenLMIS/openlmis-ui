@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { BuildingIcon, EllipsisIcon, EyeIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -12,7 +13,7 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -109,21 +110,49 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
   const menu = useMenuOpensDialog();
   const edit = menu.opensDialog(() => actions.onEdit(approval.id));
 
+  const label = t('products.approvals.actions-for', {
+    facilityType,
+    program: programName(approval.program),
+  });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={
+          actions.canEdit
+            ? [
+                {
+                  id: 'edit',
+                  icon: <PencilIcon />,
+                  label: t('products.approvals.edit'),
+                  onSelect: () => actions.onEdit(approval.id),
+                },
+                {
+                  id: 'remove',
+                  icon: <Trash2Icon />,
+                  label: t('products.approvals.remove'),
+                  destructive: true,
+                  onSelect: () => actions.onRemove(approval.id),
+                },
+              ]
+            : [
+                {
+                  id: 'view',
+                  icon: <EyeIcon />,
+                  label: t('products.approvals.view'),
+                  onSelect: () => actions.onEdit(approval.id),
+                },
+              ]
+        }
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('products.approvals.actions-for', {
-                facilityType,
-                program: programName(approval.program),
-              })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
@@ -191,9 +220,11 @@ function useApprovalsTable({
 
 export function ApprovalsTableSkeleton({
   cards,
+  canEdit,
   columnVisibility,
 }: {
   cards: boolean;
+  canEdit: boolean;
   columnVisibility: ColumnVisibilityState;
 }) {
   const table = useApprovalsTable({
@@ -203,7 +234,10 @@ export function ApprovalsTableSkeleton({
     onEdit: noop,
     onRemove: noop,
   });
-  if (cards) return <TableCardsSkeleton rowCount={3} table={table} title="program" />;
+  if (cards)
+    return (
+      <TableCardsSkeleton actions={canEdit ? 2 : 1} rowCount={3} table={table} title="program" />
+    );
   return <DataTableSkeleton rowCount={3} table={table} />;
 }
 

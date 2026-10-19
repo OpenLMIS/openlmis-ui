@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { CalendarDaysIcon, EllipsisIcon, PencilIcon, PlusIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -13,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -72,18 +73,28 @@ function ScheduleActions({
 }) {
   const { t } = useTranslation();
 
+  const label = t('processing-schedules.actions-for', { schedule: schedule.name });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'edit',
+            icon: <PencilIcon />,
+            label: t('processing-schedules.edit'),
+            onSelect: () => onEdit(schedule.id),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('processing-schedules.actions-for', { schedule: schedule.name })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">

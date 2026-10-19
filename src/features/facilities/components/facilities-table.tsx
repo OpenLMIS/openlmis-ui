@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { BuildingIcon, EllipsisIcon, PencilIcon, PlusIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,7 +16,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -122,31 +123,32 @@ function FacilityActions({
   listSearch: FacilitiesSearch;
 }) {
   const { t } = useTranslation();
+  const label = t('facilities.actions-for', { facility: facility.name || facility.code });
+  const link = (
+    <Link
+      params={{ id: facility.id }}
+      state={{ facilitiesListSearch: listSearch }}
+      to="/administration/facilities/$id"
+    />
+  );
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[{ id: 'edit', icon: <PencilIcon />, label: t('facilities.edit'), link }]}
+      />
+    );
+  }
 
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('facilities.actions-for', { facility: facility.name || facility.code })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuItem
-            render={
-              <Link
-                params={{ id: facility.id }}
-                state={{ facilitiesListSearch: listSearch }}
-                to="/administration/facilities/$id"
-              />
-            }
-          >
+          <DropdownMenuItem render={link}>
             <PencilIcon />
             {t('facilities.edit')}
           </DropdownMenuItem>

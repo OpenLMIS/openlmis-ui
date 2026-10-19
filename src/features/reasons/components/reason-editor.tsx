@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   CardBand,
   CardControlRow,
@@ -518,13 +519,26 @@ function PairsFields({ form }: { form: ReasonForm }) {
           )}
         </form.AppField>
       ),
-      remove: (
+      remove: cards ? (
+        <CardActions
+          actions={[
+            {
+              id: 'remove',
+              icon: <Trash2Icon />,
+              label: t('reasons.form.remove-pair', { pair }),
+              destructive: true,
+              data: { 'data-remove-pair': true },
+              onSelect: () => removeRow(index),
+            },
+          ]}
+        />
+      ) : (
         <Button
           aria-label={t('reasons.form.remove-pair', { pair })}
           data-remove-pair
           onClick={() => removeRow(index)}
           size="icon-sm"
-          variant={cards ? 'destructive-ghost' : 'destructive'}
+          variant="destructive"
         >
           <Trash2Icon />
         </Button>

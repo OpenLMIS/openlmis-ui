@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -18,7 +19,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -102,6 +103,39 @@ function AssociationActions({
   const { t } = useTranslation();
   const menu = useMenuOpensDialog();
   const trigger = useRef<HTMLButtonElement>(null);
+  const label = t('supply-partners.association-actions-for', { program, node });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          ...(onEdit
+            ? [
+                {
+                  id: 'edit',
+                  icon: <PencilIcon />,
+                  label: t('supply-partners.edit-association'),
+                  disabled: pending,
+                  data: { 'data-association-actions': true },
+                  onSelect: onEdit,
+                },
+              ]
+            : []),
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label: t('supply-partners.remove'),
+            destructive: true,
+            disabled: pending,
+            data: onEdit ? undefined : { 'data-association-actions': true },
+            onSelect: onRemove,
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
@@ -114,7 +148,7 @@ function AssociationActions({
               disabled={pending}
               variant="ghost"
               size="icon-sm"
-              aria-label={t('supply-partners.association-actions-for', { program, node })}
+              aria-label={label}
             />
           }
         >
@@ -419,7 +453,12 @@ export function AssociationsTableSkeleton({ search }: { search: SupplyPartnerEdi
   return (
     <div ref={measure}>
       {cards ? (
-        <TableCardsSkeleton table={table} title="program" rowCount={search.size ?? 10} />
+        <TableCardsSkeleton
+          table={table}
+          title="program"
+          rowCount={search.size ?? 10}
+          actions={2}
+        />
       ) : (
         <DataTableSkeleton layout="auto" table={table} rowCount={search.size ?? 10} />
       )}

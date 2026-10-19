@@ -19,6 +19,7 @@ import {
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -436,7 +437,22 @@ function focusAfterRemove(
   });
 }
 function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
-  const cards = useInCards();
+  if (useInCards()) {
+    return (
+      <CardActions
+        actions={[
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label,
+            destructive: true,
+            data: { 'data-remove-row': true },
+            onSelect: onClick,
+          },
+        ]}
+      />
+    );
+  }
   return (
     <div className="flex justify-end">
       <Button
@@ -444,7 +460,7 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
         data-remove-row
         onClick={onClick}
         size="icon-sm"
-        variant={cards ? 'destructive-ghost' : 'destructive'}
+        variant="destructive"
       >
         <Trash2Icon />
       </Button>

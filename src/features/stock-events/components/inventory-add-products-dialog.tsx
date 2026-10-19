@@ -3,6 +3,7 @@ import { Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { CardActions } from '@/components/card-actions';
 import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { toDateValue } from '@/components/form/date-value';
@@ -242,6 +243,13 @@ function AddProductsForm({
       </itemsForm.AppField>
     </fieldset>
   );
+  const removeLabel = (line: InventoryLine) =>
+    t('stock-events.field-of', {
+      field: t('stock-events.remove'),
+      row: `${productName(line.orderable)} ${lotLabel(line)}`,
+    });
+  const removeLine = (line: InventoryLine) =>
+    itemsForm.setFieldValue('items', (current) => current.filter((item) => item.key !== line.key));
   const removeButton = (line: InventoryLine) => (
     <Tooltip>
       <TooltipTrigger
@@ -250,15 +258,8 @@ function AddProductsForm({
             type="button"
             variant="destructive-ghost"
             size="icon-sm"
-            aria-label={t('stock-events.field-of', {
-              field: t('stock-events.remove'),
-              row: `${productName(line.orderable)} ${lotLabel(line)}`,
-            })}
-            onClick={() =>
-              itemsForm.setFieldValue('items', (current) =>
-                current.filter((item) => item.key !== line.key),
-              )
-            }
+            aria-label={removeLabel(line)}
+            onClick={() => removeLine(line)}
           />
         }
       >
@@ -266,6 +267,20 @@ function AddProductsForm({
       </TooltipTrigger>
       <TooltipContent>{t('stock-events.remove')}</TooltipContent>
     </Tooltip>
+  );
+  const removeCardAction = (line: InventoryLine) => (
+    <CardActions
+      actions={[
+        {
+          id: 'remove',
+          icon: <Trash2Icon />,
+          label: t('stock-events.remove'),
+          name: removeLabel(line),
+          destructive: true,
+          onSelect: () => removeLine(line),
+        },
+      ]}
+    />
   );
   return (
     <FormDialogForm onSubmit={() => void itemsForm.handleSubmit()}>
@@ -341,7 +356,7 @@ function AddProductsForm({
                             {line.orderable.fullProductName} ({line.orderable.productCode})
                           </bdi>
                         </span>
-                        {removeButton(line)}
+                        {removeCardAction(line)}
                       </CardBand>
                       <CardRows>
                         <SettingsItem label={t('stock-events.pack-size')}>

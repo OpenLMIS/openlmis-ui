@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -13,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -77,18 +78,29 @@ function KeyActions({ token, onDelete }: { token: string; onDelete: (token: stri
   const { t } = useTranslation();
   const menu = useMenuOpensDialog();
 
+  const label = t('service-accounts.actions-for', { key: token });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'delete',
+            icon: <Trash2Icon />,
+            label: t('service-accounts.delete'),
+            destructive: true,
+            onSelect: () => onDelete(token),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('service-accounts.actions-for', { key: token })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">

@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import { HistoryIcon, SearchXIcon } from 'lucide-react';
+import { EyeIcon, HistoryIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
 import {
   CardBand,
   CardList,
@@ -24,7 +25,6 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {
@@ -137,28 +137,42 @@ function ViewEvent({
   search,
   eventDay,
   disabled,
+  cards = false,
 }: {
   event: StockEventSummary;
   search: TransactionHistorySearch;
   disabled: boolean;
   eventDay: EventDay;
+  cards?: boolean;
 }) {
   const { t } = useTranslation();
   const document = event.documentNumber || eventDay(event.processedDate);
+  const name = t('transaction-history.view-event', { document });
+  const link = (
+    <Link
+      params={{ eventId: event.id }}
+      search={search}
+      to="/stock-management/transaction-history/$eventId"
+    />
+  );
+  if (cards) {
+    return (
+      <CardActions
+        actions={[
+          {
+            id: 'view',
+            icon: <EyeIcon />,
+            label: t('transaction-history.view'),
+            name,
+            disabled,
+            link,
+          },
+        ]}
+      />
+    );
+  }
   return (
-    <Button
-      aria-label={t('transaction-history.view-event', { document })}
-      disabled={disabled}
-      nativeButton={false}
-      render={
-        <Link
-          params={{ eventId: event.id }}
-          search={search}
-          to="/stock-management/transaction-history/$eventId"
-        />
-      }
-      size="sm"
-    >
+    <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
       {t('transaction-history.view')}
     </Button>
   );
@@ -211,7 +225,7 @@ function EventCard({
         <div className="min-w-0 wrap-anywhere">
           <bdi>{event.documentNumber || eventDay(event.processedDate)}</bdi>
         </div>
-        <ViewEvent disabled={stale} event={event} eventDay={eventDay} search={search} />
+        <ViewEvent cards disabled={stale} event={event} eventDay={eventDay} search={search} />
       </CardBand>
       <CardRows>
         {CARD_ROWS.filter(([id]) => columns[id] !== false).map(([id, key]) => (
@@ -387,9 +401,7 @@ export function TransactionHistoryResultsSkeleton({
         band={
           <>
             <SkeletonBar width="w-24" />
-            <div className="h-7 w-16">
-              <Skeleton fill />
-            </div>
+            <CardActionsSkeleton count={1} />
           </>
         }
       />

@@ -3,6 +3,7 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import type { TFunction } from 'i18next';
 import {
   AlertCircleIcon,
+  ChartColumnIcon,
   EllipsisIcon,
   EyeIcon,
   MapPinIcon,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -21,7 +23,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -132,19 +134,38 @@ function GeographicZoneActions({
 }) {
   const { t } = useTranslation();
   const menu = useMenuOpensDialog();
+  const cards = useInCards();
   if (!policy) return null;
+  const label = t('geographic-zones.actions-for', { zone: zone.name });
+  if (cards) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'detail',
+            icon: policy.editable ? <PencilIcon /> : <EyeIcon />,
+            label: t(policy.editable ? 'geographic-zones.edit' : 'geographic-zones.view'),
+            onSelect: () => actions.onDetail(zone.id),
+          },
+          ...(policy.visualizable
+            ? [
+                {
+                  id: 'population',
+                  icon: <ChartColumnIcon />,
+                  label: t('geographic-zones.visualize'),
+                  onSelect: () => actions.onPopulation(zone.id),
+                },
+              ]
+            : []),
+        ]}
+      />
+    );
+  }
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('geographic-zones.actions-for', { zone: zone.name })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
@@ -245,7 +266,8 @@ export function GeographicZonesTableSkeleton({
     onPopulation: noop,
   });
   const rowCount = toPaginationState(search).pageSize;
-  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  if (cards)
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" actions={2} />;
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 

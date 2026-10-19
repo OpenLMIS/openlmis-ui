@@ -4,6 +4,7 @@ import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon, SettingsIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -12,7 +13,7 @@ import {
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
 import { TableCards } from '@/components/table-cards';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
@@ -63,24 +64,27 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES, ca
         helper.display({
           id: 'actions',
           header: () => <span className="sr-only">{t('requisition-templates.action')}</span>,
-          meta: { className: 'w-16', skeleton: cards ? 'control' : undefined },
+          meta: { className: 'w-16' },
           cell: ({ row }) =>
             cards ? (
-              <Button
-                aria-label={t('requisition-templates.configure-template', {
-                  template: row.original.name,
-                })}
-                nativeButton={false}
-                render={
-                  <Link
-                    to="/administration/requisition-templates/$id"
-                    params={{ id: row.original.id }}
-                  />
-                }
-                size="sm"
-              >
-                {t('requisition-templates.configure')}
-              </Button>
+              <CardActions
+                actions={[
+                  {
+                    id: 'configure',
+                    icon: <SettingsIcon />,
+                    label: t('requisition-templates.configure'),
+                    name: t('requisition-templates.configure-template', {
+                      template: row.original.name,
+                    }),
+                    link: (
+                      <Link
+                        to="/administration/requisition-templates/$id"
+                        params={{ id: row.original.id }}
+                      />
+                    ),
+                  },
+                ]}
+              />
             ) : (
               <Tooltip>
                 <TooltipTrigger

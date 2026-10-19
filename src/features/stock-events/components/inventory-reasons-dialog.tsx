@@ -3,6 +3,7 @@ import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { CardActions } from '@/components/card-actions';
 import { CardControlRow, CardRows } from '@/components/card-list';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useAppForm } from '@/components/form/form';
@@ -251,15 +252,18 @@ export function InventoryReasonsDialog({
                                 )}
                               </form.AppField>
                             </div>
-                            <Button
-                              type="button"
-                              variant="destructive-ghost"
-                              size="icon-sm"
-                              aria-label={removeLabel(item)}
-                              onClick={() => remove(index)}
-                            >
-                              <Trash2Icon />
-                            </Button>
+                            <CardActions
+                              actions={[
+                                {
+                                  id: 'remove',
+                                  icon: <Trash2Icon />,
+                                  label: t('stock-events.remove'),
+                                  name: removeLabel(item),
+                                  destructive: true,
+                                  onSelect: () => remove(index),
+                                },
+                              ]}
+                            />
                           </div>
                         </CardControlRow>
                       ))}

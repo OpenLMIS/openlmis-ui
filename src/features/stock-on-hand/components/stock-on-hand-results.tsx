@@ -1,10 +1,11 @@
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
-import { ChevronDownIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
+import { ChevronDownIcon, EyeIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
 import { type ReactNode, type Ref, useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
 import {
   CardBand,
   CardList,
@@ -550,6 +551,7 @@ function StockLotDetails({
         <div className="min-w-0 wrap-anywhere">{text.lotLabel(card)}</div>
         {card.stockCardId && (
           <StockCardView
+            cards
             card={card}
             search={search}
             disabled={isStale}
@@ -603,30 +605,44 @@ function StockCardView({
   product,
   lot,
   disabled,
+  cards = false,
 }: {
   card: StockCardRow;
   search: StockOnHandSearch;
   product: string;
   lot: string;
   disabled: boolean;
+  cards?: boolean;
 }) {
   const { t } = useTranslation();
   if (!card.stockCardId) return null;
+  const name = t('stock-on-hand.view-card', { product, lot });
+  const link = (
+    <Link
+      to="/stock-management/stock-on-hand/$stockCardId"
+      params={{ stockCardId: card.stockCardId }}
+      search={search}
+      state={{ cardHasLot: card.lot !== null }}
+    />
+  );
+  if (cards) {
+    return (
+      <CardActions
+        actions={[
+          {
+            id: 'view',
+            icon: <EyeIcon />,
+            label: t('stock-on-hand.view'),
+            name,
+            disabled,
+            link,
+          },
+        ]}
+      />
+    );
+  }
   return (
-    <Button
-      nativeButton={false}
-      size="sm"
-      disabled={disabled}
-      aria-label={t('stock-on-hand.view-card', { product, lot })}
-      render={
-        <Link
-          to="/stock-management/stock-on-hand/$stockCardId"
-          params={{ stockCardId: card.stockCardId }}
-          search={search}
-          state={{ cardHasLot: card.lot !== null }}
-        />
-      }
-    >
+    <Button nativeButton={false} size="sm" disabled={disabled} aria-label={name} render={link}>
       {t('stock-on-hand.view')}
     </Button>
   );
@@ -684,9 +700,7 @@ export function StockOnHandResultsSkeleton({
                   <li className="divide-y" key={card}>
                     <CardBand>
                       {bar('w-20')}
-                      <div className="h-7 w-16">
-                        <Skeleton fill />
-                      </div>
+                      <CardActionsSkeleton count={1} />
                     </CardBand>
                     <CardRows>
                       {['expiry', 'lastUpdate', 'stockOnHand']

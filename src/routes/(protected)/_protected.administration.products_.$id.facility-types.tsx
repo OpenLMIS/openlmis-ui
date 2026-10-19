@@ -110,7 +110,11 @@ function FacilityTypesTab() {
             />
           )}
           pendingFallback={
-            <ApprovalsTableSkeleton cards={cards} columnVisibility={columnView.visibility} />
+            <ApprovalsTableSkeleton
+              canEdit={canEditApprovals}
+              cards={cards}
+              columnVisibility={columnView.visibility}
+            />
           }
           resetKey="approvals"
         >

@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, FolderXIcon, PencilIcon, PlusIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,7 +16,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -82,18 +83,34 @@ function CategoryActions({
   listSearch: CategoriesListSearch;
 }) {
   const { t } = useTranslation();
+  const label = t('rejection-reason-categories.actions-for', { name: category.name });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'edit',
+            icon: <PencilIcon />,
+            label: t('rejection-reason-categories.edit'),
+            link: (
+              <Link
+                to="/administration/rejection-reason-categories"
+                search={{ ...listSearch, category: category.id }}
+                state={markDialogOpened}
+              />
+            ),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('rejection-reason-categories.actions-for', { name: category.name })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">

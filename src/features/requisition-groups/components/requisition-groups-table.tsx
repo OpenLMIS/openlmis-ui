@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -16,7 +17,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { ListError } from '@/components/list-error';
 import { Block } from '@/components/skeleton-block';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -129,21 +130,49 @@ function RequisitionGroupActions({
   search: RequisitionGroupsListSearch;
 }) {
   const { t } = useTranslation();
+  const label = t('requisition-groups.actions-for', {
+    name: group.name,
+    code: group.code,
+  });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'edit',
+            icon: <PencilIcon />,
+            label: t('requisition-groups.edit'),
+            link: (
+              <Link
+                to="/administration/requisition-groups/$id/edit"
+                params={{ id: group.id }}
+                state={{ requisitionGroupsListSearch: search }}
+              />
+            ),
+          },
+          {
+            id: 'view',
+            icon: <EyeIcon />,
+            label: t('requisition-groups.view'),
+            link: (
+              <Link
+                to="/administration/requisition-groups/$id"
+                params={{ id: group.id }}
+                state={{ requisitionGroupsListSearch: search }}
+              />
+            ),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('requisition-groups.actions-for', {
-                name: group.name,
-                code: group.code,
-              })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
@@ -253,7 +282,8 @@ export function RequisitionGroupsTableSkeleton({
     columnVisibility,
   });
   const rowCount = toPaginationState(search).pageSize;
-  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  if (cards)
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" actions={2} />;
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 

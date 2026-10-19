@@ -10,6 +10,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, MapPinnedIcon, SearchXIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableCard,
@@ -21,7 +22,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -172,22 +173,33 @@ function CellSkeleton() {
   );
 }
 
-function AssignmentActions({ label, onDelete }: { label: string; onDelete: () => void }) {
+function AssignmentActions({ label: name, onDelete }: { label: string; onDelete: () => void }) {
   const { t } = useTranslation();
   const menu = useMenuOpensDialog();
+
+  const label = t('valid-assignments.actions-for', { name });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'delete',
+            icon: <Trash2Icon />,
+            label: t('valid-assignments.delete'),
+            destructive: true,
+            onSelect: onDelete,
+          },
+        ]}
+      />
+    );
+  }
 
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('valid-assignments.actions-for', { name: label })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">

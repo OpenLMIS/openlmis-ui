@@ -1,5 +1,6 @@
 import { type Cell, flexRender, type Row, type RowData } from '@tanstack/react-table';
 import { createContext, type ReactNode, type Ref, use, useId } from 'react';
+import { CardActionsSkeleton } from '@/components/card-actions';
 import {
   CardBand,
   CardList,
@@ -175,10 +176,12 @@ export function TableCardsSkeleton<TData extends RowData>({
   surface = 'raised',
   pagination = true,
   titleLines = 1,
+  actions: actionCount = 1,
 }: {
   table: DataTableInstance<TData>;
   title: string;
   rowCount: number;
+  actions?: number;
   surface?: 'raised' | 'flat';
   pagination?: boolean;
   titleLines?: 1 | 2;
@@ -218,13 +221,7 @@ export function TableCardsSkeleton<TData extends RowData>({
             ) : (
               <SkeletonBar width="w-24" />
             )}
-            {actions && (
-              <div
-                className={actions.columnDef.meta?.skeleton === 'control' ? 'h-7 w-20' : 'size-7'}
-              >
-                <Skeleton fill />
-              </div>
-            )}
+            {actions && actionCount > 0 && <CardActionsSkeleton count={actionCount} />}
           </>
         }
       />

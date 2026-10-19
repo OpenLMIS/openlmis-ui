@@ -15,6 +15,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -285,19 +286,46 @@ function NodeLinkActions({
     select: (location) => location.state.supervisoryNodesListSearch,
   });
   const label = node.name || node.code || node.id;
+  const link = (
+    <Link
+      to="/administration/supervisory-nodes/$id"
+      params={{ id: node.id }}
+      state={{ supervisoryNodesListSearch: listSearch }}
+    />
+  );
+  if (cards) {
+    return (
+      <CardActions
+        actions={[
+          {
+            id: 'edit',
+            icon: <PencilIcon />,
+            label: t('supervisory-nodes.edit'),
+            name: t('supervisory-nodes.edit-node', { node: label }),
+            disabled,
+            link,
+          },
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label: t(`supervisory-nodes.form.remove-${kind}`),
+            name: t(`supervisory-nodes.form.remove-${kind}-node`, { node: label }),
+            destructive: true,
+            disabled,
+            data: { 'data-node-remove': node.id },
+            onSelect: () => onRemove(node.id),
+          },
+        ]}
+      />
+    );
+  }
   return (
     <div className="flex justify-center gap-1">
       <Button
         aria-label={t('supervisory-nodes.edit-node', { node: label })}
         disabled={disabled}
         nativeButton={false}
-        render={
-          <Link
-            to="/administration/supervisory-nodes/$id"
-            params={{ id: node.id }}
-            state={{ supervisoryNodesListSearch: listSearch }}
-          />
-        }
+        render={link}
         size="icon-sm"
         variant="ghost"
       >
@@ -310,7 +338,7 @@ function NodeLinkActions({
         onClick={() => onRemove(node.id)}
         size="icon-sm"
         type="button"
-        variant={cards ? 'destructive-ghost' : 'destructive'}
+        variant="destructive"
       >
         <Trash2Icon />
       </Button>

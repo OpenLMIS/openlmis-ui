@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -22,7 +23,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -113,19 +114,42 @@ type UserActionsProps = {
 function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: UserActionsProps) {
   const { t } = useTranslation();
   const menu = useMenuOpensDialog();
+  const label = t('users.actions-for', { username });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          { id: 'edit', icon: <PencilIcon />, label: t('users.edit'), onSelect: onEdit },
+          {
+            id: 'roles',
+            icon: <ShieldIcon />,
+            label: t('users.roles'),
+            link: (
+              <Link
+                params={{ id: userId }}
+                state={{ usersListSearch: listSearch }}
+                to="/administration/users/$id/roles"
+              />
+            ),
+          },
+          {
+            id: 'reset-password',
+            icon: <KeyRoundIcon />,
+            label: t('users.reset-password'),
+            destructive: true,
+            onSelect: onResetPassword,
+          },
+        ]}
+      />
+    );
+  }
 
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('users.actions-for', { username })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
@@ -230,7 +254,8 @@ export function UsersTableSkeleton({
   });
 
   const rowCount = toPaginationState(search).pageSize;
-  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" />;
+  if (cards)
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" actions={3} />;
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 

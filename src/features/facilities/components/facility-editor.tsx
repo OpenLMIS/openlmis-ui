@@ -3,6 +3,7 @@ import { type QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
@@ -504,17 +505,32 @@ function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean })
           )}
         </form.AppField>
       ),
-      remove: !row.saved && (
-        <Button
-          aria-label={t('facilities.form.remove-program', { program: name })}
-          data-remove-program
-          onClick={() => removeRow(index)}
-          size="icon-sm"
-          variant={cards ? 'destructive-ghost' : 'destructive'}
-        >
-          <Trash2Icon />
-        </Button>
-      ),
+      remove:
+        !row.saved &&
+        (cards ? (
+          <CardActions
+            actions={[
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('facilities.form.remove-program', { program: name }),
+                destructive: true,
+                data: { 'data-remove-program': true },
+                onSelect: () => removeRow(index),
+              },
+            ]}
+          />
+        ) : (
+          <Button
+            aria-label={t('facilities.form.remove-program', { program: name })}
+            data-remove-program
+            onClick={() => removeRow(index)}
+            size="icon-sm"
+            variant="destructive"
+          >
+            <Trash2Icon />
+          </Button>
+        )),
     };
   };
 

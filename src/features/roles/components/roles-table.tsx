@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, ListChecksIcon, PencilIcon, SearchXIcon, ShieldIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -13,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -100,18 +101,42 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
   const { onEdit, onViewRights } = actions;
   const menu = useMenuOpensDialog();
 
+  const label = t('roles.actions-for', { role: role.name });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          ...(onEdit
+            ? [
+                {
+                  id: 'edit',
+                  icon: <PencilIcon />,
+                  label: t('roles.edit'),
+                  onSelect: () => onEdit(role.id),
+                },
+              ]
+            : []),
+          ...(onViewRights
+            ? [
+                {
+                  id: 'rights',
+                  icon: <ListChecksIcon />,
+                  label: t('roles.view-rights'),
+                  onSelect: () => onViewRights(role.id),
+                },
+              ]
+            : []),
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('roles.actions-for', { role: role.name })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
@@ -218,7 +243,15 @@ export function RolesTableSkeleton({
     onViewRights,
   });
   const rowCount = toPaginationState(search).pageSize;
-  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  if (cards)
+    return (
+      <TableCardsSkeleton
+        rowCount={rowCount}
+        table={table}
+        title="name"
+        actions={Number(Boolean(onEdit)) + Number(Boolean(onViewRights))}
+      />
+    );
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 

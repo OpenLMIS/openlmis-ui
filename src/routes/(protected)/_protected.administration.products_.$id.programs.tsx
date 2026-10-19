@@ -113,7 +113,11 @@ function ProgramsTab() {
             />
           )}
           pendingFallback={
-            <ProgramLinksTableSkeleton cards={cards} columnVisibility={columnView.visibility} />
+            <ProgramLinksTableSkeleton
+              canEdit={canEditProduct}
+              cards={cards}
+              columnVisibility={columnView.visibility}
+            />
           }
           resetKey="program-links"
         >

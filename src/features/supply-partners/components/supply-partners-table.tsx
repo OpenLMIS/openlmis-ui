@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, PencilIcon, TruckIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -13,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -54,43 +55,57 @@ function columns(t: TFunction, search: SupplyPartnersSearch) {
       id: 'actions',
       header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
       meta: { className: 'w-16' },
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  aria-label={t('supply-partners.actions-for', { partner: row.original.name })}
-                  size="icon-sm"
-                  variant="ghost"
-                />
-              }
-            >
-              <EllipsisIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" width="auto">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  render={
-                    <Link
-                      to="/administration/supply-partners/$id"
-                      params={{ id: row.original.id }}
-                      search={{ listPage: search.page, listSize: search.size }}
-                      state={{ supplyPartnersListSearch: search }}
-                    />
-                  }
-                >
-                  <PencilIcon />
-                  {t('supply-partners.edit')}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ),
+      cell: ({ row }) => <SupplyPartnerActions partner={row.original} search={search} />,
     }),
   ]);
 }
+
+function SupplyPartnerActions({
+  partner,
+  search,
+}: {
+  partner: SupplyPartner;
+  search: SupplyPartnersSearch;
+}) {
+  const { t } = useTranslation();
+  const label = t('supply-partners.actions-for', { partner: partner.name });
+  const link = (
+    <Link
+      to="/administration/supply-partners/$id"
+      params={{ id: partner.id }}
+      search={{ listPage: search.page, listSize: search.size }}
+      state={{ supplyPartnersListSearch: search }}
+    />
+  );
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[{ id: 'edit', icon: <PencilIcon />, label: t('supply-partners.edit'), link }]}
+      />
+    );
+  }
+
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width="auto">
+          <DropdownMenuGroup>
+            <DropdownMenuItem render={link}>
+              <PencilIcon />
+              {t('supply-partners.edit')}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 function usePartnersTable(
   cards: boolean,
   data: SupplyPartner[],

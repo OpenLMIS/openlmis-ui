@@ -207,11 +207,10 @@ describe('AssignmentsTable', () => {
     );
 
     const card = screen.getByText('NGO').closest('li') as HTMLElement;
-    expect(
-      within(card).getByRole('button', {
-        name: 'Actions For NGO for Health Center in Essential Meds',
-      }),
-    ).toBeVisible();
+    const actions = within(card).getByRole('group', {
+      name: 'Actions For NGO for Health Center in Essential Meds',
+    });
+    expect(within(actions).getByRole('button', { name: 'Delete' })).toBeVisible();
   });
 
   it('names a row by its place alone until the program and type names arrive', async () => {

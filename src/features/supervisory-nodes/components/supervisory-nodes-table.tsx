@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -13,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -124,18 +125,34 @@ function createColumns(t: TFunction, listSearch: SupervisoryNodesSearch) {
 
 function NodeActions({ node, listSearch }: { node: NodeRow; listSearch: SupervisoryNodesSearch }) {
   const { t } = useTranslation();
+  const label = t('supervisory-nodes.actions-for', { node: node.name || node.code });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'edit',
+            icon: <PencilIcon />,
+            label: t('supervisory-nodes.edit'),
+            link: (
+              <Link
+                params={{ id: node.id }}
+                state={{ supervisoryNodesListSearch: listSearch }}
+                to="/administration/supervisory-nodes/$id"
+              />
+            ),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('supervisory-nodes.actions-for', { node: node.name || node.code })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">

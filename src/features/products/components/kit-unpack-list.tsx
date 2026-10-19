@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { CardActions } from '@/components/card-actions';
 import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTableCard,
@@ -112,18 +113,33 @@ export function KitUnpackList({
           )}
         </form.AppField>
       ),
-      actions: !readOnly && (
-        <Button
-          aria-label={t('products.kit.remove-product', { product: name })}
-          data-kit-remove=""
-          onClick={() => removeRow(index)}
-          size="icon-sm"
-          type="button"
-          variant={cards ? 'destructive-ghost' : 'destructive'}
-        >
-          <Trash2Icon />
-        </Button>
-      ),
+      actions:
+        !readOnly &&
+        (cards ? (
+          <CardActions
+            actions={[
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('products.kit.remove-product', { product: name }),
+                destructive: true,
+                data: { 'data-kit-remove': '' },
+                onSelect: () => removeRow(index),
+              },
+            ]}
+          />
+        ) : (
+          <Button
+            aria-label={t('products.kit.remove-product', { product: name })}
+            data-kit-remove=""
+            onClick={() => removeRow(index)}
+            size="icon-sm"
+            type="button"
+            variant="destructive"
+          >
+            <Trash2Icon />
+          </Button>
+        )),
     };
   };
   const empty = (

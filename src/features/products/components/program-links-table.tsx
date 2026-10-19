@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -13,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -110,18 +111,46 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
   const menu = useMenuOpensDialog();
   const edit = menu.opensDialog(() => actions.onEdit(link.programId));
 
+  const label = t('products.programs.actions-for', { program: link.name });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={
+          actions.canEdit
+            ? [
+                {
+                  id: 'edit',
+                  icon: <PencilIcon />,
+                  label: t('products.programs.edit'),
+                  onSelect: () => actions.onEdit(link.programId),
+                },
+                {
+                  id: 'remove',
+                  icon: <Trash2Icon />,
+                  label: t('products.programs.remove'),
+                  destructive: true,
+                  onSelect: () => actions.onRemove(link.programId),
+                },
+              ]
+            : [
+                {
+                  id: 'view',
+                  icon: <EyeIcon />,
+                  label: t('products.programs.view'),
+                  onSelect: () => actions.onEdit(link.programId),
+                },
+              ]
+        }
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('products.programs.actions-for', { program: link.name })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
@@ -188,9 +217,11 @@ function useProgramLinksTable({
 
 export function ProgramLinksTableSkeleton({
   cards,
+  canEdit,
   columnVisibility,
 }: {
   cards: boolean;
+  canEdit: boolean;
   columnVisibility: ColumnVisibilityState;
 }) {
   const table = useProgramLinksTable({
@@ -200,7 +231,8 @@ export function ProgramLinksTableSkeleton({
     onEdit: noop,
     onRemove: noop,
   });
-  if (cards) return <TableCardsSkeleton rowCount={3} table={table} title="name" />;
+  if (cards)
+    return <TableCardsSkeleton actions={canEdit ? 2 : 1} rowCount={3} table={table} title="name" />;
   return <DataTableSkeleton rowCount={3} table={table} />;
 }
 

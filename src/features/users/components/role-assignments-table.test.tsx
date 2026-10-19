@@ -94,10 +94,10 @@ describe('RoleAssignmentsTable', () => {
       true,
     );
     const card = screen.getByRole('listitem');
-    const actions = within(card).getByRole('button', { name: 'users.roles.actions-for' });
-    const band = actions.closest('li > * > * > :first-child') as HTMLElement;
+    const remove = within(card).getByRole('button', { name: 'users.roles.remove' });
+    const band = remove.closest('li > * > * > :first-child') as HTMLElement;
 
-    expect(band).toContainElement(actions);
+    expect(band).toContainElement(remove);
     expect(within(band).getByText('Report Viewer')).toBeVisible();
     expect(within(band).getByText('users.roles.unsaved')).toBeVisible();
     expect(within(band).getByRole('button', { name: 'role-rights.title' })).toBeVisible();
@@ -105,9 +105,6 @@ describe('RoleAssignmentsTable', () => {
     expect(within(card).getByText('users.roles.column.program')).toBeVisible();
     expect(within(card).getByText('Family Planning')).toBeVisible();
     expect(within(card).getByText('users.roles.column.node')).toBeVisible();
-
-    await userEvent.click(actions);
-    expect(await screen.findByRole('menuitem', { name: 'users.roles.remove' })).toBeVisible();
   });
 
   it('lists the program and the node before the role', () => {

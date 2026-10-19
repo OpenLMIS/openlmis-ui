@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, RouteIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,7 +15,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -96,22 +97,39 @@ function SupplyLineActions({
   listSearch: SupplyLinesSearch;
 }) {
   const { t } = useTranslation();
+  const label = t('supply-lines.actions-for', {
+    supplier: node.supplyingFacility?.name ?? '',
+    node: node.supervisoryNode?.code ?? '',
+    program: node.program?.name ?? '',
+  });
+
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={label}
+        actions={[
+          {
+            id: 'view',
+            icon: <EyeIcon />,
+            label: t('supply-lines.view'),
+            link: (
+              <Link
+                search={{ ...listSearch, supplyLine: node.id }}
+                state={markDialogOpened}
+                resetScroll={false}
+                to="/administration/supply-lines"
+              />
+            ),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('supply-lines.actions-for', {
-                supplier: node.supplyingFacility?.name ?? '',
-                node: node.supervisoryNode?.code ?? '',
-                program: node.program?.name ?? '',
-              })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="auto">
