@@ -255,8 +255,7 @@ function PeriodForm({
             </form.AppField>
           </FieldGroup>
           <div className="flex justify-start pt-4">
-            <FormDialogSubmit pending={save.isPending}>
-              <PlusIcon data-icon="inline-start" />
+            <FormDialogSubmit pending={save.isPending} icon={<PlusIcon data-icon="inline-start" />}>
               {t('processing-schedules.period-form.add')}
             </FormDialogSubmit>
           </div>
@@ -321,8 +320,7 @@ function PeriodFormSkeleton({ search }: { search: SchedulesSearch }) {
             <SwitchRowSkeleton label={t('processing-schedules.periods.report-only')} />
           </FieldGroup>
           <div className="flex justify-start pt-4">
-            <FormDialogSubmit disabled>
-              <PlusIcon data-icon="inline-start" />
+            <FormDialogSubmit disabled icon={<PlusIcon data-icon="inline-start" />}>
               {t('processing-schedules.period-form.add')}
             </FormDialogSubmit>
           </div>
