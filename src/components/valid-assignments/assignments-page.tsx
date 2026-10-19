@@ -1,9 +1,7 @@
 import { ArrowDownToLineIcon, ArrowUpFromLineIcon, Trash2Icon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableSelectionBar } from '@/components/data-table/data-table-selection';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
@@ -38,15 +36,13 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
-import { useStoredState } from '@/hooks/use-stored-state';
+import { useCardView } from '@/hooks/use-card-view';
 import type { SearchChange } from '@/lib/table-search';
 
 const loadDialog = () => import('@/components/valid-assignments/add-assignment-dialog');
 const AddAssignmentDialog = lazy(() =>
   loadDialog().then((module) => ({ default: module.AddAssignmentDialog })),
 );
-
-const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 type AssignmentsPageProps = {
   api: AssignmentsApi;
@@ -68,19 +64,17 @@ export function AssignmentsPage({
   canPickOrganizations,
 }: AssignmentsPageProps) {
   const { t } = useTranslation();
-  const [measureContent, contentWidth] = useElementWidth<HTMLElement>();
+  const { measure, cards, columnView, layout } = useCardView<HTMLElement>(
+    ASSIGNMENT_HIDEABLE_COLUMNS,
+    `valid-${api.kind}.column-visibility`,
+  );
   const content = useRef<HTMLElement>(null);
   const contentRef = useCallback(
     (element: HTMLElement | null) => {
-      measureContent(element);
+      measure(element);
       content.current = element;
     },
-    [measureContent],
-  );
-  const columnView = useColumnVisibility(
-    ASSIGNMENT_HIDEABLE_COLUMNS,
-    useStoredState(`valid-${api.kind}.column-visibility`, columnChoicesSchema, {}),
-    contentWidth,
+    [measure],
   );
 
   const filterKey = assignmentFilterKey(search);
@@ -111,6 +105,7 @@ export function AssignmentsPage({
           <AssignmentsToolbar
             columnView={columnView}
             kind={api.kind}
+            layout={layout}
             onAdd={onAdd}
             onFilterChange={(patch) => onSearchChange(patch, true)}
             search={search}
@@ -132,6 +127,7 @@ export function AssignmentsPage({
               )}
               pendingFallback={
                 <AssignmentsTableSkeleton
+                  cards={cards}
                   columnVisibility={columnView.visibility}
                   search={search}
                 />
@@ -140,6 +136,7 @@ export function AssignmentsPage({
             >
               <AssignmentsTable
                 api={api}
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 onDelete={deleteOne}
                 onPickedChange={setPicked}
@@ -200,11 +197,21 @@ function AssignmentsHeader({ kind }: { kind: AssignmentKind }) {
 }
 
 export function AssignmentsPagePending({ kind }: { kind: AssignmentKind }) {
+  const { measure, cards, columnView } = useCardView(
+    ASSIGNMENT_HIDEABLE_COLUMNS,
+    `valid-${kind}.column-visibility`,
+  );
   return (
     <Workspace>
       <AssignmentsHeader kind={kind} />
       <WorkspaceContent>
-        <AssignmentsTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <AssignmentsTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

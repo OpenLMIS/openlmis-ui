@@ -1,14 +1,17 @@
-import type { Cell, Row, RowData } from '@tanstack/react-table';
-import { createContext, type ReactNode, type Ref, use } from 'react';
+import { type Cell, flexRender, type Row, type RowData } from '@tanstack/react-table';
+import { createContext, type ReactNode, type Ref, use, useId } from 'react';
 import {
   CardBand,
   CardList,
   CardListItem,
   CardListSkeleton,
   CardRows,
+  CardSelectBand,
   SkeletonBar,
 } from '@/components/card-list';
 import type { DataTableFeatures, DataTableInstance } from '@/components/data-table/data-table';
+import { useDataTableLabels } from '@/components/data-table/data-table-labels';
+import { SelectionCheckboxId } from '@/components/data-table/data-table-selection';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EMPTY_VALUE } from '@/lib/empty-value';
@@ -26,7 +29,12 @@ type TableCardsProps<TData extends RowData> = {
   footer?: ReactNode;
   busy?: boolean;
   listRef?: Ref<HTMLUListElement>;
+  heading?: (row: TData) => string | undefined;
 };
+
+export function useInCards() {
+  return use(InCardContext);
+}
 
 export function TableCards<TData extends RowData>({
   table,
@@ -35,16 +43,51 @@ export function TableCards<TData extends RowData>({
   footer,
   busy = false,
   listRef,
+  heading,
 }: TableCardsProps<TData>) {
   const rows = table.getRowModel().rows;
+  const ids = useId();
+  const selectHeader = table.getFlatHeaders().find((header) => header.column.id === SELECT);
+  const list = (
+    <CardList busy={busy} empty={rows.length === 0 && empty} footer={footer} listRef={listRef}>
+      {rows.map((row) => {
+        const text = heading?.(row.original);
+        if (text !== undefined) {
+          return (
+            <li key={row.id}>
+              <h2 className="px-1 pt-2 font-semibold text-base">
+                <bdi>{text}</bdi>
+              </h2>
+            </li>
+          );
+        }
+        return <TableCard key={row.id} row={row} selectId={`${ids}-${row.id}`} title={title} />;
+      })}
+    </CardList>
+  );
   return (
     <InCardContext value={true}>
-      <CardList busy={busy} empty={rows.length === 0 && empty} footer={footer} listRef={listRef}>
-        {rows.map((row) => (
-          <TableCard key={row.id} row={row} title={title} />
-        ))}
-      </CardList>
+      {selectHeader?.column.getIsVisible() && rows.length > 0 ? (
+        <div className="flex min-w-0 flex-col gap-3">
+          <SelectPage id={`${ids}-page`}>
+            {flexRender(selectHeader.column.columnDef.header, selectHeader.getContext())}
+          </SelectPage>
+          {list}
+        </div>
+      ) : (
+        list
+      )}
     </InCardContext>
+  );
+}
+
+function SelectPage({ id, children }: { id: string; children: ReactNode }) {
+  const labels = useDataTableLabels();
+  return (
+    <label className="flex w-fit cursor-pointer items-center gap-3 px-4 text-sm" htmlFor={id}>
+      <SelectionCheckboxId value={id}>{children}</SelectionCheckboxId>
+      <span aria-hidden>{labels.selectPage}</span>
+    </label>
   );
 }
 
@@ -61,22 +104,40 @@ const isDetail = (id: string, title: string) => id !== title && id !== ACTIONS &
 function TableCard<TData extends RowData>({
   row,
   title,
+  selectId,
 }: {
   row: Row<DataTableFeatures, TData>;
   title: string;
+  selectId: string;
 }) {
   const cells = row.getVisibleCells();
   const titleCell = cells.find((cell) => cell.column.id === title);
   const actions = cells.find((cell) => cell.column.id === ACTIONS);
+  const select = cells.find((cell) => cell.column.id === SELECT);
   const details = cells.filter((cell) => isDetail(cell.column.id, title));
+  const action = actions && <div className="shrink-0">{renderCell(actions)}</div>;
   return (
     <CardListItem>
-      <CardBand>
-        <div className="min-w-0 font-medium wrap-anywhere">
-          <bdi>{titleCell && renderCell(titleCell)}</bdi>
-        </div>
-        {actions && <div className="shrink-0">{renderCell(actions)}</div>}
-      </CardBand>
+      {select ? (
+        <CardSelectBand
+          action={action}
+          disabled={!row.getCanSelect()}
+          htmlFor={selectId}
+          selected={row.getIsSelected()}
+        >
+          <SelectionCheckboxId value={selectId}>{renderCell(select)}</SelectionCheckboxId>
+          <div aria-hidden className="min-w-0 font-medium wrap-anywhere">
+            <bdi>{titleCell && renderCell(titleCell)}</bdi>
+          </div>
+        </CardSelectBand>
+      ) : (
+        <CardBand>
+          <div className="min-w-0 font-medium wrap-anywhere">
+            <bdi>{titleCell && renderCell(titleCell)}</bdi>
+          </div>
+          {action}
+        </CardBand>
+      )}
       {details.length > 0 && (
         <CardRows>
           {details.map((cell) => (
@@ -101,6 +162,7 @@ export function TableCardsSkeleton<TData extends RowData>({
 }) {
   const columns = table.getVisibleLeafColumns();
   const actions = columns.find((column) => column.id === ACTIONS);
+  const select = columns.some((column) => column.id === SELECT);
   return (
     <div aria-busy>
       <CardListSkeleton
@@ -108,7 +170,16 @@ export function TableCardsSkeleton<TData extends RowData>({
         rows={columns.filter((column) => isDetail(column.id, title)).length}
         band={
           <>
-            <SkeletonBar width="w-24" />
+            {select ? (
+              <div className="flex items-center gap-3">
+                <div className="size-4">
+                  <Skeleton fill />
+                </div>
+                <SkeletonBar width="w-24" />
+              </div>
+            ) : (
+              <SkeletonBar width="w-24" />
+            )}
             {actions && (
               <div
                 className={actions.columnDef.meta?.skeleton === 'control' ? 'h-7 w-16' : 'size-7'}

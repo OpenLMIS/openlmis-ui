@@ -15,8 +15,11 @@ export function useCardLayout<T extends HTMLElement>() {
   return { measure, width, cards };
 }
 
-export function useCardView(columns: readonly ResponsiveColumn[], storageKey: string) {
-  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
+export function useCardView<T extends HTMLElement = HTMLDivElement>(
+  columns: readonly ResponsiveColumn[],
+  storageKey: string,
+) {
+  const { measure, width, cards } = useCardLayout<T>();
   const columnView = useColumnVisibility(
     columns,
     useStoredState(storageKey, choicesSchema, {}),

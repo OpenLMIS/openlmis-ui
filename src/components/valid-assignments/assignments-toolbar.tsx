@@ -25,6 +25,7 @@ type AssignmentsToolbarProps = {
   search: AssignmentsSearch;
   onFilterChange: (patch: Partial<AssignmentsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd: () => void;
 };
 
@@ -33,6 +34,7 @@ export function AssignmentsToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
   onAdd,
 }: AssignmentsToolbarProps) {
   const { t } = useTranslation();
@@ -81,6 +83,7 @@ export function AssignmentsToolbar({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

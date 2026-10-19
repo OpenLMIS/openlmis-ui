@@ -66,24 +66,34 @@ export function CardSelectBand({
   htmlFor,
   selected,
   disabled = false,
+  action,
   children,
 }: {
   htmlFor: string;
   selected: boolean;
   disabled?: boolean;
+  action?: ReactNode;
   children: ReactNode;
 }) {
-  return (
+  const tint = selected ? 'bg-primary/5' : 'bg-muted/50';
+  const band = (
     <label
       htmlFor={htmlFor}
       className={cn(
-        'flex min-h-10 items-center gap-3 px-4 py-1.5 font-semibold text-sm transition-colors',
-        selected ? 'bg-primary/5' : 'bg-muted/50',
+        'flex min-h-10 items-center gap-3 px-4 py-1.5 font-semibold text-sm',
+        action ? 'min-w-0 flex-1' : ['transition-colors', tint],
         !disabled && 'cursor-pointer',
       )}
     >
       {children}
     </label>
+  );
+  if (!action) return band;
+  return (
+    <div className={cn('flex items-center pe-4 transition-colors', tint)}>
+      {band}
+      <div className="shrink-0">{action}</div>
+    </div>
   );
 }
 

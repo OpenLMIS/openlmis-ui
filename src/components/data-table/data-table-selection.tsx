@@ -1,11 +1,13 @@
 import type { Row, RowData, Table } from '@tanstack/react-table';
 import { createColumnHelper } from '@tanstack/react-table';
 import { XIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode, use } from 'react';
 import type { DataTableFeatures } from '@/components/data-table/data-table';
 import { useDataTableLabels } from '@/components/data-table/data-table-labels';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+
+export const SelectionCheckboxId = createContext<string | undefined>(undefined);
 
 function SelectPageCheckbox<TData extends RowData>({
   table,
@@ -21,6 +23,7 @@ function SelectPageCheckbox<TData extends RowData>({
   return (
     <Checkbox
       aria-label={labels.selectPage}
+      id={use(SelectionCheckboxId)}
       checked={all}
       disabled={selectable.length === 0}
       indeterminate={!all && rows.some((row) => row.getIsSelected())}
@@ -41,6 +44,7 @@ function SelectRowCheckbox<TData extends RowData>({
   return (
     <Checkbox
       aria-label={labels.selectRow(label)}
+      id={use(SelectionCheckboxId)}
       checked={row.getIsSelected()}
       disabled={!row.getCanSelect()}
       onCheckedChange={(checked) => row.toggleSelected(checked)}
