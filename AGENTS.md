@@ -496,9 +496,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   associations, user roles) switch to cards too. Dialog tables switch to cards as well, measured
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
   squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
-  (`src/components/dialog-table.tsx`) render flat `TableCards` in `DialogCardScroll`, so pinned
-  forms, searches and summaries stay put, only the list scrolls and the pager stays below it.
-  Dialog skeletons draw one card per expected row. Keep headers on one line;
+  (`src/components/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog body
+  scrolls forms, cards and pager as one, with no nested scroll area, and a page change scrolls to
+  the first card. Measure outside `FormDialogBody`, whose scrollbar would flip the layout. Keep headers on one line;
   every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
