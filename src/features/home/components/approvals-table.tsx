@@ -2,8 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { CircleCheckIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { SettingsItem } from '@/components/form/settings-list';
 import { Badge } from '@/components/ui/badge';
 import {
   Empty,
@@ -22,11 +24,10 @@ import {
 } from '@/components/ui/table';
 import { approvalsOptions } from '@/features/home/api/queries';
 import { CountBadge, DashboardCard } from '@/features/home/components/dashboard-parts';
-import { PENDING } from '@/features/home/components/dashboard-skeleton';
+import { PENDING, WIDE_TABLE } from '@/features/home/components/dashboard-skeleton';
 import { waitingSince } from '@/features/home/lib/requisitions';
 import type { RequisitionSummary } from '@/features/home/lib/types';
 
-/** The requisitions waiting on this user, most urgent first. */
 export function ApprovalsTable() {
   const { t } = useTranslation();
   return (
@@ -41,9 +42,6 @@ export function ApprovalsTable() {
     </DashboardCard>
   );
 }
-
-/** Below this the table becomes a two-line list, which fits a phone without scrolling sideways. */
-const WIDE_TABLE = 560;
 
 function ApprovalRows() {
   const { t, i18n } = useTranslation();
@@ -90,7 +88,6 @@ function EmergencyBadge({ requisition }: { requisition: RequisitionSummary }) {
   return <Badge variant="destructive">{t('home.approvals.emergency')}</Badge>;
 }
 
-/** A column per detail, when the card has the room. */
 function ApprovalsGrid({ rows }: { rows: readonly ApprovalRow[] }) {
   const { t } = useTranslation();
 
@@ -140,38 +137,33 @@ function ApprovalsGrid({ rows }: { rows: readonly ApprovalRow[] }) {
   );
 }
 
-/** Two lines per requisition on a narrow card: where and since when, then what for. */
 function ApprovalsList({ rows }: { rows: readonly ApprovalRow[] }) {
   const { t } = useTranslation();
 
   return (
-    <ul className="flex flex-col divide-y">
+    <CardList>
       {rows.map(({ requisition, waiting }) => (
-        <li className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0" key={requisition.id}>
-          <div className="flex items-baseline justify-between gap-3">
-            {/* Separate items, so the gap holds even where Latin names sit in a right-to-left line. */}
-            <span className="flex min-w-0 items-baseline gap-1.5">
-              <span className="truncate text-sm font-medium">{requisition.facility.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
+        <CardListItem key={requisition.id} surface="flat">
+          <CardBand>
+            <div className="flex min-w-0 flex-col">
+              <bdi className="wrap-anywhere">{requisition.facility.name}</bdi>
+              <span className="font-normal text-muted-foreground text-xs" dir="ltr">
                 {requisition.facility.code}
               </span>
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              <span className="sr-only">{t('home.approvals.waiting-since')} </span>
-              {waiting}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="flex min-w-0 items-baseline gap-1.5">
-              <span className="truncate">{requisition.program.name}</span>
-              <span aria-hidden="true">·</span>
-              <span className="sr-only">, </span>
-              <span className="shrink-0">{requisition.processingPeriod.name}</span>
-            </span>
+            </div>
             <EmergencyBadge requisition={requisition} />
-          </div>
-        </li>
+          </CardBand>
+          <CardRows>
+            <SettingsItem label={t('home.approvals.program')}>
+              <bdi>{requisition.program.name}</bdi>
+            </SettingsItem>
+            <SettingsItem label={t('home.approvals.period')}>
+              <bdi>{requisition.processingPeriod.name}</bdi>
+            </SettingsItem>
+            <SettingsItem label={t('home.approvals.waiting-since')}>{waiting}</SettingsItem>
+          </CardRows>
+        </CardListItem>
       ))}
-    </ul>
+    </CardList>
   );
 }
