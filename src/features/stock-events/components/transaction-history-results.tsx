@@ -382,7 +382,7 @@ export function TransactionHistoryResultsSkeleton({
   if (cards) {
     return (
       <CardListSkeleton
-        count={Math.min(3, rowCount)}
+        count={rowCount}
         rows={CARD_ROWS.filter(([column]) => columns[column] !== false).length}
         band={
           <>

@@ -94,7 +94,6 @@ export function DialogTableSkeleton<TData extends RowData>({
     return (
       <DialogCardScroll footer={<DataTablePaginationSkeleton layout={pagination} />}>
         <TableCardsSkeleton
-          count={rowCount}
           pagination={false}
           rowCount={rowCount}
           surface="flat"

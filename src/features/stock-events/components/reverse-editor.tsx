@@ -1037,7 +1037,7 @@ function ReverseCardsSkeleton({
 }) {
   return (
     <CardListSkeleton
-      count={Math.min(3, count)}
+      count={count}
       rows={READ_ONLY_COLUMNS.filter(([id]) => visibility[id] !== false).length + 2}
       band={
         <div className="flex items-center gap-3">

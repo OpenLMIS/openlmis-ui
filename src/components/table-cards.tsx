@@ -174,14 +174,14 @@ export function TableCardsSkeleton<TData extends RowData>({
   rowCount,
   surface = 'raised',
   pagination = true,
-  count = Math.min(3, rowCount),
+  titleLines = 1,
 }: {
   table: DataTableInstance<TData>;
   title: string;
   rowCount: number;
   surface?: 'raised' | 'flat';
   pagination?: boolean;
-  count?: number;
+  titleLines?: 1 | 2;
 }) {
   const columns = table.getVisibleLeafColumns();
   const actions = columns.find((column) => column.id === ACTIONS);
@@ -197,7 +197,7 @@ export function TableCardsSkeleton<TData extends RowData>({
         </div>
       )}
       <CardListSkeleton
-        count={count}
+        count={rowCount}
         pagination={pagination}
         surface={surface}
         rows={columns.filter((column) => isDetail(column.id, title)).length}
@@ -210,12 +210,17 @@ export function TableCardsSkeleton<TData extends RowData>({
                 </div>
                 <SkeletonBar width="w-24" />
               </div>
+            ) : titleLines === 2 ? (
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <SkeletonBar width="w-full" />
+                <SkeletonBar width="w-1/3" />
+              </div>
             ) : (
               <SkeletonBar width="w-24" />
             )}
             {actions && (
               <div
-                className={actions.columnDef.meta?.skeleton === 'control' ? 'h-7 w-16' : 'size-7'}
+                className={actions.columnDef.meta?.skeleton === 'control' ? 'h-7 w-20' : 'size-7'}
               >
                 <Skeleton fill />
               </div>

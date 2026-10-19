@@ -47,6 +47,8 @@ const CLOSED_DIALOGS = {
   periodsPage: undefined,
 } satisfies Partial<SchedulesSearch>;
 
+const noop = () => {};
+
 export const Route = createFileRoute('/(protected)/_protected/administration/processing-schedules')(
   {
     validateSearch: schedulesSearchSchema,
@@ -176,7 +178,16 @@ function SchedulesPagePending() {
     <Workspace width="narrow">
       <SchedulesHeader />
       <WorkspaceContent>
-        <div ref={measure}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          {cards && (
+            <SchedulesToolbar
+              disabled
+              layout="cards"
+              onAdd={noop}
+              onSortChange={noop}
+              search={{}}
+            />
+          )}
           <SchedulesTableSkeleton cards={cards} search={{}} />
         </div>
       </WorkspaceContent>

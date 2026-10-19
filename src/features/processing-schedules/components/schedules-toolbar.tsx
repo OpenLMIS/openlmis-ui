@@ -15,13 +15,20 @@ type SchedulesToolbarProps = {
   onSortChange: (patch: Partial<SchedulesSearch>) => void;
   layout: 'table' | 'cards';
   onAdd: () => void;
+  disabled?: boolean;
 };
 
 const NO_COLUMNS: [] = [];
 const NO_VISIBILITY = {};
 const noop = () => {};
 
-export function SchedulesToolbar({ search, onSortChange, layout, onAdd }: SchedulesToolbarProps) {
+export function SchedulesToolbar({
+  search,
+  onSortChange,
+  layout,
+  onAdd,
+  disabled = false,
+}: SchedulesToolbarProps) {
   const { t } = useTranslation();
 
   return (
@@ -29,6 +36,7 @@ export function SchedulesToolbar({ search, onSortChange, layout, onAdd }: Schedu
       {layout === 'cards' && (
         <DataTableViewOptions
           columns={NO_COLUMNS}
+          disabled={disabled}
           layout={layout}
           onVisibilityChange={noop}
           sort={{
@@ -39,7 +47,7 @@ export function SchedulesToolbar({ search, onSortChange, layout, onAdd }: Schedu
         />
       )}
       <div className="flex-1 @2xl/main:ms-auto @2xl/main:w-auto @2xl/main:flex-none">
-        <Button onClick={onAdd} width="full">
+        <Button disabled={disabled} onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('processing-schedules.add')}
         </Button>

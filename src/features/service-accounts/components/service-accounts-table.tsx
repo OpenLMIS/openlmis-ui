@@ -171,7 +171,8 @@ export function ServiceAccountsTableSkeleton({
     onDelete: noop,
   });
   const rowCount = toPaginationState(search).pageSize;
-  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="token" />;
+  if (cards)
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="token" titleLines={2} />;
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 

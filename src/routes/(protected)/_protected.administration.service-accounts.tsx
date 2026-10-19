@@ -40,6 +40,8 @@ const CLOSED_DIALOGS = {
   delete: undefined,
 } satisfies Partial<ServiceAccountsSearch>;
 
+const noop = () => {};
+
 export const Route = createFileRoute('/(protected)/_protected/administration/service-accounts')({
   validateSearch: serviceAccountsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toServiceAccountsQuery(search) }),
@@ -143,7 +145,16 @@ function ServiceAccountsPagePending() {
     <Workspace>
       <ServiceAccountsHeader />
       <WorkspaceContent>
-        <div ref={measure}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          {cards && (
+            <ServiceAccountsToolbar
+              disabled
+              layout="cards"
+              onAdd={noop}
+              onSortChange={noop}
+              search={{}}
+            />
+          )}
           <ServiceAccountsTableSkeleton cards={cards} search={{}} />
         </div>
       </WorkspaceContent>

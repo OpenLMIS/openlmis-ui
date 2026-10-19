@@ -14,6 +14,7 @@ type ServiceAccountsToolbarProps = {
   onSortChange: (patch: Partial<ServiceAccountsSearch>) => void;
   layout: 'table' | 'cards';
   onAdd: () => void;
+  disabled?: boolean;
 };
 
 const noop = () => {};
@@ -23,10 +24,11 @@ export function ServiceAccountsToolbar({
   onSortChange,
   layout,
   onAdd,
+  disabled = false,
 }: ServiceAccountsToolbarProps) {
   const { t } = useTranslation();
   const add = (
-    <Button onClick={onAdd} width="full">
+    <Button disabled={disabled} onClick={onAdd} width="full">
       <PlusIcon data-icon="inline-start" />
       {t('service-accounts.add')}
     </Button>
@@ -43,6 +45,7 @@ export function ServiceAccountsToolbar({
     <DataTableToolbar>
       <DataTableViewOptions
         columns={[]}
+        disabled={disabled}
         layout={layout}
         onVisibilityChange={noop}
         sort={{

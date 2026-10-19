@@ -1,3 +1,4 @@
+import { SkeletonBar } from '@/components/card-list';
 import { DataTableSkeleton } from '@/components/data-table/data-table';
 import { SkeletonLine } from '@/components/dialog-parts';
 import { TableCardsSkeleton } from '@/components/table-cards';
@@ -9,9 +10,15 @@ export function TemplatesSkeleton({ cards }: { cards: boolean }) {
     <div className="flex flex-col gap-6">
       {[0, 1, 2].map((section) => (
         <div className="flex flex-col gap-3" key={section}>
-          <SkeletonLine width="short" />
           {cards ? (
-            <TableCardsSkeleton rowCount={2} table={table} title="name" />
+            <div className="flex h-7 items-center">
+              <SkeletonBar width="w-40" />
+            </div>
+          ) : (
+            <SkeletonLine width="short" />
+          )}
+          {cards ? (
+            <TableCardsSkeleton pagination={false} rowCount={2} table={table} title="name" />
           ) : (
             <DataTableSkeleton layout="auto" pagination="none" rowCount={2} table={table} />
           )}

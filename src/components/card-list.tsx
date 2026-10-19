@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from 'lucide-react';
-import type { ReactNode, Ref } from 'react';
+import { Fragment, type ReactNode, type Ref } from 'react';
 import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { SettingsRowFrame } from '@/components/form/settings-list';
@@ -171,12 +171,14 @@ export function CardListSkeleton({
   band = <SkeletonBar width="w-24" />,
   pagination = true,
   surface = 'raised',
+  row = <CardRowSkeleton />,
 }: {
   count: number;
   rows: number;
   band?: ReactNode;
   pagination?: boolean;
   surface?: 'raised' | 'flat';
+  row?: ReactNode;
 }) {
   const cards = Array.from({ length: count }, (_, index) => index);
   const details = Array.from({ length: rows }, (_, index) => index);
@@ -188,7 +190,7 @@ export function CardListSkeleton({
           {rows > 0 && (
             <CardRows>
               {details.map((id) => (
-                <CardRowSkeleton key={id} />
+                <Fragment key={id}>{row}</Fragment>
               ))}
             </CardRows>
           )}
