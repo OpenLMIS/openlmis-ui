@@ -601,9 +601,9 @@ it('shows the resulting stock on hand in phone confirmation cards', async () => 
   expect(band).toHaveAccessibleName(
     'Vaccine (C1) stock-event-reverse.current-stock-on-hand 30 stock-event-reverse.new-stock-on-hand 50',
   );
-  expect(band).toHaveAttribute('aria-expanded', 'true');
-  expect(within(dialog).getByText('stock-event.lot-code')).toBeVisible();
-  await user.click(band);
   expect(band).toHaveAttribute('aria-expanded', 'false');
   expect(within(dialog).getByText('stock-event.lot-code')).not.toBeVisible();
+  await user.click(band);
+  expect(band).toHaveAttribute('aria-expanded', 'true');
+  expect(within(dialog).getByText('stock-event.lot-code')).toBeVisible();
 });

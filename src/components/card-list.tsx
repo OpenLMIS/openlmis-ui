@@ -35,12 +35,21 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
   );
 }
 
-export function CardListItem({ children }: { children: ReactNode }) {
+export function CardListItem({
+  surface = 'raised',
+  children,
+}: {
+  surface?: 'raised' | 'flat';
+  children: ReactNode;
+}) {
+  const content = <div className="divide-y">{children}</div>;
   return (
     <li className="scroll-mt-page-start">
-      <DataTableCard>
-        <div className="divide-y">{children}</div>
-      </DataTableCard>
+      {surface === 'flat' ? (
+        <div className="min-w-0 overflow-hidden rounded-xl border bg-card">{content}</div>
+      ) : (
+        <DataTableCard>{content}</DataTableCard>
+      )}
     </li>
   );
 }

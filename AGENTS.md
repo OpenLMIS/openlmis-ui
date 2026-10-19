@@ -459,9 +459,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options. Each new card
   page opens at its first card below the header; filters and past-end clamps never request a
   scroll. Confirm Reversal cards collapse behind `CardToggleBand`, showing the stock change in
-  the band; they start open for up to three lines. Other lists keep tables at every width,
-  hiding lower-priority columns and allowing sideways scrolling on phones. Keep headers on one
-  line; every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
+  the band; every card starts collapsed and the dialog's cards have no shadow. Other lists keep
+  tables at every width, hiding lower-priority columns and allowing sideways scrolling on
+  phones. Keep headers on one line; every table header uses `DataTableHeaderLabel`'s style,
+  including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,

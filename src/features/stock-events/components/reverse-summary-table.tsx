@@ -43,11 +43,10 @@ export function ReverseSummaryTable({
   const quantity = (value: number | undefined, line: StockEventLine) =>
     tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
   const listId = useId();
-  const [toggled, setToggled] = useState<ReadonlySet<number>>(new Set());
-  const openByDefault = rows.length <= 3;
-  const isOpen = (index: number) => toggled.has(index) !== openByDefault;
+  const [opened, setOpened] = useState<ReadonlySet<number>>(new Set());
+  const isOpen = (index: number) => opened.has(index);
   const toggle = (index: number) =>
-    setToggled((previous) => {
+    setOpened((previous) => {
       const next = new Set(previous);
       if (!next.delete(index)) next.add(index);
       return next;
@@ -63,7 +62,7 @@ export function ReverseSummaryTable({
           )}
           <CardList>
             {rows.map(({ line, reason, comments, current, balance }, index) => (
-              <CardListItem key={line.stockEventLineItemId ?? index}>
+              <CardListItem key={line.stockEventLineItemId ?? index} surface="flat">
                 <CardToggleBand
                   controls={`${listId}-${index}`}
                   onToggle={() => toggle(index)}
