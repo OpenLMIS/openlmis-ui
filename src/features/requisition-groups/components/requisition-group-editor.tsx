@@ -656,11 +656,12 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
     }),
     memberColumn.accessor((row) => row.geographicZone?.name ?? '', {
       id: 'zone',
-      cell: ({ getValue }) => (
-        <span className="whitespace-normal break-words" dir="auto">
-          {getValue()}
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ) : null,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.zone')} />
       ),
@@ -668,11 +669,12 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
     }),
     memberColumn.accessor((row) => row.type?.name ?? '', {
       id: 'type',
-      cell: ({ getValue }) => (
-        <span className="whitespace-normal break-words" dir="auto">
-          {getValue()}
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ) : null,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.type')} />
       ),
