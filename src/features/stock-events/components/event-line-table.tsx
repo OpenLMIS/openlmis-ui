@@ -4,7 +4,7 @@ import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardList, CardListItem, CardRows, SkeletonBar } from '@/components/card-list';
+import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTable,
   DataTableEmpty,
@@ -17,7 +17,6 @@ import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { InputSizer } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
@@ -65,13 +64,6 @@ const COLUMNS = [
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
 const CARD_READ_ONLY: readonly CellId[] = ['lotCode', 'expiry', 'packSize', 'stockOnHand', 'total'];
-const CARD_COLUMNS = COLUMNS.toSorted(([a], [b]) => {
-  const rank = (id: CellId) =>
-    CARD_READ_ONLY.includes(id)
-      ? CARD_READ_ONLY.indexOf(id)
-      : CARD_READ_ONLY.length + COLUMNS.findIndex(([key]) => key === id);
-  return rank(a) - rank(b);
-});
 export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1500 },
   { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1400 },
@@ -103,6 +95,13 @@ function columnLabel(id: CellId, key: ParseKeys, side: EventKindConfig['counterp
   if (id === 'destinationComments') return COUNTERPARTY[side].comments;
   return key;
 }
+function productLabel(line: EventLine) {
+  const name = line.orderable.fullProductName || line.orderable.productCode;
+  return line.orderable.dispensable?.displayUnit
+    ? `${name} - ${line.orderable.dispensable.displayUnit}`
+    : name;
+}
+
 const NO_ASSIGNMENTS: readonly ValidAssignment[] = [];
 const helper = createColumnHelper<DataTableFeatures, EventLine>();
 const NO_SORT = { id: 'product', desc: false };
@@ -251,9 +250,7 @@ const LineCell = memo(function LineCell({
   const { t, i18n } = useTranslation();
   useEffect(() => revalidateMountedFields(form), [form]);
   const name = line.orderable.fullProductName || line.orderable.productCode;
-  const productLabel = line.orderable.dispensable?.displayUnit
-    ? `${name} - ${line.orderable.dispensable.displayUnit}`
-    : name;
+  const product = productLabel(line);
   const lotLabel =
     line.lot?.lotCode ??
     t(line.productHasLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
@@ -268,7 +265,7 @@ const LineCell = memo(function LineCell({
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
-      return <ProductName label={productLabel} width={measured ? 'compact' : 'default'} />;
+      return <ProductName label={product} width={measured ? 'compact' : 'default'} />;
     case 'packSize':
       return (
         <bdi className="tabular-nums" dir="ltr">
@@ -285,13 +282,13 @@ const LineCell = memo(function LineCell({
           line={line}
           lot={line.lot}
           label={t('stock-events.edit-lot', { row })}
-          product={productLabel}
+          product={product}
           form={form}
           today={today}
           disabled={disabled}
         />
       ) : (
-        <bdi>{cards ? orEmpty(line.lot?.lotCode) : lotLabel}</bdi>
+        <bdi>{lotLabel}</bdi>
       );
     case 'expiry':
       return (
@@ -339,7 +336,7 @@ const LineCell = memo(function LineCell({
                     { value: '', label: t('stock-events.select-option') },
                     ...assignments.map((item) => ({ value: item.id, label: item.name ?? '' })),
                   ]}
-                  wrap={compactSelects ? 'two-lines' : 'nowrap'}
+                  wrap={cards ? 'wrap' : compactSelects ? 'two-lines' : 'nowrap'}
                   label={label(counterparty.column)}
                   layout="inline"
                   hideErrors
@@ -899,7 +896,7 @@ function EventLineCard(props: Omit<CellProps, 'id'> & { columnVisibility: Column
   const { columnVisibility, ...cellProps } = props;
   const { line, kind, reasons, assignments } = cellProps;
   const config = EVENT_KINDS[kind];
-  const details = CARD_COLUMNS.filter(([id]) => {
+  const details = COLUMNS.filter(([id]) => {
     if (['product', 'productCode', 'actions'].includes(id) || columnVisibility[id] === false)
       return false;
     if (id === 'destination' || id === 'destinationComments') {
@@ -918,7 +915,7 @@ function EventLineCard(props: Omit<CellProps, 'id'> & { columnVisibility: Column
     <CardListItem>
       <CardBand>
         <bdi className="min-w-0 wrap-anywhere">
-          {line.orderable.fullProductName} ({line.orderable.productCode})
+          {productLabel(line)} ({line.orderable.productCode})
         </bdi>
         <LineCell {...cellProps} id="actions" />
       </CardBand>
@@ -930,6 +927,11 @@ function EventLineCard(props: Omit<CellProps, 'id'> & { columnVisibility: Column
             <SettingsItem key={id} label={label}>
               {cell}
             </SettingsItem>
+          ) : id === 'quantity' ? (
+            <div key={id} className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-sm">{label}</span>
+              {cell}
+            </div>
           ) : (
             <SettingsRowFrame
               key={id}
@@ -959,76 +961,26 @@ export function EventLineTableSkeleton({
   busy?: boolean;
   cards?: boolean;
 }) {
-  const { t } = useTranslation();
   const today = '';
   const form = useEventForm({ kind, reasons: [], today, onValid: () => {}, onInvalid: () => {} });
   return (
-    <div aria-busy={busy || undefined}>
-      {cards && busy ? (
-        <CardList>
-          <CardListItem>
-            <CardBand>
-              <SkeletonBar width="w-40" />
-              <div className="size-7">
-                <Skeleton fill />
-              </div>
-            </CardBand>
-            <CardRows>
-              {CARD_COLUMNS.filter(
-                ([id]) =>
-                  ![
-                    'product',
-                    'productCode',
-                    'actions',
-                    'comments',
-                    'destinationComments',
-                  ].includes(id) &&
-                  columnVisibility[id] !== false &&
-                  (EVENT_KINDS[kind].counterparty !== 'none' || id !== 'destination') &&
-                  (EVENT_KINDS[kind].reasons !== null || id !== 'reason'),
-              ).map(([id, key]) => (
-                <SettingsRowFrame
-                  key={id}
-                  value={CARD_READ_ONLY.includes(id) ? 'fit' : 'control'}
-                  align="center"
-                  label={
-                    <span className="text-sm">
-                      {t(columnLabel(id, key, EVENT_KINDS[kind].counterparty))}
-                    </span>
-                  }
-                >
-                  <div
-                    className={
-                      ['quantity', 'reason', 'destination', 'vvm', 'date'].includes(id)
-                        ? 'h-7 w-full'
-                        : 'h-4 w-20'
-                    }
-                  >
-                    <Skeleton fill />
-                  </div>
-                </SettingsRowFrame>
-              ))}
-            </CardRows>
-          </CardListItem>
-        </CardList>
-      ) : (
-        <EventLineTable
-          cards={cards}
-          kind={kind}
-          unit={unit}
-          columnVisibility={columnVisibility}
-          form={form}
-          lines={[]}
-          reasons={[]}
-          reasonRequired={false}
-          today={today}
-          disabled
-          search={{}}
-          onSearchChange={() => {}}
-          onRemove={() => {}}
-          onClearFilter={() => {}}
-        />
-      )}
+    <div aria-busy={busy || undefined} className={cards ? 'aria-busy:opacity-60' : undefined}>
+      <EventLineTable
+        cards={cards}
+        kind={kind}
+        unit={unit}
+        columnVisibility={columnVisibility}
+        form={form}
+        lines={[]}
+        reasons={[]}
+        reasonRequired={false}
+        today={today}
+        disabled
+        search={{}}
+        onSearchChange={() => {}}
+        onRemove={() => {}}
+        onClearFilter={() => {}}
+      />
     </div>
   );
 }

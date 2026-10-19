@@ -47,6 +47,7 @@ import {
   fetchEventStockOnHand,
   submitStockEvent,
 } from '@/features/stock-events/api/api';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
@@ -410,7 +411,10 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
           if (cards) {
             expect(screen.queryByRole('table')).not.toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
-            expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
+            const empty = screen.getByText(en[EVENT_KINDS[eventKind].copy.emptyTitle]);
+            expect(empty).toBeInTheDocument();
+            expect(empty.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
+            expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
           } else expect(screen.getByRole('table')).toBeInTheDocument();
         } finally {
           router.update({ context: {} });
