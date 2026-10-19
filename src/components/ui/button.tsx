@@ -40,7 +40,7 @@ const buttonVariants = cva(
       },
       wrap: {
         none: "",
-        normal: "h-auto min-h-8 min-w-0 whitespace-normal text-start",
+        normal: "h-auto min-w-0 whitespace-normal text-start",
       },
       padding: {
         default: "",

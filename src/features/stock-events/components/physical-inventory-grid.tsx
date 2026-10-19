@@ -576,6 +576,7 @@ function InventoryCell({
           <Button
             variant="link"
             wrap="normal"
+            padding="none"
             aria-label={label(t('physical-inventory.edit-lot'))}
             onClick={() => editor.onEditLot(line)}
             type="button"

@@ -242,7 +242,7 @@ export function ReverseEditor({
     if (!focusField || page !== focusField.page) return;
     const target = document.getElementById(focusField.id);
     if (target) {
-      revealField(target, cards);
+      revealField(target, cards, 'nearest');
       setFocusField(null);
     }
   }, [focusField, page, cards]);
