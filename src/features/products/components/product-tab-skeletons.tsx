@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardListSkeleton } from '@/components/card-list';
+import { CardListSkeleton, SkeletonBar } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { FieldSkeleton, SwitchSkeleton } from '@/components/dialog-parts';
 import { Block } from '@/components/skeleton-block';
@@ -44,13 +45,21 @@ function TabTableSkeleton({ headers }: { headers: string[] }) {
   );
 }
 
-function MeasuredTabSkeleton({ headers, cardRows }: { headers: string[]; cardRows: number }) {
+function MeasuredTabSkeleton({
+  headers,
+  cardRows,
+  band,
+}: {
+  headers: string[];
+  cardRows: number;
+  band?: ReactNode;
+}) {
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <div ref={measure}>
       {cards ? (
         <div aria-busy>
-          <CardListSkeleton count={ROWS.length} pagination={false} rows={cardRows} />
+          <CardListSkeleton band={band} count={ROWS.length} pagination={false} rows={cardRows} />
         </div>
       ) : (
         <TabTableSkeleton headers={headers} />
@@ -108,10 +117,16 @@ export function ApprovalsSkeleton() {
   );
 }
 
-export function KitUnpackListSkeleton() {
+export function KitUnpackListSkeleton({ editable = false }: { editable?: boolean }) {
   const { t } = useTranslation();
   return (
     <MeasuredTabSkeleton
+      band={
+        <>
+          <SkeletonBar width="w-40" />
+          {editable && <Block className="size-7" />}
+        </>
+      }
       cardRows={1}
       headers={[t('products.kit.product'), t('products.kit.quantity')]}
     />

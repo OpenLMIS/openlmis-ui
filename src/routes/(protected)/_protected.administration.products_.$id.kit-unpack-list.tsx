@@ -44,6 +44,7 @@ function KitTab() {
   const { t } = useTranslation();
   const { id } = Route.useParams();
   const { data: kit } = useSuspenseQuery(productDetailOptions(id));
+  const { canEditProduct } = productRoute.useLoaderData();
 
   return (
     <QueryBoundary
@@ -55,7 +56,7 @@ function KitTab() {
           title={t('products.kit.error-title')}
         />
       )}
-      pendingFallback={<KitUnpackListSkeleton />}
+      pendingFallback={<KitUnpackListSkeleton editable={canEditProduct} />}
       resetKey="kit"
     >
       <KitEditor key={id} kit={kit} />

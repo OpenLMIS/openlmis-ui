@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { BoxesIcon, EllipsisIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { BoxesIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -15,12 +15,6 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -97,7 +91,7 @@ export function KitUnpackList({
   const rows = useStore(form.store, (state) => state.values.children);
   const removeRow = (index: number) => {
     flushSync(() => form.removeFieldValue('children', index));
-    const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-actions]');
+    const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-remove]');
     (buttons?.[Math.min(index, buttons.length - 1)] ?? addButton.current)?.focus();
   };
   const inKit = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
@@ -119,27 +113,16 @@ export function KitUnpackList({
         </form.AppField>
       ),
       actions: !readOnly && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                aria-label={t('products.kit.actions-for', { product: name })}
-                data-kit-actions=""
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              />
-            }
-          >
-            <EllipsisIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" width="auto">
-            <DropdownMenuItem onClick={() => removeRow(index)} variant="destructive">
-              <Trash2Icon />
-              {t('products.kit.remove')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          aria-label={t('products.kit.remove-product', { product: name })}
+          data-kit-remove=""
+          onClick={() => removeRow(index)}
+          size="icon-sm"
+          type="button"
+          variant={cards ? 'destructive-ghost' : 'destructive'}
+        >
+          <Trash2Icon />
+        </Button>
       ),
     };
   };
