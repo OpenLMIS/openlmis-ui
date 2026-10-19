@@ -158,8 +158,8 @@ export function InventoryReasonsDialog({
             })}
           </FormDialogDescription>
         </FormDialogHeader>
-        <FormDialogBody>
-          {cards ? (
+        {cards ? (
+          <FormDialogBody>
             <div className="flex flex-col gap-4">
               <fieldset
                 onKeyDown={(event) => {
@@ -215,7 +215,7 @@ export function InventoryReasonsDialog({
                   </CardRows>
                 </div>
               </fieldset>
-              <Button type="button" variant="outline" onClick={() => void addForm.handleSubmit()}>
+              <Button type="button" variant="secondary" onClick={() => void addForm.handleSubmit()}>
                 {t('stock-events.add')}
               </Button>
               {adjustments.length > 0 && (
@@ -275,8 +275,10 @@ export function InventoryReasonsDialog({
                 </CardRows>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col gap-4">
+          </FormDialogBody>
+        ) : (
+          <>
+            <div className="shrink-0">
               <fieldset
                 className="flex items-start gap-3"
                 onKeyDown={(event) => {
@@ -324,7 +326,7 @@ export function InventoryReasonsDialog({
                   </span>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => void addForm.handleSubmit()}
                   >
                     <PlusIcon />
@@ -332,8 +334,10 @@ export function InventoryReasonsDialog({
                   </Button>
                 </div>
               </fieldset>
-              <div className="overflow-hidden rounded-lg border">
-                <Table density="compact">
+            </div>
+            <FormDialogBody layout="table">
+              <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
+                <Table density="compact" scroll="both">
                   <TableHeader surface="muted">
                     <TableRow>
                       <TableHead>
@@ -398,21 +402,21 @@ export function InventoryReasonsDialog({
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex flex-wrap justify-between gap-2 text-sm">
-                <span>
-                  <strong>{t('physical-inventory.unaccounted')}</strong>{' '}
-                  <bdi className={difference ? 'text-destructive' : undefined} dir="ltr">
-                    {display(difference)}
-                  </bdi>
-                </span>
-                <span>
-                  <strong>{t('physical-inventory.total')}</strong>{' '}
-                  <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
-                </span>
-              </div>
+            </FormDialogBody>
+            <div className="flex shrink-0 flex-wrap justify-between gap-2 text-sm">
+              <span>
+                <strong>{t('physical-inventory.unaccounted')}</strong>{' '}
+                <bdi className={difference ? 'text-destructive' : undefined} dir="ltr">
+                  {display(difference)}
+                </bdi>
+              </span>
+              <span>
+                <strong>{t('physical-inventory.total')}</strong>{' '}
+                <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
+              </span>
             </div>
-          )}
-        </FormDialogBody>
+          </>
+        )}
         <FormDialogFooter>
           <FormDialogCancel>{t('stock-events.cancel')}</FormDialogCancel>
           <FormDialogSubmit>{t('physical-inventory.update')}</FormDialogSubmit>
