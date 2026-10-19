@@ -1,8 +1,9 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { type QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   DialogLoadError,
@@ -78,8 +79,10 @@ import {
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Facility } from '@/features/reference-data/lib/types';
 import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { revealField } from '@/lib/reveal-field';
 
 export const FACILITY_EDITOR_LOOKUPS = {
   types: facilityTypesOptions({ active: true }),
@@ -134,12 +137,13 @@ function useFacilityForm(
 
 type FacilityForm = ReturnType<typeof useFacilityForm>;
 
-function focusFirstError(container: HTMLElement | null) {
-  requestAnimationFrame(() =>
-    container
-      ?.querySelector<HTMLElement>('[role="tabpanel"]:not([hidden]) [aria-invalid="true"]')
-      ?.focus(),
-  );
+function focusFirstError(container: HTMLElement | null, cards: boolean) {
+  requestAnimationFrame(() => {
+    const target = container?.querySelector<HTMLElement>(
+      '[role="tabpanel"]:not([hidden]) [aria-invalid="true"]',
+    );
+    if (target) revealField(target, cards);
+  });
 }
 
 export function FacilityEditor({
@@ -165,6 +169,7 @@ export function FacilityEditor({
   );
   const tabs = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
 
   const mutation = useSessionMutation({
     mutationFn: save,
@@ -186,14 +191,15 @@ export function FacilityEditor({
     (fieldNames) => {
       const errorTab = tabWithFirstError(fieldNames);
       if (errorTab) onTabChange(errorTab);
-      focusFirstError(tabs.current);
+      focusFirstError(tabs.current, cards);
     },
   );
 
+  const revealRefused = useEffectEvent(() => focusFirstError(tabs.current, cards));
   useEffect(() => {
     if (refused.length === 0) return;
     void form.validate('change');
-    focusFirstError(tabs.current);
+    revealRefused();
   }, [refused, form]);
 
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
@@ -231,34 +237,36 @@ export function FacilityEditor({
                 title={t('facilities.form.save-error-title')}
               />
             )}
-            <Tabs
-              onValueChange={(value: FacilityTab) => onTabChange(value)}
-              spacing="page"
-              value={tab}
-            >
-              <TabsList aria-label={t('facilities.form.tabs-label')}>
-                <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
-                <TabsTrigger value="programs">
-                  {t('facilities.form.programs')}
-                  <Badge variant="secondary">{programCount}</Badge>
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent keepMounted value="information">
-                <form
-                  id={FORM_ID}
-                  noValidate
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void form.handleSubmit();
-                  }}
-                >
-                  <InformationFields form={form} locked={locked} saved={saved} />
-                </form>
-              </TabsContent>
-              <TabsContent keepMounted value="programs">
-                <ProgramsFields form={form} />
-              </TabsContent>
-            </Tabs>
+            <div ref={measure}>
+              <Tabs
+                onValueChange={(value: FacilityTab) => onTabChange(value)}
+                spacing="page"
+                value={tab}
+              >
+                <TabsList aria-label={t('facilities.form.tabs-label')}>
+                  <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
+                  <TabsTrigger value="programs">
+                    {t('facilities.form.programs')}
+                    <Badge variant="secondary">{programCount}</Badge>
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent keepMounted value="information">
+                  <form
+                    id={FORM_ID}
+                    noValidate
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void form.handleSubmit();
+                    }}
+                  >
+                    <InformationFields form={form} locked={locked} saved={saved} />
+                  </form>
+                </TabsContent>
+                <TabsContent keepMounted value="programs">
+                  <ProgramsFields cards={cards} form={form} />
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
           <DiscardChangesDialog description={discardDescription} {...guard.dialog} />
         </WorkspaceContent>
@@ -445,7 +453,7 @@ function OperatorField({ form }: { form: FacilityForm }) {
   );
 }
 
-function ProgramsFields({ form }: { form: FacilityForm }) {
+function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean }) {
   const { t } = useTranslation();
   const rows = useStore(form.store, (state) => state.values.programs);
   const table = useRef<HTMLDivElement>(null);
@@ -462,6 +470,66 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
     });
   };
 
+  const rowFields = (row: FacilityFormValues['programs'][number], index: number) => {
+    const name = programName(row);
+    const named = (field: string) => t('facilities.form.row-label', { program: name, field });
+    return {
+      name,
+      active: (
+        <form.AppField name={`programs[${index}].supportActive`}>
+          {(field) => (
+            <field.SwitchField label={named(t('facilities.form.program-active'))} layout="inline" />
+          )}
+        </form.AppField>
+      ),
+      startDate: (
+        <form.AppField name={`programs[${index}].supportStartDate`}>
+          {(field) => (
+            <field.DateField
+              label={named(t('facilities.form.start-date'))}
+              layout="inline"
+              placeholder={t('facilities.form.pick-date')}
+              required={!row.saved}
+            />
+          )}
+        </form.AppField>
+      ),
+      locallyFulfilled: (
+        <form.AppField name={`programs[${index}].supportLocallyFulfilled`}>
+          {(field) => (
+            <field.SwitchField
+              label={named(t('facilities.form.locally-fulfilled'))}
+              layout="inline"
+            />
+          )}
+        </form.AppField>
+      ),
+      remove: !row.saved && (
+        <Button
+          aria-label={t('facilities.form.remove-program', { program: name })}
+          data-remove-program
+          onClick={() => removeRow(index)}
+          size="icon-sm"
+          variant={cards ? 'destructive-ghost' : 'destructive'}
+        >
+          <Trash2Icon />
+        </Button>
+      ),
+    };
+  };
+
+  const empty = (
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <BuildingIcon />
+        </EmptyMedia>
+        <EmptyTitle>{t('facilities.form.no-programs-title')}</EmptyTitle>
+        <EmptyDescription>{t('facilities.form.no-programs-description')}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
@@ -477,110 +545,86 @@ function ProgramsFields({ form }: { form: FacilityForm }) {
         rows={rows}
       />
       <div ref={table}>
-        <DataTableCard>
-          {rows.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <BuildingIcon />
-                </EmptyMedia>
-                <EmptyTitle>{t('facilities.form.no-programs-title')}</EmptyTitle>
-                <EmptyDescription>{t('facilities.form.no-programs-description')}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <Table density="comfortable">
-              <TableHeader surface="muted">
-                <TableRow>
-                  <TableHead>
-                    <DataTableHeaderLabel>{t('facilities.form.program')}</DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <DataTableHeaderLabel>
-                      {t('facilities.form.program-active')}
-                    </DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <DataTableHeaderLabel>{t('facilities.form.start-date')}</DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <DataTableHeaderLabel>
-                      {t('facilities.form.locally-fulfilled')}
-                    </DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <span className="sr-only">{t('facilities.form.actions')}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row, index) => {
-                  const name = programName(row);
-                  const named = (field: string) =>
-                    t('facilities.form.row-label', { program: name, field });
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <span className="whitespace-normal font-medium" dir="auto">
-                          {name}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <form.AppField name={`programs[${index}].supportActive`}>
-                          {(field) => (
-                            <field.SwitchField
-                              label={named(t('facilities.form.program-active'))}
-                              layout="inline"
-                            />
-                          )}
-                        </form.AppField>
-                      </TableCell>
-                      <TableCell>
-                        <div className="min-w-44">
-                          <form.AppField name={`programs[${index}].supportStartDate`}>
-                            {(field) => (
-                              <field.DateField
-                                label={named(t('facilities.form.start-date'))}
-                                layout="inline"
-                                placeholder={t('facilities.form.pick-date')}
-                                required={!row.saved}
-                              />
-                            )}
-                          </form.AppField>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <form.AppField name={`programs[${index}].supportLocallyFulfilled`}>
-                          {(field) => (
-                            <field.SwitchField
-                              label={named(t('facilities.form.locally-fulfilled'))}
-                              layout="inline"
-                            />
-                          )}
-                        </form.AppField>
-                      </TableCell>
-                      <TableCell>
-                        {!row.saved && (
-                          <div className="flex justify-end">
-                            <Button
-                              aria-label={t('facilities.form.remove-program', { program: name })}
-                              data-remove-program
-                              onClick={() => removeRow(index)}
-                              size="icon-sm"
-                              variant="destructive"
-                            >
-                              <Trash2Icon />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </DataTableCard>
+        {cards ? (
+          <CardList empty={rows.length === 0 && empty}>
+            {rows.map((row, index) => {
+              const fields = rowFields(row, index);
+              return (
+                <CardListItem key={row.id}>
+                  <CardBand>
+                    <bdi className="min-w-0 wrap-anywhere">{fields.name}</bdi>
+                    {fields.remove && <div className="shrink-0">{fields.remove}</div>}
+                  </CardBand>
+                  <CardRows>
+                    <CardControlRow label={t('facilities.form.program-active')} width="fit">
+                      {fields.active}
+                    </CardControlRow>
+                    <CardControlRow label={t('facilities.form.start-date')}>
+                      {fields.startDate}
+                    </CardControlRow>
+                    <CardControlRow label={t('facilities.form.locally-fulfilled')} width="fit">
+                      {fields.locallyFulfilled}
+                    </CardControlRow>
+                  </CardRows>
+                </CardListItem>
+              );
+            })}
+          </CardList>
+        ) : (
+          <DataTableCard>
+            {rows.length === 0 ? (
+              empty
+            ) : (
+              <Table density="comfortable">
+                <TableHeader surface="muted">
+                  <TableRow>
+                    <TableHead>
+                      <DataTableHeaderLabel>{t('facilities.form.program')}</DataTableHeaderLabel>
+                    </TableHead>
+                    <TableHead>
+                      <DataTableHeaderLabel>
+                        {t('facilities.form.program-active')}
+                      </DataTableHeaderLabel>
+                    </TableHead>
+                    <TableHead>
+                      <DataTableHeaderLabel>{t('facilities.form.start-date')}</DataTableHeaderLabel>
+                    </TableHead>
+                    <TableHead>
+                      <DataTableHeaderLabel>
+                        {t('facilities.form.locally-fulfilled')}
+                      </DataTableHeaderLabel>
+                    </TableHead>
+                    <TableHead>
+                      <span className="sr-only">{t('facilities.form.actions')}</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row, index) => {
+                    const fields = rowFields(row, index);
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <span className="whitespace-normal font-medium" dir="auto">
+                            {fields.name}
+                          </span>
+                        </TableCell>
+                        <TableCell>{fields.active}</TableCell>
+                        <TableCell>
+                          <div className="min-w-44">{fields.startDate}</div>
+                        </TableCell>
+                        <TableCell>{fields.locallyFulfilled}</TableCell>
+                        <TableCell>
+                          {fields.remove && <div className="flex justify-end">{fields.remove}</div>}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </DataTableCard>
+        )}
       </div>
     </div>
   );

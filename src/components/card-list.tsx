@@ -135,12 +135,12 @@ export function CardControlRow({
   children,
 }: {
   label: ReactNode;
-  width?: 'half' | 'wide';
+  width?: 'half' | 'wide' | 'fit';
   children: ReactNode;
 }) {
   return (
     <SettingsRowFrame
-      value={width === 'wide' ? 'wide' : 'control'}
+      value={width === 'half' ? 'control' : width}
       align="center"
       label={<span className="text-sm">{label}</span>}
     >
