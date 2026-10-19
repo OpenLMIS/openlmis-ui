@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
@@ -290,42 +290,4 @@ it('edits and removes added product cards below the table width threshold', asyn
   await user.click(within(card).getByRole('button', { name: 'stock-events.field-of' }));
   expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'physical-inventory.add-items' })).toBeDisabled();
-});
-
-it('returns focus to the invalid quantity card after closing validation', async () => {
-  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
-  const user = userEvent.setup();
-  const add = vi.fn();
-  render(
-    <InventoryAddProductsDialog
-      eligible={eligible}
-      listed={[]}
-      canManageLots={false}
-      unit="DOSES"
-      onClose={vi.fn()}
-      onAdd={add}
-    />,
-  );
-  await choose(user, 'stock-events.product', 'Product');
-  await choose(user, 'stock-events.lot-code', 'Batch');
-  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
-  const card = screen.getByRole('listitem');
-  const input = within(card).getByRole('textbox', { name: 'stock-events.field-of' });
-  const scrollCard = vi.fn();
-  const scrollField = vi.fn();
-  card.scrollIntoView = scrollCard;
-  input.scrollIntoView = scrollField;
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.add-items' }));
-  const alert = await screen.findByRole('alertdialog');
-  expect(add).not.toHaveBeenCalled();
-  expect(input).toHaveAttribute('aria-invalid', 'true');
-  await user.click(within(alert).getByRole('button', { name: 'stock-event-reverse.close' }));
-  await waitFor(() => expect(input).toHaveFocus());
-  expect(scrollCard).toHaveBeenCalledWith({ block: 'start' });
-  expect(scrollField).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
-  await user.type(input, '0');
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.add-items' }));
-  expect(add).toHaveBeenCalledWith([
-    expect.objectContaining({ quantity: expect.objectContaining({ doses: '0' }) }),
-  ]);
 });

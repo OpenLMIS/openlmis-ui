@@ -133,7 +133,7 @@ function ProgramPickerContent({
       role={onAction ? undefined : 'link'}
       disabled={row.disabled}
       onClick={onAction ? () => onAction(row) : undefined}
-      size={cards ? 'default' : 'xl'}
+      size={cards ? 'sm' : 'xl'}
       width="shrink"
     >
       <span className="whitespace-normal break-words">{row.actionLabel ?? actionLabel}</span>
@@ -197,7 +197,7 @@ export function StockProgramPickerSkeleton({
   const action = (
     <div className="relative min-w-0">
       <div className="invisible" aria-hidden="true">
-        <Button size={cards ? 'default' : 'xl'} width="shrink" disabled tabIndex={-1}>
+        <Button size={cards ? 'sm' : 'xl'} width="shrink" disabled tabIndex={-1}>
           <span className="whitespace-normal break-words">{actionLabel}</span>
         </Button>
       </div>

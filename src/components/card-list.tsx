@@ -153,11 +153,13 @@ export function CardListSkeleton({
       {cards.map((id) => (
         <CardListItem key={id}>
           <CardBand>{band}</CardBand>
-          <CardRows>
-            {details.map((id) => (
-              <CardRowSkeleton key={id} />
-            ))}
-          </CardRows>
+          {rows > 0 && (
+            <CardRows>
+              {details.map((id) => (
+                <CardRowSkeleton key={id} />
+              ))}
+            </CardRows>
+          )}
         </CardListItem>
       ))}
     </CardList>

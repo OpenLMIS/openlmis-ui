@@ -1,6 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { Trash2Icon } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
@@ -22,14 +22,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { LoadError } from '@/components/load-error';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import {
@@ -125,8 +117,6 @@ function AddProductsForm({
   const { t, i18n } = useTranslation();
   const [measure, width] = useElementWidth<HTMLDivElement>();
   const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
-  const [invalid, setInvalid] = useState(false);
-  const invalidField = useRef<string | null>(null);
   const today = toDateValue(new Date());
   const itemsForm = useAppForm({
     defaultValues: { items: [] as InventoryLine[] },
@@ -147,15 +137,6 @@ function AddProductsForm({
         }),
     },
     onSubmit: ({ value }) => onAdd(value.items),
-    onSubmitInvalid: ({ formApi }) => {
-      if (!cards) return;
-      const index = formApi.state.values.items.findIndex(
-        (line) => !inventoryCountSchema.safeParse(line.quantity.doses).success,
-      );
-      if (index < 0) return;
-      invalidField.current = `items[${index}].quantity`;
-      setInvalid(true);
-    },
   });
   const items = useStore(itemsForm.store, (state) => state.values.items);
   const selection = useAppForm({
@@ -252,7 +233,6 @@ function AddProductsForm({
               row: `${productName(line.orderable)} ${lotLabel(line)}`,
             })}
             layout="inline"
-            hideErrors={cards}
             required
             netContent={line.orderable.netContent}
             unit={unit}
@@ -453,28 +433,6 @@ function AddProductsForm({
           {t('physical-inventory.add-items', { count: items.length })}
         </FormDialogSubmit>
       </FormDialogFooter>
-      <AlertDialog
-        open={invalid}
-        onOpenChange={setInvalid}
-        onOpenChangeComplete={(open) => {
-          if (open || !invalidField.current) return;
-          const target = document.getElementById(invalidField.current);
-          invalidField.current = null;
-          if (!target) return;
-          target.closest('li')?.scrollIntoView?.({ block: 'start' });
-          target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-          target.focus({ preventScroll: true });
-        }}
-      >
-        <AlertDialogContent finalFocus={false}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('physical-inventory.invalid-title')}</AlertDialogTitle>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('stock-event-reverse.close')}</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </FormDialogForm>
   );
 }

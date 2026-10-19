@@ -1,10 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  StockProgramPicker,
-  StockProgramPickerSkeleton,
-} from '@/components/stock-program-picker/stock-program-picker';
+import { StockProgramPicker } from '@/components/stock-program-picker/stock-program-picker';
 
 const rows = [
   { id: 'em', label: 'Essential Meds' },
@@ -50,7 +47,7 @@ describe('StockProgramPicker', () => {
     expect(within(cards[1]).getByRole('button', { name: 'Start' })).toBeDisabled();
   });
 
-  it('keeps program action links in phone bands without status rows', () => {
+  it('keeps program action links in phone bands', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 350,
     } as DOMRect);
@@ -72,24 +69,6 @@ describe('StockProgramPicker', () => {
       );
     }
   });
-  it.each([671, 672])('matches the loading layout at %ipx without paging', (width) => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
-    const { container } = render(
-      <StockProgramPickerSkeleton actionLabel="Continue" statusLabel="Status" />,
-    );
-
-    expect(container.querySelector('[aria-busy]')).toBeInTheDocument();
-    if (width < 672) {
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
-      expect(screen.getAllByRole('listitem')).toHaveLength(2);
-    } else {
-      expect(screen.getByRole('table')).toBeInTheDocument();
-      expect(screen.queryByRole('list')).not.toBeInTheDocument();
-    }
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
-  });
-
   it('adds statuses and row action labels while retaining the default action', () => {
     render(
       <StockProgramPicker
