@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { WorkspaceSlots } from '@/components/workspace-tabs';
 import {
   InventoryToolbar,
@@ -17,6 +17,10 @@ vi.mock('react-i18next', () => ({
       options?.count === undefined ? key : `${key}:${options.count}`,
   }),
 }));
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+});
 
 const quantityUnit = { unit: 'DOSES' as const, canSwitch: true, setUnit: vi.fn() };
 
@@ -104,4 +108,32 @@ it('keeps loading controls and footer actions disabled with the chosen grid colu
   expect(
     screen.getAllByRole('button', { name: 'physical-inventory.add-reasons' })[0],
   ).toBeDisabled();
+});
+
+it('uses phone skeleton cards with visible details and control-sized placeholders', () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { container } = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceSlots>
+        <PhysicalInventoryPendingBody
+          search={{
+            page: undefined,
+            size: undefined,
+            keyword: undefined,
+            includeInactive: undefined,
+          }}
+          quantityUnit={quantityUnit}
+          showVvm
+          showActions
+        />
+      </WorkspaceSlots>
+    </QueryClientProvider>,
+  );
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('listitem')).toHaveLength(5);
+  expect(screen.getAllByText('stock-events.pack-size')).toHaveLength(5);
+  expect(screen.getAllByText('stock-events.vvm-status')).toHaveLength(5);
+  expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
+  expect(container.querySelectorAll('li .h-7')).toHaveLength(15);
 });

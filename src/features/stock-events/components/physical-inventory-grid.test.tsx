@@ -377,3 +377,39 @@ it.each([false, true])(
     await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
   },
 );
+
+it('shows editable phone cards with visible details and the existing line action', async () => {
+  const user = userEvent.setup();
+  const onDeactivate = vi.fn();
+  const line = {
+    ...lines[0],
+    stockOnHand: 0,
+    quantity: { doses: '0', packs: '0', remainder: '0' },
+  };
+  render(
+    <Grid
+      cards
+      bands={inventoryPage([line], 'program').bands}
+      visibility={{ expiry: false }}
+      showVvm={false}
+      showActions
+      onDeactivate={onDeactivate}
+    />,
+  );
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  const card = screen.getByText('Product (P)').closest('li') as HTMLElement;
+  expect(within(card).getByText('stock-events.lot-code')).toBeInTheDocument();
+  expect(within(card).getByText('stock-events.pack-size')).toBeInTheDocument();
+  expect(within(card).queryByText('stock-events.expiry-date')).not.toBeInTheDocument();
+  const input = within(card).getByRole('textbox');
+  await user.clear(input);
+  await user.type(input, '2');
+  expect(input).toHaveValue('2');
+  expect(within(card).getByRole('button', { name: /physical-inventory.reasons/ })).toBeEnabled();
+  await user.click(
+    within(card).getByRole('button', {
+      name: 'stock-events.field-of:physical-inventory.deactivate',
+    }),
+  );
+  expect(onDeactivate).toHaveBeenCalled();
+});

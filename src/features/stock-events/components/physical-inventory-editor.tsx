@@ -24,7 +24,11 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import {
   FormDialog,
@@ -99,6 +103,7 @@ import type {
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useOpening } from '@/hooks/use-opening';
+import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
@@ -141,6 +146,7 @@ export function PhysicalInventoryEditor(props: Props) {
     },
     [measure],
   );
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
   const queryClient = useQueryClient();
   const [optionalColumns, setOptionalColumns] = useState(() => {
@@ -156,13 +162,20 @@ export function PhysicalInventoryEditor(props: Props) {
         : { showVvm, showActions },
     );
   }, []);
-  const view = useFitColumnVisibility(
+  const tableView = useFitColumnVisibility(
     inventoryHideableColumns({ ...optionalColumns, unit: quantityUnit.unit }, choices[0]),
     choices,
     region,
     width,
     `${optionalColumns.showVvm}/${optionalColumns.showActions}/${quantityUnit.unit}/${i18n.language}`,
+    !cards,
   );
+  const cardView = useColumnVisibility(
+    inventoryHideableColumns({ ...optionalColumns, unit: quantityUnit.unit }, choices[0]),
+    choices,
+    undefined,
+  );
+  const view = cards ? cardView : tableView;
   const pendingBody = (
     <PhysicalInventoryPendingBody
       search={props.search}
@@ -186,6 +199,7 @@ export function PhysicalInventoryEditor(props: Props) {
               search={props.search}
               onSearchChange={props.onSearchChange}
               view={view}
+              cards={cards}
               quantityUnit={quantityUnit}
               onAdd={() => setAddOpen(true)}
               progress={<div ref={setProgressSlot} />}
@@ -196,6 +210,7 @@ export function PhysicalInventoryEditor(props: Props) {
           progressSlot={progressSlot}
           saveSlot={saveSlot}
           visibility={view.visibility}
+          cards={cards}
           onOptionalColumns={onOptionalColumns}
           quantityUnit={quantityUnit}
           addOpen={addOpen}
@@ -216,6 +231,7 @@ type RowsProps = Props &
     toolbar: ReactNode;
     pendingBody: ReactNode;
     visibility: Record<string, boolean>;
+    cards: boolean;
     onOptionalColumns: (showVvm: boolean, showActions: boolean) => void;
     quantityUnit: ReturnType<typeof useQuantityUnit>;
     addOpen: boolean;
@@ -267,6 +283,7 @@ function InventoryDraftRows({
   search,
   onSearchChange,
   visibility,
+  cards,
   onOptionalColumns,
   stock,
   localLines,
@@ -432,11 +449,19 @@ function InventoryDraftRows({
     () => inventoryPage(filtered, draft.programId, deferred.page, deferred.size),
     [filtered, draft.programId, deferred.page, deferred.size],
   );
+  const pageStart = usePageStart<HTMLUListElement>(
+    `${page.page}:${deferred.size ?? INVENTORY_PAGE_SIZE}`,
+    cards,
+  );
+  const onPagingChange = useCallback<SearchChange<InventorySearch>>(
+    (update, replace) => onSearchChange(update, replace, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const tableState = useTableSearchState({
     search: { ...search, page: page.page },
     defaultSort: NO_SORT,
     defaultPageSize: INVENTORY_PAGE_SIZE,
-    onSearchChange,
+    onSearchChange: onPagingChange,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -446,6 +471,7 @@ function InventoryDraftRows({
     manualPagination: true,
     manualSorting: true,
     ...tableState,
+    onPaginationChange: pageStart.onPaginationChange(tableState.onPaginationChange),
   });
   useEffect(() => {
     if (search === deferred && (search.page ?? 1) !== page.page)
@@ -471,13 +497,17 @@ function InventoryDraftRows({
     const target =
       element ??
       (focusTarget.key === '__table'
-        ? (region.current?.querySelector<HTMLTableElement>('table') ?? region.current)
+        ? (region.current?.querySelector<HTMLElement>(cards ? 'ul' : 'table') ?? region.current)
         : null);
     if (target) {
-      target.focus();
+      if (cards) {
+        target.closest('li')?.scrollIntoView?.({ block: 'start' });
+        target.scrollIntoView?.({ block: 'nearest' });
+      }
+      target.focus({ preventScroll: cards });
       if (document.activeElement === target) setFocusTarget(null);
     }
-  }, [focusTarget, actionDialog, search, deferred]);
+  }, [focusTarget, actionDialog, search, deferred, cards]);
   const patchLine = useCallback(
     (key: string, patch: Partial<InventoryLine>) => {
       form.setFieldValue('lines', (current) =>
@@ -558,6 +588,8 @@ function InventoryDraftRows({
       ) : null}
       {filtered.length ? (
         <PhysicalInventoryGrid
+          cards={cards}
+          listRef={pageStart.ref}
           bands={page.bands}
           visibility={visibility}
           showVvm={showVvm}

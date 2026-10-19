@@ -106,6 +106,7 @@ const stock = ['A', 'B'].map((id) => ({
   active: true,
 }));
 beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.clearAllMocks();
   vi.mocked(useDiscardGuard).mockImplementation(() => ({
     dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
@@ -336,31 +337,48 @@ it('always confirms Save, sends hidden members, and clears the local copy only o
   );
   await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
 });
-it('validates hidden lines and moves to the first invalid product without posting', async () => {
-  const user = userEvent.setup();
-  const view = setup({ size: 1, page: 2 });
-  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-  await user.click(
-    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
-  );
-  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-  expect(view.change).toHaveBeenCalledWith(
-    expect.objectContaining({ keyword: undefined, page: undefined }),
-    true,
-  );
-  expect(submitPhysicalInventory).not.toHaveBeenCalled();
-  view.rerender(view.tree({ size: 1, page: 1 }));
-  await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    ),
-  );
-  await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus(),
-  );
-});
+it.each([390, 672])(
+  'validates hidden lines and focuses the invalid product at width %s',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+    const user = userEvent.setup();
+    const view = setup({ size: 1, page: 2 });
+    if (width < 672) {
+      expect(await screen.findByText('B (B)')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    } else expect(await screen.findByRole('table')).toBeInTheDocument();
+    await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+    await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(view.change).toHaveBeenCalledWith(
+      expect.objectContaining({ keyword: undefined, page: undefined }),
+      true,
+    );
+    expect(submitPhysicalInventory).not.toHaveBeenCalled();
+    view.rerender(view.tree({ size: 1, page: 1 }));
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus(),
+    );
+    if (width < 672) {
+      const input = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+      const cardCall = scroll.mock.contexts.indexOf(input.closest('li'));
+      expect(cardCall).toBeGreaterThanOrEqual(0);
+      expect(scroll.mock.calls[cardCall]).toEqual([{ block: 'start' }]);
+      expect(scroll.mock.contexts[cardCall + 1]).toBe(input);
+      expect(scroll.mock.calls[cardCall + 1]).toEqual([{ block: 'nearest' }]);
+    }
+  },
+);
 it('waits for the invalid count page after clearing a keyword before focusing', async () => {
   vi.mocked(readInventoryLocal).mockResolvedValue({
     draftId: 'd',
@@ -724,7 +742,8 @@ it('keeps sorting and paging stable during count entry while progress and saved 
     ),
   );
 });
-it('updates the unaccounted error immediately when reasons change without Submit', async () => {
+it('updates the phone card unaccounted error and summary when reasons change without Submit', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
   const { fetchValidReasons } = await import('@/features/reference-data/api/api');
   vi.mocked(fetchValidReasons).mockResolvedValueOnce([
     {
@@ -752,6 +771,9 @@ it('updates the unaccounted error immediately when reasons change without Submit
   await user.click(within(dialog).getByRole('button', { name: 'stock-events.add' }));
   await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.update' }));
   expect(input).not.toHaveAttribute('aria-describedby');
+  expect(screen.getByRole('button', { name: /physical-inventory.reasons/ })).toHaveTextContent(
+    'Found',
+  );
 });
 
 it('keeps pagination inside the grid table card container', async () => {
@@ -1046,4 +1068,37 @@ it('hides an optional column when the rendered table exceeds its container by 15
     client.mockRestore();
     scroll.mockRestore();
   }
+});
+
+it('keeps phone detail choices and scrolls on paging while filters stay put', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+  const user = userEvent.setup();
+  const view = setup();
+  await screen.findByText('A (A)');
+  expect(screen.getByText('stock-events.pack-size')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'View' }));
+  expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole('menuitemcheckbox', { name: 'stock-events.pack-size' }));
+  await user.keyboard('{Escape}');
+  expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
+  scroll.mockClear();
+  await user.click(screen.getByRole('button', { name: 'Next Page' }));
+  expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
+    resetScroll: false,
+  });
+  view.rerender(view.tree({ size: 1, page: 2 }));
+  await screen.findByText('B (B)');
+  const list = screen.getByText('B (B)').closest('ul');
+  await waitFor(() => expect(list).toHaveFocus());
+  expect(scroll.mock.contexts).toContain(list);
+  expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
+  scroll.mockClear();
+  view.rerender(view.tree({ size: 1, page: 1, keyword: 'A' }));
+  await screen.findByText('A (A)');
+  expect(scroll).not.toHaveBeenCalled();
+  localStorage.removeItem('physical-inventory.columns');
 });

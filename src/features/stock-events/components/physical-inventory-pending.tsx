@@ -8,7 +8,11 @@ import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import {
+  CONTAINER_WIDTHS,
+  useColumnVisibility,
+  useElementWidth,
+} from '@/components/data-table/responsive-columns';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,6 +46,7 @@ type ToolbarProps = {
   save: ReactNode;
   onAdd?: () => void;
   disabled?: boolean;
+  cards?: boolean;
 };
 
 export function InventoryToolbar({
@@ -53,6 +58,7 @@ export function InventoryToolbar({
   save,
   onAdd,
   disabled,
+  cards = false,
 }: ToolbarProps) {
   const { t } = useTranslation();
   const inactiveId = useId();
@@ -104,7 +110,10 @@ export function InventoryToolbar({
         <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}>
           <DataTableViewOptions
             disabled={disabled}
-            columns={INVENTORY_HIDEABLE_COLUMNS.map((column) => ({
+            layout={cards ? 'cards' : 'table'}
+            columns={INVENTORY_HIDEABLE_COLUMNS.filter(
+              (column) => !cards || column.id !== 'productCode',
+            ).map((column) => ({
               id: column.id,
               label: t(column.labelKey),
             }))}
@@ -151,16 +160,18 @@ export function PhysicalInventoryPendingBody({
   const showVvm = providedVvm ?? optionalColumns.showVvm;
   const showActions = providedActions ?? optionalColumns.showActions;
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
   const view = useColumnVisibility(
     inventoryHideableColumns({ showVvm, showActions, unit: quantityUnit.unit }, choices[0]),
     choices,
-    width,
+    cards ? undefined : width,
   );
   const columns = visibility ?? view.visibility;
   return (
     <div className="flex min-w-0 flex-col gap-4" ref={measure} aria-busy="true">
       <InventoryToolbar
+        cards={cards}
         search={search}
         quantityUnit={quantityUnit}
         view={{ ...view, visibility: columns }}
@@ -195,6 +206,7 @@ export function PhysicalInventoryPendingBody({
         }
       />
       <PhysicalInventoryGridSkeleton
+        cards={cards}
         visibility={columns}
         showVvm={showVvm}
         showActions={showActions}
