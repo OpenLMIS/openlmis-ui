@@ -14,6 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { FlagBadge } from '@/components/flag-badge';
 import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
@@ -88,12 +89,13 @@ function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('reasons.free-text')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          t('reasons.free-text-yes')
-        ) : (
-          <span className="text-muted-foreground">{t('reasons.free-text-no')}</span>
-        ),
+      cell: ({ getValue }) => (
+        <FlagBadge
+          value={getValue()}
+          trueLabel={t('reasons.free-text-yes')}
+          falseLabel={t('reasons.free-text-no')}
+        />
+      ),
       enableSorting: false,
       meta: { label: t('reasons.free-text') },
     }),
