@@ -18,6 +18,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -42,7 +43,9 @@ import {
 import { associationKey } from '@/features/supply-partners/lib/association';
 import type { SupplyPartnerEditSearch } from '@/features/supply-partners/lib/search';
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { usePageStart } from '@/hooks/use-page-start';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, AssociationDraft>();
@@ -139,12 +142,14 @@ function AssociationActions({
   );
 }
 function useAssociationTable({
+  cards,
   rows,
   search,
   onSearchChange,
   onView,
   pending,
 }: {
+  cards: boolean;
   rows: AssociationDraft[];
   search: SupplyPartnerEditSearch;
   onSearchChange: SearchChange<SupplyPartnerEditSearch>;
@@ -165,6 +170,7 @@ function useAssociationTable({
         helper.display({
           id: 'program',
           header: t('supply-partners.program'),
+          meta: { label: t('supply-partners.program') },
           cell: ({ row }) => (
             <ReferenceName
               pending={refs.programs.isPending}
@@ -175,6 +181,7 @@ function useAssociationTable({
         helper.display({
           id: 'node',
           header: t('supply-partners.node'),
+          meta: { label: t('supply-partners.node') },
           cell: ({ row }) => (
             <ReferenceName
               pending={refs.nodes.isPending}
@@ -188,6 +195,11 @@ function useAssociationTable({
             header: t(
               kind === 'facilities' ? 'supply-partners.facilities' : 'supply-partners.products',
             ),
+            meta: {
+              label: t(
+                kind === 'facilities' ? 'supply-partners.facilities' : 'supply-partners.products',
+              ),
+            },
             cell: ({ row }) => {
               const item = row.original;
               const program =
@@ -235,7 +247,7 @@ function useAssociationTable({
           id: 'actions',
           header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
           meta: { className: 'w-16' },
-          cell: AssociationActionsCell,
+          cell: (context) => <AssociationActionsCell {...context} />,
         }),
       ]),
     [
@@ -248,12 +260,18 @@ function useAssociationTable({
       pending,
     ],
   );
+  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`, cards);
+  const onTableChange = useCallback<SearchChange<SupplyPartnerEditSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const state = useTableSearchState({
     search: { ...search, page },
     defaultSort: NO_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
   return {
+    pageStart,
     table: useTable({
       features: dataTableFeatures,
       columns,
@@ -263,6 +281,7 @@ function useAssociationTable({
       manualPagination: true,
       enableSorting: false,
       ...state,
+      onPaginationChange: pageStart.onPaginationChange(state.onPaginationChange),
     }),
     refs,
   };
@@ -285,15 +304,24 @@ export function AssociationsTable({
   pending: boolean;
 }) {
   const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const [removing, setRemoving] = useState<{ key: string; index: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const container = useCallback(
+    (element: HTMLDivElement | null) => {
+      ref.current = element;
+      measure(element);
+    },
+    [measure],
+  );
   const focusRemoved = useRef<number | null>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
   const onRemove = useCallback((key: string, index: number, trigger: HTMLButtonElement | null) => {
     returnFocus.current = trigger;
     setRemoving({ key, index });
   }, []);
-  const { table, refs } = useAssociationTable({
+  const { table, refs, pageStart } = useAssociationTable({
+    cards,
     rows,
     search,
     onSearchChange,
@@ -307,8 +335,12 @@ export function AssociationsTable({
   const node =
     refs.nodes.data?.find(({ id }) => id === target?.supervisoryNodeId)?.name ??
     t('supply-partners.unavailable');
+  const empty = (
+    <DataTableEmpty icon={<TruckIcon />} title={t('supply-partners.empty-associations')} />
+  );
+  const footer = rows.length > 0 && <DataTablePagination table={table} />;
   return (
-    <div className="flex flex-col gap-4" ref={ref} tabIndex={-1}>
+    <div className="flex flex-col gap-4" ref={container} tabIndex={-1}>
       <ActionsContext
         value={{
           programs: refs.programs.data ?? [],
@@ -318,14 +350,17 @@ export function AssociationsTable({
           onRemove,
         }}
       >
-        <DataTable
-          layout="auto"
-          table={table}
-          empty={
-            <DataTableEmpty icon={<TruckIcon />} title={t('supply-partners.empty-associations')} />
-          }
-          footer={rows.length > 0 && <DataTablePagination table={table} />}
-        />
+        {cards ? (
+          <TableCards
+            table={table}
+            title="program"
+            empty={empty}
+            footer={footer}
+            listRef={pageStart.ref}
+          />
+        ) : (
+          <DataTable layout="auto" table={table} empty={empty} footer={footer} />
+        )}
       </ActionsContext>
       <AlertDialog
         open={Boolean(target)}
@@ -372,12 +407,22 @@ export function AssociationsTable({
   );
 }
 export function AssociationsTableSkeleton({ search }: { search: SupplyPartnerEditSearch }) {
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const { table } = useAssociationTable({
+    cards: false,
     rows: EMPTY,
     search,
     onSearchChange: noop,
     onView: noop,
     pending: true,
   });
-  return <DataTableSkeleton layout="auto" table={table} rowCount={search.size ?? 10} />;
+  return (
+    <div ref={measure}>
+      {cards ? (
+        <TableCardsSkeleton table={table} title="program" rowCount={search.size ?? 10} />
+      ) : (
+        <DataTableSkeleton layout="auto" table={table} rowCount={search.size ?? 10} />
+      )}
+    </div>
+  );
 }

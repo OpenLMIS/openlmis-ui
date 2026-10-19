@@ -75,6 +75,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
 });
 
 it('removes the chosen association on the last page and keeps every remaining draft change after a failed save', async () => {
