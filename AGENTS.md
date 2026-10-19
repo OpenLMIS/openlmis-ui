@@ -262,7 +262,7 @@ edits, which have no prop for TypeScript to detect:
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
-| `button.tsx` | Dim `data-disabled` and `:disabled`; keep `focusableWhenDisabled` |
+| `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
