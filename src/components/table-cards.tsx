@@ -91,12 +91,16 @@ function SelectPage({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-function renderCell<TData extends RowData>(cell: Cell<DataTableFeatures, TData, unknown>) {
+function cellContent<TData extends RowData>(cell: Cell<DataTableFeatures, TData, unknown>) {
   const render = cell.column.columnDef.cell;
   const content: ReactNode = typeof render === 'function' ? render(cell.getContext()) : render;
   return content === null || content === undefined || content === false || content === ''
-    ? EMPTY_VALUE
+    ? undefined
     : content;
+}
+
+function renderCell<TData extends RowData>(cell: Cell<DataTableFeatures, TData, unknown>) {
+  return cellContent(cell) ?? EMPTY_VALUE;
 }
 
 const isDetail = (id: string, title: string) => id !== title && id !== ACTIONS && id !== SELECT;
@@ -115,7 +119,8 @@ function TableCard<TData extends RowData>({
   const actions = cells.find((cell) => cell.column.id === ACTIONS);
   const select = cells.find((cell) => cell.column.id === SELECT);
   const details = cells.filter((cell) => isDetail(cell.column.id, title));
-  const action = actions && <div className="shrink-0">{renderCell(actions)}</div>;
+  const actionContent = actions && cellContent(actions);
+  const action = actionContent && <div className="shrink-0">{actionContent}</div>;
   return (
     <CardListItem>
       {select ? (
