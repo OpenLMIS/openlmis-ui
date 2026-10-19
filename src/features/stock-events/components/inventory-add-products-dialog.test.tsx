@@ -1,8 +1,17 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { InventoryAddProductsDialog } from '@/features/stock-events/components/inventory-add-products-dialog';
 import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
+
+vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
+  useElementWidth: vi.fn(() => [vi.fn(), 672]),
+}));
+beforeEach(() => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 672]);
+});
 
 const product = {
   id: 'p',
@@ -245,4 +254,78 @@ it('leaves an unnamed product blank in the picker and added-items table, as lega
   const cells = within(screen.getByRole('table')).getAllByRole('cell');
   expect(cells[0]).toHaveTextContent('0517-0920');
   expect(cells[1]).toHaveTextContent(/^$/);
+});
+
+it('edits and removes added product cards below the table width threshold', async () => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 671]);
+  const user = userEvent.setup();
+  const add = vi.fn();
+  render(
+    <InventoryAddProductsDialog
+      eligible={eligible}
+      listed={[]}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={add}
+    />,
+  );
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  await choose(user, 'stock-events.product', 'Product');
+  await choose(user, 'stock-events.lot-code', 'Batch');
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+  const card = screen.getByRole('listitem');
+  expect(within(card).getByText('Product (P)')).toBeInTheDocument();
+  expect(within(card).getByText('Batch')).toBeInTheDocument();
+  expect(within(card).getByText('stock-events.expiry-date')).toBeInTheDocument();
+  expect(within(card).getByText('-')).toBeInTheDocument();
+  await user.type(within(card).getByRole('textbox', { name: 'stock-events.field-of' }), '-1.٢x۳');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.add-items' }));
+  expect(add).toHaveBeenCalledWith([
+    expect.objectContaining({
+      quantity: expect.objectContaining({ doses: '123' }),
+      lot: eligible[0].lot,
+    }),
+  ]);
+  await user.click(within(card).getByRole('button', { name: 'stock-events.field-of' }));
+  expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'physical-inventory.add-items' })).toBeDisabled();
+});
+
+it('returns focus to the invalid quantity card after closing validation', async () => {
+  vi.mocked(useElementWidth).mockReturnValue([vi.fn(), 350]);
+  const user = userEvent.setup();
+  const add = vi.fn();
+  render(
+    <InventoryAddProductsDialog
+      eligible={eligible}
+      listed={[]}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={add}
+    />,
+  );
+  await choose(user, 'stock-events.product', 'Product');
+  await choose(user, 'stock-events.lot-code', 'Batch');
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+  const card = screen.getByRole('listitem');
+  const input = within(card).getByRole('textbox', { name: 'stock-events.field-of' });
+  const scrollCard = vi.fn();
+  const scrollField = vi.fn();
+  card.scrollIntoView = scrollCard;
+  input.scrollIntoView = scrollField;
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.add-items' }));
+  const alert = await screen.findByRole('alertdialog');
+  expect(add).not.toHaveBeenCalled();
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  await user.click(within(alert).getByRole('button', { name: 'stock-event-reverse.close' }));
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(scrollCard).toHaveBeenCalledWith({ block: 'start' });
+  expect(scrollField).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+  await user.type(input, '0');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.add-items' }));
+  expect(add).toHaveBeenCalledWith([
+    expect.objectContaining({ quantity: expect.objectContaining({ doses: '0' }) }),
+  ]);
 });
