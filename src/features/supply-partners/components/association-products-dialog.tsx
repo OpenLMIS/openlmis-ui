@@ -1,25 +1,11 @@
-import {
-  createColumnHelper,
-  type PaginationState,
-  type RowSelectionState,
-  useTable,
-} from '@tanstack/react-table';
+import { type PaginationState, type RowSelectionState, useTable } from '@tanstack/react-table';
 import { PackageSearchIcon } from 'lucide-react';
 import { type ReactNode, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  DataTable,
-  DataTableEmpty,
-  type DataTableFeatures,
-  dataTableFeatures,
-} from '@/components/data-table/data-table';
+import { DataTableEmpty, dataTableFeatures } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { selectionColumn } from '@/components/data-table/data-table-selection';
-import {
-  resolveColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
+import { DialogTable } from '@/components/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -32,13 +18,14 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { matchesNameOrCode } from '@/features/supply-partners/lib/search';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
+import { cn } from '@/lib/utils';
 
-const helper = createColumnHelper<DataTableFeatures, Orderable>();
-const HIDEABLE = [{ id: 'unit', hideBelow: 'md' }] as const;
 const productLabel = (product: Orderable) =>
   product.fullProductName
     ? `${product.productCode} - ${product.fullProductName}`
@@ -83,7 +70,7 @@ function ProductsForm({
   );
   const [query, setQuery] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
-  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const { measure, width, cards } = useDialogCardLayout<HTMLDivElement>('table');
   const initial = [...selectedIds].sort().join(':');
   const dirty = [...picked.keys()].sort().join(':') !== initial;
   useLayoutEffect(() => {
@@ -103,36 +90,12 @@ function ProductsForm({
   );
   const columns = useMemo(
     () =>
-      helper.columns([
-        selectionColumn<Orderable>(productLabel),
-        helper.accessor('productCode', {
-          header: t('supply-partners.code'),
-          meta: { className: 'w-28' },
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
-        }),
-        helper.accessor('fullProductName', {
-          header: t('supply-partners.product'),
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
-        }),
-        helper.accessor((item) => item.dispensable?.displayUnit ?? '', {
-          id: 'unit',
-          header: t('supply-partners.unit'),
-          meta: { className: 'w-32' },
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
-        }),
-      ]),
+      productPickColumns({
+        code: t('supply-partners.code'),
+        product: t('supply-partners.product'),
+        unit: t('supply-partners.unit'),
+        selectLabel: productLabel,
+      }),
     [t],
   );
   const rowSelection = Object.fromEntries(picked);
@@ -148,7 +111,7 @@ function ProductsForm({
     state: {
       pagination: { ...pagination, pageIndex },
       rowSelection,
-      columnVisibility: resolveColumnVisibility(HIDEABLE, {}, width),
+      columnVisibility: productPickVisibility(cards, width),
     },
     onPaginationChange: setPagination,
     onRowSelectionChange: (updater) => {
@@ -165,7 +128,7 @@ function ProductsForm({
         <FormDialogDescription>{t('supply-partners.selection-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody layout="table">
-        <div className="flex flex-col gap-4" ref={measure}>
+        <div className={cn('flex flex-col gap-4', cards && 'min-h-0 flex-1')} ref={measure}>
           <search
             className="w-full max-w-sm"
             onKeyDown={(event) => {
@@ -184,8 +147,10 @@ function ProductsForm({
               }}
             />
           </search>
-          <DataTable
+          <DialogTable
+            cards={cards}
             table={table}
+            title="name"
             empty={
               <DataTableEmpty
                 icon={<PackageSearchIcon />}
@@ -200,35 +165,41 @@ function ProductsForm({
               />
             }
             footer={filtered.length > 0 && <DataTablePagination table={table} />}
+            after={
+              unavailable.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-muted-foreground text-sm">
+                    {t('supply-partners.unavailable-for-add')}
+                  </p>
+                  {unavailable.map((id) => {
+                    const item = selectedProducts.find((product) => product.id === id);
+                    const label = item ? productLabel(item) : t('supply-partners.unavailable');
+                    return (
+                      <label
+                        key={id}
+                        htmlFor={`unavailable-${id}`}
+                        className="flex items-center gap-2"
+                      >
+                        <Checkbox
+                          id={`unavailable-${id}`}
+                          aria-label={label}
+                          checked
+                          onCheckedChange={() =>
+                            setPicked((old) => {
+                              const next = new Map(old);
+                              next.delete(id);
+                              return next;
+                            })
+                          }
+                        />
+                        <span dir="auto">{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )
+            }
           />
-          {unavailable.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-muted-foreground text-sm">
-                {t('supply-partners.unavailable-for-add')}
-              </p>
-              {unavailable.map((id) => {
-                const item = selectedProducts.find((product) => product.id === id);
-                const label = item ? productLabel(item) : t('supply-partners.unavailable');
-                return (
-                  <label key={id} htmlFor={`unavailable-${id}`} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`unavailable-${id}`}
-                      aria-label={label}
-                      checked
-                      onCheckedChange={() =>
-                        setPicked((old) => {
-                          const next = new Map(old);
-                          next.delete(id);
-                          return next;
-                        })
-                      }
-                    />
-                    <span dir="auto">{label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
         </div>
       </FormDialogBody>
       <FormDialogFooter>

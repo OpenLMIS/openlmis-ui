@@ -1,4 +1,5 @@
 import { type CellContext, createColumnHelper, useTable } from '@tanstack/react-table';
+import type { TFunction } from 'i18next';
 import { Trash2Icon } from 'lucide-react';
 import { createContext, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,10 +9,12 @@ import {
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
+import { TableCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { ReferenceName } from '@/features/supply-partners/components/supply-partner-references';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 
-type Member = {
+export type Member = {
   id: string;
   name: string | null;
   code: string;
@@ -54,6 +57,27 @@ function MemberRemoveCell({ row }: CellContext<DataTableFeatures, Member, unknow
     </div>
   );
 }
+export function memberColumns(t: TFunction) {
+  return [
+    helper.accessor('name', {
+      header: t('supply-partners.name'),
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-1">
+          <ReferenceName name={row.original.name} pending={Boolean(row.original.loading)} />
+          {row.original.note && (
+            <span className="text-muted-foreground text-xs">{row.original.note}</span>
+          )}
+        </div>
+      ),
+    }),
+    helper.accessor('code', {
+      header: t('supply-partners.code'),
+      cell: ({ getValue }) => getValue() && <span dir="auto">{getValue()}</span>,
+      meta: { label: t('supply-partners.code') },
+    }),
+  ];
+}
+
 export function AssociationMembersTable({
   rows,
   kind,
@@ -66,26 +90,13 @@ export function AssociationMembersTable({
   onRemove: (id: string, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useTranslation();
+  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
   const columns = useMemo(
     () =>
       helper.columns([
-        helper.accessor('name', {
-          header: t('supply-partners.name'),
-          cell: ({ row }) => (
-            <div className="flex flex-col gap-1">
-              <ReferenceName name={row.original.name} pending={Boolean(row.original.loading)} />
-              {row.original.note && (
-                <span className="text-muted-foreground text-xs">{row.original.note}</span>
-              )}
-            </div>
-          ),
-        }),
-        helper.accessor('code', {
-          header: t('supply-partners.code'),
-          cell: ({ getValue }) => <span dir="auto">{getValue()}</span>,
-        }),
+        ...memberColumns(t),
         helper.display({
-          id: 'remove',
+          id: 'actions',
           header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
           meta: { className: 'w-16' },
           cell: MemberRemoveCell,
@@ -100,21 +111,22 @@ export function AssociationMembersTable({
     getRowId: (row) => row.id,
     enableSorting: false,
   });
+  const empty = (
+    <DataTableEmpty
+      title={t(
+        kind === 'facilities' ? 'supply-partners.no-facilities' : 'supply-partners.no-products',
+      )}
+    />
+  );
   return (
     <MemberActionsContext value={{ kind, pending, onRemove }}>
-      <DataTable
-        table={table}
-        layout="auto"
-        empty={
-          <DataTableEmpty
-            title={t(
-              kind === 'facilities'
-                ? 'supply-partners.no-facilities'
-                : 'supply-partners.no-products',
-            )}
-          />
-        }
-      />
+      <div ref={measure}>
+        {cards ? (
+          <TableCards empty={empty} surface="flat" table={table} title="name" />
+        ) : (
+          <DataTable table={table} layout="auto" empty={empty} />
+        )}
+      </div>
     </MemberActionsContext>
   );
 }

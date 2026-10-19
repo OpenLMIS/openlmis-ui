@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
-import { beforeAll, expect, it } from 'vitest';
+import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import {
   facilitiesByIdsOptions,
   orderablesByIdsOptions,
@@ -13,6 +13,10 @@ import {
 import { ViewItemsDialog } from '@/features/supply-partners/components/view-items-dialog';
 import { renderPage } from '@/tests/render-page';
 import en from '../../../../public/locales/en.json';
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+});
 
 beforeAll(async () => {
   await i18n

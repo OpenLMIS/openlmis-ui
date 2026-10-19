@@ -3,7 +3,6 @@ import { SearchXIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  DataTable,
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
@@ -11,6 +10,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DialogNotFound } from '@/components/dialog-parts';
+import { DialogTable } from '@/components/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -23,6 +23,10 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Button } from '@/components/ui/button';
 import {
+  type Member,
+  memberColumns,
+} from '@/features/supply-partners/components/association-members-table';
+import {
   ReferenceStatus,
   usePartnerReferences,
 } from '@/features/supply-partners/components/supply-partner-references';
@@ -32,10 +36,11 @@ import {
   type SupplyPartnerEditSearch,
 } from '@/features/supply-partners/lib/search';
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { type TableSearch, useTableSearchState } from '@/lib/table-search';
+import { cn } from '@/lib/utils';
 
-type Item = { id: string; name: string | null; code: string };
-const helper = createColumnHelper<DataTableFeatures, Item>();
+const helper = createColumnHelper<DataTableFeatures, Member>();
 const NO_SORT = { id: 'name', desc: false };
 export function ViewItemsDialog({
   search,
@@ -82,7 +87,7 @@ function ViewItems({
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState<TableSearch>({});
   const refs = usePartnerReferences([association]);
-  const rows: Item[] =
+  const rows: Member[] =
     kind === 'facilities'
       ? (refs.facilities.data ?? []).map((item) => ({
           id: item.id,
@@ -97,29 +102,8 @@ function ViewItems({
   const filtered = rows.filter((item) => matchesNameOrCode(item, query));
   const size = search.size ?? 10;
   const page = Math.min(search.page ?? 1, Math.max(1, Math.ceil(filtered.length / size)));
-  const columns = useMemo(
-    () =>
-      helper.columns([
-        helper.accessor('name', {
-          header: t('supply-partners.name'),
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
-        }),
-        helper.accessor('code', {
-          header: t('supply-partners.code'),
-          meta: { className: 'w-32' },
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
-        }),
-      ]),
-    [t],
-  );
+  const columns = useMemo(() => helper.columns(memberColumns(t)), [t]);
+  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
   const state = useTableSearchState({
     search: { ...search, page },
     defaultSort: NO_SORT,
@@ -148,49 +132,54 @@ function ViewItems({
         <FormDialogDescription>{t('supply-partners.view-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody layout="table">
-        <search className="w-full max-w-sm">
-          <DataTableSearch
-            value={query}
-            placeholder={t('supply-partners.search-items')}
-            onValueChange={(value) => {
-              setQuery(value);
-              setSearch((old) => ({ ...old, page: undefined }));
-            }}
-          />
-        </search>
-        <ReferenceStatus associations={[association]} />
-        {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
-          <DataTable
-            table={table}
-            empty={
-              <DataTableEmpty
-                icon={<SearchXIcon />}
-                title={t(
-                  query
-                    ? 'supply-partners.no-matches'
-                    : kind === 'facilities'
-                      ? 'supply-partners.no-facilities'
-                      : 'supply-partners.no-products',
-                )}
-                description={query ? t('supply-partners.no-matches-description') : undefined}
-                action={
-                  query && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        setQuery('');
-                        setSearch((old) => ({ ...old, page: undefined }));
-                      }}
-                    >
-                      {t('supply-partners.clear-search')}
-                    </Button>
-                  )
-                }
-              />
-            }
-            footer={filtered.length > 0 && <DataTablePagination table={table} />}
-          />
-        )}
+        <div className={cn('flex flex-col gap-4', cards && 'min-h-0 flex-1')} ref={measure}>
+          <search className="w-full max-w-sm">
+            <DataTableSearch
+              value={query}
+              placeholder={t('supply-partners.search-items')}
+              onValueChange={(value) => {
+                setQuery(value);
+                setSearch((old) => ({ ...old, page: undefined }));
+              }}
+            />
+          </search>
+          <ReferenceStatus associations={[association]} />
+          {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
+            <DialogTable
+              cards={cards}
+              layout="auto"
+              table={table}
+              title="name"
+              empty={
+                <DataTableEmpty
+                  icon={<SearchXIcon />}
+                  title={t(
+                    query
+                      ? 'supply-partners.no-matches'
+                      : kind === 'facilities'
+                        ? 'supply-partners.no-facilities'
+                        : 'supply-partners.no-products',
+                  )}
+                  description={query ? t('supply-partners.no-matches-description') : undefined}
+                  action={
+                    query && (
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          setQuery('');
+                          setSearch((old) => ({ ...old, page: undefined }));
+                        }}
+                      >
+                        {t('supply-partners.clear-search')}
+                      </Button>
+                    )
+                  }
+                />
+              }
+              footer={filtered.length > 0 && <DataTablePagination table={table} />}
+            />
+          )}
+        </div>
       </FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
