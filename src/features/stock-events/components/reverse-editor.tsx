@@ -241,10 +241,11 @@ export function ReverseEditor({
     const target = document.getElementById(focusField.id);
     if (target) {
       target.focus({ preventScroll: true });
+      if (cards) target.closest('li')?.scrollIntoView?.({ block: 'start' });
       target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
       setFocusField(null);
     }
-  }, [focusField, page]);
+  }, [focusField, page, cards]);
   const clearFieldMark = useCallback(
     (id: string, field: 'reasonId' | 'comments') =>
       form.setFieldMeta(`lines.${id}.${field}`, (meta) => ({ ...meta, errorMap: {} })),

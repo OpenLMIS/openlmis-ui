@@ -36,7 +36,7 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
 
 export function CardListItem({ children }: { children: ReactNode }) {
   return (
-    <li>
+    <li className="scroll-mt-page-start">
       <DataTableCard>
         <div className="divide-y">{children}</div>
       </DataTableCard>
