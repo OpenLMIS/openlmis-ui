@@ -20,6 +20,7 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -220,54 +221,58 @@ export function InventoryReasonsDialog({
           </fieldset>
         </div>
         {cards ? (
-          <FormDialogBody>
-            <div className="overflow-hidden rounded-xl border bg-card">
-              {adjustments.length ? (
-                <CardRows>
-                  {adjustments.map((item, index) => (
-                    <CardControlRow
-                      key={item.key}
-                      label={<bdi>{item.reason.name ?? item.reason.id}</bdi>}
-                      width={unit === 'PACKS' ? 'wide' : 'half'}
-                    >
-                      <div className="flex items-start gap-1">
-                        <div className="min-w-0 flex-1">
-                          <form.AppField name={`adjustments[${index}].quantity`}>
-                            {(field) => (
-                              <field.QuantityField
-                                label={item.reason.name ?? item.reason.id}
-                                layout="inline"
-                                unit={unit}
-                                netContent={line.orderable.netContent}
-                                dosesLabel={t('quantity-unit.doses')}
-                                packsLabel={t('quantity-unit.packs')}
-                                notation="plus"
-                                sizing="fill"
-                                required
-                              />
-                            )}
-                          </form.AppField>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="destructive-ghost"
-                          size="icon-sm"
-                          aria-label={removeLabel(item)}
-                          onClick={() => remove(index)}
+          <div className="-mx-4 flex min-h-0 flex-1 flex-col">
+            <ScrollArea fade height="fill">
+              <div className="px-4 py-1">
+                <div className="overflow-hidden rounded-xl border bg-card">
+                  {adjustments.length ? (
+                    <CardRows>
+                      {adjustments.map((item, index) => (
+                        <CardControlRow
+                          key={item.key}
+                          label={<bdi>{item.reason.name ?? item.reason.id}</bdi>}
+                          width={unit === 'PACKS' ? 'wide' : 'half'}
                         >
-                          <Trash2Icon />
-                        </Button>
-                      </div>
-                    </CardControlRow>
-                  ))}
-                </CardRows>
-              ) : (
-                <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-                  {t('physical-inventory.no-adjustments')}
+                          <div className="flex items-start gap-1">
+                            <div className="min-w-0 flex-1">
+                              <form.AppField name={`adjustments[${index}].quantity`}>
+                                {(field) => (
+                                  <field.QuantityField
+                                    label={item.reason.name ?? item.reason.id}
+                                    layout="inline"
+                                    unit={unit}
+                                    netContent={line.orderable.netContent}
+                                    dosesLabel={t('quantity-unit.doses')}
+                                    packsLabel={t('quantity-unit.packs')}
+                                    notation="plus"
+                                    sizing="fill"
+                                    required
+                                  />
+                                )}
+                              </form.AppField>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive-ghost"
+                              size="icon-sm"
+                              aria-label={removeLabel(item)}
+                              onClick={() => remove(index)}
+                            >
+                              <Trash2Icon />
+                            </Button>
+                          </div>
+                        </CardControlRow>
+                      ))}
+                    </CardRows>
+                  ) : (
+                    <div className="px-4 py-6 text-center text-muted-foreground text-sm">
+                      {t('physical-inventory.no-adjustments')}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </FormDialogBody>
+              </div>
+            </ScrollArea>
+          </div>
         ) : (
           <FormDialogBody layout="table">
             <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
