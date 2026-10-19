@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 export type DataTableColumnMeta = {
   /** Width classes, e.g. `w-1/5` or `w-16 xl:w-72`. Columns without any share what is left. */
   className?: string;
+  skeleton?: 'control';
 };
 
 // The server sorts and pages, so no client row models are registered.
@@ -304,7 +305,13 @@ export function DataTableSkeleton<TData extends RowData>({
                 <TableRow key={row}>
                   {columns.map((column) => (
                     <TableCell key={column.id}>
-                      {column.id === 'select' ? <SkeletonBox /> : <SkeletonBar />}
+                      {column.id === 'select' ? (
+                        <SkeletonBox />
+                      ) : column.columnDef.meta?.skeleton === 'control' ? (
+                        <SkeletonControl />
+                      ) : (
+                        <SkeletonBar />
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -325,6 +332,14 @@ export function DataTableSkeleton<TData extends RowData>({
 function SkeletonBox() {
   return (
     <div className="size-4">
+      <Skeleton fill />
+    </div>
+  );
+}
+
+function SkeletonControl() {
+  return (
+    <div className="h-7 w-16">
       <Skeleton fill />
     </div>
   );

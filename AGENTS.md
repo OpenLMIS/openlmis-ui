@@ -527,6 +527,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `layout="fixed"` by default, `auto`
   for content-sized columns such as bin cards. `DataTableSkeleton pagination={false}` omits
   the pager placeholder for unpaged tables; pagination defaults to true.
+- Columns holding a button or inline control set `meta: { skeleton: 'control' }`, so loading rows
+  reserve a 28px block and keep the real row height. Pending headers use the real icon, title and
+  description, with a placeholder only inside `WorkspaceTitle`/`WorkspaceDescription` when the
+  title needs data; Stock On Hand's View link passes `cardHasLot` so Stock Card's skeleton
+  draws the lot rows only for lots.
 - URL/table state stays in `src/lib/table-search.ts` as app glue.
 
 TanStack Table is **v9**: use `useTable` and `dataTableFeatures`, never v8 `useReactTable`.

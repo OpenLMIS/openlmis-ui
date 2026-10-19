@@ -623,6 +623,7 @@ function StockCardView({
           to="/stock-management/stock-on-hand/$stockCardId"
           params={{ stockCardId: card.stockCardId }}
           search={search}
+          state={{ cardHasLot: Boolean(card.lot) }}
         />
       }
     >
@@ -672,7 +673,7 @@ export function StockOnHandResultsSkeleton({
             <CardListItem key={product.id}>
               <div className="flex items-start gap-2 bg-muted/50 px-4 py-2.5">
                 <ToggleSkeleton />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
                   {bar('w-3/4')}
                   {bar(columns.packSize !== false ? 'w-40' : 'w-12')}
                 </div>
@@ -738,7 +739,11 @@ export function StockOnHandResultsSkeleton({
                       expiry: bar('w-20'),
                       lastUpdate: bar('w-20'),
                       stockOnHand: bar('w-10'),
-                      view: bar('w-12'),
+                      view: (
+                        <div className="h-7 w-16">
+                          <Skeleton fill />
+                        </div>
+                      ),
                     }}
                   />
                 </TableRow>

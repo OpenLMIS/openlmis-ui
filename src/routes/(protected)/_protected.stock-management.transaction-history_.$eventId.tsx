@@ -291,6 +291,7 @@ function StockEventActions({
 }
 
 function StockEventPending() {
+  const { t } = useTranslation();
   const userId = useLoginData((state) => state.referenceDataUserId);
   const rights = useQuery({ ...rightsOptions(userId ?? ''), enabled: false }).data;
   const { canSwitch } = useQuantityUnit();
@@ -302,14 +303,10 @@ function StockEventPending() {
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceIcon>
-            <Skeleton fill />
+            <ClipboardListIcon />
           </WorkspaceIcon>
-          <div className="h-7 w-72 max-w-full">
-            <Skeleton fill />
-          </div>
-          <div className="h-5 w-48 max-w-full">
-            <Skeleton fill />
-          </div>
+          <WorkspaceTitle>{t('stock-event.title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('stock-event.description')}</WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
           {rights?.has(RIGHTS.stockEventsCancel) && (

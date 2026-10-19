@@ -1,4 +1,9 @@
-import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  type ErrorComponentProps,
+  Link,
+  useRouterState,
+} from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
@@ -54,6 +59,13 @@ import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
+
+declare module '@tanstack/react-router' {
+  // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
+  interface HistoryState {
+    cardHasLot?: boolean;
+  }
+}
 
 const RIGHT = RIGHTS.stockCardsView;
 const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
@@ -234,20 +246,25 @@ function StockCardPending() {
     stockCardOptions(Route.useParams().stockCardId).queryKey,
   );
   const search = Route.useSearch();
+  const hasLot = useRouterState({ select: (state) => state.location.state.cardHasLot ?? true });
   const { measure, columnView, cards } = useCardLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceIcon>
-            <Skeleton fill />
+            <ClipboardListIcon />
           </WorkspaceIcon>
-          <div className="h-7 w-72 max-w-full">
-            <Skeleton fill />
-          </div>
-          <div className="h-5 w-48 max-w-full">
-            <Skeleton fill />
-          </div>
+          <WorkspaceTitle>
+            <span className="block h-5 w-56 max-w-full">
+              <Skeleton fill />
+            </span>
+          </WorkspaceTitle>
+          <WorkspaceDescription>
+            <span className="block h-5 w-48 max-w-full">
+              <Skeleton fill />
+            </span>
+          </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
           <div className="h-10 w-24">
@@ -257,7 +274,7 @@ function StockCardPending() {
       </WorkspaceHeader>
       <WorkspaceContent>
         <div aria-busy className="flex flex-col gap-4" ref={measure}>
-          <StockCardHeaderSkeleton />
+          <StockCardHeaderSkeleton lot={hasLot} />
           <div className="flex justify-end gap-2">
             {canSwitch && (
               <div className="h-8 flex-1 @2xl/main:w-36 @2xl/main:flex-none">

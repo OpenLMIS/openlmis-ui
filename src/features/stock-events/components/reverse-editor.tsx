@@ -376,6 +376,7 @@ export function ReverseEditor({
         COLUMNS.map(([id, key]) =>
           helper.display({
             id,
+            ...(id === 'cancelReason' && { meta: { skeleton: 'control' as const } }),
             header: () => (
               <div className={id === 'reverse' ? 'flex justify-center' : undefined}>
                 <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>

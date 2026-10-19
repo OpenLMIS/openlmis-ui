@@ -178,6 +178,7 @@ function useEventColumns(search: TransactionHistorySearch, eventDay: EventDay, s
         ),
         columnHelper.display({
           id: 'actions',
+          meta: { skeleton: 'control' },
           header: () => (
             <DataTableHeaderLabel>{t('transaction-history.actions')}</DataTableHeaderLabel>
           ),
