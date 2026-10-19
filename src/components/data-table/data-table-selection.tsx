@@ -100,7 +100,7 @@ export function DataTableSelectionBar({ count, onClear, children }: DataTableSel
                 aria-label={labels.clearSelection}
                 onClick={onClear}
                 size="sm"
-                variant="secondary"
+                variant="outline"
               >
                 <XIcon data-icon="inline-start" />
                 <SelectionBarLabel full={labels.clearSelection} short={labels.clear} />
