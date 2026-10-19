@@ -33,7 +33,6 @@ import { productPickColumns, productPickVisibility } from '@/components/product-
 import type { Product } from '@/features/products/lib/types';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
-import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
 
@@ -166,11 +165,8 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
         <FormDialogTitle>{t('products.kit.add-title')}</FormDialogTitle>
         <FormDialogDescription>{t('products.kit.add-description')}</FormDialogDescription>
       </FormDialogHeader>
-      <FormDialogBody layout={cards ? 'table' : 'default'}>
-        <div
-          className={cn('@container/kit flex flex-col gap-4', cards && 'min-h-0 flex-1')}
-          ref={measure}
-        >
+      <FormDialogBody>
+        <div className="@container/kit flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
             <div className="w-full @md/kit:w-56">
               <DataTableSearch

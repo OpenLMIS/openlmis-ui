@@ -28,12 +28,12 @@ import {
 } from '@/components/ui/table';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
-import { type CardDialogSize, useCardLayout, useDialogCardLayout } from '@/hooks/use-card-view';
+import { useCardLayout } from '@/hooks/use-card-view';
 
 type TypeItem = { value: string; label: string };
 
 export function FacilityTypesFields({
-  dialog,
+  dialogCards,
   options,
   types,
   selected,
@@ -46,7 +46,7 @@ export function FacilityTypesFields({
   label,
   addLabel,
 }: {
-  dialog?: CardDialogSize;
+  dialogCards?: boolean;
   label?: string;
   addLabel?: string;
   options: FacilityType[];
@@ -62,8 +62,7 @@ export function FacilityTypesFields({
   const { t } = useTranslation();
   const errorId = useId();
   const page = useCardLayout<HTMLDivElement>();
-  const inDialog = useDialogCardLayout<HTMLDivElement>(dialog ?? 'lg');
-  const { measure, cards } = dialog ? inDialog : page;
+  const cards = dialogCards ?? page.cards;
   const [pickedId, setPickedId] = useState<string | null>(null);
   const names = new Map(types.map((type) => [type.id, facilityTypeName(type)]));
   const rows = selected
@@ -94,7 +93,7 @@ export function FacilityTypesFields({
     <DataTableEmpty icon={<Building2Icon />} title={emptyTitle} description={emptyDescription} />
   );
   return (
-    <div className="flex flex-col gap-3" ref={measure}>
+    <div className="flex flex-col gap-3" ref={dialogCards === undefined ? page.measure : undefined}>
       <div className="flex items-center gap-2">
         <PickerAdd>
           <Combobox
@@ -138,7 +137,7 @@ export function FacilityTypesFields({
         {cards ? (
           <CardList empty={rows.length === 0 && emptyState}>
             {rows.map((row, index) => (
-              <CardListItem key={row.id} surface={dialog ? 'flat' : 'raised'}>
+              <CardListItem key={row.id} surface={dialogCards === undefined ? 'raised' : 'flat'}>
                 <CardBand>
                   <div className="min-w-0 font-medium wrap-anywhere">
                     <bdi>{row.name}</bdi>

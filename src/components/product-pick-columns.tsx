@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { DataTableColumnHeader, type DataTableFeatures } from '@/components/data-table/data-table';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
 import { resolveColumnVisibility } from '@/components/data-table/responsive-columns';
-import { CellText } from '@/components/table-cards';
 import type { Orderable } from '@/features/reference-data/lib/types';
 
 const helper = createColumnHelper<DataTableFeatures, Orderable>();
@@ -48,6 +47,7 @@ export function productPickColumns({
       header: ({ column }) => <DataTableColumnHeader column={column} title={product} />,
       cell: ({ row, getValue }) => {
         const extra = note?.(row.original);
+        if (!getValue() && !extra) return null;
         return (
           <Locked locked={!row.getCanSelect()}>
             <span className="block whitespace-normal break-words">
@@ -64,7 +64,9 @@ export function productPickColumns({
       cell: ({ row, getValue }) =>
         getValue() ? (
           <Locked locked={!row.getCanSelect()}>
-            <CellText dir="ltr">{getValue()}</CellText>
+            <span className="block whitespace-normal wrap-anywhere" dir="auto">
+              {getValue()}
+            </span>
           </Locked>
         ) : null,
       meta: { className: 'w-32', label: unit },

@@ -23,10 +23,6 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Button } from '@/components/ui/button';
 import {
-  type Member,
-  memberColumns,
-} from '@/features/supply-partners/components/association-members-table';
-import {
   ReferenceStatus,
   usePartnerReferences,
 } from '@/features/supply-partners/components/supply-partner-references';
@@ -38,9 +34,9 @@ import {
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { type TableSearch, useTableSearchState } from '@/lib/table-search';
-import { cn } from '@/lib/utils';
 
-const helper = createColumnHelper<DataTableFeatures, Member>();
+type Item = { id: string; name: string | null; code: string };
+const helper = createColumnHelper<DataTableFeatures, Item>();
 const NO_SORT = { id: 'name', desc: false };
 export function ViewItemsDialog({
   search,
@@ -87,7 +83,7 @@ function ViewItems({
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState<TableSearch>({});
   const refs = usePartnerReferences([association]);
-  const rows: Member[] =
+  const rows: Item[] =
     kind === 'facilities'
       ? (refs.facilities.data ?? []).map((item) => ({
           id: item.id,
@@ -102,7 +98,31 @@ function ViewItems({
   const filtered = rows.filter((item) => matchesNameOrCode(item, query));
   const size = search.size ?? 10;
   const page = Math.min(search.page ?? 1, Math.max(1, Math.ceil(filtered.length / size)));
-  const columns = useMemo(() => helper.columns(memberColumns(t)), [t]);
+  const columns = useMemo(
+    () =>
+      helper.columns([
+        helper.accessor('name', {
+          header: t('supply-partners.name'),
+          cell: ({ getValue }) =>
+            getValue() ? (
+              <span className="block whitespace-normal wrap-anywhere" dir="auto">
+                {getValue()}
+              </span>
+            ) : null,
+        }),
+        helper.accessor('code', {
+          header: t('supply-partners.code'),
+          meta: { className: 'w-32', label: t('supply-partners.code') },
+          cell: ({ getValue }) =>
+            getValue() ? (
+              <span className="block whitespace-normal wrap-anywhere" dir="auto">
+                {getValue()}
+              </span>
+            ) : null,
+        }),
+      ]),
+    [t],
+  );
   const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
   const state = useTableSearchState({
     search: { ...search, page },
@@ -120,7 +140,7 @@ function ViewItems({
     ...state,
   });
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
       <FormDialogHeader>
         <FormDialogTitle>
           {t(
@@ -132,7 +152,7 @@ function ViewItems({
         <FormDialogDescription>{t('supply-partners.view-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody layout="table">
-        <div className={cn('flex flex-col gap-4', cards && 'min-h-0 flex-1')} ref={measure}>
+        <div className="flex flex-col gap-4">
           <search className="w-full max-w-sm">
             <DataTableSearch
               value={query}
@@ -147,7 +167,6 @@ function ViewItems({
           {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
             <DialogTable
               cards={cards}
-              layout="auto"
               table={table}
               title="name"
               empty={
@@ -184,6 +203,6 @@ function ViewItems({
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
       </FormDialogFooter>
-    </>
+    </div>
   );
 }

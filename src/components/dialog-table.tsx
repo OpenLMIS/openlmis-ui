@@ -8,9 +8,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
-export function DialogCardScroll({
+export function DialogCards({
   children,
   footer,
   page,
@@ -20,19 +19,15 @@ export function DialogCardScroll({
   page?: number;
 }) {
   const content = useRef<HTMLDivElement>(null);
+  const shownPage = useRef(page);
   useLayoutEffect(() => {
-    const viewport = content.current?.closest('[data-slot=scroll-area-viewport]');
-    if (page !== undefined && viewport) viewport.scrollTop = 0;
+    if (page === shownPage.current) return;
+    shownPage.current = page;
+    content.current?.scrollIntoView?.({ block: 'start' });
   }, [page]);
   return (
-    <div className="flex min-h-32 flex-1 flex-col gap-4">
-      <div className="-mx-4 flex min-h-0 flex-1 flex-col">
-        <ScrollArea fade height="fill">
-          <div className="px-4 py-1" ref={content}>
-            {children}
-          </div>
-        </ScrollArea>
-      </div>
+    <div className="flex scroll-mt-1 flex-col gap-4" ref={content}>
+      {children}
       {footer && <DataTablePagerCard>{footer}</DataTablePagerCard>}
     </div>
   );
@@ -63,12 +58,12 @@ export function DialogTable<TData extends RowData>({
 }: DialogTableProps<TData>) {
   if (cards) {
     return (
-      <DialogCardScroll footer={footer} page={table.state.pagination.pageIndex}>
+      <DialogCards footer={footer} page={table.state.pagination.pageIndex}>
         <div className="flex flex-col gap-4">
           <TableCards busy={busy} empty={empty} surface="flat" table={table} title={title} />
           {after}
         </div>
-      </DialogCardScroll>
+      </DialogCards>
     );
   }
   return (
@@ -92,7 +87,7 @@ export function DialogTableSkeleton<TData extends RowData>({
 }) {
   if (cards) {
     return (
-      <DialogCardScroll footer={<DataTablePaginationSkeleton layout={pagination} />}>
+      <DialogCards footer={<DataTablePaginationSkeleton layout={pagination} />}>
         <TableCardsSkeleton
           pagination={false}
           rowCount={rowCount}
@@ -100,7 +95,7 @@ export function DialogTableSkeleton<TData extends RowData>({
           table={table}
           title={title}
         />
-      </DialogCardScroll>
+      </DialogCards>
     );
   }
   return (

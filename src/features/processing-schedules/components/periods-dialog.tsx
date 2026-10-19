@@ -266,7 +266,7 @@ function PeriodForm({
             </FormDialogSubmit>
           </div>
         </div>
-        <div className={cards ? 'flex min-h-32 flex-1 flex-col' : 'grid min-h-32 flex-auto'}>
+        <div className={cards ? undefined : 'grid min-h-32 flex-auto'}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -332,7 +332,7 @@ function PeriodFormSkeleton({ cards, search }: { cards: boolean; search: Schedul
             </FormDialogSubmit>
           </div>
         </div>
-        <div className={cards ? 'flex min-h-32 flex-1 flex-col' : 'grid min-h-32 flex-auto'}>
+        <div className={cards ? undefined : 'grid min-h-32 flex-auto'}>
           <PeriodsTableSkeleton cards={cards} search={search} />
         </div>
       </FormDialogBody>

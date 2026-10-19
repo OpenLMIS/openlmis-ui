@@ -33,10 +33,12 @@ const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48, '2xl': 64 } as const;
 
 export type CardDialogSize = keyof typeof DIALOG_WIDTHS_REM;
 
+export const isDialogCards = (width: number | undefined, size: CardDialogSize, rem = 16) =>
+  width !== undefined &&
+  width < Math.min(CONTAINER_WIDTHS['2xl'], (DIALOG_WIDTHS_REM[size] - 2) * rem - 1);
+
 export function useDialogCardLayout<T extends HTMLElement>(size: CardDialogSize) {
   const [measure, width] = useElementWidth<T>();
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const room = (DIALOG_WIDTHS_REM[size] - 2) * rem - 1;
-  const cards = width !== undefined && width < Math.min(CONTAINER_WIDTHS['2xl'], room);
-  return { measure, width, cards };
+  return { measure, width, cards: isDialogCards(width, size, rem) };
 }

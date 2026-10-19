@@ -9,7 +9,6 @@ import {
 } from '@/components/card-list';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { DialogLoadError, DialogNotFound, SkeletonLine } from '@/components/dialog-parts';
-import { DialogCardScroll } from '@/components/dialog-table';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import {
   FormDialog,
@@ -140,7 +139,9 @@ function PopulationContent({
         </SettingsList>
       </div>
       {cards ? (
-        <PopulationCards zones={children} number={number} />
+        <FormDialogBody>
+          <PopulationCards zones={children} number={number} />
+        </FormDialogBody>
       ) : (
         <FormDialogBody layout="table">
           <PopulationTable zones={children} number={number} />
@@ -220,39 +221,37 @@ function PopulationCards({
 }) {
   const { t } = useTranslation();
   return (
-    <DialogCardScroll>
-      <CardList
-        empty={
-          zones.length === 0 && (
-            <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-              {t('geographic-zones.no-children')}
+    <CardList
+      empty={
+        zones.length === 0 && (
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">
+            {t('geographic-zones.no-children')}
+          </div>
+        )
+      }
+    >
+      {zones.map((zone) => (
+        <CardListItem key={zone.id} surface="flat">
+          <CardBand>
+            <div className="min-w-0 font-medium wrap-anywhere">
+              <bdi>{zone.name}</bdi>
             </div>
-          )
-        }
-      >
-        {zones.map((zone) => (
-          <CardListItem key={zone.id} surface="flat">
-            <CardBand>
-              <div className="min-w-0 font-medium wrap-anywhere">
-                <bdi>{zone.name}</bdi>
-              </div>
-            </CardBand>
-            <CardRows>
-              <SettingsItem label={t('geographic-zones.level')}>
-                <bdi>{orEmpty(zone.level.name)}</bdi>
-              </SettingsItem>
-              <SettingsItem label={t('geographic-zones.population')}>
-                <span className="tabular-nums">
-                  {zone.catchmentPopulation == null
-                    ? EMPTY_VALUE
-                    : number.format(zone.catchmentPopulation)}
-                </span>
-              </SettingsItem>
-            </CardRows>
-          </CardListItem>
-        ))}
-      </CardList>
-    </DialogCardScroll>
+          </CardBand>
+          <CardRows>
+            <SettingsItem label={t('geographic-zones.level')}>
+              <bdi>{orEmpty(zone.level.name)}</bdi>
+            </SettingsItem>
+            <SettingsItem label={t('geographic-zones.population')}>
+              <span className="tabular-nums">
+                {zone.catchmentPopulation == null
+                  ? EMPTY_VALUE
+                  : number.format(zone.catchmentPopulation)}
+              </span>
+            </SettingsItem>
+          </CardRows>
+        </CardListItem>
+      ))}
+    </CardList>
   );
 }
 
@@ -274,9 +273,9 @@ function PopulationSkeleton({ cards }: { cards: boolean }) {
         </SettingsList>
       </div>
       {cards ? (
-        <DialogCardScroll>
-          <CardListSkeleton count={5} pagination={false} rows={2} surface="flat" />
-        </DialogCardScroll>
+        <FormDialogBody>
+          <CardListSkeleton count={1} pagination={false} rows={2} surface="flat" />
+        </FormDialogBody>
       ) : (
         <FormDialogBody layout="table">
           <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">

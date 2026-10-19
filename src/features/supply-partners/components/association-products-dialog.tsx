@@ -24,7 +24,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { matchesNameOrCode } from '@/features/supply-partners/lib/search';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
-import { cn } from '@/lib/utils';
 
 const productLabel = (product: Orderable) =>
   product.fullProductName
@@ -122,97 +121,101 @@ function ProductsForm({
   });
   const unavailable = [...picked.keys()].filter((id) => !options.some((item) => item.id === id));
   return (
-    <FormDialogForm onSubmit={() => onCommit([...picked.keys()])}>
-      <FormDialogHeader>
-        <FormDialogTitle>{t('supply-partners.add-products')}</FormDialogTitle>
-        <FormDialogDescription>{t('supply-partners.selection-description')}</FormDialogDescription>
-      </FormDialogHeader>
-      <FormDialogBody layout="table">
-        <div className={cn('flex flex-col gap-4', cards && 'min-h-0 flex-1')} ref={measure}>
-          <search
-            className="w-full max-w-sm"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                event.stopPropagation();
-              }
-            }}
-          >
-            <DataTableSearch
-              value={query}
-              placeholder={t('supply-partners.search-items')}
-              onValueChange={(value) => {
-                setQuery(value);
-                setPagination((old) => ({ ...old, pageIndex: 0 }));
-              }}
-            />
-          </search>
-          <DialogTable
-            cards={cards}
-            table={table}
-            title="name"
-            empty={
-              <DataTableEmpty
-                icon={<PackageSearchIcon />}
-                title={t(query ? 'supply-partners.no-matches' : 'supply-partners.no-products')}
-                action={
-                  query && (
-                    <Button variant="destructive" onClick={() => setQuery('')}>
-                      {t('supply-partners.clear-search')}
-                    </Button>
-                  )
+    <div className="flex min-h-0 flex-1 flex-col" ref={measure}>
+      <FormDialogForm onSubmit={() => onCommit([...picked.keys()])}>
+        <FormDialogHeader>
+          <FormDialogTitle>{t('supply-partners.add-products')}</FormDialogTitle>
+          <FormDialogDescription>
+            {t('supply-partners.selection-description')}
+          </FormDialogDescription>
+        </FormDialogHeader>
+        <FormDialogBody layout="table">
+          <div className="flex flex-col gap-4">
+            <search
+              className="w-full max-w-sm"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  event.stopPropagation();
                 }
+              }}
+            >
+              <DataTableSearch
+                value={query}
+                placeholder={t('supply-partners.search-items')}
+                onValueChange={(value) => {
+                  setQuery(value);
+                  setPagination((old) => ({ ...old, pageIndex: 0 }));
+                }}
               />
-            }
-            footer={filtered.length > 0 && <DataTablePagination table={table} />}
-            after={
-              unavailable.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    {t('supply-partners.unavailable-for-add')}
-                  </p>
-                  {unavailable.map((id) => {
-                    const item = selectedProducts.find((product) => product.id === id);
-                    const label = item ? productLabel(item) : t('supply-partners.unavailable');
-                    return (
-                      <label
-                        key={id}
-                        htmlFor={`unavailable-${id}`}
-                        className="flex items-center gap-2"
-                      >
-                        <Checkbox
-                          id={`unavailable-${id}`}
-                          aria-label={label}
-                          checked
-                          onCheckedChange={() =>
-                            setPicked((old) => {
-                              const next = new Map(old);
-                              next.delete(id);
-                              return next;
-                            })
-                          }
-                        />
-                        <span dir="auto">{label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )
-            }
-          />
-        </div>
-      </FormDialogBody>
-      <FormDialogFooter>
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <p className="text-muted-foreground text-sm" role="status">
-            {t('supply-partners.selected-count', { count: picked.size })}
-          </p>
-          <div className="ms-auto flex max-w-full flex-wrap justify-end gap-2">
-            <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
-            <FormDialogSubmit>{t('supply-partners.add-products')}</FormDialogSubmit>
+            </search>
+            <DialogTable
+              cards={cards}
+              table={table}
+              title="name"
+              empty={
+                <DataTableEmpty
+                  icon={<PackageSearchIcon />}
+                  title={t(query ? 'supply-partners.no-matches' : 'supply-partners.no-products')}
+                  action={
+                    query && (
+                      <Button variant="destructive" onClick={() => setQuery('')}>
+                        {t('supply-partners.clear-search')}
+                      </Button>
+                    )
+                  }
+                />
+              }
+              footer={filtered.length > 0 && <DataTablePagination table={table} />}
+              after={
+                unavailable.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-muted-foreground text-sm">
+                      {t('supply-partners.unavailable-for-add')}
+                    </p>
+                    {unavailable.map((id) => {
+                      const item = selectedProducts.find((product) => product.id === id);
+                      const label = item ? productLabel(item) : t('supply-partners.unavailable');
+                      return (
+                        <label
+                          key={id}
+                          htmlFor={`unavailable-${id}`}
+                          className="flex items-center gap-2"
+                        >
+                          <Checkbox
+                            id={`unavailable-${id}`}
+                            aria-label={label}
+                            checked
+                            onCheckedChange={() =>
+                              setPicked((old) => {
+                                const next = new Map(old);
+                                next.delete(id);
+                                return next;
+                              })
+                            }
+                          />
+                          <span dir="auto">{label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )
+              }
+            />
           </div>
-        </div>
-      </FormDialogFooter>
-    </FormDialogForm>
+        </FormDialogBody>
+        <FormDialogFooter>
+          <div className="flex w-full flex-wrap items-center justify-between gap-3">
+            <p className="text-muted-foreground text-sm" role="status">
+              {t('supply-partners.selected-count', { count: picked.size })}
+            </p>
+            <div className="ms-auto flex max-w-full flex-wrap justify-end gap-2">
+              <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+              <FormDialogSubmit>{t('supply-partners.add-products')}</FormDialogSubmit>
+            </div>
+          </div>
+        </FormDialogFooter>
+      </FormDialogForm>
+    </div>
   );
 }

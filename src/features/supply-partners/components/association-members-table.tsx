@@ -12,7 +12,6 @@ import {
 import { TableCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { ReferenceName } from '@/features/supply-partners/components/supply-partner-references';
-import { useDialogCardLayout } from '@/hooks/use-card-view';
 
 export type Member = {
   id: string;
@@ -61,14 +60,15 @@ export function memberColumns(t: TFunction) {
   return [
     helper.accessor('name', {
       header: t('supply-partners.name'),
-      cell: ({ row }) => (
-        <div className="flex flex-col gap-1">
-          <ReferenceName name={row.original.name} pending={Boolean(row.original.loading)} />
-          {row.original.note && (
-            <span className="text-muted-foreground text-xs">{row.original.note}</span>
-          )}
-        </div>
-      ),
+      cell: ({ row }) =>
+        (row.original.loading || row.original.name || row.original.note) && (
+          <div className="flex flex-col gap-1">
+            <ReferenceName name={row.original.name} pending={Boolean(row.original.loading)} />
+            {row.original.note && (
+              <span className="text-muted-foreground text-xs">{row.original.note}</span>
+            )}
+          </div>
+        ),
     }),
     helper.accessor('code', {
       header: t('supply-partners.code'),
@@ -79,18 +79,19 @@ export function memberColumns(t: TFunction) {
 }
 
 export function AssociationMembersTable({
+  cards,
   rows,
   kind,
   pending,
   onRemove,
 }: {
+  cards: boolean;
   rows: Member[];
   kind: 'facilities' | 'products';
   pending: boolean;
   onRemove: (id: string, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useTranslation();
-  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
   const columns = useMemo(
     () =>
       helper.columns([
@@ -99,7 +100,7 @@ export function AssociationMembersTable({
           id: 'actions',
           header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
           meta: { className: 'w-16' },
-          cell: MemberRemoveCell,
+          cell: (context) => <MemberRemoveCell {...context} />,
         }),
       ]),
     [t],
@@ -120,13 +121,11 @@ export function AssociationMembersTable({
   );
   return (
     <MemberActionsContext value={{ kind, pending, onRemove }}>
-      <div ref={measure}>
-        {cards ? (
-          <TableCards empty={empty} surface="flat" table={table} title="name" />
-        ) : (
-          <DataTable table={table} layout="auto" empty={empty} />
-        )}
-      </div>
+      {cards ? (
+        <TableCards empty={empty} surface="flat" table={table} title="name" />
+      ) : (
+        <DataTable table={table} layout="auto" empty={empty} />
+      )}
     </MemberActionsContext>
   );
 }
