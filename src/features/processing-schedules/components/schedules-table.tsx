@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { CalendarDaysIcon, EllipsisIcon, PencilIcon, PlusIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -13,6 +13,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ import {
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ProcessingSchedule>();
@@ -39,11 +41,9 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
         <DataTableColumnHeader column={column} title={t('processing-schedules.code')} />
       ),
       cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate font-medium" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
+        <CellText dir="ltr" strong>
+          {getValue()}
+        </CellText>
       ),
       meta: { className: 'w-60 @xl/main:w-1/2' },
     }),
@@ -51,14 +51,8 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('processing-schedules.name')} />
       ),
-      cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate" dir="auto">
-            {getValue()}
-          </span>
-        </span>
-      ),
-      meta: { className: 'w-60 @xl/main:w-auto' },
+      cell: ({ getValue }) => <CellText>{getValue()}</CellText>,
+      meta: { className: 'w-60 @xl/main:w-auto', label: t('processing-schedules.name') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -106,6 +100,7 @@ function ScheduleActions({
 }
 
 type SchedulesTableProps = {
+  cards: boolean;
   search: SchedulesSearch;
   onSearchChange: SearchChange<SchedulesSearch>;
   onAdd: () => void;
@@ -119,6 +114,7 @@ const getRowId = (schedule: ProcessingSchedule) => schedule.id;
 const noop = () => {};
 
 function useSchedulesTable({
+  cards,
   data,
   rowCount,
   search,
@@ -127,13 +123,19 @@ function useSchedulesTable({
 }: Omit<SchedulesTableProps, 'onAdd'> & { data: ProcessingSchedule[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<SchedulesSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_SCHEDULES_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -143,25 +145,40 @@ function useSchedulesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
+  return { table, pageStart };
 }
 
-export function SchedulesTableSkeleton({ search }: Pick<SchedulesTableProps, 'search'>) {
-  const table = useSchedulesTable({
+export function SchedulesTableSkeleton({
+  cards,
+  search,
+}: Pick<SchedulesTableProps, 'cards' | 'search'>) {
+  const { table } = useSchedulesTable({
+    cards: false,
     data: NO_SCHEDULES,
     rowCount: 0,
     search,
     onSearchChange: noop,
     onEdit: noop,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="code" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
-export function SchedulesTable({ search, onSearchChange, onAdd, onEdit }: SchedulesTableProps) {
+export function SchedulesTable({
+  cards,
+  search,
+  onSearchChange,
+  onAdd,
+  onEdit,
+}: SchedulesTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(schedulesListOptions(toSchedulesQuery(deferredSearch)));
-  const table = useSchedulesTable({
+  const { table, pageStart } = useSchedulesTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -176,26 +193,32 @@ export function SchedulesTable({ search, onSearchChange, onAdd, onEdit }: Schedu
     }
   }, [isPastLastPage, data.totalPages, onSearchChange]);
 
-  return (
-    <DataTable
-      empty={
-        !isPastLastPage && (
-          <DataTableEmpty
-            action={
-              <Button onClick={onAdd}>
-                <PlusIcon data-icon="inline-start" />
-                {t('processing-schedules.add')}
-              </Button>
-            }
-            description={t('processing-schedules.empty-description')}
-            icon={<CalendarDaysIcon />}
-            title={t('processing-schedules.empty-title')}
-          />
-        )
+  const empty = !isPastLastPage && (
+    <DataTableEmpty
+      action={
+        <Button onClick={onAdd}>
+          <PlusIcon data-icon="inline-start" />
+          {t('processing-schedules.add')}
+        </Button>
       }
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
+      description={t('processing-schedules.empty-description')}
+      icon={<CalendarDaysIcon />}
+      title={t('processing-schedules.empty-title')}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="code"
+      />
+    );
+  }
+  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
 }

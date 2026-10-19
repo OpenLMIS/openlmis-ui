@@ -17,6 +17,7 @@ type ProductsToolbarProps = {
   search: ProductsSearch;
   onFilterChange: (patch: Partial<ProductsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd?: (() => void) | undefined;
 };
 
@@ -24,6 +25,7 @@ export function ProductsToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
   onAdd,
 }: ProductsToolbarProps) {
   const { t } = useTranslation();
@@ -65,6 +67,7 @@ export function ProductsToolbar({
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
           columns={PRODUCT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

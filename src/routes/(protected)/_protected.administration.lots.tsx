@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { BoxesIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -26,8 +24,8 @@ import {
   lotsSearchSchema,
   toLotsQuery,
 } from '@/features/lots/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const loadDialog = () => import('@/features/lots/components/lot-form-dialog');
 const LotFormDialog = lazy(() =>
@@ -35,8 +33,6 @@ const LotFormDialog = lazy(() =>
 );
 
 const CLOSED_DIALOGS = { lot: undefined } satisfies Partial<LotsSearch>;
-
-const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 export const Route = createFileRoute('/(protected)/_protected/administration/lots')({
   validateSearch: lotsSearchSchema,
@@ -57,11 +53,9 @@ function LotsPage() {
   });
   const lot = Route.useSearch({ select: (search) => search.lot });
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     LOT_HIDEABLE_COLUMNS,
-    useStoredState('lots.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
+    'lots.column-visibility',
   );
   const { updateSearch, openDialog, closeDialog } = useSearchNavigation<LotsSearch>(CLOSED_DIALOGS);
   const editLot = useCallback((id: string) => openDialog({ lot: id }), [openDialog]);
@@ -75,9 +69,10 @@ function LotsPage() {
     <Workspace>
       <LotsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <LotsToolbar
             columnView={columnView}
+            layout={layout}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
@@ -91,11 +86,16 @@ function LotsPage() {
               />
             )}
             pendingFallback={
-              <LotsTableSkeleton columnVisibility={columnView.visibility} search={search} />
+              <LotsTableSkeleton
+                cards={cards}
+                columnVisibility={columnView.visibility}
+                search={search}
+              />
             }
             resetKey={JSON.stringify(query)}
           >
             <LotsTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onEdit={editLot}
               onSearchChange={updateSearch}
@@ -129,11 +129,17 @@ function LotsHeader() {
 }
 
 function LotsPagePending() {
+  const { measure, cards, columnView } = useCardView(
+    LOT_HIDEABLE_COLUMNS,
+    'lots.column-visibility',
+  );
   return (
     <Workspace>
       <LotsHeader />
       <WorkspaceContent>
-        <LotsTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <LotsTableSkeleton cards={cards} columnVisibility={columnView.visibility} search={{}} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

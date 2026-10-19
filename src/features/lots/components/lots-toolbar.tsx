@@ -30,9 +30,10 @@ type LotsToolbarProps = {
   search: LotsSearch;
   onFilterChange: (patch: Partial<LotsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
 };
 
-export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarProps) {
+export function LotsToolbar({ search, onFilterChange, columnView, layout }: LotsToolbarProps) {
   const { t } = useTranslation();
 
   return (
@@ -82,6 +83,7 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
           columns={LOT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

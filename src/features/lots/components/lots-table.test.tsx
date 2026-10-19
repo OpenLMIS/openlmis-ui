@@ -41,7 +41,13 @@ describe('LotsTable', () => {
   it('shows each lot with its product and its dates in the page language', async () => {
     vi.mocked(fetchLotRows).mockResolvedValue(page([row()]));
     renderPage(
-      <LotsTable columnVisibility={{}} onEdit={vi.fn()} onSearchChange={vi.fn()} search={{}} />,
+      <LotsTable
+        cards={false}
+        columnVisibility={{}}
+        onEdit={vi.fn()}
+        onSearchChange={vi.fn()}
+        search={{}}
+      />,
     );
 
     const cells = within(await screen.findByRole('row', { name: /LC2017A/ }));
@@ -54,7 +60,13 @@ describe('LotsTable', () => {
   it('says when no product has the lot', async () => {
     vi.mocked(fetchLotRows).mockResolvedValue(page([row({ product: null })]));
     renderPage(
-      <LotsTable columnVisibility={{}} onEdit={vi.fn()} onSearchChange={vi.fn()} search={{}} />,
+      <LotsTable
+        cards={false}
+        columnVisibility={{}}
+        onEdit={vi.fn()}
+        onSearchChange={vi.fn()}
+        search={{}}
+      />,
     );
 
     expect(await screen.findByText('lots.no-product')).toBeInTheDocument();
@@ -64,7 +76,13 @@ describe('LotsTable', () => {
     vi.mocked(fetchLotRows).mockResolvedValue(page([row()]));
     const onEdit = vi.fn();
     renderPage(
-      <LotsTable columnVisibility={{}} onEdit={onEdit} onSearchChange={vi.fn()} search={{}} />,
+      <LotsTable
+        cards={false}
+        columnVisibility={{}}
+        onEdit={onEdit}
+        onSearchChange={vi.fn()}
+        search={{}}
+      />,
     );
     const user = userEvent.setup();
 
@@ -79,6 +97,7 @@ describe('LotsTable', () => {
     const onSearchChange = vi.fn();
     renderPage(
       <LotsTable
+        cards={false}
         columnVisibility={{}}
         onEdit={vi.fn()}
         onSearchChange={onSearchChange}
@@ -100,7 +119,13 @@ describe('LotsTable', () => {
   it('says there are no lots yet when nothing is filtered', async () => {
     vi.mocked(fetchLotRows).mockResolvedValue(page([]));
     renderPage(
-      <LotsTable columnVisibility={{}} onEdit={vi.fn()} onSearchChange={vi.fn()} search={{}} />,
+      <LotsTable
+        cards={false}
+        columnVisibility={{}}
+        onEdit={vi.fn()}
+        onSearchChange={vi.fn()}
+        search={{}}
+      />,
     );
 
     expect(await screen.findByText('lots.empty-title')).toBeInTheDocument();
@@ -111,6 +136,7 @@ describe('LotsTable', () => {
     const onSearchChange = vi.fn();
     renderPage(
       <LotsTable
+        cards={false}
         columnVisibility={{}}
         onEdit={vi.fn()}
         onSearchChange={onSearchChange}

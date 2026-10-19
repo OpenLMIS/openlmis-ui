@@ -44,7 +44,9 @@ beforeEach(() => {
 
 describe('LotsToolbar', () => {
   it('searches for products only once the product filter is opened', async () => {
-    renderPage(<LotsToolbar columnView={columnView} onFilterChange={vi.fn()} search={{}} />);
+    renderPage(
+      <LotsToolbar columnView={columnView} layout="table" onFilterChange={vi.fn()} search={{}} />,
+    );
     const user = await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
@@ -62,7 +64,9 @@ describe('LotsToolbar', () => {
       number: 0,
       size: 20,
     }));
-    renderPage(<LotsToolbar columnView={columnView} onFilterChange={vi.fn()} search={{}} />);
+    renderPage(
+      <LotsToolbar columnView={columnView} layout="table" onFilterChange={vi.fn()} search={{}} />,
+    );
     const user = await openFilters();
 
     const product = await screen.findByRole('combobox', { name: 'lots.product' });
@@ -76,7 +80,12 @@ describe('LotsToolbar', () => {
   it('filters by a product found on the server, back on the first page', async () => {
     const onFilterChange = vi.fn();
     renderPage(
-      <LotsToolbar columnView={columnView} onFilterChange={onFilterChange} search={{ page: 2 }} />,
+      <LotsToolbar
+        columnView={columnView}
+        layout="table"
+        onFilterChange={onFilterChange}
+        search={{ page: 2 }}
+      />,
     );
     const user = await openFilters();
 
@@ -91,6 +100,7 @@ describe('LotsToolbar', () => {
     renderPage(
       <LotsToolbar
         columnView={columnView}
+        layout="table"
         onFilterChange={vi.fn()}
         search={{ product: acid.id }}
       />,
@@ -106,6 +116,7 @@ describe('LotsToolbar', () => {
     renderPage(
       <LotsToolbar
         columnView={columnView}
+        layout="table"
         onFilterChange={onFilterChange}
         search={{ expiryTo: '2019-01-20' }}
       />,
@@ -136,6 +147,7 @@ describe('LotsToolbar', () => {
       return (
         <LotsToolbar
           columnView={columnView}
+          layout="table"
           onFilterChange={(patch) => setSearch((previous) => ({ ...previous, ...patch }))}
           search={search}
         />
@@ -175,6 +187,7 @@ describe('LotsToolbar', () => {
       return (
         <LotsToolbar
           columnView={columnView}
+          layout="table"
           onFilterChange={(patch) => setSearch((previous) => ({ ...previous, ...patch }))}
           search={search}
         />
@@ -201,6 +214,7 @@ describe('LotsToolbar', () => {
     renderPage(
       <LotsToolbar
         columnView={columnView}
+        layout="table"
         onFilterChange={vi.fn()}
         search={{ product: acid.id }}
       />,
@@ -216,6 +230,7 @@ describe('LotsToolbar', () => {
     renderPage(
       <LotsToolbar
         columnView={columnView}
+        layout="table"
         onFilterChange={vi.fn()}
         search={{ product: acid.id }}
       />,
@@ -229,6 +244,7 @@ describe('LotsToolbar', () => {
     renderPage(
       <LotsToolbar
         columnView={columnView}
+        layout="table"
         onFilterChange={vi.fn()}
         search={{ expiryFrom: '2019-01-10', expiryTo: '2019-01-20' }}
       />,
