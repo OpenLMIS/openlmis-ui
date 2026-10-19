@@ -489,9 +489,13 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   directly, so cells must not call hooks and must return `null` or `''` when empty to show
   `EMPTY_VALUE`. Sortable card lists pass `sort` to `DataTableViewOptions` from `searchSort`
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
-  history. Editor and dialog tables keep tables at every width, hiding lower-priority columns and
-  allowing sideways scrolling on phones. Keep headers on one line; every table header uses
-  `DataTableHeaderLabel`'s style, including loading skeletons.
+  history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
+  above the cards; `heading` renders group rows as headings, as on product Facility Types.
+  Components inside cells read `useInCards()`, e.g. for the ghost Remove button in editor cards.
+  Editor tables (product tabs, requisition groups, supervisory node links, supply partner
+  associations, user roles) switch to cards too. Dialog tables keep tables at every width, hiding
+  lower-priority columns and allowing sideways scrolling on phones. Keep headers on one line;
+  every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
