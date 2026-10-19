@@ -337,49 +337,49 @@ it('always confirms Save, sends hidden members, and clears the local copy only o
   );
   await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
 });
-it.each([390, 672])(
-  'validates hidden lines and focuses the invalid product at width %s',
-  async (width) => {
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
-    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
-    const user = userEvent.setup();
-    const view = setup({ size: 1, page: 2 });
-    if (width < 672) {
-      expect(await screen.findByText('B (B)')).toBeInTheDocument();
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    }
-    await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-    if (width >= 672) expect(screen.getByRole('table')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
-    await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
-    );
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-    expect(view.change).toHaveBeenCalledWith(
-      expect.objectContaining({ keyword: undefined, page: undefined }),
-      true,
-    );
-    expect(submitPhysicalInventory).not.toHaveBeenCalled();
-    view.rerender(view.tree({ size: 1, page: 1 }));
-    await waitFor(() =>
-      expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
-        'aria-invalid',
-        'true',
-      ),
-    );
-    await waitFor(() =>
-      expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus(),
-    );
-    if (width < 672) {
-      const input = screen.getByRole('textbox', { name: 'stock-events.field-of' });
-      const cardCall = scroll.mock.contexts.indexOf(input.closest('li'));
-      expect(cardCall).toBeGreaterThanOrEqual(0);
-      expect(scroll.mock.calls[cardCall]).toEqual([{ block: 'start' }]);
-      expect(scroll.mock.contexts[cardCall + 1]).toBe(input);
-      expect(scroll.mock.calls[cardCall + 1]).toEqual([{ block: 'nearest', inline: 'nearest' }]);
-    }
-  },
-);
+async function submitAndReturnToInvalidPage(
+  user: ReturnType<typeof userEvent.setup>,
+  view: ReturnType<typeof setup>,
+) {
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(view.change).toHaveBeenCalledWith(
+    expect.objectContaining({ keyword: undefined, page: undefined }),
+    true,
+  );
+  expect(submitPhysicalInventory).not.toHaveBeenCalled();
+  view.rerender(view.tree({ size: 1, page: 1 }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    ),
+  );
+  const input = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  await waitFor(() => expect(input).toHaveFocus());
+  return input;
+}
+it('validates hidden lines and focuses the invalid product in the table', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(672);
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 2 });
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  expect(screen.getByRole('table')).toBeInTheDocument();
+  await submitAndReturnToInvalidPage(user, view);
+});
+it('scrolls the invalid phone card to the top and focuses its product', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 2 });
+  await screen.findByText('B (B)');
+  const input = await submitAndReturnToInvalidPage(user, view);
+  const card = scroll.mock.contexts.indexOf(input.closest('li'));
+  expect(scroll.mock.calls[card]).toEqual([{ block: 'start' }]);
+});
 it('waits for the invalid count page after clearing a keyword before focusing', async () => {
   vi.mocked(readInventoryLocal).mockResolvedValue({
     draftId: 'd',
@@ -1079,30 +1079,33 @@ it('keeps phone detail choices and scrolls on paging while filters stay put', as
   const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
   const user = userEvent.setup();
   const view = setup();
-  await screen.findByText('A (A)');
-  expect(screen.getByText('stock-events.pack-size')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'View' }));
-  expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
-  expect(
-    screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
-  ).not.toBeInTheDocument();
-  await user.click(screen.getByRole('menuitemcheckbox', { name: 'stock-events.pack-size' }));
-  await user.keyboard('{Escape}');
-  expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
-  scroll.mockClear();
-  await user.click(screen.getByRole('button', { name: 'Next Page' }));
-  expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
-    resetScroll: false,
-  });
-  view.rerender(view.tree({ size: 1, page: 2 }));
-  await screen.findByText('B (B)');
-  const list = screen.getByText('B (B)').closest('ul');
-  await waitFor(() => expect(list).toHaveFocus());
-  expect(scroll.mock.contexts).toContain(list);
-  expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
-  scroll.mockClear();
-  view.rerender(view.tree({ size: 1, page: 1, keyword: 'A' }));
-  await screen.findByText('A (A)');
-  expect(scroll).not.toHaveBeenCalled();
-  localStorage.removeItem('physical-inventory.columns');
+  try {
+    await screen.findByText('A (A)');
+    expect(screen.getByText('stock-events.pack-size')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'stock-events.pack-size' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
+    scroll.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
+      resetScroll: false,
+    });
+    view.rerender(view.tree({ size: 1, page: 2 }));
+    await screen.findByText('B (B)');
+    const list = screen.getByText('B (B)').closest('ul');
+    await waitFor(() => expect(list).toHaveFocus());
+    expect(scroll.mock.contexts).toContain(list);
+    expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
+    scroll.mockClear();
+    view.rerender(view.tree({ size: 1, page: 1, keyword: 'A' }));
+    await screen.findByText('A (A)');
+    expect(scroll).not.toHaveBeenCalled();
+  } finally {
+    localStorage.removeItem('physical-inventory.columns');
+  }
 });

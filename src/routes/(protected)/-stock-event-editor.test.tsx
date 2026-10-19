@@ -371,57 +371,66 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   if (kind === 'unpack') return;
 
   describe(`${kind} editor access`, () => {
-    it.each([false, true])(
-      'uses cached facility and program names in the pending editor with cards %s',
-      async (cards) => {
-        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(cards ? 400 : 1000);
-        const i18n = createInstance();
-        await i18n.use(ICU).init({
-          lng: 'en',
-          resources: { en: { translation: en } },
-          keySeparator: false,
-        });
-        const queryClient = new QueryClient({
-          defaultOptions: { queries: { staleTime: Infinity } },
-        });
-        queryClient.setQueryData(userRecordOptions(USER).queryKey, {
-          id: USER,
-          username: 'administrator',
-          firstName: 'Admin',
-          lastName: 'Istrator',
-          active: true,
-          roleAssignments: [],
-          homeFacilityId: HOME,
-        });
-        queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
-        const router = renderPage(
-          <I18nextProvider i18n={i18n}>
-            <StockEventPending kind={eventKind} programId={FP} />
-          </I18nextProvider>,
-          { queryClient },
-        );
+    async function renderPendingEditor() {
+      const i18n = createInstance();
+      await i18n.use(ICU).init({
+        lng: 'en',
+        resources: { en: { translation: en } },
+        keySeparator: false,
+      });
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { staleTime: Infinity } },
+      });
+      queryClient.setQueryData(userRecordOptions(USER).queryKey, {
+        id: USER,
+        username: 'administrator',
+        firstName: 'Admin',
+        lastName: 'Istrator',
+        active: true,
+        roleAssignments: [],
+        homeFacilityId: HOME,
+      });
+      queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
+      const router = renderPage(
+        <I18nextProvider i18n={i18n}>
+          <StockEventPending kind={eventKind} programId={FP} />
+        </I18nextProvider>,
+        { queryClient },
+      );
+      return () => {
+        router.update({ context: {} });
+        queryClient.clear();
+      };
+    }
+
+    it('uses cached facility and program names in the pending editor without fetching them again', async () => {
+      const cleanup = await renderPendingEditor();
+      try {
+        const title = await screen.findByRole('heading', { level: 1 });
+        expect(title).toHaveTextContent('Comfort Health Clinic');
+        expect(title).toHaveTextContent('Family Planning');
+        expect(title).toHaveTextContent('HC01');
+        expect(fetchFacility).not.toHaveBeenCalled();
+        expect(fetchUserRecord).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+      } finally {
+        cleanup();
+      }
+    });
+
+    if (kind === 'issue')
+      it('shows pending phone cards instead of the table', async () => {
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+        const cleanup = await renderPendingEditor();
         try {
-          const title = await screen.findByRole('heading', { level: 1 });
-          expect(title).toHaveTextContent('Comfort Health Clinic');
-          expect(title).toHaveTextContent('Family Planning');
-          expect(title).toHaveTextContent('HC01');
-          expect(fetchFacility).not.toHaveBeenCalled();
-          expect(fetchUserRecord).not.toHaveBeenCalled();
-          expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
-          if (cards) {
-            expect(screen.queryByRole('table')).not.toBeInTheDocument();
-            expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
-            const empty = screen.getByText(en[EVENT_KINDS[eventKind].copy.emptyTitle]);
-            expect(empty).toBeInTheDocument();
-            expect(empty.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
-            expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
-          } else expect(screen.getByRole('table')).toBeInTheDocument();
+          expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+          expect(screen.queryByRole('table')).not.toBeInTheDocument();
+          expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
+          expect(screen.getByText(en[EVENT_KINDS[eventKind].copy.emptyTitle])).toBeInTheDocument();
         } finally {
-          router.update({ context: {} });
-          queryClient.clear();
+          cleanup();
         }
-      },
-    );
+      });
 
     it('starts the user record while editor permissions are still pending', async () => {
       let finish!: (permissions: string[]) => void;

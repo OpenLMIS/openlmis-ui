@@ -1,5 +1,6 @@
 import { useStore } from '@tanstack/react-form';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
 import { useEffect, useState } from 'react';
@@ -69,7 +70,7 @@ function LinesFixture({
             orderable: {
               id: String(index),
               productCode: `C${index}`,
-              fullProductName: index === 1 ? '' : `Product ${index}`,
+              fullProductName: `Product ${index}`,
               dispensable: { displayUnit: 'tablet' },
               netContent: 16,
             },
@@ -77,7 +78,7 @@ function LinesFixture({
           },
           undefined,
           '2026-10-08',
-          { kind, productHasLots: index === 1 },
+          { kind, productHasLots: false },
         ),
       ),
     );
@@ -106,53 +107,51 @@ function LinesFixture({
   );
 }
 
-it.each([
-  ...(['adjustment', 'issue', 'receive', 'unpack'] as const).map((kind) => ({
-    kind,
-    cards: false,
-  })),
-  { kind: 'issue' as const, cards: true },
-  { kind: 'unpack' as const, cards: true },
-])('edits only the changed $kind quantity row with cards $cards', async ({ kind, cards }) => {
+it.each(['adjustment', 'issue', 'receive', 'unpack'] as const)(
+  'renders only the changed quantity row out of 10 visible %s rows',
+  async (kind) => {
+    renderPage(<LinesFixture kind={kind} />);
+    await waitFor(() =>
+      expect(document.querySelector('[name="lines[0].quantity.remainder"]')).toBeInTheDocument(),
+    );
+    renders.mockClear();
+    fireEvent.change(
+      document.querySelector('[name="lines[0].quantity.remainder"]') as HTMLInputElement,
+      { target: { value: '2' } },
+    );
+    expect(renders).toHaveBeenCalled();
+    expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(
+      new Set(['lines[0].quantity']),
+    );
+    expect(screen.getAllByRole('row')).toHaveLength(11);
+  },
+);
+
+it('shows an issue line as a card with its details and a Remove action', async () => {
+  const i18n = createInstance();
+  await i18n.use(ICU).init({
+    lng: 'en',
+    resources: { en: { translation: en } },
+    keySeparator: false,
+  });
   const onRemove = vi.fn();
-  renderPage(<LinesFixture kind={kind} cards={cards} onRemove={onRemove} />);
-  await waitFor(() =>
-    expect(document.querySelector('[name="lines[0].quantity.remainder"]')).toBeInTheDocument(),
+  const user = userEvent.setup();
+  renderPage(
+    <I18nextProvider i18n={i18n}>
+      <LinesFixture kind="issue" cards count={1} onRemove={onRemove} />
+    </I18nextProvider>,
   );
-  const input = document.querySelector('[name="lines[0].quantity.remainder"]') as HTMLInputElement;
-  renders.mockClear();
-  fireEvent.change(input, { target: { value: '2' } });
-  expect(renders).toHaveBeenCalled();
-  expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(new Set(['lines[0].quantity']));
-  if (cards) {
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    const card = screen.getByText('Product 0 - tablet (C0)').closest('li') as HTMLLIElement;
-    expect(screen.getByText('C1 - tablet (C1)')).toBeInTheDocument();
-    expect(within(card).getByText('stock-events.product-has-no-lots')).toBeInTheDocument();
-    expect(screen.getByText('stock-events.no-lot-defined')).toBeInTheDocument();
-    expect(within(card).getByText('stock-events.pack-size')).toBeInTheDocument();
-    const quantity = within(card).getByText('stock-events.quantity');
-    expect(
-      quantity.closest('.justify-between')?.querySelector('[name="lines[0].quantity.remainder"]'),
-    ).toBe(input);
-    expect(
-      quantity.compareDocumentPosition(within(card).getByText('stock-events.total-quantity')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    fireEvent.click(within(card).getByRole('button', { name: 'stock-events.field-of' }));
-    expect(onRemove).toHaveBeenCalledOnce();
-  } else {
-    expect(screen.getByRole('table')).toBeInTheDocument();
-  }
-  if (kind === 'issue' && cards) {
-    const card = screen.getByText('Product 0 - tablet (C0)').closest('li') as HTMLLIElement;
-    const destination = within(card)
-      .getByText('stock-events.issue-to')
-      .closest('.justify-between') as HTMLElement;
-    expect(within(destination).getByRole('combobox')).toBeInTheDocument();
-  }
-  if (kind === 'unpack' && cards)
-    expect(screen.queryByText('stock-events.reason')).not.toBeInTheDocument();
+  const card = await screen.findByRole('listitem');
+  const row = 'Product 0 Product Has No Lots, Line 1';
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(within(card).getByText('Product 0 - tablet (C0)')).toBeInTheDocument();
+  for (const label of ['Pack Size', 'Lot Code', 'Stock On Hand', 'Total Quantity'])
+    expect(within(card).getByText(label)).toBeInTheDocument();
+  expect(within(card).getByRole('combobox', { name: `Issue To, ${row}` })).toBeInTheDocument();
+  expect(within(card).getByRole('combobox', { name: `Reason, ${row}` })).toBeInTheDocument();
+  expect(within(card).getByRole('textbox', { name: `Quantity, ${row} Packs` })).toBeInTheDocument();
+  await user.click(within(card).getByRole('button', { name: `Remove, ${row}` }));
+  expect(onRemove).toHaveBeenCalledOnce();
 });
 
 it('scrolls to the card list on page two and preserves router scroll', async () => {

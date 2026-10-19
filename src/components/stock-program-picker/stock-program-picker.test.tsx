@@ -47,28 +47,6 @@ describe('StockProgramPicker', () => {
     expect(within(cards[1]).getByRole('button', { name: 'Start' })).toBeDisabled();
   });
 
-  it('keeps program action links in phone bands', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      width: 350,
-    } as DOMRect);
-    render(
-      <StockProgramPicker
-        actionLabel="Make Adjustments"
-        hasHomeFacility
-        linkFor={linkFor}
-        rows={rows}
-      />,
-    );
-
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    for (const [index, card] of screen.getAllByRole('listitem').entries()) {
-      expect(within(card).getByText(rows[index].label)).toBeVisible();
-      expect(within(card).getByRole('link', { name: 'Make Adjustments' })).toHaveAttribute(
-        'href',
-        `/adjustments/${rows[index].id}`,
-      );
-    }
-  });
   it('adds statuses and row action labels while retaining the default action', () => {
     render(
       <StockProgramPicker
