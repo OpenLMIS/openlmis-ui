@@ -1,7 +1,12 @@
+import { readFile } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { test } from './browser-fixtures';
 import { enqueue, records } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
+
+const catalog = JSON.parse(
+  await readFile(new URL('../../public/locales/en.json', import.meta.url), 'utf8'),
+);
 
 test('sign-out and a different sign-in isolate device work and the original owner recovers it', async ({
   context,
@@ -21,8 +26,10 @@ test('sign-out and a different sign-in isolate device work and the original owne
   await context.setOffline(false);
   await stub(context, async () => 'finish', undefined, 'other-user');
   await login(page, 'other-user');
-  await page.goto('./stock-management/device-events');
-  await expect(page.getByText('No Device Events', { exact: true })).toBeVisible();
+  await page.goto('./offline-events');
+  await expect(
+    page.getByText(catalog['device-events.no-events-title'], { exact: true }),
+  ).toBeVisible();
   const storage = await page.evaluate(async () => ({
     names: (await indexedDB.databases()).map((db) => db.name),
     local: JSON.stringify(localStorage),
@@ -45,7 +52,10 @@ test('sign-out and a different sign-in isolate device work and the original owne
   });
   await login(page);
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(1);
-  await page.getByRole('link', { name: 'Device Events', exact: true }).first().click();
+  await page
+    .getByRole('link', { name: catalog['device-events.title'], exact: true })
+    .first()
+    .click();
   expect(posts).toBe(1);
   expect((await records(page, 'stockEventDrafts'))[0].signature).toBe('Private Original Signature');
 });

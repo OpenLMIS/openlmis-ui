@@ -1,16 +1,18 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
-import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
+import { IsolatingICU } from '@/lib/isolate-values';
 
 const i18n = createInstance();
 beforeAll(() =>
-  i18n.use(ICU).init({ lng: 'en', resources: { en: { translation: en } }, keySeparator: false }),
+  i18n
+    .use(IsolatingICU)
+    .init({ lng: 'en', resources: { en: { translation: en } }, keySeparator: false }),
 );
 function dialog(pending: boolean, onConfirm: (signature: string) => void) {
   return (
@@ -32,7 +34,14 @@ describe('SignatureDialog', () => {
   it('accepts an empty signature and names the submitting user', async () => {
     const onConfirm = vi.fn();
     render(dialog(false, onConfirm));
-    expect(screen.getByText('Submitted By ada')).toBeInTheDocument();
+    const input = screen.getByRole('textbox', { name: 'Signature' });
+    expect(input).toHaveAccessibleDescription('Submitted By ada');
+    const description = document.getElementById(input.getAttribute('aria-describedby') ?? '');
+    expect(description?.querySelector('strong')).toHaveTextContent('ada');
+    expect(
+      input.compareDocumentPosition(description as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Choose Signature' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(''));
   });

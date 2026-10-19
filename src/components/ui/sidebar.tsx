@@ -493,13 +493,13 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-start text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pe-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-start text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pe-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! not-data-unavailable:hover:bg-sidebar-accent not-data-unavailable:hover:text-sidebar-accent-foreground focus-visible:ring-2 not-data-unavailable:active:bg-sidebar-accent not-data-unavailable:active:text-sidebar-accent-foreground data-unavailable:cursor-default data-unavailable:opacity-50 disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 not-data-unavailable:data-open:hover:bg-sidebar-accent not-data-unavailable:data-open:hover:text-sidebar-accent-foreground not-data-unavailable:data-active:bg-sidebar-accent not-data-unavailable:data-active:font-medium not-data-unavailable:data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
-        default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        default: "not-data-unavailable:hover:bg-sidebar-accent not-data-unavailable:hover:text-sidebar-accent-foreground",
         outline:
-          "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
+          "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] not-data-unavailable:hover:bg-sidebar-accent not-data-unavailable:hover:text-sidebar-accent-foreground not-data-unavailable:hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
       },
       size: {
         default: "h-8 text-sm",
@@ -600,14 +600,18 @@ function SidebarMenuAction({
 
 function SidebarMenuBadge({
   className,
+  collapsed = "hidden",
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { collapsed?: "hidden" | "indicator" }) {
   return (
     <div
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(
-        "pointer-events-none absolute end-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
+        "pointer-events-none absolute end-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
+        collapsed === "indicator"
+          ? "group-data-[collapsible=icon]:end-0 group-data-[collapsible=icon]:top-0! group-data-[collapsible=icon]:size-2.5 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:bg-primary group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:text-transparent! group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar"
+          : "group-data-[collapsible=icon]:hidden",
         className
       )}
       {...props}
@@ -702,7 +706,7 @@ function SidebarMenuSubButton({
     props: mergeProps<"a">(
       {
         className: cn(
-          "flex h-7 w-full min-w-0 -translate-x-px rtl:translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
+          "flex h-7 w-full min-w-0 -translate-x-px rtl:translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:hidden not-data-unavailable:hover:bg-sidebar-accent not-data-unavailable:hover:text-sidebar-accent-foreground focus-visible:ring-2 not-data-unavailable:active:bg-sidebar-accent not-data-unavailable:active:text-sidebar-accent-foreground data-unavailable:cursor-default data-unavailable:opacity-50 disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs not-data-unavailable:data-active:bg-sidebar-accent not-data-unavailable:data-active:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
           className
         ),
       },

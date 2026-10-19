@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, type Page } from '@playwright/test';
@@ -6,12 +6,16 @@ import { test } from './browser-fixtures';
 import { enqueue, records } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
 
+const catalog = JSON.parse(await readFile('public/locales/en.json', 'utf8'));
+
 const uuid = (number: number) => `11111111-1111-4111-8111-${String(number).padStart(12, '0')}`;
 async function ready(page: Page) {
   await login(page);
   await expect.poll(() => generation(page)).not.toBeNull();
-  await page.goto('./stock-management/device-events');
-  await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+  await page.goto('./offline-events');
+  await expect(
+    page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+  ).toBeVisible();
 }
 
 test('interrupted upload becomes uncertain after restart and is never automatically resent', async ({
@@ -43,11 +47,11 @@ test('interrupted upload becomes uncertain after restart and is never automatica
     context = await persistentContext(directory);
     await attach();
     page = context.pages()[0];
-    await page.goto('./stock-management/device-events');
+    await page.goto('./offline-events');
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('uncertain');
-    await expect(page.getByRole('table')).toContainText('Needs Review');
+    await expect(page.getByRole('table')).toContainText(catalog['device-events.status-uncertain']);
     expect(posts).toEqual(['Unknown']);
   } finally {
     await context.close();
@@ -78,17 +82,21 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   });
   await ready(page);
   const other = await context.newPage();
-  await other.goto('./stock-management/device-events');
-  await expect(other.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+  await other.goto('./offline-events');
+  await expect(
+    other.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+  ).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'First' }, { signature: 'Second' }]);
   await context.setOffline(false);
   await expect.poll(() => posts.length).toBe(1);
-  await expect(page.getByRole('note').filter({ hasText: 'Syncing Device Events' })).toBeVisible();
+  await expect(
+    page.getByRole('note').filter({ hasText: catalog['device-events.syncing'] }),
+  ).toBeVisible();
   expect(posts[0].signature).toBe('First');
   expect(posts[0]).not.toHaveProperty('documentNumber');
   expect(await records(page, 'stockEventReceipts')).toHaveLength(0);
-  await expect(page.getByRole('table')).not.toContainText('Synced');
+  await expect(page.getByRole('table')).not.toContainText(catalog['device-events.status-accepted']);
   expect(maximum).toBe(1);
   await releases[0]();
   await expect.poll(() => posts.length).toBe(2);
@@ -97,7 +105,21 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   expect(await records(page, 'stockEventReceipts')).toHaveLength(1);
   await releases[1]();
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(2);
-  await expect(page.getByRole('table')).toContainText('Synced');
+  await expect(page.getByRole('table')).toContainText(catalog['device-events.status-accepted']);
+  await expect
+    .poll(async () =>
+      (
+        await Promise.all(
+          [page, other].map((tab) =>
+            tab
+              .getByRole('note')
+              .filter({ hasText: catalog['device-events.sync-complete'] })
+              .isVisible(),
+          ),
+        )
+      ).some(Boolean),
+    )
+    .toBe(true);
   expect(await records(page, 'stockEventQueue')).toHaveLength(0);
   expect(posts).toHaveLength(2);
   expect(maximum).toBe(1);
@@ -117,8 +139,10 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
   });
   await ready(page);
   const other = await context.newPage();
-  await other.goto('./stock-management/device-events');
-  await expect(other.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+  await other.goto('./offline-events');
+  await expect(
+    other.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+  ).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'Interrupted Owner' }, { signature: 'Held Behind Owner' }]);
   await context.setOffline(false);
@@ -129,7 +153,9 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
   await expect
     .poll(async () => (await records(survivor, 'stockEventQueue'))[0]?.status)
     .toBe('uncertain');
-  await expect(survivor.getByRole('table')).toContainText('Needs Review');
+  await expect(survivor.getByRole('table')).toContainText(
+    catalog['device-events.status-uncertain'],
+  );
   expect(await records(survivor, 'stockEventQueue')).toHaveLength(2);
   expect(posts).toBe(1);
 });

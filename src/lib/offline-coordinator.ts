@@ -38,6 +38,7 @@ type Dependencies = {
   bundle?: (filter: AdjustmentScope, signal: AbortSignal) => Promise<AdjustmentBundle>;
 };
 type Trigger = 'boot' | 'force' | 'retry' | 'refresh';
+const triggerPriority: Record<Trigger, number> = { refresh: 0, boot: 1, retry: 2, force: 3 };
 
 function accessReaders(config: AxiosRequestConfig): AccessReaders {
   return {
@@ -82,6 +83,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       );
   };
   const run = async (trigger: Trigger) => {
+    const publishRun = (status: DownloadStatus) => publish({ ...status, trigger });
     const { referenceDataUserId: userId, isAuthenticated, expired } = useLoginData.getState();
     if (stopped || !userId || !isAuthenticated || expired || !isOnline()) return;
     const db = getLocalDb();
@@ -131,11 +133,11 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
         };
     }
     if (!navigator.locks) {
-      publish({ phase: 'unsupported', incompletePrograms: [] });
+      publishRun({ phase: 'unsupported', incompletePrograms: [] });
       return;
     }
     if (active) {
-      pending = pending === 'force' || trigger === 'force' ? 'force' : trigger;
+      if (!pending || triggerPriority[trigger] > triggerPriority[pending]) pending = trigger;
       return;
     }
     const controller = new AbortController();
@@ -185,7 +187,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                 ? downloadIsStale(saved)
                 : !accessChanged;
         if (refreshAccess) {
-          publish({ phase: 'running', incompletePrograms: [], accessFailed: true });
+          publishRun({ phase: 'running', incompletePrograms: [], accessFailed: true });
           const config = {
             session: false,
             backgroundRead: true,
@@ -261,7 +263,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
             ...queue.map((program) => ({ id: program.id, name: program.name ?? program.code })),
           ].map((program) => [program.id, program]),
         );
-        publish({
+        publishRun({
           phase: 'running',
           incompletePrograms: [...incomplete.values()],
           accessFailed: false,
@@ -295,7 +297,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
               });
               check();
               incomplete.delete(program.id);
-              publish({
+              publishRun({
                 phase: 'running',
                 incompletePrograms: [...incomplete.values()],
                 accessFailed: false,
@@ -308,7 +310,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                 error.code !== AxiosError.ECONNABORTED &&
                 error.code !== AxiosError.ERR_CANCELED
               ) {
-                publish({
+                publishRun({
                   phase: 'failed',
                   incompletePrograms: [...incomplete.values()],
                   reason: 'offline',
@@ -325,7 +327,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
         };
         await Promise.all(Array.from({ length: Math.min(2, queue.length) }, worker));
         check();
-        publish(
+        publishRun(
           failed.length
             ? {
                 phase: 'failed',
@@ -338,7 +340,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       });
     } catch (error) {
       if (scope === getSessionScope() && !stopped && !controller.signal.aborted) {
-        publish({
+        publishRun({
           ...getDownloadStatus(),
           phase: 'failed',
           reason:

@@ -1,8 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { AxiosError, isAxiosError } from 'axios';
 import { useEffect, useEffectEvent, useSyncExternalStore } from 'react';
-
-const BACK_ONLINE_MS = 4000;
+import { createNoticeCountdown } from '@/lib/notice-countdown';
 
 let unreachable = false;
 let probeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -75,7 +74,7 @@ let connectionGeneration = 0;
 export const getConnectionGeneration = () => connectionGeneration;
 
 let backOnline = false;
-let backOnlineTimer: ReturnType<typeof setTimeout> | undefined;
+export const backOnlineCountdown = createNoticeCountdown(() => setBackOnline(false));
 const backOnlineListeners = new Set<() => void>();
 
 function setBackOnline(value: boolean) {
@@ -91,9 +90,9 @@ onlineManager.subscribe((online) => {
     probeTimer = undefined;
     probeController?.abort();
   }
-  clearTimeout(backOnlineTimer);
+  backOnlineCountdown.stop();
   setBackOnline(online);
-  if (online) backOnlineTimer = setTimeout(() => setBackOnline(false), BACK_ONLINE_MS);
+  if (online) backOnlineCountdown.start();
 });
 
 export function seedOnline() {
@@ -119,7 +118,7 @@ export function useOnReconnect(callback: () => void) {
 }
 
 export const dismissBackOnline = () => {
-  clearTimeout(backOnlineTimer);
+  backOnlineCountdown.stop();
   setBackOnline(false);
 };
 

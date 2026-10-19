@@ -653,7 +653,7 @@ export function EventEditor({
             ),
             action: {
               label: t('device-events.review'),
-              onClick: () => void navigate({ to: '/stock-management/device-events' }),
+              onClick: () => void navigate({ to: '/offline-events' }),
             },
           },
         );
@@ -1056,7 +1056,7 @@ export function EventEditor({
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => void navigate({ to: '/stock-management/device-events' })}
+                    onClick={() => void navigate({ to: '/offline-events' })}
                   >
                     {t('device-events.review')}
                   </Button>

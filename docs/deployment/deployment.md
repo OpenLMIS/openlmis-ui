@@ -356,8 +356,8 @@ job, the OAuth client, the compose entry and how to verify.
 
 Serve the new UI over HTTPS, with its service worker, app assets, `config.json` and language
 catalogs under the same configured base path. A successful page load alone does not mean a
-program is downloaded. Check Adjustments readiness in the actual browser profile before
-disconnecting. Keep `/api` outside the `/v2` asset cache; API responses must never be cached
+program is downloaded. Wait for Adjustments downloads to finish in the actual browser profile
+and check sidebar failures before disconnecting. Keep `/api` outside the `/v2` asset cache; API responses must never be cached
 by a proxy or service worker as an offline substitute.
 
 Offline download and upload coordination requires Web Locks. Browsers without it show an

@@ -7,18 +7,18 @@ See [Working Offline](../working-offline/working-offline.md) for day-to-day inst
 ## Available Behavior
 
 The app's files and all language catalogs are saved after an online visit. Home, Adjustments and
-Device Events can then reopen offline, including after a browser restart. Other pages and
+Offline Events can then reopen offline, including after a browser restart. Other pages and
 print/PDF actions explain that they need a connection.
 
 At sign-in, the app downloads permitted home-facility Adjustments programs in the background.
 Each program becomes ready only when its complete bundle is stored. The sidebar reports progress
 and failures. Reconnect and same-user renewal refresh access and bundles; connected boot reuses
-complete data younger than 30 minutes. Older complete copies remain usable offline and show
-their downloaded time. A failed refresh keeps the previous complete copy.
+complete data younger than 30 minutes. Older complete copies remain usable offline.
+A failed refresh keeps the previous complete copy.
 
 This workflow permits a new local Adjustment, not just editing an existing server draft. Issue,
 Receive, Stock On Hand, Stock Card and Physical Inventory still need their offline passes in
-FM-166. Full pending-events and sync-error pages remain FM-168 and FM-169; Device Events already
+FM-166. Full pending-events and sync-error pages remain FM-168 and FM-169; Offline Events already
 provides the recovery decisions needed by the Adjustments spike.
 
 ## Data And Saves
@@ -33,7 +33,7 @@ home/program context, stock summaries with referenced product versions and lots,
 and referenced barcode mappings when scanning is enabled. Full stock-card history and the full
 Receive catalog are separate datasets and are not implied by Adjustments readiness.
 
-Autosave saves editable drafts before showing Saved on this device. Checks on the saved version
+Autosave saves editable drafts before showing Saved On This Device. Checks on the saved version
 stop one tab from overwriting another. Signed submission saves a fixed copy and adds it to the
 events waiting to send. Refreshing server data never overwrites local edits or signed events.
 Sign-in information and preferences are kept separately from business records and device work.

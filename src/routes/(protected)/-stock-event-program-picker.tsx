@@ -2,10 +2,9 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { type ErrorComponentProps, Link } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
-import { ClipboardPenLineIcon } from 'lucide-react';
+import { ClipboardPenLineIcon, ZapIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
-import { formatTimestamp } from '@/components/form/date-value';
+import { Trans, useTranslation } from 'react-i18next';
 import { LoadError } from '@/components/load-error';
 import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -34,10 +33,9 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import { useAdjustmentReadiness } from '@/hooks/use-adjustment-readiness';
-import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
+import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
-import { useDownloadStatus } from '@/lib/offline-download-status';
+import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
 
@@ -106,7 +104,6 @@ function pickerCopy(source: PickerSource): PickerCopy {
     title: copy.pickerTitle,
     description: copy.pageDescription,
     action: copy.make,
-    status: EVENT_KINDS[source.kind].download ? 'offline.download.readiness' : undefined,
   };
 }
 type PickerProps = {
@@ -140,13 +137,7 @@ export function StockEventProgramPicker(props: PickerProps) {
           pendingFallback={
             <StockProgramPickerSkeleton
               actionLabel={t(copy.action)}
-              statusLabel={
-                copy.status === 'offline.download.readiness' ? (
-                  <ReadinessLabel />
-                ) : copy.status ? (
-                  t(copy.status)
-                ) : undefined
-              }
+              statusLabel={copy.status ? t(copy.status) : undefined}
               actionsLabel={copy.actions ? t(copy.actions) : undefined}
             />
           }
@@ -158,20 +149,9 @@ export function StockEventProgramPicker(props: PickerProps) {
             right={'kind' in props ? RIGHTS.stockAdjust : props.right}
             renderTable={
               'kind' in props
-                ? (table) =>
-                    EVENT_KINDS[props.kind].download ? (
-                      <DownloadedProgramsTable
-                        {...table}
-                        action={copy.action}
-                        editorLink={props.editorLink}
-                      />
-                    ) : (
-                      <ProgramsTable
-                        {...table}
-                        action={copy.action}
-                        editorLink={props.editorLink}
-                      />
-                    )
+                ? (table) => (
+                    <ProgramsTable {...table} action={copy.action} editorLink={props.editorLink} />
+                  )
                 : props.children
             }
           />
@@ -184,21 +164,25 @@ export function StockEventProgramPicker(props: PickerProps) {
 function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
   const { t } = useTranslation();
   const { events } = useDeviceEvents();
+  const online = useOnline();
   const count =
-    events?.filter(
-      (event) =>
-        event.kind === kind &&
-        (['queued', 'sending', 'uncertain'].includes(event.status) ||
-          (event.status === 'refused' && !event.error?.resolvedAt)),
-    ).length ?? 0;
+    events?.filter((event) => event.kind === kind && isPendingDeviceEvent(event)).length ?? 0;
   if (!count) return null;
   return (
-    <Alert role="note">
+    <Alert role="note" variant="offline">
+      <ZapIcon aria-hidden="true" />
       <AlertDescription>
-        {t('device-events.program-pending', { count })}{' '}
-        <Link to="/stock-management/device-events" className="underline underline-offset-4">
-          {t('device-events.review')}
-        </Link>
+        <Trans
+          t={t}
+          i18nKey={
+            online
+              ? 'device-events.program-pending-online'
+              : 'device-events.program-pending-offline'
+          }
+          count={count}
+          values={{ count, kind }}
+          components={{ strong: <strong />, eventLink: <Link to="/offline-events" /> }}
+        />
       </AlertDescription>
     </Alert>
   );
@@ -263,58 +247,6 @@ function ProgramsTable({
   );
 }
 
-function DownloadedProgramsTable({
-  hasHomeFacility,
-  programs,
-  facilityId,
-  action,
-  editorLink,
-}: ProgramsTableProps & {
-  action: PickerCopy['action'];
-  editorLink: (programId: string) => ReactElement;
-}) {
-  const { t, i18n } = useTranslation();
-  const bundles = useAdjustmentReadiness(facilityId);
-  const download = useDownloadStatus();
-  const timeZone = useDeploymentTimeZone();
-  return (
-    <StockProgramPicker
-      actionLabel={t(action)}
-      hasHomeFacility={hasHomeFacility}
-      statusLabel={<ReadinessLabel />}
-      linkFor={(row) => editorLink(row.id)}
-      rows={programs.map((program) => {
-        const bundle = bundles.find((bundle) => bundle.programId === program.id);
-        return {
-          id: program.id,
-          label: recordLabel(program),
-          status:
-            download.phase === 'running' &&
-            download.incompletePrograms.some((item) => item.id === program.id) ? (
-              t('offline.download.downloading')
-            ) : bundle ? (
-              <div className="flex flex-col gap-1">
-                <span>
-                  {t(bundle.stale ? 'offline.download.needs-refresh' : 'offline.download.ready')}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {t('offline.download.downloaded-at', {
-                    date: formatTimestamp(new Date(bundle.fetchedAt).toISOString(), i18n.language, {
-                      time: true,
-                      timeZone,
-                    }),
-                  })}
-                </span>
-              </div>
-            ) : (
-              t('offline.download.not-downloaded')
-            ),
-        };
-      })}
-    />
-  );
-}
-
 function ProgramsError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   if (isForbidden(error)) return <NoAccess />;
@@ -337,26 +269,10 @@ export function StockEventProgramsPending(source: PickerSource) {
       <WorkspaceContent>
         <StockProgramPickerSkeleton
           actionLabel={t(copy.action)}
-          statusLabel={
-            copy.status === 'offline.download.readiness' ? (
-              <ReadinessLabel />
-            ) : copy.status ? (
-              t(copy.status)
-            ) : undefined
-          }
+          statusLabel={copy.status ? t(copy.status) : undefined}
           actionsLabel={copy.actions ? t(copy.actions) : undefined}
         />
       </WorkspaceContent>
     </Workspace>
-  );
-}
-
-function ReadinessLabel() {
-  const { t } = useTranslation();
-  return (
-    <>
-      <span className="@xl/main:hidden">{t('offline.download.short-readiness')}</span>
-      <span className="hidden @xl/main:inline">{t('offline.download.readiness')}</span>
-    </>
   );
 }

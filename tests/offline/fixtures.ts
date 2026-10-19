@@ -128,7 +128,7 @@ export async function login(
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
   await page.waitForURL(/\/stock-management\/adjustments$/);
-  await page.getByRole('cell', { name: programName, exact: true }).waitFor();
+  await page.getByText(programName, { exact: true }).first().waitFor();
 }
 export async function generation(page: Page) {
   return page.evaluate(async () => {

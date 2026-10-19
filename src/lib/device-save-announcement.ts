@@ -7,8 +7,7 @@ type Announcement =
   | 'stock-events.draft-restored'
   | 'device-events.recorded-by-you'
   | 'device-events.status-queued'
-  | 'device-events.removed'
-  | 'device-events.synced';
+  | 'device-events.removed';
 
 const announcement = createScopedAnnouncement<Announcement>();
 export const announceDeviceSave = announcement.announce;

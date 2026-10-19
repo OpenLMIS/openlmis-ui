@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect } from 'react';
 import { DeviceWorkContext } from '@/components/device-work';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 
 export function DeviceWorkProvider({
@@ -35,6 +36,7 @@ export function DeviceWorkProvider({
     <DeviceWorkContext
       value={{
         hasDeviceEvents,
+        pending: events?.filter(isPendingDeviceEvent).length ?? 0,
         waiting:
           events?.filter(
             (event) => !event.pauseReason && ['queued', 'sending'].includes(event.status),

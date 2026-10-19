@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import {
   AlertTriangleIcon,
-  ListChecksIcon,
+  CircleCheckIcon,
   LoaderCircleIcon,
   type LucideIcon,
   RefreshCwIcon,
@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeviceWork } from '@/components/device-work';
 import { useHasRight } from '@/components/nav-access';
+import { NoticeCountdownBar } from '@/components/notice-countdown';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,16 +25,33 @@ import {
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useOfflineSession } from '@/hooks/use-offline-session';
-import { useQueuedAnnouncement, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
+import {
+  syncCountdown,
+  useQueuedAnnouncement,
+  useSyncPhase,
+  wakeStockEventSync,
+} from '@/lib/device-event-status';
 import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
-import { retryOfflineDownload, useDownloadStatus } from '@/lib/offline-download-status';
-import { dismissBackOnline, seedOnline, useBackOnline, useOnline } from '@/lib/online';
+import type { NoticeCountdown } from '@/lib/notice-countdown';
+import {
+  downloadCountdown,
+  retryOfflineDownload,
+  useDownloadStatus,
+} from '@/lib/offline-download-status';
+import {
+  backOnlineCountdown,
+  dismissBackOnline,
+  seedOnline,
+  useBackOnline,
+  useOnline,
+} from '@/lib/online';
 import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
 import { useSessionScope } from '@/lib/session-scope';
 
 type Notice = {
   id: string;
   spinning?: boolean;
+  countdown?: NoticeCountdown;
   closesSidebar?: boolean;
   variant: 'warning' | 'success' | 'info';
   Icon: LucideIcon;
@@ -54,12 +72,12 @@ function useNotices(): Notice[] {
   const navigate = useNavigate();
   const canAdjust = useHasRight(RIGHTS.stockAdjust);
   const device = useDeviceWork();
-  const { waiting, uncertain, refused } = device;
+  const { waiting } = device;
   const ownPhase = useSyncPhase();
   const phase = ownPhase === 'idle' && device.sending ? 'syncing' : ownPhase;
   const review = {
     label: t('device-events.review'),
-    onClick: () => void navigate({ to: '/stock-management/device-events' }),
+    onClick: () => void navigate({ to: '/offline-events' }),
   };
   const online = useOnline();
   const offlineSession = useOfflineSession();
@@ -81,6 +99,7 @@ function useNotices(): Notice[] {
   if (online && backOnline) {
     notices.push({
       id: 'connection-restored',
+      countdown: backOnlineCountdown,
       variant: 'success',
       Icon: WifiIcon,
       title: t('offline.back-online'),
@@ -100,13 +119,21 @@ function useNotices(): Notice[] {
       onClose: dismissUpdate,
     });
   }
-  if (download.phase === 'running')
+  if (download.phase === 'running' && download.trigger !== 'refresh')
     notices.push({
       id: 'offline-download',
       variant: 'info',
       Icon: LoaderCircleIcon,
       spinning: true,
       title: t('offline.download.fetching'),
+    });
+  if (download.phase === 'complete' && download.trigger !== 'refresh')
+    notices.push({
+      id: 'offline-download',
+      variant: 'success',
+      Icon: CircleCheckIcon,
+      title: t('offline.download.finished'),
+      countdown: downloadCountdown,
     });
   if (download.phase === 'unsupported')
     notices.push({
@@ -116,7 +143,7 @@ function useNotices(): Notice[] {
       title: t('offline.download.unavailable'),
       description: t('offline.download.locks-required'),
     });
-  if (download.phase === 'failed') {
+  if (download.phase === 'failed' && (online || download.reason !== 'offline')) {
     const reason = download.reason ?? 'read';
     notices.push({
       id: 'offline-download',
@@ -136,39 +163,37 @@ function useNotices(): Notice[] {
       action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
     });
   }
-  if (waiting)
-    notices.push({
-      id: 'device-events-waiting',
-      closesSidebar: true,
-      variant: 'info',
-      Icon: ListChecksIcon,
-      title: t('device-events.waiting', { count: waiting }),
-      action: review,
-    });
-  if (
+  const signInPending =
     (offlineSession && (canAdjust || device.retained)) ||
-    (canAdjust && waiting && (phase === 'syncing' || phase === 'session' || phase === 'receipt'))
-  )
+    (canAdjust && waiting && phase === 'session');
+  const receiptPending = canAdjust && waiting && phase === 'receipt';
+  const syncPending = canAdjust && waiting && phase === 'syncing';
+  if (receiptPending || (online && (signInPending || syncPending))) {
+    const syncing = !receiptPending && !signInPending;
     notices.push({
       id: 'device-events-sync',
-      variant: !offlineSession && phase === 'syncing' ? 'info' : 'warning',
-      Icon: !offlineSession && phase === 'syncing' ? LoaderCircleIcon : AlertTriangleIcon,
-      spinning: !offlineSession && phase === 'syncing',
+      variant: syncing ? 'info' : 'warning',
+      Icon: syncing ? LoaderCircleIcon : AlertTriangleIcon,
+      spinning: syncing,
       title: t(
-        !offlineSession && phase === 'syncing'
-          ? 'device-events.syncing'
-          : offlineSession || phase === 'session'
+        receiptPending
+          ? 'device-events.receipt-write'
+          : signInPending
             ? 'device-events.sign-in'
-            : 'device-events.receipt-write',
+            : 'device-events.syncing',
       ),
-      description:
-        offlineSession && !online
-          ? t('session.offline-description')
-          : phase === 'receipt'
-            ? t('device-events.receipt-write-description')
-            : undefined,
-      action: offlineSession || phase === 'session' ? undefined : review,
+      description: receiptPending ? t('device-events.receipt-write-description') : undefined,
+      action: !receiptPending && signInPending ? undefined : review,
       closesSidebar: true,
+    });
+  }
+  if (canAdjust && !offlineSession && phase === 'complete' && device.pending === 0)
+    notices.push({
+      id: 'device-events-sync',
+      variant: 'success',
+      Icon: CircleCheckIcon,
+      title: t('device-events.sync-complete'),
+      countdown: syncCountdown,
     });
   if (canAdjust && phase === 'unsupported')
     notices.push({
@@ -178,7 +203,7 @@ function useNotices(): Notice[] {
       title: t('device-events.sync-unavailable'),
       description: t('device-events.locks-required'),
     });
-  if (canAdjust && waiting && phase === 'failed')
+  if (online && canAdjust && !offlineSession && waiting && phase === 'failed')
     notices.push({
       id: 'device-events-sync',
       variant: 'warning',
@@ -186,24 +211,6 @@ function useNotices(): Notice[] {
       title: t('device-events.sync-failed'),
       description: t('device-events.sync-failed-description'),
       action: { label: t('device-events.retry'), onClick: wakeStockEventSync },
-    });
-  if (uncertain)
-    notices.push({
-      id: 'device-events-uncertain',
-      variant: 'warning',
-      Icon: AlertTriangleIcon,
-      title: t('device-events.uncertain-count', { count: uncertain }),
-      action: review,
-      closesSidebar: true,
-    });
-  if (refused)
-    notices.push({
-      id: 'device-events-refused',
-      variant: 'warning',
-      Icon: AlertTriangleIcon,
-      title: t('device-events.refused-count', { count: refused }),
-      action: review,
-      closesSidebar: true,
     });
   for (const reason of ['access-changed', 'draft-changed'] as const) {
     if (device.pauses.includes(reason))
@@ -254,7 +261,9 @@ export function SidebarNotices() {
                   }}
                   tooltip={`${title}${description ? `: ${description}` : ''}: ${action.label}`}
                 >
-                  <Icon className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`} />
+                  <Icon
+                    className={`${ICON_TONE[variant]}${spinning ? ' animate-spin motion-reduce:animate-none' : ''}`}
+                  />
                 </SidebarMenuButton>
               ) : (
                 <SidebarMenuButton
@@ -263,7 +272,7 @@ export function SidebarNotices() {
                 >
                   <Icon
                     aria-hidden="true"
-                    className={`${ICON_TONE[variant]}${spinning ? ' animate-spin' : ''}`}
+                    className={`${ICON_TONE[variant]}${spinning ? ' animate-spin motion-reduce:animate-none' : ''}`}
                   />
                 </SidebarMenuButton>
               )}
@@ -277,9 +286,35 @@ export function SidebarNotices() {
   return (
     <div className="flex flex-col gap-2">
       {notices.map(
-        ({ id, variant, Icon, title, description, action, onClose, spinning, closesSidebar }) => (
-          <Alert key={id} role="note" variant={variant}>
-            <Icon aria-hidden="true" className={spinning ? 'animate-spin' : undefined} />
+        ({
+          id,
+          variant,
+          Icon,
+          title,
+          description,
+          action,
+          onClose,
+          spinning,
+          closesSidebar,
+          countdown,
+        }) => (
+          <Alert
+            key={id}
+            role="note"
+            variant={variant}
+            onMouseEnter={() => countdown?.pause('hover', true)}
+            onMouseLeave={() => countdown?.pause('hover', false)}
+            onFocusCapture={() => countdown?.pause('focus', true)}
+            onBlurCapture={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                countdown?.pause('focus', false);
+            }}
+          >
+            {countdown && <NoticeCountdownBar countdown={countdown} />}
+            <Icon
+              aria-hidden="true"
+              className={spinning ? 'animate-spin motion-reduce:animate-none' : undefined}
+            />
             <AlertTitle>{title}</AlertTitle>
             {(description || action) && (
               <AlertDescription>
@@ -293,7 +328,7 @@ export function SidebarNotices() {
                         if (closesSidebar) setOpenMobile(false);
                       }}
                       size="xs"
-                      variant="outline"
+                      variant={variant === 'success' ? 'outline' : variant}
                     >
                       {action.label}
                     </Button>
@@ -322,19 +357,19 @@ export function SidebarNotices() {
 
 export function StatusAnnouncer() {
   const notices = useNotices();
-  const download = useDownloadStatus();
   const queued = useQueuedAnnouncement();
+  const { uncertain, refused } = useDeviceWork();
   const deviceSave = useDeviceSaveAnnouncement();
   const scope = useSessionScope();
   const { t } = useTranslation();
   const current: Record<string, string> = {};
   for (const { id, title, description } of notices) {
-    if (id !== 'device-events-waiting')
-      current[id] = description ? `${title.replace(/[.!?؟。]+$/u, '')}. ${description}` : title;
+    current[id] = description ? `${title.replace(/[.!?؟。]+$/u, '')}. ${description}` : title;
   }
+  if (uncertain) current.uncertain = t('device-events.uncertain-count', { count: uncertain });
+  if (refused) current.refused = t('device-events.refused-count', { count: refused });
   if (queued) current.queued = t('device-events.waiting', { count: queued.count });
   if (deviceSave) current.save = t(deviceSave);
-  if (download.phase === 'complete') current.download = t('offline.download.finished');
   const signature = JSON.stringify(current);
   const [announced, setAnnounced] = useState<{
     scope: number;

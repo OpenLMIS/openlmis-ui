@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
@@ -10,9 +10,10 @@ import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sideba
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
-import { setSyncPhase } from '@/lib/device-event-status';
+import { announceQueuedEvents, setSyncPhase } from '@/lib/device-event-status';
 import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
@@ -27,6 +28,7 @@ vi.mock('@/components/device-work', async (original) => ({
   ...(await original<typeof import('@/components/device-work')>()),
   useDeviceWork: () => ({
     hasDeviceEvents: device.events.length > 0,
+    pending: device.events.filter(isPendingDeviceEvent).length,
     waiting: device.events.filter(
       (event) => !event.pauseReason && ['queued', 'sending'].includes(event.status),
     ).length,
@@ -197,7 +199,8 @@ describe('StatusAnnouncer', () => {
   });
 });
 
-it('keeps concurrent notes visible and announces only download changes through completion and failure', () => {
+it('replaces download progress with one completion notice for four seconds and retains failures', () => {
+  vi.useFakeTimers();
   onlineManager.setOnline(false);
   renderNotices();
   expect(screen.getByRole('status')).toHaveTextContent('offline.title');
@@ -209,11 +212,22 @@ it('keeps concurrent notes visible and announces only download changes through c
   expect(screen.getAllByRole('note').map((note) => note.textContent)).toEqual(
     expect.arrayContaining([expect.stringContaining('offline.download.fetching')]),
   );
+  const progress = screen
+    .getAllByRole('note')
+    .find((note) => note.textContent?.includes('offline.download.fetching'));
   act(() => setDownloadStatus({ phase: 'complete', incompletePrograms: [] }));
-  expect(screen.getAllByRole('note')).toHaveLength(1);
-  expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
+  expect(progress).toHaveTextContent('offline.download.finished');
+  expect(screen.getByRole('status').textContent?.match(/offline.download.finished/g)).toHaveLength(
+    1,
+  );
+  act(() => vi.advanceTimersByTime(3999));
+  expect(progress).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1));
+  expect(progress).not.toBeInTheDocument();
+  act(() => setDownloadStatus({ phase: 'running', incompletePrograms: [] }));
   act(() => setDownloadStatus({ phase: 'failed', incompletePrograms: [], reason: 'timeout' }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
+  expect(screen.queryByText('offline.download.finished')).not.toBeInTheDocument();
   act(() =>
     setDownloadStatus({
       phase: 'failed',
@@ -225,6 +239,40 @@ it('keeps concurrent notes visible and announces only download changes through c
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.failed-programs');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
   expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeInTheDocument();
+});
+
+it('suppresses an offline-caused download failure until reconnecting', () => {
+  onlineManager.setOnline(false);
+  setDownloadStatus({
+    phase: 'failed',
+    reason: 'offline',
+    incompletePrograms: [{ id: 'p', name: 'Program' }],
+  });
+  renderNotices();
+  expect(screen.getAllByRole('note')).toHaveLength(1);
+  expect(screen.queryByText('offline.download.incomplete')).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.failure-offline');
+  act(() => onlineManager.setOnline(true));
+  expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.failure-offline');
+});
+
+it('keeps accepted-event refresh progress and completion silent while retaining read failures', () => {
+  renderNotices();
+  for (const phase of ['running', 'complete'] as const) {
+    act(() => setDownloadStatus({ phase, trigger: 'refresh', incompletePrograms: [] }));
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  }
+  act(() =>
+    setDownloadStatus({
+      phase: 'failed',
+      trigger: 'refresh',
+      reason: 'read',
+      incompletePrograms: [],
+    }),
+  );
+  expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
 });
 
 describe('OfflineDot', () => {
@@ -265,8 +313,7 @@ it('clears the completed download announcement before later notices change', () 
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
 });
 
-it('uncertain events stay out of Waiting To Sync and stacked notices offer review once', async () => {
-  const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+it('announces uncertain and refused counts without duplicate count cards', async () => {
   device.allowed = true;
   device.events = [
     { status: 'queued' },
@@ -292,27 +339,15 @@ it('uncertain events stay out of Waiting To Sync and stacked notices offer revie
       </TooltipProvider>
     </I18nextProvider>,
   );
-  expect(scroll).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('2 Events Waiting To Sync')).toBeVisible();
-  expect(screen.getAllByRole('button', { name: 'Review Device Events' })).toHaveLength(1);
-  expect(
-    screen.getByRole('button', { name: 'Review Device Events' }).closest('[role="note"]'),
-  ).toHaveTextContent('1 Event Needs Review');
-  device.events = [{ status: 'queued' }, { status: 'uncertain' }] as DeviceEvent[];
-  act(() => setSyncPhase('syncing'));
-  expect(screen.getByText('1 Event Waiting To Sync')).toBeVisible();
-  expect(scroll).toHaveBeenCalledTimes(1);
-  device.events = [{ status: 'refused' }] as DeviceEvent[];
-  act(() => setSyncPhase('idle'));
-  expect(scroll).toHaveBeenCalledTimes(2);
-  device.events = [{ status: 'uncertain' }] as DeviceEvent[];
-  act(() => setSyncPhase('failed'));
-  expect(screen.queryByText(/Waiting To Sync/)).not.toBeInTheDocument();
-  expect(
-    screen.getByRole('button', { name: 'Review Device Events' }).closest('[role="note"]'),
-  ).toHaveTextContent('1 Event Needs Review');
-  expect(scroll).toHaveBeenCalledTimes(3);
-  scroll.mockRestore();
+  expect(screen.getByRole('status')).not.toHaveTextContent('Events Waiting To Sync');
+  expect(screen.getByRole('status')).toHaveTextContent('1 Event Needs Review');
+  expect(screen.getByRole('status')).toHaveTextContent('1 Refused Event');
+  const notes = screen.getAllByRole('note');
+  expect(notes).toHaveLength(2);
+  expect(notes.some((note) => note.textContent?.includes('Access Changed'))).toBe(true);
+  expect(screen.getAllByRole('button', { name: 'Review Offline Events' })).toHaveLength(1);
+  for (const note of notes)
+    expect(note).not.toHaveTextContent(/Events? Waiting To Sync|Refused Event/);
 });
 it('Sign In To Sync has no review action of its own', () => {
   device.allowed = true;
@@ -324,25 +359,32 @@ it('Sign In To Sync has no review action of its own', () => {
     .find((note) => note.textContent?.includes('device-events.sign-in'));
   expect(notice).toBeDefined();
   expect(within(notice as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
-  expect(screen.getAllByRole('button', { name: 'device-events.review' })).toHaveLength(1);
+  expect(screen.queryByRole('button', { name: 'device-events.review' })).not.toBeInTheDocument();
 });
 
-it.each([false, true])(
-  'only offers offline renewal for Adjustments access or pending work (access=%s)',
-  (allowed) => {
-    device.allowed = allowed;
-    useLoginData.getState().setLoginData({
-      referenceDataUserId: 'admin',
-      username: 'admin',
-      accessToken: 'token',
-      expiresIn: 30,
-    });
-    onlineManager.setOnline(false);
-    renderNotices();
-    expect(screen.queryByText('session.offline-description') !== null).toBe(allowed);
-    useLoginData.getState().clearLoginData();
-  },
-);
+it('keeps the offline connection notice alone and offers sign-in after reconnect', () => {
+  device.allowed = true;
+  device.events = [{ status: 'queued' }] as DeviceEvent[];
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'adjuster', username: 'adjuster', accessToken: 'token' });
+  useLoginData.getState().expireSession();
+  onlineManager.setOnline(false);
+  setSyncPhase('session');
+  renderNotices();
+  expect(screen.getAllByRole('note')).toHaveLength(1);
+  expect(screen.getByRole('note')).toHaveTextContent('offline.title');
+  expect(screen.getByRole('status')).not.toHaveTextContent('device-events.sign-in');
+  act(() => setSyncPhase('failed'));
+  expect(screen.getAllByRole('note')).toHaveLength(1);
+  expect(screen.getByRole('status')).not.toHaveTextContent('device-events.sync-failed');
+  act(() => onlineManager.setOnline(true));
+  expect(
+    screen.getAllByRole('note').some((note) => note.textContent?.includes('device-events.sign-in')),
+  ).toBe(true);
+  expect(screen.getByRole('status')).toHaveTextContent('device-events.sign-in');
+  useLoginData.getState().clearLoginData();
+});
 
 it('does not describe a connected expired session as offline', () => {
   device.allowed = true;
@@ -353,4 +395,84 @@ it('does not describe a connected expired session as offline', () => {
   renderNotices();
   expect(screen.queryByText('session.offline-description')).not.toBeInTheDocument();
   useLoginData.getState().clearLoginData();
+});
+
+it('announces a user save with existing work, without announcing standing or falling counts', async () => {
+  const language = createInstance();
+  await language.use(ICU).init({
+    lng: 'en',
+    resources: { en: { translation: en } },
+    keySeparator: false,
+    nsSeparator: false,
+  });
+  vi.useFakeTimers();
+  device.allowed = true;
+  device.events = [{ status: 'queued' }, { status: 'queued' }] as DeviceEvent[];
+  render(
+    <I18nextProvider i18n={language}>
+      <SidebarProvider>
+        <StatusAnnouncer />
+      </SidebarProvider>
+    </I18nextProvider>,
+  );
+  const region = screen.getByRole('status');
+  expect(region).toBeEmptyDOMElement();
+  act(() => announceQueuedEvents(3));
+  expect(region).toHaveTextContent('3 Events Waiting To Sync');
+  act(() => vi.advanceTimersByTime(4000));
+  expect(region).toBeEmptyDOMElement();
+  device.events = [{ status: 'queued' }] as DeviceEvent[];
+  act(() => setSyncPhase('syncing'));
+  expect(region).not.toHaveTextContent('Waiting To Sync');
+});
+
+it('replaces sync progress with one completion notice for four seconds, without success on failure', () => {
+  vi.useFakeTimers();
+  device.allowed = true;
+  device.events = [{ status: 'queued' }] as DeviceEvent[];
+  setSyncPhase('syncing');
+  renderNotices();
+  const progress = screen.getByRole('note');
+  expect(progress).toHaveTextContent('device-events.syncing');
+  device.events = [];
+  act(() => setSyncPhase('complete'));
+  expect(progress).toHaveTextContent('device-events.sync-complete');
+  expect(
+    screen.getByRole('status').textContent?.match(/device-events.sync-complete/g),
+  ).toHaveLength(1);
+  act(() => vi.advanceTimersByTime(3999));
+  expect(progress).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1));
+  expect(progress).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  device.events = [{ status: 'queued' }] as DeviceEvent[];
+  act(() => setSyncPhase('syncing'));
+  act(() => setSyncPhase('failed'));
+  expect(screen.getByRole('note')).toHaveTextContent('device-events.sync-failed');
+  expect(screen.queryByText('device-events.sync-complete')).not.toBeInTheDocument();
+  device.events = [{ status: 'refused' }, { status: 'uncertain' }] as DeviceEvent[];
+  act(() => setSyncPhase('complete'));
+  expect(screen.queryByText('device-events.sync-complete')).not.toBeInTheDocument();
+});
+
+it('pauses an auto-dismiss countdown while hovered or focused, then resumes the remaining lifetime', () => {
+  vi.useFakeTimers();
+  onlineManager.setOnline(false);
+  renderNotices();
+  act(() => onlineManager.setOnline(true));
+  const notice = screen.getByRole('note');
+  const close = within(notice).getByRole('button', { name: 'notice.close' });
+  act(() => vi.advanceTimersByTime(1000));
+  fireEvent.mouseEnter(notice);
+  act(() => vi.advanceTimersByTime(5000));
+  expect(notice).toBeInTheDocument();
+  fireEvent.focus(close);
+  fireEvent.mouseLeave(notice);
+  act(() => vi.advanceTimersByTime(5000));
+  expect(notice).toBeInTheDocument();
+  fireEvent.blur(close, { relatedTarget: document.body });
+  act(() => vi.advanceTimersByTime(2999));
+  expect(notice).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1));
+  expect(screen.queryByText('offline.back-online')).not.toBeInTheDocument();
 });

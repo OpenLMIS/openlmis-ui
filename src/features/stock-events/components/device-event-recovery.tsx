@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { formatTimestamp } from '@/components/form/date-value';
+import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -20,19 +21,12 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DeviceEventLines } from '@/features/stock-events/components/device-event-lines';
+import { EventStatus } from '@/features/stock-events/components/event-status';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
@@ -47,6 +41,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
+import { orEmpty } from '@/lib/empty-value';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 
@@ -84,6 +79,9 @@ export function DeviceEventRecovery({
 }) {
   const { t, i18n } = useTranslation();
   const online = useOnline();
+  const descriptionId = useId();
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const offlineNavigation = useOfflineNavigation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmation, setConfirmation] = useState<'resend' | 'copy' | 'remove' | 'dismiss' | null>(
@@ -151,21 +149,32 @@ export function DeviceEventRecovery({
           if (!open && !operation.isPending) onClose();
         }}
       >
-        <DialogContent size="2xl" layout="scroll">
+        <DialogContent
+          size="table"
+          layout="scroll"
+          aria-describedby={descriptionId}
+          initialFocus={closeRef}
+        >
           <DialogHeader>
             <DialogTitle>{t('device-events.details')}</DialogTitle>
-            <DialogDescription>
+            <p className="sr-only" id={descriptionId}>
+              {t(kindLabels[event.kind])}.{' '}
               {t(
                 event.receipt?.source === 'user'
                   ? 'device-events.recorded-by-you'
                   : `device-events.status-${event.status}`,
               )}
-            </DialogDescription>
+            </p>
           </DialogHeader>
           <div className="flex min-w-0 flex-col gap-4 overflow-y-auto">
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <SettingsList>
+              <SettingsItem label={t('device-events.type')}>
+                <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                  <span>{t(kindLabels[event.kind])}</span>
+                  <EventStatus event={event} />
+                </span>
+              </SettingsItem>
               {[
-                [t('device-events.type'), t(kindLabels[event.kind])],
                 [t('facility-program.facility'), recordLabel(event.facility)],
                 [t('facility-program.program'), recordLabel(event.program)],
                 [t('device-events.queued-at'), timestamp(event.queuedAt)],
@@ -178,60 +187,12 @@ export function DeviceEventRecovery({
                     ]
                   : []),
               ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd dir="auto">{value}</dd>
-                </div>
+                <SettingsItem key={label} label={label}>
+                  <span dir="auto">{orEmpty(value)}</span>
+                </SettingsItem>
               ))}
-            </dl>
-            <Table layout="auto">
-              <TableHeader>
-                <TableRow>
-                  {(
-                    [
-                      'device-events.products',
-                      'device-events.lots',
-                      'device-events.quantity',
-                      'device-events.reason',
-                      'stock-events.reason-comments',
-                      'device-events.occurred-date',
-                      'stock-events.vvm-status',
-                    ] as const
-                  ).map((key) => (
-                    <TableHead key={key}>
-                      <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {event.payload.lineItems.map((item, index) => (
-                  <TableRow key={event.lines[index]?.key ?? index}>
-                    <TableCell>
-                      <span dir="auto">
-                        {event.lines[index]?.orderable.fullProductName || item.orderableId}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span dir="auto">{event.lines[index]?.lot?.lotCode}</span>
-                    </TableCell>
-                    <TableCell>
-                      {new Intl.NumberFormat(i18n.language).format(item.quantity)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="min-w-32 whitespace-pre-wrap" dir="auto">
-                        {event.reasons?.find((reason) => reason.id === item.reasonId)?.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span dir="auto">{item.reasonFreeText}</span>
-                    </TableCell>
-                    <TableCell>{formatDateValue(item.occurredDate, i18n.language)}</TableCell>
-                    <TableCell>{item.extraData?.vvmStatus}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            </SettingsList>
+            <DeviceEventLines event={event} />
             {event.error?.category === 'stock-changed' && (
               <Alert variant="warning">
                 <AlertTitle>{t('device-events.stock-changed')}</AlertTitle>
@@ -267,32 +228,18 @@ export function DeviceEventRecovery({
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        disabled={!online}
-                        nativeButton={false}
-                        role="link"
-                        render={
-                          <Link
-                            to="/stock-management/transaction-history"
-                            search={{
-                              mode: 'my',
-                              facilityId: event.facilityId,
-                              programId: event.programId,
-                              type: EVENT_KINDS[event.kind].historyType,
-                            }}
-                            preload={false}
-                          />
-                        }
-                      >
-                        {t('device-events.history')}
-                      </Button>
                       {event.stockCards?.map((card) => (
                         <div key={card.id} className="max-w-full min-w-0">
                           <Button
                             width="full"
                             variant="outline"
-                            disabled={!online}
+                            onClick={(click) => {
+                              if (!online) {
+                                click.preventDefault();
+                                offlineNavigation.show(click.currentTarget);
+                              }
+                            }}
+                            aria-describedby={!online ? 'event-history-connection' : undefined}
                             nativeButton={false}
                             role="link"
                             render={
@@ -324,33 +271,49 @@ export function DeviceEventRecovery({
                 )}
               </>
             )}
-            {event.receipt?.serverEventId &&
-              canView &&
-              (online ? (
-                <Button
-                  variant="outline"
-                  nativeButton={false}
-                  role="link"
-                  render={
+          </div>
+          {!online && canView && (
+            <p id="event-history-connection" className="sr-only">
+              {t('offline.connection-required')}
+            </p>
+          )}
+          <DialogFooter wrap>
+            {canView && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                role="link"
+                onClick={(click) => {
+                  if (!online) {
+                    click.preventDefault();
+                    offlineNavigation.show(click.currentTarget);
+                  }
+                }}
+                aria-describedby={!online ? 'event-history-connection' : undefined}
+                render={
+                  event.receipt?.serverEventId ? (
                     <Link
                       to="/stock-management/transaction-history/$eventId"
                       params={{ eventId: event.receipt.serverEventId }}
                       preload={false}
                     />
-                  }
-                >
-                  {t('device-events.history')}
-                </Button>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {t('device-events.history-offline')}
-                </p>
-              ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" disabled={operation.isPending} onClick={onClose}>
-              {t('device-events.close')}
-            </Button>
+                  ) : (
+                    <Link
+                      to="/stock-management/transaction-history"
+                      search={{
+                        mode: 'my',
+                        facilityId: event.facilityId,
+                        programId: event.programId,
+                        type: EVENT_KINDS[event.kind].historyType,
+                      }}
+                      preload={false}
+                    />
+                  )
+                }
+              >
+                {t('device-events.history')}
+              </Button>
+            )}
             {event.status === 'uncertain' && (
               <>
                 <Button
@@ -361,6 +324,7 @@ export function DeviceEventRecovery({
                   {t('device-events.recorded')}
                 </Button>
                 <Button
+                  variant="outline"
                   disabled={operation.isPending || !canSend}
                   onClick={() => setConfirmation('resend')}
                 >
@@ -371,13 +335,14 @@ export function DeviceEventRecovery({
             {event.status === 'refused' && (
               <>
                 <Button
-                  variant="destructive"
+                  variant="destructive-outline"
                   disabled={operation.isPending}
                   onClick={() => setConfirmation('dismiss')}
                 >
                   {t('device-events.dismiss')}
                 </Button>
                 <Button
+                  variant="outline"
                   disabled={operation.isPending || !!event.error?.resolvedAt}
                   onClick={() => setConfirmation('copy')}
                 >
@@ -387,16 +352,20 @@ export function DeviceEventRecovery({
             )}
             {event.status === 'queued' && !event.attemptId && (
               <Button
-                variant="destructive"
+                variant="destructive-outline"
                 disabled={operation.isPending}
                 onClick={() => setConfirmation('remove')}
               >
                 {t('device-events.remove')}
               </Button>
             )}
+            <Button ref={closeRef} disabled={operation.isPending} onClick={onClose}>
+              {t('device-events.close')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {offlineNavigation.dialog}
       <AlertDialog {...confirmationTarget.dialogProps(operation.isPending)}>
         <AlertDialogContent>
           <AlertDialogHeader>

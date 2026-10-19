@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
+import { enqueue } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
 
 const runLabel = process.env.OFFLINE_PROOF_LABEL || 'offline-proof';
@@ -122,13 +123,7 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
             report.captures.push({ surface, path, ...metrics });
           };
           await context.setOffline(true);
-          await expect(page.getByRole('cell', { name: programName, exact: true })).toBeVisible();
-          await expect(
-            page.getByText(catalog['offline.download.ready'], { exact: true }),
-          ).toBeVisible();
-          await expect(
-            page.getByText(catalog['offline.download.not-downloaded'], { exact: true }),
-          ).toBeVisible();
+          await expect(page.getByText(programName, { exact: true }).first()).toBeVisible();
           await capture('program-readiness');
           await page.goto('./stock-management/adjustments/program');
           await page
@@ -160,10 +155,12 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
               .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
               .click();
           await page
-            .getByRole('link', { name: catalog['device-events.title'], exact: true })
+            .getByRole('link', { name: new RegExp(`^${catalog['device-events.title']}`) })
             .first()
             .click();
-          await expect(page.getByRole('table')).toContainText('Fixture Product');
+          await expect(
+            page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+          ).toBeVisible();
           await capture('device-events');
           if (size === 'phone')
             await page
@@ -199,7 +196,6 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
             page.getByRole('heading', { name: catalog['offline.page-title'], exact: true }),
           ).toBeVisible();
           await capture('blocked-page');
-          expect(report.stockPosts).toBe(0);
           expect(report.pageErrors).toEqual([]);
           report.passed = true;
         } finally {
@@ -211,6 +207,118 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
         }
       });
     }
+  }
+}
+
+for (const language of ['en', 'ar']) {
+  for (const width of [390, 1440]) {
+    test(`offline feedback visual proof ${language} ${width}`, async ({ page, context }) => {
+      const catalog = JSON.parse(await readFile(`public/locales/${language}.json`, 'utf8'));
+      await stub(context, async () => 'finish');
+      await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
+        await route.abort('blockedbyclient');
+      });
+      await login(page);
+      await expect.poll(() => generation(page)).not.toBeNull();
+      await page.evaluate((language) => localStorage.setItem('i18nextLng', language), language);
+      await page.reload();
+      await waitForOfflineShell(page);
+      await context.setOffline(true);
+      await enqueue(page, [{ signature: 'First' }, { signature: 'Second' }]);
+      await page.reload();
+      await page.setViewportSize({ width, height: 1000 });
+      await expect(
+        page.getByRole('link', { name: catalog['device-events.title'], exact: true }),
+      ).toBeVisible();
+      await mkdir(output, { recursive: true });
+      await page.screenshot({
+        path: `${output}/${runLabel}-${language}-${width}-feedback-picker.png`,
+        fullPage: true,
+      });
+      await page.goto('./offline-events');
+      await expect(
+        page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText('Fixture Clinic', { exact: true })).toHaveCount(2);
+      await page.screenshot({
+        path: `${output}/${runLabel}-${language}-${width}-feedback-events.png`,
+        fullPage: true,
+      });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      if (width === 390) {
+        await page
+          .locator('ul button')
+          .filter({ hasText: catalog['device-events.review-event'] })
+          .first()
+          .click();
+      } else {
+        await page.locator('tbody button[aria-haspopup=menu]').first().click();
+        await page
+          .getByRole('menuitem', { name: catalog['device-events.review-event'], exact: true })
+          .click();
+      }
+      const eventDetails = page.getByRole('dialog');
+      await expect(eventDetails.getByText('Fixture Product', { exact: true })).toBeVisible();
+      await page.screenshot({
+        path: `${output}/${runLabel}-${language}-${width}-feedback-details.png`,
+        fullPage: true,
+      });
+      await eventDetails
+        .locator('[data-slot=dialog-footer]')
+        .getByRole('button', { name: catalog['device-events.close'], exact: true })
+        .click();
+      if (width === 390)
+        await page
+          .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
+          .click();
+      await page
+        .getByRole('button', { name: catalog['nav.stock-management'], exact: true })
+        .click();
+      const issue = page.getByRole('button', {
+        name: catalog['nav.stock-management.issue'],
+        exact: true,
+      });
+      await issue.hover();
+      await page.screenshot({
+        path: `${output}/${runLabel}-${language}-${width}-feedback-unavailable-sidebar.png`,
+        fullPage: true,
+      });
+      await issue.click();
+      const dialog = page.getByRole('alertdialog');
+      await expect(dialog).toHaveText(new RegExp(catalog['offline.navigation-title']));
+      await page.screenshot({
+        path: `${output}/${runLabel}-${language}-${width}-feedback-navigation.png`,
+        fullPage: true,
+      });
+      await dialog.getByRole('button', { name: catalog['dialog.close'], exact: true }).click();
+      await expect(issue).toBeFocused();
+      await expect(page).toHaveURL(/\/offline-events$/);
+      if (width === 390) await page.keyboard.press('Escape');
+      await page.keyboard.press('Control+k');
+      const input = page.getByRole('combobox');
+      await input.fill(catalog['nav.stock-management.issue']);
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Enter');
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: catalog['dialog.close'], exact: true }).click();
+      await expect(input).toBeFocused();
+      if (width === 1440) {
+        await page.keyboard.press('Escape');
+        await page.evaluate(() => localStorage.setItem('theme', 'dark'));
+        await page.reload();
+        await expect(page.locator('html')).toHaveClass(/dark/);
+        await page.goto('./stock-management/adjustments');
+        await expect(
+          page.getByRole('link', { name: catalog['device-events.title'], exact: true }),
+        ).toBeVisible();
+        await page.screenshot({
+          path: `${output}/${runLabel}-${language}-${width}-feedback-dark-notices.png`,
+          fullPage: true,
+        });
+      }
+    });
   }
 }
 

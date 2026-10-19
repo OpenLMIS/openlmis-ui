@@ -89,6 +89,15 @@ for (const language of ['en', 'ar']) {
             rows.onsuccess = () =>
               rows.result.forEach((event, index) => {
                 if (!index) return;
+                if (index === 2) {
+                  event.lines[0].lot = { id: 'short-lot', lotCode: 'LOT-123' };
+                  event.lines.push({
+                    ...event.lines[0],
+                    key: 'long-lot-line',
+                    lot: { id: 'long-lot', lotCode: `LOT-${'1234567890-'.repeat(8)}` },
+                  });
+                  event.payload.lineItems.push({ ...event.payload.lineItems[0] });
+                }
                 event.status = index === 1 ? 'uncertain' : 'refused';
                 event.attemptId = `attempt-${index}`;
                 const draft = tx.objectStore('stockEventDrafts').get(event.draftId);
@@ -117,35 +126,66 @@ for (const language of ['en', 'ar']) {
       });
       await page.reload();
       await expect(
-        page.getByRole('link', { name: catalog['device-events.review'], exact: true }).first(),
+        page.getByRole('link', { name: catalog['device-events.title'], exact: true }).first(),
       ).toBeVisible();
       await capture('program-pending');
       if (width === 390)
         await page
           .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
           .click();
-      const reviewAction = page.getByRole('button', {
-        name: catalog['device-events.review'],
+      await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('3');
+      await capture('sidebar-many-notices');
+      if (width === 1440) {
+        const toggle = page.getByRole('button', {
+          name: catalog['sidebar.toggle-sidebar'],
+          exact: true,
+        });
+        await toggle.click();
+        const badge = page.locator('[data-slot=sidebar-menu-badge]');
+        await expect(badge).toBeVisible();
+        await expect(badge).toHaveCSS('width', '10px');
+        await expect(badge).toHaveCSS('height', '10px');
+        const events = page
+          .locator('[data-slot=sidebar-content]')
+          .getByRole('link', { name: new RegExp(`^${catalog['device-events.title']}`) });
+        await events.focus();
+        await events.hover();
+        await expect(page.locator('[data-slot=tooltip-content]')).toHaveText(
+          (await events.getAttribute('aria-label')) ?? '',
+        );
+        await capture('collapsed-pending-count');
+        await toggle.click();
+      }
+      await page
+        .locator('[data-slot=sidebar-content]')
+        .getByRole('link', { name: new RegExp(`^${catalog['device-events.title']}`) })
+        .click();
+      await expect(page).toHaveURL(/\/offline-events$/);
+      await page.reload();
+      if (width === 390)
+        await page
+          .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
+          .click();
+      await page
+        .getByRole('button', { name: catalog['nav.stock-management'], exact: true })
+        .click();
+      const issue = page.getByRole('button', {
+        name: catalog['nav.stock-management.issue'],
         exact: true,
       });
-      await expect(reviewAction).toBeVisible();
-      await expect
-        .poll(() =>
-          reviewAction.evaluate((button) => {
-            const scroller = button.closest('[data-sidebar=footer]')?.firstElementChild;
-            if (!scroller) throw new Error('Missing notice scroller');
-            const region = scroller.getBoundingClientRect();
-            const action = button.getBoundingClientRect();
-            return (
-              action.top >= region.top &&
-              action.bottom <= region.bottom &&
-              action.left >= region.left &&
-              action.right <= region.right
-            );
-          }),
-        )
-        .toBe(true);
-      await capture('sidebar-many-notices');
+      await expect(issue).toHaveAttribute('data-unavailable');
+      await expect(issue).toHaveCSS('opacity', '0.5');
+      await issue.hover();
+      await expect(issue).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(issue).toHaveCSS('cursor', 'default');
+      await issue.click();
+      await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: catalog['dialog.close'], exact: true })
+        .click();
+      await expect(issue).toBeFocused();
+      await expect(page).toHaveURL(/\/offline-events$/);
+
       if (width === 390) {
         const content = page.locator('[data-slot=sidebar-content]');
         expect(await content.evaluate((element) => element.clientHeight)).toBeGreaterThan(300);
@@ -158,52 +198,81 @@ for (const language of ['en', 'ar']) {
       const unavailable = page
         .getByRole('option')
         .filter({ hasText: catalog['nav.stock-management.issue'] });
-      await expect(unavailable).toHaveAttribute('data-unavailable', 'true');
+      await expect(unavailable).not.toHaveAttribute('aria-disabled', 'true');
       await expect(unavailable).toHaveAttribute('aria-selected', 'true');
       await expect(unavailable).toHaveAttribute('aria-describedby');
+      await expect(unavailable).toHaveAttribute('data-unavailable');
+      await expect(unavailable).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       await page.keyboard.press('Enter');
-      await expect(page.getByRole('dialog')).toBeVisible();
-      await expect(
-        page
-          .locator('[data-sonner-toast]')
-          .filter({ hasText: catalog['offline.connection-required'] }),
-      ).toBeVisible();
+      const offlineDialog = page.getByRole('alertdialog');
+      await expect(offlineDialog).toContainText(catalog['offline.navigation-unavailable']);
+      await offlineDialog
+        .getByRole('button', { name: catalog['dialog.close'], exact: true })
+        .click();
+      await expect(paletteInput).toBeFocused();
       await page.keyboard.press('Escape');
-      await page.goto('./stock-management/device-events');
+      const queued = (await records(page, 'stockEventQueue'))[0];
+      await page.goto(`./stock-management/device-events?event=${queued.localEventId}`);
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname.endsWith('/offline-events') &&
+          url.searchParams.get('event') === queued.localEventId,
+      );
+      await expect(page.getByRole('dialog')).toContainText(catalog['device-events.details']);
+      await page
+        .getByRole('button', { name: catalog['device-events.close'], exact: true })
+        .first()
+        .click();
       await expect(
         page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
       ).toBeVisible();
-      await expect(page.getByRole('table')).toContainText('Fixture Product');
-      await expect(
-        page.getByRole('columnheader', {
-          name: catalog['device-events.status'],
-          exact: true,
-        }),
-      ).toBeVisible();
-      const actionBounds = await page
-        .locator('tbody button[aria-haspopup=menu]')
-        .first()
-        .boundingBox();
-      expect(actionBounds).not.toBeNull();
-      expect(actionBounds?.x).toBeGreaterThanOrEqual(0);
-      expect((actionBounds?.x ?? 0) + (actionBounds?.width ?? 0)).toBeLessThanOrEqual(width);
+      const reviewButtons = page
+        .locator('ul button')
+        .filter({ hasText: catalog['device-events.review-event'] });
+      const openEvent = async (index: number) => {
+        if (width === 390) await reviewButtons.nth(index).click();
+        else {
+          await page.locator('tbody button[aria-haspopup=menu]').nth(index).click();
+          await page
+            .getByRole('menuitem', { name: catalog['device-events.review-event'], exact: true })
+            .click();
+        }
+      };
+      if (width === 390) await expect(reviewButtons).toHaveCount(3);
+      else {
+        await expect(page.getByRole('table')).toContainText('Fixture Clinic');
+        await expect(
+          page.getByRole('columnheader', { name: catalog['device-events.status'], exact: true }),
+        ).toBeVisible();
+      }
       await capture('device-events');
-      await page.locator('tbody button[aria-haspopup=menu]').last().click();
-      await page
-        .getByRole('menuitem', { name: catalog['device-events.review-event'], exact: true })
-        .click();
+      await openEvent(2);
       const details = page.getByRole('dialog');
       await expect(details).toContainText('Human refusal');
       await expect(details).not.toContainText('secret-debug-value');
+      const shortLot = details.getByText('LOT-123', { exact: true });
+      expect(
+        await shortLot.evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return range.getClientRects().length;
+        }),
+      ).toBe(1);
+      const longLot = details.getByText(`LOT-${'1234567890-'.repeat(8)}`, { exact: true });
+      expect(
+        await longLot.evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return range.getClientRects().length;
+        }),
+      ).toBeGreaterThan(1);
+
       await capture('refusal-details');
       await page
         .getByRole('button', { name: catalog['device-events.close'], exact: true })
         .first()
         .click();
-      await page.locator('tbody button[aria-haspopup=menu]').nth(1).click();
-      await page
-        .getByRole('menuitem', { name: catalog['device-events.review-event'], exact: true })
-        .click();
+      await openEvent(1);
       await page
         .getByRole('button', { name: catalog['device-events.send-again'], exact: true })
         .click();
@@ -268,9 +337,7 @@ for (const language of ['en', 'ar']) {
       });
       await context.setOffline(false);
       await page.goto('./stock-management/adjustments');
-      await expect(
-        page.getByRole('cell', { name: catalog['offline.download.downloading'], exact: true }),
-      ).toBeVisible();
+      await expect(page.getByText('Fixture Medicines', { exact: true }).first()).toBeVisible();
       await capture('program-downloading');
       release?.();
       await page.goto('./stock-management/adjustments/program');

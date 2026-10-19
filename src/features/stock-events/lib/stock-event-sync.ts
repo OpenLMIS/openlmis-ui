@@ -38,7 +38,9 @@ export type StockEventReceipt = {
   serverEventId?: string;
   documentNumber?: string;
   confirmedBy?: string;
-  event: QueuedStockEvent;
+  event?: QueuedStockEvent;
+  userId?: string;
+  hiddenAt?: number;
 };
 export type DeviceEvent = Omit<QueuedStockEvent, 'status'> & {
   status: QueuedStockEvent['status'] | 'refused' | 'accepted';
@@ -589,6 +591,49 @@ export async function dismissRefusedEvent(context: StockEventContext, error: Sto
     return true;
   });
 }
+export async function hideAcceptedEvent(context: StockEventContext, event: DeviceEvent) {
+  const check = ownerCheck(context, event.userId);
+  return context.db.transaction('rw', tables(context.db), async () => {
+    check();
+    const table = context.db.table<StockEventReceipt>('stockEventReceipts');
+    const receipt = await table.get([event.draftId, event.revision]);
+    check();
+    if (
+      !receipt ||
+      receipt.hiddenAt ||
+      receipt.localEventId !== event.localEventId ||
+      receipt.event?.userId !== context.userId ||
+      receipt.event.facilityId !== context.facilityId ||
+      receipt.event.programId !== context.programId
+    )
+      return false;
+    await table.put({
+      draftId: receipt.draftId,
+      revision: receipt.revision,
+      localEventId: receipt.localEventId,
+      acceptedAt: receipt.acceptedAt,
+      source: receipt.source,
+      serverEventId: receipt.serverEventId,
+      documentNumber: receipt.documentNumber,
+      confirmedBy: receipt.confirmedBy,
+      userId: context.userId,
+      hiddenAt: Date.now(),
+    });
+    check();
+    const draft = await context.db.table<StockEventDraft>('stockEventDrafts').get(event.draftId);
+    check();
+    if (
+      draft?.state === 'accepted' &&
+      draft.userId === context.userId &&
+      draft.localEventId === event.localEventId &&
+      draft.revision === event.revision
+    )
+      await context.db.table('stockEventDrafts').delete(event.draftId);
+    check();
+    return true;
+  });
+}
+
 export async function pruneStockEvents(db: Dexie, check: () => void) {
   const cutoff = Date.now() - 30 * 86400000;
   await db.transaction('rw', tables(db), async () => {

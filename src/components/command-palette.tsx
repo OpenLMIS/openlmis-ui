@@ -1,10 +1,10 @@
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
-import { type LucideIcon, SearchIcon } from 'lucide-react';
+import { type LucideIcon, SearchIcon, WifiOffIcon } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import {
   Command,
   CommandDialog,
@@ -40,7 +40,8 @@ function toSections(items: LiveNavItem[]): PaletteSection[] {
 export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const disabledReasonId = useId();
+  const offline = useOfflineNavigation();
+  const connectionReasonId = useId();
   const [open, setOpen] = useState(false);
   const paletteRef = useRef<HTMLDivElement>(null);
   const navGroups = useNavGroups();
@@ -89,7 +90,7 @@ export function CommandPalette() {
         title={t('command.title')}
       >
         <Command ref={paletteRef}>
-          <p id={disabledReasonId} className="sr-only">
+          <p id={connectionReasonId} className="sr-only">
             {t('offline.connection-required')}
           </p>
           <CommandInput placeholder={t('command.placeholder')} />
@@ -104,13 +105,11 @@ export function CommandPalette() {
                     return (
                       <CommandItem
                         key={link.titleKey}
-                        data-unavailable={link.disabled || undefined}
-                        aria-describedby={link.disabled ? disabledReasonId : undefined}
+                        data-unavailable={link.connectionRequired || undefined}
+                        aria-describedby={link.connectionRequired ? connectionReasonId : undefined}
                         onSelect={() => {
-                          if (link.disabled) {
-                            toast.info(t('offline.title'), {
-                              description: t('offline.connection-required'),
-                            });
+                          if (link.connectionRequired) {
+                            offline.show();
                             return;
                           }
                           setOpen(false);
@@ -119,9 +118,10 @@ export function CommandPalette() {
                         value={heading ? `${heading} ${title}` : title}
                       >
                         {link.icon ? <link.icon /> : section.icon && <section.icon />}
+                        {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
                         <span className="min-w-0">
                           <span className="block">{title}</span>
-                          {link.disabled && (
+                          {link.connectionRequired && (
                             <span className="block text-xs text-muted-foreground">
                               {t('offline.connection-required')}
                             </span>
@@ -139,13 +139,11 @@ export function CommandPalette() {
                 return (
                   <CommandItem
                     key={link.to}
-                    data-unavailable={link.disabled || undefined}
-                    aria-describedby={link.disabled ? disabledReasonId : undefined}
+                    data-unavailable={link.connectionRequired || undefined}
+                    aria-describedby={link.connectionRequired ? connectionReasonId : undefined}
                     onSelect={() => {
-                      if (link.disabled) {
-                        toast.info(t('offline.title'), {
-                          description: t('offline.connection-required'),
-                        });
+                      if (link.connectionRequired) {
+                        offline.show();
                         return;
                       }
                       setOpen(false);
@@ -154,9 +152,10 @@ export function CommandPalette() {
                     value={`${accountHeading} ${title}`}
                   >
                     <link.icon />
+                    {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
                     <span className="min-w-0">
                       <span className="block">{title}</span>
-                      {link.disabled && (
+                      {link.connectionRequired && (
                         <span className="block text-xs text-muted-foreground">
                           {t('offline.connection-required')}
                         </span>
@@ -168,6 +167,7 @@ export function CommandPalette() {
             </CommandGroup>
           </CommandList>
         </Command>
+        {offline.dialog}
       </CommandDialog>
     </>
   );

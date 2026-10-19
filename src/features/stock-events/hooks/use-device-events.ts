@@ -56,11 +56,17 @@ export function useDeviceEvents(enabled = true, onlyIfPresent = false) {
               ...errors
                 .filter((error) => error.category !== 'uncertain' && !error.dismissedAt)
                 .map((error) => ({ ...error.event, status: 'refused' as const, error })),
-              ...receipts.map((receipt) => ({
-                ...receipt.event,
-                status: 'accepted' as const,
-                receipt,
-              })),
+              ...receipts.flatMap((receipt) =>
+                receipt.hiddenAt || !receipt.event
+                  ? []
+                  : [
+                      {
+                        ...receipt.event,
+                        status: 'accepted' as const,
+                        receipt,
+                      },
+                    ],
+              ),
             ],
           };
         },

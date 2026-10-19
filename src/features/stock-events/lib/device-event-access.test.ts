@@ -6,7 +6,7 @@ import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries
 import { hasOwnDeviceEvents } from '@/features/stock-events/lib/device-event-access';
 import { getLocalDb } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
-import { Route } from '@/routes/(protected)/_protected.stock-management.device-events';
+import { Route } from '@/routes/(protected)/_protected.offline-events';
 
 beforeEach(async () => {
   useLoginData

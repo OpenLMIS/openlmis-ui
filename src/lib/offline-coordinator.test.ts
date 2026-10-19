@@ -337,6 +337,7 @@ it.each([false, true])(
 it('marks accepted online stock stale and refreshes only that program without waiting for the read', async () => {
   begin();
   await finished();
+  expect(getDownloadStatus().trigger).toBe('boot');
   download.mockClear();
   const previous = await getLocalDb().table('adjustmentDownloads').get(['home', 'p1']);
   let release!: (value: AdjustmentBundle) => void;
@@ -348,14 +349,38 @@ it('marks accepted online stock stale and refreshes only that program without wa
   );
   refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
   await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+  expect(getDownloadStatus()).toMatchObject({ phase: 'running', trigger: 'refresh' });
   expect(download.mock.calls[0][0].programId).toBe('p1');
   const stale = await getLocalDb().table('adjustmentDownloads').get(['home', 'p1']);
   expect(stale).toMatchObject({ stale: true, fetchedAt: previous.fetchedAt });
   expect(downloadIsStale(stale)).toBe(true);
   release(bundle('p1'));
   await finished();
+  expect(getDownloadStatus().trigger).toBe('refresh');
   expect((await getLocalDb().table('adjustmentDownloads').get(['home', 'p1'])).stale).not.toBe(
     true,
+  );
+});
+
+it('keeps a queued user retry visible when a later accepted-event refresh joins the batch', async () => {
+  begin();
+  await finished();
+  let release!: (value: AdjustmentBundle) => void;
+  download.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
+  await waitFor(() =>
+    expect(getDownloadStatus()).toMatchObject({ phase: 'running', trigger: 'refresh' }),
+  );
+  retryOfflineDownload();
+  refreshOfflineProgram({ facilityId: 'home', programId: 'p2' });
+  release(bundle('p1'));
+  await waitFor(() =>
+    expect(getDownloadStatus()).toMatchObject({ phase: 'complete', trigger: 'retry' }),
   );
 });
 

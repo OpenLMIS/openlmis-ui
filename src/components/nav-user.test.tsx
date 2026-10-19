@@ -1,5 +1,5 @@
-import { QueryClient } from '@tanstack/react-query';
-import { cleanup, screen } from '@testing-library/react';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/nav-user';
@@ -64,4 +64,22 @@ describe('NavUser', () => {
     expect(await screen.findByRole('menuitem', { name: 'nav-user.account' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'nav-user.settings' })).not.toBeInTheDocument();
   });
+});
+
+it('opens the offline dialog from Account and returns focus on close', async () => {
+  onlineManager.setOnline(false);
+  await renderMenu([]);
+  await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
+  const account = await screen.findByRole('menuitem', { name: 'nav-user.account' });
+  expect(account).not.toHaveAttribute('aria-disabled', 'true');
+  expect(account).toHaveAttribute('data-unavailable');
+  expect(account).not.toHaveAttribute('disabled');
+  expect(account).not.toHaveAttribute('href');
+  expect(account).toHaveAccessibleDescription('offline.connection-required');
+  await userEvent.click(account);
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'offline.navigation-unavailable',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(account).toHaveFocus());
 });

@@ -38,7 +38,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
   '/stock-management/transaction-history': RIGHTS.stockCardsView,
   '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,
-  '/stock-management/device-events': RIGHTS.stockAdjust,
+  '/offline-events': RIGHTS.stockAdjust,
   '/stock-management/adjustments': RIGHTS.stockAdjust,
   '/stock-management/issue': RIGHTS.stockAdjust,
   '/stock-management/receive': RIGHTS.stockAdjust,
@@ -51,7 +51,7 @@ export function canOpen(
   rights: ReadonlySet<string> | undefined,
   hasDeviceEvents = false,
 ) {
-  if (to === '/stock-management/device-events' && hasDeviceEvents) return true;
+  if (to === '/offline-events' && hasDeviceEvents) return true;
   const right = to && NAV_RIGHTS[to];
   return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
@@ -89,7 +89,7 @@ export function useNavGroups() {
   return useMemo<LiveNavGroup[]>(() => {
     const mark = (link: LiveNavLink) => ({
       ...link,
-      disabled: !online && !isOfflineCapable(link.to ?? ''),
+      connectionRequired: !online && !isOfflineCapable(link.to ?? ''),
     });
     return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents).map((group) => ({
       ...group,
@@ -117,7 +117,7 @@ type AccountLink = {
   titleKey: ParseKeys;
   to: '/profile' | '/settings';
   icon: LucideIcon;
-  disabled?: boolean;
+  connectionRequired?: boolean;
 };
 
 export function useAccountLinks(): AccountLink[] {
@@ -126,14 +126,14 @@ export function useAccountLinks(): AccountLink[] {
   const settingsOn = useFlag('SYSTEM_SETTINGS');
   const canManageSettings = mayManageSettings && settingsOn;
   return [
-    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon, disabled: !online },
+    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon, connectionRequired: !online },
     ...(canManageSettings
       ? [
           {
             titleKey: 'nav-user.settings',
             to: '/settings',
             icon: SettingsIcon,
-            disabled: !online,
+            connectionRequired: !online,
           } as const,
         ]
       : []),

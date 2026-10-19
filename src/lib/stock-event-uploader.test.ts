@@ -12,7 +12,7 @@ import {
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
-import { useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
+import { getSyncPhase, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { startStockEventUploader } from '@/lib/stock-event-uploader';
 
@@ -118,6 +118,7 @@ it('waits for fresh access, orders enqueues, and two coordinators share one uplo
   await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
   expect(send.mock.calls[1][0].sequence).toBe(second.sequence);
   await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(2));
+  await waitFor(() => expect(getSyncPhase()).toBe('complete'));
 });
 it('a service 401 pauses until same-user renewal and fresh access, then resends exactly once', async () => {
   const event = await enqueue();
@@ -307,4 +308,23 @@ it('clears access polling on logout and does not force access for the next owner
   access.mockClear();
   window.dispatchEvent(new Event('focus'));
   expect(access).not.toHaveBeenCalled();
+});
+
+it('does not report completion when a run accepts an event but leaves refused and uncertain work', async () => {
+  await enqueue();
+  await enqueue();
+  await enqueue();
+  const send = vi
+    .fn()
+    .mockResolvedValueOnce(accepted)
+    .mockResolvedValueOnce({ status: 400, data: { messageKey: 'refused', message: 'Refused' } })
+    .mockResolvedValueOnce({ status: 504, data: {} });
+  stops.push(startStockEventUploader({ access: async () => snapshot, send }));
+  onlineManager.setOnline(true);
+  await waitFor(async () =>
+    expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(2),
+  );
+  await waitFor(() => expect(getSyncPhase()).toBe('idle'));
+  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1);
+  expect((await getLocalDb().table('stockEventQueue').toArray())[0].status).toBe('uncertain');
 });

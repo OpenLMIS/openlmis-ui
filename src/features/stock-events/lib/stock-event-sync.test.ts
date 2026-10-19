@@ -14,6 +14,7 @@ import {
   classifyUpload,
   copyRefusedEvent,
   dismissRefusedEvent,
+  hideAcceptedEvent,
   pruneStockEvents,
   recoverSending,
   removeQueuedEvent,
@@ -516,3 +517,32 @@ it.each([false, true])(
     expect((await db.table('stockEventDrafts').get(event.draftId)).state).toBe('refused');
   },
 );
+
+it('hides accepted work without its payload, retains the receipt and removes its accepted draft only once', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  await syncStockEvents(db, event.userId, dependencies());
+  const receipt = await db.table('stockEventReceipts').get([event.draftId, event.revision]);
+  const draft = await db.table('stockEventDrafts').get(event.draftId);
+  const accepted = { ...event, status: 'accepted' as const, receipt };
+  const context = createStockEventContext(event);
+  expect(await hideAcceptedEvent(context, accepted)).toBe(true);
+  const retained = await db.table('stockEventReceipts').get([event.draftId, event.revision]);
+  expect(retained).toMatchObject({
+    localEventId: event.localEventId,
+    serverEventId: id,
+    source: 'server',
+    userId: event.userId,
+    hiddenAt: expect.any(Number),
+  });
+  expect(retained).not.toHaveProperty('event');
+  expect(await db.table('stockEventDrafts').get(event.draftId)).toBeUndefined();
+  expect(await hideAcceptedEvent(context, accepted)).toBe(false);
+  await expect(
+    enqueueStockEvent(context, draft, event.payload, {
+      facility: event.facility,
+      program: event.program,
+    }),
+  ).rejects.toThrow();
+  expect(await db.table('stockEventQueue').count()).toBe(0);
+});

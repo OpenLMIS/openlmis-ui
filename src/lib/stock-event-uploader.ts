@@ -9,6 +9,7 @@ import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-q
 import {
   pruneStockEvents,
   recoverSending,
+  type StockEventSyncError,
   type SyncDependencies,
   syncStockEvents,
 } from '@/features/stock-events/lib/stock-event-sync';
@@ -16,8 +17,7 @@ import { client } from '@/integrations/axios';
 import i18n from '@/integrations/i18n';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
-import { setSyncPhase, setSyncWake } from '@/lib/device-event-status';
-import { announceDeviceSave } from '@/lib/device-save-announcement';
+import { getSyncPhase, setSyncPhase, setSyncWake } from '@/lib/device-event-status';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
 import { QueueReceiptError } from '@/lib/queue-transport';
@@ -90,7 +90,7 @@ export function startStockEventUploader(
         const count = await db.table('stockEventQueue').where('status').equals('queued').count();
         check();
         if (!count) {
-          setSyncPhase('idle');
+          if (getSyncPhase() !== 'complete') setSyncPhase('idle');
           return;
         }
         const epoch = uploadAccessEpoch();
@@ -118,6 +118,8 @@ export function startStockEventUploader(
               throw error;
             }
           });
+        let acceptedCount = 0;
+        let sentCount = 0;
         await syncStockEvents(db, userId, {
           check,
           canSend: () => valid() && epoch === uploadAccessEpoch(),
@@ -126,6 +128,7 @@ export function startStockEventUploader(
             access.programs.some((program) => program.id === event.programId) &&
             hasProgramGrant(permissions, 'STOCK_ADJUST', event.facilityId, event.programId),
           send: async (event) => {
+            sentCount++;
             const response = await send(event);
             if (response.status === 401) pausedEpoch = epoch;
             return response;
@@ -139,7 +142,7 @@ export function startStockEventUploader(
           accepted: (event: QueuedStockEvent) => {
             check();
             refreshAfterStockEventAccepted(queryClient, event);
-            announceDeviceSave('device-events.synced');
+            acceptedCount++;
             if (!foregroundStockEvents.has(event.localEventId))
               toast.success(i18n.t('device-events.synced'), {
                 description: i18n.t('device-events.synced-description'),
@@ -147,7 +150,33 @@ export function startStockEventUploader(
           },
         });
         check();
-        setSyncPhase(restingPhase());
+        const unfinished = await db.transaction(
+          'r',
+          ['stockEventQueue', 'stockEventSyncErrors'],
+          async () => {
+            const queued = await db
+              .table<QueuedStockEvent>('stockEventQueue')
+              .filter((event) => event.userId === userId)
+              .count();
+            const errors = await db
+              .table<StockEventSyncError>('stockEventSyncErrors')
+              .filter(
+                (error) => error.event.userId === userId && !error.resolvedAt && !error.dismissedAt,
+              )
+              .count();
+            return queued + errors;
+          },
+        );
+        check();
+        setSyncPhase(
+          acceptedCount &&
+            acceptedCount === sentCount &&
+            !unfinished &&
+            valid() &&
+            epoch === uploadAccessEpoch()
+            ? 'complete'
+            : restingPhase(),
+        );
       });
       retryDelay = 1000;
       clearTimeout(retryTimer);

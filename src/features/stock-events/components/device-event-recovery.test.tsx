@@ -1,10 +1,12 @@
-import { QueryClient } from '@tanstack/react-query';
-import { renderHook, screen, waitFor, within } from '@testing-library/react';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { act, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
+import { DeviceEventsPage } from '@/features/stock-events/components/device-events';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
@@ -22,6 +24,7 @@ import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-de
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { wakeStockEventSync } from '@/lib/device-event-status';
+import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
 const navigation = vi.hoisted(() => vi.fn());
@@ -29,6 +32,7 @@ vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => navigation,
 }));
+vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/lib/device-event-status', () => ({
   wakeStockEventSync: vi.fn(),
@@ -58,8 +62,9 @@ beforeEach(async () => {
 });
 async function open(
   canSend = true,
-  status: 'uncertain' | 'refused' | 'accepted' = 'uncertain',
+  status: 'queued' | 'uncertain' | 'refused' | 'accepted' = 'uncertain',
   kind: ConfiguredEventKind = 'adjustment',
+  renderDialog = true,
 ) {
   const context = createStockEventContext({
     kind,
@@ -78,7 +83,8 @@ async function open(
     },
   );
   let uncertain: DeviceEvent;
-  if (status === 'uncertain') {
+  if (status === 'queued') uncertain = event;
+  else if (status === 'uncertain') {
     await getLocalDb()
       .table('stockEventQueue')
       .update(event.sequence, { status: 'sending', attemptId: 'a' });
@@ -109,6 +115,7 @@ async function open(
     uncertain = { ...event, status, error, receipt };
   }
   const onClose = vi.fn();
+  if (!renderDialog) return { uncertain, onClose };
   vi.spyOn(client, 'get');
   vi.spyOn(client, 'post');
   renderPage(
@@ -209,11 +216,31 @@ it('shows a synced server reference and links straight to its transaction histor
   await open(true, 'accepted');
   expect(screen.getByRole('dialog')).toHaveTextContent('11111111-1111-4111-8111-111111111111');
   expect(screen.getByRole('dialog')).toHaveTextContent('DOC-42');
+  expect(screen.getByText('device-events.status-accepted')).toHaveAttribute(
+    'data-variant',
+    'success',
+  );
   expect(screen.getByRole('link', { name: 'device-events.history' })).toHaveAttribute(
     'href',
     '/stock-management/transaction-history/11111111-1111-4111-8111-111111111111',
   );
-  expect(client.get).not.toHaveBeenCalled();
+  const history = screen.getByRole('link', { name: 'device-events.history' });
+  const close = screen.getByRole('button', { name: 'device-events.close' });
+  const footer = history.closest('[data-slot=dialog-footer]');
+  expect(footer?.lastElementChild).toBe(close);
+  await waitFor(() => expect(close).toHaveFocus());
+  try {
+    act(() => onlineManager.setOnline(false));
+    await userEvent.click(history);
+    const connection = await screen.findByRole('alertdialog');
+    expect(connection).toHaveTextContent('offline.navigation-unavailable');
+    await userEvent.click(within(connection).getByRole('button', { name: 'dialog.close' }));
+    await waitFor(() => expect(history).toHaveFocus());
+    expect(navigation).not.toHaveBeenCalled();
+    expect(client.get).not.toHaveBeenCalled();
+  } finally {
+    act(() => onlineManager.setOnline(true));
+  }
 });
 
 it('opens the correction in the refused event kind editor', async () => {
@@ -231,3 +258,39 @@ it('opens the correction in the refused event kind editor', async () => {
   );
   expect(onClose).not.toHaveBeenCalled();
 });
+
+it.each(['queued', 'accepted'] as const)(
+  'removes %s work directly from the card menu and focuses the empty list',
+  async (status) => {
+    await open(true, status, 'adjustment', false);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    queryClient.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+    renderPage(
+      <DeviceEventsPage
+        search={{}}
+        onSearchChange={() => {}}
+        onOpenEvent={() => {}}
+        onCloseEvent={() => {}}
+        permissions={parsePermissions([])}
+        permissionsUpdatedAt={1}
+      />,
+      { queryClient },
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'device-events.actions-label' }),
+    );
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'device-events.remove' }));
+    const confirm = await screen.findByRole('alertdialog');
+    await userEvent.click(within(confirm).getByRole('button', { name: 'device-events.remove' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(document.activeElement).toHaveTextContent('device-events.no-events-title'),
+    );
+    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    if (status === 'accepted') {
+      const receipt = await getLocalDb().table('stockEventReceipts').toCollection().first();
+      expect(receipt.hiddenAt).toBeDefined();
+      expect(receipt.event).toBeUndefined();
+    }
+  },
+);

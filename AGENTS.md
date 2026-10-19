@@ -244,6 +244,7 @@ are defined in the typed components; reuse them before adding another. `TabsList
 fits odd tab counts; `wrap="md"` fits short labels. Page tabs use `TabsList size="lg"` (36px);
 dialogs keep the default. `Button variant="destructive-solid"` and
 `"destructive-outline"` mark the current and other invalid pages in the pager.
+`Button variant="warning"` and `"info"` match notice actions to their Alert tones.
 `DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns;
 `size="table"` (36rem) fits a short form above a compact five-column table.
 
@@ -259,7 +260,7 @@ edits, which have no prop for TypeScript to detect:
 |---|---|
 | `dialog.tsx` | Keep the app `@/components/page-visibility` dependency, hidden portal state and release after visible close |
 | `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` | Keep page-visibility gates and close transient overlays when the page hides |
-| `alert-dialog.tsx` | Keep the page-visibility gate and retained close target; DiscardChangesDialog opts out so navigation/logout remain answerable. Preserve the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
+| `alert-dialog.tsx` | Keep the page-visibility gate and retained close target; DiscardChangesDialog opts out so navigation/logout remain answerable. Preserve destructive media, the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
@@ -272,7 +273,7 @@ edits, which have no prop for TypeScript to detect:
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
-| `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so disabled offline entries remain focusable with tooltips |
+| `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so connection-dependent entries remain clickable offline |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `aria-invalid:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
@@ -806,7 +807,12 @@ Authentication below.
 **Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,
 one hue light-to-dark, checked for even steps/contrast in both modes. Use the ramp in order
 for ordered data. Status uses `success`, `warning`, `destructive` plus icon and label;
-never color alone.
+never color alone. `--offline`/`--offline-foreground` in globals.css define the lavender/purple
+light/dark status pair; expose them through Tailwind and Alert variant="offline". This is a fixed
+status palette, like info/warning/success, outside preset brand/chart tokens. The kind-specific
+pending offline-events Alert uses it in either connection state; its offline lead-in is a
+translator-controlled `<strong>` within the complete ICU message. Keep the sidebar offline
+connection notice in its warning tone.
 
 ## App configuration
 
@@ -996,7 +1002,22 @@ offline criteria stay open until those criteria are met.
   to `createRoot` to suppress offline errors and log other caught errors with component stacks.
 - `SidebarNotices` above footer buttons shows You're Offline (warning, persistent), You're Back
   Online (success, four seconds) and Update Available (info, Reload). `OfflineDot` marks the
-  header menu while the sidebar is closed. Collapsed actions remain clickable with tooltips.
+  header menu while the sidebar is closed. Download and sync progress switch in place to
+  success checks for four seconds: Offline Data Ready and Offline Events Synced. All timed
+  notices share createNoticeCountdown with dismissal, and show a decorative tone-coloured
+  draining edge bar. Hover/focus pauses both; resume with the exact remaining time. Collapse
+  releases pauses; the rail has no bar. Reduced motion hides the bar while retaining timing. Publish sync
+  completion only after a verified successful run leaves no pending queue rows or unresolved
+  errors. No-op uploader passes preserve its timer. The announcer reads completion once from
+  the notice; do not also announce individual acceptance as run completion. Spinners respect
+  reduced motion. Download statuses carry their trigger through local and cross-tab updates;
+  hide progress/completion for accepted-event `refresh` runs, retaining boot/force/retry notices.
+  Coalesce queued triggers by force > retry > boot > refresh; refresh cannot silence visible work.
+  Collapsed actions remain clickable with title/count tooltips.
+- While offline, You're Offline is the only connection notice. Suppress Sign In To Sync and
+  connection-related Sync Paused notices and download failures with reason `offline`, including
+  in StatusAnnouncer. Reconnecting may show a retained download failure again. Show sign-in again
+  when connected if needed. Keep distinct capability, held-work, receipt-write and update notes.
 - Visual notices are notes. The shell `StatusAnnouncer` is the single persistent live region;
   device saves and sync outcomes announce through it. Keep notice ids stable and cap/scroll
   the sidebar footer. Collapsed actions have translated action-first accessible names.
@@ -1004,8 +1025,16 @@ offline criteria stay open until those criteria are met.
 ### Shell capabilities and identity
 
 - `src/lib/offline-capability.ts` owns route capabilities, separately from downloaded readiness and
-  rights. Keep unavailable navigation focusable with explanations and omit its links. Block
-  online-only direct routes/preloads before child loaders. Palette selection explains its gate.
+  rights. Connection-dependent navigation stays clickable offline, with a disconnected icon and
+  accessible description. Use `useOfflineNavigation` for the shared Close-only AlertDialog,
+  without navigation, native disabled states or connection tooltips. Use `data-unavailable`
+  on SidebarMenuButton/SubButton, CommandItem and DropdownMenuItem to keep the previous
+  dimmed appearance, cursor-default and no hover/active highlight while allowing focus and
+  activation. Keep a neutral visible keyboard focus/selection ring in menus and the palette.
+  Collapsed unavailable-item tooltips add the translated connection reason on its own line.
+  Keep normal keyboard/menu navigation and the accessible connection description.
+  Retain menu/palette context and restore focus on close. Keep collapsed-rail title/count tooltips; only connection-reason
+  tooltips are removed. Block online-only direct routes/preloads before child loaders.
 - An already-open server page may hide while retaining its draft/guards. Same-path changes
   reuse it only after a successful protected match for the current session scope. Hidden
   Dialog/AlertDialog portals retain drafts until a visible close; transient overlays close.
@@ -1081,15 +1110,55 @@ offline criteria stay open until those criteria are met.
 - Refusal Copy For Correction makes an editable copy in one explained confirmation. Dismiss
   hides the refusal from review/counts while retaining audit data. Only never-attempted queued
   events may be removed; delete the linked draft only if it still matches.
-- Device Events uses one row per product/lot and event-based pagination. Products/actions stay
-  visible; Status defaults visible at every width. Optional columns hide by container width.
+- Offline Events at `/offline-events` sits directly below Home in the shared nav source. Its
+  badge counts queued, sending, uncertain and unresolved refused events, including held work;
+  zero hides it, and the collapsed label/tooltip includes the count.
+  SidebarMenuBadge collapsed="indicator" retains a logical-positioned dot on the rail icon. Count-only sidebar cards are
+  omitted; StatusAnnouncer announces user queue saves plus uncertain and refused counts,
+  without standing waiting counts on load or while sync reduces them. Share
+  `isPendingDeviceEvent` between the shell summary and kind-specific picker counts.
+- Offline Events uses one compact row per event: type, facility, program, occurred dates,
+  status and View Details in the end-of-row menu. Offer Remove Event directly for never-attempted
+  queued events, accepted events and refusals; omit it for sending/uncertain work. Refused removal
+  dismisses without deleting correction copies. Accepted removal drops the local payload/draft,
+  hides the row and keeps a minimal receipt for duplicate protection; explain that server stock
+  is unchanged. Use session-scoped mutations and focus the list after removal. Hide facility/program by measured width;
+  stored View choices override defaults. Below 672px use type/View Details bands and rows for
+  facility, program, date and status. Card-band View Details is size="sm" with a neighbouring
+  shared action menu. Line details appear only in the Event Details dialog.
+  Share descriptive action labels and EventStatus badges across list/cards/dialog: accepted
+  success/check, queued info/clock, sending info/spinner with reduced motion, uncertain warning
+  and refused destructive. Preserve pagination, sorting and live status filtering through Filters.
+  Event Details uses DialogContent size="table" (36rem), a scrolling body and measured line
+  cards at this width. Its title has no visible subtitle or separate status. Keep a meaningful
+  screen-reader-only description, and wrap the status badge beside the Pending Event value.
+  Dialog metadata uses SettingsList/SettingsItem and EMPTY_VALUE for missing non-table values.
+  Its lines use a bordered table with blank missing cells, one-line headers and vertical dividers;
+  below 672px measured within the dialog, use flat product-band cards with settings rows.
+  DialogFooter wrap puts Transaction History (outline) and recovery actions before the final
+  primary Close button in DOM order. Recovery actions are outline/destructive-outline so
+  Close is the only solid primary. Set initial focus to Close, never a destructive action.
+  History is an outline footer link with no preload or wrapping height override. Stock Card
+  links use the same offline dialog behaviour. Lot cards use break-all so fitting codes stay
+  intact and long codes break anywhere, preserving copied hyphens. The table keeps codes nowrap.
   Recovery dialogs live in URL search via `useSearchNavigation`/`CLOSED_DIALOGS`, retaining their
-  target during close; missing events use DialogNotFound. Unknown reason ids stay blank.
-- Device Events/nav require adjustment rights or owned non-accepted work. Non-sending recovery
+  target during close; missing events use DialogNotFound. Unknown reason ids stay blank in tables.
+- Offline Events/nav require adjustment rights or owned non-accepted work. Non-sending recovery
   stays available without adjustment rights; Send Again still needs its scoped grant. History
   links require exact viewing rights, no preloading and a connection explanation when offline.
   Receipt metadata appears only for receipts. Never expose raw transport JSON or saved revisions.
 - Prune only accepted receipts/drafts. Keep queue rows, refusals, sync errors and archived copies.
-  Pending counts exclude pauses. Offer Review once on the most severe note. Sign In To Sync
+  Queue-save announcements retain their own count; the nav count includes held work.
+  Offer Review once on the most severe substantive note. Sign In To Sync
   leaves reauthentication to SessionExpiredDialog. Timing/retention values and sequencing
   evidence belong in the ticket plan.
+- Stock event program pickers show no download readiness column. Pending work for the kind
+  appears in an offline Alert with a bolt icon and Offline Events link. Copy follows connection
+  state and uses one complete ICU message with a translated link through `Trans`, plurals
+  and a kind select with proper singular/plural nouns in each language. Pass the raw kind
+  identifier to the ICU select. Use a named tag such as `eventLink`; HTML `link` is a void tag.
+  Keep generic picker status support for inventories.
+
+- SignatureDialog puts Submitted By below Signature as TextField description, linked by the
+  field's aria-describedby. Use one ICU Trans message with a strong component around the raw
+  username; IsolatingICU handles RTL. Keep the title and omit the header description.

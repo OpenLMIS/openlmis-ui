@@ -903,7 +903,7 @@ describe('EventEditor', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     const failure = await screen.findByRole('alertdialog');
     expect(failure).toHaveTextContent('Backdated stock would be negative');
-    expect(within(failure).getByRole('button', { name: 'Review Device Events' })).toBeEnabled();
+    expect(within(failure).getByRole('button', { name: 'Review Offline Events' })).toBeEnabled();
     expect(
       screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/, hidden: true }),
     ).toHaveValue('17');

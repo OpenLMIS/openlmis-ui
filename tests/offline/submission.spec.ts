@@ -1,9 +1,11 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 import { generation, login, stub } from './fixtures';
+
+const catalog = JSON.parse(await readFile('public/locales/en.json', 'utf8'));
 
 test('offline Submit retains its committed event through persistent restart', {
   tag: '@offline-shell',
@@ -26,8 +28,10 @@ test('offline Submit retains its committed event through persistent restart', {
     await expect.poll(() => generation(page)).not.toBeNull();
     await waitForOfflineShell(page);
     await context.setOffline(true);
-    await page.goto('./stock-management/device-events');
-    await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
+    await page.goto('./offline-events');
+    await expect(
+      page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+    ).toBeVisible();
     await page.goto('./stock-management/adjustments/program');
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await page.getByRole('textbox', { name: /^Quantity, Fixture Product/ }).fill('12');
@@ -42,9 +46,7 @@ test('offline Submit retains its committed event through persistent restart', {
         .getByRole('region', { name: 'Notifications alt+T' })
         .getByText('Saved On This Device', { exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
-    ).toBeVisible();
+    await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('1');
     expect(posts).toBe(0);
     await context.close();
     context = await persistentContext(directory, true);
@@ -54,14 +56,13 @@ test('offline Submit retains its committed event through persistent restart', {
       await route.abort();
     });
     page = context.pages()[0];
-    await page.goto('./stock-management/device-events');
-    await expect(page.getByRole('heading', { name: 'Device Events', exact: true })).toBeVisible();
-    await expect(page.getByRole('table')).toContainText('Fixture Product');
-    await expect(page.getByRole('table')).toContainText('Fixture Clinic');
-    await expect(page.getByRole('table')).toContainText('Queued');
+    await page.goto('./offline-events');
     await expect(
-      page.getByRole('note').filter({ hasText: '1 Event Waiting To Sync' }),
+      page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
     ).toBeVisible();
+    await expect(page.getByRole('table')).toContainText('Fixture Clinic');
+    await expect(page.getByRole('table')).toContainText(catalog['device-events.status-queued']);
+    await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('1');
     expect(posts).toBe(0);
   } finally {
     await context.close();

@@ -1,26 +1,22 @@
 # Working Offline
 
 Adjustments can use downloaded data, save drafts and submit events without a connection.
-Home and Device Events also open offline. Other stock pages, administration, printing and
+Home and Offline Events also open offline. Other stock pages, administration, printing and
 PDF downloads need a connection until their own offline support is added.
 
 ## Before You Disconnect
 
 Sign in while connected, using the browser and device you will take with you. Downloads run
 in the background without stopping your work. Keep the app open until the download finishes.
-On the Adjustments program list, check the program's Offline Readiness and downloaded time.
-On phones, the column is headed Offline and remains visible beside each program.
-The sidebar also reports download progress and failures at every width.
-
-- Ready Offline means a complete copy is available on this device.
-- Needs Refresh means the saved copy is older or stock has changed. You can still use it
-  offline, but its stock figures may be out of date.
-- Not Downloaded means you need a connection before using that program offline.
-- If a download fails, the sidebar offers Retry. A previous complete download stays available.
+The sidebar reports download progress and failures at every width. If a download fails, use
+Retry. A previous complete download stays available.
 
 Only permitted home-facility programs with stock viewing access are downloaded. A downloaded
-program is a snapshot, not a live stock balance. Check the displayed time before relying on it.
-The app cannot download new data while disconnected.
+program is a snapshot of stock at download time. The app cannot download new data while
+disconnected. Wait for downloads to finish and check the sidebar for failures before leaving.
+
+A disconnected icon marks pages that need a connection. Selecting one while offline opens
+Connect To Open This Page; Close returns to the item you selected.
 
 ## Drafts And Submit Offline
 
@@ -41,15 +37,21 @@ While connected, Submit uses the same device queue. Synced appears only after th
 accepts the event and the app records that result. Connected acceptance opens Stock On Hand.
 There is no offline print offer.
 
-## Reconnect And Review Device Events
+## Reconnect And Review Offline Events
 
 Keep the app open when you reconnect. Events send one at a time after fresh access checks.
 If Sign In To Sync appears, connect and sign in again as the same user. An expired session
 keeps your downloaded data, drafts and events available for local work.
 
-Open Stock Management > Device Events in the sidebar. Review Device Events also appears
-when work needs attention. The page shows queued work, refusals,
-unknown results and recent receipts. Use each row's menu to review signed details.
+Open Offline Events directly below Home in the sidebar. Its badge counts queued events,
+uploads in progress, unknown results and unresolved refusals, including held work. The
+Adjustments program list also links there when its events are waiting or need review.
+
+The page shows each event's type, facility, program, occurred dates and sync status.
+On phones, each event has its own card. Choose View Details in the row menu or card to see
+its products, lots, quantities and reasons. Details also offers Transaction History and the
+actions to remove an unsent event or resolve a refusal or unknown result. Status filters
+are inside Filters.
 
 - Queued means waiting to send. You may remove an event that has never been attempted, after
   confirmation. Removing it does not change server stock.

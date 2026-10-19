@@ -2,11 +2,12 @@ import { Link, useLocation } from '@tanstack/react-router';
 import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
 import { CustomTrigger } from '@/components/custom-trigger';
+import { useDeviceWork } from '@/components/device-work';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Logo } from '@/components/logo';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import { SidebarNotices } from '@/components/sidebar-notices';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -38,7 +40,6 @@ import {
 } from '@/components/ui/sidebar';
 import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
-import { useOnline } from '@/lib/online';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
@@ -46,13 +47,17 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
-  const online = useOnline();
   const navGroups = useNavGroups();
   const accountLinks = useAccountLinks();
   const sidebarGroups = navGroups.map((group) => ({
     ...group,
     items: group.items.flatMap((item) =>
-      !isNavParent(item) && item.to === '/home' ? [item, ...accountLinks] : [item],
+      !isNavParent(item) &&
+      (item.to === '/offline-events' ||
+        (item.to === '/home' &&
+          !group.items.some((entry) => !isNavParent(entry) && entry.to === '/offline-events')))
+        ? [item, ...accountLinks]
+        : [item],
     ),
   }));
   const appName = useAppName();
@@ -97,11 +102,6 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {!online && !isCollapsed && (
-          <p className="px-4 py-2 text-xs text-sidebar-foreground/70">
-            {t('offline.navigation-description')}
-          </p>
-        )}
         {sidebarGroups.map((group) => (
           <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
             {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
@@ -183,35 +183,49 @@ type NavLinkItemProps = Pick<NavMenuItemProps, 'pathname' | 'onNavigate'> & { it
 function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
   const { t } = useTranslation();
   const title = t(item.titleKey);
+  const { pending } = useDeviceWork();
+  const offline = useOfflineNavigation();
+  const count = item.to === '/offline-events' ? pending : 0;
+  const label = count ? t('device-events.nav-count', { count }) : title;
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={pathname === item.to || pathname.startsWith(`${item.to}/`)}
-        aria-disabled={item.disabled || undefined}
-        aria-description={item.disabled ? t('offline.connection-required') : undefined}
-        aria-label={title}
+        data-unavailable={item.connectionRequired || undefined}
+        aria-description={item.connectionRequired ? t('offline.connection-required') : undefined}
+        onClick={item.connectionRequired ? (event) => offline.show(event.currentTarget) : undefined}
+        aria-label={label}
         render={
-          item.disabled ? <button type="button" /> : <Link onClick={onNavigate} to={item.to} />
+          item.connectionRequired ? (
+            <button type="button" />
+          ) : (
+            <Link onClick={onNavigate} to={item.to} />
+          )
         }
         tooltip={
-          item.disabled
+          item.connectionRequired
             ? {
                 children: (
-                  <span>
-                    <span className="block">{title}</span>
-                    <span className="block">{t('offline.connection-required')}</span>
-                  </span>
+                  <div>
+                    <div>{label}</div>
+                    <div>{t('offline.connection-required')}</div>
+                  </div>
                 ),
-                hidden: false,
               }
-            : title
+            : label
         }
       >
         {item.icon && <item.icon />}
         <span className="truncate">{title}</span>
-        {item.disabled && <WifiOffIcon aria-hidden="true" />}
+        {item.connectionRequired && <WifiOffIcon aria-hidden="true" />}
       </SidebarMenuButton>
+      {offline.dialog}
+      {count > 0 && (
+        <SidebarMenuBadge collapsed="indicator" aria-hidden>
+          {count.toLocaleString()}
+        </SidebarMenuBadge>
+      )}
     </SidebarMenuItem>
   );
 }
@@ -230,25 +244,33 @@ function NavCollapsible({
   onNavigate,
 }: NavParentProps) {
   const { t } = useTranslation();
+  const offline = useOfflineNavigation();
   return (
-    <Collapsible onOpenChange={onOpenChange} open={open} render={<SidebarMenuItem />}>
-      <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} />}>
-        {item.icon && <item.icon />}
-        <span>{t(item.titleKey)}</span>
-        <ChevronRightIcon className="ms-auto transition-transform rtl:rotate-180 group-data-panel-open/menu-button:rotate-90" />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <SidebarMenuSub end="flush">
-          {item.items.map((child) => (
-            <SidebarMenuSubItem key={child.titleKey}>
-              <ActionTooltip reason={child.disabled ? t('offline.connection-required') : undefined}>
+    <>
+      <Collapsible onOpenChange={onOpenChange} open={open} render={<SidebarMenuItem />}>
+        <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} />}>
+          {item.icon && <item.icon />}
+          <span>{t(item.titleKey)}</span>
+          <ChevronRightIcon className="ms-auto transition-transform rtl:rotate-180 group-data-panel-open/menu-button:rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub end="flush">
+            {item.items.map((child) => (
+              <SidebarMenuSubItem key={child.titleKey}>
                 <SidebarMenuSubButton
+                  data-unavailable={child.connectionRequired || undefined}
                   isActive={isNavActive(pathname, child.to)}
-                  aria-disabled={child.disabled || undefined}
-                  aria-description={child.disabled ? t('offline.connection-required') : undefined}
+                  onClick={
+                    child.connectionRequired
+                      ? (event) => offline.show(event.currentTarget)
+                      : undefined
+                  }
+                  aria-description={
+                    child.connectionRequired ? t('offline.connection-required') : undefined
+                  }
                   aria-label={t(child.titleKey)}
                   render={
-                    child.disabled ? (
+                    child.connectionRequired ? (
                       <button type="button" />
                     ) : (
                       <Link onClick={onNavigate} to={child.to} />
@@ -257,14 +279,15 @@ function NavCollapsible({
                 >
                   {child.icon && <child.icon />}
                   <span className="truncate">{t(child.titleKey)}</span>
-                  {child.disabled && <WifiOffIcon aria-hidden="true" />}
+                  {child.connectionRequired && <WifiOffIcon aria-hidden="true" />}
                 </SidebarMenuSubButton>
-              </ActionTooltip>
-            </SidebarMenuSubItem>
-          ))}
-        </SidebarMenuSub>
-      </CollapsibleContent>
-    </Collapsible>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </Collapsible>
+      {offline.dialog}
+    </>
   );
 }
 
@@ -272,9 +295,16 @@ function NavCollapsible({
 function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>) {
   const { t } = useTranslation();
   const title = t(item.titleKey);
+  const offline = useOfflineNavigation();
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <SidebarMenuItem>
-      <DropdownMenu>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(next) => {
+          if (!offline.open) setMenuOpen(next);
+        }}
+      >
         <DropdownMenuTrigger render={<SidebarMenuButton aria-label={title} isActive={isActive} />}>
           {item.icon && <item.icon />}
           <span>{title}</span>
@@ -282,26 +312,32 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
         <DropdownMenuContent align="start" side="inline-end" sideOffset={12} width="wide">
           <DropdownMenuGroup>
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
-            {item.items.some((child) => child.disabled) && (
-              <p className="px-2 py-1 text-xs text-muted-foreground">
-                {t('offline.navigation-description')}
-              </p>
-            )}
-
             {item.items.map((child) => (
               <DropdownMenuItem
                 key={child.titleKey}
-                disabled={child.disabled}
-                aria-description={child.disabled ? t('offline.connection-required') : undefined}
-                render={child.disabled ? undefined : <Link to={child.to} />}
+                data-unavailable={child.connectionRequired || undefined}
+                closeOnClick={!child.connectionRequired}
+                onClick={
+                  child.connectionRequired
+                    ? (event) => {
+                        event.preventDefault();
+                        offline.show(event.currentTarget);
+                      }
+                    : undefined
+                }
+                aria-description={
+                  child.connectionRequired ? t('offline.connection-required') : undefined
+                }
+                render={child.connectionRequired ? undefined : <Link to={child.to} />}
               >
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
-                {child.disabled && <WifiOffIcon aria-hidden="true" />}
+                {child.connectionRequired && <WifiOffIcon aria-hidden="true" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
+        {offline.dialog}
       </DropdownMenu>
     </SidebarMenuItem>
   );

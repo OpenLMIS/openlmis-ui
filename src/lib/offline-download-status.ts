@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
+import { createNoticeCountdown } from '@/lib/notice-countdown';
 
 export type DownloadStatus = {
   phase: 'idle' | 'running' | 'complete' | 'failed' | 'unsupported';
   incompletePrograms: { id: string; name: string }[];
   reason?: 'timeout' | 'offline' | 'session' | 'read';
   accessFailed?: boolean;
+  trigger?: 'boot' | 'force' | 'retry' | 'refresh';
 };
 const idle: DownloadStatus = { phase: 'idle', incompletePrograms: [] };
 let status = idle;
@@ -12,12 +14,12 @@ const listeners = new Set<() => void>();
 let retry: (() => void) | undefined;
 type ProgramScope = { facilityId: string; programId: string };
 let refresh: ((scope: ProgramScope) => void) | undefined;
-let completionTimer: ReturnType<typeof setTimeout> | undefined;
+export const downloadCountdown = createNoticeCountdown(() => setDownloadStatus(idle));
 export const getDownloadStatus = () => status;
 export function setDownloadStatus(value: DownloadStatus) {
-  clearTimeout(completionTimer);
+  downloadCountdown.stop();
   status = value;
-  if (value.phase === 'complete') completionTimer = setTimeout(() => setDownloadStatus(idle), 4000);
+  if (value.phase === 'complete') downloadCountdown.start();
   for (const listener of listeners) listener();
 }
 export function setDownloadRetry(callback?: () => void) {

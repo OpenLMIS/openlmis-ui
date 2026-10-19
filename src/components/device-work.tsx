@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 export type DeviceWork = {
   hasDeviceEvents: boolean;
   waiting: number;
+  pending: number;
   uncertain: number;
   refused: number;
   sending: boolean;
@@ -13,6 +14,7 @@ export type DeviceWork = {
 export const DeviceWorkContext = createContext<DeviceWork>({
   hasDeviceEvents: false,
   waiting: 0,
+  pending: 0,
   uncertain: 0,
   refused: 0,
   sending: false,

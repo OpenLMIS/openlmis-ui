@@ -1,15 +1,14 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
-import {
-  AlertTriangleIcon,
-  CheckIcon,
-  CircleXIcon,
-  ClockIcon,
-  ListChecksIcon,
-  MoreHorizontalIcon,
-} from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { ListChecksIcon } from 'lucide-react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+} from '@/components/card-list';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -19,23 +18,17 @@ import {
   DataTableToolbar,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
+import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { DialogNotFound } from '@/components/dialog-parts';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import { FormDialog } from '@/components/form-dialog/form-dialog';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Workspace,
   WorkspaceContent,
@@ -45,31 +38,40 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
+import { EventStatus } from '@/features/stock-events/components/event-status';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import type { DeviceEventsSearch } from '@/features/stock-events/lib/device-events-search';
 import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { useCardView } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { useStoredState } from '@/hooks/use-stored-state';
+import { usePageStart } from '@/hooks/use-page-start';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
-const choicesSchema = z.record(z.string(), z.boolean());
 const hideable = [
-  { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '2xl' },
-  { id: 'program', labelKey: 'facility-program.program', hideBelow: 1280 },
-  { id: 'lots', labelKey: 'device-events.lots', hideBelow: 1180 },
-  { id: 'kind', labelKey: 'device-events.type', hideBelow: 1180 },
-  { id: 'queuedAt', labelKey: 'device-events.queued-at', hideBelow: 'xl' },
-  { id: 'quantity', labelKey: 'device-events.quantity', hideBelow: 'sm' },
-  { id: 'reason', labelKey: 'device-events.reason', hideBelow: '3xl' },
-  { id: 'occurredDate', labelKey: 'device-events.occurred-date', hideBelow: 'md' },
+  { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '3xl' },
+  { id: 'program', labelKey: 'facility-program.program', hideBelow: '4xl' },
+  { id: 'occurredDate', labelKey: 'device-events.occurred-date' },
   { id: 'status', labelKey: 'device-events.status' },
 ] as const;
-type EventRow = DeviceEvent & { lineIndex: number };
-const defaultSort = { id: 'queuedAt', desc: false };
+const defaultSort = { id: 'occurredDate', desc: false };
+const statuses = ['queued', 'sending', 'uncertain', 'refused', 'accepted'] as const;
+const occurredDate = (event: DeviceEvent) =>
+  [...new Set(event.payload.lineItems.map((line) => line.occurredDate).filter(Boolean))].sort();
+
+function EventDate({ event }: { event: DeviceEvent }) {
+  const { i18n } = useTranslation();
+  return occurredDate(event).map((date) => (
+    <time className="block" dateTime={date} key={date}>
+      {formatDateValue(date, i18n.language)}
+    </time>
+  ));
+}
 
 export function DeviceEventsPage({
   search,
@@ -87,12 +89,12 @@ export function DeviceEventsPage({
   onCloseEvent: () => void;
 }) {
   const { t } = useTranslation();
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const view = useColumnVisibility(
-    hideable,
-    useStoredState('device-events.columns', choicesSchema, {}),
-    width,
-  );
+  const {
+    measure,
+    cards,
+    columnView: view,
+    layout,
+  } = useCardView(hideable, 'device-events.columns');
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -107,9 +109,37 @@ export function DeviceEventsPage({
       <WorkspaceContent>
         <div className="flex min-w-0 flex-col gap-4" ref={measure}>
           <DataTableToolbar>
+            <div className="flex-1 @2xl/main:flex-none">
+              <DataTableFilters
+                activeCount={search.status ? 1 : 0}
+                onClear={() =>
+                  onSearchChange({ status: undefined, page: undefined, event: undefined }, true)
+                }
+              >
+                <DataTableSelectFilter
+                  label={t('device-events.status')}
+                  value={search.status ?? ''}
+                  onValueChange={(status) =>
+                    onSearchChange(
+                      {
+                        status: (status as DeviceEventsSearch['status']) || undefined,
+                        page: undefined,
+                        event: undefined,
+                      },
+                      true,
+                    )
+                  }
+                  options={statuses.map((value) => ({
+                    value,
+                    label: t(`device-events.status-${value}`),
+                  }))}
+                />
+              </DataTableFilters>
+            </div>
             <div className="ms-auto">
               <DataTableViewOptions
                 {...view}
+                layout={layout}
                 columns={hideable.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
               />
             </div>
@@ -125,6 +155,7 @@ export function DeviceEventsPage({
                 onOpenEvent={onOpenEvent}
                 onCloseEvent={onCloseEvent}
                 columnVisibility={view.visibility}
+                cards={cards}
                 loading
               />
             }
@@ -145,6 +176,7 @@ export function DeviceEventsPage({
               onOpenEvent={onOpenEvent}
               onCloseEvent={onCloseEvent}
               columnVisibility={view.visibility}
+              cards={cards}
             />
           </QueryBoundary>
         </div>
@@ -162,6 +194,7 @@ function DeviceEventsTable({
   onOpenEvent,
   onCloseEvent,
   columnVisibility,
+  cards,
   timeZone,
   loading = false,
   permissions,
@@ -174,213 +207,134 @@ function DeviceEventsTable({
   onOpenEvent: (event: string) => void;
   onCloseEvent: () => void;
   columnVisibility: Record<string, boolean>;
+  cards: boolean;
   timeZone?: string;
   loading?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const local = useDeviceEvents(!loading);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [removedId, setRemovedId] = useState<string>();
+  useEffect(() => {
+    if (
+      removedId &&
+      local.events &&
+      !local.events.some((event) => event.localEventId === removedId)
+    ) {
+      listRef.current?.focus();
+      setRemovedId(undefined);
+    }
+  }, [removedId, local.events]);
   const matched = local.events?.find((event) => event.localEventId === search.event);
   const [lastMatched, setLastMatched] = useState(matched);
   const selected =
     matched ?? (lastMatched?.localEventId === search.event ? lastMatched : undefined);
   if (selected !== lastMatched) setLastMatched(selected);
   const deferred = useDeferredValue(search);
-  const columns = useMemo<ColumnDef<DataTableFeatures, EventRow>[]>(
+  const reviewLabel = useCallback(
+    (event: DeviceEvent) =>
+      t('device-events.review-event-label', {
+        type: t(kindLabels[event.kind]),
+        date: formatTimestamp(new Date(event.queuedAt).toISOString(), i18n.language, {
+          time: true,
+          timeZone,
+        }),
+        status: t(`device-events.status-${event.status}`),
+      }),
+    [t, i18n.language, timeZone],
+  );
+  const columns = useMemo<ColumnDef<DataTableFeatures, DeviceEvent>[]>(
     () => [
       {
         accessorKey: 'kind',
         header: t('device-events.type'),
-        cell: ({ row }) => (row.original.lineIndex === 0 ? t(kindLabels[row.original.kind]) : null),
+        cell: ({ row }) => t(kindLabels[row.original.kind]),
         meta: { className: 'w-32' },
       },
       {
         id: 'facility',
         header: t('facility-program.facility'),
-        cell: ({ row }) =>
-          row.original.lineIndex === 0 ? (
-            <span dir="auto">{recordLabel(row.original.facility)}</span>
-          ) : null,
+        cell: ({ row }) => <span dir="auto">{tableValue(recordLabel(row.original.facility))}</span>,
       },
       {
         id: 'program',
         header: t('facility-program.program'),
-        cell: ({ row }) =>
-          row.original.lineIndex === 0 ? (
-            <span dir="auto">{recordLabel(row.original.program)}</span>
-          ) : null,
-      },
-      {
-        id: 'products',
-        header: t('device-events.products'),
-        cell: ({ row }) => (
-          <span className="block min-w-24 whitespace-normal" dir="auto">
-            {row.original.lines[row.original.lineIndex]?.orderable.fullProductName ||
-              row.original.lines[row.original.lineIndex]?.orderable.productCode}
-          </span>
-        ),
-      },
-      {
-        id: 'lots',
-        header: t('device-events.lots'),
-        cell: ({ row }) => (
-          <span dir="auto">{row.original.lines[row.original.lineIndex]?.lot?.lotCode}</span>
-        ),
-      },
-      {
-        id: 'quantity',
-        header: t('device-events.quantity'),
-        cell: ({ row }) => {
-          const item = row.original.payload.lineItems[row.original.lineIndex];
-          return item ? new Intl.NumberFormat(i18n.language).format(item.quantity) : null;
-        },
-      },
-      {
-        id: 'reason',
-        header: t('device-events.reason'),
-        cell: ({ row }) => {
-          const item = row.original.payload.lineItems[row.original.lineIndex];
-          return (
-            <span dir="auto">
-              {row.original.reasons?.find((reason) => reason.id === item?.reasonId)?.name}
-            </span>
-          );
-        },
+        cell: ({ row }) => <span dir="auto">{tableValue(recordLabel(row.original.program))}</span>,
       },
       {
         id: 'occurredDate',
-        header: t('device-events.occurred-date'),
-        cell: ({ row }) =>
-          formatDateValue(
-            row.original.payload.lineItems[row.original.lineIndex]?.occurredDate,
-            i18n.language,
-          ),
-      },
-      {
-        accessorKey: 'queuedAt',
+        accessorFn: (event) => occurredDate(event).join(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title={t('device-events.queued-at')} />
+          <DataTableColumnHeader column={column} title={t('device-events.occurred-date')} />
         ),
-        cell: ({ row }) =>
-          row.original.lineIndex === 0 ? (
-            <time dateTime={new Date(row.original.queuedAt).toISOString()}>
-              <span className="block whitespace-normal">
-                {formatTimestamp(new Date(row.original.queuedAt).toISOString(), i18n.language, {
-                  time: true,
-                  timeZone,
-                })}
-              </span>
-            </time>
-          ) : null,
+        cell: ({ row }) => <EventDate event={row.original} />,
+        meta: { className: 'w-36' },
       },
       {
         accessorKey: 'status',
         header: t('device-events.status'),
-        cell: ({ row }) =>
-          row.original.lineIndex === 0 ? (
-            <Badge
-              variant={
-                row.original.status === 'uncertain'
-                  ? 'warning'
-                  : row.original.status === 'refused'
-                    ? 'destructive'
-                    : row.original.status === 'accepted'
-                      ? 'success'
-                      : 'secondary'
-              }
-            >
-              {row.original.status === 'uncertain' ? (
-                <AlertTriangleIcon data-icon="inline-start" />
-              ) : row.original.status === 'refused' ? (
-                <CircleXIcon data-icon="inline-start" />
-              ) : row.original.status === 'accepted' ? (
-                <CheckIcon data-icon="inline-start" />
-              ) : (
-                <ClockIcon data-icon="inline-start" />
-              )}
-              {t(
-                row.original.receipt?.source === 'user'
-                  ? 'device-events.recorded-by-you'
-                  : `device-events.status-${row.original.status}`,
-              )}
-            </Badge>
-          ) : null,
+        cell: ({ row }) => <EventStatus event={row.original} />,
         meta: { className: 'w-36' },
       },
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) =>
-          row.original.lineIndex === 0 ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t('device-events.review-event-label', {
-                      type: t(kindLabels[row.original.kind]),
-                      date: formatTimestamp(
-                        new Date(row.original.queuedAt).toISOString(),
-                        i18n.language,
-                        { time: true, timeZone },
-                      ),
-                      status: t(`device-events.status-${row.original.status}`),
-                    })}
-                  />
-                }
-              >
-                <MoreHorizontalIcon />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => onOpenEvent(row.original.localEventId)}>
-                    {t('device-events.review-event')}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null,
-        meta: { className: 'w-12' },
+        cell: ({ row }) => (
+          <DeviceEventActions
+            event={row.original}
+            label={reviewLabel(row.original)}
+            onOpen={() => onOpenEvent(row.original.localEventId)}
+            onRemoved={() => setRemovedId(row.original.localEventId)}
+          />
+        ),
+        meta: { className: 'w-12', skeleton: 'control' },
       },
     ],
-    [t, i18n.language, timeZone, onOpenEvent],
+    [t, reviewLabel, onOpenEvent],
   );
   const sorted = useMemo(
     () =>
-      [...(local.events ?? [])].sort(
-        (a, b) =>
-          (a.queuedAt - b.queuedAt || (a.sequence ?? 0) - (b.sequence ?? 0)) *
-          (deferred.dir === 'desc' ? -1 : 1),
-      ),
-    [local.events, deferred.dir],
+      [...(local.events ?? [])]
+        .filter((event) => !deferred.status || event.status === deferred.status)
+        .sort(
+          (a, b) =>
+            ((deferred.sort === 'queuedAt'
+              ? 0
+              : occurredDate(a).join().localeCompare(occurredDate(b).join())) ||
+              a.queuedAt - b.queuedAt ||
+              (a.sequence ?? 0) - (b.sequence ?? 0)) * (deferred.dir === 'desc' ? -1 : 1),
+        ),
+    [local.events, deferred.dir, deferred.sort, deferred.status],
   );
   const pagination = toPaginationState(deferred);
   const data = useMemo(
     () =>
-      sorted
-        .slice(
-          pagination.pageIndex * pagination.pageSize,
-          (pagination.pageIndex + 1) * pagination.pageSize,
-        )
-        .flatMap((event) =>
-          Array.from({ length: Math.max(1, event.lines.length) }, (_, lineIndex) => ({
-            ...event,
-            lineIndex,
-          })),
-        ),
+      sorted.slice(
+        pagination.pageIndex * pagination.pageSize,
+        (pagination.pageIndex + 1) * pagination.pageSize,
+      ),
     [sorted, pagination.pageIndex, pagination.pageSize],
   );
-  const searchState = useTableSearchState({ search: deferred, defaultSort, onSearchChange });
+  const pageStart = usePageStart<HTMLUListElement>(
+    `${pagination.pageIndex}:${pagination.pageSize}`,
+    cards,
+  );
+  const searchState = useTableSearchState<DeviceEventsSearch>({
+    search: deferred,
+    defaultSort,
+    onSearchChange: (update) => onSearchChange(update, false, pageStart.navigation),
+  });
   const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
-    getRowId: (event) => `${event.localEventId}:${event.lineIndex}`,
+    getRowId: (event) => event.localEventId,
     rowCount: sorted.length,
     manualPagination: true,
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   const last = Math.max(1, Math.ceil(sorted.length / pagination.pageSize));
@@ -398,7 +352,35 @@ function DeviceEventsTable({
       />
     );
   if (loading || !local.events)
-    return <DataTableSkeleton table={table} rowCount={pagination.pageSize} />;
+    return cards ? (
+      <CardListSkeleton count={pagination.pageSize} rows={4} />
+    ) : (
+      <DataTableSkeleton table={table} rowCount={pagination.pageSize} />
+    );
+  const empty =
+    sorted.length === 0 ? (
+      <DataTableEmpty
+        icon={<ListChecksIcon />}
+        title={t(
+          search.status ? 'device-events.no-matches-title' : 'device-events.no-events-title',
+        )}
+        description={t(
+          search.status
+            ? 'device-events.no-matches-description'
+            : 'device-events.no-events-description',
+        )}
+        action={
+          search.status ? (
+            <Button
+              variant="destructive"
+              onClick={() => onSearchChange({ status: undefined, page: undefined }, true)}
+            >
+              {t('data-table.clear-filters')}
+            </Button>
+          ) : undefined
+        }
+      />
+    ) : undefined;
   return (
     <>
       {search.event && !selected && (
@@ -437,19 +419,70 @@ function DeviceEventsTable({
           onClose={onCloseEvent}
         />
       )}
-      <DataTable
-        table={table}
-        layout="auto"
-        isStale={search !== deferred}
-        empty={
-          <DataTableEmpty
-            icon={<ListChecksIcon />}
-            title={t('device-events.no-events-title')}
-            description={t('device-events.no-events-description')}
+      <div ref={listRef} tabIndex={-1} className="min-w-0 outline-none">
+        {cards ? (
+          <CardList
+            busy={search !== deferred}
+            empty={empty}
+            listRef={pageStart.ref}
+            footer={sorted.length > 0 && <DataTablePagination table={table} />}
+          >
+            {data.map((event) => (
+              <CardListItem key={event.localEventId}>
+                <CardBand>
+                  <span>{t(kindLabels[event.kind])}</span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={reviewLabel(event)}
+                      onClick={() => onOpenEvent(event.localEventId)}
+                    >
+                      {t('device-events.review-event')}
+                    </Button>
+                    <DeviceEventActions
+                      event={event}
+                      label={reviewLabel(event)}
+                      onOpen={() => onOpenEvent(event.localEventId)}
+                      onRemoved={() => setRemovedId(event.localEventId)}
+                    />
+                  </div>
+                </CardBand>
+                <CardRows>
+                  {columnVisibility.facility !== false && (
+                    <SettingsItem label={t('facility-program.facility')}>
+                      <span dir="auto">{orEmpty(recordLabel(event.facility))}</span>
+                    </SettingsItem>
+                  )}
+                  {columnVisibility.program !== false && (
+                    <SettingsItem label={t('facility-program.program')}>
+                      <span dir="auto">{orEmpty(recordLabel(event.program))}</span>
+                    </SettingsItem>
+                  )}
+                  {columnVisibility.occurredDate !== false && (
+                    <SettingsItem label={t('device-events.occurred-date')}>
+                      <EventDate event={event} />
+                    </SettingsItem>
+                  )}
+                  {columnVisibility.status !== false && (
+                    <SettingsItem label={t('device-events.status')}>
+                      <EventStatus event={event} />
+                    </SettingsItem>
+                  )}
+                </CardRows>
+              </CardListItem>
+            ))}
+          </CardList>
+        ) : (
+          <DataTable
+            table={table}
+            layout="auto"
+            isStale={search !== deferred}
+            empty={empty}
+            footer={sorted.length > 0 && <DataTablePagination table={table} />}
           />
-        }
-        footer={sorted.length > 0 && <DataTablePagination table={table} />}
-      />
+        )}
+      </div>
     </>
   );
 }

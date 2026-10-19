@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { LogOutIcon } from 'lucide-react';
-import type { ReactElement } from 'react';
+import { LogOutIcon, WifiOffIcon } from 'lucide-react';
+import { type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAccountLinks } from '@/components/nav-access';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
 import {
   DropdownMenu,
@@ -33,6 +34,8 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
 
   const accountLinks = useAccountLinks();
   const offlineSignOut = useOfflineSignOut();
+  const offline = useOfflineNavigation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -41,7 +44,12 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(next) => {
+          if (!offline.open) setMenuOpen(next);
+        }}
+      >
         <DropdownMenuTrigger render={trigger} />
         <DropdownMenuContent align={align} width="wide">
           <SignedInAs userId={referenceDataUserId} username={username} />
@@ -50,13 +58,24 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
             {accountLinks.map((link) => (
               <DropdownMenuItem
                 key={link.to}
-                disabled={link.disabled}
-                title={link.disabled ? t('offline.connection-required') : undefined}
-                aria-description={link.disabled ? t('offline.connection-required') : undefined}
-                render={link.disabled ? undefined : <Link to={link.to} />}
+                data-unavailable={link.connectionRequired || undefined}
+                closeOnClick={!link.connectionRequired}
+                onClick={
+                  link.connectionRequired
+                    ? (event) => {
+                        event.preventDefault();
+                        offline.show(event.currentTarget);
+                      }
+                    : undefined
+                }
+                aria-description={
+                  link.connectionRequired ? t('offline.connection-required') : undefined
+                }
+                render={link.connectionRequired ? undefined : <Link to={link.to} />}
               >
                 <link.icon />
                 {t(link.titleKey)}
+                {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
@@ -69,6 +88,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
             {t('nav-user.log-out')}
           </DropdownMenuItem>
         </DropdownMenuContent>
+        {offline.dialog}
       </DropdownMenu>
       {offlineSignOut.dialog}
     </>
