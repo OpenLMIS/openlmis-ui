@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { BuildingIcon, EllipsisIcon, PencilIcon, PlusIcon, SearchXIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -15,6 +15,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -31,6 +32,7 @@ import {
   toFacilitiesQuery,
 } from '@/features/facilities/lib/search';
 import type { Facility } from '@/features/reference-data/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Facility>();
@@ -38,11 +40,9 @@ const columnHelper = createColumnHelper<DataTableFeatures, Facility>();
 function text(value: string | null | undefined, dir: 'auto' | 'ltr' = 'auto', strong = false) {
   if (!value) return null;
   return (
-    <span className="flex">
-      <span className={strong ? 'min-w-0 truncate font-medium' : 'min-w-0 truncate'} dir={dir}>
-        {value}
-      </span>
-    </span>
+    <CellText dir={dir} strong={strong}>
+      {value}
+    </CellText>
   );
 }
 
@@ -59,7 +59,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
         <DataTableColumnHeader column={column} title={t('facilities.code')} />
       ),
       cell: ({ getValue }) => text(getValue(), 'ltr'),
-      meta: { className: 'w-28 @xl/main:w-36' },
+      meta: { className: 'w-28 @xl/main:w-36', label: t('facilities.code') },
     }),
     columnHelper.accessor((facility) => facility.geographicZone?.name, {
       id: 'geographicZone',
@@ -68,7 +68,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
       ),
       cell: ({ getValue }) => text(getValue()),
       enableSorting: false,
-      meta: { className: '@4xl/main:w-1/6' },
+      meta: { className: '@4xl/main:w-1/6', label: t('facilities.zone') },
     }),
     columnHelper.accessor((facility) => facility.type?.name, {
       id: 'type',
@@ -77,7 +77,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
       ),
       cell: ({ getValue }) => text(getValue()),
       enableSorting: false,
-      meta: { className: '@4xl/main:w-1/6' },
+      meta: { className: '@4xl/main:w-1/6', label: t('facilities.type') },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => (
@@ -90,7 +90,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
           falseLabel={t('facilities.status-inactive')}
         />
       ),
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('facilities.active') },
     }),
     columnHelper.accessor('enabled', {
       header: ({ column }) => (
@@ -103,7 +103,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
           falseLabel={t('facilities.status-disabled')}
         />
       ),
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('facilities.enabled') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -157,6 +157,7 @@ function FacilityActions({
 }
 
 type FacilitiesTableProps = {
+  cards: boolean;
   search: FacilitiesSearch;
   onSearchChange: SearchChange<FacilitiesSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -170,6 +171,7 @@ const getRowId = (facility: Facility) => facility.id;
 const noop = () => {};
 
 function useFacilitiesTable({
+  cards,
   data,
   rowCount,
   search,
@@ -178,13 +180,19 @@ function useFacilitiesTable({
 }: Omit<FacilitiesTableProps, 'onAdd'> & { data: Facility[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<FacilitiesSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_FACILITIES_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -194,15 +202,19 @@ function useFacilitiesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function FacilitiesTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<FacilitiesTableProps, 'search' | 'columnVisibility'>) {
-  const table = useFacilitiesTable({
+}: Pick<FacilitiesTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useFacilitiesTable({
+    cards: false,
     data: NO_FACILITIES,
     rowCount: 0,
     search,
@@ -210,10 +222,13 @@ export function FacilitiesTableSkeleton({
     columnVisibility,
   });
 
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function FacilitiesTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -222,7 +237,8 @@ export function FacilitiesTable({
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(facilitiesListOptions(toFacilitiesQuery(deferredSearch)));
-  const table = useFacilitiesTable({
+  const { table, pageStart } = useFacilitiesTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -262,12 +278,21 @@ export function FacilitiesTable({
     />
   );
 
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
   return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
-    />
+    <DataTable empty={!isPastLastPage && empty} footer={footer} isStale={isStale} table={table} />
   );
 }

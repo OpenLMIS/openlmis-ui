@@ -9,22 +9,32 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
-import { FACILITY_HIDEABLE_COLUMNS, type FacilitiesSearch } from '@/features/facilities/lib/search';
+import {
+  DEFAULT_FACILITIES_SORT,
+  FACILITY_HIDEABLE_COLUMNS,
+  FACILITY_SORT_COLUMNS,
+  type FacilitiesSearch,
+} from '@/features/facilities/lib/search';
 import { geographicZonesOptions } from '@/features/reference-data/api/queries';
 import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
 import { withPicked } from '@/lib/filter-options';
+import { searchSort } from '@/lib/table-search';
 
 type FacilitiesToolbarProps = {
   search: FacilitiesSearch;
   onFilterChange: (patch: Partial<FacilitiesSearch>) => void;
+  onSortChange: (patch: Partial<FacilitiesSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd: () => void;
 };
 
 export function FacilitiesToolbar({
   search,
   onFilterChange,
+  onSortChange,
   columnView,
+  layout,
   onAdd,
 }: FacilitiesToolbarProps) {
   const { t } = useTranslation();
@@ -65,8 +75,13 @@ export function FacilitiesToolbar({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
+          sort={{
+            columns: FACILITY_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+            ...searchSort(search, DEFAULT_FACILITIES_SORT, onSortChange),
+          }}
           visibility={columnView.visibility}
         />
       </div>

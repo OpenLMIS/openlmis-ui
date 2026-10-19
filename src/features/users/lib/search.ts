@@ -15,6 +15,12 @@ export const USER_HIDEABLE_COLUMNS = [
   { id: 'active', labelKey: 'users.status', hideBelow: 'md' },
 ] as const;
 
+export const USER_SORT_COLUMNS = [
+  { id: 'lastName', labelKey: 'users.name' },
+  { id: 'username', labelKey: 'users.username' },
+  { id: 'active', labelKey: 'users.status' },
+] as const;
+
 const USER_SORT_FIELDS = ['username', 'firstName', 'lastName', 'active'] as const;
 
 export const DEFAULT_USERS_SORT: DefaultSort = { id: 'username', desc: false };

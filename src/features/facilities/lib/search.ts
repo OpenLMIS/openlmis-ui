@@ -15,6 +15,13 @@ export const FACILITY_HIDEABLE_COLUMNS = [
   { id: 'enabled', labelKey: 'facilities.enabled', hideBelow: '4xl' },
 ] as const;
 
+export const FACILITY_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'facilities.name' },
+  { id: 'code', labelKey: 'facilities.code' },
+  { id: 'active', labelKey: 'facilities.active' },
+  { id: 'enabled', labelKey: 'facilities.enabled' },
+] as const;
+
 const FACILITY_SORT_FIELDS = ['name', 'code', 'active', 'enabled'] as const;
 
 export const DEFAULT_FACILITIES_SORT: DefaultSort = { id: 'name', desc: false };
