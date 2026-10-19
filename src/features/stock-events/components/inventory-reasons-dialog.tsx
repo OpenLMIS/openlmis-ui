@@ -136,6 +136,12 @@ export function InventoryReasonsDialog({
     });
   const remove = (index: number) =>
     form.setFieldValue('adjustments', (current) => current.filter((_, i) => i !== index));
+  const addButton = (
+    <Button type="button" variant="secondary" onClick={() => void addForm.handleSubmit()}>
+      <PlusIcon />
+      {t('stock-events.add')}
+    </Button>
+  );
   const apply = () => {
     onUpdate(values());
     setConfirm(false);
@@ -158,93 +164,154 @@ export function InventoryReasonsDialog({
             })}
           </FormDialogDescription>
         </FormDialogHeader>
+
+        <div className="shrink-0">
+          <fieldset
+            className={cards ? 'flex flex-col gap-3' : 'flex items-start gap-3'}
+            onKeyDown={(event) => {
+              if (
+                event.key === 'Enter' &&
+                event.target instanceof HTMLInputElement &&
+                !event.defaultPrevented
+              ) {
+                event.preventDefault();
+                event.stopPropagation();
+                void addForm.handleSubmit();
+              }
+            }}
+          >
+            <div className={cards ? undefined : 'min-w-0 flex-1'}>
+              <addForm.AppField name="reasonId">
+                {(field) => (
+                  <field.SelectField
+                    label={t('stock-events.reason')}
+                    placeholder={t('stock-event-reverse.select-option')}
+                    required
+                    items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
+                  />
+                )}
+              </addForm.AppField>
+            </div>
+            <div className={cards ? undefined : 'min-w-0 flex-1'}>
+              <addForm.AppField name="quantity">
+                {(field) => (
+                  <field.QuantityField
+                    label={t('stock-events.quantity')}
+                    unit={unit}
+                    netContent={line.orderable.netContent}
+                    dosesLabel={t('quantity-unit.doses')}
+                    packsLabel={t('quantity-unit.packs')}
+                    notation="plus"
+                    required
+                  />
+                )}
+              </addForm.AppField>
+            </div>
+            {cards ? (
+              addButton
+            ) : (
+              <div className="flex flex-col gap-1">
+                <span aria-hidden className="invisible text-sm leading-snug">
+                  &nbsp;
+                </span>
+                {addButton}
+              </div>
+            )}
+          </fieldset>
+        </div>
         {cards ? (
           <FormDialogBody>
-            <div className="flex flex-col gap-4">
-              <fieldset
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    event.target instanceof HTMLInputElement &&
-                    !event.defaultPrevented
-                  ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void addForm.handleSubmit();
-                  }
-                }}
-              >
-                <div className="overflow-hidden rounded-xl border bg-card">
-                  <CardRows>
-                    <CardControlRow label={t('stock-events.reason')}>
-                      <addForm.AppField name="reasonId">
-                        {(field) => (
-                          <field.SelectField
-                            label={t('stock-events.reason')}
-                            layout="inline"
-                            placeholder={t('stock-event-reverse.select-option')}
-                            required
-                            items={reasons.map((reason) => ({
-                              value: reason.id,
-                              label: reason.name,
-                            }))}
-                          />
-                        )}
-                      </addForm.AppField>
-                    </CardControlRow>
+            <div className="overflow-hidden rounded-xl border bg-card">
+              {adjustments.length ? (
+                <CardRows>
+                  {adjustments.map((item, index) => (
                     <CardControlRow
-                      label={t('stock-events.quantity')}
+                      key={item.key}
+                      label={<bdi>{item.reason.name ?? item.reason.id}</bdi>}
                       width={unit === 'PACKS' ? 'wide' : 'half'}
                     >
-                      <addForm.AppField name="quantity">
-                        {(field) => (
-                          <field.QuantityField
-                            label={t('stock-events.quantity')}
-                            layout="inline"
-                            unit={unit}
-                            netContent={line.orderable.netContent}
-                            dosesLabel={t('quantity-unit.doses')}
-                            packsLabel={t('quantity-unit.packs')}
-                            notation="plus"
-                            sizing={unit === 'PACKS' ? 'fill' : 'full'}
-                            required
-                          />
-                        )}
-                      </addForm.AppField>
+                      <div className="flex items-start gap-1">
+                        <div className="min-w-0 flex-1">
+                          <form.AppField name={`adjustments[${index}].quantity`}>
+                            {(field) => (
+                              <field.QuantityField
+                                label={item.reason.name ?? item.reason.id}
+                                layout="inline"
+                                unit={unit}
+                                netContent={line.orderable.netContent}
+                                dosesLabel={t('quantity-unit.doses')}
+                                packsLabel={t('quantity-unit.packs')}
+                                notation="plus"
+                                sizing="fill"
+                                required
+                              />
+                            )}
+                          </form.AppField>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive-ghost"
+                          size="icon-sm"
+                          aria-label={removeLabel(item)}
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </div>
                     </CardControlRow>
-                  </CardRows>
+                  ))}
+                </CardRows>
+              ) : (
+                <div className="px-4 py-6 text-center text-muted-foreground text-sm">
+                  {t('physical-inventory.no-adjustments')}
                 </div>
-              </fieldset>
-              <Button type="button" variant="secondary" onClick={() => void addForm.handleSubmit()}>
-                {t('stock-events.add')}
-              </Button>
-              {adjustments.length > 0 && (
-                <div className="overflow-hidden rounded-xl border bg-card">
-                  <CardRows>
-                    {adjustments.map((item, index) => (
-                      <CardControlRow
-                        key={item.key}
-                        label={<bdi>{item.reason.name ?? item.reason.id}</bdi>}
-                        width={unit === 'PACKS' ? 'wide' : 'half'}
-                      >
-                        <div className="flex items-start gap-1">
-                          <div className="min-w-0 flex-1">
-                            <form.AppField name={`adjustments[${index}].quantity`}>
-                              {(field) => (
-                                <field.QuantityField
-                                  label={item.reason.name ?? item.reason.id}
-                                  layout="inline"
-                                  unit={unit}
-                                  netContent={line.orderable.netContent}
-                                  dosesLabel={t('quantity-unit.doses')}
-                                  packsLabel={t('quantity-unit.packs')}
-                                  notation="plus"
-                                  sizing="fill"
-                                  required
-                                />
-                              )}
-                            </form.AppField>
-                          </div>
+              )}
+            </div>
+          </FormDialogBody>
+        ) : (
+          <FormDialogBody layout="table">
+            <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
+              <Table density="compact" scroll="both">
+                <TableHeader surface="muted">
+                  <TableRow>
+                    <TableHead>
+                      <DataTableHeaderLabel>{t('stock-events.reason')}</DataTableHeaderLabel>
+                    </TableHead>
+                    <TableHead>
+                      <DataTableHeaderLabel>{t('stock-events.quantity')}</DataTableHeaderLabel>
+                    </TableHead>
+                    <TableHead>
+                      <DataTableHeaderLabel>{t('stock-events.actions')}</DataTableHeaderLabel>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {adjustments.length ? (
+                    adjustments.map((item, index) => (
+                      <TableRow key={item.key}>
+                        <TableCell>
+                          <bdi className="whitespace-normal">
+                            {item.reason.name ?? item.reason.id}
+                          </bdi>
+                        </TableCell>
+                        <TableCell>
+                          <form.AppField name={`adjustments[${index}].quantity`}>
+                            {(field) => (
+                              <field.QuantityField
+                                label={item.reason.name ?? item.reason.id}
+                                layout="inline"
+                                hideErrors
+                                unit={unit}
+                                netContent={line.orderable.netContent}
+                                dosesLabel={t('quantity-unit.doses')}
+                                packsLabel={t('quantity-unit.packs')}
+                                notation="plus"
+                                required
+                              />
+                            )}
+                          </form.AppField>
+                        </TableCell>
+                        <TableCell>
                           <Button
                             type="button"
                             variant="destructive-ghost"
@@ -254,169 +321,53 @@ export function InventoryReasonsDialog({
                           >
                             <Trash2Icon />
                           </Button>
-                        </div>
-                      </CardControlRow>
-                    ))}
-                  </CardRows>
-                </div>
-              )}
-              <div className="overflow-hidden rounded-xl border bg-card">
-                <CardRows>
-                  <SettingsItem label={t('physical-inventory.unaccounted')}>
-                    <bdi className={difference ? 'text-destructive' : undefined} dir="ltr">
-                      {display(difference)}
-                    </bdi>
-                  </SettingsItem>
-                  <SettingsItem label={<strong>{t('physical-inventory.total')}</strong>}>
-                    <strong>
-                      <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
-                    </strong>
-                  </SettingsItem>
-                </CardRows>
-              </div>
-            </div>
-          </FormDialogBody>
-        ) : (
-          <>
-            <div className="shrink-0">
-              <fieldset
-                className="flex items-start gap-3"
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    event.target instanceof HTMLInputElement &&
-                    !event.defaultPrevented
-                  ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void addForm.handleSubmit();
-                  }
-                }}
-              >
-                <div className="min-w-0 flex-1">
-                  <addForm.AppField name="reasonId">
-                    {(field) => (
-                      <field.SelectField
-                        label={t('stock-events.reason')}
-                        placeholder={t('stock-event-reverse.select-option')}
-                        required
-                        items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
-                      />
-                    )}
-                  </addForm.AppField>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <addForm.AppField name="quantity">
-                    {(field) => (
-                      <field.QuantityField
-                        label={t('stock-events.quantity')}
-                        unit={unit}
-                        netContent={line.orderable.netContent}
-                        dosesLabel={t('quantity-unit.doses')}
-                        packsLabel={t('quantity-unit.packs')}
-                        notation="plus"
-                        required
-                      />
-                    )}
-                  </addForm.AppField>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span aria-hidden className="invisible text-sm leading-snug">
-                    &nbsp;
-                  </span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => void addForm.handleSubmit()}
-                  >
-                    <PlusIcon />
-                    {t('stock-events.add')}
-                  </Button>
-                </div>
-              </fieldset>
-            </div>
-            <FormDialogBody layout="table">
-              <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
-                <Table density="compact" scroll="both">
-                  <TableHeader surface="muted">
-                    <TableRow>
-                      <TableHead>
-                        <DataTableHeaderLabel>{t('stock-events.reason')}</DataTableHeaderLabel>
-                      </TableHead>
-                      <TableHead>
-                        <DataTableHeaderLabel>{t('stock-events.quantity')}</DataTableHeaderLabel>
-                      </TableHead>
-                      <TableHead>
-                        <DataTableHeaderLabel>{t('stock-events.actions')}</DataTableHeaderLabel>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {adjustments.length ? (
-                      adjustments.map((item, index) => (
-                        <TableRow key={item.key}>
-                          <TableCell>
-                            <bdi className="whitespace-normal">
-                              {item.reason.name ?? item.reason.id}
-                            </bdi>
-                          </TableCell>
-                          <TableCell>
-                            <form.AppField name={`adjustments[${index}].quantity`}>
-                              {(field) => (
-                                <field.QuantityField
-                                  label={item.reason.name ?? item.reason.id}
-                                  layout="inline"
-                                  hideErrors
-                                  unit={unit}
-                                  netContent={line.orderable.netContent}
-                                  dosesLabel={t('quantity-unit.doses')}
-                                  packsLabel={t('quantity-unit.packs')}
-                                  notation="plus"
-                                  required
-                                />
-                              )}
-                            </form.AppField>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              type="button"
-                              variant="destructive-ghost"
-                              size="icon-sm"
-                              aria-label={removeLabel(item)}
-                              onClick={() => remove(index)}
-                            >
-                              <Trash2Icon />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3}>
-                          <div className="py-4 text-center text-muted-foreground whitespace-normal">
-                            {t('physical-inventory.no-adjustments')}
-                          </div>
                         </TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </FormDialogBody>
-            <div className="flex shrink-0 flex-wrap justify-between gap-2 text-sm">
-              <span>
-                <strong>{t('physical-inventory.unaccounted')}</strong>{' '}
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3}>
+                        <div className="py-4 text-center text-muted-foreground whitespace-normal">
+                          {t('physical-inventory.no-adjustments')}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </FormDialogBody>
+        )}
+        {cards ? (
+          <div className="shrink-0 overflow-hidden rounded-xl border bg-card">
+            <CardRows>
+              <SettingsItem label={t('physical-inventory.unaccounted')}>
                 <bdi className={difference ? 'text-destructive' : undefined} dir="ltr">
                   {display(difference)}
                 </bdi>
-              </span>
-              <span>
-                <strong>{t('physical-inventory.total')}</strong>{' '}
-                <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
-              </span>
-            </div>
-          </>
+              </SettingsItem>
+              <SettingsItem label={<strong>{t('physical-inventory.total')}</strong>}>
+                <strong>
+                  <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
+                </strong>
+              </SettingsItem>
+            </CardRows>
+          </div>
+        ) : (
+          <div className="flex shrink-0 flex-wrap justify-between gap-2 text-sm">
+            <span>
+              <strong>{t('physical-inventory.unaccounted')}</strong>{' '}
+              <bdi className={difference ? 'text-destructive' : undefined} dir="ltr">
+                {display(difference)}
+              </bdi>
+            </span>
+            <span>
+              <strong>{t('physical-inventory.total')}</strong>{' '}
+              <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
+            </span>
+          </div>
         )}
+
         <FormDialogFooter>
           <FormDialogCancel>{t('stock-events.cancel')}</FormDialogCancel>
           <FormDialogSubmit>{t('physical-inventory.update')}</FormDialogSubmit>
