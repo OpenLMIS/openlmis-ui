@@ -1,5 +1,7 @@
+import { ArrowRightIcon } from 'lucide-react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
+import { CardList, CardListItem, CardRows, CardToggleBand } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
 import { SettingsItem } from '@/components/form/settings-list';
@@ -40,6 +42,16 @@ export function ReverseSummaryTable({
   const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const quantity = (value: number | undefined, line: StockEventLine) =>
     tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
+  const listId = useId();
+  const [toggled, setToggled] = useState<ReadonlySet<number>>(new Set());
+  const openByDefault = rows.length <= 3;
+  const isOpen = (index: number) => toggled.has(index) !== openByDefault;
+  const toggle = (index: number) =>
+    setToggled((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(index)) next.add(index);
+      return next;
+    });
   return (
     <div ref={measure}>
       {cards ? (
@@ -52,50 +64,72 @@ export function ReverseSummaryTable({
           <CardList>
             {rows.map(({ line, reason, comments, current, balance }, index) => (
               <CardListItem key={line.stockEventLineItemId ?? index}>
-                <CardBand>
-                  <span className="min-w-0 wrap-anywhere">
+                <CardToggleBand
+                  controls={`${listId}-${index}`}
+                  onToggle={() => toggle(index)}
+                  open={isOpen(index)}
+                >
+                  <span className="min-w-0 flex-1 wrap-anywhere">
                     <bdi>
                       {line.orderable.fullProductName} ({line.orderable.productCode})
                     </bdi>
                   </span>
-                </CardBand>
-                <CardRows>
-                  <SettingsItem label={t('stock-event.lot-code')}>
-                    <bdi>{orEmpty(line.lot?.lotCode ?? t('stock-event.no-lot'))}</bdi>
-                  </SettingsItem>
-                  <SettingsItem label={t('stock-event.reason')}>
-                    <bdi>{orEmpty(namedWithFreeText(reason, comments))}</bdi>
-                  </SettingsItem>
-                  <SettingsItem label={t('stock-event.quantity')}>
-                    <bdi>{quantity(line.quantity, line) ?? EMPTY_VALUE}</bdi>
-                  </SettingsItem>
-                  <SettingsItem
-                    label={
-                      confirmation ? (
-                        t('stock-event-reverse.current-stock-on-hand')
-                      ) : (
-                        <strong>{t('stock-event.stock-on-hand')}</strong>
-                      )
-                    }
-                  >
-                    <bdi>
-                      {confirmation ? (
-                        (quantity(current, line) ?? EMPTY_VALUE)
-                      ) : (
-                        <strong>{quantity(current, line) ?? EMPTY_VALUE}</strong>
-                      )}
-                    </bdi>
-                  </SettingsItem>
-                  {confirmation && (
+                  {confirmation ? (
+                    <span className="flex shrink-0 items-center gap-1 tabular-nums">
+                      <span className="sr-only">
+                        {t('stock-event-reverse.current-stock-on-hand')}
+                      </span>
+                      <bdi>{quantity(current, line) ?? EMPTY_VALUE}</bdi>
+                      <ArrowRightIcon aria-hidden className="size-3.5 rtl:rotate-180" />
+                      <span className="sr-only">{t('stock-event-reverse.new-stock-on-hand')}</span>
+                      <bdi>{quantity(balance, line) ?? EMPTY_VALUE}</bdi>
+                    </span>
+                  ) : (
+                    <span className="shrink-0 tabular-nums">
+                      <span className="sr-only">{t('stock-event.stock-on-hand')}</span>
+                      <bdi>{quantity(current, line) ?? EMPTY_VALUE}</bdi>
+                    </span>
+                  )}
+                </CardToggleBand>
+                <div hidden={!isOpen(index)} id={`${listId}-${index}`}>
+                  <CardRows>
+                    <SettingsItem label={t('stock-event.lot-code')}>
+                      <bdi>{orEmpty(line.lot?.lotCode ?? t('stock-event.no-lot'))}</bdi>
+                    </SettingsItem>
+                    <SettingsItem label={t('stock-event.reason')}>
+                      <bdi>{orEmpty(namedWithFreeText(reason, comments))}</bdi>
+                    </SettingsItem>
+                    <SettingsItem label={t('stock-event.quantity')}>
+                      <bdi>{quantity(line.quantity, line) ?? EMPTY_VALUE}</bdi>
+                    </SettingsItem>
                     <SettingsItem
-                      label={<strong>{t('stock-event-reverse.new-stock-on-hand')}</strong>}
+                      label={
+                        confirmation ? (
+                          t('stock-event-reverse.current-stock-on-hand')
+                        ) : (
+                          <strong>{t('stock-event.stock-on-hand')}</strong>
+                        )
+                      }
                     >
                       <bdi>
-                        <strong>{quantity(balance, line) ?? EMPTY_VALUE}</strong>
+                        {confirmation ? (
+                          (quantity(current, line) ?? EMPTY_VALUE)
+                        ) : (
+                          <strong>{quantity(current, line) ?? EMPTY_VALUE}</strong>
+                        )}
                       </bdi>
                     </SettingsItem>
-                  )}
-                </CardRows>
+                    {confirmation && (
+                      <SettingsItem
+                        label={<strong>{t('stock-event-reverse.new-stock-on-hand')}</strong>}
+                      >
+                        <bdi>
+                          <strong>{quantity(balance, line) ?? EMPTY_VALUE}</strong>
+                        </bdi>
+                      </SettingsItem>
+                    )}
+                  </CardRows>
+                </div>
               </CardListItem>
             ))}
           </CardList>

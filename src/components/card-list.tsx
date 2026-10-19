@@ -1,3 +1,4 @@
+import { ChevronDownIcon } from 'lucide-react';
 import type { ReactNode, Ref } from 'react';
 import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
@@ -74,6 +75,34 @@ export function CardSelectBand({
     >
       {children}
     </label>
+  );
+}
+
+export function CardToggleBand({
+  open,
+  onToggle,
+  controls,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  controls: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      aria-controls={controls}
+      aria-expanded={open}
+      className="flex min-h-10 w-full items-center gap-3 bg-muted/50 px-4 py-1.5 text-start font-semibold text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      onClick={onToggle}
+      type="button"
+    >
+      <ChevronDownIcon
+        aria-hidden
+        className={cn('size-4 shrink-0 text-muted-foreground', !open && '-rotate-90 rtl:rotate-90')}
+      />
+      {children}
+    </button>
   );
 }
 

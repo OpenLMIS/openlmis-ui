@@ -597,8 +597,13 @@ it('shows the resulting stock on hand in phone confirmation cards', async () => 
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   const dialog = screen.getByRole('dialog');
   expect(within(dialog).queryByRole('table')).not.toBeInTheDocument();
-  const card = within(dialog).getByRole('listitem');
-  expect(within(card).getByText('Vaccine (C1)')).toBeVisible();
-  expect(within(card).getByText('stock-event-reverse.new-stock-on-hand')).toBeVisible();
-  expect(within(card).getByText('50')).toBeVisible();
+  const band = within(dialog).getByRole('button', { name: /^Vaccine \(C1\)/ });
+  expect(band).toHaveAccessibleName(
+    'Vaccine (C1) stock-event-reverse.current-stock-on-hand 30 stock-event-reverse.new-stock-on-hand 50',
+  );
+  expect(band).toHaveAttribute('aria-expanded', 'true');
+  expect(within(dialog).getByText('stock-event.lot-code')).toBeVisible();
+  await user.click(band);
+  expect(band).toHaveAttribute('aria-expanded', 'false');
+  expect(within(dialog).getByText('stock-event.lot-code')).not.toBeVisible();
 });

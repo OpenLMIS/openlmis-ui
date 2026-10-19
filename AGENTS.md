@@ -447,17 +447,19 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
 - Stock On Hand is the model for phone cards, also used by Stock Card and Transaction History.
-  Use `useCardView` (`src/hooks/use-card-view.ts`) for measurement, stored visibility and layout.
-  Below `CONTAINER_WIDTHS['2xl']`, compose `CardList`, `CardListItem`, `CardBand`, `CardRows`
-  and `CardListSkeleton` (`src/components/card-list.tsx`). Stock On Hand gives each product a
-  card with its lots as bands (lot label, View) over `SettingsItem` rows; Stock Card uses a date
-  band, Transaction History a band with the document number (or date) and View. Details use a
-  product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`), which tints,
-  and enables the card's reason field. Cards ignore width defaults, so stored View choices
-  apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes `layout="cards"`
-  (Toggle Details). Use `usePageStart(key, cards)` (`src/hooks/use-page-start.ts`) for the pager
-  wrapper and navigation options. Each new card page opens at its first card below the header;
-  filters and past-end clamps never request a scroll. Other lists keep tables at every width,
+  Use `useCardView` (`src/hooks/use-card-view.ts`) for measurement, stored visibility and
+  layout. Below `CONTAINER_WIDTHS['2xl']`, compose `CardList`, `CardListItem`, `CardBand`,
+  `CardRows` and `CardListSkeleton` (`src/components/card-list.tsx`). Stock On Hand gives each
+  product a card with its lots as bands (lot label, View) over `SettingsItem` rows; Stock Card
+  uses a date band, Transaction History a band with the document number (or date) and View.
+  Details use a product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`),
+  which tints, and enables the card's reason field. Cards ignore width defaults, so stored View
+  choices apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes
+  `layout="cards"` (Toggle Details). Use `usePageStart(key, cards)`
+  (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options. Each new card
+  page opens at its first card below the header; filters and past-end clamps never request a
+  scroll. Confirm Reversal cards collapse behind `CardToggleBand`, showing the stock change in
+  the band; they start open for up to three lines. Other lists keep tables at every width,
   hiding lower-priority columns and allowing sideways scrolling on phones. Keep headers on one
   line; every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
