@@ -28,6 +28,7 @@ export type DataTableLabels = {
   selectPage: string;
   selectRow: (row: string) => string;
   selectedCount: (count: number) => string;
+  clear: string;
   clearSelection: string;
   filters: string;
   activeFilters: (count: number) => string;
@@ -61,6 +62,7 @@ export const defaultDataTableLabels: DataTableLabels = {
   selectPage: 'Select Page',
   selectRow: (row) => `Select ${row}`,
   selectedCount: (count) => `${count.toLocaleString()} Selected`,
+  clear: 'Clear',
   clearSelection: 'Clear Selection',
   filters: 'Filters',
   activeFilters: (count) =>

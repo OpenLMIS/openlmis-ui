@@ -13,6 +13,7 @@
   "command.title": "Paleta de comandos",
   "data-table.active-filters": "{count, plural, one {# filtro activo} other {# filtros activos}}",
   "data-table.ascending": "Ascendente",
+  "data-table.clear": "Borrar",
   "data-table.clear-filter": "Borrar {label}",
   "data-table.clear-filters": "Borrar filtros",
   "data-table.clear-search": "Borrar búsqueda",

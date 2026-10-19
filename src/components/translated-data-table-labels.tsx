@@ -34,6 +34,7 @@ export function TranslatedDataTableLabels({ children }: { children: ReactNode })
       selectPage: t('data-table.select-page'),
       selectRow: (row) => t('data-table.select-row', { row }),
       selectedCount: (count) => t('data-table.selected-count', { count }),
+      clear: t('data-table.clear'),
       clearSelection: t('data-table.clear-selection'),
       filters: t('data-table.filters'),
       activeFilters: (count) => t('data-table.active-filters', { count }),

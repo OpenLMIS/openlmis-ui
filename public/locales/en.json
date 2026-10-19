@@ -13,6 +13,7 @@
   "command.title": "Command Palette",
   "data-table.active-filters": "{count, plural, one {# active filter} other {# active filters}}",
   "data-table.ascending": "Ascending",
+  "data-table.clear": "Clear",
   "data-table.clear-filter": "Clear {label}",
   "data-table.clear-filters": "Clear Filters",
   "data-table.clear-search": "Clear Search",

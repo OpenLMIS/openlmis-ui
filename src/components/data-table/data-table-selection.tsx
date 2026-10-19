@@ -69,6 +69,15 @@ export function selectionColumn<TData extends RowData>(rowLabel: (row: TData) =>
   });
 }
 
+export function SelectionBarLabel({ full, short }: { full: string; short: string }) {
+  return (
+    <>
+      <span className="@md/selection:hidden">{short}</span>
+      <span className="hidden @md/selection:inline">{full}</span>
+    </>
+  );
+}
+
 type DataTableSelectionBarProps = {
   count: number;
   onClear: () => void;
@@ -81,16 +90,23 @@ export function DataTableSelectionBar({ count, onClear, children }: DataTableSel
   return (
     <div className="@container/selection sticky bottom-2 z-10 -mb-2 lg:-mb-4">
       {count > 0 && (
-        <div className="mx-auto flex w-full max-w-lg flex-col gap-2 rounded-xl border bg-card p-2 shadow-lg @md/selection:flex-row @md/selection:items-center @md/selection:ps-4">
-          <span aria-hidden className="px-2 pt-1 font-medium text-sm @md/selection:p-0">
-            {labels.selectedCount(count)}
-          </span>
-          <div className="flex gap-2 *:flex-1 @md/selection:ms-auto @md/selection:*:flex-none">
-            <Button onClick={onClear} size="sm" variant="secondary">
-              <XIcon data-icon="inline-start" />
-              {labels.clearSelection}
-            </Button>
-            {children}
+        <div className="mx-auto w-full max-w-lg rounded-xl border border-info/30 bg-card shadow-lg">
+          <div className="flex items-center gap-2 rounded-xl bg-info/10 p-2 ps-4">
+            <span aria-hidden className="min-w-0 truncate font-medium text-sm">
+              {labels.selectedCount(count)}
+            </span>
+            <div className="ms-auto flex shrink-0 gap-2">
+              <Button
+                aria-label={labels.clearSelection}
+                onClick={onClear}
+                size="sm"
+                variant="secondary"
+              >
+                <XIcon data-icon="inline-start" />
+                <SelectionBarLabel full={labels.clearSelection} short={labels.clear} />
+              </Button>
+              {children}
+            </div>
           </div>
         </div>
       )}

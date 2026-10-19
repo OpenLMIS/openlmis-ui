@@ -13,6 +13,7 @@
   "command.title": "لوحة الأوامر",
   "data-table.active-filters": "{count, plural, zero {لا توجد عوامل تصفية نشطة} one {عامل تصفية نشط واحد} two {عاملا تصفية نشطان} few {# عوامل تصفية نشطة} many {# عامل تصفية نشطًا} other {# عامل تصفية نشط}}",
   "data-table.ascending": "تصاعدي",
+  "data-table.clear": "مسح",
   "data-table.clear-filter": "مسح {label}",
   "data-table.clear-filters": "مسح عوامل التصفية",
   "data-table.clear-search": "مسح البحث",

@@ -1,7 +1,10 @@
 import { ArrowDownToLineIcon, ArrowUpFromLineIcon, Trash2Icon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableSelectionBar } from '@/components/data-table/data-table-selection';
+import {
+  DataTableSelectionBar,
+  SelectionBarLabel,
+} from '@/components/data-table/data-table-selection';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
@@ -150,9 +153,17 @@ export function AssignmentsPage({
             count={picked.size}
             onClear={() => setPicked(NOTHING_PICKED, filterKey)}
           >
-            <Button onClick={() => setDeleting(picked, filterKey)} size="sm" variant="destructive">
+            <Button
+              aria-label={t('valid-assignments.delete-selected')}
+              onClick={() => setDeleting(picked, filterKey)}
+              size="sm"
+              variant="destructive"
+            >
               <Trash2Icon data-icon="inline-start" />
-              {t('valid-assignments.delete-selected')}
+              <SelectionBarLabel
+                full={t('valid-assignments.delete-selected')}
+                short={t('valid-assignments.delete')}
+              />
             </Button>
           </DataTableSelectionBar>
         </section>
