@@ -110,5 +110,10 @@ export function ApprovalsSkeleton() {
 
 export function KitUnpackListSkeleton() {
   const { t } = useTranslation();
-  return <TabTableSkeleton headers={[t('products.kit.product'), t('products.kit.quantity')]} />;
+  return (
+    <MeasuredTabSkeleton
+      cardRows={1}
+      headers={[t('products.kit.product'), t('products.kit.quantity')]}
+    />
+  );
 }

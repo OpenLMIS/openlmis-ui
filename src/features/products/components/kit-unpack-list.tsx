@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -40,6 +41,7 @@ import {
 } from '@/features/products/lib/kit-form';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
 const FORM_ID = 'kit-unpack-list-form';
@@ -69,6 +71,7 @@ export function KitUnpackList({
   const listRegion = useRef<HTMLElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const kitLabel = productName(kit);
+  const { measure, cards } = useCardLayout<HTMLFormElement>();
 
   const form = useAppForm({
     defaultValues: toKitFormValues(kit, products),
@@ -99,6 +102,55 @@ export function KitUnpackList({
   };
   const inKit = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
 
+  const rowFields = (row: (typeof rows)[number], index: number) => {
+    const name = row.name || row.code;
+    return {
+      name,
+      quantity: (
+        <form.AppField name={`children[${index}].quantity`}>
+          {(field) => (
+            <field.NumberField
+              disabled={readOnly}
+              label={t('products.kit.quantity-of', { product: name })}
+              layout="inline"
+              required
+            />
+          )}
+        </form.AppField>
+      ),
+      actions: !readOnly && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label={t('products.kit.actions-for', { product: name })}
+                data-kit-actions=""
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              />
+            }
+          >
+            <EllipsisIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" width="auto">
+            <DropdownMenuItem onClick={() => removeRow(index)} variant="destructive">
+              <Trash2Icon />
+              {t('products.kit.remove')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    };
+  };
+  const empty = (
+    <DataTableEmpty
+      description={t(readOnly ? 'products.kit.empty-read-only' : 'products.kit.empty-description')}
+      icon={<BoxesIcon />}
+      title={t('products.kit.empty-title')}
+    />
+  );
+
   const addProducts = (picked: Product[]) =>
     form.setFieldValue('children', (current) => [
       ...current,
@@ -110,6 +162,7 @@ export function KitUnpackList({
       <form
         className="flex flex-col gap-4"
         id={FORM_ID}
+        ref={measure}
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -133,100 +186,86 @@ export function KitUnpackList({
           />
         )}
         <section aria-label={t('products.kit.products')} ref={listRegion}>
-          <DataTableCard>
-            {rows.length === 0 ? (
-              <DataTableEmpty
-                description={t(
-                  readOnly ? 'products.kit.empty-read-only' : 'products.kit.empty-description',
-                )}
-                icon={<BoxesIcon />}
-                title={t('products.kit.empty-title')}
-              />
-            ) : (
-              <Table density="comfortable">
-                <TableHeader surface="muted">
-                  <TableRow>
-                    <TableHead>
-                      <DataTableHeaderLabel>{t('products.kit.product')}</DataTableHeaderLabel>
-                    </TableHead>
-                    <TableHead>
-                      <DataTableHeaderLabel>{t('products.kit.quantity')}</DataTableHeaderLabel>
-                    </TableHead>
-                    {!readOnly && (
-                      <TableHead>
-                        <span className="sr-only">{t('products.actions')}</span>
-                      </TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row, index) => {
-                    const name = row.name || row.code;
-                    return (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <span className="flex flex-col whitespace-normal break-words">
-                            <span className="font-medium" dir="auto">
-                              {name}
-                            </span>
-                            {row.name && (
-                              <span className="text-muted-foreground text-xs" dir="ltr">
-                                {row.code}
-                              </span>
-                            )}
+          {cards ? (
+            <CardList empty={rows.length === 0 && empty}>
+              {rows.map((row, index) => {
+                const fields = rowFields(row, index);
+                return (
+                  <CardListItem key={row.id}>
+                    <CardBand>
+                      <span className="flex min-w-0 flex-col wrap-anywhere">
+                        <bdi>{fields.name}</bdi>
+                        {row.name && (
+                          <span className="font-normal text-muted-foreground text-xs" dir="ltr">
+                            {row.code}
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="w-20 @md/main:w-28">
-                            <form.AppField name={`children[${index}].quantity`}>
-                              {(field) => (
-                                <field.NumberField
-                                  disabled={readOnly}
-                                  label={t('products.kit.quantity-of', { product: name })}
-                                  layout="inline"
-                                  required
-                                />
-                              )}
-                            </form.AppField>
-                          </div>
-                        </TableCell>
-                        {!readOnly && (
-                          <TableCell>
-                            <div className="flex justify-end">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger
-                                  render={
-                                    <Button
-                                      aria-label={t('products.kit.actions-for', { product: name })}
-                                      data-kit-actions=""
-                                      size="icon-sm"
-                                      type="button"
-                                      variant="ghost"
-                                    />
-                                  }
-                                >
-                                  <EllipsisIcon />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" width="auto">
-                                  <DropdownMenuItem
-                                    onClick={() => removeRow(index)}
-                                    variant="destructive"
-                                  >
-                                    <Trash2Icon />
-                                    {t('products.kit.remove')}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
                         )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </DataTableCard>
+                      </span>
+                      {fields.actions && <div className="shrink-0">{fields.actions}</div>}
+                    </CardBand>
+                    <CardRows>
+                      <CardControlRow label={t('products.kit.quantity')}>
+                        {fields.quantity}
+                      </CardControlRow>
+                    </CardRows>
+                  </CardListItem>
+                );
+              })}
+            </CardList>
+          ) : (
+            <DataTableCard>
+              {rows.length === 0 ? (
+                empty
+              ) : (
+                <Table density="comfortable">
+                  <TableHeader surface="muted">
+                    <TableRow>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('products.kit.product')}</DataTableHeaderLabel>
+                      </TableHead>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('products.kit.quantity')}</DataTableHeaderLabel>
+                      </TableHead>
+                      {!readOnly && (
+                        <TableHead>
+                          <span className="sr-only">{t('products.actions')}</span>
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, index) => {
+                      const fields = rowFields(row, index);
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <span className="flex flex-col whitespace-normal break-words">
+                              <span className="font-medium" dir="auto">
+                                {fields.name}
+                              </span>
+                              {row.name && (
+                                <span className="text-muted-foreground text-xs" dir="ltr">
+                                  {row.code}
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-20 @md/main:w-28">{fields.quantity}</div>
+                          </TableCell>
+                          {fields.actions && (
+                            <TableCell>
+                              <div className="flex justify-end">{fields.actions}</div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </DataTableCard>
+          )}
         </section>
       </form>
       <WorkspaceFooterPortal width="default">

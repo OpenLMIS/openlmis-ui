@@ -46,6 +46,7 @@ const updateProduct = vi.fn<(id: string, body: ProductDetail) => Promise<Product
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   updateProduct.mockReset();
   vi.mocked(saveProductChange).mockImplementation((id, change) => updateProduct(id, change(kit)));
   vi.mocked(fetchOrderables).mockResolvedValue({
