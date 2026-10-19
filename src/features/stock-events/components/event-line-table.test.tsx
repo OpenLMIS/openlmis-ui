@@ -132,9 +132,9 @@ it.each([
     expect(screen.getByText('stock-events.no-lot-defined')).toBeInTheDocument();
     expect(within(card).getByText('stock-events.pack-size')).toBeInTheDocument();
     const quantity = within(card).getByText('stock-events.quantity');
-    expect(quantity.parentElement?.querySelector('[name="lines[0].quantity.remainder"]')).toBe(
-      input,
-    );
+    expect(
+      quantity.closest('.justify-between')?.querySelector('[name="lines[0].quantity.remainder"]'),
+    ).toBe(input);
     expect(
       quantity.compareDocumentPosition(within(card).getByText('stock-events.total-quantity')) &
         Node.DOCUMENT_POSITION_FOLLOWING,

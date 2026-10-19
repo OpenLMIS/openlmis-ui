@@ -474,7 +474,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   rows show Pack Size, Lot Code with the table's no-lot text, Expiry and Stock On Hand;
   Total Quantity follows Quantity. `CardControlRow` (`src/components/card-list.tsx`) pairs
   labels with centred controls for counterparty and comments, reason and comments, VVM and
-  Date; its stacked layout gives Quantity the full width. Measured fit and `measuredFitKeep`
+  Date, and Quantity; in Packs its row is `width="wide"` and shows `[Packs] + [Doses]`.
+  Measured fit and `measuredFitKeep`
   apply only to the table. Pending editors show the same empty card list.
   Physical Inventory drafts put category headings between product cards, with each lot and
   its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
@@ -619,7 +620,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 |---|---|
 | `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row; `TextField controlSize="sm"` opts into 28px controls, including inline fields |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber`; `controlSize="sm"` opts into small controls |
-| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` uses Input's `full-minimum` mode to divide the wrapper equally while reserving the same content minimum with full input padding |
+| `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` uses Input's `full-minimum` mode to divide the wrapper equally while reserving the same content minimum with full input padding; `sizing="fill"` with `notation="plus"` lets card Packs inputs share a wide `CardControlRow` as `[Packs] + [Doses]` |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
 | `SwitchField` | Yes/no as one row: label/info at start, switch at end; never a checkbox |
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |

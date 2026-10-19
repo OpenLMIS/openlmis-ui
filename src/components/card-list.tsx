@@ -121,21 +121,16 @@ export function CardRows({ children }: { children: ReactNode }) {
 
 export function CardControlRow({
   label,
-  stacked = false,
+  width = 'half',
   children,
 }: {
   label: ReactNode;
-  stacked?: boolean;
+  width?: 'half' | 'wide';
   children: ReactNode;
 }) {
-  return stacked ? (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-sm">{label}</span>
-      {children}
-    </div>
-  ) : (
+  return (
     <SettingsRowFrame
-      value="control"
+      value={width === 'wide' ? 'wide' : 'control'}
       align="center"
       label={<span className="text-sm">{label}</span>}
     >

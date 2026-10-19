@@ -444,7 +444,8 @@ const LineCell = memo(function LineCell({
                 label={label('stock-events.quantity')}
                 layout="inline"
                 hideErrors
-                sizing={measured ? 'minimum' : 'full'}
+                sizing={measured ? 'minimum' : cards && unit === 'PACKS' ? 'fill' : 'full'}
+                notation={cards ? 'plus' : 'brackets'}
                 netContent={line.netContent}
                 unit={unit}
                 required
@@ -828,7 +829,7 @@ export function EventLineTable({
 function EventLineCard(props: Omit<CellProps, 'id'> & { columns: CellId[] }) {
   const { t } = useTranslation();
   const { columns, ...cellProps } = props;
-  const { line, kind, reasons, assignments } = cellProps;
+  const { line, kind, reasons, assignments, unit } = cellProps;
   const config = EVENT_KINDS[kind];
   const details = columns.filter((id) => {
     if (['product', 'productCode', 'actions'].includes(id)) return false;
@@ -856,7 +857,11 @@ function EventLineCard(props: Omit<CellProps, 'id'> & { columns: CellId[] }) {
               {cell}
             </SettingsItem>
           ) : (
-            <CardControlRow key={id} label={label} stacked={id === 'quantity'}>
+            <CardControlRow
+              key={id}
+              label={label}
+              width={id === 'quantity' && unit === 'PACKS' ? 'wide' : 'half'}
+            >
               {cell}
             </CardControlRow>
           );
