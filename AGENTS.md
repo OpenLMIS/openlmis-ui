@@ -493,8 +493,12 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
   Components inside cells read `useInCards()`, e.g. for the ghost Remove button in editor cards.
   Editor tables (product tabs, requisition groups, supervisory node links, supply partner
-  associations, user roles) switch to cards too. Dialog tables keep tables at every width, hiding
-  lower-priority columns and allowing sideways scrolling on phones. Keep headers on one line;
+  associations, user roles) switch to cards too. Dialog tables switch to cards as well, measured
+  with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
+  squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
+  (`src/components/dialog-table.tsx`) render flat `TableCards` in `DialogCardScroll`, so pinned
+  forms, searches and summaries stay put, only the list scrolls and the pager stays below it.
+  Dialog skeletons draw one card per expected row. Keep headers on one line;
   every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
