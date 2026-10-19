@@ -3,7 +3,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';
 import { saveRequisitionTemplate } from '@/features/requisition-templates/api/api';
@@ -161,10 +161,11 @@ describe('TemplateEditor', () => {
 
   it('reveals an invalid label inside its phone card on save', async () => {
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
-    const scrolled: Element[] = [];
-    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
-      scrolled.push(this);
+    Element.prototype.scrollIntoView = () => {};
+    onTestFinished(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
     });
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
     const user = userEvent.setup();
     renderPage(<Editor />, { queryClient: seededClient() });
     const label = (
@@ -173,7 +174,7 @@ describe('TemplateEditor', () => {
     await user.clear(label);
     await user.click(screen.getByRole('button', { name: 'requisition-templates.configure.save' }));
     await waitFor(() => expect(label).toHaveFocus());
-    expect(scrolled[0]).toBe(label.closest('li'));
+    expect(scrollIntoView.mock.contexts[0]).toBe(label.closest('li'));
     expect(screen.queryByRole('table')).toBeNull();
   });
 });

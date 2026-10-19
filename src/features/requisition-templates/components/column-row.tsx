@@ -14,6 +14,7 @@ import {
 } from '@/components/card-list';
 import { LookupBoundary } from '@/components/dialog-parts';
 import { SettingsItem } from '@/components/form/settings-list';
+import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field } from '@/components/ui/field';
@@ -55,7 +56,7 @@ export const ColumnRow = memo(function ColumnRow({ form, column }: Props) {
   const { t } = useTranslation();
   const key = column.columnDefinition.id;
   const definition = column.columnDefinition;
-  const label = useStore(form.store, (state) => state.values.columns[key].label);
+  const label = useStore(form.store, (state) => state.values.columns[key].label) || column.label;
   const sortable = useSortable({
     id: key,
     disabled: { draggable: !definition.canChangeOrder },
@@ -143,6 +144,15 @@ function useColumnFields({ form, column }: Props, cards: boolean) {
   const optionName = (name: string) => (OPTION_KEYS[name] ? t(OPTION_KEYS[name]) : name);
   const named = (field: string) => t('requisition-templates.configure.row-label', { label, field });
   const size = cards ? 'default' : 'sm';
+  const tagField = (
+    <TagField
+      label={label}
+      form={form}
+      column={column}
+      describedBy={describedBy('tag')}
+      size={size}
+    />
+  );
   return {
     label,
     error: error && (
@@ -256,16 +266,20 @@ function useColumnFields({ form, column }: Props, cards: boolean) {
     tagField: stock && definition.supportsTag && (
       <LookupBoundary
         label={named(t('requisition-templates.configure.tag'))}
+        pendingFallback={cards ? <Block className="h-8 w-full" /> : undefined}
         errorTitle={t('requisition-templates.form.lookup-error')}
         errorDescription={t('error.check-connection')}
       >
-        <TagField
-          label={label}
-          form={form}
-          column={column}
-          describedBy={describedBy('tag')}
-          size={size}
-        />
+        {cards ? (
+          tagField
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span aria-hidden="true" className="text-sm">
+              {t('requisition-templates.configure.tag')}
+            </span>
+            {tagField}
+          </div>
+        )}
       </LookupBoundary>
     ),
   };
@@ -300,14 +314,7 @@ const ColumnCells = memo(function ColumnCells({ form, column }: Props) {
             </div>
           )}
           {fields.optionField || fields.optionText}
-          {fields.tagField && (
-            <div className="flex flex-col gap-1">
-              <span aria-hidden="true" className="text-sm">
-                {t('requisition-templates.configure.tag')}
-              </span>
-              {fields.tagField}
-            </div>
-          )}
+          {fields.tagField}
           {fields.error}
         </div>
       </TableCell>
@@ -355,6 +362,7 @@ const ColumnCardBody = memo(function ColumnCardBody({
 }) {
   const { t } = useTranslation();
   const fields = useColumnFields({ form, column }, true);
+  const name = fields.label || column.label;
   return (
     <>
       <CardBand>
@@ -362,23 +370,24 @@ const ColumnCardBody = memo(function ColumnCardBody({
           {column.columnDefinition.canChangeOrder ? (
             <DragHandle
               attributes={attributes}
-              label={t('requisition-templates.configure.move', { label: fields.label })}
+              label={t('requisition-templates.configure.move', { label: name })}
               listeners={listeners}
               setRef={setRef}
             />
           ) : (
-            <FixedIcon
-              label={t('requisition-templates.configure.fixed', { label: fields.label })}
-            />
+            <FixedIcon label={t('requisition-templates.configure.fixed', { label: name })} />
           )}
           <Indicator>{column.indicator}</Indicator>
-          <bdi className="min-w-0 wrap-anywhere">{fields.label || column.label}</bdi>
+          <bdi className="min-w-0 wrap-anywhere">{name}</bdi>
         </div>
         <label
           className="flex shrink-0 items-center gap-2 font-normal"
           htmlFor={`template-row-${column.columnDefinition.id}-display`}
         >
-          {t('requisition-templates.configure.display')}
+          <span aria-hidden>{t('requisition-templates.configure.display')}</span>
+          <span className="sr-only">
+            {t('requisition-templates.configure.display-label', { label: name })}
+          </span>
           {fields.display}
         </label>
       </CardBand>
