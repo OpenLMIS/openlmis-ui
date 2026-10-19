@@ -106,7 +106,10 @@ function createColumns(t: TFunction, listSearch: SupervisoryNodesSearch) {
     }),
     columnHelper.accessor('partners', {
       header: t('supervisory-nodes.partner-nodes'),
-      cell: ({ getValue, row }) => <PartnerNodes partners={getValue()} node={row.original.name} />,
+      cell: ({ getValue, row }) =>
+        getValue().length > 0 ? (
+          <PartnerNodes partners={getValue()} node={row.original.name} />
+        ) : null,
       meta: { label: t('supervisory-nodes.partner-nodes') },
     }),
     columnHelper.display({

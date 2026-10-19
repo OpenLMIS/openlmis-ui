@@ -81,7 +81,7 @@ function TableCard<TData extends RowData>({
         <CardRows>
           {details.map((cell) => (
             <SettingsItem key={cell.id} label={cell.column.columnDef.meta?.label ?? cell.column.id}>
-              {renderCell(cell)}
+              <bdi>{renderCell(cell)}</bdi>
             </SettingsItem>
           ))}
         </CardRows>
@@ -132,9 +132,19 @@ export function CellText({
   children: ReactNode;
   dir?: 'auto' | 'ltr';
   strong?: boolean;
-  overflow?: 'truncate' | 'nowrap';
+  overflow?: 'truncate' | 'nowrap' | 'clamp';
 }) {
   if (use(InCardContext)) return <span dir={dir}>{children}</span>;
+  if (overflow === 'clamp') {
+    return (
+      <span
+        className={cn('line-clamp-2 break-words whitespace-normal', strong && 'font-medium')}
+        dir={dir}
+      >
+        {children}
+      </span>
+    );
+  }
   if (overflow === 'nowrap') {
     return (
       <span className={cn('whitespace-nowrap', strong && 'font-medium')} dir={dir}>

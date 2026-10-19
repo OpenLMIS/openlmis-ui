@@ -60,7 +60,8 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facility-types.display-order')} />
       ),
-      cell: ({ getValue }) => <span className="tabular-nums">{getValue()}</span>,
+      cell: ({ getValue }) =>
+        getValue() === null ? null : <span className="tabular-nums">{getValue()}</span>,
       meta: { className: 'w-40', label: t('facility-types.display-order') },
     }),
     columnHelper.accessor('active', {

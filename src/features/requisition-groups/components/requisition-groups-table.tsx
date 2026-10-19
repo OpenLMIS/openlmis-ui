@@ -66,12 +66,13 @@ function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.program')} />
       ),
-      cell: ({ row }) => (
-        <ProgramNamesCell
-          name={row.original.name}
-          schedules={row.original.requisitionGroupProgramSchedules}
-        />
-      ),
+      cell: ({ row }) =>
+        row.original.requisitionGroupProgramSchedules.length > 0 ? (
+          <ProgramNamesCell
+            name={row.original.name}
+            schedules={row.original.requisitionGroupProgramSchedules}
+          />
+        ) : null,
       meta: { label: t('requisition-groups.program') },
     }),
     columnHelper.accessor('code', {

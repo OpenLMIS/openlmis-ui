@@ -14,7 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -63,11 +63,7 @@ function createColumns(t: TFunction, listSearch: ProductsSearch) {
         <DataTableColumnHeader column={column} title={t('products.description')} />
       ),
       cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="line-clamp-2 whitespace-normal break-words" dir="auto">
-            {getValue()}
-          </span>
-        ) : null,
+        getValue() ? <CellText overflow="clamp">{getValue()}</CellText> : null,
       meta: { label: t('products.description') },
     }),
     columnHelper.display({

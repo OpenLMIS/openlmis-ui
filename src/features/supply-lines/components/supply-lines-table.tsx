@@ -64,7 +64,10 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('supply-lines.supervisory-node')} />
       ),
-      cell: ({ row }) => <ServedFacilitiesPopover line={row.original} />,
+      cell: ({ row }) =>
+        row.original.supervisoryNode?.id && row.original.supervisoryNode.code ? (
+          <ServedFacilitiesPopover line={row.original} />
+        ) : null,
       meta: { label: t('supply-lines.supervisory-node') },
     }),
     columnHelper.accessor('program.name', {

@@ -4,7 +4,7 @@ import { TableCardsSkeleton } from '@/components/table-cards';
 import { useTemplatesTable } from '@/features/requisition-templates/components/program-templates';
 
 export function TemplatesSkeleton({ cards }: { cards: boolean }) {
-  const table = useTemplatesTable();
+  const table = useTemplatesTable(undefined, undefined, cards);
   return (
     <div className="flex flex-col gap-6">
       {[0, 1, 2].map((section) => (

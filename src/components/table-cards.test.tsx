@@ -4,7 +4,14 @@ import { expect, it } from 'vitest';
 import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
 import { CellText, TableCards } from '@/components/table-cards';
 
-type Row = { id: string; name: string; code: string; zone: string | null; type: string };
+type Row = {
+  id: string;
+  name: string;
+  code: string;
+  zone: string | null;
+  note: string;
+  type: string;
+};
 
 const helper = createColumnHelper<DataTableFeatures, Row>();
 const columns = helper.columns([
@@ -18,6 +25,11 @@ const columns = helper.columns([
     meta: { label: 'Zone' },
     cell: ({ getValue }) => getValue(),
   }),
+  helper.accessor('note', {
+    header: 'Note',
+    meta: { label: 'Note' },
+    cell: ({ getValue }) => getValue() && <CellText>{getValue()}</CellText>,
+  }),
   helper.accessor('type', { header: 'Type', meta: { label: 'Type' } }),
   helper.display({
     id: 'actions',
@@ -25,7 +37,7 @@ const columns = helper.columns([
   }),
 ]);
 const rows: Row[] = [
-  { id: '1', name: 'Comfort Health Clinic', code: 'HC01', zone: null, type: 'Clinic' },
+  { id: '1', name: 'Comfort Health Clinic', code: 'HC01', zone: null, note: '', type: 'Clinic' },
 ];
 
 function Harness() {
@@ -38,7 +50,7 @@ function Harness() {
   return <TableCards table={table} title="name" />;
 }
 
-it('puts the title and actions in the band and every other visible column in a row', () => {
+it('puts the title and actions in the band and every other visible column in an isolated row', () => {
   render(<Harness />);
   const card = screen.getByRole('listitem');
 
@@ -53,6 +65,10 @@ it('puts the title and actions in the band and every other visible column in a r
   expect(
     within(card).getByText('Zone').parentElement?.parentElement?.parentElement,
   ).toHaveTextContent('Zone-');
+  expect(
+    within(card).getByText('Note').parentElement?.parentElement?.parentElement,
+  ).toHaveTextContent('Note-');
+  expect(within(card).getByText('HC01').closest('bdi')).not.toBeNull();
   expect(within(card).queryByText('Type')).toBeNull();
-  expect(within(card).queryByText('Name')).toBeNull();
+  expect(within(card).queryByText('name')).toBeNull();
 });

@@ -12,7 +12,7 @@ import {
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
 import { TableCards } from '@/components/table-cards';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
@@ -26,7 +26,7 @@ const helper = createColumnHelper<DataTableFeatures, RequisitionTemplate>();
 const NO_TEMPLATES: RequisitionTemplate[] = [];
 const NO_TYPES: FacilityType[] = [];
 
-export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
+export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES, cards = false) {
   const { t } = useTranslation();
   const columns = useMemo(
     () =>
@@ -43,7 +43,10 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         helper.display({
           id: 'facilityTypes',
           header: t('requisition-templates.facility-type'),
-          cell: ({ row }) => <FacilityTypesCell template={row.original} types={types} />,
+          cell: ({ row }) =>
+            row.original.facilityTypes.length > 0 ? (
+              <FacilityTypesCell template={row.original} types={types} />
+            ) : null,
           meta: { className: 'min-w-48 w-1/4', label: t('requisition-templates.facility-type') },
         }),
         helper.accessor('requisitionReportOnly', {
@@ -60,29 +63,46 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         helper.display({
           id: 'actions',
           header: () => <span className="sr-only">{t('requisition-templates.action')}</span>,
-          meta: { className: 'w-16' },
-          cell: ({ row }) => (
-            <Tooltip>
-              <TooltipTrigger
+          meta: { className: 'w-16', skeleton: cards ? 'control' : undefined },
+          cell: ({ row }) =>
+            cards ? (
+              <Button
+                aria-label={t('requisition-templates.configure-template', {
+                  template: row.original.name,
+                })}
+                nativeButton={false}
                 render={
                   <Link
-                    aria-label={t('requisition-templates.configure-template', {
-                      template: row.original.name,
-                    })}
-                    className={buttonVariants({ size: 'icon-sm', variant: 'ghost' })}
                     to="/administration/requisition-templates/$id"
                     params={{ id: row.original.id }}
                   />
                 }
+                size="sm"
               >
-                <SettingsIcon />
-              </TooltipTrigger>
-              <TooltipContent>{t('requisition-templates.configure')}</TooltipContent>
-            </Tooltip>
-          ),
+                {t('requisition-templates.configure')}
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      aria-label={t('requisition-templates.configure-template', {
+                        template: row.original.name,
+                      })}
+                      className={buttonVariants({ size: 'icon-sm', variant: 'ghost' })}
+                      to="/administration/requisition-templates/$id"
+                      params={{ id: row.original.id }}
+                    />
+                  }
+                >
+                  <SettingsIcon />
+                </TooltipTrigger>
+                <TooltipContent>{t('requisition-templates.configure')}</TooltipContent>
+              </Tooltip>
+            ),
         }),
       ]),
-    [t, types],
+    [t, types, cards],
   );
   return useTable({
     features: dataTableFeatures,
@@ -105,7 +125,7 @@ function ProgramTemplates({
   types: FacilityType[];
 }) {
   const { t } = useTranslation();
-  const table = useTemplatesTable(templates, types);
+  const table = useTemplatesTable(templates, types, cards);
   const empty = (
     <DataTableEmpty
       icon={<ClipboardListIcon />}

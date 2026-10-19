@@ -484,12 +484,14 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Administration lists switch to cards too, through `TableCards` and `TableCardsSkeleton`
   (`src/components/table-cards.tsx`) over the same TanStack table: the `title` column and the
   `actions` cell form the band; every other visible column is a row labelled by `meta.label`.
-  Text cells use `CellText` (`overflow="nowrap"` for scrolling tables), which wraps in cards;
-  `TableCards` bolds the band title. Sortable card lists pass `sort` to `DataTableViewOptions`
-  from `searchSort` (`src/lib/table-search.ts`); lists without a View menu show it only as
-  cards. Sorting adds history. Editor and dialog tables keep tables at every width, hiding
-  lower-priority columns and allowing sideways scrolling on phones. Keep headers on one line;
-  every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
+  Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"` for two lines),
+  which wraps in full in cards; `TableCards` bolds the band title. It calls each column's `cell`
+  directly, so cells must not call hooks and must return `null` or `''` when empty to show
+  `EMPTY_VALUE`. Sortable card lists pass `sort` to `DataTableViewOptions` from `searchSort`
+  (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
+  history. Editor and dialog tables keep tables at every width, hiding lower-priority columns and
+  allowing sideways scrolling on phones. Keep headers on one line; every table header uses
+  `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
