@@ -623,7 +623,7 @@ function StockCardView({
           to="/stock-management/stock-on-hand/$stockCardId"
           params={{ stockCardId: card.stockCardId }}
           search={search}
-          state={{ cardHasLot: Boolean(card.lot) }}
+          state={{ cardHasLot: card.lot !== null }}
         />
       }
     >
