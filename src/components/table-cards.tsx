@@ -72,7 +72,7 @@ function TableCard<TData extends RowData>({
   return (
     <CardListItem>
       <CardBand>
-        <div className="min-w-0 wrap-anywhere">
+        <div className="min-w-0 font-medium wrap-anywhere">
           <bdi>{titleCell && renderCell(titleCell)}</bdi>
         </div>
         {actions && <div className="shrink-0">{renderCell(actions)}</div>}
@@ -127,12 +127,21 @@ export function CellText({
   children,
   dir = 'auto',
   strong = false,
+  overflow = 'truncate',
 }: {
   children: ReactNode;
   dir?: 'auto' | 'ltr';
   strong?: boolean;
+  overflow?: 'truncate' | 'nowrap';
 }) {
   if (use(InCardContext)) return <span dir={dir}>{children}</span>;
+  if (overflow === 'nowrap') {
+    return (
+      <span className={cn('whitespace-nowrap', strong && 'font-medium')} dir={dir}>
+        {children}
+      </span>
+    );
+  }
   return (
     <span className="flex">
       <span className={cn('min-w-0 truncate', strong && 'font-medium')} dir={dir}>
