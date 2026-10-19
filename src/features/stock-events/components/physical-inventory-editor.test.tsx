@@ -347,8 +347,9 @@ it.each([390, 672])(
     if (width < 672) {
       expect(await screen.findByText('B (B)')).toBeInTheDocument();
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    } else expect(await screen.findByRole('table')).toBeInTheDocument();
+    }
     await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+    if (width >= 672) expect(screen.getByRole('table')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
     await user.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
@@ -777,11 +778,14 @@ it('updates the phone card unaccounted error and summary when reasons change wit
 });
 
 it('keeps pagination inside the grid table card container', async () => {
-  setup();
-  await screen.findByRole('table');
-  const pager = await screen.findByRole('button', { name: 'Next Page' });
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 1 });
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  const pager = screen.getByRole('button', { name: 'Next Page' });
   const grid = screen.getByRole('table');
   expect(grid.closest('.\\@container\\/table')).toContainElement(pager);
+  await user.click(pager);
+  expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, undefined);
 });
 
 it('allows Delete to leave immediately after a failed device save', async () => {

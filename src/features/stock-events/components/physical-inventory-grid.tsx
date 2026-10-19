@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CardBand, CardList, CardListItem, CardRows, SkeletonBar } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { useFieldContext } from '@/components/form/form-context';
 import { HiddenFromView } from '@/components/form/form-fields';
 import type { QuantityValue } from '@/components/form/quantity-value';
@@ -69,14 +70,13 @@ const COLUMNS = [
   ['actions', 'stock-events.actions'],
 ] as const;
 const CARD_COLUMNS = [
-  'lot',
-  'expiry',
   'packSize',
+  'expiry',
   'stock',
-  'unaccounted',
   'count',
   'vvm',
   'reasons',
+  'unaccounted',
 ] as const;
 
 type ColumnId = (typeof COLUMNS)[number][0];
@@ -200,20 +200,45 @@ export function PhysicalInventoryGrid({
   if (cards)
     return (
       <CardList listRef={listRef} footer={footer}>
-        {bands.flatMap((band) =>
-          band.groups.flatMap((group) =>
-            group.lines.map((line) => (
-              <InventoryRow
-                key={line.key}
-                lineKey={line.key}
-                editor={editor}
-                columns={columns}
-                hideProduct={false}
-                cards
-              />
-            )),
-          ),
-        )}
+        {bands.map((band) => (
+          <Fragment key={band.category}>
+            <li>
+              <h3 className="px-4 text-muted-foreground text-sm">
+                <bdi>{band.category}</bdi>
+              </h3>
+            </li>
+            {band.groups.map((group) => (
+              <CardListItem key={group.orderable.id}>
+                <CardBand>
+                  <bdi className="min-w-0 wrap-anywhere">
+                    {productName(group.orderable)}
+                    {group.orderable.dispensable?.displayUnit &&
+                      ` - ${group.orderable.dispensable.displayUnit}`}{' '}
+                    ({group.orderable.productCode})
+                  </bdi>
+                </CardBand>
+                {group.lines.map((line) => (
+                  <InventoryRow
+                    key={line.key}
+                    lineKey={line.key}
+                    editor={editor}
+                    columns={columns}
+                    hideProduct
+                    cards
+                  />
+                ))}
+                {group.lines.length > 1 && (
+                  <InventorySummaryRow
+                    editor={editor}
+                    lines={group.lines}
+                    columns={columns}
+                    cards
+                  />
+                )}
+              </CardListItem>
+            ))}
+          </Fragment>
+        ))}
       </CardList>
     );
   return (
@@ -326,11 +351,14 @@ const InventorySummaryRow = memo(function InventorySummaryRow({
   editor,
   lines,
   columns,
+  cards = false,
 }: {
   editor: InventoryGridEditor;
+  cards?: boolean;
   lines: readonly InventoryLine[];
   columns: readonly (typeof COLUMNS)[number][];
 }) {
+  const { t } = useTranslation();
   const summary = useStore(
     editor.form.store,
     (state) => lines.map((line) => state.values.lines[line.key]).filter(Boolean),
@@ -338,6 +366,23 @@ const InventorySummaryRow = memo(function InventorySummaryRow({
       previous.length === next.length && previous.every((line, index) => line === next[index]),
   );
   if (!summary.length) return null;
+  if (cards)
+    return (
+      <>
+        <CardBand>{t('physical-inventory.total')}</CardBand>
+        <div className="bg-muted/50">
+          <CardRows>
+            {columns
+              .filter(([id]) => id === 'packSize' || id === 'stock' || id === 'count')
+              .map(([id, key]) => (
+                <SettingsItem key={id} label={t(key)}>
+                  <InventoryCell id={id} editor={editor} line={summary[0]} summary={summary} />
+                </SettingsItem>
+              ))}
+          </CardRows>
+        </div>
+      </>
+    );
   return (
     <TableRow surface="muted">
       {columns.map(([id]) => (
@@ -383,58 +428,56 @@ const InventoryRow = memo(
     };
     if (cards)
       return (
-        <CardListItem>
-          <div {...focusEvents}>
-            <CardBand>
-              <bdi className="min-w-0 wrap-anywhere">
-                {productName(line.orderable)} ({line.orderable.productCode})
-              </bdi>
-              {columns.some(([id]) => id === 'actions') && (
-                <InventoryCell id="actions" editor={editor} line={line} cards />
-              )}
-            </CardBand>
-            <CardRows>
-              {CARD_COLUMNS.map((id) => {
-                const column = columns.find(([columnId]) => columnId === id);
-                if (!column) return null;
-                const cell = (
-                  <InventoryCell
-                    id={id}
-                    editor={editor}
-                    line={line}
-                    countFocused={countFocused}
-                    cards
-                  />
-                );
-                if (id === 'count' || id === 'vvm' || id === 'reasons')
-                  return (
-                    <SettingsRowFrame
-                      key={id}
-                      label={<span className="text-sm">{t(column[1])}</span>}
-                      value="control"
-                      align="center"
-                    >
-                      {cell}
-                    </SettingsRowFrame>
-                  );
+        <div {...focusEvents} className="divide-y">
+          <CardBand>
+            <div className="min-w-0 wrap-anywhere">
+              <InventoryCell id="lot" editor={editor} line={line} cards />
+            </div>
+            {columns.some(([id]) => id === 'actions') && (
+              <InventoryCell id="actions" editor={editor} line={line} cards />
+            )}
+          </CardBand>
+          <CardRows>
+            {CARD_COLUMNS.map((id) => {
+              const column = columns.find(([columnId]) => columnId === id);
+              if (!column) return null;
+              const cell = (
+                <InventoryCell
+                  id={id}
+                  editor={editor}
+                  line={line}
+                  countFocused={countFocused}
+                  cards
+                />
+              );
+              if (id === 'count' || id === 'vvm' || id === 'reasons')
                 return (
-                  <SettingsItem key={id} label={t(column[1])}>
-                    <span
-                      className={cn(
-                        id === 'unaccounted' && 'font-bold',
-                        id === 'unaccounted' &&
-                          unaccountedInvalid(line, editor) &&
-                          'text-destructive',
-                      )}
-                    >
-                      {cell}
-                    </span>
-                  </SettingsItem>
+                  <SettingsRowFrame
+                    key={id}
+                    label={<span className="text-sm">{t(column[1])}</span>}
+                    value="control"
+                    align="center"
+                  >
+                    {cell}
+                  </SettingsRowFrame>
                 );
-              })}
-            </CardRows>
-          </div>
-        </CardListItem>
+              return (
+                <SettingsItem key={id} label={t(column[1])}>
+                  <span
+                    className={cn(
+                      id === 'unaccounted' && 'font-bold',
+                      id === 'unaccounted' &&
+                        unaccountedInvalid(line, editor) &&
+                        'text-destructive',
+                    )}
+                  >
+                    {cell}
+                  </span>
+                </SettingsItem>
+              );
+            })}
+          </CardRows>
+        </div>
       );
     return (
       <TableRow {...focusEvents}>
@@ -527,18 +570,16 @@ function InventoryCell({
             aria-label={label(t('physical-inventory.edit-lot'))}
             onClick={() => editor.onEditLot(line)}
           >
-            <bdi className={cards ? 'wrap-anywhere' : 'whitespace-nowrap'}>
+            <bdi
+              className={cards ? 'min-w-0 wrap-anywhere whitespace-normal' : 'whitespace-nowrap'}
+            >
               {line.newLot.lotCode}
             </bdi>
           </Button>
         );
       return summary ? null : (
-        <span className={cards ? 'wrap-anywhere' : 'whitespace-nowrap'}>
-          <bdi>
-            {cards
-              ? orEmpty(inventoryLotCode(line))
-              : (inventoryLotCode(line) ?? t('stock-events.no-lot-defined'))}
-          </bdi>
+        <span className={cards ? 'min-w-0 wrap-anywhere whitespace-normal' : 'whitespace-nowrap'}>
+          <bdi>{inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}</bdi>
         </span>
       );
     case 'expiry':
@@ -697,7 +738,7 @@ function InventoryCell({
             </editor.form.AppField>
           </div>
         );
-      return null;
+      return cards ? orEmpty(null) : null;
   }
 }
 
@@ -719,11 +760,19 @@ export function PhysicalInventoryGridSkeleton({
   if (cards)
     return (
       <div aria-busy>
-        <CardList>
+        <CardList footer={<DataTablePaginationSkeleton />}>
+          <li>
+            <div className="px-4">
+              <SkeletonBar width="w-24" />
+            </div>
+          </li>
           {Array.from({ length: 5 }, (_, index) => `card-${index}`).map((key) => (
             <CardListItem key={key}>
               <CardBand>
                 <SkeletonBar width="w-40" />
+              </CardBand>
+              <CardBand>
+                <SkeletonBar width="w-24" />
                 {showActions && (
                   <div className="size-7">
                     <Skeleton fill />

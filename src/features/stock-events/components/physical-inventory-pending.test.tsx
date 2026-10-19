@@ -131,9 +131,10 @@ it('uses phone skeleton cards with visible details and control-sized placeholder
     </QueryClientProvider>,
   );
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
-  expect(screen.getAllByRole('listitem')).toHaveLength(5);
+  expect(screen.getAllByRole('listitem')).toHaveLength(6);
   expect(screen.getAllByText('stock-events.pack-size')).toHaveLength(5);
   expect(screen.getAllByText('stock-events.vvm-status')).toHaveLength(5);
   expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
   expect(container.querySelectorAll('li .h-7')).toHaveLength(15);
+  expect(container.querySelector('.w-16')).toBeInTheDocument();
 });

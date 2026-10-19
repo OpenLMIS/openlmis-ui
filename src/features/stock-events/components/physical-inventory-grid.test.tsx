@@ -398,7 +398,7 @@ it('shows editable phone cards with visible details and the existing line action
   );
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   const card = screen.getByText('Product (P)').closest('li') as HTMLElement;
-  expect(within(card).getByText('stock-events.lot-code')).toBeInTheDocument();
+  expect(within(card).getByText('stock-events.no-lot-defined')).toBeInTheDocument();
   expect(within(card).getByText('stock-events.pack-size')).toBeInTheDocument();
   expect(within(card).queryByText('stock-events.expiry-date')).not.toBeInTheDocument();
   const input = within(card).getByRole('textbox');
@@ -412,4 +412,34 @@ it('shows editable phone cards with visible details and the existing line action
     }),
   );
   expect(onDeactivate).toHaveBeenCalled();
+});
+
+it('groups phone lots under their category and product with live totals and empty VVM values', async () => {
+  const user = userEvent.setup();
+  const grouped = lines.map((line) => ({
+    ...line,
+    orderable: { ...line.orderable, dispensable: { displayUnit: 'tablet' } },
+  }));
+  render(
+    <Grid
+      cards
+      bands={inventoryPage(grouped, 'program').bands}
+      visibility={{}}
+      showVvm
+      unit="PACKS"
+    />,
+  );
+  expect(screen.getByRole('heading', { name: 'Medicines' })).toBeInTheDocument();
+  const card = screen.getByText('Product - tablet (P)').closest('li') as HTMLElement;
+  expect(within(card).getByText('Batch')).toBeInTheDocument();
+  expect(within(card).getByText('stock-events.no-lot-defined')).toBeInTheDocument();
+  expect(within(card).getByText('physical-inventory.total')).toBeInTheDocument();
+  expect(within(card).getAllByText('1 ( +2 )')).toHaveLength(2);
+  const labels = within(card).getAllByText('stock-events.vvm-status');
+  for (const label of labels)
+    expect(label.parentElement?.parentElement?.parentElement).toHaveTextContent('-');
+  const input = within(card).getAllByRole('textbox')[0];
+  await user.clear(input);
+  await user.type(input, '1');
+  expect(within(card).getByText('2 ( +2 )')).toBeInTheDocument();
 });
