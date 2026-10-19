@@ -52,6 +52,7 @@ function renderDialog() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(fetchLatestPeriod).mockResolvedValue(latest);
   vi.mocked(fetchProcessingSchedule).mockResolvedValue(schedule);
   vi.mocked(fetchProcessingPeriodsPage).mockResolvedValue(latest);
