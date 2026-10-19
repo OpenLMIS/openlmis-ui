@@ -203,9 +203,9 @@ export function PhysicalInventoryGrid({
         {bands.map((band) => (
           <Fragment key={band.category}>
             <li>
-              <h3 className="px-4 text-muted-foreground text-sm">
+              <h2 className="px-4 text-muted-foreground text-sm">
                 <bdi>{band.category}</bdi>
-              </h3>
+              </h2>
             </li>
             {band.groups.map((group) => (
               <CardListItem key={group.orderable.id}>
@@ -376,7 +376,13 @@ const InventorySummaryRow = memo(function InventorySummaryRow({
               .filter(([id]) => id === 'packSize' || id === 'stock' || id === 'count')
               .map(([id, key]) => (
                 <SettingsItem key={id} label={t(key)}>
-                  <InventoryCell id={id} editor={editor} line={summary[0]} summary={summary} />
+                  <InventoryCell
+                    cards
+                    id={id}
+                    editor={editor}
+                    line={summary[0]}
+                    summary={summary}
+                  />
                 </SettingsItem>
               ))}
           </CardRows>
@@ -450,7 +456,11 @@ const InventoryRow = memo(
                   cards
                 />
               );
-              if (id === 'count' || id === 'vvm' || id === 'reasons')
+              if (
+                id === 'count' ||
+                id === 'reasons' ||
+                (id === 'vvm' && line.orderable.extraData?.useVVM === 'true')
+              )
                 return (
                   <SettingsRowFrame
                     key={id}
@@ -562,6 +572,17 @@ function InventoryCell({
     case 'packSize':
       return number(line.orderable.netContent);
     case 'lot':
+      if (!summary && line.newLot && cards)
+        return (
+          <button
+            aria-label={label(t('physical-inventory.edit-lot'))}
+            className="min-w-0 wrap-anywhere text-end font-medium text-primary underline-offset-4 hover:underline"
+            onClick={() => editor.onEditLot(line)}
+            type="button"
+          >
+            <bdi>{line.newLot.lotCode}</bdi>
+          </button>
+        );
       if (!summary && line.newLot)
         return (
           <Button
@@ -570,11 +591,7 @@ function InventoryCell({
             aria-label={label(t('physical-inventory.edit-lot'))}
             onClick={() => editor.onEditLot(line)}
           >
-            <bdi
-              className={cards ? 'min-w-0 wrap-anywhere whitespace-normal' : 'whitespace-nowrap'}
-            >
-              {line.newLot.lotCode}
-            </bdi>
+            <bdi className="whitespace-nowrap">{line.newLot.lotCode}</bdi>
           </Button>
         );
       return summary ? null : (

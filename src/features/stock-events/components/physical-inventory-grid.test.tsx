@@ -437,7 +437,9 @@ it('groups phone lots under their category and product with live totals and empt
   expect(within(card).getAllByText('1 ( +2 )')).toHaveLength(2);
   const labels = within(card).getAllByText('stock-events.vvm-status');
   for (const label of labels)
-    expect(label.parentElement?.parentElement?.parentElement).toHaveTextContent('-');
+    expect(
+      within(label.closest('.justify-between') as HTMLElement).getByText('-', { exact: true }),
+    ).toBeInTheDocument();
   const input = within(card).getAllByRole('textbox')[0];
   await user.clear(input);
   await user.type(input, '1');
