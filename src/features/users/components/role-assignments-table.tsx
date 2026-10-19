@@ -9,7 +9,7 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -21,6 +21,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { RoleRightsPopover } from '@/components/role-rights-popover';
+import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,12 +44,14 @@ import {
   TAB_RESET,
 } from '@/features/users/lib/roles-search';
 import type { LookupStatus } from '@/features/users/lib/use-role-lookups';
+import { usePageStart } from '@/hooks/use-page-start';
 import {
   type SearchChange,
   toPaginationState,
   toSortingState,
   useTableSearchState,
 } from '@/lib/table-search';
+import { cn } from '@/lib/utils';
 
 const columnHelper = createColumnHelper<DataTableFeatures, RoleRow>();
 
@@ -60,8 +63,6 @@ type RowActions = {
 type ColumnOptions = RowActions & {
   t: TFunction;
   tab: RoleTab;
-  /** Too narrow for a column each, so the role cell carries the rest on lines of its own. */
-  compact: boolean;
   status: LookupStatus;
 };
 
@@ -77,7 +78,8 @@ type NameStatus = LookupStatus['nodes'];
 
 function Name({ value, status = 'ready' }: { value: string | undefined; status?: NameStatus }) {
   const { t } = useTranslation();
-  if (value !== undefined) return <span className="truncate">{value}</span>;
+  const cards = useInCards();
+  if (value !== undefined) return <span className={cards ? undefined : 'truncate'}>{value}</span>;
   if (status === 'pending') return <Pending />;
   return <span className="text-muted-foreground">{t('users.roles.unknown')}</span>;
 }
@@ -85,6 +87,7 @@ function Name({ value, status = 'ready' }: { value: string | undefined; status?:
 /** The node with its facility beneath, or Home Facility with the user's home facility. */
 function NodeCell({ row, status }: { row: RoleRow; status: LookupStatus }) {
   const { t } = useTranslation();
+  const cards = useInCards();
   const facilityPending =
     status.facilities === 'pending' || (!row.isHomeFacility && status.nodes === 'pending');
   return (
@@ -103,7 +106,9 @@ function NodeCell({ row, status }: { row: RoleRow; status: LookupStatus }) {
         <Name status={status.nodes} value={row.node} />
       )}
       {row.isIgnored ? null : row.nodeFacility !== undefined ? (
-        <span className="truncate text-muted-foreground text-xs">{row.nodeFacility}</span>
+        <span className={cn('text-muted-foreground text-xs', !cards && 'truncate')}>
+          {row.nodeFacility}
+        </span>
       ) : (
         facilityPending && <Pending />
       )}
@@ -111,47 +116,34 @@ function NodeCell({ row, status }: { row: RoleRow; status: LookupStatus }) {
   );
 }
 
-function RoleCell({ row, options }: { row: RoleRow; options: ColumnOptions }) {
+function RoleCell({ row }: { row: RoleRow }) {
   const { t } = useTranslation();
-  const { tab, compact, status } = options;
+  const cards = useInCards();
 
   return (
-    <span className="flex min-w-0 flex-col gap-1">
-      <span className="flex min-w-0 items-center gap-2">
-        {row.role === undefined ? (
-          <Name value={undefined} />
-        ) : (
-          <RoleRightsPopover name={row.role} roleId={row.assignment.roleId} />
-        )}
-        {row.isUnsaved && (
-          <Badge variant="info">
-            <InfoIcon data-icon="inline-start" />
-            {t('users.roles.unsaved')}
-          </Badge>
-        )}
-      </span>
-      {compact && tab.type === 'SUPERVISION' && (
-        <span className="flex min-w-0 flex-col text-muted-foreground text-xs">
-          <Name value={row.program} />
-          <NodeCell row={row} status={status} />
-        </span>
+    <span className={cn('flex min-w-0 items-center gap-2', cards && 'flex-wrap')}>
+      {row.role === undefined ? (
+        <Name value={undefined} />
+      ) : (
+        <RoleRightsPopover name={row.role} roleId={row.assignment.roleId} />
       )}
-      {compact && tab.type === 'ORDER_FULFILLMENT' && (
-        <span className="text-muted-foreground text-xs">
-          <Name status={status.facilities} value={row.facility} />
-        </span>
+      {row.isUnsaved && (
+        <Badge variant="info">
+          <InfoIcon data-icon="inline-start" />
+          {t('users.roles.unsaved')}
+        </Badge>
       )}
     </span>
   );
 }
 
 function createColumns(options: ColumnOptions) {
-  const { t, tab, compact, status, onRemove } = options;
+  const { t, tab, status, onRemove } = options;
   const role = columnHelper.accessor('role', {
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t('users.roles.column.role')} />
     ),
-    cell: ({ row }) => <RoleCell options={options} row={row.original} />,
+    cell: ({ row }) => <RoleCell row={row.original} />,
   });
   const actions = columnHelper.display({
     id: 'actions',
@@ -166,22 +158,20 @@ function createColumns(options: ColumnOptions) {
   });
   const withActions = onRemove ? [actions] : [];
 
-  if (compact) return columnHelper.columns([role, ...withActions]);
-
   if (tab.type === 'SUPERVISION') {
     return columnHelper.columns([
       columnHelper.accessor('program', {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('users.roles.column.program')} />
         ),
-        meta: { className: 'w-1/5' },
+        meta: { className: 'w-1/5', label: t('users.roles.column.program') },
         cell: ({ getValue }) => <Name value={getValue()} />,
       }),
       columnHelper.accessor('node', {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('users.roles.column.node')} />
         ),
-        meta: { className: 'w-2/5' },
+        meta: { className: 'w-2/5', label: t('users.roles.column.node') },
         cell: ({ row }) => <NodeCell row={row.original} status={status} />,
       }),
       role,
@@ -194,7 +184,7 @@ function createColumns(options: ColumnOptions) {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title={t('users.roles.column.facility')} />
         ),
-        meta: { className: 'w-1/2' },
+        meta: { className: 'w-1/2', label: t('users.roles.column.facility') },
         cell: ({ getValue }) => <Name status={status.facilities} value={getValue()} />,
       }),
       role,
@@ -237,7 +227,7 @@ type RoleAssignmentsTableProps = RowActions & {
   /** Every row of the tab, unfiltered; the table filters, sorts and pages them. */
   rows: RoleRow[];
   status: LookupStatus;
-  compact: boolean;
+  cards: boolean;
   search: RolesTableSearch;
   onSearchChange: SearchChange<RolesTableSearch>;
   onAdd?: () => void;
@@ -250,7 +240,7 @@ const SKELETON_STATUS: LookupStatus = { nodes: 'pending', facilities: 'pending' 
 function useRoleTable({
   rows,
   tab,
-  compact,
+  cards,
   status,
   search,
   onSearchChange,
@@ -258,19 +248,24 @@ function useRoleTable({
 }: Omit<RoleAssignmentsTableProps, 'onAdd'>) {
   const { t } = useTranslation();
   const columns = useMemo(
-    () => createColumns({ t, tab, compact, status, onRemove }),
-    [t, tab, compact, status, onRemove],
+    () => createColumns({ t, tab, status, onRemove }),
+    [t, tab, status, onRemove],
+  );
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<RolesTableSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
   );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_ROLES_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
   const [{ id, desc }] = toSortingState(search, DEFAULT_ROLES_SORT) as [
     { id: RoleSortField; desc: boolean },
   ];
-  const { pageIndex, pageSize } = toPaginationState(search);
   const matching = useMemo(
     () => filterRows(rows, search.q).sort(compareRows(id, desc)),
     [rows, search.q, id, desc],
@@ -290,33 +285,35 @@ function useRoleTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
 
-  return { table, matching: matching.length };
+  return { table, matching: matching.length, pageStart };
 }
 
 export function RoleAssignmentsTableSkeleton({
   tab,
-  compact,
+  cards,
   search,
   onRemove,
-}: Pick<RoleAssignmentsTableProps, 'tab' | 'compact' | 'search' | 'onRemove'>) {
+}: Pick<RoleAssignmentsTableProps, 'tab' | 'cards' | 'search' | 'onRemove'>) {
   const { table } = useRoleTable({
     rows: [],
     tab,
-    compact,
+    cards: false,
     status: SKELETON_STATUS,
     search,
     onSearchChange: noop,
     onRemove,
   });
+  if (cards) return <TableCardsSkeleton rowCount={5} table={table} title="role" />;
   return <DataTableSkeleton rowCount={5} table={table} />;
 }
 
 export function RoleAssignmentsTable({ onAdd, ...props }: RoleAssignmentsTableProps) {
   const { t } = useTranslation();
-  const { rows, tab, onSearchChange } = props;
-  const { table, matching } = useRoleTable(props);
+  const { rows, tab, cards, onSearchChange } = props;
+  const { table, matching, pageStart } = useRoleTable(props);
   const pageCount = table.getPageCount();
   const isPastLastPage = table.getRowModel().rows.length === 0 && matching > 0;
 
@@ -353,11 +350,17 @@ export function RoleAssignmentsTable({ onAdd, ...props }: RoleAssignmentsTablePr
       />
     );
 
-  return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={matching > 0 && <DataTablePagination table={table} />}
-      table={table}
-    />
-  );
+  const footer = matching > 0 && <DataTablePagination table={table} />;
+  if (cards) {
+    return (
+      <TableCards
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="role"
+      />
+    );
+  }
+  return <DataTable empty={!isPastLastPage && empty} footer={footer} table={table} />;
 }

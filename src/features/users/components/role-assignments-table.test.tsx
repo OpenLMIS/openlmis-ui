@@ -30,7 +30,13 @@ const row: RoleRow = {
   isUnsaved: false,
 };
 
-function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports, failed = false) {
+function renderTable(
+  rows: RoleRow[],
+  editable: boolean,
+  tab: RoleTab = reports,
+  failed = false,
+  cards = false,
+) {
   const queryClient = new QueryClient();
   queryClient.setQueryData(rolesOptions().queryKey, [
     {
@@ -42,7 +48,7 @@ function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports,
   render(
     <QueryClientProvider client={queryClient}>
       <RoleAssignmentsTable
-        compact={false}
+        cards={cards}
         onAdd={editable ? vi.fn() : undefined}
         onRemove={editable ? vi.fn() : undefined}
         onSearchChange={vi.fn()}
@@ -79,6 +85,26 @@ describe('RoleAssignmentsTable', () => {
     expect(screen.queryByRole('button', { name: /users.roles.actions-for/ })).toBeNull();
   });
 
+  it('puts the role, its rights and Unsaved in a card band, with the rest as rows', async () => {
+    renderTable(
+      [{ ...row, program: 'Family Planning', node: 'FP approval point', isUnsaved: true }],
+      true,
+      supervision,
+      false,
+      true,
+    );
+    const card = screen.getByRole('listitem');
+
+    expect(within(card).getByText('users.roles.unsaved')).toBeVisible();
+    expect(within(card).getByText('users.roles.column.program')).toBeVisible();
+    expect(within(card).getByText('Family Planning')).toBeVisible();
+    expect(within(card).getByText('users.roles.column.node')).toBeVisible();
+    expect(within(card).getByRole('button', { name: 'role-rights.title' })).toBeVisible();
+
+    await userEvent.click(within(card).getByRole('button', { name: 'users.roles.actions-for' }));
+    expect(await screen.findByRole('menuitem', { name: 'users.roles.remove' })).toBeVisible();
+  });
+
   it('lists the program and the node before the role', () => {
     renderTable(
       [{ ...row, program: 'Family Planning', node: 'FP approval point' }],
@@ -103,7 +129,7 @@ describe('RoleAssignmentsTable', () => {
 
   it('keeps the actions column while loading when roles can be removed, so nothing shifts', () => {
     render(
-      <RoleAssignmentsTableSkeleton compact={false} onRemove={vi.fn()} search={{}} tab={reports} />,
+      <RoleAssignmentsTableSkeleton cards={false} onRemove={vi.fn()} search={{}} tab={reports} />,
     );
 
     expect(screen.getAllByRole('columnheader')).toHaveLength(2);
