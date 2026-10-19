@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, ListChecksIcon, PencilIcon, SearchXIcon, ShieldIcon } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -13,6 +13,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import {
   type RolesSearch,
 } from '@/features/roles/lib/search';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { usePageStart } from '@/hooks/use-page-start';
 import {
   type SearchChange,
   toPaginationState,
@@ -65,7 +67,7 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
           <span className="text-muted-foreground">{t('roles.no-type')}</span>
         );
       },
-      meta: { className: '@xl/main:w-40' },
+      meta: { className: '@xl/main:w-40', label: t('roles.type') },
     }),
     columnHelper.accessor('description', {
       header: ({ column }) => (
@@ -73,11 +75,12 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
       ),
       cell: ({ getValue }) => getValue() || null,
       enableSorting: false,
+      meta: { label: t('roles.description') },
     }),
     columnHelper.accessor('count', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('roles.users')} />,
       cell: ({ getValue }) => <span className="tabular-nums">{getValue() ?? 0}</span>,
-      meta: { className: 'w-56' },
+      meta: { className: 'w-56', label: t('roles.users') },
     }),
     ...(hasActions
       ? [
@@ -131,6 +134,7 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
 }
 
 type RolesTableProps = RoleRowActions & {
+  cards: boolean;
   search: RolesSearch;
   onSearchChange: SearchChange<RolesSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -144,6 +148,7 @@ const noop = () => {};
 
 /** One table setup for the table and its skeleton; `GET /roles` cannot page or sort, so it happens here. */
 function useRolesTable({
+  cards,
   roles,
   search,
   onSearchChange,
@@ -156,15 +161,20 @@ function useRolesTable({
     () => createColumns(t, { onEdit, onViewRights }),
     [t, onEdit, onViewRights],
   );
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<RolesSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_ROLES_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
   const [{ id, desc }] = toSortingState(search, DEFAULT_ROLES_SORT) as [
     { id: RoleSortField; desc: boolean },
   ];
-  const { pageIndex, pageSize } = toPaginationState(search);
   const matching = useMemo(
     () => sortRoles(filterRoles(roles, { q: search.q, type: search.type }), id, desc),
     [roles, search.q, search.type, id, desc],
@@ -184,19 +194,22 @@ function useRolesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
 
-  return { table, matching: matching.length };
+  return { table, pageStart, matching: matching.length };
 }
 
 export function RolesTableSkeleton({
+  cards,
   search,
   columnVisibility,
   onEdit,
   onViewRights,
-}: Pick<RolesTableProps, 'search' | 'columnVisibility' | 'onEdit' | 'onViewRights'>) {
+}: Pick<RolesTableProps, 'cards' | 'search' | 'columnVisibility' | 'onEdit' | 'onViewRights'>) {
   const { table } = useRolesTable({
+    cards: false,
     roles: NO_ROLES,
     search,
     onSearchChange: noop,
@@ -204,13 +217,15 @@ export function RolesTableSkeleton({
     onEdit,
     onViewRights,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function RolesTable({ search, onSearchChange, ...props }: RolesTableProps) {
   const { t } = useTranslation();
   const { data: roles } = useSuspenseQuery(rolesOptions());
-  const { table, matching } = useRolesTable({ roles, search, onSearchChange, ...props });
+  const { table, pageStart, matching } = useRolesTable({ roles, search, onSearchChange, ...props });
   const pageCount = table.getPageCount();
   const isPastLastPage = matching > 0 && toPaginationState(search).pageIndex >= pageCount;
 
@@ -238,11 +253,17 @@ export function RolesTable({ search, onSearchChange, ...props }: RolesTableProps
     />
   );
 
-  return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && matching > 0 && <DataTablePagination table={table} />}
-      table={table}
-    />
-  );
+  const footer = !isPastLastPage && matching > 0 && <DataTablePagination table={table} />;
+  if (props.cards) {
+    return (
+      <TableCards
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
+  return <DataTable empty={!isPastLastPage && empty} footer={footer} table={table} />;
 }

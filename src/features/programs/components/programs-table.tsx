@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, LayersIcon, PencilIcon, PlusIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -14,6 +14,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ import { programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { usePageStart } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Program>();
@@ -35,25 +37,12 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.name')} />,
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="flex">
-            <span className="min-w-0 truncate font-medium" dir="auto">
-              {getValue()}
-            </span>
-          </span>
-        ) : null,
+      cell: ({ getValue }) => (getValue() ? <CellText strong>{getValue()}</CellText> : null),
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('programs.code')} />,
-      cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
-      ),
-      meta: { className: '@xl/main:w-1/4' },
+      cell: ({ getValue }) => <CellText dir="ltr">{getValue()}</CellText>,
+      meta: { className: '@xl/main:w-1/4', label: t('programs.code') },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => (
@@ -66,7 +55,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
           falseLabel={t('programs.inactive')}
         />
       ),
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('programs.status') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -107,6 +96,7 @@ function ProgramActions({ program, onEdit }: { program: Program; onEdit: (id: st
 }
 
 type ProgramsTableProps = {
+  cards: boolean;
   search: ProgramsSearch;
   onSearchChange: SearchChange<ProgramsSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -121,6 +111,7 @@ const getRowId = (program: Program) => program.id;
 const noop = () => {};
 
 function useProgramsTable({
+  cards,
   data,
   rowCount,
   search,
@@ -130,13 +121,19 @@ function useProgramsTable({
 }: Omit<ProgramsTableProps, 'onAdd'> & { data: Program[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<ProgramsSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_PROGRAMS_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -146,15 +143,19 @@ function useProgramsTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function ProgramsTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<ProgramsTableProps, 'search' | 'columnVisibility'>) {
-  const table = useProgramsTable({
+}: Pick<ProgramsTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useProgramsTable({
+    cards: false,
     data: NO_PROGRAMS,
     rowCount: 0,
     search,
@@ -162,10 +163,13 @@ export function ProgramsTableSkeleton({
     columnVisibility,
     onEdit: noop,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function ProgramsTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -176,7 +180,8 @@ export function ProgramsTable({
   const deferredSearch = useDeferredValue(search);
   const { data: programs } = useSuspenseQuery(programsOptions());
   const data = useMemo(() => pageOfPrograms(programs, deferredSearch), [programs, deferredSearch]);
-  const table = useProgramsTable({
+  const { table, pageStart } = useProgramsTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -192,26 +197,32 @@ export function ProgramsTable({
     }
   }, [isPastLastPage, data.totalPages, onSearchChange]);
 
-  return (
-    <DataTable
-      empty={
-        !isPastLastPage && (
-          <DataTableEmpty
-            action={
-              <Button onClick={onAdd}>
-                <PlusIcon data-icon="inline-start" />
-                {t('programs.add')}
-              </Button>
-            }
-            description={t('programs.empty-description')}
-            icon={<LayersIcon />}
-            title={t('programs.empty-title')}
-          />
-        )
+  const empty = !isPastLastPage && (
+    <DataTableEmpty
+      action={
+        <Button onClick={onAdd}>
+          <PlusIcon data-icon="inline-start" />
+          {t('programs.add')}
+        </Button>
       }
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
+      description={t('programs.empty-description')}
+      icon={<LayersIcon />}
+      title={t('programs.empty-title')}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
+  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
 }

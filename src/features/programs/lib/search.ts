@@ -6,6 +6,12 @@ export const PROGRAM_HIDEABLE_COLUMNS = [
   { id: 'active', labelKey: 'programs.status', hideBelow: 'sm' },
 ] as const;
 
+export const PROGRAM_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'programs.name' },
+  { id: 'code', labelKey: 'programs.code' },
+  { id: 'active', labelKey: 'programs.status' },
+] as const;
+
 const PROGRAM_SORT_FIELDS = ['name', 'code', 'active'] as const;
 
 export const DEFAULT_PROGRAMS_SORT: DefaultSort = { id: 'name', desc: false };

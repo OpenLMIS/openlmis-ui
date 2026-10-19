@@ -9,6 +9,12 @@ export const ROLE_HIDEABLE_COLUMNS = [
   { id: 'count', labelKey: 'roles.users', hideBelow: 'xl' },
 ] as const;
 
+export const ROLE_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'roles.name' },
+  { id: 'type', labelKey: 'roles.type' },
+  { id: 'count', labelKey: 'roles.users' },
+] as const;
+
 const ROLE_SORT_FIELDS = ['name', 'type', 'count'] as const;
 
 export type RoleSortField = (typeof ROLE_SORT_FIELDS)[number];

@@ -7,14 +7,17 @@ import type { useColumnVisibility } from '@/components/data-table/responsive-col
 import { Button } from '@/components/ui/button';
 import {
   CATEGORY_HIDEABLE_COLUMNS,
+  CATEGORY_SORT_COLUMNS,
   type CategoriesListSearch,
+  DEFAULT_CATEGORIES_SORT,
 } from '@/features/rejection-reasons/lib/search';
-import type { SearchChange } from '@/lib/table-search';
+import { type SearchChange, searchSort } from '@/lib/table-search';
 
 type CategoriesToolbarProps = {
   search: CategoriesListSearch;
   onSearchChange: SearchChange<CategoriesListSearch>;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd: () => void;
 };
 
@@ -22,6 +25,7 @@ export function CategoriesToolbar({
   search,
   onSearchChange,
   columnView,
+  layout,
   onAdd,
 }: CategoriesToolbarProps) {
   const { t } = useTranslation();
@@ -42,8 +46,13 @@ export function CategoriesToolbar({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
+          sort={{
+            columns: CATEGORY_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+            ...searchSort<CategoriesListSearch>(search, DEFAULT_CATEGORIES_SORT, onSearchChange),
+          }}
           visibility={columnView.visibility}
         />
       </div>

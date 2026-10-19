@@ -8,16 +8,31 @@ import { DataTableViewOptions } from '@/components/data-table/data-table-view-op
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
 import { ROLE_TYPES } from '@/features/reference-data/lib/roles';
-import { ROLE_HIDEABLE_COLUMNS, type RolesSearch } from '@/features/roles/lib/search';
+import {
+  DEFAULT_ROLES_SORT,
+  ROLE_HIDEABLE_COLUMNS,
+  ROLE_SORT_COLUMNS,
+  type RolesSearch,
+} from '@/features/roles/lib/search';
+import { searchSort } from '@/lib/table-search';
 
 type RolesToolbarProps = {
   search: RolesSearch;
   onFilterChange: (patch: Partial<RolesSearch>) => void;
+  onSortChange: (patch: Partial<RolesSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onCreate?: () => void;
 };
 
-export function RolesToolbar({ search, onFilterChange, columnView, onCreate }: RolesToolbarProps) {
+export function RolesToolbar({
+  search,
+  onFilterChange,
+  onSortChange,
+  columnView,
+  layout,
+  onCreate,
+}: RolesToolbarProps) {
   const { t } = useTranslation();
 
   return (
@@ -47,8 +62,13 @@ export function RolesToolbar({ search, onFilterChange, columnView, onCreate }: R
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
           columns={ROLE_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
+          sort={{
+            columns: ROLE_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+            ...searchSort(search, DEFAULT_ROLES_SORT, onSortChange),
+          }}
           visibility={columnView.visibility}
         />
       </div>

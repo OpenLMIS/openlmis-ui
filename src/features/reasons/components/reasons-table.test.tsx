@@ -35,6 +35,7 @@ function renderTable(
   renderPage(
     <Suspense>
       <ReasonsTable
+        cards={false}
         columnVisibility={columnVisibility}
         onSearchChange={onSearchChange}
         search={search}

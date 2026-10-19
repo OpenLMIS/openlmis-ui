@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, FolderXIcon, PencilIcon, PlusIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -15,6 +15,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ import {
   type CategoriesListSearch,
   DEFAULT_CATEGORIES_SORT,
 } from '@/features/rejection-reasons/lib/search';
+import { usePageStart } from '@/hooks/use-page-start';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -41,27 +43,14 @@ function createColumns(t: TFunction, listSearch: CategoriesListSearch) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('rejection-reason-categories.name')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="flex">
-            <span className="min-w-0 truncate font-medium" dir="auto">
-              {getValue()}
-            </span>
-          </span>
-        ) : null,
+      cell: ({ getValue }) => (getValue() ? <CellText strong>{getValue()}</CellText> : null),
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('rejection-reason-categories.code')} />
       ),
-      cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
-      ),
-      meta: { className: '@xl/main:w-1/4' },
+      cell: ({ getValue }) => <CellText dir="ltr">{getValue()}</CellText>,
+      meta: { className: '@xl/main:w-1/4', label: t('rejection-reason-categories.code') },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => (
@@ -74,7 +63,7 @@ function createColumns(t: TFunction, listSearch: CategoriesListSearch) {
           falseLabel={t('rejection-reason-categories.inactive-label')}
         />
       ),
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('rejection-reason-categories.active') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -129,6 +118,7 @@ function CategoryActions({
 }
 
 type CategoriesTableProps = {
+  cards: boolean;
   search: CategoriesListSearch;
   onSearchChange: SearchChange<CategoriesListSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -142,6 +132,7 @@ const getRowId = (category: RejectionReasonCategory) => category.id;
 const noop = () => {};
 
 function useCategoriesTable({
+  cards,
   data,
   rowCount,
   search,
@@ -150,13 +141,19 @@ function useCategoriesTable({
 }: Omit<CategoriesTableProps, 'onAdd'> & { data: RejectionReasonCategory[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<CategoriesListSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_CATEGORIES_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -166,25 +163,32 @@ function useCategoriesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function CategoriesTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<CategoriesTableProps, 'search' | 'columnVisibility'>) {
-  const table = useCategoriesTable({
+}: Pick<CategoriesTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useCategoriesTable({
+    cards: false,
     data: NO_CATEGORIES,
     rowCount: 0,
     search,
     onSearchChange: noop,
     columnVisibility,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function CategoriesTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -197,7 +201,8 @@ export function CategoriesTable({
     () => pageOfCategories(categories, deferredSearch),
     [categories, deferredSearch],
   );
-  const table = useCategoriesTable({
+  const { table, pageStart } = useCategoriesTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -212,41 +217,49 @@ export function CategoriesTable({
     }
   }, [isPastLastPage, data.page, onSearchChange, search, deferredSearch]);
 
-  return (
-    <DataTable
-      empty={
-        <DataTableEmpty
-          action={
-            search.name ? (
-              <Button
-                onClick={() => onSearchChange({ name: undefined, page: undefined }, true)}
-                variant="outline"
-              >
-                {t('rejection-reason-categories.clear')}
-              </Button>
-            ) : (
-              <Button onClick={onAdd}>
-                <PlusIcon data-icon="inline-start" />
-                {t('rejection-reason-categories.add')}
-              </Button>
-            )
-          }
-          description={t(
-            search.name
-              ? 'rejection-reason-categories.no-matches-description'
-              : 'rejection-reason-categories.empty-description',
-          )}
-          icon={<FolderXIcon />}
-          title={t(
-            search.name
-              ? 'rejection-reason-categories.no-matches-title'
-              : 'rejection-reason-categories.empty-title',
-          )}
-        />
+  const empty = (
+    <DataTableEmpty
+      action={
+        search.name ? (
+          <Button
+            onClick={() => onSearchChange({ name: undefined, page: undefined }, true)}
+            variant="outline"
+          >
+            {t('rejection-reason-categories.clear')}
+          </Button>
+        ) : (
+          <Button onClick={onAdd}>
+            <PlusIcon data-icon="inline-start" />
+            {t('rejection-reason-categories.add')}
+          </Button>
+        )
       }
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
+      description={t(
+        search.name
+          ? 'rejection-reason-categories.no-matches-description'
+          : 'rejection-reason-categories.empty-description',
+      )}
+      icon={<FolderXIcon />}
+      title={t(
+        search.name
+          ? 'rejection-reason-categories.no-matches-title'
+          : 'rejection-reason-categories.empty-title',
+      )}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
+  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
 }

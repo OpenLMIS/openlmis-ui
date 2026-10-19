@@ -5,16 +5,31 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
-import { REASON_HIDEABLE_COLUMNS, type ReasonsSearch } from '@/features/reasons/lib/search';
+import {
+  DEFAULT_REASONS_SORT,
+  REASON_HIDEABLE_COLUMNS,
+  REASON_SORT_COLUMNS,
+  type ReasonsSearch,
+} from '@/features/reasons/lib/search';
+import { searchSort } from '@/lib/table-search';
 
 type ReasonsToolbarProps = {
   search: ReasonsSearch;
   onFilterChange: (patch: Partial<ReasonsSearch>) => void;
+  onSortChange: (patch: Partial<ReasonsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd: () => void;
 };
 
-export function ReasonsToolbar({ search, onFilterChange, columnView, onAdd }: ReasonsToolbarProps) {
+export function ReasonsToolbar({
+  search,
+  onFilterChange,
+  onSortChange,
+  columnView,
+  layout,
+  onAdd,
+}: ReasonsToolbarProps) {
   const { t } = useTranslation();
 
   return (
@@ -29,8 +44,13 @@ export function ReasonsToolbar({ search, onFilterChange, columnView, onAdd }: Re
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
           columns={REASON_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
+          sort={{
+            columns: REASON_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+            ...searchSort(search, DEFAULT_REASONS_SORT, onSortChange),
+          }}
           visibility={columnView.visibility}
         />
       </div>

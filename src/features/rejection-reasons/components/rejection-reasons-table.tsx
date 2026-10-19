@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, MessageSquareXIcon, PencilIcon, PlusIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -15,6 +15,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ import {
   DEFAULT_REJECTION_REASONS_SORT,
   type RejectionReasonsListSearch,
 } from '@/features/rejection-reasons/lib/search';
+import { usePageStart } from '@/hooks/use-page-start';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -41,41 +43,22 @@ function createColumns(t: TFunction, listSearch: RejectionReasonsListSearch) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('rejection-reasons.name')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="flex">
-            <span className="min-w-0 truncate font-medium" dir="auto">
-              {getValue()}
-            </span>
-          </span>
-        ) : null,
+      cell: ({ getValue }) => (getValue() ? <CellText strong>{getValue()}</CellText> : null),
     }),
     columnHelper.accessor('code', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('rejection-reasons.code')} />
       ),
-      cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
-      ),
-      meta: { className: '@xl/main:w-1/4' },
+      cell: ({ getValue }) => <CellText dir="ltr">{getValue()}</CellText>,
+      meta: { className: '@xl/main:w-1/4', label: t('rejection-reasons.code') },
     }),
     columnHelper.accessor((reason) => reason.rejectionReasonCategory.name, {
       id: 'category',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('rejection-reasons.category')} />
       ),
-      cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate" dir="auto">
-            {getValue()}
-          </span>
-        </span>
-      ),
-      meta: { className: '@xl/main:w-1/4' },
+      cell: ({ getValue }) => <CellText>{getValue()}</CellText>,
+      meta: { className: '@xl/main:w-1/4', label: t('rejection-reasons.category') },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => (
@@ -88,7 +71,7 @@ function createColumns(t: TFunction, listSearch: RejectionReasonsListSearch) {
           falseLabel={t('rejection-reasons.inactive-label')}
         />
       ),
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('rejection-reasons.active') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -143,6 +126,7 @@ function RejectionReasonActions({
 }
 
 type RejectionReasonsTableProps = {
+  cards: boolean;
   search: RejectionReasonsListSearch;
   onSearchChange: SearchChange<RejectionReasonsListSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -156,6 +140,7 @@ const getRowId = (reason: RejectionReason) => reason.id;
 const noop = () => {};
 
 function useRejectionReasonsTable({
+  cards,
   data,
   rowCount,
   search,
@@ -164,13 +149,19 @@ function useRejectionReasonsTable({
 }: Omit<RejectionReasonsTableProps, 'onAdd'> & { data: RejectionReason[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<RejectionReasonsListSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_REJECTION_REASONS_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -180,25 +171,32 @@ function useRejectionReasonsTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function RejectionReasonsTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<RejectionReasonsTableProps, 'search' | 'columnVisibility'>) {
-  const table = useRejectionReasonsTable({
+}: Pick<RejectionReasonsTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useRejectionReasonsTable({
+    cards: false,
     data: NO_REASONS,
     rowCount: 0,
     search,
     onSearchChange: noop,
     columnVisibility,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function RejectionReasonsTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -211,7 +209,8 @@ export function RejectionReasonsTable({
     () => pageOfRejectionReasons(reasons, deferredSearch),
     [reasons, deferredSearch],
   );
-  const table = useRejectionReasonsTable({
+  const { table, pageStart } = useRejectionReasonsTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -226,39 +225,47 @@ export function RejectionReasonsTable({
     }
   }, [isPastLastPage, data.page, onSearchChange, search, deferredSearch]);
 
-  return (
-    <DataTable
-      empty={
-        <DataTableEmpty
-          action={
-            search.name ? (
-              <Button
-                onClick={() => onSearchChange({ name: undefined, page: undefined }, true)}
-                variant="outline"
-              >
-                {t('rejection-reasons.clear')}
-              </Button>
-            ) : (
-              <Button onClick={onAdd}>
-                <PlusIcon data-icon="inline-start" />
-                {t('rejection-reasons.add')}
-              </Button>
-            )
-          }
-          description={t(
-            search.name
-              ? 'rejection-reasons.no-matches-description'
-              : 'rejection-reasons.empty-description',
-          )}
-          icon={<MessageSquareXIcon />}
-          title={t(
-            search.name ? 'rejection-reasons.no-matches-title' : 'rejection-reasons.empty-title',
-          )}
-        />
+  const empty = (
+    <DataTableEmpty
+      action={
+        search.name ? (
+          <Button
+            onClick={() => onSearchChange({ name: undefined, page: undefined }, true)}
+            variant="outline"
+          >
+            {t('rejection-reasons.clear')}
+          </Button>
+        ) : (
+          <Button onClick={onAdd}>
+            <PlusIcon data-icon="inline-start" />
+            {t('rejection-reasons.add')}
+          </Button>
+        )
       }
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
+      description={t(
+        search.name
+          ? 'rejection-reasons.no-matches-description'
+          : 'rejection-reasons.empty-description',
+      )}
+      icon={<MessageSquareXIcon />}
+      title={t(
+        search.name ? 'rejection-reasons.no-matches-title' : 'rejection-reasons.empty-title',
+      )}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
+  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
 }
