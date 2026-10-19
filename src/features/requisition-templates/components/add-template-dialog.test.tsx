@@ -88,7 +88,10 @@ async function fillAndConfirm() {
     within(confirmation).getByRole('button', { name: 'requisition-templates.form.create' }),
   );
 }
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+});
 it('posts id references only after confirmation, refreshes templates and opens Configure', async () => {
   create.mockResolvedValue({ id: 'created' } as Awaited<
     ReturnType<typeof createRequisitionTemplate>
@@ -139,4 +142,28 @@ it('describes the missing facility types error on the picker', async () => {
   await waitFor(() => expect(picker).toHaveAttribute('aria-invalid', 'true'));
   expect(picker).toHaveAccessibleDescription('requisition-templates.form.facility-types-required');
   expect(create).not.toHaveBeenCalled();
+});
+
+it('removes a facility type from its card on phones and returns focus to the picker', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+  const user = userEvent.setup();
+  renderAdd();
+  await user.click(
+    await screen.findByRole('combobox', { name: 'requisition-templates.form.program' }),
+  );
+  await user.click(await screen.findByRole('option', { name: 'Malaria' }));
+  const picker = screen.getByRole('combobox', { name: 'requisition-templates.form.facility-type' });
+  await user.click(picker);
+  await user.click(await screen.findByRole('option', { name: 'Health Center' }));
+  await user.click(
+    screen.getByRole('button', { name: 'requisition-templates.form.add-facility-type' }),
+  );
+  expect(screen.queryByRole('table')).toBeNull();
+  const card = screen.getByRole('listitem');
+  expect(card).toHaveTextContent('Health Center');
+  await user.click(
+    within(card).getByRole('button', { name: 'requisition-templates.form.remove-type' }),
+  );
+  expect(screen.queryByRole('listitem')).toBeNull();
+  await waitFor(() => expect(picker).toHaveFocus());
 });

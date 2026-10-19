@@ -248,6 +248,7 @@ function AddFacilityTypes({ form }: { form: TemplateForm }) {
     <form.AppField name="facilityTypeIds">
       {(field) => (
         <FacilityTypesFields
+          dialog="lg"
           key={`${values.programId}-${values.requisitionReportOnly}`}
           label={t('requisition-templates.form.facility-type')}
           addLabel={t('requisition-templates.form.add-facility-type')}
