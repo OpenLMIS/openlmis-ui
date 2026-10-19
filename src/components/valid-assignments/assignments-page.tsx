@@ -157,7 +157,7 @@ export function AssignmentsPage({
               aria-label={t('valid-assignments.delete-selected')}
               onClick={() => setDeleting(picked, filterKey)}
               size="sm"
-              variant="destructive-outline"
+              variant="destructive"
             >
               <Trash2Icon data-icon="inline-start" />
               <SelectionBarLabel
