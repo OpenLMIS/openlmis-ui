@@ -60,7 +60,7 @@ export function StockCardHeader({ card, unit }: { card: StockCard; unit: Quantit
 
 const SKELETON_FIELDS = ['code', 'pack', 'facility', 'program', 'balance', 'lot', 'expiry'];
 
-export function StockCardHeaderSkeleton() {
+export function StockCardHeaderSkeleton({ lot = true }: { lot?: boolean }) {
   return (
     <RecordSummary aria-busy>
       <RecordSummaryHeading>
@@ -69,7 +69,7 @@ export function StockCardHeaderSkeleton() {
         </div>
       </RecordSummaryHeading>
       <RecordSummaryFields>
-        {SKELETON_FIELDS.map((id) => (
+        {SKELETON_FIELDS.filter((id) => lot || (id !== 'lot' && id !== 'expiry')).map((id) => (
           <RecordSummaryFieldSkeleton key={id} />
         ))}
       </RecordSummaryFields>

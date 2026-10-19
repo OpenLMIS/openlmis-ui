@@ -3,10 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { CalendarX2Icon, ClipboardListIcon, HistoryIcon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
@@ -47,8 +45,8 @@ import {
   toEventsQuery,
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import {
   type CompleteSelection,
   type FacilityProgramOptions,
@@ -112,18 +110,17 @@ function TransactionHistoryHeader() {
   );
 }
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
-type ColumnView = ReturnType<typeof useColumnVisibility>;
+type ColumnView = ReturnType<typeof useCardView>['columnView'] & {
+  cards: boolean;
+  layout: 'cards' | 'table';
+};
 
 function useColumnView() {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     EVENT_HIDEABLE_COLUMNS,
-    useStoredState('transaction-history.column-visibility', columnChoicesSchema, {}),
-    width,
+    'transaction-history.column-visibility',
   );
-  return [measure, columnView] as const;
+  return [measure, { ...columnView, cards, layout }] as const;
 }
 
 function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
@@ -131,6 +128,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   return (
     <div>
       <DataTableViewOptions
+        layout={columnView.layout}
         columns={EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
@@ -162,7 +160,11 @@ function TransactionHistoryListSkeleton({
           view={<ColumnsMenu columnView={columnView} />}
         />
       </fieldset>
-      <TransactionHistoryResultsSkeleton columns={columnView.visibility} search={search} />
+      <TransactionHistoryResultsSkeleton
+        cards={columnView.cards}
+        columns={columnView.visibility}
+        search={search}
+      />
     </div>
   );
 }
@@ -460,11 +462,16 @@ function TransactionHistoryList({
             />
           )}
           pendingFallback={
-            <TransactionHistoryResultsSkeleton columns={columnView.visibility} search={search} />
+            <TransactionHistoryResultsSkeleton
+              cards={columnView.cards}
+              columns={columnView.visibility}
+              search={search}
+            />
           }
           resetKey={JSON.stringify(query)}
         >
           <TransactionHistoryResults
+            cards={columnView.cards}
             columns={columnView.visibility}
             facilityId={selection.facilityId}
             onSearchChange={onSearchChange}

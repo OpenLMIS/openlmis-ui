@@ -1,15 +1,14 @@
-import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  type ErrorComponentProps,
+  Link,
+  useRouterState,
+} from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import {
-  CONTAINER_WIDTHS,
-  useColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
 import { ErrorFallback } from '@/components/error-fallback';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
@@ -50,40 +49,38 @@ import {
 import { cardPagingSchema } from '@/features/stock-card/lib/search';
 import type { StockCard, StockCardLine } from '@/features/stock-card/lib/types';
 import { stockOnHandSearchSchema } from '@/features/stock-on-hand/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { isNotFound } from '@/lib/http';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
 
+declare module '@tanstack/react-router' {
+  // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
+  interface HistoryState {
+    cardHasLot?: boolean;
+  }
+}
+
 const RIGHT = RIGHTS.stockCardsView;
 const stockCardSearchSchema = stockOnHandSearchSchema.extend(cardPagingSchema.shape);
 const NO_DIALOGS = {};
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 const NO_LINES: readonly StockCardLine[] = [];
 
 function useCardLayout(lines: readonly StockCardLine[] = NO_LINES) {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
   const reversing = lines.some((line) => line.reversedEventId);
   const reversedBy = lines.some((line) => line.cancellationEventId);
   const columns = useMemo(
     () => withShownReversals(STOCK_CARD_HIDEABLE_COLUMNS, { reversing, reversedBy }),
     [reversing, reversedBy],
   );
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
-  const columnView = useColumnVisibility(
-    columns,
-    useStoredState('stock-card.column-visibility', columnChoicesSchema, {}),
-    cards ? undefined : width,
-  );
-  return { measure, columnView, cards };
+  return useCardView(columns, 'stock-card.column-visibility');
 }
 
 export const Route = createFileRoute(
@@ -131,7 +128,7 @@ function StockCardPage() {
   );
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const { measure, columnView, cards } = useCardLayout(data?.card.lineItems);
+  const { measure, columnView, cards, layout } = useCardLayout(data?.card.lineItems);
   const userId = useReloadForUser(
     data?.userId,
     stockCardOptions(Route.useParams().stockCardId).queryKey,
@@ -164,7 +161,7 @@ function StockCardPage() {
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockCardColumns columnView={columnView} canSwitch={canSwitch} cards={cards} />
+            <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
           </div>
           <StockCardLines
             cards={cards}
@@ -184,11 +181,11 @@ function StockCardPage() {
 function StockCardColumns({
   columnView,
   canSwitch,
-  cards,
+  layout,
 }: {
-  columnView: ReturnType<typeof useColumnVisibility>;
+  columnView: ReturnType<typeof useCardView>['columnView'];
   canSwitch: boolean;
-  cards: boolean;
+  layout: 'cards' | 'table';
 }) {
   const { t } = useTranslation();
   return (
@@ -198,7 +195,7 @@ function StockCardColumns({
           id,
           label: t(labelKey),
         }))}
-        layout={cards ? 'cards' : 'table'}
+        layout={layout}
         onReset={columnView.onReset}
         onVisibilityChange={columnView.onVisibilityChange}
         visibility={columnView.visibility}
@@ -249,20 +246,25 @@ function StockCardPending() {
     stockCardOptions(Route.useParams().stockCardId).queryKey,
   );
   const search = Route.useSearch();
+  const hasLot = useRouterState({ select: (state) => state.location.state.cardHasLot ?? true });
   const { measure, columnView, cards } = useCardLayout();
   return (
     <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceIcon>
-            <Skeleton fill />
+            <ClipboardListIcon />
           </WorkspaceIcon>
-          <div className="h-7 w-72 max-w-full">
-            <Skeleton fill />
-          </div>
-          <div className="h-5 w-48 max-w-full">
-            <Skeleton fill />
-          </div>
+          <WorkspaceTitle>
+            <span className="block h-5 w-56 max-w-full">
+              <Skeleton fill />
+            </span>
+          </WorkspaceTitle>
+          <WorkspaceDescription>
+            <span className="block h-5 w-48 max-w-full">
+              <Skeleton fill />
+            </span>
+          </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
           <div className="h-10 w-24">
@@ -272,7 +274,7 @@ function StockCardPending() {
       </WorkspaceHeader>
       <WorkspaceContent>
         <div aria-busy className="flex flex-col gap-4" ref={measure}>
-          <StockCardHeaderSkeleton />
+          <StockCardHeaderSkeleton lot={hasLot} />
           <div className="flex justify-end gap-2">
             {canSwitch && (
               <div className="h-8 flex-1 @2xl/main:w-36 @2xl/main:flex-none">

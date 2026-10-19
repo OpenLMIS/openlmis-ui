@@ -17,7 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { formatTimestamp } from '@/components/form/date-value';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -328,6 +328,20 @@ describe('stock event detail', () => {
     expect(fetchStockEvent).toHaveBeenCalledTimes(1);
   });
 
+  it.each([1400, 390])(
+    'shows no empty state or pager for a page past the end at content width %i',
+    async (width) => {
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width } as DOMRect);
+      vi.mocked(fetchStockEventLines).mockImplementation((_, query) =>
+        query.page > 2 ? Promise.resolve(linesPage([], 25)) : new Promise(() => {}),
+      );
+      const { router } = renderRoute(path('?detailPage=99'));
+      await waitFor(() => expect(router.state.location.search).toMatchObject({ detailPage: 3 }));
+      expect(screen.queryByText('stock-event.no-lines-title')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Next Page' })).not.toBeInTheDocument();
+    },
+  );
+
   it('keeps the header while lines are loading and disables Print', async () => {
     vi.mocked(fetchStockEventLines).mockReturnValue(new Promise(() => {}));
     renderRoute();
@@ -343,13 +357,17 @@ describe('stock event detail', () => {
     expect(screen.getByText('8 ( +1 )')).toBeInTheDocument();
   });
 
-  it('shows empty lines, disables Print and clamps to the first page', async () => {
-    vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([], 0));
-    const { router } = renderRoute(path('?detailPage=99'));
-    await screen.findByText('stock-event.no-lines-title');
-    expect(screen.getByRole('button', { name: 'stock-event.print' })).toBeDisabled();
-    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('detailPage'));
-  });
+  it.each([1400, 390])(
+    'shows empty lines, disables Print and clamps to the first page at content width %i',
+    async (width) => {
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width } as DOMRect);
+      vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([], 0));
+      const { router } = renderRoute(path('?detailPage=99'));
+      await screen.findByText('stock-event.no-lines-title');
+      expect(screen.getByRole('button', { name: 'stock-event.print' })).toBeDisabled();
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('detailPage'));
+    },
+  );
 
   it('retries a lines failure inside its boundary while keeping the header', async () => {
     const failure = httpError(500);
@@ -587,9 +605,79 @@ describe('stock event detail', () => {
     expect(headers).not.toContain('stock-event.reversing');
   });
 
-  it('drops the reversal columns on a phone, keeping stock on hand', async () => {
+  it('shows phone cards with ordered details, empty values and stored View choices', async () => {
+    const user = userEvent.setup();
     vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({
       width: 390,
+    } as DOMRect);
+    localStorage.setItem('stock-event.column-visibility', JSON.stringify({ source: false }));
+    vi.mocked(fetchStockEventLines).mockResolvedValue(linesPage([{ ...line, lot: null }]));
+    renderRoute();
+    const card = (await screen.findByText('Vaccine (C1)')).closest('li') as HTMLElement;
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(
+      within(card)
+        .getAllByText(
+          /^stock-event\.(lot-code|expiry-date|source|destination|line-date|quantity|reason|stock-on-hand|reversing|reversed-by)$/,
+        )
+        .map((label) => label.textContent),
+    ).toEqual([
+      'stock-event.lot-code',
+      'stock-event.expiry-date',
+      'stock-event.destination',
+      'stock-event.line-date',
+      'stock-event.quantity',
+      'stock-event.reason',
+      'stock-event.stock-on-hand',
+      'stock-event.reversing',
+      'stock-event.reversed-by',
+    ]);
+    expect(within(card).getByText('stock-event.no-lot')).toBeInTheDocument();
+    expect(within(card).getByText(EMPTY_VALUE)).toBeInTheDocument();
+    expect(within(card).queryByText('Warehouse: North')).not.toBeInTheDocument();
+    expect(within(card).getByText('41').closest('strong')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+  });
+
+  it('opens pager changes at the first card without scrolling for a past-end clamp', async () => {
+    const user = userEvent.setup();
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({
+      width: 390,
+    } as DOMRect);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    vi.mocked(fetchStockEventLines).mockImplementation(async (_, query) =>
+      linesPage(
+        query.page > 2
+          ? []
+          : [
+              {
+                ...line,
+                orderable: { ...line.orderable, fullProductName: `Product page ${query.page}` },
+              },
+            ],
+        25,
+      ),
+    );
+    const { router } = renderRoute(path('?detailPage=99'));
+    await screen.findByText('Product page 2 (C1)');
+    expect(router.state.location.search).toHaveProperty('detailPage', 3);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Previous Page' }));
+    const current = await screen.findByText('Product page 1 (C1)');
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(document.activeElement).toBe(current.closest('ul'));
+    expect(scrollIntoView.mock.contexts[0]).toBe(current.closest('ul'));
+    expect(router.state.location.search).toHaveProperty('detailPage', 2);
+  });
+
+  it('keeps the responsive table at exactly 672px', async () => {
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({
+      width: 672,
     } as DOMRect);
     renderRoute();
     const table = await screen.findByRole('table');
@@ -598,7 +686,20 @@ describe('stock event detail', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['stock-event.product', 'stock-event.quantity']);
+    ).toEqual([
+      'stock-event.product',
+      'stock-event.line-date',
+      'stock-event.quantity',
+      'stock-event.reason',
+      'stock-event.stock-on-hand',
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+    await userEvent.click(
+      await screen.findByRole('menuitemcheckbox', { name: 'stock-event.lot-code' }),
+    );
+    expect(
+      within(table).getByRole('columnheader', { name: 'stock-event.lot-code' }),
+    ).toBeInTheDocument();
   });
 
   it('fetches the header fresh on each entry even when cached', async () => {

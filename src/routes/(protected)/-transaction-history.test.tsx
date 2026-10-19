@@ -17,7 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -124,6 +124,7 @@ const headers = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  widthOf(1200);
   useLoginData.setState({ referenceDataUserId: USER });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
@@ -187,7 +188,6 @@ describe('transaction history page', () => {
   });
 
   it('lists the events in the server order with the legacy columns', async () => {
-    widthOf(1200);
     renderRoute(appliedPath());
 
     const first = (await screen.findByText('FM71-ISS-1')).closest('tr');
@@ -294,17 +294,21 @@ describe('transaction history page', () => {
     });
   });
 
-  it('tells no events apart from no matches, and clears the filters', async () => {
-    const user = userEvent.setup();
-    vi.mocked(fetchStockEvents).mockResolvedValue(page([]));
-    const { router } = renderRoute(appliedPath('&type=issue'));
+  it.each([1200, 390])(
+    'tells no events apart from no matches, and clears the filters at content width %i',
+    async (width) => {
+      const user = userEvent.setup();
+      widthOf(width);
+      vi.mocked(fetchStockEvents).mockResolvedValue(page([]));
+      const { router } = renderRoute(appliedPath('&type=issue'));
 
-    await user.click(
-      await screen.findByRole('button', { name: 'transaction-history.clear-filters' }),
-    );
-    expect(await screen.findByText('transaction-history.no-events-title')).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ mode: 'my', programId: FP, facilityId: HOME });
-  });
+      await user.click(
+        await screen.findByRole('button', { name: 'transaction-history.clear-filters' }),
+      );
+      expect(await screen.findByText('transaction-history.no-events-title')).toBeInTheDocument();
+      expect(router.state.location.search).toEqual({ mode: 'my', programId: FP, facilityId: HOME });
+    },
+  );
 
   it('opens an event with the list search, so the way back keeps the filters', async () => {
     const user = userEvent.setup();
@@ -354,15 +358,17 @@ describe('transaction history page', () => {
     expect(fetchStockEvents).not.toHaveBeenCalled();
   });
 
-  it('keeps the identifying columns on a phone and offers the rest from the View menu', async () => {
+  it('keeps the table from the card width up, hiding columns there is no room for', async () => {
     const user = userEvent.setup();
-    widthOf(390);
+    widthOf(672);
     renderRoute(appliedPath());
 
     await screen.findByText('FM71-ISS-1');
     expect(headers()).toEqual([
       'transaction-history.document-number',
+      'transaction-history.type',
       'transaction-history.date',
+      'transaction-history.entries-count',
       'transaction-history.actions',
     ]);
     await user.click(screen.getByRole('button', { name: 'View' }));
@@ -370,6 +376,88 @@ describe('transaction history page', () => {
       await screen.findByRole('menuitemcheckbox', { name: 'transaction-history.signature' }),
     );
     expect(headers()).toContain('transaction-history.signature');
+  });
+
+  it('shows event cards on phones with ordered details, stored choices and a View link', async () => {
+    const user = userEvent.setup();
+    widthOf(390);
+    localStorage.setItem(
+      'transaction-history.column-visibility',
+      JSON.stringify({ performedBy: false }),
+    );
+    const { router } = renderRoute(appliedPath('&documentNumber=FM71&type=issue'));
+
+    const first = (await screen.findByText('FM71-ISS-1')).closest('li') as HTMLElement;
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(
+      within(first)
+        .getAllByText(/^transaction-history\.(type|date|entries-count|signature)$/)
+        .map((label) => label.textContent),
+    ).toEqual([
+      'transaction-history.type',
+      'transaction-history.date',
+      'transaction-history.entries-count',
+      'transaction-history.signature',
+    ]);
+    expect(within(first).getByText('transaction-history.type-issue')).toBeInTheDocument();
+    expect(within(first).getByText('Oct 8, 2026')).toBeInTheDocument();
+    expect(within(first).queryByText('administrator')).not.toBeInTheDocument();
+    const second = (await screen.findByText('transaction-history.type-receive')).closest(
+      'li',
+    ) as HTMLElement;
+    expect(within(second).getAllByText('Oct 6, 2026')).toHaveLength(2);
+    expect(within(second).getByText(EMPTY_VALUE)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(within(first).getByRole('button', { name: 'transaction-history.view-event' }));
+    expect(await screen.findByText('event detail')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/stock-management/transaction-history/${EVENT}`);
+    expect(router.state.location.search).toMatchObject({
+      mode: 'my',
+      facilityId: HOME,
+      programId: FP,
+      documentNumber: 'FM71',
+      type: 'issue',
+    });
+  });
+
+  it('opens paged cards at the first card without scrolling for filters or past-end redirects', async () => {
+    const user = userEvent.setup();
+    widthOf(390);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    vi.mocked(fetchStockEvents).mockImplementation(async ({ page: number }) => ({
+      content: number === 3 ? [] : [event({ documentNumber: `event-page-${number}` })],
+      totalElements: 3,
+      totalPages: 3,
+      number,
+      size: 1,
+    }));
+    const { router } = renderRoute(appliedPath('&size=1&page=4'));
+    await screen.findByText('event-page-2');
+    expect(router.state.location.search).toHaveProperty('page', 3);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Previous Page' }));
+    const current = await screen.findByText('event-page-1');
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(document.activeElement).toBe(current.closest('ul'));
+    expect(scrollIntoView.mock.contexts[0]).toBe(current.closest('ul'));
+    expect(router.state.location.search).toHaveProperty('page', 2);
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'transaction-history.search-document-number' }),
+      'F',
+    );
+    await screen.findByText('event-page-0');
+    expect(router.state.location.search).not.toHaveProperty('page');
+    expect(router.state.location.search).toHaveProperty('documentNumber', 'F');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
   it('shows an error with a retry when the events fail to load', async () => {

@@ -1,5 +1,7 @@
+import { ChevronDownIcon } from 'lucide-react';
 import type { ReactNode, Ref } from 'react';
 import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-table';
+import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -33,12 +35,21 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
   );
 }
 
-export function CardListItem({ children }: { children: ReactNode }) {
+export function CardListItem({
+  surface = 'raised',
+  children,
+}: {
+  surface?: 'raised' | 'flat';
+  children: ReactNode;
+}) {
+  const content = <div className="divide-y">{children}</div>;
   return (
-    <li>
-      <DataTableCard>
-        <div className="divide-y">{children}</div>
-      </DataTableCard>
+    <li className="scroll-mt-page-start">
+      {surface === 'flat' ? (
+        <div className="min-w-0 overflow-hidden rounded-xl border bg-card">{content}</div>
+      ) : (
+        <DataTableCard>{content}</DataTableCard>
+      )}
     </li>
   );
 }
@@ -48,6 +59,59 @@ export function CardBand({ children }: { children: ReactNode }) {
     <div className="flex min-h-10 items-center justify-between gap-4 bg-muted/50 px-4 py-1.5 font-semibold text-sm">
       {children}
     </div>
+  );
+}
+
+export function CardSelectBand({
+  htmlFor,
+  selected,
+  disabled = false,
+  children,
+}: {
+  htmlFor: string;
+  selected: boolean;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className={cn(
+        'flex min-h-10 items-center gap-3 px-4 py-1.5 font-semibold text-sm transition-colors',
+        selected ? 'bg-primary/5' : 'bg-muted/50',
+        !disabled && 'cursor-pointer',
+      )}
+    >
+      {children}
+    </label>
+  );
+}
+
+export function CardToggleBand({
+  open,
+  onToggle,
+  controls,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  controls: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      aria-controls={controls}
+      aria-expanded={open}
+      className="flex min-h-10 w-full items-center gap-3 bg-muted/50 px-4 py-1.5 text-start font-semibold text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      onClick={onToggle}
+      type="button"
+    >
+      <ChevronDownIcon
+        aria-hidden
+        className={cn('size-4 shrink-0 text-muted-foreground', !open && '-rotate-90 rtl:rotate-90')}
+      />
+      {children}
+    </button>
   );
 }
 
@@ -68,5 +132,34 @@ export function SkeletonBar({ width }: { width: string }) {
     <div className={cn('h-4', width)}>
       <Skeleton fill />
     </div>
+  );
+}
+
+export function CardListSkeleton({
+  count,
+  rows,
+  band = <SkeletonBar width="w-24" />,
+  pagination = true,
+}: {
+  count: number;
+  rows: number;
+  band?: ReactNode;
+  pagination?: boolean;
+}) {
+  const cards = Array.from({ length: count }, (_, index) => index);
+  const details = Array.from({ length: rows }, (_, index) => index);
+  return (
+    <CardList footer={pagination && <DataTablePaginationSkeleton />}>
+      {cards.map((id) => (
+        <CardListItem key={id}>
+          <CardBand>{band}</CardBand>
+          <CardRows>
+            {details.map((id) => (
+              <CardRowSkeleton key={id} />
+            ))}
+          </CardRows>
+        </CardListItem>
+      ))}
+    </CardList>
   );
 }
