@@ -27,43 +27,47 @@ const reason = {
   tags: [],
   isFreeTextAllowed: false,
 };
-it('adds, edits and removes reasons and confirms an unaccounted update', async () => {
-  const user = userEvent.setup();
-  const update = vi.fn();
-  render(
-    <InventoryReasonsDialog
-      line={line}
-      reasons={[reason]}
-      unit="DOSES"
-      onClose={vi.fn()}
-      onUpdate={update}
-    />,
-  );
-  await user.click(screen.getByRole('combobox'));
-  await user.click(screen.getByRole('option', { name: 'Return' }));
-  await user.type(screen.getByRole('textbox', { name: 'stock-events.quantity' }), '2');
-  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
-  const edit = screen.getByRole('textbox', { name: 'Return' });
-  const primary = screen.getByRole('dialog');
-  await user.clear(edit);
-  await user.type(edit, '1');
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
-  expect(update).not.toHaveBeenCalled();
-  expect(primary).toHaveAttribute('data-nested-dialog-open');
-  const confirmation = screen.getByRole('dialog', { name: 'physical-inventory.update' });
-  await user.click(within(confirmation).getByRole('button', { name: 'stock-events.cancel' }));
-  expect(update).not.toHaveBeenCalled();
-  expect(await screen.findByRole('textbox', { name: 'Return' })).toHaveValue('1');
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
-  await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-  expect(update).toHaveBeenCalledWith([
-    { reason: expect.objectContaining({ id: 'r' }), quantity: 1 },
-  ]);
-  await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
-  await waitFor(() =>
-    expect(screen.queryByRole('textbox', { name: 'Return' })).not.toBeInTheDocument(),
-  );
-});
+it.each([false, true])(
+  'adds, edits and removes reasons and confirms an unaccounted update with cards %s',
+  async (cards) => {
+    const user = userEvent.setup();
+    const update = vi.fn();
+    render(
+      <InventoryReasonsDialog
+        cards={cards}
+        line={line}
+        reasons={[reason]}
+        unit="DOSES"
+        onClose={vi.fn()}
+        onUpdate={update}
+      />,
+    );
+    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('option', { name: 'Return' }));
+    await user.type(screen.getByRole('textbox', { name: 'stock-events.quantity' }), '2');
+    await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+    const edit = screen.getByRole('textbox', { name: 'Return' });
+    const primary = screen.getByRole('dialog');
+    await user.clear(edit);
+    await user.type(edit, '1');
+    await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
+    expect(update).not.toHaveBeenCalled();
+    expect(primary).toHaveAttribute('data-nested-dialog-open');
+    const confirmation = screen.getByRole('dialog', { name: 'physical-inventory.update' });
+    await user.click(within(confirmation).getByRole('button', { name: 'stock-events.cancel' }));
+    expect(update).not.toHaveBeenCalled();
+    expect(await screen.findByRole('textbox', { name: 'Return' })).toHaveValue('1');
+    await user.click(screen.getByRole('button', { name: 'physical-inventory.update' }));
+    await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+    expect(update).toHaveBeenCalledWith([
+      { reason: expect.objectContaining({ id: 'r' }), quantity: 1 },
+    ]);
+    await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: 'Return' })).not.toBeInTheDocument(),
+    );
+  },
+);
 it('refuses zero reason quantity', async () => {
   const user = userEvent.setup();
   const update = vi.fn();

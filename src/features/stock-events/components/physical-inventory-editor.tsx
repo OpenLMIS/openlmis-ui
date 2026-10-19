@@ -741,6 +741,7 @@ function InventoryDraftRows({
             open={dialogOpen}
             onOpenChangeComplete={onOpenChangeComplete}
             line={dialogLine}
+            cards={cards}
             reasons={reasons}
             unit={quantityUnit.unit}
             onClose={closeDialog}
