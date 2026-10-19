@@ -11,6 +11,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
+import { TableCards } from '@/components/table-cards';
 import { buttonVariants } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
@@ -43,11 +44,11 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
           id: 'facilityTypes',
           header: t('requisition-templates.facility-type'),
           cell: ({ row }) => <FacilityTypesCell template={row.original} types={types} />,
-          meta: { className: 'min-w-48 w-1/4' },
+          meta: { className: 'min-w-48 w-1/4', label: t('requisition-templates.facility-type') },
         }),
         helper.accessor('requisitionReportOnly', {
           header: t('requisition-templates.report-only'),
-          meta: { className: 'min-w-32' },
+          meta: { className: 'min-w-32', label: t('requisition-templates.report-only') },
           cell: ({ getValue }) => (
             <FlagBadge
               value={getValue()}
@@ -93,37 +94,40 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
 }
 
 function ProgramTemplates({
+  cards,
   program,
   templates,
   types,
 }: {
+  cards: boolean;
   program: Program;
   templates: RequisitionTemplate[];
   types: FacilityType[];
 }) {
   const { t } = useTranslation();
   const table = useTemplatesTable(templates, types);
+  const empty = (
+    <DataTableEmpty
+      icon={<ClipboardListIcon />}
+      title={t('requisition-templates.empty-program', { program: programName(program) })}
+      description={t('requisition-templates.empty-program-description')}
+    />
+  );
   return (
     <section className="flex min-w-0 flex-col gap-3">
       <h2 className="font-semibold text-lg" dir="auto">
         {programName(program)}
       </h2>
-      <DataTable
-        layout="auto"
-        table={table}
-        empty={
-          <DataTableEmpty
-            icon={<ClipboardListIcon />}
-            title={t('requisition-templates.empty-program', { program: programName(program) })}
-            description={t('requisition-templates.empty-program-description')}
-          />
-        }
-      />
+      {cards ? (
+        <TableCards empty={empty} table={table} title="name" />
+      ) : (
+        <DataTable empty={empty} layout="auto" table={table} />
+      )}
     </section>
   );
 }
 
-export function ProgramTemplateSections() {
+export function ProgramTemplateSections({ cards }: { cards: boolean }) {
   const { t } = useTranslation();
   const { data: programs } = useSuspenseQuery(programsOptions());
   const { data: templates } = useSuspenseQuery(requisitionTemplatesOptions());
@@ -140,7 +144,13 @@ export function ProgramTemplateSections() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       {groups.map(({ program, templates }) => (
-        <ProgramTemplates key={program.id} program={program} templates={templates} types={types} />
+        <ProgramTemplates
+          cards={cards}
+          key={program.id}
+          program={program}
+          templates={templates}
+          types={types}
+        />
       ))}
     </div>
   );

@@ -26,6 +26,7 @@ import {
   serviceAccountsSearchSchema,
   toServiceAccountsQuery,
 } from '@/features/service-accounts/lib/search';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 // Their own chunk: the list paints without the dialogs, and the chunk is fetched right after.
@@ -66,6 +67,7 @@ function ServiceAccountsPage() {
   const anyDialogOpen = dialogs.adding || dialogs.deleting !== undefined;
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<ServiceAccountsSearch>(CLOSED_DIALOGS);
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const addKey = useCallback(() => openDialog({ add: true }), [openDialog]);
   const deleteKey = useCallback((token: string) => openDialog({ delete: token }), [openDialog]);
   const [dialogsMounted, setDialogsMounted] = useState(anyDialogOpen);
@@ -78,8 +80,13 @@ function ServiceAccountsPage() {
     <Workspace>
       <ServiceAccountsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6">
-          <ServiceAccountsToolbar onAdd={addKey} />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          <ServiceAccountsToolbar
+            layout={cards ? 'cards' : 'table'}
+            onAdd={addKey}
+            onSortChange={updateSearch}
+            search={search}
+          />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -89,10 +96,11 @@ function ServiceAccountsPage() {
                 title={t('service-accounts.error-title')}
               />
             )}
-            pendingFallback={<ServiceAccountsTableSkeleton search={search} />}
+            pendingFallback={<ServiceAccountsTableSkeleton cards={cards} search={search} />}
             resetKey={JSON.stringify(search)}
           >
             <ServiceAccountsTable
+              cards={cards}
               onAdd={addKey}
               onDelete={deleteKey}
               onSearchChange={updateSearch}
@@ -130,11 +138,14 @@ function ServiceAccountsHeader() {
 }
 
 function ServiceAccountsPagePending() {
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <Workspace>
       <ServiceAccountsHeader />
       <WorkspaceContent>
-        <ServiceAccountsTableSkeleton search={{}} />
+        <div ref={measure}>
+          <ServiceAccountsTableSkeleton cards={cards} search={{}} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

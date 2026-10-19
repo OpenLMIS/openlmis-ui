@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -13,6 +13,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,6 +30,7 @@ import {
 } from '@/features/service-accounts/lib/search';
 import type { ServiceAccount } from '@/features/service-accounts/lib/types';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { usePageStart } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ServiceAccount>();
@@ -46,7 +48,7 @@ function createColumns(
       cell: ({ getValue }) => (
         <span className="whitespace-normal">{formatDate(new Date(getValue()))}</span>
       ),
-      meta: { className: '@xl/main:w-56' },
+      meta: { className: '@xl/main:w-56', label: t('service-accounts.created') },
     }),
     columnHelper.accessor('token', {
       header: ({ column }) => (
@@ -101,6 +103,7 @@ function KeyActions({ token, onDelete }: { token: string; onDelete: (token: stri
 }
 
 type ServiceAccountsTableProps = {
+  cards: boolean;
   search: ServiceAccountsSearch;
   onSearchChange: SearchChange<ServiceAccountsSearch>;
   onAdd: () => void;
@@ -114,6 +117,7 @@ const getRowId = (key: ServiceAccount) => key.token;
 const noop = () => {};
 
 function useServiceAccountsTable({
+  cards,
   data,
   rowCount,
   search,
@@ -127,13 +131,19 @@ function useServiceAccountsTable({
     [i18n.language],
   );
   const columns = useMemo(() => createColumns(t, formatDate, onDelete), [t, formatDate, onDelete]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<ServiceAccountsSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_SERVICE_ACCOUNTS_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -143,21 +153,30 @@ function useServiceAccountsTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
+  return { table, pageStart };
 }
 
-export function ServiceAccountsTableSkeleton({ search }: { search: ServiceAccountsSearch }) {
-  const table = useServiceAccountsTable({
+export function ServiceAccountsTableSkeleton({
+  cards,
+  search,
+}: Pick<ServiceAccountsTableProps, 'cards' | 'search'>) {
+  const { table } = useServiceAccountsTable({
+    cards: false,
     data: NO_KEYS,
     rowCount: 0,
     search,
     onSearchChange: noop,
     onDelete: noop,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="token" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function ServiceAccountsTable({
+  cards,
   search,
   onSearchChange,
   onAdd,
@@ -168,7 +187,8 @@ export function ServiceAccountsTable({
   const { data } = useSuspenseQuery(
     serviceAccountsListOptions(toServiceAccountsQuery(deferredSearch)),
   );
-  const table = useServiceAccountsTable({
+  const { table, pageStart } = useServiceAccountsTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -184,26 +204,32 @@ export function ServiceAccountsTable({
     }
   }, [isPastLastPage, data.totalPages, onSearchChange]);
 
-  return (
-    <DataTable
-      empty={
-        !isPastLastPage && (
-          <DataTableEmpty
-            action={
-              <Button onClick={onAdd}>
-                <PlusIcon data-icon="inline-start" />
-                {t('service-accounts.add')}
-              </Button>
-            }
-            description={t('service-accounts.empty-description')}
-            icon={<KeyRoundIcon />}
-            title={t('service-accounts.empty-title')}
-          />
-        )
+  const empty = !isPastLastPage && (
+    <DataTableEmpty
+      action={
+        <Button onClick={onAdd}>
+          <PlusIcon data-icon="inline-start" />
+          {t('service-accounts.add')}
+        </Button>
       }
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
+      description={t('service-accounts.empty-description')}
+      icon={<KeyRoundIcon />}
+      title={t('service-accounts.empty-title')}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="token"
+      />
+    );
+  }
+  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
 }
