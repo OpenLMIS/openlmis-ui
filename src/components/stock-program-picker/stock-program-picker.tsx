@@ -14,7 +14,6 @@ import {
   DataTableEmpty,
   DataTableHeaderLabel,
 } from '@/components/data-table/data-table';
-import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty } from '@/lib/empty-value';
 
 type StockProgramRow = {
@@ -91,8 +91,7 @@ function ProgramTable({
 }
 
 export function StockProgramPicker(props: StockProgramPickerProps) {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <div ref={measure}>
       <ProgramPickerContent {...props} cards={cards} />
@@ -192,8 +191,7 @@ export function StockProgramPickerSkeleton({
   actionsLabel?: string;
   statusLabel?: string;
 }) {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const action = (
     <div className="relative min-w-0">
       <div className="invisible" aria-hidden="true">

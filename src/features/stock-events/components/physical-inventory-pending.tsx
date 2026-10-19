@@ -8,11 +8,7 @@ import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import {
-  CONTAINER_WIDTHS,
-  useColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
+import { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,6 +27,7 @@ import { buildInventoryLines } from '@/features/stock-events/lib/physical-invent
 import { inventoryOptionalColumns } from '@/features/stock-events/lib/physical-inventory-products';
 import type { InventorySearch } from '@/features/stock-events/lib/physical-inventory-search';
 import type { PhysicalInventoryDraft } from '@/features/stock-events/lib/physical-inventory-types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import type { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useStoredState } from '@/hooks/use-stored-state';
 import type { SearchChange } from '@/lib/table-search';
@@ -159,8 +156,7 @@ export function PhysicalInventoryPendingBody({
   );
   const showVvm = providedVvm ?? optionalColumns.showVvm;
   const showActions = providedActions ?? optionalColumns.showActions;
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
   const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
   const view = useColumnVisibility(
     inventoryHideableColumns({ showVvm, showActions, unit: quantityUnit.unit }, choices[0]),

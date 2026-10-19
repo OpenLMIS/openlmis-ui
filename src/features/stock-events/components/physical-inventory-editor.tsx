@@ -24,11 +24,6 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import {
-  CONTAINER_WIDTHS,
-  useColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import {
   FormDialog,
@@ -100,6 +95,7 @@ import type {
   InventoryStockLine,
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useOpening } from '@/hooks/use-opening';
@@ -111,6 +107,7 @@ import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { useOnline } from '@/lib/online';
+import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
 const choicesSchema = z.record(z.string(), z.boolean());
@@ -138,7 +135,7 @@ export function PhysicalInventoryEditor(props: Props) {
   const [progressSlot, setProgressSlot] = useState<HTMLDivElement | null>(null);
   const [saveSlot, setSaveSlot] = useState<HTMLDivElement | null>(null);
   const region = useRef<HTMLDivElement>(null);
-  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
   const measureRegion = useCallback(
     (element: HTMLDivElement | null) => {
       region.current = element;
@@ -146,7 +143,6 @@ export function PhysicalInventoryEditor(props: Props) {
     },
     [measure],
   );
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
   const queryClient = useQueryClient();
   const [optionalColumns, setOptionalColumns] = useState(() => {
@@ -162,20 +158,14 @@ export function PhysicalInventoryEditor(props: Props) {
         : { showVvm, showActions },
     );
   }, []);
-  const tableView = useFitColumnVisibility(
+  const view = useFitColumnVisibility(
     inventoryHideableColumns({ ...optionalColumns, unit: quantityUnit.unit }, choices[0]),
     choices,
     region,
-    width,
+    cards ? undefined : width,
     `${optionalColumns.showVvm}/${optionalColumns.showActions}/${quantityUnit.unit}/${i18n.language}`,
     !cards,
   );
-  const cardView = useColumnVisibility(
-    inventoryHideableColumns({ ...optionalColumns, unit: quantityUnit.unit }, choices[0]),
-    choices,
-    undefined,
-  );
-  const view = cards ? cardView : tableView;
   const pendingBody = (
     <PhysicalInventoryPendingBody
       search={props.search}
@@ -500,11 +490,7 @@ function InventoryDraftRows({
         ? (region.current?.querySelector<HTMLElement>(cards ? 'ul' : 'table') ?? region.current)
         : null);
     if (target) {
-      if (cards) {
-        target.closest('li')?.scrollIntoView?.({ block: 'start' });
-        target.scrollIntoView?.({ block: 'nearest' });
-      }
-      target.focus({ preventScroll: cards });
+      revealField(target, cards);
       if (document.activeElement === target) setFocusTarget(null);
     }
   }, [focusTarget, actionDialog, search, deferred, cards]);

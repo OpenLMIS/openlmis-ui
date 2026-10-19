@@ -119,6 +119,31 @@ export function CardRows({ children }: { children: ReactNode }) {
   return <div className="divide-y *:px-4 *:py-1.5">{children}</div>;
 }
 
+export function CardControlRow({
+  label,
+  stacked = false,
+  children,
+}: {
+  label: ReactNode;
+  stacked?: boolean;
+  children: ReactNode;
+}) {
+  return stacked ? (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-sm">{label}</span>
+      {children}
+    </div>
+  ) : (
+    <SettingsRowFrame
+      value="control"
+      align="center"
+      label={<span className="text-sm">{label}</span>}
+    >
+      {children}
+    </SettingsRowFrame>
+  );
+}
+
 export function CardRowSkeleton() {
   return (
     <SettingsRowFrame label={<SkeletonBar width="w-24" />}>

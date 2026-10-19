@@ -12,7 +12,14 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardList, CardListItem, CardRows, SkeletonBar } from '@/components/card-list';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { useFieldContext } from '@/components/form/form-context';
@@ -50,8 +57,9 @@ import type {
   InventoryCategoryBand,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { productLabel } from '@/features/stock-events/lib/products';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
-import { orEmpty, tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 import { cn } from '@/lib/utils';
 import { toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
@@ -69,7 +77,7 @@ const COLUMNS = [
   ['unaccounted', 'physical-inventory.unaccounted'],
   ['actions', 'stock-events.actions'],
 ] as const;
-const CARD_COLUMNS = [
+const CARD_COLUMNS = new Set([
   'packSize',
   'expiry',
   'stock',
@@ -77,7 +85,8 @@ const CARD_COLUMNS = [
   'vvm',
   'reasons',
   'unaccounted',
-] as const;
+]);
+const CARD_CONTROLS = new Set(['count', 'vvm', 'reasons']);
 
 type ColumnId = (typeof COLUMNS)[number][0];
 const HIDEABLE_COLUMN_IDS: readonly ColumnId[] = ['productCode', 'packSize', 'expiry', 'stock'];
@@ -211,10 +220,7 @@ export function PhysicalInventoryGrid({
               <CardListItem key={group.orderable.id}>
                 <CardBand>
                   <bdi className="min-w-0 wrap-anywhere">
-                    {productName(group.orderable)}
-                    {group.orderable.dispensable?.displayUnit &&
-                      ` - ${group.orderable.dispensable.displayUnit}`}{' '}
-                    ({group.orderable.productCode})
+                    {productLabel(group.orderable)} ({group.orderable.productCode})
                   </bdi>
                 </CardBand>
                 {group.lines.map((line) => (
@@ -444,48 +450,42 @@ const InventoryRow = memo(
             )}
           </CardBand>
           <CardRows>
-            {CARD_COLUMNS.map((id) => {
-              const column = columns.find(([columnId]) => columnId === id);
-              if (!column) return null;
-              const cell = (
-                <InventoryCell
-                  id={id}
-                  editor={editor}
-                  line={line}
-                  countFocused={countFocused}
-                  cards
-                />
-              );
-              if (
-                id === 'count' ||
-                id === 'reasons' ||
-                (id === 'vvm' && line.orderable.extraData?.useVVM === 'true')
-              )
-                return (
-                  <SettingsRowFrame
-                    key={id}
-                    label={<span className="text-sm">{t(column[1])}</span>}
-                    value="control"
-                    align="center"
-                  >
-                    {cell}
-                  </SettingsRowFrame>
+            {columns
+              .filter(([id]) => CARD_COLUMNS.has(id))
+              .map(([id, key]) => {
+                const cell = (
+                  <InventoryCell
+                    id={id}
+                    editor={editor}
+                    line={line}
+                    countFocused={countFocused}
+                    cards
+                  />
                 );
-              return (
-                <SettingsItem key={id} label={t(column[1])}>
-                  <span
-                    className={cn(
-                      id === 'unaccounted' && 'font-bold',
-                      id === 'unaccounted' &&
-                        unaccountedInvalid(line, editor) &&
-                        'text-destructive',
-                    )}
-                  >
-                    {cell}
-                  </span>
-                </SettingsItem>
-              );
-            })}
+                if (
+                  CARD_CONTROLS.has(id) &&
+                  (id !== 'vvm' || line.orderable.extraData?.useVVM === 'true')
+                )
+                  return (
+                    <CardControlRow key={id} label={t(key)}>
+                      {cell}
+                    </CardControlRow>
+                  );
+                return (
+                  <SettingsItem key={id} label={t(key)}>
+                    <span
+                      className={cn(
+                        id === 'unaccounted' && 'font-bold',
+                        id === 'unaccounted' &&
+                          unaccountedInvalid(line, editor) &&
+                          'text-destructive',
+                      )}
+                    >
+                      {cell}
+                    </span>
+                  </SettingsItem>
+                );
+              })}
           </CardRows>
         </div>
       );
@@ -565,8 +565,7 @@ function InventoryCell({
     case 'productCode':
       return hideProduct ? null : <bdi>{line.orderable.productCode}</bdi>;
     case 'product': {
-      const unit = line.orderable.dispensable?.displayUnit;
-      const name = `${productName(line.orderable)}${unit ? ` - ${unit}` : ''}`;
+      const name = productLabel(line.orderable);
       return hideProduct ? null : <ProductName label={name} width="inventory" />;
     }
     case 'packSize':
@@ -574,14 +573,15 @@ function InventoryCell({
     case 'lot':
       if (!summary && line.newLot && cards)
         return (
-          <button
+          <Button
+            variant="link"
+            wrap="normal"
             aria-label={label(t('physical-inventory.edit-lot'))}
-            className="min-w-0 wrap-anywhere text-end font-medium text-primary underline-offset-4 hover:underline"
             onClick={() => editor.onEditLot(line)}
             type="button"
           >
-            <bdi>{line.newLot.lotCode}</bdi>
-          </button>
+            <bdi className="wrap-anywhere">{line.newLot.lotCode}</bdi>
+          </Button>
         );
       if (!summary && line.newLot)
         return (
@@ -755,7 +755,7 @@ function InventoryCell({
             </editor.form.AppField>
           </div>
         );
-      return cards ? orEmpty(null) : null;
+      return cards ? EMPTY_VALUE : null;
   }
 }
 
@@ -797,24 +797,25 @@ export function PhysicalInventoryGridSkeleton({
                 )}
               </CardBand>
               <CardRows>
-                {CARD_COLUMNS.flatMap((id) => columns.filter(([columnId]) => columnId === id)).map(
-                  ([id, key]) => (
-                    <SettingsRowFrame
-                      key={id}
-                      label={<span className="text-sm">{t(key)}</span>}
-                      value={id === 'count' || id === 'vvm' || id === 'reasons' ? 'control' : 'fit'}
-                      align="center"
-                    >
-                      {id === 'count' || id === 'vvm' || id === 'reasons' ? (
+                {columns
+                  .filter(([id]) => CARD_COLUMNS.has(id))
+                  .map(([id, key]) =>
+                    CARD_CONTROLS.has(id) ? (
+                      <CardControlRow key={id} label={t(key)}>
                         <div className="h-7 w-full">
                           <Skeleton fill />
                         </div>
-                      ) : (
+                      </CardControlRow>
+                    ) : (
+                      <SettingsRowFrame
+                        key={id}
+                        label={<span className="text-sm">{t(key)}</span>}
+                        align="center"
+                      >
                         <SkeletonBar width="w-20" />
-                      )}
-                    </SettingsRowFrame>
-                  ),
-                )}
+                      </SettingsRowFrame>
+                    ),
+                  )}
               </CardRows>
             </CardListItem>
           ))}

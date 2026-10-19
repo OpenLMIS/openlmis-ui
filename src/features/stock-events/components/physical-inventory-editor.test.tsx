@@ -376,7 +376,7 @@ it.each([390, 672])(
       expect(cardCall).toBeGreaterThanOrEqual(0);
       expect(scroll.mock.calls[cardCall]).toEqual([{ block: 'start' }]);
       expect(scroll.mock.contexts[cardCall + 1]).toBe(input);
-      expect(scroll.mock.calls[cardCall + 1]).toEqual([{ block: 'nearest' }]);
+      expect(scroll.mock.calls[cardCall + 1]).toEqual([{ block: 'nearest', inline: 'nearest' }]);
     }
   },
 );

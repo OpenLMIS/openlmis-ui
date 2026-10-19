@@ -3,13 +3,12 @@ import { Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
+import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
 import { toDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
-import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
+import { SettingsItem } from '@/components/form/settings-list';
 import {
   FormDialog,
   FormDialogBody,
@@ -52,6 +51,7 @@ import type {
   InventoryLine,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 import { toLatinDigits } from '@/lib/whole-number';
@@ -115,8 +115,7 @@ function AddProductsForm({
   onAdd,
 }: Props & { eligible: readonly InventoryStockLine[] }) {
   const { t, i18n } = useTranslation();
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const today = toDateValue(new Date());
   const itemsForm = useAppForm({
     defaultValues: { items: [] as InventoryLine[] },
@@ -332,46 +331,42 @@ function AddProductsForm({
           </Button>
           <div ref={measure} className="min-w-0">
             {cards ? (
-              <CardList>
-                {items.map((line, index) => (
-                  <CardListItem key={line.key} surface="flat">
-                    <CardBand>
-                      <span className="min-w-0 flex-1 wrap-anywhere">
-                        <bdi>
-                          {line.orderable.fullProductName} ({line.orderable.productCode})
-                        </bdi>
-                      </span>
-                      {removeButton(line)}
-                    </CardBand>
-                    <CardRows>
-                      <SettingsItem label={t('stock-events.pack-size')}>
-                        <bdi>{orEmpty(line.orderable.netContent)}</bdi>
-                      </SettingsItem>
-                      <SettingsItem label={t('stock-events.lot-code')}>
-                        <bdi>{orEmpty(lotLabel(line))}</bdi>
-                      </SettingsItem>
-                      <SettingsItem label={t('stock-events.expiry-date')}>
-                        <bdi>
-                          {orEmpty(
-                            inventoryExpiry(line)
-                              ? inventoryFormats(i18n.language).date(inventoryExpiry(line) ?? '')
-                              : null,
-                          )}
-                        </bdi>
-                      </SettingsItem>
-                      <SettingsRowFrame
-                        value="control"
-                        align="center"
-                        label={
-                          <span className="text-sm">{t('physical-inventory.current-stock')}</span>
-                        }
-                      >
-                        {quantityField(line, index)}
-                      </SettingsRowFrame>
-                    </CardRows>
-                  </CardListItem>
-                ))}
-              </CardList>
+              items.length > 0 && (
+                <CardList>
+                  {items.map((line, index) => (
+                    <CardListItem key={line.key} surface="flat">
+                      <CardBand>
+                        <span className="min-w-0 flex-1 wrap-anywhere">
+                          <bdi>
+                            {line.orderable.fullProductName} ({line.orderable.productCode})
+                          </bdi>
+                        </span>
+                        {removeButton(line)}
+                      </CardBand>
+                      <CardRows>
+                        <SettingsItem label={t('stock-events.pack-size')}>
+                          <bdi>{orEmpty(line.orderable.netContent)}</bdi>
+                        </SettingsItem>
+                        <SettingsItem label={t('stock-events.lot-code')}>
+                          <bdi>{lotLabel(line)}</bdi>
+                        </SettingsItem>
+                        <SettingsItem label={t('stock-events.expiry-date')}>
+                          <bdi>
+                            {orEmpty(
+                              inventoryExpiry(line)
+                                ? inventoryFormats(i18n.language).date(inventoryExpiry(line) ?? '')
+                                : null,
+                            )}
+                          </bdi>
+                        </SettingsItem>
+                        <CardControlRow label={t('physical-inventory.current-stock')}>
+                          {quantityField(line, index)}
+                        </CardControlRow>
+                      </CardRows>
+                    </CardListItem>
+                  ))}
+                </CardList>
+              )
             ) : (
               <Table layout="auto" density="compact">
                 <TableHeader>

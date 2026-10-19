@@ -158,7 +158,7 @@ export function StockEventPending({
   const { t } = useTranslation();
   const config = EVENT_KINDS[kind];
   const unit = useQuantityUnit();
-  const { measure, cards, columnView } = useCardView(
+  const { measure, cards, columnView, layout } = useCardView(
     eventHideableColumns(kind),
     config.columnChoicesKey,
   );
@@ -199,7 +199,7 @@ export function StockEventPending({
               <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                 <DataTableViewOptions
                   disabled
-                  layout={cards ? 'cards' : 'table'}
+                  layout={layout}
                   columns={eventHideableColumns(kind)
                     .filter(
                       ({ id }) =>

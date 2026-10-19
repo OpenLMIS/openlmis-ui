@@ -16,7 +16,6 @@ import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
@@ -46,6 +45,7 @@ import type { TradeItem } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
 import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
+import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
 import {
   EventLineTable,
   EventLineTableSkeleton,
@@ -61,10 +61,13 @@ import { SubmitConfirmDialog } from '@/features/stock-events/components/submit-c
 import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { applyScanCount } from '@/features/stock-events/lib/apply-scan';
 import {
+  changeEventLot,
+  type EventLine,
   type EventLineCandidate,
   eventLinesSchema,
   eventPayload,
   eventReasonRequired,
+  isNewLot,
   newEventLine,
 } from '@/features/stock-events/lib/event-form';
 import {
@@ -81,13 +84,18 @@ import {
   unpackReasons,
 } from '@/features/stock-events/lib/kit-unpack';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
-import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
+import {
+  eventProductOptions,
+  productHasLots,
+  productLabel,
+} from '@/features/stock-events/lib/products';
 import {
   type ApprovedScanProduct,
   approvedScanProduct,
 } from '@/features/stock-events/lib/scan-products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -98,6 +106,7 @@ import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
 import { queryKeys } from '@/lib/key-factory';
+import { revealField } from '@/lib/reveal-field';
 import {
   acknowledgeScanExpiry,
   isScanExpiryAcknowledged,
@@ -198,6 +207,12 @@ export function EventEditor({
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [editingLot, setEditingLot] = useState<EventLine | null>(null);
+  const [editLotOpen, setEditLotOpen] = useState(false);
+  const editLot = useCallback((line: EventLine) => {
+    setEditingLot(line);
+    setEditLotOpen(true);
+  }, []);
   const [failure, setFailure] = useState<{
     title: ParseKeys;
     description: string;
@@ -213,8 +228,7 @@ export function EventEditor({
   const leaving = useRef(false);
   const posting = useRef(false);
   const region = useRef<HTMLDivElement>(null);
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
   const measureRegion = useCallback(
     (element: HTMLDivElement | null) => {
       region.current = element;
@@ -339,11 +353,7 @@ export function EventEditor({
     if (!focusField || search.keyword || (search.page ?? 1) !== focusField.page) return;
     const target = document.getElementById(focusField.name);
     if (target && region.current?.contains(target)) {
-      if (cards) {
-        target.closest('li')?.scrollIntoView?.({ block: 'start' });
-        target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-        target.focus({ preventScroll: true });
-      } else target.focus();
+      revealField(target, cards);
       setFocusField(null);
     }
   }, [focusField, search.keyword, search.page, cards]);
@@ -750,6 +760,7 @@ export function EventEditor({
                           unit={quantityUnit.unit}
                           today={today}
                           disabled={pending || submitted}
+                          onEditLot={editLot}
                           onRemove={remove}
                           search={search}
                           onSearchChange={onSearchChange}
@@ -814,6 +825,20 @@ export function EventEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {editingLot && isNewLot(editingLot.lot) && (
+        <EditLotDialog
+          open={editLotOpen}
+          onOpenChange={setEditLotOpen}
+          lot={editingLot.lot}
+          lineKey={editingLot.key}
+          product={productLabel(editingLot.orderable)}
+          lines={lines}
+          today={today}
+          onSave={(next) =>
+            form.setFieldValue('lines', (current) => changeEventLot(current, editingLot.key, next))
+          }
+        />
+      )}
       <ClearLinesDialog
         kind={kind}
         open={clearOpen}
