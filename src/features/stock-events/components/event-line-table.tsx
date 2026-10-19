@@ -964,7 +964,7 @@ export function EventLineTableSkeleton({
   const today = '';
   const form = useEventForm({ kind, reasons: [], today, onValid: () => {}, onInvalid: () => {} });
   return (
-    <div aria-busy={busy || undefined} className={cards ? 'aria-busy:opacity-60' : undefined}>
+    <div aria-busy={busy || undefined}>
       <EventLineTable
         cards={cards}
         kind={kind}
