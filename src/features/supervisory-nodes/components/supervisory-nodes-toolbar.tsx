@@ -19,12 +19,14 @@ type SupervisoryNodesToolbarProps = {
   search: SupervisoryNodesSearch;
   onFilterChange: (patch: Partial<SupervisoryNodesSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
 };
 
 export function SupervisoryNodesToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
 }: SupervisoryNodesToolbarProps) {
   const { t } = useTranslation();
   const { data: zones } = useQuery(geographicZonesOptions());
@@ -64,6 +66,7 @@ export function SupervisoryNodesToolbar({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

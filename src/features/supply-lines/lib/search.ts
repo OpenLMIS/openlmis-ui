@@ -12,6 +12,12 @@ export const SUPPLY_LINE_HIDEABLE_COLUMNS = [
   { id: 'program.name', labelKey: 'supply-lines.program', hideBelow: 480 },
 ] as const;
 
+export const SUPPLY_LINE_SORT_COLUMNS = [
+  { id: 'supplyingFacility.name', labelKey: 'supply-lines.supplying-facility' },
+  { id: 'supervisoryNode.code', labelKey: 'supply-lines.supervisory-node' },
+  { id: 'program.name', labelKey: 'supply-lines.program' },
+] as const;
+
 const SUPPLY_LINE_SORT_FIELDS = [
   'supplyingFacility.name',
   'supervisoryNode.code',

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -13,6 +13,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ import {
   toSupervisoryNodesQuery,
 } from '@/features/supervisory-nodes/lib/search';
 import type { NodeRow } from '@/features/supervisory-nodes/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
@@ -38,11 +40,9 @@ const columnHelper = createColumnHelper<DataTableFeatures, NodeRow>();
 function text(value: string | null, dir: 'auto' | 'ltr' = 'auto', strong = false) {
   if (!tableValue(value)) return null;
   return (
-    <span className="flex">
-      <span className={strong ? 'whitespace-nowrap font-medium' : 'whitespace-nowrap'} dir={dir}>
-        {value}
-      </span>
-    </span>
+    <CellText dir={dir} overflow="nowrap" strong={strong}>
+      {value}
+    </CellText>
   );
 }
 
@@ -87,22 +87,27 @@ function createColumns(t: TFunction, listSearch: SupervisoryNodesSearch) {
     columnHelper.accessor('code', {
       header: t('supervisory-nodes.code'),
       cell: ({ getValue }) => text(getValue(), 'ltr'),
+      meta: { label: t('supervisory-nodes.code') },
     }),
     columnHelper.accessor('facilityName', {
       header: t('supervisory-nodes.facility'),
       cell: ({ getValue }) => text(getValue()),
+      meta: { label: t('supervisory-nodes.facility') },
     }),
     columnHelper.accessor('childCount', {
       header: t('supervisory-nodes.child-nodes'),
       cell: ({ getValue }) => t('supervisory-nodes.child-count', { count: getValue() }),
+      meta: { label: t('supervisory-nodes.child-nodes') },
     }),
     columnHelper.accessor('zoneName', {
       header: t('supervisory-nodes.zone'),
       cell: ({ getValue }) => text(getValue()),
+      meta: { label: t('supervisory-nodes.zone') },
     }),
     columnHelper.accessor('partners', {
       header: t('supervisory-nodes.partner-nodes'),
       cell: ({ getValue, row }) => <PartnerNodes partners={getValue()} node={row.original.name} />,
+      meta: { label: t('supervisory-nodes.partner-nodes') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -152,6 +157,7 @@ function NodeActions({ node, listSearch }: { node: NodeRow; listSearch: Supervis
 }
 
 type SupervisoryNodesTableProps = {
+  cards: boolean;
   search: SupervisoryNodesSearch;
   onSearchChange: SearchChange<SupervisoryNodesSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -163,6 +169,7 @@ const noop = () => {};
 const NO_SORT = { id: 'name', desc: false };
 
 function useSupervisoryNodesTable({
+  cards,
   data,
   rowCount,
   search,
@@ -171,8 +178,18 @@ function useSupervisoryNodesTable({
 }: SupervisoryNodesTableProps & { data: NodeRow[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
-  const searchState = useTableSearchState({ search, defaultSort: NO_SORT, onSearchChange });
-  return useTable({
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<SupervisoryNodesSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
+  const searchState = useTableSearchState({
+    search,
+    defaultSort: NO_SORT,
+    onSearchChange: onTableChange,
+  });
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -182,27 +199,32 @@ function useSupervisoryNodesTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function SupervisoryNodesTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<SupervisoryNodesTableProps, 'search' | 'columnVisibility'>) {
-  const table = useSupervisoryNodesTable({
+}: Pick<SupervisoryNodesTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useSupervisoryNodesTable({
+    cards: false,
     data: NO_NODES,
     rowCount: 0,
     search,
     onSearchChange: noop,
     columnVisibility,
   });
-  return (
-    <DataTableSkeleton layout="auto" rowCount={toPaginationState(search).pageSize} table={table} />
-  );
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton layout="auto" rowCount={rowCount} table={table} />;
 }
 
 export function SupervisoryNodesTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -212,7 +234,8 @@ export function SupervisoryNodesTable({
   const { data } = useSuspenseQuery(
     supervisoryNodesPageOptions(toSupervisoryNodesQuery(deferredSearch)),
   );
-  const table = useSupervisoryNodesTable({
+  const { table, pageStart } = useSupervisoryNodesTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -246,12 +269,26 @@ export function SupervisoryNodesTable({
       title={t('supervisory-nodes.empty-title')}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
   return (
     <DataTable
       layout="auto"
       empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
+      footer={footer}
+      isStale={isStale}
       table={table}
     />
   );

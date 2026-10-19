@@ -13,10 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import {
   CLEARED_SUPPLY_LINE_FILTERS,
+  DEFAULT_SUPPLY_LINES_SORT,
   SUPPLY_LINE_HIDEABLE_COLUMNS,
+  SUPPLY_LINE_SORT_COLUMNS,
   type SupplyLinesSearch,
 } from '@/features/supply-lines/lib/search';
 import { withPicked } from '@/lib/filter-options';
+import { searchSort } from '@/lib/table-search';
 
 type FilterProps = {
   search: SupplyLinesSearch;
@@ -26,10 +29,14 @@ type FilterProps = {
 export function SupplyLinesToolbar({
   search,
   onFilterChange,
+  onSortChange,
   columnView,
+  layout,
   disabled = false,
 }: FilterProps & {
+  onSortChange: (patch: Partial<SupplyLinesSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -52,8 +59,16 @@ export function SupplyLinesToolbar({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
+          sort={{
+            columns: SUPPLY_LINE_SORT_COLUMNS.map(({ id, labelKey }) => ({
+              id,
+              label: t(labelKey),
+            })),
+            ...searchSort(search, DEFAULT_SUPPLY_LINES_SORT, onSortChange),
+          }}
           visibility={columnView.visibility}
         />
       </div>

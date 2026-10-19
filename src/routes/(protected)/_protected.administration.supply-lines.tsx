@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { RouteIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -29,8 +28,8 @@ import {
   supplyLinesSearchSchema,
   toSupplyLinesQuery,
 } from '@/features/supply-lines/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/supply-lines')({
   validateSearch: supplyLinesSearchSchema,
@@ -51,19 +50,15 @@ export const Route = createFileRoute('/(protected)/_protected/administration/sup
 
 const CLOSED_DIALOGS = { supplyLine: undefined };
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function SupplyLinesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch({
     select: ({ supplyLine: _supplyLine, ...listSearch }) => listSearch,
     structuralSharing: true,
   });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     SUPPLY_LINE_HIDEABLE_COLUMNS,
-    useStoredState('supply-lines.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
+    'supply-lines.column-visibility',
   );
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { updateSearch } = useSearchNavigation<SupplyLinesSearch>(CLOSED_DIALOGS);
@@ -73,10 +68,12 @@ function SupplyLinesPage() {
       <Workspace>
         <SupplyLinesHeader />
         <WorkspaceContent>
-          <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+          <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
             <SupplyLinesToolbar
               columnView={columnView}
+              layout={layout}
               onFilterChange={(patch) => updateSearch(patch, true)}
+              onSortChange={updateSearch}
               search={search}
             />
             <QueryBoundary
@@ -90,6 +87,7 @@ function SupplyLinesPage() {
               )}
               pendingFallback={
                 <SupplyLinesTableSkeleton
+                  cards={cards}
                   columnVisibility={columnView.visibility}
                   search={search}
                 />
@@ -97,6 +95,7 @@ function SupplyLinesPage() {
               resetKey={JSON.stringify(query)}
             >
               <SupplyLinesTable
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 onSearchChange={updateSearch}
                 search={search}
@@ -132,18 +131,28 @@ function SupplyLinesHeader() {
 }
 
 function SupplyLinesPagePending() {
+  const { measure, cards, columnView, layout } = useCardView(
+    SUPPLY_LINE_HIDEABLE_COLUMNS,
+    'supply-lines.column-visibility',
+  );
   return (
     <Workspace>
       <SupplyLinesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6">
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <SupplyLinesToolbar
             disabled
             search={{}}
             onFilterChange={() => {}}
-            columnView={{ visibility: {}, onReset: () => {}, onVisibilityChange: () => {} }}
+            onSortChange={() => {}}
+            columnView={columnView}
+            layout={layout}
           />
-          <SupplyLinesTableSkeleton columnVisibility={{}} search={{}} />
+          <SupplyLinesTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
         </div>
       </WorkspaceContent>
     </Workspace>

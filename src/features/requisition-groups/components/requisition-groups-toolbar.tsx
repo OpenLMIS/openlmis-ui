@@ -26,12 +26,14 @@ type RequisitionGroupsToolbarProps = {
   search: RequisitionGroupsListSearch;
   onFilterChange: (patch: Partial<RequisitionGroupsListSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
 };
 
 export function RequisitionGroupsToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
 }: RequisitionGroupsToolbarProps) {
   const { t } = useTranslation();
   const { data: zones } = useQuery(geographicZonesOptions());
@@ -89,6 +91,7 @@ export function RequisitionGroupsToolbar({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

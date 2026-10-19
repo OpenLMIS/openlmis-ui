@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { NetworkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -29,8 +27,8 @@ import {
   supervisoryNodesSearchSchema,
   toSupervisoryNodesQuery,
 } from '@/features/supervisory-nodes/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
@@ -51,16 +49,12 @@ export const Route = createFileRoute('/(protected)/_protected/administration/sup
   component: SupervisoryNodesPage,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function SupervisoryNodesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     SUPERVISORY_NODE_HIDEABLE_COLUMNS,
-    useStoredState('supervisory-nodes.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
+    'supervisory-nodes.column-visibility',
   );
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { updateSearch } = useSearchNavigation<SupervisoryNodesSearch>({});
@@ -69,9 +63,10 @@ function SupervisoryNodesPage() {
     <Workspace width="large">
       <SupervisoryNodesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <SupervisoryNodesToolbar
             columnView={columnView}
+            layout={layout}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
@@ -86,6 +81,7 @@ function SupervisoryNodesPage() {
             )}
             pendingFallback={
               <SupervisoryNodesTableSkeleton
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 search={search}
               />
@@ -93,6 +89,7 @@ function SupervisoryNodesPage() {
             resetKey={JSON.stringify(query)}
           >
             <SupervisoryNodesTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onSearchChange={updateSearch}
               search={search}
@@ -120,11 +117,21 @@ function SupervisoryNodesHeader() {
 }
 
 function SupervisoryNodesPagePending() {
+  const { measure, cards, columnView } = useCardView(
+    SUPERVISORY_NODE_HIDEABLE_COLUMNS,
+    'supervisory-nodes.column-visibility',
+  );
   return (
     <Workspace width="large">
       <SupervisoryNodesHeader />
       <WorkspaceContent>
-        <SupervisoryNodesTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <SupervisoryNodesTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

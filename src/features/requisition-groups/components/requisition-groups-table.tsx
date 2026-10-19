@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -16,6 +16,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { ListError } from '@/components/list-error';
 import { Block } from '@/components/skeleton-block';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -37,6 +38,7 @@ import {
   toSearchBody,
 } from '@/features/requisition-groups/lib/search';
 import type { RequisitionGroup } from '@/features/requisition-groups/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, RequisitionGroup>();
@@ -70,6 +72,7 @@ function createColumns(
           schedules={row.original.requisitionGroupProgramSchedules}
         />
       ),
+      meta: { label: t('requisition-groups.program') },
     }),
     columnHelper.accessor('code', {
       cell: ({ getValue }) => (
@@ -80,12 +83,14 @@ function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.code')} />
       ),
+      meta: { label: t('requisition-groups.code') },
     }),
     columnHelper.accessor((group) => group.supervisoryNode.name, {
       id: 'supervisoryNode',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.supervisory-node')} />
       ),
+      meta: { label: t('requisition-groups.supervisory-node') },
     }),
     columnHelper.display({
       id: 'zone',
@@ -97,12 +102,14 @@ function createColumns(
         if (!facilityId) return null;
         return zonesPending ? <Block className="h-4 w-24" /> : (zones.get(facilityId) ?? null);
       },
+      meta: { label: t('requisition-groups.zone') },
     }),
     columnHelper.accessor((group) => group.memberFacilities.length, {
       id: 'facilityCount',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.facility-count')} />
       ),
+      meta: { label: t('requisition-groups.facility-count') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -172,6 +179,7 @@ function RequisitionGroupActions({
 }
 
 type RequisitionGroupsTableProps = {
+  cards: boolean;
   search: RequisitionGroupsListSearch;
   onSearchChange: SearchChange<RequisitionGroupsListSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -184,6 +192,7 @@ const getRowId = (group: RequisitionGroup) => group.id;
 const noop = () => {};
 
 function useRequisitionGroupsTable({
+  cards,
   data,
   rowCount,
   search,
@@ -202,8 +211,18 @@ function useRequisitionGroupsTable({
     () => createColumns(t, search, zones, zonesPending),
     [t, search, zones, zonesPending],
   );
-  const searchState = useTableSearchState({ search, defaultSort: NO_SORT, onSearchChange });
-  return useTable({
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<RequisitionGroupsListSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
+  const searchState = useTableSearchState({
+    search,
+    defaultSort: NO_SORT,
+    onSearchChange: onTableChange,
+  });
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -213,22 +232,28 @@ function useRequisitionGroupsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function RequisitionGroupsTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<RequisitionGroupsTableProps, 'search' | 'columnVisibility'>) {
-  const table = useRequisitionGroupsTable({
+}: Pick<RequisitionGroupsTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useRequisitionGroupsTable({
+    cards: false,
     data: NO_GROUPS,
     rowCount: 0,
     search,
     onSearchChange: noop,
     columnVisibility,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 function RequisitionGroupsNoMatches({
@@ -271,6 +296,7 @@ export function RequisitionGroupsListError({
 }
 
 export function RequisitionGroupsTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -295,7 +321,8 @@ export function RequisitionGroupsTable({
       ),
     [facilities.data],
   );
-  const table = useRequisitionGroupsTable({
+  const { table, pageStart } = useRequisitionGroupsTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -322,12 +349,21 @@ export function RequisitionGroupsTable({
       />
     );
 
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
   return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
-    />
+    <DataTable empty={!isPastLastPage && empty} footer={footer} isStale={isStale} table={table} />
   );
 }

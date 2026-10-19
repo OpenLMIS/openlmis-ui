@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { NetworkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
   Workspace,
@@ -29,8 +27,8 @@ import {
   requisitionGroupsSearchSchema,
   toRequisitionGroupsQuery,
 } from '@/features/requisition-groups/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
@@ -52,15 +50,11 @@ export const Route = createFileRoute('/(protected)/_protected/administration/req
   component: RequisitionGroupsPage,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function RequisitionGroupsPage() {
   const search = Route.useSearch();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     REQUISITION_GROUP_HIDEABLE_COLUMNS,
-    useStoredState('requisition-groups.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
+    'requisition-groups.column-visibility',
   );
   const { updateSearch } = useSearchNavigation<RequisitionGroupsListSearch>({});
 
@@ -68,9 +62,10 @@ function RequisitionGroupsPage() {
     <Workspace>
       <RequisitionGroupsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 lg:gap-6" ref={measure}>
           <RequisitionGroupsToolbar
             columnView={columnView}
+            layout={layout}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
           />
@@ -80,6 +75,7 @@ function RequisitionGroupsPage() {
             )}
             pendingFallback={
               <RequisitionGroupsTableSkeleton
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 search={search}
               />
@@ -87,6 +83,7 @@ function RequisitionGroupsPage() {
             resetKey={JSON.stringify(toRequisitionGroupsQuery(search))}
           >
             <RequisitionGroupsTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onSearchChange={updateSearch}
               search={search}
@@ -114,11 +111,21 @@ function RequisitionGroupsHeader() {
 }
 
 function RequisitionGroupsPagePending() {
+  const { measure, cards, columnView } = useCardView(
+    REQUISITION_GROUP_HIDEABLE_COLUMNS,
+    'requisition-groups.column-visibility',
+  );
   return (
     <Workspace>
       <RequisitionGroupsHeader />
       <WorkspaceContent>
-        <RequisitionGroupsTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <RequisitionGroupsTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

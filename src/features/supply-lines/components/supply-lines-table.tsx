@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, RouteIcon, SearchXIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -14,6 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,20 +33,19 @@ import {
   toSupplyLinesQuery,
 } from '@/features/supply-lines/lib/search';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';
+import { usePageStart } from '@/hooks/use-page-start';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
 import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, SupplyLine>();
 
-function text(value: string | null, dir: 'auto' | 'ltr' = 'auto', strong = false) {
+function text(value: string | null, strong = false) {
   if (!tableValue(value)) return null;
   return (
-    <span className="flex">
-      <span className={strong ? 'whitespace-nowrap font-medium' : 'whitespace-nowrap'} dir={dir}>
-        {value}
-      </span>
-    </span>
+    <CellText overflow="nowrap" strong={strong}>
+      {value}
+    </CellText>
   );
 }
 
@@ -56,7 +56,7 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('supply-lines.supplying-facility')} />
       ),
-      cell: ({ getValue }) => text(getValue() ?? null, 'auto', true),
+      cell: ({ getValue }) => text(getValue() ?? null, true),
       enableHiding: false,
     }),
     columnHelper.accessor('supervisoryNode.code', {
@@ -65,6 +65,7 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
         <DataTableColumnHeader column={column} title={t('supply-lines.supervisory-node')} />
       ),
       cell: ({ row }) => <ServedFacilitiesPopover line={row.original} />,
+      meta: { label: t('supply-lines.supervisory-node') },
     }),
     columnHelper.accessor('program.name', {
       id: 'program.name',
@@ -72,6 +73,7 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
         <DataTableColumnHeader column={column} title={t('supply-lines.program')} />
       ),
       cell: ({ getValue }) => text(getValue() ?? null),
+      meta: { label: t('supply-lines.program') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -132,6 +134,7 @@ function SupplyLineActions({
 }
 
 type SupplyLinesTableProps = {
+  cards: boolean;
   search: SupplyLinesSearch;
   onSearchChange: SearchChange<SupplyLinesSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -142,6 +145,7 @@ const getRowId = (node: SupplyLine) => node.id;
 const noop = () => {};
 
 function useSupplyLinesTable({
+  cards,
   data,
   rowCount,
   search,
@@ -150,12 +154,18 @@ function useSupplyLinesTable({
 }: SupplyLinesTableProps & { data: SupplyLine[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
+  const { pageIndex, pageSize } = toPaginationState(search);
+  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
+  const onTableChange = useCallback<SearchChange<SupplyLinesSearch>>(
+    (update) => onSearchChange(update, false, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search,
     defaultSort: DEFAULT_SUPPLY_LINES_SORT,
-    onSearchChange,
+    onSearchChange: onTableChange,
   });
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -164,27 +174,34 @@ function useSupplyLinesTable({
     manualPagination: true,
     manualSorting: true,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function SupplyLinesTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<SupplyLinesTableProps, 'search' | 'columnVisibility'>) {
-  const table = useSupplyLinesTable({
+}: Pick<SupplyLinesTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useSupplyLinesTable({
+    cards: false,
     data: NO_SUPPLY_LINES,
     rowCount: 0,
     search,
     onSearchChange: noop,
     columnVisibility,
   });
-  return (
-    <DataTableSkeleton layout="auto" rowCount={toPaginationState(search).pageSize} table={table} />
-  );
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) {
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="supplyingFacility.name" />;
+  }
+  return <DataTableSkeleton layout="auto" rowCount={rowCount} table={table} />;
 }
 
 export function SupplyLinesTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -192,7 +209,8 @@ export function SupplyLinesTable({
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(supplyLinesPageOptions(toSupplyLinesQuery(deferredSearch)));
-  const table = useSupplyLinesTable({
+  const { table, pageStart } = useSupplyLinesTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -226,12 +244,26 @@ export function SupplyLinesTable({
       title={t('supply-lines.empty-title')}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="supplyingFacility.name"
+      />
+    );
+  }
   return (
     <DataTable
       layout="auto"
       empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
+      footer={footer}
+      isStale={isStale}
       table={table}
     />
   );
