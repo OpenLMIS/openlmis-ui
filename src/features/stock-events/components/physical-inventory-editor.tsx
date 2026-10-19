@@ -20,7 +20,6 @@ import { z } from 'zod';
 import {
   DataTableEmpty,
   type DataTableFeatures,
-  DataTableFooter,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -582,16 +581,14 @@ function InventoryDraftRows({
           showActions={showActions}
           editor={editor}
           footer={
-            <DataTableFooter>
-              <InventoryPagination
-                table={table}
-                form={form}
-                lines={filtered}
-                validationAttempted={validationAttempted}
-                includeInactive={Boolean(search.includeInactive)}
-                size={deferred.size ?? INVENTORY_PAGE_SIZE}
-              />
-            </DataTableFooter>
+            <InventoryPagination
+              table={table}
+              form={form}
+              lines={filtered}
+              validationAttempted={validationAttempted}
+              includeInactive={Boolean(search.includeInactive)}
+              size={deferred.size ?? INVENTORY_PAGE_SIZE}
+            />
           }
         />
       ) : (

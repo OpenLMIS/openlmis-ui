@@ -20,7 +20,11 @@ import {
   CardRows,
   SkeletonBar,
 } from '@/components/card-list';
-import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import {
+  DataTableCard,
+  DataTableFooter,
+  DataTableHeaderLabel,
+} from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { useFieldContext } from '@/components/form/form-context';
 import { HiddenFromView } from '@/components/form/form-fields';
@@ -286,7 +290,7 @@ export function PhysicalInventoryGrid({
           ))}
         </TableBody>
       </Table>
-      {footer}
+      {footer && <DataTableFooter>{footer}</DataTableFooter>}
     </DataTableCard>
   );
 }
@@ -780,7 +784,7 @@ export function PhysicalInventoryGridSkeleton({
       <div aria-busy>
         <CardList footer={<DataTablePaginationSkeleton />}>
           <li>
-            <div className="px-4">
+            <div className="flex h-6 items-center px-1 pt-2 box-content">
               <SkeletonBar width="w-24" />
             </div>
           </li>
