@@ -59,7 +59,7 @@ it('adds, edits and removes reasons and confirms an unaccounted update', async (
   expect(update).toHaveBeenCalledWith([
     { reason: expect.objectContaining({ id: 'r' }), quantity: 1 },
   ]);
-  await user.click(screen.getByText('stock-events.remove'));
+  await user.click(screen.getByRole('button', { name: 'stock-events.field-of' }));
   await waitFor(() =>
     expect(screen.queryByRole('textbox', { name: 'Return' })).not.toBeInTheDocument(),
   );
