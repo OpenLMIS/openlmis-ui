@@ -38,6 +38,7 @@ describe('ProgramLinksTable', () => {
   it('names each link by its category, even when the saved link lacks the name', async () => {
     renderPage(
       <ProgramLinksTable
+        cards={false}
         canEdit
         columnVisibility={{}}
         onEdit={vi.fn()}
@@ -57,6 +58,7 @@ describe('ProgramLinksTable', () => {
     };
     renderPage(
       <ProgramLinksTable
+        cards={false}
         canEdit
         columnVisibility={{}}
         onEdit={vi.fn()}

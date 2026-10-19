@@ -12,6 +12,7 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -45,7 +46,7 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
     columnHelper.display({
       id,
       header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
-      meta: { className: 'w-48' },
+      meta: { className: 'w-48', label: title },
       cell: ({ row }) => {
         if (row.original.kind === 'group') return null;
         const value = row.original.approval[id];
@@ -80,6 +81,7 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
             {programName(row.original.approval.program)}
           </span>
         ),
+      meta: { label: t('products.approvals.program') },
     }),
     stockColumn('maxPeriodsOfStock', t('products.approvals.max-periods')),
     stockColumn('emergencyOrderPoint', t('products.approvals.emergency-point')),
@@ -157,6 +159,13 @@ const getRowId = (row: ApprovalRow) => `${row.kind}-${row.id}`;
 
 const noop = () => {};
 
+const withoutFacilityType = (visibility: ColumnVisibilityState) => ({
+  ...visibility,
+  facilityType: false,
+});
+
+const groupHeading = (row: ApprovalRow) => (row.kind === 'group' ? row.facilityType : undefined);
+
 function useApprovalsTable({
   rows,
   columnVisibility,
@@ -181,26 +190,35 @@ function useApprovalsTable({
 }
 
 export function ApprovalsTableSkeleton({
+  cards,
   columnVisibility,
 }: {
+  cards: boolean;
   columnVisibility: ColumnVisibilityState;
 }) {
   const table = useApprovalsTable({
     rows: NO_ROWS,
-    columnVisibility,
+    columnVisibility: cards ? withoutFacilityType(columnVisibility) : columnVisibility,
     canEdit: false,
     onEdit: noop,
     onRemove: noop,
   });
+  if (cards) return <TableCardsSkeleton rowCount={3} table={table} title="program" />;
   return <DataTableSkeleton rowCount={3} table={table} />;
 }
 
 type ApprovalsTableProps = RowActions & {
+  cards: boolean;
   productId: string;
   columnVisibility: ColumnVisibilityState;
 };
 
-export function ApprovalsTable({ productId, columnVisibility, ...actions }: ApprovalsTableProps) {
+export function ApprovalsTable({
+  cards,
+  productId,
+  columnVisibility,
+  ...actions
+}: ApprovalsTableProps) {
   const { t } = useTranslation();
   const { data: approvals } = useSuspenseQuery(productApprovalsOptions(productId));
   const rows = useMemo(
@@ -216,22 +234,24 @@ export function ApprovalsTable({ productId, columnVisibility, ...actions }: Appr
       ]),
     [approvals],
   );
-  const table = useApprovalsTable({ rows, columnVisibility, ...actions });
-
-  return (
-    <DataTable
-      empty={
-        <DataTableEmpty
-          description={t(
-            actions.canEdit
-              ? 'products.approvals.empty-description'
-              : 'products.approvals.empty-read-only',
-          )}
-          icon={<BuildingIcon />}
-          title={t('products.approvals.empty-title')}
-        />
-      }
-      table={table}
+  const table = useApprovalsTable({
+    rows,
+    columnVisibility: cards ? withoutFacilityType(columnVisibility) : columnVisibility,
+    ...actions,
+  });
+  const empty = (
+    <DataTableEmpty
+      description={t(
+        actions.canEdit
+          ? 'products.approvals.empty-description'
+          : 'products.approvals.empty-read-only',
+      )}
+      icon={<BuildingIcon />}
+      title={t('products.approvals.empty-title')}
     />
   );
+  if (cards) {
+    return <TableCards empty={empty} heading={groupHeading} table={table} title="program" />;
+  }
+  return <DataTable empty={empty} table={table} />;
 }

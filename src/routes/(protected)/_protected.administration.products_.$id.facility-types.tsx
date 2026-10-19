@@ -3,10 +3,8 @@ import { createFileRoute, getRouteApi } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
@@ -26,8 +24,8 @@ import {
   CLOSED_APPROVAL_DIALOGS,
 } from '@/features/products/lib/approvals';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const productRoute = getRouteApi('/(protected)/_protected/administration/products_/$id');
 
@@ -44,19 +42,15 @@ export const Route = createFileRoute(
   component: FacilityTypesTab,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function FacilityTypesTab() {
   const { t } = useTranslation();
   const { id } = Route.useParams();
   const { canEditApprovals } = productRoute.useLoaderData();
   const { data: product } = useSuspenseQuery(productDetailOptions(id));
   const search = Route.useSearch();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
+  const { measure, cards, columnView, layout } = useCardView(
     APPROVAL_HIDEABLE_COLUMNS,
-    useStoredState('products.approvals.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
+    'products.approvals.column-visibility',
   );
   const { openDialog, closeDialog } = useSearchNavigation<ApprovalsSearch>(CLOSED_APPROVAL_DIALOGS);
   const onEdit = useCallback(
@@ -72,7 +66,7 @@ function FacilityTypesTab() {
   const listRegion = useRef<HTMLElement>(null);
 
   return (
-    <div className="flex flex-col gap-4" ref={measureContent}>
+    <div className="flex flex-col gap-4" ref={measure}>
       <WorkspaceFooterPortal width="default">
         <Button onClick={backToProducts} size="lg" variant="outline">
           {t('products.edit.back')}
@@ -85,6 +79,7 @@ function FacilityTypesTab() {
               id: column,
               label: t(labelKey),
             }))}
+            layout={layout}
             onReset={columnView.onReset}
             onVisibilityChange={columnView.onVisibilityChange}
             visibility={columnView.visibility}
@@ -114,10 +109,13 @@ function FacilityTypesTab() {
               title={t('products.approvals.error-title')}
             />
           )}
-          pendingFallback={<ApprovalsTableSkeleton columnVisibility={columnView.visibility} />}
+          pendingFallback={
+            <ApprovalsTableSkeleton cards={cards} columnVisibility={columnView.visibility} />
+          }
           resetKey="approvals"
         >
           <ApprovalsTable
+            cards={cards}
             canEdit={canEditApprovals}
             columnVisibility={columnView.visibility}
             onEdit={onEdit}

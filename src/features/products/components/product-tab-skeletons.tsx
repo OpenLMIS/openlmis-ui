@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { CardListSkeleton } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { FieldSkeleton, SwitchSkeleton } from '@/components/dialog-parts';
 import { Block } from '@/components/skeleton-block';
@@ -11,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useCardLayout } from '@/hooks/use-card-view';
 
 const ROWS = [0, 1, 2];
 
@@ -37,45 +39,70 @@ export function ProductGeneralFormSkeleton() {
 function TabTableSkeleton({ headers }: { headers: string[] }) {
   return (
     <div aria-busy className="flex flex-col gap-4">
-      <DataTableCard>
-        <Table density="comfortable">
-          <TableHeader surface="muted">
-            <TableRow>
+      <TabTable headers={headers} />
+    </div>
+  );
+}
+
+function MeasuredTabSkeleton({ headers, cardRows }: { headers: string[]; cardRows: number }) {
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  return (
+    <div ref={measure}>
+      {cards ? (
+        <div aria-busy>
+          <CardListSkeleton count={ROWS.length} pagination={false} rows={cardRows} />
+        </div>
+      ) : (
+        <TabTableSkeleton headers={headers} />
+      )}
+    </div>
+  );
+}
+
+function TabTable({ headers }: { headers: string[] }) {
+  return (
+    <DataTableCard>
+      <Table density="comfortable">
+        <TableHeader surface="muted">
+          <TableRow>
+            {headers.map((header) => (
+              <TableHead key={header}>
+                <DataTableHeaderLabel>{header}</DataTableHeaderLabel>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {ROWS.map((row) => (
+            <TableRow key={row}>
               {headers.map((header) => (
-                <TableHead key={header}>
-                  <DataTableHeaderLabel>{header}</DataTableHeaderLabel>
-                </TableHead>
+                <TableCell key={header}>
+                  <Block className="h-4 w-32" />
+                </TableCell>
               ))}
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ROWS.map((row) => (
-              <TableRow key={row}>
-                {headers.map((header) => (
-                  <TableCell key={header}>
-                    <Block className="h-4 w-32" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataTableCard>
-    </div>
+          ))}
+        </TableBody>
+      </Table>
+    </DataTableCard>
   );
 }
 
 export function ProgramLinksSkeleton() {
   const { t } = useTranslation();
   return (
-    <TabTableSkeleton headers={[t('products.programs.program'), t('products.programs.category')]} />
+    <MeasuredTabSkeleton
+      cardRows={3}
+      headers={[t('products.programs.program'), t('products.programs.category')]}
+    />
   );
 }
 
 export function ApprovalsSkeleton() {
   const { t } = useTranslation();
   return (
-    <TabTableSkeleton
+    <MeasuredTabSkeleton
+      cardRows={3}
       headers={[t('products.approvals.facility-type'), t('products.approvals.program')]}
     />
   );

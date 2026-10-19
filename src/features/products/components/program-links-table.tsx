@@ -13,6 +13,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,7 +71,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
             {getValue()}
           </span>
         ) : null,
-      meta: { className: '@3xl/main:w-1/4' },
+      meta: { className: '@3xl/main:w-1/4', label: t('products.programs.category') },
     }),
     columnHelper.accessor('fullSupply', {
       header: ({ column }) => (
@@ -83,7 +84,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
           falseLabel={t('products.programs.no')}
         />
       ),
-      meta: { className: 'w-28' },
+      meta: { className: 'w-28', label: t('products.programs.full-supply') },
     }),
     columnHelper.accessor('pricePerPack', {
       header: ({ column }) => (
@@ -93,7 +94,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
         const price = getValue();
         return price == null ? null : <span dir="ltr">{formatPrice(price)}</span>;
       },
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('products.programs.price') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -151,6 +152,7 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
 }
 
 type ProgramLinksTableProps = RowActions & {
+  cards: boolean;
   product: ProductDetail;
   columnVisibility: ColumnVisibilityState;
 };
@@ -185,8 +187,10 @@ function useProgramLinksTable({
 }
 
 export function ProgramLinksTableSkeleton({
+  cards,
   columnVisibility,
 }: {
+  cards: boolean;
   columnVisibility: ColumnVisibilityState;
 }) {
   const table = useProgramLinksTable({
@@ -196,12 +200,14 @@ export function ProgramLinksTableSkeleton({
     onEdit: noop,
     onRemove: noop,
   });
+  if (cards) return <TableCardsSkeleton rowCount={3} table={table} title="name" />;
   return <DataTableSkeleton rowCount={3} table={table} />;
 }
 
 const noop = () => {};
 
 export function ProgramLinksTable({
+  cards,
   product,
   columnVisibility,
   ...actions
@@ -226,20 +232,17 @@ export function ProgramLinksTable({
   }, [programs, categories, product.programs]);
   const table = useProgramLinksTable({ rows, columnVisibility, ...actions });
 
-  return (
-    <DataTable
-      empty={
-        <DataTableEmpty
-          description={t(
-            actions.canEdit
-              ? 'products.programs.empty-description'
-              : 'products.programs.empty-read-only',
-          )}
-          icon={<LayersIcon />}
-          title={t('products.programs.empty-title')}
-        />
-      }
-      table={table}
+  const empty = (
+    <DataTableEmpty
+      description={t(
+        actions.canEdit
+          ? 'products.programs.empty-description'
+          : 'products.programs.empty-read-only',
+      )}
+      icon={<LayersIcon />}
+      title={t('products.programs.empty-title')}
     />
   );
+  if (cards) return <TableCards empty={empty} table={table} title="name" />;
+  return <DataTable empty={empty} table={table} />;
 }

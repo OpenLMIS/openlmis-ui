@@ -65,6 +65,7 @@ function productRouter(queryClient: QueryClient) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
 });
 
 describe('product edit loader', () => {
