@@ -73,6 +73,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(client.get).mockResolvedValue({ data: saved });
 });
 
