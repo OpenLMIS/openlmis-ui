@@ -262,7 +262,8 @@ edits, which have no prop for TypeScript to detect:
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
-| `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
+| `button.tsx` | Dim `data-disabled` and `:disabled`; keep `focusableWhenDisabled` |
+| `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
@@ -361,8 +362,8 @@ App-shell pages compose `src/components/workspace.tsx`:
   `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
   Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
-  disabled picker/toolbar, empty table and sticky footer. Stock program skeleton actions reserve
-  the real translated Button size.
+  disabled picker/toolbar, empty table or empty card list and sticky footer. Stock program
+  skeleton actions reserve the real translated Button size.
 - Header actions use `size="lg"` and are direct children of `WorkspaceActions`, so each
   stretches on narrow headers. Loading skeletons render one block per button.
 - Draft editors put the muted, sticky `WorkspaceFooter` immediately after `Workspace` as a
@@ -418,8 +419,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
-- Issue, Receive and Unpack use `columnFit: 'measured'` to hide optional columns by measured fit
-  because translated inputs make pixel thresholds language dependent. `measuredFitKeep` lists
+- At or above `CONTAINER_WIDTHS['2xl']` (672px), stock event editors use tables. Below it they
+  use cards. Issue, Receive and Unpack use `columnFit: 'measured'` only for the table to hide
+  optional columns by measured fit because translated inputs make pixel thresholds language
+  dependent. `measuredFitKeep` lists
   columns the fit must keep: Unpack keeps `productCode`; other kinds use `[]`. View can still
   hide kept columns. Unpack hides Pack Size, Total Quantity and Expiry in that order, then scrolls
   sideways if the readable columns still do not fit. With draft lines but no filter
@@ -429,7 +432,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Their date column minimum measures all 12 months in the page language. Quantity sizers live
   once in the column header for every stock event layout; VVM and date sizers only serve measured
   layouts. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
-  and at least five digits. The table scrolls sideways when its column minimums do not fit.
+  and at least five digits. At or above 672px, the table scrolls sideways when its column
+  minimums do not fit.
 
 - Tables draw vertical column dividers by default.
 
@@ -448,10 +452,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   page, outlined for others, and named "Page N: " plus the `invalidPage` label. A page that marks
   rows clears each mark as soon as its cause is fixed, so the pager follows live.
 - Stock On Hand is the model for phone cards, also used by Stock Card and Transaction History.
-  Use `useCardView` (`src/hooks/use-card-view.ts`) for measurement, stored visibility and
-  layout. Below `CONTAINER_WIDTHS['2xl']`, compose `CardList`, `CardListItem`, `CardBand`,
-  `CardRows` and `CardListSkeleton` (`src/components/card-list.tsx`). Stock On Hand gives each
-  product a card with its lots as bands (lot label, View) over `SettingsItem` rows; Stock Card
+  Use `useCardLayout` for measured layout and `useCardView` for stored visibility too
+  (`src/hooks/use-card-view.ts`). Below `CONTAINER_WIDTHS['2xl']`, compose `CardList`,
+  `CardListItem`, `CardBand`, `CardRows` and `CardListSkeleton`
+  (`src/components/card-list.tsx`). Stock On Hand gives each product a card with its lots as
+  bands (lot label, View) over `SettingsItem` rows; Stock Card
   uses a date band, Transaction History a band with the document number (or date) and View.
   Details use a product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`),
   which tints, and enables the card's reason field. Cards ignore width defaults, so stored View
@@ -460,10 +465,24 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options. Each new card
   page opens at its first card below the header; filters and past-end clamps never request a
   scroll. Confirm Reversal cards collapse behind `CardToggleBand`, showing the stock change in
-  the band; every card starts collapsed and the dialog's cards have no shadow. Other lists keep
-  tables at every width, hiding lower-priority columns and allowing sideways scrolling on
-  phones. Keep headers on one line; every table header uses `DataTableHeaderLabel`'s style,
-  including loading skeletons.
+  the band; every card starts collapsed and the dialog's cards have no shadow.
+  Stock program pickers for Issue, Receive, Adjustments, Unpack and Physical Inventory use one
+  card per program, with program and action in the band; Physical Inventory adds a Status row.
+  Issue, Receive, Adjustments and Unpack editors use one card per line, with the product label
+  and Remove trash button in the band. `productLabel` from
+  `src/features/stock-events/lib/products.ts` formats `name - displayUnit (code)`. Read-only
+  rows show Pack Size, Lot Code with the table's no-lot text, Expiry and Stock On Hand;
+  Total Quantity follows Quantity. `CardControlRow` (`src/components/card-list.tsx`) pairs
+  labels with centred controls for counterparty and comments, reason and comments, VVM and
+  Date; its stacked layout gives Quantity the full width. Measured fit and `measuredFitKeep`
+  apply only to the table. Pending editors show the same empty card list.
+  Physical Inventory drafts put category headings between product cards, with each lot and
+  its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
+  Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
+  section matching the table summary. Add Products dialog lines use flat cards with inline errors.
+  Other lists keep tables at every width, hiding lower-priority columns and allowing sideways
+  scrolling on phones. Keep headers on one line; every table header uses
+  `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
@@ -620,7 +639,8 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   Editor line tables use it to hide error text, retain `aria-invalid` and
   screen-reader descriptions, and show the message on field hover or focus through Tooltip without
   adding tab stops. Invalid Submit and server failures open an AlertDialog, as Reverse does; closing
-  validation focuses the first invalid field on its page.
+  validation focuses the first invalid field on its page. In cards, `revealField`
+  (`src/lib/reveal-field.ts`) scrolls the card into view, then the field, then focuses it.
 - Inline fields use `Field surface="background"` for opaque controls on selected or hovered rows.
   Textareas use `resize-none` and grow with their content. Inline `SelectField size="sm"` and
   `Textarea size="inline"` are both 28px; where they appear on tick, as on Reverse, wrap the
