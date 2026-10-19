@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from 'lucide-react';
-import { Fragment, type ReactNode, type Ref } from 'react';
+import { type CSSProperties, Fragment, type ReactNode, type Ref } from 'react';
 import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { SettingsRowFrame } from '@/components/form/settings-list';
@@ -37,20 +37,46 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
 
 export function CardListItem({
   surface = 'raised',
+  itemRef,
+  drag,
   children,
 }: {
   surface?: 'raised' | 'flat';
+  itemRef?: Ref<HTMLLIElement>;
+  drag?: { y: number; animate: boolean; dragging: boolean };
   children: ReactNode;
 }) {
   const content = <div className="divide-y">{children}</div>;
   return (
-    <li className="scroll-mt-page-start">
+    <li
+      className={cn(
+        'scroll-mt-page-start',
+        drag && 'relative translate-y-(--card-y)',
+        drag?.animate && 'transition-transform duration-150 ease-out',
+      )}
+      ref={itemRef}
+      style={drag && ({ '--card-y': `${drag.y}px` } as CSSProperties)}
+    >
       {surface === 'flat' ? (
         <div className="min-w-0 overflow-hidden rounded-xl border bg-card">{content}</div>
       ) : (
         <DataTableCard>{content}</DataTableCard>
       )}
+      {drag?.dragging && (
+        <div aria-hidden className="absolute inset-0 rounded-xl border border-dashed bg-muted" />
+      )}
     </li>
+  );
+}
+
+export function CardDragPreview({ children }: { children: ReactNode }) {
+  return (
+    <div
+      aria-hidden
+      className="min-w-0 cursor-grabbing divide-y overflow-hidden rounded-xl border bg-card shadow-lg ring-2 ring-primary/30"
+    >
+      {children}
+    </div>
   );
 }
 

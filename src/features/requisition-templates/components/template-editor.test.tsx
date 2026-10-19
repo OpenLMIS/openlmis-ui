@@ -158,4 +158,22 @@ describe('TemplateEditor', () => {
     expect(saveRequisitionTemplate).not.toHaveBeenCalled();
     expect(client.put).not.toHaveBeenCalled();
   });
+
+  it('reveals an invalid label inside its phone card on save', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const scrolled: Element[] = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this);
+    });
+    const user = userEvent.setup();
+    renderPage(<Editor />, { queryClient: seededClient() });
+    const label = (
+      await screen.findAllByRole('textbox', { name: 'requisition-templates.configure.row-label' })
+    ).filter((field) => field.tagName === 'INPUT')[3];
+    await user.clear(label);
+    await user.click(screen.getByRole('button', { name: 'requisition-templates.configure.save' }));
+    await waitFor(() => expect(label).toHaveFocus());
+    expect(scrolled[0]).toBe(label.closest('li'));
+    expect(screen.queryByRole('table')).toBeNull();
+  });
 });

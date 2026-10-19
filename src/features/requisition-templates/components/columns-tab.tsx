@@ -20,10 +20,13 @@ import { useStore } from '@tanstack/react-form';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { CardList } from '@/components/card-list';
 import { DataTableCard } from '@/components/data-table/data-table';
 import { SettingsList } from '@/components/form/settings-list';
 import { Table, TableBody } from '@/components/ui/table';
 import {
+  ColumnCard,
+  ColumnCardPreview,
   ColumnRow,
   ColumnRowPreview,
 } from '@/features/requisition-templates/components/column-row';
@@ -36,9 +39,11 @@ import type { RequisitionTemplate } from '@/features/requisition-templates/lib/t
 export function ColumnsTab({
   form,
   saved,
+  cards,
 }: {
   form: TemplateEditorForm;
   saved: RequisitionTemplate;
+  cards: boolean;
 }) {
   const { t } = useTranslation();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -80,6 +85,25 @@ export function ColumnsTab({
   const activeRow = rows.find((row) => row.columnDefinition.id === activeId);
   const label = (id: string | number) => form.state.values.columns[String(id)]?.label ?? '';
   const position = (id: string | number) => order.indexOf(String(id)) + 1;
+  const items = (Item: typeof ColumnRow) =>
+    rows.map((row) => {
+      const key = row.columnDefinition.id;
+      if (!row.columnDefinition.canChangeOrder) return <Item key={key} form={form} column={row} />;
+      const run = runs.find((run) => run[0] === key);
+      return run ? (
+        <SortableContext key={key} items={run} strategy={verticalListSortingStrategy}>
+          {run.map((id) => (
+            <Item
+              key={id}
+              form={form}
+              column={rows.find((row) => row.columnDefinition.id === id) ?? row}
+            />
+          ))}
+        </SortableContext>
+      ) : (
+        <Fragment key={key} />
+      );
+    });
   return (
     <div className="flex flex-col gap-4">
       <div className="max-w-2xl">
@@ -151,38 +175,27 @@ export function ColumnsTab({
           );
         }}
       >
-        <DataTableCard>
-          <Table
-            layout="fixed"
-            width="measured"
-            style={{ '--table-width': '70rem' } as React.CSSProperties}
-          >
-            <TemplateColumnsHeader />
-            <TableBody>
-              {rows.map((row) => {
-                const key = row.columnDefinition.id;
-                if (!row.columnDefinition.canChangeOrder)
-                  return <ColumnRow key={key} form={form} column={row} />;
-                const run = runs.find((run) => run[0] === key);
-                return run ? (
-                  <SortableContext key={key} items={run} strategy={verticalListSortingStrategy}>
-                    {run.map((id) => (
-                      <ColumnRow
-                        key={id}
-                        form={form}
-                        column={rows.find((row) => row.columnDefinition.id === id) ?? row}
-                      />
-                    ))}
-                  </SortableContext>
-                ) : (
-                  <Fragment key={key} />
-                );
-              })}
-            </TableBody>
-          </Table>
-        </DataTableCard>
+        {cards ? (
+          <CardList>{items(ColumnCard)}</CardList>
+        ) : (
+          <DataTableCard>
+            <Table
+              layout="fixed"
+              width="measured"
+              style={{ '--table-width': '70rem' } as React.CSSProperties}
+            >
+              <TemplateColumnsHeader />
+              <TableBody>{items(ColumnRow)}</TableBody>
+            </Table>
+          </DataTableCard>
+        )}
         <DragOverlay>
-          {activeRow && <ColumnRowPreview form={form} column={activeRow} />}
+          {activeRow &&
+            (cards ? (
+              <ColumnCardPreview form={form} column={activeRow} />
+            ) : (
+              <ColumnRowPreview form={form} column={activeRow} />
+            ))}
         </DragOverlay>
       </DndContext>
     </div>
