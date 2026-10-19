@@ -151,6 +151,7 @@ function renderRoute(path = PICKER) {
 }
 
 beforeEach(async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.stubGlobal(
     'ResizeObserver',

@@ -48,6 +48,7 @@ import {
   EVENT_KINDS,
   type PrintableEventKind,
 } from '@/features/stock-events/lib/event-kinds';
+import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -157,6 +158,10 @@ export function StockEventPending({
   const { t } = useTranslation();
   const config = EVENT_KINDS[kind];
   const unit = useQuantityUnit();
+  const { measure, cards, columnView } = useCardView(
+    eventHideableColumns(kind),
+    config.columnChoicesKey,
+  );
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: false });
   const { data: home } = useQuery({
@@ -164,13 +169,19 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
-  const visibility = { lotCode: false, expiry: false, vvm: false, total: unit.unit === 'PACKS' };
+  const visibility = {
+    ...(cards ? columnView.visibility : {}),
+    lotCode: false,
+    expiry: false,
+    vvm: false,
+    total: unit.unit === 'PACKS' && (!cards || columnView.visibility.total !== false),
+  };
   return (
     <>
       <Workspace width={config.width}>
         <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
-          <div className="flex min-w-0 flex-col gap-4" aria-busy="true">
+          <div className="flex min-w-0 flex-col gap-4" aria-busy="true" ref={measure}>
             <ProductLotPickerSkeleton kind={kind} programId={programId} />
             <DataTableToolbar>
               <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled>
@@ -188,9 +199,13 @@ export function StockEventPending({
               <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                 <DataTableViewOptions
                   disabled
+                  layout={cards ? 'cards' : 'table'}
                   columns={eventHideableColumns(kind)
                     .filter(
-                      ({ id }) => id !== 'expiry' && (id !== 'total' || unit.unit === 'PACKS'),
+                      ({ id }) =>
+                        (!cards || id !== 'productCode') &&
+                        id !== 'expiry' &&
+                        (id !== 'total' || unit.unit === 'PACKS'),
                     )
                     .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
                   visibility={visibility}
@@ -198,7 +213,12 @@ export function StockEventPending({
                 />
               </div>
             </DataTableToolbar>
-            <EventLineTableSkeleton kind={kind} unit={unit.unit} columnVisibility={visibility} />
+            <EventLineTableSkeleton
+              cards={cards}
+              kind={kind}
+              unit={unit.unit}
+              columnVisibility={visibility}
+            />
           </div>
         </WorkspaceContent>
       </Workspace>

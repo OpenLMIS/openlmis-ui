@@ -32,77 +32,85 @@ beforeEach(() => {
     },
   );
 });
-it.each(['adjustment', 'issue', 'receive', 'unpack'] as const)(
-  'renders only the changed quantity row out of 10 visible %s rows',
-  async (kind) => {
-    const seeded = Array.from({ length: 10 }, (_, index) =>
-      newEventLine(
-        {
-          stockOnHand: 50,
-          orderable: {
-            id: String(index),
-            productCode: `C${index}`,
-            fullProductName: `Product ${index}`,
-            netContent: 16,
-          },
-          lot: null,
-        },
-        undefined,
-        '2026-10-08',
-        { kind, productHasLots: false },
-      ),
-    );
-    const reasons: never[] = [];
-    const onRemove = vi.fn();
-    const onSearchChange = vi.fn();
-    function Fixture() {
-      const form = useEventForm({
-        kind,
-        reasons,
-        today: '2026-10-08',
-        onValid: vi.fn(),
-        onInvalid: vi.fn(),
-      });
-      useEffect(() => {
-        form.setFieldValue('lines', seeded);
-      }, [form]);
-      const lines = useStore(form.store, (state) => state.values.lines);
-      return (
-        <EventLineTable
-          kind={kind}
-          reasonRequired
-          form={form}
-          lines={lines}
-          reasons={reasons}
-          unit="DOSES"
-          today="2026-10-08"
-          disabled={false}
-          onRemove={onRemove}
-          search={{ size: 10 }}
-          onSearchChange={onSearchChange}
-          columnVisibility={{}}
-          onClearFilter={vi.fn()}
-        />
-      );
-    }
-    renderPage(<Fixture />);
-    await waitFor(() =>
-      expect(document.querySelector('[name="lines[0].quantity.doses"]')).toBeInTheDocument(),
-    );
-    renders.mockClear();
-    fireEvent.change(
-      document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement,
+it.each(
+  (['adjustment', 'issue', 'receive', 'unpack'] as const).flatMap((kind) =>
+    [false, true].map((cards) => ({ kind, cards })),
+  ),
+)('edits only the changed $kind quantity row with cards $cards', async ({ kind, cards }) => {
+  const seeded = Array.from({ length: 10 }, (_, index) =>
+    newEventLine(
       {
-        target: { value: '2' },
+        stockOnHand: 50,
+        orderable: {
+          id: String(index),
+          productCode: `C${index}`,
+          fullProductName: `Product ${index}`,
+          netContent: 16,
+        },
+        lot: null,
       },
+      undefined,
+      '2026-10-08',
+      { kind, productHasLots: false },
+    ),
+  );
+  const reasons: never[] = [];
+  const onRemove = vi.fn();
+  const onSearchChange = vi.fn();
+  function Fixture() {
+    const form = useEventForm({
+      kind,
+      reasons,
+      today: '2026-10-08',
+      onValid: vi.fn(),
+      onInvalid: vi.fn(),
+    });
+    useEffect(() => {
+      form.setFieldValue('lines', seeded);
+    }, [form]);
+    const lines = useStore(form.store, (state) => state.values.lines);
+    return (
+      <EventLineTable
+        kind={kind}
+        cards={cards}
+        reasonRequired
+        form={form}
+        lines={lines}
+        reasons={reasons}
+        unit="DOSES"
+        today="2026-10-08"
+        disabled={false}
+        onRemove={onRemove}
+        search={{ size: 10 }}
+        onSearchChange={onSearchChange}
+        columnVisibility={{}}
+        onClearFilter={vi.fn()}
+      />
     );
-    expect(renders).toHaveBeenCalled();
-    expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(
-      new Set(['lines[0].quantity']),
-    );
-    expect(screen.getAllByRole('textbox')).toHaveLength(10);
-  },
-);
+  }
+  renderPage(<Fixture />);
+  await waitFor(() =>
+    expect(document.querySelector('[name="lines[0].quantity.doses"]')).toBeInTheDocument(),
+  );
+  renders.mockClear();
+  fireEvent.change(document.querySelector('[name="lines[0].quantity.doses"]') as HTMLInputElement, {
+    target: { value: '2' },
+  });
+  expect(renders).toHaveBeenCalled();
+  expect(new Set(renders.mock.calls.map(([name]) => name))).toEqual(new Set(['lines[0].quantity']));
+  expect(screen.getAllByRole('textbox')).toHaveLength(10);
+  if (cards) {
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const card = screen.getByText('Product 0 (C0)').closest('li') as HTMLLIElement;
+    expect(within(card).getByText('stock-events.pack-size')).toBeInTheDocument();
+    expect(within(card).getByText('stock-events.stock-on-hand')).toBeInTheDocument();
+    expect(within(card).getByRole('textbox')).toHaveValue('2');
+    fireEvent.click(within(card).getByRole('button', { name: 'stock-events.field-of' }));
+    expect(onRemove).toHaveBeenCalledWith(seeded[0].key);
+  } else {
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  }
+});
 
 it('keeps full Issue comment headers without truncation or hover text', async () => {
   function Fixture() {

@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
@@ -214,6 +214,7 @@ export function EventEditor({
   const posting = useRef(false);
   const region = useRef<HTMLDivElement>(null);
   const [measure, width] = useElementWidth<HTMLDivElement>();
+  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
   const measureRegion = useCallback(
     (element: HTMLDivElement | null) => {
       region.current = element;
@@ -319,9 +320,9 @@ export function EventEditor({
     measured ? fitColumns : hideableColumns,
     [choices, setChoices],
     region,
-    width,
+    cards ? undefined : width,
     fitContent,
-    measured,
+    measured && !cards,
     lines.length > 0 && filtered.length === 0,
   );
   const mutation = useSessionMutation({
@@ -338,10 +339,14 @@ export function EventEditor({
     if (!focusField || search.keyword || (search.page ?? 1) !== focusField.page) return;
     const target = document.getElementById(focusField.name);
     if (target && region.current?.contains(target)) {
-      target.focus();
+      if (cards) {
+        target.closest('li')?.scrollIntoView?.({ block: 'start' });
+        target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+        target.focus({ preventScroll: true });
+      } else target.focus();
       setFocusField(null);
     }
-  }, [focusField, search.keyword, search.page]);
+  }, [focusField, search.keyword, search.page, cards]);
   const add = (candidate: EventLineCandidate, hasLotsOfProduct: boolean) => {
     if (!ready || submitted || pending) return;
     const next = newEventLine(candidate, lastAdded.current, today, {
@@ -607,7 +612,12 @@ export function EventEditor({
     vvm: hasVVM,
   };
   const tablePending = (
-    <EventLineTableSkeleton kind={kind} unit={quantityUnit.unit} columnVisibility={visibility} />
+    <EventLineTableSkeleton
+      cards={cards}
+      kind={kind}
+      unit={quantityUnit.unit}
+      columnVisibility={visibility}
+    />
   );
   return (
     <>
@@ -683,9 +693,11 @@ export function EventEditor({
                 <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
                     {...columns}
+                    layout={cards ? 'cards' : 'table'}
                     columns={hideableColumns
                       .filter(
                         (column) =>
+                          (!cards || column.id !== 'productCode') &&
                           (column.id !== 'total' || quantityUnit.unit === 'PACKS') &&
                           (column.id !== 'expiry' || hasLots),
                       )
@@ -701,6 +713,7 @@ export function EventEditor({
                 />
               ) : fromCards && cardsQuery.isError && cardsQuery.data === undefined ? (
                 <EventLineTableSkeleton
+                  cards={cards}
                   kind={kind}
                   unit={quantityUnit.unit}
                   columnVisibility={visibility}
@@ -725,6 +738,7 @@ export function EventEditor({
                         programId={programId}
                       >
                         <EventLineTable
+                          cards={cards}
                           kind={kind}
                           fitContent={fitContent}
                           containerWidth={width}

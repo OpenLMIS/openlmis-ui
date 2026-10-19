@@ -209,6 +209,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   }
 
   beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -369,45 +370,54 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   if (kind === 'unpack') return;
 
   describe(`${kind} editor access`, () => {
-    it('uses cached facility and program names in the pending editor without fetching them again', async () => {
-      const i18n = createInstance();
-      await i18n.use(ICU).init({
-        lng: 'en',
-        resources: { en: { translation: en } },
-        keySeparator: false,
-      });
-      const queryClient = new QueryClient({
-        defaultOptions: { queries: { staleTime: Infinity } },
-      });
-      queryClient.setQueryData(userRecordOptions(USER).queryKey, {
-        id: USER,
-        username: 'administrator',
-        firstName: 'Admin',
-        lastName: 'Istrator',
-        active: true,
-        roleAssignments: [],
-        homeFacilityId: HOME,
-      });
-      queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
-      const router = renderPage(
-        <I18nextProvider i18n={i18n}>
-          <StockEventPending kind={eventKind} programId={FP} />
-        </I18nextProvider>,
-        { queryClient },
-      );
-      try {
-        const title = await screen.findByRole('heading', { level: 1 });
-        expect(title).toHaveTextContent('Comfort Health Clinic');
-        expect(title).toHaveTextContent('Family Planning');
-        expect(title).toHaveTextContent('HC01');
-        expect(fetchFacility).not.toHaveBeenCalled();
-        expect(fetchUserRecord).not.toHaveBeenCalled();
-        expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
-      } finally {
-        router.update({ context: {} });
-        queryClient.clear();
-      }
-    });
+    it.each([false, true])(
+      'uses cached facility and program names in the pending editor with cards %s',
+      async (cards) => {
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(cards ? 400 : 1000);
+        const i18n = createInstance();
+        await i18n.use(ICU).init({
+          lng: 'en',
+          resources: { en: { translation: en } },
+          keySeparator: false,
+        });
+        const queryClient = new QueryClient({
+          defaultOptions: { queries: { staleTime: Infinity } },
+        });
+        queryClient.setQueryData(userRecordOptions(USER).queryKey, {
+          id: USER,
+          username: 'administrator',
+          firstName: 'Admin',
+          lastName: 'Istrator',
+          active: true,
+          roleAssignments: [],
+          homeFacilityId: HOME,
+        });
+        queryClient.setQueryData(facilityOptions(HOME).queryKey, homeFacility);
+        const router = renderPage(
+          <I18nextProvider i18n={i18n}>
+            <StockEventPending kind={eventKind} programId={FP} />
+          </I18nextProvider>,
+          { queryClient },
+        );
+        try {
+          const title = await screen.findByRole('heading', { level: 1 });
+          expect(title).toHaveTextContent('Comfort Health Clinic');
+          expect(title).toHaveTextContent('Family Planning');
+          expect(title).toHaveTextContent('HC01');
+          expect(fetchFacility).not.toHaveBeenCalled();
+          expect(fetchUserRecord).not.toHaveBeenCalled();
+          expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+          if (cards) {
+            expect(screen.queryByRole('table')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
+            expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
+          } else expect(screen.getByRole('table')).toBeInTheDocument();
+        } finally {
+          router.update({ context: {} });
+          queryClient.clear();
+        }
+      },
+    );
 
     it('starts the user record while editor permissions are still pending', async () => {
       let finish!: (permissions: string[]) => void;

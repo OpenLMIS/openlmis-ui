@@ -4,6 +4,7 @@ import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardBand, CardList, CardListItem, CardRows, SkeletonBar } from '@/components/card-list';
 import {
   DataTable,
   DataTableEmpty,
@@ -13,8 +14,10 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { InputSizer } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
@@ -37,7 +40,8 @@ import {
 } from '@/features/stock-events/lib/event-kinds';
 import type { NewLot } from '@/features/stock-events/lib/types';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
-import { tableValue } from '@/lib/empty-value';
+import { usePageStart } from '@/hooks/use-page-start';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
@@ -60,6 +64,14 @@ const COLUMNS = [
   ['actions', 'stock-events.actions'],
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
+const CARD_READ_ONLY: readonly CellId[] = ['lotCode', 'expiry', 'packSize', 'stockOnHand', 'total'];
+const CARD_COLUMNS = COLUMNS.toSorted(([a], [b]) => {
+  const rank = (id: CellId) =>
+    CARD_READ_ONLY.includes(id)
+      ? CARD_READ_ONLY.indexOf(id)
+      : CARD_READ_ONLY.length + COLUMNS.findIndex(([key]) => key === id);
+  return rank(a) - rank(b);
+});
 export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1500 },
   { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1400 },
@@ -198,6 +210,7 @@ type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
   compactSelects: boolean;
+  cards?: boolean;
   id: CellId;
   index: number;
   line: EventLine;
@@ -223,6 +236,7 @@ const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
   compactSelects,
+  cards = false,
   id,
   index,
   line,
@@ -248,7 +262,8 @@ const LineCell = memo(function LineCell({
   const side = EVENT_KINDS[kind].counterparty;
   const counterparty = COUNTERPARTY[side === 'none' ? 'destination' : side];
   const reason = reasons.find((item) => item.id === line.reasonId);
-  const measured = EVENT_KINDS[kind].columnFit === 'measured';
+  const measured = !cards && EVENT_KINDS[kind].columnFit === 'measured';
+  const value = cards ? orEmpty : tableValue;
   switch (id) {
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
@@ -256,13 +271,13 @@ const LineCell = memo(function LineCell({
       return <ProductName label={productLabel} width={measured ? 'compact' : 'default'} />;
     case 'packSize':
       return (
-        <span className="tabular-nums">
-          {tableValue(
+        <bdi className="tabular-nums" dir="ltr">
+          {value(
             line.netContent == null
               ? null
               : new Intl.NumberFormat(i18n.language).format(line.netContent),
           )}
-        </span>
+        </bdi>
       );
     case 'lotCode':
       return isNewLot(line.lot) ? (
@@ -276,12 +291,12 @@ const LineCell = memo(function LineCell({
           disabled={disabled}
         />
       ) : (
-        <bdi>{lotLabel}</bdi>
+        <bdi>{cards ? orEmpty(line.lot?.lotCode) : lotLabel}</bdi>
       );
     case 'expiry':
       return (
         <bdi>
-          {tableValue(
+          {value(
             line.lot?.expirationDate
               ? formatDateValue(line.lot.expirationDate, i18n.language)
               : null,
@@ -290,9 +305,9 @@ const LineCell = memo(function LineCell({
       );
     case 'stockOnHand':
       return (
-        <span className="whitespace-nowrap tabular-nums" dir="ltr">
-          {cardQuantity(line.stockOnHand, line.netContent, unit, i18n.language)}
-        </span>
+        <bdi className="whitespace-nowrap tabular-nums" dir="ltr">
+          {value(cardQuantity(line.stockOnHand, line.netContent, unit, i18n.language))}
+        </bdi>
       );
     case 'destination':
       return (
@@ -339,9 +354,11 @@ const LineCell = memo(function LineCell({
       return assignments.find((item) => item.id === line.counterparty)?.isFreeTextAllowed ? (
         <div
           className={
-            measured
-              ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
-              : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
+            cards
+              ? 'min-w-0 w-full contain-inline-size whitespace-normal break-words'
+              : measured
+                ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
+                : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].counterpartyComments`}>
@@ -362,11 +379,13 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            compactSelects
-              ? 'w-full whitespace-normal'
-              : measured
-                ? 'w-full whitespace-normal break-words'
-                : 'w-full min-w-28 whitespace-normal break-words'
+            cards
+              ? 'min-w-0 w-full whitespace-normal'
+              : compactSelects
+                ? 'w-full whitespace-normal'
+                : measured
+                  ? 'w-full whitespace-normal break-words'
+                  : 'w-full min-w-28 whitespace-normal break-words'
           }
         >
           <div className="w-full contain-inline-size">
@@ -405,9 +424,11 @@ const LineCell = memo(function LineCell({
       return reason?.isFreeTextAllowed ? (
         <div
           className={
-            measured
-              ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
-              : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
+            cards
+              ? 'min-w-0 w-full contain-inline-size whitespace-normal break-words'
+              : measured
+                ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
+                : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].reasonFreeText`}>
@@ -427,11 +448,13 @@ const LineCell = memo(function LineCell({
       return (
         <div
           className={
-            measured
-              ? 'w-full contain-inline-size whitespace-normal break-words'
-              : unit === 'PACKS'
-                ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
-                : 'w-full min-w-20 contain-inline-size whitespace-normal break-words'
+            cards
+              ? 'min-w-0 w-full contain-inline-size whitespace-normal break-words'
+              : measured
+                ? 'w-full contain-inline-size whitespace-normal break-words'
+                : unit === 'PACKS'
+                  ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
+                  : 'w-full min-w-20 contain-inline-size whitespace-normal break-words'
           }
         >
           <form.AppField name={`lines[${index}].quantity`}>
@@ -454,8 +477,8 @@ const LineCell = memo(function LineCell({
       );
     case 'total':
       return (
-        <span className="tabular-nums">
-          {tableValue(
+        <bdi className="tabular-nums" dir="ltr">
+          {value(
             cardQuantity(
               /^[0-9]+$/.test(toLatinDigits(line.quantity.doses.trim()))
                 ? toWholeNumber(line.quantity.doses)
@@ -465,12 +488,16 @@ const LineCell = memo(function LineCell({
               i18n.language,
             ),
           )}
-        </span>
+        </bdi>
       );
     case 'vvm':
       return line.useVVM ? (
         <div className="w-full whitespace-normal break-words">
-          <div className="w-full min-w-24 contain-inline-size">
+          <div
+            className={
+              cards ? 'min-w-0 w-full contain-inline-size' : 'w-full min-w-24 contain-inline-size'
+            }
+          >
             <form.AppField name={`lines[${index}].vvmStatus`}>
               {(field) => (
                 <field.SelectField
@@ -491,9 +518,11 @@ const LineCell = memo(function LineCell({
         <div className="w-full whitespace-normal break-words">
           <div
             className={
-              measured
-                ? 'w-full min-w-28 contain-inline-size'
-                : 'w-full min-w-32 contain-inline-size'
+              cards
+                ? 'min-w-0 w-full contain-inline-size'
+                : measured
+                  ? 'w-full min-w-28 contain-inline-size'
+                  : 'w-full min-w-32 contain-inline-size'
             }
           >
             <form.AppField name={`lines[${index}].occurredDate`}>
@@ -583,7 +612,7 @@ function EditLotButton({
   );
 }
 
-type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'compactSelects'> & {
+type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'compactSelects' | 'cards'> & {
   lines: EventLine[];
   search: EventSearch;
   onSearchChange: SearchChange<EventSearch>;
@@ -591,6 +620,7 @@ type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'compactSelects'> & {
   onClearFilter: () => void;
   fitContent?: unknown;
   containerWidth?: number;
+  cards?: boolean;
 };
 export function EventLineTable({
   kind,
@@ -609,6 +639,7 @@ export function EventLineTable({
   onClearFilter,
   fitContent,
   containerWidth,
+  cards = false,
 }: Props) {
   const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
@@ -743,10 +774,11 @@ export function EventLineTable({
   const requestedPage = search.page ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(lines.length / size)));
   const rows = useMemo(() => lines.slice((page - 1) * size, page * size), [lines, page, size]);
+  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`, cards);
   const searchState = useTableSearchState({
     search: { ...search, page },
     defaultSort: NO_SORT,
-    onSearchChange,
+    onSearchChange: (update) => onSearchChange(update, undefined, pageStart.navigation),
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -758,6 +790,7 @@ export function EventLineTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   useEffect(() => {
@@ -808,33 +841,108 @@ export function EventLineTable({
       }
     />
   );
+  const footer = lines.length > 0 && (
+    <DataTablePagination
+      table={table}
+      disabled={disabled}
+      isPageInvalid={(index) =>
+        lines
+          .slice(index * size, (index + 1) * size)
+          .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
+      }
+    />
+  );
   return (
     <div ref={tableRegion}>
-      <DataTable
-        columnWidths={
-          hasLines && !rows.length && Object.keys(columnWidths.current).length
-            ? columnWidths.current
-            : undefined
-        }
-        table={table}
-        density="compact"
-        layout="auto"
-        empty={empty}
-        footer={
-          lines.length > 0 && (
-            <DataTablePagination
-              table={table}
+      {cards ? (
+        <CardList listRef={pageStart.ref} empty={!rows.length && empty} footer={footer}>
+          {rows.map((line) => (
+            <EventLineCard
+              key={line.key}
+              kind={kind}
+              reasonRequired={reasonRequired}
+              compactSelects={false}
+              cards
+              index={lineIndex.current.get(line.key) ?? -1}
+              line={line}
+              form={form}
+              reasons={reasons}
+              assignments={assignments}
+              unit={unit}
+              today={today}
               disabled={disabled}
-              isPageInvalid={(index) =>
-                lines
-                  .slice(index * size, (index + 1) * size)
-                  .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
-              }
+              onRemove={onRemove}
+              columnVisibility={columnVisibility}
             />
-          )
-        }
-      />
+          ))}
+        </CardList>
+      ) : (
+        <DataTable
+          columnWidths={
+            hasLines && !rows.length && Object.keys(columnWidths.current).length
+              ? columnWidths.current
+              : undefined
+          }
+          table={table}
+          density="compact"
+          layout="auto"
+          empty={empty}
+          footer={footer}
+        />
+      )}
     </div>
+  );
+}
+
+function EventLineCard(props: Omit<CellProps, 'id'> & { columnVisibility: ColumnVisibilityState }) {
+  const { t } = useTranslation();
+  const { columnVisibility, ...cellProps } = props;
+  const { line, kind, reasons, assignments } = cellProps;
+  const config = EVENT_KINDS[kind];
+  const details = CARD_COLUMNS.filter(([id]) => {
+    if (['product', 'productCode', 'actions'].includes(id) || columnVisibility[id] === false)
+      return false;
+    if (id === 'destination' || id === 'destinationComments') {
+      if (config.counterparty === 'none') return false;
+      if (id === 'destinationComments')
+        return assignments?.some((item) => item.id === line.counterparty && item.isFreeTextAllowed);
+    }
+    if (id === 'reason' || id === 'comments') {
+      if (config.reasons === null) return false;
+      if (id === 'comments')
+        return reasons.some((item) => item.id === line.reasonId && item.isFreeTextAllowed);
+    }
+    return id !== 'vvm' || line.useVVM;
+  });
+  return (
+    <CardListItem>
+      <CardBand>
+        <bdi className="min-w-0 wrap-anywhere">
+          {line.orderable.fullProductName} ({line.orderable.productCode})
+        </bdi>
+        <LineCell {...cellProps} id="actions" />
+      </CardBand>
+      <CardRows>
+        {details.map(([id, key]) => {
+          const label = t(columnLabel(id, key, config.counterparty));
+          const cell = <LineCell key={id} {...cellProps} id={id} />;
+          return CARD_READ_ONLY.includes(id) ? (
+            <SettingsItem key={id} label={label}>
+              {cell}
+            </SettingsItem>
+          ) : (
+            <SettingsRowFrame
+              key={id}
+              value="control"
+              align="center"
+              label={<span className="text-sm">{label}</span>}
+            >
+              {cell}
+            </SettingsRowFrame>
+          );
+        })}
+      </CardRows>
+    </CardListItem>
   );
 }
 
@@ -843,31 +951,84 @@ export function EventLineTableSkeleton({
   unit,
   columnVisibility,
   busy = true,
+  cards = false,
 }: {
   kind: ConfiguredEventKind;
   unit: QuantityUnit;
   columnVisibility: ColumnVisibilityState;
   busy?: boolean;
+  cards?: boolean;
 }) {
+  const { t } = useTranslation();
   const today = '';
   const form = useEventForm({ kind, reasons: [], today, onValid: () => {}, onInvalid: () => {} });
   return (
     <div aria-busy={busy || undefined}>
-      <EventLineTable
-        kind={kind}
-        unit={unit}
-        columnVisibility={columnVisibility}
-        form={form}
-        lines={[]}
-        reasons={[]}
-        reasonRequired={false}
-        today={today}
-        disabled
-        search={{}}
-        onSearchChange={() => {}}
-        onRemove={() => {}}
-        onClearFilter={() => {}}
-      />
+      {cards && busy ? (
+        <CardList>
+          <CardListItem>
+            <CardBand>
+              <SkeletonBar width="w-40" />
+              <div className="size-7">
+                <Skeleton fill />
+              </div>
+            </CardBand>
+            <CardRows>
+              {CARD_COLUMNS.filter(
+                ([id]) =>
+                  ![
+                    'product',
+                    'productCode',
+                    'actions',
+                    'comments',
+                    'destinationComments',
+                  ].includes(id) &&
+                  columnVisibility[id] !== false &&
+                  (EVENT_KINDS[kind].counterparty !== 'none' || id !== 'destination') &&
+                  (EVENT_KINDS[kind].reasons !== null || id !== 'reason'),
+              ).map(([id, key]) => (
+                <SettingsRowFrame
+                  key={id}
+                  value={CARD_READ_ONLY.includes(id) ? 'fit' : 'control'}
+                  align="center"
+                  label={
+                    <span className="text-sm">
+                      {t(columnLabel(id, key, EVENT_KINDS[kind].counterparty))}
+                    </span>
+                  }
+                >
+                  <div
+                    className={
+                      ['quantity', 'reason', 'destination', 'vvm', 'date'].includes(id)
+                        ? 'h-7 w-full'
+                        : 'h-4 w-20'
+                    }
+                  >
+                    <Skeleton fill />
+                  </div>
+                </SettingsRowFrame>
+              ))}
+            </CardRows>
+          </CardListItem>
+        </CardList>
+      ) : (
+        <EventLineTable
+          cards={cards}
+          kind={kind}
+          unit={unit}
+          columnVisibility={columnVisibility}
+          form={form}
+          lines={[]}
+          reasons={[]}
+          reasonRequired={false}
+          today={today}
+          disabled
+          search={{}}
+          onSearchChange={() => {}}
+          onRemove={() => {}}
+          onClearFilter={() => {}}
+        />
+      )}
     </div>
   );
 }

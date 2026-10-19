@@ -125,6 +125,7 @@ beforeAll(() =>
   }),
 );
 beforeEach(async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
   vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
@@ -656,25 +657,61 @@ describe('EventEditor', () => {
       screen.queryByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
   });
-  it('validates hidden rows and returns to the first invalid field', async () => {
+  it('uses stored details and Toggle Details on phones and keeps Remove working', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    localStorage.setItem('adjustment-columns', JSON.stringify({ packSize: false, expiry: true }));
     const { user } = setup();
     await add(user);
-    act(() => {
-      const addButton = screen.getByRole('button', { name: 'Add' });
-      for (let index = 0; index < 10; index++) fireEvent.click(addButton);
-    });
-    await filter(user, 'missing');
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-      en['stock-adjustment.invalid-title'],
-    );
-    await user.click(screen.getByRole('button', { name: /^Close$/ }));
-    await waitFor(() =>
-      expect(screen.getAllByRole('combobox', { name: /^Reason, Aspirin/ })[0]).toHaveFocus(),
-    );
-    expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
-    expect(submitStockEvent).not.toHaveBeenCalled();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const card = screen.getByText('Aspirin (C1)').closest('li') as HTMLLIElement;
+    expect(within(card).queryByText('Pack Size')).not.toBeInTheDocument();
+    expect(within(card).getByText('Expiry Date')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(screen.getByText('Toggle Details')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: 'Product Code' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Pack Size' }));
+    await user.keyboard('{Escape}');
+    expect(within(card).getByText('Pack Size')).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: /^Remove,/ }));
+    expect(screen.queryByText('Aspirin (C1)')).not.toBeInTheDocument();
   });
+  it.each([false, true])(
+    'validates hidden rows and returns to the first invalid field with cards %s',
+    async (cards) => {
+      vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(cards ? 400 : 1000);
+      const scroll = vi.fn();
+      const originalScroll = HTMLElement.prototype.scrollIntoView;
+      HTMLElement.prototype.scrollIntoView = scroll;
+      const { user } = setup();
+      await add(user);
+      act(() => {
+        const addButton = screen.getByRole('button', { name: 'Add' });
+        for (let index = 0; index < 10; index++) fireEvent.click(addButton);
+      });
+      await filter(user, 'missing');
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+        en['stock-adjustment.invalid-title'],
+      );
+      await user.click(screen.getByRole('button', { name: /^Close$/ }));
+      await waitFor(() =>
+        expect(screen.getAllByRole('combobox', { name: /^Reason, Aspirin/ })[0]).toHaveFocus(),
+      );
+      expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
+      if (cards) {
+        expect(screen.queryByRole('table')).not.toBeInTheDocument();
+        expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+        const calls = scroll.mock.calls;
+        expect(calls[calls.length - 1]).toEqual([{ block: 'nearest', inline: 'nearest' }]);
+        const first = scroll.mock.contexts.findIndex((element) => element instanceof HTMLLIElement);
+        expect(first).toBeGreaterThanOrEqual(0);
+      }
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+      expect(submitStockEvent).not.toHaveBeenCalled();
+    },
+  );
   it('confirms a signature and sends exactly one dose-based event', async () => {
     let finish!: (id: string) => void;
     vi.mocked(submitStockEvent).mockImplementation(
@@ -1396,6 +1433,7 @@ describe('Receive editor', () => {
   };
   const aspirin = { ...card.orderable, description: null };
   beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
     vi.mocked(fetchApprovedProducts).mockResolvedValue({
       content: [aspirin, vaccine].map((orderable) => ({
         id: `approved-${orderable.id}`,
