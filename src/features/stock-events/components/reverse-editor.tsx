@@ -24,6 +24,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
+  CardControlRow,
   CardList,
   CardListItem,
   CardListSkeleton,
@@ -109,6 +110,7 @@ import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
+import { revealField } from '@/lib/reveal-field';
 import { namedWithFreeText } from '@/lib/stock-labels';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
 
@@ -240,9 +242,7 @@ export function ReverseEditor({
     if (!focusField || page !== focusField.page) return;
     const target = document.getElementById(focusField.id);
     if (target) {
-      target.focus({ preventScroll: true });
-      if (cards) target.closest('li')?.scrollIntoView?.({ block: 'start' });
-      target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      revealField(target, cards, 'nearest');
       setFocusField(null);
     }
   }, [focusField, page, cards]);
@@ -992,31 +992,21 @@ function ReverseLineCard({
             <ReverseReadOnlyCell {...props} id={id} keyLabel={key} />
           </SettingsItem>
         ))}
-        <SettingsRowFrame
-          value="control"
-          align="center"
-          label={<span className="text-sm">{t('stock-event-reverse.cancel-reason')}</span>}
-        >
+        <CardControlRow label={t('stock-event-reverse.cancel-reason')}>
           <ReverseReasonCell
             {...props}
             id="cancelReason"
             keyLabel="stock-event-reverse.cancel-reason"
           />
-        </SettingsRowFrame>
+        </CardControlRow>
         {rowDraft && reason?.isFreeTextAllowed && visibility.comments !== false && (
-          <SettingsRowFrame
-            value="control"
-            align="center"
-            label={
-              <span className="text-sm">{t('stock-event-reverse.cancel-reason-comments')}</span>
-            }
-          >
+          <CardControlRow label={t('stock-event-reverse.cancel-reason-comments')}>
             <ReverseCommentsCell
               {...props}
               id="comments"
               keyLabel="stock-event-reverse.cancel-reason-comments"
             />
-          </SettingsRowFrame>
+          </CardControlRow>
         )}
         <SettingsRowFrame
           label={<strong className="text-sm">{t('stock-event-reverse.new-stock-on-hand')}</strong>}

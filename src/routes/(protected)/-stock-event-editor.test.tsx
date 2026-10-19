@@ -47,6 +47,7 @@ import {
   fetchEventStockOnHand,
   submitStockEvent,
 } from '@/features/stock-events/api/api';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
@@ -209,6 +210,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   }
 
   beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -369,7 +371,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   if (kind === 'unpack') return;
 
   describe(`${kind} editor access`, () => {
-    it('uses cached facility and program names in the pending editor without fetching them again', async () => {
+    async function renderPendingEditor() {
       const i18n = createInstance();
       await i18n.use(ICU).init({
         lng: 'en',
@@ -395,6 +397,14 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         </I18nextProvider>,
         { queryClient },
       );
+      return () => {
+        router.update({ context: {} });
+        queryClient.clear();
+      };
+    }
+
+    it('uses cached facility and program names in the pending editor without fetching them again', async () => {
+      const cleanup = await renderPendingEditor();
       try {
         const title = await screen.findByRole('heading', { level: 1 });
         expect(title).toHaveTextContent('Comfort Health Clinic');
@@ -404,10 +414,23 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         expect(fetchUserRecord).not.toHaveBeenCalled();
         expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
       } finally {
-        router.update({ context: {} });
-        queryClient.clear();
+        cleanup();
       }
     });
+
+    if (kind === 'issue')
+      it('shows pending phone cards instead of the table', async () => {
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+        const cleanup = await renderPendingEditor();
+        try {
+          expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+          expect(screen.queryByRole('table')).not.toBeInTheDocument();
+          expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
+          expect(screen.getByText(en[EVENT_KINDS[eventKind].copy.emptyTitle])).toBeInTheDocument();
+        } finally {
+          cleanup();
+        }
+      });
 
     it('starts the user record while editor permissions are still pending', async () => {
       let finish!: (permissions: string[]) => void;

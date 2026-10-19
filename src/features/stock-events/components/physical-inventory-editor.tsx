@@ -20,11 +20,9 @@ import { z } from 'zod';
 import {
   DataTableEmpty,
   type DataTableFeatures,
-  DataTableFooter,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import {
   FormDialog,
@@ -96,9 +94,11 @@ import type {
   InventoryStockLine,
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useOpening } from '@/hooks/use-opening';
+import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
@@ -106,6 +106,7 @@ import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { useOnline } from '@/lib/online';
+import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
 const choicesSchema = z.record(z.string(), z.boolean());
@@ -133,7 +134,7 @@ export function PhysicalInventoryEditor(props: Props) {
   const [progressSlot, setProgressSlot] = useState<HTMLDivElement | null>(null);
   const [saveSlot, setSaveSlot] = useState<HTMLDivElement | null>(null);
   const region = useRef<HTMLDivElement>(null);
-  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
   const measureRegion = useCallback(
     (element: HTMLDivElement | null) => {
       region.current = element;
@@ -160,8 +161,9 @@ export function PhysicalInventoryEditor(props: Props) {
     inventoryHideableColumns({ ...optionalColumns, unit: quantityUnit.unit }, choices[0]),
     choices,
     region,
-    width,
+    cards ? undefined : width,
     `${optionalColumns.showVvm}/${optionalColumns.showActions}/${quantityUnit.unit}/${i18n.language}`,
+    !cards,
   );
   const pendingBody = (
     <PhysicalInventoryPendingBody
@@ -186,6 +188,7 @@ export function PhysicalInventoryEditor(props: Props) {
               search={props.search}
               onSearchChange={props.onSearchChange}
               view={view}
+              cards={cards}
               quantityUnit={quantityUnit}
               onAdd={() => setAddOpen(true)}
               progress={<div ref={setProgressSlot} />}
@@ -196,6 +199,7 @@ export function PhysicalInventoryEditor(props: Props) {
           progressSlot={progressSlot}
           saveSlot={saveSlot}
           visibility={view.visibility}
+          cards={cards}
           onOptionalColumns={onOptionalColumns}
           quantityUnit={quantityUnit}
           addOpen={addOpen}
@@ -216,6 +220,7 @@ type RowsProps = Props &
     toolbar: ReactNode;
     pendingBody: ReactNode;
     visibility: Record<string, boolean>;
+    cards: boolean;
     onOptionalColumns: (showVvm: boolean, showActions: boolean) => void;
     quantityUnit: ReturnType<typeof useQuantityUnit>;
     addOpen: boolean;
@@ -267,6 +272,7 @@ function InventoryDraftRows({
   search,
   onSearchChange,
   visibility,
+  cards,
   onOptionalColumns,
   stock,
   localLines,
@@ -432,11 +438,19 @@ function InventoryDraftRows({
     () => inventoryPage(filtered, draft.programId, deferred.page, deferred.size),
     [filtered, draft.programId, deferred.page, deferred.size],
   );
+  const pageStart = usePageStart<HTMLUListElement>(
+    `${page.page}:${deferred.size ?? INVENTORY_PAGE_SIZE}`,
+    cards,
+  );
+  const onPagingChange = useCallback<SearchChange<InventorySearch>>(
+    (update, replace) => onSearchChange(update, replace, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const tableState = useTableSearchState({
     search: { ...search, page: page.page },
     defaultSort: NO_SORT,
     defaultPageSize: INVENTORY_PAGE_SIZE,
-    onSearchChange,
+    onSearchChange: onPagingChange,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -446,6 +460,7 @@ function InventoryDraftRows({
     manualPagination: true,
     manualSorting: true,
     ...tableState,
+    onPaginationChange: pageStart.onPaginationChange(tableState.onPaginationChange),
   });
   useEffect(() => {
     if (search === deferred && (search.page ?? 1) !== page.page)
@@ -471,13 +486,13 @@ function InventoryDraftRows({
     const target =
       element ??
       (focusTarget.key === '__table'
-        ? (region.current?.querySelector<HTMLTableElement>('table') ?? region.current)
+        ? (region.current?.querySelector<HTMLElement>(cards ? 'ul' : 'table') ?? region.current)
         : null);
     if (target) {
-      target.focus();
+      revealField(target, cards);
       if (document.activeElement === target) setFocusTarget(null);
     }
-  }, [focusTarget, actionDialog, search, deferred]);
+  }, [focusTarget, actionDialog, search, deferred, cards]);
   const patchLine = useCallback(
     (key: string, patch: Partial<InventoryLine>) => {
       form.setFieldValue('lines', (current) =>
@@ -558,22 +573,22 @@ function InventoryDraftRows({
       ) : null}
       {filtered.length ? (
         <PhysicalInventoryGrid
+          cards={cards}
+          listRef={pageStart.ref}
           bands={page.bands}
           visibility={visibility}
           showVvm={showVvm}
           showActions={showActions}
           editor={editor}
           footer={
-            <DataTableFooter>
-              <InventoryPagination
-                table={table}
-                form={form}
-                lines={filtered}
-                validationAttempted={validationAttempted}
-                includeInactive={Boolean(search.includeInactive)}
-                size={deferred.size ?? INVENTORY_PAGE_SIZE}
-              />
-            </DataTableFooter>
+            <InventoryPagination
+              table={table}
+              form={form}
+              lines={filtered}
+              validationAttempted={validationAttempted}
+              includeInactive={Boolean(search.includeInactive)}
+              size={deferred.size ?? INVENTORY_PAGE_SIZE}
+            />
           }
         />
       ) : (
@@ -723,6 +738,7 @@ function InventoryDraftRows({
             open={dialogOpen}
             onOpenChangeComplete={onOpenChangeComplete}
             line={dialogLine}
+            cards={cards}
             reasons={reasons}
             unit={quantityUnit.unit}
             onClose={closeDialog}

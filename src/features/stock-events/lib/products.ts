@@ -30,7 +30,7 @@ export type ReceiveLotOption =
   | EventLotOption
   | { value: typeof ADD_NEW_LOT; lot: null; labelKey: 'stock-events.add-new-lot'; card?: never };
 
-function productLabel(orderable: EventStockCard['orderable']): string {
+export function productLabel(orderable: EventStockCard['orderable']): string {
   const name = orderable.fullProductName || orderable.productCode;
   const unit = orderable.dispensable?.displayUnit;
   return unit ? `${name} - ${unit}` : name;

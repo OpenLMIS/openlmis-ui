@@ -397,7 +397,8 @@ type QuantityFieldProps = FieldProps & {
   netContent?: number | null;
   packsLabel: string;
   dosesLabel: string;
-  sizing?: 'full' | 'minimum';
+  sizing?: 'full' | 'minimum' | 'fill';
+  notation?: 'brackets' | 'plus';
 };
 
 export function QuantityField({
@@ -412,6 +413,7 @@ export function QuantityField({
   dosesLabel,
   hideErrors,
   sizing = 'full',
+  notation = 'brackets',
 }: QuantityFieldProps) {
   const field = useFieldContext<QuantityValue>();
   const dosesErrors = useStore(
@@ -460,7 +462,7 @@ export function QuantityField({
               <Fragment key={part}>
                 {unit === 'PACKS' && index === 1 && (
                   <span aria-hidden="true" className="shrink-0 whitespace-nowrap">
-                    ( +
+                    {notation === 'plus' ? '+' : '( +'}
                   </span>
                 )}
                 <div className={sizing === 'minimum' ? 'flex-auto' : 'min-w-0 flex-1'}>
@@ -476,7 +478,13 @@ export function QuantityField({
                   )}
                   <div>
                     <Input
-                      sizing={sizing === 'minimum' ? 'minimum' : 'full-minimum'}
+                      sizing={
+                        sizing === 'minimum'
+                          ? 'minimum'
+                          : sizing === 'fill'
+                            ? 'full'
+                            : 'full-minimum'
+                      }
                       controlSize={layout === 'inline' ? 'sm' : 'default'}
                       aria-describedby={state.describedBy}
                       aria-invalid={state.isInvalid}
@@ -509,7 +517,7 @@ export function QuantityField({
               </Fragment>
             );
           })}
-          {unit === 'PACKS' && (
+          {unit === 'PACKS' && notation === 'brackets' && (
             <span aria-hidden="true" className="shrink-0">
               )
             </span>

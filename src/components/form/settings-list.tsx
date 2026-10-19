@@ -12,7 +12,7 @@ type SettingsRowFrameProps = {
   /** Under the label. */
   description?: ReactNode;
   /** `control` gives an input half the row; `fit` lets a switch or a value take its own width. */
-  value?: 'control' | 'fit';
+  value?: 'control' | 'wide' | 'fit';
   align?: 'start' | 'center';
   children: ReactNode;
 };
@@ -34,7 +34,13 @@ export function SettingsRowFrame({
           : 'flex items-start justify-between gap-4'
       }
     >
-      <div className="flex min-h-8 min-w-0 flex-1 flex-col justify-center gap-0.5">
+      <div
+        className={
+          value === 'wide'
+            ? 'flex min-h-8 shrink-0 flex-col justify-center gap-0.5'
+            : 'flex min-h-8 min-w-0 flex-1 flex-col justify-center gap-0.5'
+        }
+      >
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {label}
           {badge}
@@ -45,7 +51,9 @@ export function SettingsRowFrame({
         className={
           value === 'control'
             ? 'flex w-1/2 max-w-sm shrink-0 flex-col gap-1'
-            : 'flex min-h-8 min-w-0 max-w-1/2 items-center justify-end'
+            : value === 'wide'
+              ? 'flex min-w-0 max-w-sm flex-1 flex-col gap-1'
+              : 'flex min-h-8 min-w-0 max-w-1/2 items-center justify-end'
         }
       >
         {children}

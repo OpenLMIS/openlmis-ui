@@ -38,6 +38,10 @@ const buttonVariants = cva(
         "icon-lg": "size-9",
         xl: "h-10 gap-1.5 px-2.5 has-data-[icon=inline-end]:pe-2 has-data-[icon=inline-start]:ps-2",
       },
+      wrap: {
+        none: "",
+        normal: "h-auto min-w-0 whitespace-normal text-start",
+      },
       padding: {
         default: "",
         none: "p-0",
@@ -62,6 +66,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
       padding: "default",
+      wrap: "none",
       align: "default",
       width: "default",
       tone: "default",
@@ -74,6 +79,7 @@ function Button({
   variant = "default",
   size = "default",
   padding = "default",
+  wrap = "none",
   align = "default",
   width = "default",
   tone = "default",
@@ -82,7 +88,7 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, padding, align, width, tone, className }))}
+      className={cn(buttonVariants({ variant, size, padding, align, width, tone, wrap, className }))}
       {...props}
     />
   )

@@ -214,18 +214,21 @@ export function FormDialogCancel({ disabled = false, children }: FormDialogCance
 type FormDialogSubmitProps = {
   pending?: boolean;
   disabled?: boolean;
+  /** Leading icon, replaced by the spinner while pending. */
+  icon?: ReactNode;
   children: ReactNode;
 };
 
 export function FormDialogSubmit({
   pending = false,
   disabled = false,
+  icon,
   children,
 }: FormDialogSubmitProps) {
   return (
     // Focusable while pending, so pressing it does not drop keyboard focus out of the dialog.
     <Button disabled={pending || disabled} focusableWhenDisabled={pending} type="submit">
-      {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
+      {pending ? <Loader2Icon className="animate-spin" data-icon="inline-start" /> : icon}
       {children}
     </Button>
   );

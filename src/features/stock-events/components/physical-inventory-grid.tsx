@@ -1,13 +1,36 @@
 import { useStore } from '@tanstack/react-form';
 import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { ArchiveXIcon, CircleAlertIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { Fragment, memo, type ReactNode, useEffect, useId, useMemo, useState } from 'react';
+import {
+  Fragment,
+  memo,
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
+  DataTableCard,
+  DataTableFooter,
+  DataTableHeaderLabel,
+} from '@/components/data-table/data-table';
+import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { useFieldContext } from '@/components/form/form-context';
 import { HiddenFromView } from '@/components/form/form-fields';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import { updateQuantityValue } from '@/components/form/quantity-value';
+import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input, InputSizer } from '@/components/ui/input';
@@ -38,8 +61,9 @@ import type {
   InventoryCategoryBand,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { productLabel } from '@/features/stock-events/lib/products';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
-import { tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 import { cn } from '@/lib/utils';
 import { toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
@@ -57,6 +81,17 @@ const COLUMNS = [
   ['unaccounted', 'physical-inventory.unaccounted'],
   ['actions', 'stock-events.actions'],
 ] as const;
+const CARD_COLUMNS = new Set([
+  'packSize',
+  'expiry',
+  'stock',
+  'count',
+  'vvm',
+  'reasons',
+  'unaccounted',
+]);
+const CARD_CONTROLS = new Set(['count', 'vvm', 'reasons']);
+
 type ColumnId = (typeof COLUMNS)[number][0];
 const HIDEABLE_COLUMN_IDS: readonly ColumnId[] = ['productCode', 'packSize', 'expiry', 'stock'];
 export const INVENTORY_HIDEABLE_COLUMNS = COLUMNS.filter(([id]) =>
@@ -157,6 +192,8 @@ type Props = {
   showVvm: boolean;
   showActions: boolean;
   footer?: ReactNode;
+  cards?: boolean;
+  listRef?: Ref<HTMLUListElement>;
 };
 export function PhysicalInventoryGrid({
   bands,
@@ -165,12 +202,55 @@ export function PhysicalInventoryGrid({
   showActions,
   editor,
   footer,
+  cards = false,
+  listRef,
 }: Props) {
   const { t } = useTranslation();
   const columns = useMemo(
     () => visibleColumns(visibility, showVvm, showActions),
     [visibility, showVvm, showActions],
   );
+  if (cards)
+    return (
+      <CardList listRef={listRef} footer={footer}>
+        {bands.map((band) => (
+          <Fragment key={band.category}>
+            <li>
+              <h2 className="px-1 pt-2 font-semibold text-base">
+                <bdi>{band.category}</bdi>
+              </h2>
+            </li>
+            {band.groups.map((group) => (
+              <CardListItem key={group.orderable.id}>
+                <CardBand>
+                  <bdi className="min-w-0 wrap-anywhere">
+                    {productLabel(group.orderable)} ({group.orderable.productCode})
+                  </bdi>
+                </CardBand>
+                {group.lines.map((line) => (
+                  <InventoryRow
+                    key={line.key}
+                    lineKey={line.key}
+                    editor={editor}
+                    columns={columns}
+                    hideProduct
+                    cards
+                  />
+                ))}
+                {group.lines.length > 1 && (
+                  <InventorySummaryRow
+                    editor={editor}
+                    lines={group.lines}
+                    columns={columns}
+                    cards
+                  />
+                )}
+              </CardListItem>
+            ))}
+          </Fragment>
+        ))}
+      </CardList>
+    );
   return (
     <DataTableCard>
       <Table
@@ -210,7 +290,7 @@ export function PhysicalInventoryGrid({
           ))}
         </TableBody>
       </Table>
-      {footer}
+      {footer && <DataTableFooter>{footer}</DataTableFooter>}
     </DataTableCard>
   );
 }
@@ -281,11 +361,14 @@ const InventorySummaryRow = memo(function InventorySummaryRow({
   editor,
   lines,
   columns,
+  cards = false,
 }: {
   editor: InventoryGridEditor;
+  cards?: boolean;
   lines: readonly InventoryLine[];
   columns: readonly (typeof COLUMNS)[number][];
 }) {
+  const { t } = useTranslation();
   const summary = useStore(
     editor.form.store,
     (state) => lines.map((line) => state.values.lines[line.key]).filter(Boolean),
@@ -293,6 +376,29 @@ const InventorySummaryRow = memo(function InventorySummaryRow({
       previous.length === next.length && previous.every((line, index) => line === next[index]),
   );
   if (!summary.length) return null;
+  if (cards)
+    return (
+      <>
+        <CardBand>{t('physical-inventory.total')}</CardBand>
+        <div className="bg-muted/50">
+          <CardRows>
+            {columns
+              .filter(([id]) => id === 'packSize' || id === 'stock' || id === 'count')
+              .map(([id, key]) => (
+                <SettingsItem key={id} label={t(key)}>
+                  <InventoryCell
+                    cards
+                    id={id}
+                    editor={editor}
+                    line={summary[0]}
+                    summary={summary}
+                  />
+                </SettingsItem>
+              ))}
+          </CardRows>
+        </div>
+      </>
+    );
   return (
     <TableRow surface="muted">
       {columns.map(([id]) => (
@@ -312,29 +418,83 @@ const InventoryRow = memo(
     editor,
     columns,
     hideProduct,
+    cards = false,
   }: {
     lineKey: string;
     editor: InventoryGridEditor;
     columns: readonly (typeof COLUMNS)[number][];
     hideProduct: boolean;
+    cards?: boolean;
   }) {
     const [countFocused, setCountFocused] = useState(false);
     const line = useStore(editor.form.store, (state) => state.values.lines[lineKey]);
+    const { t } = useTranslation();
     if (!line) return null;
+    const focusEvents = {
+      onFocusCapture: (event: React.FocusEvent<HTMLElement>) =>
+        setCountFocused(Boolean(event.target.closest('[data-inventory-key]'))),
+      onBlurCapture: (event: React.FocusEvent<HTMLElement>) => {
+        if (
+          !(event.relatedTarget instanceof Element) ||
+          !event.currentTarget.contains(event.relatedTarget) ||
+          !event.relatedTarget.closest('[data-inventory-key]')
+        )
+          setCountFocused(false);
+      },
+    };
+    if (cards)
+      return (
+        <div {...focusEvents} className="divide-y">
+          <CardBand>
+            <div className="min-w-0 wrap-anywhere">
+              <InventoryCell id="lot" editor={editor} line={line} cards />
+            </div>
+            {columns.some(([id]) => id === 'actions') && (
+              <InventoryCell id="actions" editor={editor} line={line} cards />
+            )}
+          </CardBand>
+          <CardRows>
+            {columns
+              .filter(([id]) => CARD_COLUMNS.has(id))
+              .map(([id, key]) => {
+                const cell = (
+                  <InventoryCell
+                    id={id}
+                    editor={editor}
+                    line={line}
+                    countFocused={countFocused}
+                    cards
+                  />
+                );
+                if (
+                  CARD_CONTROLS.has(id) &&
+                  (id !== 'vvm' || line.orderable.extraData?.useVVM === 'true')
+                )
+                  return (
+                    <CardControlRow key={id} label={t(key)}>
+                      {cell}
+                    </CardControlRow>
+                  );
+                return (
+                  <SettingsItem key={id} label={t(key)}>
+                    <span
+                      className={cn(
+                        id === 'unaccounted' && 'font-bold',
+                        id === 'unaccounted' &&
+                          unaccountedInvalid(line, editor) &&
+                          'text-destructive',
+                      )}
+                    >
+                      {cell}
+                    </span>
+                  </SettingsItem>
+                );
+              })}
+          </CardRows>
+        </div>
+      );
     return (
-      <TableRow
-        onFocusCapture={(event) =>
-          setCountFocused(Boolean(event.target.closest('[data-inventory-key]')))
-        }
-        onBlurCapture={(event) => {
-          if (
-            !(event.relatedTarget instanceof Element) ||
-            !event.currentTarget.contains(event.relatedTarget) ||
-            !event.relatedTarget.closest('[data-inventory-key]')
-          )
-            setCountFocused(false);
-        }}
-      >
+      <TableRow {...focusEvents}>
         {columns.map(([id]) => (
           <TableCell
             key={id}
@@ -358,6 +518,7 @@ const InventoryRow = memo(
     previous.lineKey === next.lineKey &&
     previous.editor === next.editor &&
     previous.hideProduct === next.hideProduct &&
+    previous.cards === next.cards &&
     previous.columns.map(([id]) => id).join() === next.columns.map(([id]) => id).join(),
 );
 
@@ -367,6 +528,7 @@ function InventoryCell({
   summary,
   hideProduct,
   countFocused = false,
+  cards = false,
   editor,
 }: {
   editor: InventoryGridEditor;
@@ -375,6 +537,7 @@ function InventoryCell({
   summary?: readonly InventoryLine[];
   hideProduct?: boolean;
   countFocused?: boolean;
+  cards?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const [unaccountedOpen, setUnaccountedOpen] = useState(false);
@@ -382,6 +545,7 @@ function InventoryCell({
   useEffect(() => {
     if (!countFocused) setUnaccountedDismissed(false);
   }, [countFocused]);
+  const valueOrEmpty = cards ? orEmpty : tableValue;
   const formats = inventoryFormats(i18n.language);
   const format = formats.number;
   const errorId = useId();
@@ -392,7 +556,7 @@ function InventoryCell({
   const label = (field: string) => t('stock-events.field-of', { field, row });
   const number = (value: number | null | undefined) => (
     <span className="tabular-nums">
-      <bdi>{tableValue(value == null ? null : format(value))}</bdi>
+      <bdi>{valueOrEmpty(value == null ? null : format(value))}</bdi>
     </span>
   );
   const total = (get: (item: InventoryLine) => number | null) => {
@@ -405,13 +569,25 @@ function InventoryCell({
     case 'productCode':
       return hideProduct ? null : <bdi>{line.orderable.productCode}</bdi>;
     case 'product': {
-      const unit = line.orderable.dispensable?.displayUnit;
-      const name = `${productName(line.orderable)}${unit ? ` - ${unit}` : ''}`;
+      const name = productLabel(line.orderable);
       return hideProduct ? null : <ProductName label={name} width="inventory" />;
     }
     case 'packSize':
       return number(line.orderable.netContent);
     case 'lot':
+      if (!summary && line.newLot && cards)
+        return (
+          <Button
+            variant="link"
+            wrap="normal"
+            padding="none"
+            aria-label={label(t('physical-inventory.edit-lot'))}
+            onClick={() => editor.onEditLot(line)}
+            type="button"
+          >
+            <bdi className="wrap-anywhere">{line.newLot.lotCode}</bdi>
+          </Button>
+        );
       if (!summary && line.newLot)
         return (
           <Button
@@ -420,24 +596,24 @@ function InventoryCell({
             aria-label={label(t('physical-inventory.edit-lot'))}
             onClick={() => editor.onEditLot(line)}
           >
-            <span className="whitespace-nowrap">{line.newLot.lotCode}</span>
+            <bdi className="whitespace-nowrap">{line.newLot.lotCode}</bdi>
           </Button>
         );
       return summary ? null : (
-        <span className="whitespace-nowrap">
+        <span className={cards ? 'min-w-0 wrap-anywhere whitespace-normal' : 'whitespace-nowrap'}>
           <bdi>{inventoryLotCode(line) ?? t('stock-events.no-lot-defined')}</bdi>
         </span>
       );
     case 'expiry':
       return summary ? null : (
         <bdi>
-          {tableValue(inventoryExpiry(line) ? formats.date(inventoryExpiry(line) ?? '') : null)}
+          {valueOrEmpty(inventoryExpiry(line) ? formats.date(inventoryExpiry(line) ?? '') : null)}
         </bdi>
       );
     case 'stock':
       return (
         <bdi dir="ltr">
-          {tableValue(
+          {valueOrEmpty(
             formats.quantity(
               total((item) => item.stockOnHand),
               line.orderable.netContent,
@@ -460,7 +636,7 @@ function InventoryCell({
         );
       return (
         <bdi dir="ltr">
-          {tableValue(
+          {valueOrEmpty(
             formats.quantity(
               total((item) => toOptionalWholeNumber(item.quantity.doses)),
               line.orderable.netContent,
@@ -473,7 +649,9 @@ function InventoryCell({
       if (summary) return null;
       const value = (
         <bdi dir="ltr">
-          {tableValue(formats.quantity(unaccounted(line), line.orderable.netContent, editor.unit))}
+          {valueOrEmpty(
+            formats.quantity(unaccounted(line), line.orderable.netContent, editor.unit),
+          )}
         </bdi>
       );
       if (!unaccountedInvalid(line, editor)) return <div>{value}</div>;
@@ -524,7 +702,9 @@ function InventoryCell({
             ) : (
               <PencilIcon data-icon="inline-start" />
             )}
-            <span className="whitespace-nowrap">
+            <span
+              className={cards ? 'min-w-0 wrap-anywhere whitespace-normal' : 'whitespace-nowrap'}
+            >
               {line.stockAdjustments.length === 0
                 ? t('physical-inventory.add-reasons')
                 : line.stockAdjustments.length === 1
@@ -580,7 +760,7 @@ function InventoryCell({
             </editor.form.AppField>
           </div>
         );
-      return null;
+      return cards ? EMPTY_VALUE : null;
   }
 }
 
@@ -589,14 +769,64 @@ export function PhysicalInventoryGridSkeleton({
   showVvm = false,
   showActions = false,
   unit = 'DOSES',
+  cards = false,
 }: {
   visibility: ColumnVisibilityState;
   showVvm?: boolean;
   showActions?: boolean;
   unit?: QuantityUnit;
+  cards?: boolean;
 }) {
   const { t } = useTranslation();
   const columns = visibleColumns(visibility, showVvm, showActions);
+  if (cards)
+    return (
+      <div aria-busy>
+        <CardList footer={<DataTablePaginationSkeleton />}>
+          <li>
+            <div className="flex h-6 items-center px-1 pt-2 box-content">
+              <SkeletonBar width="w-24" />
+            </div>
+          </li>
+          {Array.from({ length: 5 }, (_, index) => `card-${index}`).map((key) => (
+            <CardListItem key={key}>
+              <CardBand>
+                <SkeletonBar width="w-40" />
+              </CardBand>
+              <CardBand>
+                <SkeletonBar width="w-24" />
+                {showActions && (
+                  <div className="size-7">
+                    <Skeleton fill />
+                  </div>
+                )}
+              </CardBand>
+              <CardRows>
+                {columns
+                  .filter(([id]) => CARD_COLUMNS.has(id))
+                  .map(([id, key]) =>
+                    CARD_CONTROLS.has(id) ? (
+                      <CardControlRow key={id} label={t(key)}>
+                        <div className="h-7 w-full">
+                          <Skeleton fill />
+                        </div>
+                      </CardControlRow>
+                    ) : (
+                      <SettingsRowFrame
+                        key={id}
+                        label={<span className="text-sm">{t(key)}</span>}
+                        align="center"
+                      >
+                        <SkeletonBar width="w-20" />
+                      </SettingsRowFrame>
+                    ),
+                  )}
+              </CardRows>
+            </CardListItem>
+          ))}
+        </CardList>
+      </div>
+    );
   return (
     <div aria-busy>
       <DataTableCard>

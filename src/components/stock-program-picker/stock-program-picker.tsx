@@ -2,10 +2,19 @@ import { ClipboardListIcon, WarehouseIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
+import {
   DataTableCard,
   DataTableEmpty,
   DataTableHeaderLabel,
 } from '@/components/data-table/data-table';
+import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -16,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useCardLayout } from '@/hooks/use-card-view';
+import { orEmpty } from '@/lib/empty-value';
 
 type StockProgramRow = {
   id: string;
@@ -79,7 +90,16 @@ function ProgramTable({
   );
 }
 
-export function StockProgramPicker({
+export function StockProgramPicker(props: StockProgramPickerProps) {
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  return (
+    <div ref={measure}>
+      <ProgramPickerContent {...props} cards={cards} />
+    </div>
+  );
+}
+
+function ProgramPickerContent({
   rows,
   hasHomeFacility,
   actionLabel,
@@ -87,7 +107,8 @@ export function StockProgramPicker({
   linkFor,
   statusLabel,
   onAction,
-}: StockProgramPickerProps) {
+  cards,
+}: StockProgramPickerProps & { cards: boolean }) {
   const { t } = useTranslation();
   if (!hasHomeFacility || rows.length === 0) {
     return (
@@ -104,6 +125,42 @@ export function StockProgramPicker({
       </DataTableCard>
     );
   }
+  const action = (row: StockProgramRow) => (
+    <Button
+      nativeButton={Boolean(onAction)}
+      render={onAction ? undefined : linkFor?.(row)}
+      role={onAction ? undefined : 'link'}
+      disabled={row.disabled}
+      onClick={onAction ? () => onAction(row) : undefined}
+      size={cards ? 'sm' : 'xl'}
+      width="shrink"
+    >
+      <span className="whitespace-normal break-words">{row.actionLabel ?? actionLabel}</span>
+    </Button>
+  );
+  if (cards) {
+    return (
+      <CardList>
+        {rows.map((row) => (
+          <CardListItem key={row.id}>
+            <CardBand>
+              <span className="min-w-0 flex-1 wrap-anywhere">
+                <bdi>{row.label}</bdi>
+              </span>
+              {action(row)}
+            </CardBand>
+            {statusLabel ? (
+              <CardRows>
+                <SettingsItem label={statusLabel}>
+                  <bdi>{orEmpty(row.status)}</bdi>
+                </SettingsItem>
+              </CardRows>
+            ) : null}
+          </CardListItem>
+        ))}
+      </CardList>
+    );
+  }
   return (
     <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
       {rows.map((row) => (
@@ -117,21 +174,7 @@ export function StockProgramPicker({
             </TableCell>
           ) : null}
           <TableCell>
-            <div className="flex justify-end">
-              <Button
-                nativeButton={Boolean(onAction)}
-                render={onAction ? undefined : linkFor?.(row)}
-                role={onAction ? undefined : 'link'}
-                disabled={row.disabled}
-                onClick={onAction ? () => onAction(row) : undefined}
-                size="xl"
-                width="shrink"
-              >
-                <span className="whitespace-normal break-words">
-                  {row.actionLabel ?? actionLabel}
-                </span>
-              </Button>
-            </div>
+            <div className="flex justify-end">{action(row)}</div>
           </TableCell>
         </TableRow>
       ))}
@@ -148,40 +191,56 @@ export function StockProgramPickerSkeleton({
   actionsLabel?: string;
   statusLabel?: string;
 }) {
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const action = (
+    <div className="relative min-w-0">
+      <div className="invisible" aria-hidden="true">
+        <Button size={cards ? 'sm' : 'xl'} width="shrink" disabled tabIndex={-1}>
+          <span className="whitespace-normal break-words">{actionLabel}</span>
+        </Button>
+      </div>
+      <div className="absolute inset-0">
+        <Skeleton fill />
+      </div>
+    </div>
+  );
   return (
-    <div aria-busy>
-      <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
-        {[0, 1].map((row) => (
-          <TableRow key={row}>
-            <TableCell>
-              <div className="h-4 w-3/4">
-                <Skeleton fill />
-              </div>
-            </TableCell>
-            {statusLabel ? (
+    <div ref={measure} aria-busy>
+      {cards ? (
+        <CardListSkeleton
+          count={2}
+          rows={statusLabel ? 1 : 0}
+          pagination={false}
+          band={
+            <>
+              <SkeletonBar width="w-24" />
+              {action}
+            </>
+          }
+        />
+      ) : (
+        <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
+          {[0, 1].map((row) => (
+            <TableRow key={row}>
               <TableCell>
-                <div className="h-4 w-20">
+                <div className="h-4 w-3/4">
                   <Skeleton fill />
                 </div>
               </TableCell>
-            ) : null}
-            <TableCell>
-              <div className="flex justify-end">
-                <div className="relative">
-                  <div className="invisible" aria-hidden="true">
-                    <Button size="xl" width="shrink" disabled tabIndex={-1}>
-                      <span className="whitespace-normal break-words">{actionLabel}</span>
-                    </Button>
-                  </div>
-                  <div className="absolute inset-0">
+              {statusLabel ? (
+                <TableCell>
+                  <div className="h-4 w-20">
                     <Skeleton fill />
                   </div>
-                </div>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </ProgramTable>
+                </TableCell>
+              ) : null}
+              <TableCell>
+                <div className="flex justify-end">{action}</div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </ProgramTable>
+      )}
     </div>
   );
 }

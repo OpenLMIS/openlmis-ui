@@ -3,7 +3,6 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CardList, CardListItem, CardRows, CardToggleBand } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { CONTAINER_WIDTHS, useElementWidth } from '@/components/data-table/responsive-columns';
 import { SettingsItem } from '@/components/form/settings-list';
 import {
   Table,
@@ -15,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { StockEventLine } from '@/features/stock-events/lib/types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { namedWithFreeText } from '@/lib/stock-labels';
@@ -38,8 +38,7 @@ export function ReverseSummaryTable({
   unavailable?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const quantity = (value: number | undefined, line: StockEventLine) =>
     tableValue(cardQuantity(value, line.orderable.netContent, unit, i18n.language));
   const listId = useId();

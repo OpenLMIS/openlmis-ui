@@ -2,8 +2,9 @@ import { useStore } from '@tanstack/react-form';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTable,
   DataTableEmpty,
@@ -13,18 +14,17 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { InputSizer } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
 import type { EventSearch } from '@/features/stock-events/components/event-editor';
 import { ProductName } from '@/features/stock-events/components/product-name';
 import { type EventForm, useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import {
   changeEventCounterparty,
-  changeEventLot,
   changeEventReason,
   type EventLine,
   isNewLot,
@@ -35,11 +35,13 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
-import type { NewLot } from '@/features/stock-events/lib/types';
+import { productLabel } from '@/features/stock-events/lib/products';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
-import { tableValue } from '@/lib/empty-value';
+import { usePageStart } from '@/hooks/use-page-start';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
+import { cn } from '@/lib/utils';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
 
 const COLUMNS = [
@@ -60,6 +62,7 @@ const COLUMNS = [
   ['actions', 'stock-events.actions'],
 ] as const;
 type CellId = (typeof COLUMNS)[number][0];
+const CARD_READ_ONLY: readonly CellId[] = ['lotCode', 'expiry', 'packSize', 'stockOnHand', 'total'];
 export const EVENT_HIDEABLE_COLUMNS = [
   { id: 'productCode', labelKey: 'stock-events.product-code', hideBelow: 1500 },
   { id: 'packSize', labelKey: 'stock-events.pack-size', hideBelow: 1400 },
@@ -198,6 +201,7 @@ type CellProps = {
   kind: ConfiguredEventKind;
   reasonRequired: boolean;
   compactSelects: boolean;
+  cards?: boolean;
   id: CellId;
   index: number;
   line: EventLine;
@@ -208,6 +212,7 @@ type CellProps = {
   today: string;
   disabled: boolean;
   onRemove: (key: string) => void;
+  onEditLot?: (line: EventLine) => void;
 };
 const revalidating = new WeakSet<EventForm>();
 function revalidateMountedFields(form: EventForm) {
@@ -223,6 +228,7 @@ const LineCell = memo(function LineCell({
   kind,
   reasonRequired,
   compactSelects,
+  cards = false,
   id,
   index,
   line,
@@ -233,13 +239,12 @@ const LineCell = memo(function LineCell({
   today,
   disabled,
   onRemove,
+  onEditLot,
 }: CellProps) {
   const { t, i18n } = useTranslation();
   useEffect(() => revalidateMountedFields(form), [form]);
   const name = line.orderable.fullProductName || line.orderable.productCode;
-  const productLabel = line.orderable.dispensable?.displayUnit
-    ? `${name} - ${line.orderable.dispensable.displayUnit}`
-    : name;
+  const product = productLabel(line.orderable);
   const lotLabel =
     line.lot?.lotCode ??
     t(line.productHasLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots');
@@ -248,40 +253,43 @@ const LineCell = memo(function LineCell({
   const side = EVENT_KINDS[kind].counterparty;
   const counterparty = COUNTERPARTY[side === 'none' ? 'destination' : side];
   const reason = reasons.find((item) => item.id === line.reasonId);
-  const measured = EVENT_KINDS[kind].columnFit === 'measured';
+  const measured = !cards && EVENT_KINDS[kind].columnFit === 'measured';
+  const value = cards ? orEmpty : tableValue;
   switch (id) {
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
-      return <ProductName label={productLabel} width={measured ? 'compact' : 'default'} />;
+      return <ProductName label={product} width={measured ? 'compact' : 'default'} />;
     case 'packSize':
       return (
-        <span className="tabular-nums">
-          {tableValue(
+        <bdi className="tabular-nums" dir="ltr">
+          {value(
             line.netContent == null
               ? null
               : new Intl.NumberFormat(i18n.language).format(line.netContent),
           )}
-        </span>
+        </bdi>
       );
     case 'lotCode':
       return isNewLot(line.lot) ? (
-        <EditLotButton
-          line={line}
-          lot={line.lot}
-          label={t('stock-events.edit-lot', { row })}
-          product={productLabel}
-          form={form}
-          today={today}
+        <Button
+          aria-label={t('stock-events.edit-lot', { row })}
           disabled={disabled}
-        />
+          onClick={() => onEditLot?.(line)}
+          padding="none"
+          size="sm"
+          type="button"
+          variant="link"
+        >
+          <bdi>{line.lot.lotCode}</bdi>
+        </Button>
       ) : (
         <bdi>{lotLabel}</bdi>
       );
     case 'expiry':
       return (
         <bdi>
-          {tableValue(
+          {value(
             line.lot?.expirationDate
               ? formatDateValue(line.lot.expirationDate, i18n.language)
               : null,
@@ -290,9 +298,9 @@ const LineCell = memo(function LineCell({
       );
     case 'stockOnHand':
       return (
-        <span className="whitespace-nowrap tabular-nums" dir="ltr">
-          {cardQuantity(line.stockOnHand, line.netContent, unit, i18n.language)}
-        </span>
+        <bdi className="whitespace-nowrap tabular-nums" dir="ltr">
+          {value(cardQuantity(line.stockOnHand, line.netContent, unit, i18n.language))}
+        </bdi>
       );
     case 'destination':
       return (
@@ -324,7 +332,7 @@ const LineCell = memo(function LineCell({
                     { value: '', label: t('stock-events.select-option') },
                     ...assignments.map((item) => ({ value: item.id, label: item.name ?? '' })),
                   ]}
-                  wrap={compactSelects ? 'two-lines' : 'nowrap'}
+                  wrap={cards ? 'wrap' : compactSelects ? 'two-lines' : 'nowrap'}
                   label={label(counterparty.column)}
                   layout="inline"
                   hideErrors
@@ -338,11 +346,10 @@ const LineCell = memo(function LineCell({
     case 'destinationComments':
       return assignments.find((item) => item.id === line.counterparty)?.isFreeTextAllowed ? (
         <div
-          className={
-            measured
-              ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
-              : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
-          }
+          className={cn(
+            'w-full contain-inline-size whitespace-normal break-words',
+            cards ? 'min-w-0' : measured ? 'min-w-28' : 'min-w-32',
+          )}
         >
           <form.AppField name={`lines[${index}].counterpartyComments`}>
             {(field) => (
@@ -361,13 +368,11 @@ const LineCell = memo(function LineCell({
     case 'reason':
       return (
         <div
-          className={
-            compactSelects
-              ? 'w-full whitespace-normal'
-              : measured
-                ? 'w-full whitespace-normal break-words'
-                : 'w-full min-w-28 whitespace-normal break-words'
-          }
+          className={cn(
+            'w-full whitespace-normal',
+            cards ? 'min-w-0' : !compactSelects && !measured && 'min-w-28',
+            !cards && !compactSelects && 'break-words',
+          )}
         >
           <div className="w-full contain-inline-size">
             <form.AppField
@@ -404,11 +409,10 @@ const LineCell = memo(function LineCell({
     case 'comments':
       return reason?.isFreeTextAllowed ? (
         <div
-          className={
-            measured
-              ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
-              : 'w-full min-w-32 contain-inline-size whitespace-normal break-words'
-          }
+          className={cn(
+            'w-full contain-inline-size whitespace-normal break-words',
+            cards ? 'min-w-0' : measured ? 'min-w-28' : 'min-w-32',
+          )}
         >
           <form.AppField name={`lines[${index}].reasonFreeText`}>
             {(field) => (
@@ -426,13 +430,10 @@ const LineCell = memo(function LineCell({
     case 'quantity':
       return (
         <div
-          className={
-            measured
-              ? 'w-full contain-inline-size whitespace-normal break-words'
-              : unit === 'PACKS'
-                ? 'w-full min-w-28 contain-inline-size whitespace-normal break-words'
-                : 'w-full min-w-20 contain-inline-size whitespace-normal break-words'
-          }
+          className={cn(
+            'w-full contain-inline-size whitespace-normal break-words',
+            cards ? 'min-w-0' : !measured && (unit === 'PACKS' ? 'min-w-28' : 'min-w-20'),
+          )}
         >
           <form.AppField name={`lines[${index}].quantity`}>
             {(field) => (
@@ -443,7 +444,8 @@ const LineCell = memo(function LineCell({
                 label={label('stock-events.quantity')}
                 layout="inline"
                 hideErrors
-                sizing={measured ? 'minimum' : 'full'}
+                sizing={measured ? 'minimum' : cards && unit === 'PACKS' ? 'fill' : 'full'}
+                notation={cards ? 'plus' : 'brackets'}
                 netContent={line.netContent}
                 unit={unit}
                 required
@@ -454,8 +456,8 @@ const LineCell = memo(function LineCell({
       );
     case 'total':
       return (
-        <span className="tabular-nums">
-          {tableValue(
+        <bdi className="tabular-nums" dir="ltr">
+          {value(
             cardQuantity(
               /^[0-9]+$/.test(toLatinDigits(line.quantity.doses.trim()))
                 ? toWholeNumber(line.quantity.doses)
@@ -465,12 +467,12 @@ const LineCell = memo(function LineCell({
               i18n.language,
             ),
           )}
-        </span>
+        </bdi>
       );
     case 'vvm':
       return line.useVVM ? (
         <div className="w-full whitespace-normal break-words">
-          <div className="w-full min-w-24 contain-inline-size">
+          <div className={cn('w-full contain-inline-size', cards ? 'min-w-0' : 'min-w-24')}>
             <form.AppField name={`lines[${index}].vvmStatus`}>
               {(field) => (
                 <field.SelectField
@@ -490,11 +492,10 @@ const LineCell = memo(function LineCell({
       return (
         <div className="w-full whitespace-normal break-words">
           <div
-            className={
-              measured
-                ? 'w-full min-w-28 contain-inline-size'
-                : 'w-full min-w-32 contain-inline-size'
-            }
+            className={cn(
+              'w-full contain-inline-size',
+              cards ? 'min-w-0' : measured ? 'min-w-28' : 'min-w-32',
+            )}
           >
             <form.AppField name={`lines[${index}].occurredDate`}>
               {(field) => (
@@ -536,53 +537,6 @@ const LineCell = memo(function LineCell({
   }
 });
 
-function EditLotButton({
-  line,
-  lot,
-  label,
-  product,
-  form,
-  today,
-  disabled,
-}: {
-  line: EventLine;
-  lot: NewLot;
-  label: string;
-  product: string;
-  form: EventForm;
-  today: string;
-  disabled: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        padding="none"
-        size="sm"
-        type="button"
-        variant="link"
-      >
-        <bdi>{lot.lotCode}</bdi>
-      </Button>
-      <EditLotDialog
-        open={open}
-        onOpenChange={setOpen}
-        lot={lot}
-        lineKey={line.key}
-        product={product}
-        lines={form.state.values.lines}
-        today={today}
-        onSave={(next) =>
-          form.setFieldValue('lines', (current) => changeEventLot(current, line.key, next))
-        }
-      />
-    </>
-  );
-}
-
 type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'compactSelects'> & {
   lines: EventLine[];
   search: EventSearch;
@@ -603,12 +557,14 @@ export function EventLineTable({
   today,
   disabled,
   onRemove,
+  onEditLot,
   search,
   onSearchChange,
   columnVisibility,
   onClearFilter,
   fitContent,
   containerWidth,
+  cards = false,
 }: Props) {
   const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
@@ -716,6 +672,7 @@ export function EventLineTable({
                 unit={unit}
                 today={today}
                 disabled={disabled}
+                onEditLot={onEditLot}
                 onRemove={onRemove}
               />
             ),
@@ -735,6 +692,7 @@ export function EventLineTable({
       today,
       disabled,
       onRemove,
+      onEditLot,
       t,
       i18n.language,
     ],
@@ -743,10 +701,15 @@ export function EventLineTable({
   const requestedPage = search.page ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(lines.length / size)));
   const rows = useMemo(() => lines.slice((page - 1) * size, page * size), [lines, page, size]);
+  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`, cards);
+  const changeSearch = useCallback<SearchChange<EventSearch>>(
+    (update) => onSearchChange(update, undefined, pageStart.navigation),
+    [onSearchChange, pageStart.navigation],
+  );
   const searchState = useTableSearchState({
     search: { ...search, page },
     defaultSort: NO_SORT,
-    onSearchChange,
+    onSearchChange: changeSearch,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -758,6 +721,7 @@ export function EventLineTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   useEffect(() => {
@@ -808,33 +772,102 @@ export function EventLineTable({
       }
     />
   );
+  const footer = lines.length > 0 && (
+    <DataTablePagination
+      table={table}
+      disabled={disabled}
+      isPageInvalid={(index) =>
+        lines
+          .slice(index * size, (index + 1) * size)
+          .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
+      }
+    />
+  );
   return (
     <div ref={tableRegion}>
-      <DataTable
-        columnWidths={
-          hasLines && !rows.length && Object.keys(columnWidths.current).length
-            ? columnWidths.current
-            : undefined
-        }
-        table={table}
-        density="compact"
-        layout="auto"
-        empty={empty}
-        footer={
-          lines.length > 0 && (
-            <DataTablePagination
-              table={table}
+      {cards ? (
+        <CardList listRef={pageStart.ref} empty={!rows.length && empty} footer={footer}>
+          {rows.map((line) => (
+            <EventLineCard
+              key={line.key}
+              kind={kind}
+              reasonRequired={reasonRequired}
+              compactSelects={false}
+              cards
+              index={lineIndex.current.get(line.key) ?? -1}
+              line={line}
+              form={form}
+              reasons={reasons}
+              assignments={assignments}
+              unit={unit}
+              today={today}
               disabled={disabled}
-              isPageInvalid={(index) =>
-                lines
-                  .slice(index * size, (index + 1) * size)
-                  .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
-              }
+              onEditLot={onEditLot}
+              onRemove={onRemove}
+              columns={table.getVisibleLeafColumns().map((column) => column.id as CellId)}
             />
-          )
-        }
-      />
+          ))}
+        </CardList>
+      ) : (
+        <DataTable
+          columnWidths={
+            hasLines && !rows.length && Object.keys(columnWidths.current).length
+              ? columnWidths.current
+              : undefined
+          }
+          table={table}
+          density="compact"
+          layout="auto"
+          empty={empty}
+          footer={footer}
+        />
+      )}
     </div>
+  );
+}
+
+function EventLineCard(props: Omit<CellProps, 'id'> & { columns: CellId[] }) {
+  const { t } = useTranslation();
+  const { columns, ...cellProps } = props;
+  const { line, kind, reasons, assignments, unit } = cellProps;
+  const config = EVENT_KINDS[kind];
+  const details = columns.filter((id) => {
+    if (['product', 'productCode', 'actions'].includes(id)) return false;
+    if (id === 'destinationComments')
+      return assignments?.some((item) => item.id === line.counterparty && item.isFreeTextAllowed);
+    if (id === 'comments')
+      return reasons.some((item) => item.id === line.reasonId && item.isFreeTextAllowed);
+    return id !== 'vvm' || line.useVVM;
+  });
+  return (
+    <CardListItem>
+      <CardBand>
+        <bdi className="min-w-0 wrap-anywhere">
+          {productLabel(line.orderable)} ({line.orderable.productCode})
+        </bdi>
+        <LineCell {...cellProps} id="actions" />
+      </CardBand>
+      <CardRows>
+        {details.map((id) => {
+          const key = COLUMNS.find(([columnId]) => columnId === id)?.[1] ?? 'stock-events.product';
+          const label = t(columnLabel(id, key, config.counterparty));
+          const cell = <LineCell key={id} {...cellProps} id={id} />;
+          return CARD_READ_ONLY.includes(id) ? (
+            <SettingsItem key={id} label={label}>
+              {cell}
+            </SettingsItem>
+          ) : (
+            <CardControlRow
+              key={id}
+              label={label}
+              width={id === 'quantity' && unit === 'PACKS' ? 'wide' : 'half'}
+            >
+              {cell}
+            </CardControlRow>
+          );
+        })}
+      </CardRows>
+    </CardListItem>
   );
 }
 
@@ -843,17 +876,20 @@ export function EventLineTableSkeleton({
   unit,
   columnVisibility,
   busy = true,
+  cards = false,
 }: {
   kind: ConfiguredEventKind;
   unit: QuantityUnit;
   columnVisibility: ColumnVisibilityState;
   busy?: boolean;
+  cards?: boolean;
 }) {
   const today = '';
   const form = useEventForm({ kind, reasons: [], today, onValid: () => {}, onInvalid: () => {} });
   return (
     <div aria-busy={busy || undefined}>
       <EventLineTable
+        cards={cards}
         kind={kind}
         unit={unit}
         columnVisibility={columnVisibility}

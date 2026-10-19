@@ -106,6 +106,7 @@ const stock = ['A', 'B'].map((id) => ({
   active: true,
 }));
 beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.clearAllMocks();
   vi.mocked(useDiscardGuard).mockImplementation(() => ({
     dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
@@ -336,10 +337,10 @@ it('always confirms Save, sends hidden members, and clears the local copy only o
   );
   await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
 });
-it('validates hidden lines and moves to the first invalid product without posting', async () => {
-  const user = userEvent.setup();
-  const view = setup({ size: 1, page: 2 });
-  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+async function submitAndReturnToInvalidPage(
+  user: ReturnType<typeof userEvent.setup>,
+  view: ReturnType<typeof setup>,
+) {
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await user.click(
     within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
@@ -357,9 +358,27 @@ it('validates hidden lines and moves to the first invalid product without postin
       'true',
     ),
   );
-  await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveFocus(),
-  );
+  const input = screen.getByRole('textbox', { name: 'stock-events.field-of' });
+  await waitFor(() => expect(input).toHaveFocus());
+  return input;
+}
+it('validates hidden lines and focuses the invalid product in the table', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(672);
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 2 });
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  expect(screen.getByRole('table')).toBeInTheDocument();
+  await submitAndReturnToInvalidPage(user, view);
+});
+it('scrolls the invalid phone card to the top and focuses its product', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 2 });
+  await screen.findByText('B (B)');
+  const input = await submitAndReturnToInvalidPage(user, view);
+  const card = scroll.mock.contexts.indexOf(input.closest('li'));
+  expect(scroll.mock.calls[card]).toEqual([{ block: 'start' }]);
 });
 it('waits for the invalid count page after clearing a keyword before focusing', async () => {
   vi.mocked(readInventoryLocal).mockResolvedValue({
@@ -724,7 +743,8 @@ it('keeps sorting and paging stable during count entry while progress and saved 
     ),
   );
 });
-it('updates the unaccounted error immediately when reasons change without Submit', async () => {
+it('updates the phone card unaccounted error and summary when reasons change without Submit', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
   const { fetchValidReasons } = await import('@/features/reference-data/api/api');
   vi.mocked(fetchValidReasons).mockResolvedValueOnce([
     {
@@ -752,14 +772,20 @@ it('updates the unaccounted error immediately when reasons change without Submit
   await user.click(within(dialog).getByRole('button', { name: 'stock-events.add' }));
   await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.update' }));
   expect(input).not.toHaveAttribute('aria-describedby');
+  expect(screen.getByRole('button', { name: /physical-inventory.reasons/ })).toHaveTextContent(
+    'Found',
+  );
 });
 
 it('keeps pagination inside the grid table card container', async () => {
-  setup();
-  await screen.findByRole('table');
-  const pager = await screen.findByRole('button', { name: 'Next Page' });
+  const user = userEvent.setup();
+  const view = setup({ size: 1, page: 1 });
+  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  const pager = screen.getByRole('button', { name: 'Next Page' });
   const grid = screen.getByRole('table');
   expect(grid.closest('.\\@container\\/table')).toContainElement(pager);
+  await user.click(pager);
+  expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, undefined);
 });
 
 it('allows Delete to leave immediately after a failed device save', async () => {
@@ -1045,5 +1071,41 @@ it('hides an optional column when the rendered table exceeds its container by 15
     bounds.mockRestore();
     client.mockRestore();
     scroll.mockRestore();
+  }
+});
+
+it('keeps phone detail choices and scrolls on paging while filters stay put', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+  const user = userEvent.setup();
+  const view = setup();
+  try {
+    await screen.findByText('A (A)');
+    expect(screen.getByText('stock-events.pack-size')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText('Toggle Details')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: 'stock-events.product-code' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'stock-events.pack-size' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
+    scroll.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, {
+      resetScroll: false,
+    });
+    view.rerender(view.tree({ size: 1, page: 2 }));
+    await screen.findByText('B (B)');
+    const list = screen.getByText('B (B)').closest('ul');
+    await waitFor(() => expect(list).toHaveFocus());
+    expect(scroll.mock.contexts).toContain(list);
+    expect(screen.queryByText('stock-events.pack-size')).not.toBeInTheDocument();
+    scroll.mockClear();
+    view.rerender(view.tree({ size: 1, page: 1, keyword: 'A' }));
+    await screen.findByText('A (A)');
+    expect(scroll).not.toHaveBeenCalled();
+  } finally {
+    localStorage.removeItem('physical-inventory.columns');
   }
 });

@@ -119,6 +119,26 @@ export function CardRows({ children }: { children: ReactNode }) {
   return <div className="divide-y *:px-4 *:py-1.5">{children}</div>;
 }
 
+export function CardControlRow({
+  label,
+  width = 'half',
+  children,
+}: {
+  label: ReactNode;
+  width?: 'half' | 'wide';
+  children: ReactNode;
+}) {
+  return (
+    <SettingsRowFrame
+      value={width === 'wide' ? 'wide' : 'control'}
+      align="center"
+      label={<span className="text-sm">{label}</span>}
+    >
+      {children}
+    </SettingsRowFrame>
+  );
+}
+
 export function CardRowSkeleton() {
   return (
     <SettingsRowFrame label={<SkeletonBar width="w-24" />}>
@@ -153,11 +173,13 @@ export function CardListSkeleton({
       {cards.map((id) => (
         <CardListItem key={id}>
           <CardBand>{band}</CardBand>
-          <CardRows>
-            {details.map((id) => (
-              <CardRowSkeleton key={id} />
-            ))}
-          </CardRows>
+          {rows > 0 && (
+            <CardRows>
+              {details.map((id) => (
+                <CardRowSkeleton key={id} />
+              ))}
+            </CardRows>
+          )}
         </CardListItem>
       ))}
     </CardList>

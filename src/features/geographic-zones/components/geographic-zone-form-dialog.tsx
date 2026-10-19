@@ -1,5 +1,10 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useIsMutating, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import {
+  type QueryClient,
+  useIsMutating,
+  useQueryClient,
+  useSuspenseQueries,
+} from '@tanstack/react-query';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -7,6 +12,7 @@ import {
   DialogLoadError,
   DialogNotFound,
   ErrorAlert,
+  FieldSkeleton,
   SkeletonLine,
   serverMessage,
 } from '@/components/dialog-parts';
@@ -43,6 +49,7 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { orEmpty } from '@/lib/empty-value';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import type { Page } from '@/lib/types';
 
 const saveKey = (id: string) => [...queryKeys.geographicZones.all, 'save', id] as const;
 
@@ -94,7 +101,7 @@ function ZoneDialogContent({
           />
         )
       }
-      pendingFallback={<ZoneDetailsSkeleton />}
+      pendingFallback={<ZoneSkeleton automatic={automatic} zoneId={zoneId} />}
       resetKey={zoneId}
     >
       <ZoneDetails automatic={automatic} onDone={onDone} opening={opening} zoneId={zoneId} />
@@ -302,6 +309,65 @@ function DisabledZoneField({
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Input dir={dir} disabled id={id} value={value ?? ''} />
     </Field>
+  );
+}
+
+function cachedZone(queryClient: QueryClient, zoneId: string) {
+  for (const [, data] of queryClient.getQueriesData<Page<GeographicZone>>({
+    queryKey: [...queryKeys.geographicZones.all, 'list'],
+  })) {
+    const zone = data?.content?.find((item) => item.id === zoneId);
+    if (zone) return zone;
+  }
+}
+
+function ZoneSkeleton({ zoneId, automatic }: { zoneId: string; automatic: boolean }) {
+  const queryClient = useQueryClient();
+  const zone = cachedZone(queryClient, zoneId);
+  const levels = queryClient.getQueryData(geographicLevelsOptions().queryKey);
+  const editable = !zone || !levels || geographicZonePolicy(zone, levels, automatic)?.editable;
+  return editable ? (
+    <ZoneEditSkeleton automatic={automatic} name={zone?.name} />
+  ) : (
+    <ZoneDetailsSkeleton />
+  );
+}
+
+function ZoneEditSkeleton({ name, automatic }: { name?: string; automatic: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>
+          {name ? t('geographic-zones.edit-title', { zone: name }) : t('geographic-zones.edit')}
+        </FormDialogTitle>
+        <FormDialogDescription>
+          {t(
+            automatic
+              ? 'geographic-zones.edit-auto-description'
+              : 'geographic-zones.edit-description',
+          )}
+        </FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <FieldGroup>
+          {(['name', 'code', 'level', 'parent'] as const).map((key) => (
+            <FieldSkeleton key={key} label={t(`geographic-zones.${key}`)} />
+          ))}
+          <FieldSkeleton
+            description={t('geographic-zones.population-description')}
+            label={t('geographic-zones.population')}
+          />
+          {(['longitude', 'latitude'] as const).map((key) => (
+            <FieldSkeleton key={key} label={t(`geographic-zones.${key}`)} />
+          ))}
+        </FieldGroup>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+        <FormDialogSubmit disabled>{t('geographic-zones.save')}</FormDialogSubmit>
+      </FormDialogFooter>
+    </>
   );
 }
 

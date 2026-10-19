@@ -148,6 +148,7 @@ function renderRoute(
 }
 
 beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.stubGlobal(
     'ResizeObserver',
     class {

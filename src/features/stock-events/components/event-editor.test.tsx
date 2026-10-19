@@ -125,6 +125,7 @@ beforeAll(() =>
   }),
 );
 beforeEach(async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
   vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
@@ -656,7 +657,27 @@ describe('EventEditor', () => {
       screen.queryByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }),
     ).not.toBeInTheDocument();
   });
-  it('validates hidden rows and returns to the first invalid field', async () => {
+  it('uses stored details and Toggle Details on phones and keeps Remove working', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: false }));
+    const { user } = setup();
+    await add(user);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const card = screen.getByText('Aspirin (C1)').closest('li') as HTMLLIElement;
+    expect(within(card).getByText('Pack Size')).toBeInTheDocument();
+    expect(within(card).queryByText('Expiry Date')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View' }));
+    expect(screen.getByText('Toggle Details')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: 'Product Code' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Pack Size' }));
+    await user.keyboard('{Escape}');
+    expect(within(card).queryByText('Pack Size')).not.toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: /^Remove,/ }));
+    expect(screen.queryByText('Aspirin (C1)')).not.toBeInTheDocument();
+  });
+  async function validateHiddenRows() {
     const { user } = setup();
     await add(user);
     act(() => {
@@ -674,6 +695,25 @@ describe('EventEditor', () => {
     );
     expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
     expect(submitStockEvent).not.toHaveBeenCalled();
+  }
+  it('validates hidden table rows and returns to the first invalid field', async () => {
+    await validateHiddenRows();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+  it('scrolls the invalid card into view before focusing its first invalid field', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const originalScroll = HTMLElement.prototype.scrollIntoView;
+    const scroll = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      await validateHiddenRows();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+      expect(scroll.mock.calls.at(-1)).toEqual([{ block: 'nearest', inline: 'nearest' }]);
+      expect(scroll.mock.contexts.some((element) => element instanceof HTMLLIElement)).toBe(true);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+    }
   });
   it('confirms a signature and sends exactly one dose-based event', async () => {
     let finish!: (id: string) => void;
@@ -1463,6 +1503,49 @@ describe('Receive editor', () => {
     expect(screen.getByRole('combobox', { name: /^VVM Status, Vaccine/ })).toBeInTheDocument();
     expect(cell(1, 'Lot Code')).toHaveTextContent('Product Has No Lots');
     expect(cell(1, 'Stock On Hand')).toHaveTextContent(/^$/);
+  });
+
+  it('preserves an open lot edit and its typed value when cards switch to a table', async () => {
+    let width = 500;
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(() => width);
+    const observers = new Set<ResizeObserverCallback>();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe() {
+          observers.add(this.callback);
+        }
+        disconnect() {
+          observers.delete(this.callback);
+        }
+      },
+    );
+    const { user } = receiveSetup();
+    await pick(user, 'Aspirin');
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Lot' });
+    const code = await within(dialog).findByRole('textbox', { name: 'Lot Code' });
+    await user.clear(code);
+    await user.type(code, 'TYPED-LOT');
+    act(() => {
+      width = 900;
+      for (const callback of observers) {
+        callback([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver);
+      }
+    });
+    expect(screen.getByRole('table', { hidden: true })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('dialog', { name: 'Edit Lot' })).getByRole('textbox', {
+        name: 'Lot Code',
+      }),
+    ).toHaveValue('TYPED-LOT');
   });
 
   it('edits a new lot from its line, applying a code to that line and an expiry to its twins', async () => {

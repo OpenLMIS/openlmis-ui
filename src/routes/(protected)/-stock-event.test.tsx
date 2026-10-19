@@ -172,8 +172,9 @@ describe('stock event detail', () => {
     async (type) => {
       vi.mocked(fetchStockEvent).mockResolvedValue({ ...event, type });
       renderRoute();
-      await screen.findByRole('heading', { name: 'stock-event.title' });
-      const header = screen.getByRole('region', { name: 'stock-event.document-number DOC-1' });
+      const header = await screen.findByRole('region', {
+        name: 'stock-event.document-number DOC-1',
+      });
       expect(
         within(header)
           .getAllByRole('term')

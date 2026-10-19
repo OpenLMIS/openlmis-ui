@@ -3,10 +3,12 @@ import { Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { toDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import {
   FormDialog,
   FormDialogBody,
@@ -49,7 +51,8 @@ import type {
   InventoryLine,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
-import { tableValue } from '@/lib/empty-value';
+import { useCardLayout } from '@/hooks/use-card-view';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 import { toLatinDigits } from '@/lib/whole-number';
 
@@ -112,6 +115,7 @@ function AddProductsForm({
   onAdd,
 }: Props & { eligible: readonly InventoryStockLine[] }) {
   const { t, i18n } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const today = toDateValue(new Date());
   const itemsForm = useAppForm({
     defaultValues: { items: [] as InventoryLine[] },
@@ -212,6 +216,57 @@ function AddProductsForm({
       label: line.lot?.lotCode ?? t('stock-events.no-lot-defined'),
     })),
   ];
+  const quantityField = (line: InventoryLine, index: number) => (
+    <fieldset
+      className={cards ? 'min-w-0' : unit === 'PACKS' ? 'w-28' : 'w-20'}
+      onChangeCapture={(event) => {
+        if (event.target instanceof HTMLInputElement)
+          event.target.value = toLatinDigits(event.target.value).replace(/[^0-9]/g, '');
+      }}
+    >
+      <itemsForm.AppField name={`items[${index}].quantity`}>
+        {(field) => (
+          <field.QuantityField
+            label={t('stock-events.field-of', {
+              field: t('physical-inventory.current-stock'),
+              row: `${productName(line.orderable)} ${lotLabel(line)}`,
+            })}
+            layout="inline"
+            required
+            netContent={line.orderable.netContent}
+            unit={unit}
+            dosesLabel={t('quantity-unit.doses')}
+            packsLabel={t('quantity-unit.packs')}
+          />
+        )}
+      </itemsForm.AppField>
+    </fieldset>
+  );
+  const removeButton = (line: InventoryLine) => (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="destructive-ghost"
+            size="icon-sm"
+            aria-label={t('stock-events.field-of', {
+              field: t('stock-events.remove'),
+              row: `${productName(line.orderable)} ${lotLabel(line)}`,
+            })}
+            onClick={() =>
+              itemsForm.setFieldValue('items', (current) =>
+                current.filter((item) => item.key !== line.key),
+              )
+            }
+          />
+        }
+      >
+        <Trash2Icon />
+      </TooltipTrigger>
+      <TooltipContent>{t('stock-events.remove')}</TooltipContent>
+    </Tooltip>
+  );
   return (
     <FormDialogForm onSubmit={() => void itemsForm.handleSubmit()}>
       <FormDialogHeader>
@@ -274,106 +329,97 @@ function AddProductsForm({
           <Button type="button" onClick={() => void selection.handleSubmit()}>
             {t('stock-events.add')}
           </Button>
-          <Table layout="auto" density="compact">
-            <TableHeader>
-              <TableRow>
-                {[
-                  'stock-events.product-code',
-                  'stock-events.product',
-                  'stock-events.pack-size',
-                  'stock-events.lot-code',
-                  'stock-events.expiry-date',
-                  'physical-inventory.current-stock',
-                  'stock-events.actions',
-                ].map((key) => (
-                  <TableHead key={key}>
-                    <DataTableHeaderLabel>{t(key as 'stock-events.product')}</DataTableHeaderLabel>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((line, index) => (
-                <TableRow key={line.key}>
-                  <TableCell>
-                    <bdi>{line.orderable.productCode}</bdi>
-                  </TableCell>
-                  <TableCell>
-                    <ProductName label={line.orderable.fullProductName ?? ''} width="wide" />
-                  </TableCell>
-                  <TableCell>
-                    <bdi>{tableValue(line.orderable.netContent)}</bdi>
-                  </TableCell>
-                  <TableCell>
-                    <bdi>{lotLabel(line)}</bdi>
-                  </TableCell>
-                  <TableCell>
-                    <bdi>
-                      {tableValue(
-                        inventoryExpiry(line)
-                          ? inventoryFormats(i18n.language).date(inventoryExpiry(line) ?? '')
-                          : null,
-                      )}
-                    </bdi>
-                  </TableCell>
-                  <TableCell>
-                    <fieldset
-                      className={unit === 'PACKS' ? 'w-28' : 'w-20'}
-                      onChangeCapture={(event) => {
-                        if (event.target instanceof HTMLInputElement)
-                          event.target.value = toLatinDigits(event.target.value).replace(
-                            /[^0-9]/g,
-                            '',
-                          );
-                      }}
-                    >
-                      <itemsForm.AppField name={`items[${index}].quantity`}>
-                        {(field) => (
-                          <field.QuantityField
-                            label={t('stock-events.field-of', {
-                              field: t('physical-inventory.current-stock'),
-                              row: `${productName(line.orderable)} ${lotLabel(line)}`,
-                            })}
-                            layout="inline"
-                            required
-                            netContent={line.orderable.netContent}
-                            unit={unit}
-                            dosesLabel={t('quantity-unit.doses')}
-                            packsLabel={t('quantity-unit.packs')}
-                          />
-                        )}
-                      </itemsForm.AppField>
-                    </fieldset>
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            type="button"
-                            variant="destructive-ghost"
-                            size="icon-sm"
-                            aria-label={t('stock-events.field-of', {
-                              field: t('stock-events.remove'),
-                              row: `${productName(line.orderable)} ${lotLabel(line)}`,
-                            })}
-                            onClick={() =>
-                              itemsForm.setFieldValue('items', (current) =>
-                                current.filter((item) => item.key !== line.key),
-                              )
-                            }
-                          />
-                        }
-                      >
-                        <Trash2Icon />
-                      </TooltipTrigger>
-                      <TooltipContent>{t('stock-events.remove')}</TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div ref={measure} className="min-w-0">
+            {cards ? (
+              items.length > 0 && (
+                <CardList>
+                  {items.map((line, index) => (
+                    <CardListItem key={line.key} surface="flat">
+                      <CardBand>
+                        <span className="min-w-0 flex-1 wrap-anywhere">
+                          <bdi>
+                            {line.orderable.fullProductName} ({line.orderable.productCode})
+                          </bdi>
+                        </span>
+                        {removeButton(line)}
+                      </CardBand>
+                      <CardRows>
+                        <SettingsItem label={t('stock-events.pack-size')}>
+                          <bdi>{orEmpty(line.orderable.netContent)}</bdi>
+                        </SettingsItem>
+                        <SettingsItem label={t('stock-events.lot-code')}>
+                          <bdi>{lotLabel(line)}</bdi>
+                        </SettingsItem>
+                        <SettingsItem label={t('stock-events.expiry-date')}>
+                          <bdi>
+                            {orEmpty(
+                              inventoryExpiry(line)
+                                ? inventoryFormats(i18n.language).date(inventoryExpiry(line) ?? '')
+                                : null,
+                            )}
+                          </bdi>
+                        </SettingsItem>
+                        <CardControlRow label={t('physical-inventory.current-stock')}>
+                          {quantityField(line, index)}
+                        </CardControlRow>
+                      </CardRows>
+                    </CardListItem>
+                  ))}
+                </CardList>
+              )
+            ) : (
+              <Table layout="auto" density="compact">
+                <TableHeader>
+                  <TableRow>
+                    {[
+                      'stock-events.product-code',
+                      'stock-events.product',
+                      'stock-events.pack-size',
+                      'stock-events.lot-code',
+                      'stock-events.expiry-date',
+                      'physical-inventory.current-stock',
+                      'stock-events.actions',
+                    ].map((key) => (
+                      <TableHead key={key}>
+                        <DataTableHeaderLabel>
+                          {t(key as 'stock-events.product')}
+                        </DataTableHeaderLabel>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((line, index) => (
+                    <TableRow key={line.key}>
+                      <TableCell>
+                        <bdi>{line.orderable.productCode}</bdi>
+                      </TableCell>
+                      <TableCell>
+                        <ProductName label={line.orderable.fullProductName ?? ''} width="wide" />
+                      </TableCell>
+                      <TableCell>
+                        <bdi>{tableValue(line.orderable.netContent)}</bdi>
+                      </TableCell>
+                      <TableCell>
+                        <bdi>{lotLabel(line)}</bdi>
+                      </TableCell>
+                      <TableCell>
+                        <bdi>
+                          {tableValue(
+                            inventoryExpiry(line)
+                              ? inventoryFormats(i18n.language).date(inventoryExpiry(line) ?? '')
+                              : null,
+                          )}
+                        </bdi>
+                      </TableCell>
+                      <TableCell>{quantityField(line, index)}</TableCell>
+                      <TableCell>{removeButton(line)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </div>
       </FormDialogBody>
       <FormDialogFooter>
