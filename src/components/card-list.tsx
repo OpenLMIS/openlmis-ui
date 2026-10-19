@@ -170,18 +170,20 @@ export function CardListSkeleton({
   rows,
   band = <SkeletonBar width="w-24" />,
   pagination = true,
+  surface = 'raised',
 }: {
   count: number;
   rows: number;
   band?: ReactNode;
   pagination?: boolean;
+  surface?: 'raised' | 'flat';
 }) {
   const cards = Array.from({ length: count }, (_, index) => index);
   const details = Array.from({ length: rows }, (_, index) => index);
   return (
     <CardList footer={pagination && <DataTablePaginationSkeleton />}>
       {cards.map((id) => (
-        <CardListItem key={id}>
+        <CardListItem key={id} surface={surface}>
           <CardBand>{band}</CardBand>
           {rows > 0 && (
             <CardRows>

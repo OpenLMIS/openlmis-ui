@@ -30,6 +30,7 @@ type TableCardsProps<TData extends RowData> = {
   busy?: boolean;
   listRef?: Ref<HTMLUListElement>;
   heading?: (row: TData) => string | undefined;
+  surface?: 'raised' | 'flat';
 };
 
 export function useInCards() {
@@ -44,6 +45,7 @@ export function TableCards<TData extends RowData>({
   busy = false,
   listRef,
   heading,
+  surface = 'raised',
 }: TableCardsProps<TData>) {
   const rows = table.getRowModel().rows;
   const ids = useId();
@@ -61,7 +63,15 @@ export function TableCards<TData extends RowData>({
             </li>
           );
         }
-        return <TableCard key={row.id} row={row} selectId={`${ids}-${row.id}`} title={title} />;
+        return (
+          <TableCard
+            key={row.id}
+            row={row}
+            selectId={`${ids}-${row.id}`}
+            surface={surface}
+            title={title}
+          />
+        );
       })}
     </CardList>
   );
@@ -109,10 +119,12 @@ function TableCard<TData extends RowData>({
   row,
   title,
   selectId,
+  surface,
 }: {
   row: Row<DataTableFeatures, TData>;
   title: string;
   selectId: string;
+  surface: 'raised' | 'flat';
 }) {
   const cells = row.getVisibleCells();
   const titleCell = cells.find((cell) => cell.column.id === title);
@@ -122,7 +134,7 @@ function TableCard<TData extends RowData>({
   const actionContent = actions && cellContent(actions);
   const action = actionContent && <div className="shrink-0">{actionContent}</div>;
   return (
-    <CardListItem>
+    <CardListItem surface={surface}>
       {select ? (
         <CardSelectBand
           action={action}
@@ -160,18 +172,34 @@ export function TableCardsSkeleton<TData extends RowData>({
   table,
   title,
   rowCount,
+  surface = 'raised',
+  pagination = true,
+  count = Math.min(3, rowCount),
 }: {
   table: DataTableInstance<TData>;
   title: string;
   rowCount: number;
+  surface?: 'raised' | 'flat';
+  pagination?: boolean;
+  count?: number;
 }) {
   const columns = table.getVisibleLeafColumns();
   const actions = columns.find((column) => column.id === ACTIONS);
   const select = columns.some((column) => column.id === SELECT);
   return (
-    <div aria-busy>
+    <div aria-busy className="flex min-w-0 flex-col gap-3">
+      {select && (
+        <div className="flex h-5 items-center gap-3 px-4">
+          <div className="size-4">
+            <Skeleton fill />
+          </div>
+          <SkeletonBar width="w-20" />
+        </div>
+      )}
       <CardListSkeleton
-        count={Math.min(3, rowCount)}
+        count={count}
+        pagination={pagination}
+        surface={surface}
         rows={columns.filter((column) => isDetail(column.id, title)).length}
         band={
           <>
