@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -35,7 +36,7 @@ export function TransactionHistoryToolbar({
     label: t(eventTypeKey(type) ?? 'transaction-history.type'),
   }));
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           onValueChange={(value) => change({ documentNumber: value || undefined })}
@@ -81,6 +82,6 @@ export function TransactionHistoryToolbar({
         </DataTableFilters>
       </div>
       {view}
-    </div>
+    </DataTableToolbar>
   );
 }

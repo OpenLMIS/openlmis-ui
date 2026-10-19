@@ -38,6 +38,7 @@ import {
   type DataTableFeatures,
   DataTableHeaderLabel,
   DataTableSkeleton,
+  DataTableToolbar,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -492,7 +493,7 @@ export function ReverseEditor({
                 submit();
               }}
             >
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <DataTableToolbar align="end">
                 {quantityUnit.canSwitch && (
                   <div className="flex-1 @2xl/main:flex-none">
                     <QuantityUnitToggle
@@ -514,7 +515,7 @@ export function ReverseEditor({
                     }))}
                   />
                 </div>
-              </div>
+              </DataTableToolbar>
               <QueryBoundary
                 resetKey={event.id}
                 pendingFallback={

@@ -3,6 +3,7 @@ import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react
 import { ClipboardListIcon, PrinterIcon, Undo2Icon } from 'lucide-react';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ListError } from '@/components/list-error';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
@@ -152,14 +153,14 @@ function StockEventPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <EventHeader event={data.event} />
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <DataTableToolbar align="end">
             {canSwitch && (
               <div className="flex-1 @2xl/main:flex-none">
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
             <StockEventColumns layout={layout} columnView={columnView} canSwitch={canSwitch} />
-          </div>
+          </DataTableToolbar>
           <QueryBoundary
             resetKey={`${data.event.id}:${search.detailPage}:${search.detailSize}`}
             errorComponent={EventLinesError}
@@ -324,13 +325,15 @@ function StockEventPending() {
           <EventHeaderSkeleton />
           <div className="flex justify-end gap-2">
             {canSwitch && (
-              <div className="h-8 flex-1 @2xl/main:w-36 @2xl/main:flex-none">
+              <div className="h-8 flex-1 @max-2xl/main:h-9 @2xl/main:w-36 @2xl/main:flex-none">
                 <Skeleton fill />
               </div>
             )}
             <div
               className={
-                canSwitch ? 'h-8 w-20 shrink-0' : 'h-8 flex-1 @2xl/main:w-20 @2xl/main:flex-none'
+                canSwitch
+                  ? 'h-8 w-20 shrink-0 @max-2xl/main:h-9'
+                  : 'h-8 flex-1 @max-2xl/main:h-9 @2xl/main:w-20 @2xl/main:flex-none'
               }
             >
               <Skeleton fill />

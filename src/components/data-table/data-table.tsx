@@ -270,8 +270,25 @@ export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function DataTableToolbar({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
+export function DataTableToolbar({
+  align = 'start',
+  children,
+}: {
+  align?: 'start' | 'end';
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-2',
+        '@max-2xl/main:[&_[data-slot=input-group]]:h-9 @max-2xl/main:[&_[data-slot=radio-group]]:h-9 @max-2xl/main:[&_a[data-slot=button]]:h-9',
+        '@max-2xl/main:[&_button:not([data-slot=input-group]_*,[role=radio],[role=checkbox],[role=switch])]:h-9',
+        align === 'end' && 'justify-end',
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 type DataTableSkeletonProps<TData extends RowData> = {

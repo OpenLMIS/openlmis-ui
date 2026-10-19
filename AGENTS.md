@@ -525,7 +525,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
   go inside too. No search means the button stands alone; no other filters means no button.
   Physical Inventory is the exception: its progress bar leads the toolbar, so Keywords sits
-  inside Filters there.
+  inside Filters there. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows):
+  below `@2xl/main` it makes its buttons, search and unit toggle 36px to match header actions;
+  toolbar skeleton blocks add `@max-2xl/main:h-9`.
 - `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
   them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
   toolbars render it disabled.

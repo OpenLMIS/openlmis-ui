@@ -199,10 +199,12 @@ export function RoleTabsSkeleton({ tab, search, editable = false }: RoleTabsSkel
           <div className="flex flex-col gap-4">
             <DataTableToolbar>
               <div className={cards ? 'w-full' : SEARCH_WIDTH}>
-                <Block className="h-8 w-full" />
+                <Block className="h-8 w-full @max-2xl/main:h-9" />
               </div>
-              {cards && <Block className="ms-auto h-8 w-20" />}
-              {editable && <Block className={cn('h-8 w-28', !cards && 'ms-auto')} />}
+              {cards && <Block className="ms-auto h-9 w-20" />}
+              {editable && (
+                <Block className={cn('h-8 w-28 @max-2xl/main:h-9', !cards && 'ms-auto')} />
+              )}
             </DataTableToolbar>
             <RoleAssignmentsTableSkeleton
               cards={cards}

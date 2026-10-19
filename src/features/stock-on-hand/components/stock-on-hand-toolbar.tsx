@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
@@ -43,7 +44,7 @@ export function StockOnHandToolbar({
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         {text('productName', t('stock-on-hand.search-product-name'))}
       </div>
@@ -85,6 +86,6 @@ export function StockOnHandToolbar({
           {print && <div className="min-w-0 flex-1 @2xl/main:flex-none">{print}</div>}
         </div>
       )}
-    </div>
+    </DataTableToolbar>
   );
 }
