@@ -42,6 +42,7 @@ export type DataTableColumnMeta = {
   /** Width classes, e.g. `w-1/5` or `w-16 xl:w-72`. Columns without any share what is left. */
   className?: string;
   skeleton?: 'control';
+  label?: string;
 };
 
 // The server sorts and pages, so no client row models are registered.

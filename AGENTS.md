@@ -481,8 +481,13 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
-  Other lists keep tables at every width, hiding lower-priority columns and allowing sideways
-  scrolling on phones. Keep headers on one line; every table header uses
+  Administration lists switch to cards too, through `TableCards` and `TableCardsSkeleton`
+  (`src/components/table-cards.tsx`) over the same TanStack table: the `title` column and the
+  `actions` cell form the band; every other visible column is a row labelled by `meta.label`.
+  Truncating text cells use `CellText`, which wraps in cards. Sortable card lists pass `sort`
+  to `DataTableViewOptions` from `searchSort` (`src/lib/table-search.ts`); sorting adds history.
+  Lists not yet migrated keep tables at every width, hiding lower-priority columns and allowing
+  sideways scrolling on phones. Keep headers on one line; every table header uses
   `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.

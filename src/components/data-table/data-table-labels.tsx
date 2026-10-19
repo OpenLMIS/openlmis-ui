@@ -11,6 +11,10 @@ export type DataTableLabels = {
   resetColumns: string;
   toggleDetails: string;
   resetDetails: string;
+  sortBy: string;
+  sortOrder: string;
+  ascending: string;
+  descending: string;
   rowsPerPage: string;
   page: (page: number) => string;
   invalidPage: string;
@@ -40,6 +44,10 @@ export const defaultDataTableLabels: DataTableLabels = {
   resetColumns: 'Reset Columns',
   toggleDetails: 'Toggle Details',
   resetDetails: 'Reset Details',
+  sortBy: 'Sort By',
+  sortOrder: 'Sort Order',
+  ascending: 'Ascending',
+  descending: 'Descending',
   rowsPerPage: 'Rows Per Page',
   page: (page) => `Page ${page}`,
   invalidPage: 'Contains Invalid Rows',
