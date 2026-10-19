@@ -1,9 +1,10 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { Trash2Icon } from 'lucide-react';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CardControlRow, CardRows } from '@/components/card-list';
+import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
 import { SettingsItem } from '@/components/form/settings-list';
@@ -19,7 +20,14 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { Button } from '@/components/ui/button';
-import { FieldGroup } from '@/components/ui/field';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { adjustmentTotal, unaccounted } from '@/features/stock-events/lib/physical-inventory-form';
@@ -121,6 +129,13 @@ export function InventoryReasonsDialog({
   const display = (value: number | null) =>
     inventoryFormats(i18n.language).quantity(value, line.orderable.netContent, unit);
   const product = productName(line.orderable);
+  const removeLabel = (item: (typeof adjustments)[number]) =>
+    t('stock-events.field-of', {
+      field: t('stock-events.remove'),
+      row: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
+    });
+  const remove = (index: number) =>
+    form.setFieldValue('adjustments', (current) => current.filter((_, i) => i !== index));
   const apply = () => {
     onUpdate(values());
     setConfirm(false);
@@ -128,6 +143,7 @@ export function InventoryReasonsDialog({
   return (
     <FormDialog
       open={open}
+      size={cards ? 'lg' : 'table'}
       onOpenChangeComplete={onOpenChangeComplete}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -233,15 +249,8 @@ export function InventoryReasonsDialog({
                             type="button"
                             variant="destructive-ghost"
                             size="icon-sm"
-                            aria-label={t('stock-events.field-of', {
-                              field: t('stock-events.remove'),
-                              row: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
-                            })}
-                            onClick={() =>
-                              form.setFieldValue('adjustments', (current) =>
-                                current.filter((_, i) => i !== index),
-                              )
-                            }
+                            aria-label={removeLabel(item)}
+                            onClick={() => remove(index)}
                           >
                             <Trash2Icon />
                           </Button>
@@ -269,6 +278,7 @@ export function InventoryReasonsDialog({
           ) : (
             <div className="flex flex-col gap-4">
               <fieldset
+                className="flex items-start gap-3"
                 onKeyDown={(event) => {
                   if (
                     event.key === 'Enter' &&
@@ -281,16 +291,19 @@ export function InventoryReasonsDialog({
                   }
                 }}
               >
-                <FieldGroup>
+                <div className="min-w-0 flex-1">
                   <addForm.AppField name="reasonId">
                     {(field) => (
                       <field.SelectField
                         label={t('stock-events.reason')}
+                        placeholder={t('stock-event-reverse.select-option')}
                         required
                         items={reasons.map((reason) => ({ value: reason.id, label: reason.name }))}
                       />
                     )}
                   </addForm.AppField>
+                </div>
+                <div className="min-w-0 flex-1">
                   <addForm.AppField name="quantity">
                     {(field) => (
                       <field.QuantityField
@@ -299,58 +312,104 @@ export function InventoryReasonsDialog({
                         netContent={line.orderable.netContent}
                         dosesLabel={t('quantity-unit.doses')}
                         packsLabel={t('quantity-unit.packs')}
+                        notation="plus"
                         required
                       />
                     )}
                   </addForm.AppField>
-                </FieldGroup>
-              </fieldset>
-              <Button type="button" onClick={() => void addForm.handleSubmit()}>
-                {t('stock-events.add')}
-              </Button>
-              {adjustments.map((item, index) => (
-                <div className="flex items-start gap-2" key={item.key}>
-                  <div className="min-w-0 flex-1">
-                    <form.AppField name={`adjustments[${index}].quantity`}>
-                      {(field) => (
-                        <field.QuantityField
-                          label={item.reason.name ?? item.reason.id}
-                          unit={unit}
-                          netContent={line.orderable.netContent}
-                          dosesLabel={t('quantity-unit.doses')}
-                          packsLabel={t('quantity-unit.packs')}
-                          required
-                        />
-                      )}
-                    </form.AppField>
-                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span aria-hidden className="invisible text-sm leading-snug">
+                    &nbsp;
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
-                    aria-label={t('stock-events.field-of', {
-                      field: t('stock-events.remove'),
-                      row: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
-                    })}
-                    onClick={() =>
-                      form.setFieldValue('adjustments', (current) =>
-                        current.filter((_, i) => i !== index),
-                      )
-                    }
+                    onClick={() => void addForm.handleSubmit()}
                   >
-                    {t('stock-events.remove')}
+                    <PlusIcon />
+                    {t('stock-events.add')}
                   </Button>
                 </div>
-              ))}
-              <dl className="grid grid-cols-2 gap-2 text-sm">
-                <dt>{t('physical-inventory.unaccounted')}</dt>
-                <dd>
-                  <bdi>{display(difference)}</bdi>
-                </dd>
-                <dt>{t('physical-inventory.total')}</dt>
-                <dd>
-                  <bdi>{display(adjustmentTotal(values()))}</bdi>
-                </dd>
-              </dl>
+              </fieldset>
+              <div className="overflow-hidden rounded-lg border">
+                <Table density="compact">
+                  <TableHeader surface="muted">
+                    <TableRow>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('stock-events.reason')}</DataTableHeaderLabel>
+                      </TableHead>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('stock-events.quantity')}</DataTableHeaderLabel>
+                      </TableHead>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('stock-events.actions')}</DataTableHeaderLabel>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {adjustments.length ? (
+                      adjustments.map((item, index) => (
+                        <TableRow key={item.key}>
+                          <TableCell>
+                            <bdi className="whitespace-normal">
+                              {item.reason.name ?? item.reason.id}
+                            </bdi>
+                          </TableCell>
+                          <TableCell>
+                            <form.AppField name={`adjustments[${index}].quantity`}>
+                              {(field) => (
+                                <field.QuantityField
+                                  label={item.reason.name ?? item.reason.id}
+                                  layout="inline"
+                                  hideErrors
+                                  unit={unit}
+                                  netContent={line.orderable.netContent}
+                                  dosesLabel={t('quantity-unit.doses')}
+                                  packsLabel={t('quantity-unit.packs')}
+                                  notation="plus"
+                                  required
+                                />
+                              )}
+                            </form.AppField>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="destructive-ghost"
+                              size="icon-sm"
+                              aria-label={removeLabel(item)}
+                              onClick={() => remove(index)}
+                            >
+                              <Trash2Icon />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3}>
+                          <div className="py-4 text-center text-muted-foreground whitespace-normal">
+                            {t('physical-inventory.no-adjustments')}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex flex-wrap justify-between gap-2 text-sm">
+                <span>
+                  <strong>{t('physical-inventory.unaccounted')}</strong>{' '}
+                  <bdi className={difference ? 'text-destructive' : undefined} dir="ltr">
+                    {display(difference)}
+                  </bdi>
+                </span>
+                <span>
+                  <strong>{t('physical-inventory.total')}</strong>{' '}
+                  <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
+                </span>
+              </div>
             </div>
           )}
         </FormDialogBody>
