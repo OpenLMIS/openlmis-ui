@@ -13,6 +13,7 @@ type SettingsRowFrameProps = {
   description?: ReactNode;
   /** `control` gives an input half the row; `fit` lets a switch or a value take its own width. */
   value?: 'control' | 'fit';
+  align?: 'start' | 'center';
   children: ReactNode;
 };
 
@@ -22,10 +23,17 @@ export function SettingsRowFrame({
   badge,
   description,
   value = 'fit',
+  align = 'start',
   children,
 }: SettingsRowFrameProps) {
   return (
-    <div className="flex items-start justify-between gap-4">
+    <div
+      className={
+        align === 'center'
+          ? 'flex items-center justify-between gap-4'
+          : 'flex items-start justify-between gap-4'
+      }
+    >
       <div className="flex min-h-8 min-w-0 flex-1 flex-col justify-center gap-0.5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {label}

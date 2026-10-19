@@ -992,6 +992,7 @@ function ReverseLineCard({
         ))}
         <SettingsRowFrame
           value="control"
+          align="center"
           label={<span className="text-sm">{t('stock-event-reverse.cancel-reason')}</span>}
         >
           <ReverseReasonCell
@@ -1003,6 +1004,7 @@ function ReverseLineCard({
         {rowDraft && reason?.isFreeTextAllowed && visibility.comments !== false && (
           <SettingsRowFrame
             value="control"
+            align="center"
             label={
               <span className="text-sm">{t('stock-event-reverse.cancel-reason-comments')}</span>
             }
