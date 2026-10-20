@@ -169,12 +169,16 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
-          {data.card.summaryOnly && (
+          {data.card.downloadedAt !== undefined && (
             <div className="flex flex-col gap-1">
-              <p className="text-muted-foreground text-sm">{t('stock-card.offline-summary')}</p>
-              {data.card.downloadedAt !== undefined && (
-                <DownloadedAt timestamp={data.card.downloadedAt} />
-              )}
+              <p className="text-muted-foreground text-sm">
+                {t(
+                  data.card.summaryOnly
+                    ? 'stock-card.offline-summary'
+                    : 'stock-card.offline-history',
+                )}
+              </p>
+              <DownloadedAt timestamp={data.card.downloadedAt} />
             </div>
           )}
           <DataTableToolbar align="end">
@@ -254,14 +258,16 @@ function StockCardPrint({
     errorDescription: t('stock-card.print-error'),
     refusedDescription: t('stock-card.print-refused'),
   });
+  const offline = print.offline || card.downloadedAt !== undefined;
+  const disabledReason = offline ? t('offline.print-description') : undefined;
   return (
-    <ActionTooltip reason={print.disabledReason}>
+    <ActionTooltip reason={disabledReason}>
       <Button
         size="lg"
-        disabled={print.offline || print.isPending}
+        disabled={offline || print.isPending}
         onClick={print.print}
-        focusableWhenDisabled={print.offline}
-        aria-description={print.disabledReason}
+        focusableWhenDisabled={offline}
+        aria-description={disabledReason}
       >
         {print.isPending ? (
           <Spinner data-icon="inline-start" />

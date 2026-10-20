@@ -1,8 +1,9 @@
 # Working Offline
 
 Adjustments can use downloaded data, save drafts and submit events without a connection.
-Home, Offline Events, Stock On Hand and Stock Card summaries also open offline. Transaction
-history, other stock pages, administration, printing and PDF downloads need a connection.
+Home, Offline Events, Stock On Hand and previously viewed Stock Cards also open offline. The
+Transaction History page, other stock pages, administration, printing and PDF downloads need a
+connection.
 
 ## Before You Disconnect
 
@@ -52,14 +53,23 @@ recognize an upload in progress, so the same event is not sent twice.
 
 Stock On Hand reads the downloaded home-facility snapshot, including product and lot details,
 filters and pages. Both stock views show Downloaded with the snapshot date and time so you
-can check its age. Stock Card shows the downloaded product, lot and balance summary. Its
-transaction history is not downloaded; connect to see movements or check whether an uncertain
-event was recorded. Queued events do not change the downloaded balance. They appear in stock
-after they sync and a new stock download completes.
+can check its age.
 
-Only programs whose downloads completed are readable. Another facility, an undownloaded
-program or an undownloaded card shows Not Available Offline. Reconnect and finish the download
-before trying again.
+Open each Stock Card you need while connected. The app saves its full history on this device
+for your user. Offline, it shows the saved history with the same pages, units and column
+choices. Downloaded tells you when it was saved; later changes may be missing. Printing still
+needs a connection. The device keeps the 50 most recently fetched Stock Cards. Opening a card
+again online updates its saved copy; saving more cards removes the oldest saved histories.
+
+If a card's history has not been saved, its downloaded home-stock summary can still show the
+product, lot and balance, with a message to connect for history. Connect before checking whether
+an uncertain event was recorded. Queued events do not change the downloaded balance. They appear
+in stock after they sync and a new stock download completes.
+
+Stock On Hand needs a completed home-program download. Stock Cards need either their own
+saved history or a downloaded home-stock summary, with permission to view that card. A card
+with neither shows Not Available Offline. Reconnect and open the card or finish the home-stock
+download before trying again.
 
 ## Reconnect And Review Offline Events
 

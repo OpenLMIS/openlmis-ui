@@ -1,4 +1,5 @@
 import { latestOrderableVersions } from '@/features/reference-data/lib/latest-orderable-versions';
+import { readStockCardHistory } from '@/features/stock-card/lib/history-cache';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import {
   type HomeStockBundle,
@@ -58,6 +59,8 @@ export async function readStockOnHandOnDevice(
 }
 
 export async function readStockCardOnDevice(id: string): Promise<StockCard> {
+  const history = await readStockCardHistory(id);
+  if (history) return history;
   const access = await readOfflineAccess();
   const home = access.homeFacility;
   if (!home) throw new LocalDataUnavailableError();

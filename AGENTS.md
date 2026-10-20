@@ -987,6 +987,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Home-stock downloads require supported home programs with STOCK_ADJUST and STOCK_CARDS_VIEW.
   Keep summaries separate from history and queued balances. Routes supply device readers to
   stock features; picker-only fallbacks must not contaminate shared facility lookup caches.
+- Stock Card views save full histories per owner in Dexie, retaining the 50 most recently fetched cards.
 - Offline scans consult complete saved mappings. Absence means unavailable locally, never proof
   that a barcode is globally unregistered. Preserve exact product versions and typed values.
 - Flush drafts before guarded transitions and Log Out. Count owner-scoped work once, deduplicate

@@ -42,6 +42,7 @@ export function getLocalDb(): Dexie {
       adjustmentDownloads: null,
       homeStockDownloads: '[facilityId+programId]',
     });
+    database.version(9).stores({ stockCardHistory: 'id, fetchedAt' });
   }
   return database;
 }
