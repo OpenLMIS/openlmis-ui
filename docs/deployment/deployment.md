@@ -269,6 +269,12 @@ sends, not `SIGTERM`. The entrypoint traps `TERM INT QUIT`; dropping `QUIT` woul
 mean every ordinary stop skipped deregistration and left nginx proxying the prefix
 to a dead upstream until Consul's `DeregisterCriticalServiceAfter` (10m) reaped it.
 
+On stop, a container removes the prefix's KV entries only while they still name its own
+service. That is what makes updates gapless: a second container started with another
+`SERVICE_NAME` takes the prefix over, the original is recreated on the new image and takes it
+back, and the second one then stops without touching entries that are no longer its own. The
+legacy UI and the API are never restarted.
+
 ## Running the stack locally
 
 `docker-compose.yml` brings up Consul and the real `openlmis/nginx` gateway, so

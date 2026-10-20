@@ -79,6 +79,10 @@ Later versions need only a new `OL_UI_VERSION` and another run. `0.1.0-SNAPSHOT`
 mutable tag that each `master` build overwrites, so re-running alone picks up the
 newest build of that version.
 
+The deploy job restarts everything. To add or update only the new UI and keep the rest
+of the environment running, start or recreate just its container instead; see
+[Stopping cleanly](deployment.md#stopping-cleanly) for how updates avoid any gap on `/v2`.
+
 ## 5. Check it worked
 
 Backends take a few minutes to come back. The UIs answer sooner.
