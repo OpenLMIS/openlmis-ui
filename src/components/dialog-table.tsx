@@ -30,9 +30,6 @@ function DialogCards({
   }, [page]);
   const request = () => {
     requested.current = true;
-    setTimeout(() => {
-      requested.current = false;
-    });
   };
   return (
     <div className="flex scroll-mt-1 flex-col gap-4" ref={content}>
