@@ -601,17 +601,20 @@ function SidebarMenuAction({
 function SidebarMenuBadge({
   className,
   collapsed = "hidden",
+  variant = "default",
   ...props
-}: React.ComponentProps<"div"> & { collapsed?: "hidden" | "indicator" }) {
+}: React.ComponentProps<"div"> & { collapsed?: "hidden" | "indicator"; variant?: "default" | "destructive" }) {
   return (
     <div
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
+      data-variant={variant}
       className={cn(
         "pointer-events-none absolute end-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
         collapsed === "indicator"
           ? "group-data-[collapsible=icon]:end-0 group-data-[collapsible=icon]:top-0! group-data-[collapsible=icon]:size-2.5 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:bg-primary group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:text-transparent! group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar"
           : "group-data-[collapsible=icon]:hidden",
+        variant === "destructive" && "bg-destructive text-destructive-foreground! group-data-[collapsible=icon]:bg-destructive!",
         className
       )}
       {...props}

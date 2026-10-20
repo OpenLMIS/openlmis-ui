@@ -25,7 +25,10 @@ vi.mock('@/lib/feature-flags', async (importOriginal) => {
   };
 });
 
-function renderSidebar(rights: string[], { path = '/', defaultOpen = true, pending = 0 } = {}) {
+function renderSidebar(
+  rights: string[],
+  { path = '/', defaultOpen = true, pending = 0, refused = 0, uncertain = 0 } = {},
+) {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
   queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
@@ -37,8 +40,8 @@ function renderSidebar(rights: string[], { path = '/', defaultOpen = true, pendi
             hasDeviceEvents: pending > 0,
             pending,
             waiting: 0,
-            uncertain: 0,
-            refused: 0,
+            uncertain,
+            refused,
             sending: false,
             retained: false,
             pauses: [],
@@ -182,3 +185,17 @@ it('puts counted Offline Events directly below Home and keeps its link available
   expect(items[1]).toHaveTextContent('nav.offline-events');
   expect(items[1].querySelector('[data-slot=sidebar-menu-badge]')).toHaveTextContent('4');
 });
+
+it.each(['refused', 'uncertain'] as const)(
+  'marks the Offline Events badge and accessible name when %s events need action',
+  async (status) => {
+    renderSidebar([], { pending: 4, [status]: 1 });
+    const events = await screen.findByRole('link', {
+      name: 'offline-events.nav-count. offline-events.action-needed-count',
+    });
+    expect(events.closest('li')?.querySelector('[data-slot=sidebar-menu-badge]')).toHaveAttribute(
+      'data-variant',
+      'destructive',
+    );
+  },
+);

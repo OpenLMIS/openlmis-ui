@@ -25,6 +25,7 @@ it('recovers a failed service import on reconnect and stops both services on unm
   const uploaderStop = vi.fn();
   const access = vi.fn();
   const refresh = vi.fn();
+  const reviewRefused = vi.fn();
   const coordinator = vi.fn(() => ({ stop: coordinatorStop, freshAccess: access, refresh }));
   const uploader = vi.fn(() => uploaderStop);
   const load = vi
@@ -35,14 +36,14 @@ it('recovers a failed service import on reconnect and stops both services on unm
       { startStockEventUploader: uploader },
       { homeStockProvider },
     ]);
-  stop = startDeviceWorkServices('force', load);
+  stop = startDeviceWorkServices('force', load, undefined, reviewRefused);
   await waitFor(() => expect(load).toHaveBeenCalledOnce());
   expect(reloadOnce).not.toHaveBeenCalled();
   onlineManager.setOnline(true);
   await waitFor(() => expect(coordinator).toHaveBeenCalledOnce());
   expect(reloadOnce).not.toHaveBeenCalled();
   expect(whenLeaveAllowed).not.toHaveBeenCalled();
-  expect(uploader).toHaveBeenCalledExactlyOnceWith({ access, refresh });
+  expect(uploader).toHaveBeenCalledExactlyOnceWith({ access, refresh, reviewRefused });
   document.dispatchEvent(new Event('visibilitychange'));
   expect(load).toHaveBeenCalledTimes(2);
   stop();

@@ -191,8 +191,8 @@ function NavMenuItem({ item, isCollapsed, ...props }: NavMenuItemProps) {
 type NavLinkItemProps = Pick<NavMenuItemProps, 'pathname' | 'onNavigate'> & { item: LiveNavLink };
 
 function OfflineEventsNavItem(props: NavLinkItemProps) {
-  const { pending } = useDeviceWork();
-  return <NavLinkItem {...props} count={pending} />;
+  const { pending, refused, uncertain } = useDeviceWork();
+  return <NavLinkItem {...props} count={pending} needsAction={refused + uncertain} />;
 }
 
 function NavLinkItem({
@@ -200,11 +200,17 @@ function NavLinkItem({
   pathname,
   onNavigate,
   count = 0,
-}: NavLinkItemProps & { count?: number }) {
+  needsAction = 0,
+}: NavLinkItemProps & { count?: number; needsAction?: number }) {
   const { t } = useTranslation();
   const title = t(item.titleKey);
   const offline = useOfflineNavigation();
-  const label = count ? t('offline-events.nav-count', { count }) : title;
+  const label = [
+    count ? t('offline-events.nav-count', { count }) : title,
+    needsAction ? t('offline-events.action-needed-count', { count: needsAction }) : undefined,
+  ]
+    .filter(Boolean)
+    .join('. ');
 
   return (
     <SidebarMenuItem>
@@ -239,7 +245,11 @@ function NavLinkItem({
         {item.connectionRequired && <WifiOffIcon aria-hidden="true" />}
       </SidebarMenuButton>
       {count > 0 && (
-        <SidebarMenuBadge collapsed="indicator" aria-hidden>
+        <SidebarMenuBadge
+          collapsed="indicator"
+          variant={needsAction ? 'destructive' : 'default'}
+          aria-hidden
+        >
           <LocalizedCount count={count} />
         </SidebarMenuBadge>
       )}

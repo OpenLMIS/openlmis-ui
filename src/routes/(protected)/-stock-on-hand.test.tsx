@@ -868,42 +868,66 @@ async function seedStockPickerAccess() {
   await getLocalDb().table('offlineAccess').put(access);
 }
 
-it('opens downloaded stock with a cold cache offline without requesting products or lots', async () => {
-  await seedHomeStock(
-    {
-      id: 'downloaded-card',
-      facility: { id: HOME, code: 'HC01', name: 'Comfort Health Clinic' },
-      program: { id: FP, code: 'P', name: 'Family Planning' },
-      orderable: {
-        id: 'downloaded-product',
-        productCode: 'OFF',
-        fullProductName: 'Downloaded Medicine',
+it.each(['queued', 'sending', 'uncertain'])(
+  'warns about %s work when showing downloaded stock with a cold cache',
+  async (status) => {
+    await seedHomeStock(
+      {
+        id: 'downloaded-card',
+        facility: { id: HOME, code: 'HC01', name: 'Comfort Health Clinic' },
+        program: { id: FP, code: 'P', name: 'Family Planning' },
+        orderable: {
+          id: 'downloaded-product',
+          productCode: 'OFF',
+          fullProductName: 'Downloaded Medicine',
+        },
+        lot: { id: 'downloaded-lot', lotCode: 'OFF-LOT', expirationDate: null },
+        stockOnHand: 9,
+        active: true,
+        lineItems: [],
       },
-      lot: { id: 'downloaded-lot', lotCode: 'OFF-LOT', expirationDate: null },
-      stockOnHand: 9,
-      active: true,
-      lineItems: [],
-    },
-    USER,
-  );
-  onlineManager.setOnline(false);
-  const client = new QueryClient({
-    defaultOptions: { queries: { networkMode: 'always', retry: false } },
-  });
-  renderRoute(appliedPath(), client);
-  expect(await screen.findAllByText('Downloaded Medicine')).not.toHaveLength(0);
-  expect(screen.getByText('stock-on-hand.offline-snapshot')).toBeInTheDocument();
-  expect(screen.getByText('OFF-LOT')).toBeInTheDocument();
-  expect(fetchStockCardSummaries).not.toHaveBeenCalled();
-  expect(fetchMinimalFacilities).not.toHaveBeenCalled();
-  expect(fetchOrderablesByIds).not.toHaveBeenCalled();
-  expect(fetchLotsByIds).not.toHaveBeenCalled();
-  await act(async () => {
-    onlineManager.setOnline(true);
-    expect(await client.fetchQuery(minimalFacilitiesOptions())).toHaveLength(2);
-  });
-  expect(fetchMinimalFacilities).toHaveBeenCalled();
-});
+      USER,
+    );
+    const queue = getLocalDb().table('stockEventQueue');
+    await queue.clear();
+    const id = await queue.add({
+      localEventId: 'pending-stock',
+      userId: USER,
+      facilityId: HOME,
+      programId: FP,
+      status,
+    });
+    onlineManager.setOnline(false);
+    const client = new QueryClient({
+      defaultOptions: { queries: { networkMode: 'always', retry: false } },
+    });
+    renderRoute(appliedPath(), client);
+    expect(await screen.findAllByText('Downloaded Medicine')).not.toHaveLength(0);
+    expect(screen.getByText('stock-on-hand.offline-snapshot')).toBeInTheDocument();
+    expect(await screen.findByText('offline-events.stock-pending')).toBeVisible();
+    await act(async () => {
+      await queue.update(id, { programId: EM });
+    });
+    await waitFor(() =>
+      expect(screen.queryByText('offline-events.stock-pending')).not.toBeInTheDocument(),
+    );
+    await act(async () => {
+      await queue.update(id, { facilityId: BALAKA, programId: FP });
+    });
+    expect(screen.queryByText('offline-events.stock-pending')).not.toBeInTheDocument();
+    await queue.clear();
+    expect(screen.getByText('OFF-LOT')).toBeInTheDocument();
+    expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+    expect(fetchMinimalFacilities).not.toHaveBeenCalled();
+    expect(fetchOrderablesByIds).not.toHaveBeenCalled();
+    expect(fetchLotsByIds).not.toHaveBeenCalled();
+    await act(async () => {
+      onlineManager.setOnline(true);
+      expect(await client.fetchQuery(minimalFacilitiesOptions())).toHaveLength(2);
+    });
+    expect(fetchMinimalFacilities).toHaveBeenCalled();
+  },
+);
 
 it('replaces a previously viewed supervised list with Not Available Offline on disconnect', async () => {
   await seedStockPickerAccess();

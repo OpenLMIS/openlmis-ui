@@ -1,11 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
-import { type ErrorComponentProps, Link } from '@tanstack/react-router';
+import type { ErrorComponentProps } from '@tanstack/react-router';
 import { liveQuery } from 'dexie';
 import type { ParseKeys } from 'i18next';
-import { ClipboardPenLineIcon, ZapIcon } from 'lucide-react';
+import { ClipboardPenLineIcon } from 'lucide-react';
 import { type ReactElement, type ReactNode, useEffect, useState } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { LoadError } from '@/components/load-error';
 import { NoAccess } from '@/components/no-access-page';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -13,7 +13,6 @@ import {
   StockProgramPicker,
   StockProgramPickerSkeleton,
 } from '@/components/stock-program-picker/stock-program-picker';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -31,10 +30,9 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
-import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
+import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { readHomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
-import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import { getLocalDb } from '@/integrations/local-db';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
@@ -167,33 +165,6 @@ export function StockEventProgramPicker(props: PickerProps) {
         </QueryBoundary>
       </WorkspaceContent>
     </Workspace>
-  );
-}
-
-function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
-  const { t } = useTranslation();
-  const { events } = useOfflineEvents();
-  const online = useOnline();
-  const count =
-    events?.filter((event) => event.kind === kind && isPendingDeviceEvent(event)).length ?? 0;
-  if (!count) return null;
-  return (
-    <Alert role="note" variant="offline">
-      <ZapIcon aria-hidden="true" />
-      <AlertDescription>
-        <Trans
-          t={t}
-          i18nKey={
-            online
-              ? 'offline-events.program-pending-online'
-              : 'offline-events.program-pending-offline'
-          }
-          count={count}
-          values={{ count, kind }}
-          components={{ strong: <strong />, eventLink: <Link to="/offline-events" /> }}
-        />
-      </AlertDescription>
-    </Alert>
   );
 }
 

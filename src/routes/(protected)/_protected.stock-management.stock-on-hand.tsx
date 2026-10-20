@@ -38,6 +38,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import {
   prefetchStockOnHand,
@@ -517,6 +518,9 @@ function StockOnHandList({
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
+          pendingEvents={
+            <PendingDeviceWork facilityId={selection.facilityId} programId={selection.programId} />
+          }
           readOnDevice={readStockOnHandOnDevice}
           cards={columnView.cards}
           collapsedKey={collapsedKey}

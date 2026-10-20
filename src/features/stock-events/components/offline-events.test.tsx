@@ -7,7 +7,10 @@ import { expect, it, vi } from 'vitest';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
-import type { OfflineEventsSearch } from '@/features/stock-events/lib/offline-events-search';
+import {
+  type OfflineEventsSearch,
+  offlineEventsSearchSchema,
+} from '@/features/stock-events/lib/offline-events-search';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
@@ -294,7 +297,7 @@ it.each([1440, 390])(
     local.events = [
       event('First', 'queued', '2026-10-13', 0, 3),
       event('Second', 'refused', '2026-10-12', 20, 1),
-      event('Third', 'uncertain', '2026-10-12', 10, 2),
+      { ...event('Third', 'uncertain', '2026-10-12', 10, 2), kind: 'issue' },
     ];
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
@@ -338,5 +341,56 @@ it.each([1440, 390])(
     await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
     await waitFor(() => expect(order()).toEqual(['Second', 'Third', 'First']));
     expect((router.state.location.search as OfflineEventsSearch).status).toBeUndefined();
+    await act(async () =>
+      router.history.push('/?eventType=adjustment&startDate=2026-10-12&endDate=2026-10-12'),
+    );
+    await waitFor(() => expect(order()).toEqual(['Second']));
+    const type = screen.getByRole('combobox', { name: 'offline-events.type' });
+    expect(type).toHaveTextContent('nav.stock-management.adjustments');
+    expect(screen.getByRole('button', { name: /offline-events.start-date/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: /offline-events.end-date/ })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: /offline-events.start-date/ }));
+    expect(await screen.findByRole('button', { name: /October 13/ })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: /offline-events.end-date/ }));
+    expect(await screen.findByRole('button', { name: /October 11/ })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /October 13/ }));
+    await waitFor(() => expect(order()).toEqual(['First', 'Second']));
+    expect(router.state.location.search).toMatchObject({
+      startDate: '2026-10-12',
+      endDate: '2026-10-13',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+    await waitFor(() => expect(order()).toEqual(['First', 'Third', 'Second']));
+    expect(router.state.location.search).not.toHaveProperty('startDate');
+    expect(router.state.location.search).not.toHaveProperty('endDate');
+    expect(router.state.location.search).not.toHaveProperty('eventType');
+    await user.click(type);
+    expect(
+      screen.queryByRole('option', { name: 'nav.stock-management.issue' }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      await screen.findByRole('option', { name: 'nav.stock-management.adjustments' }),
+    );
+    await waitFor(() => expect(order()).toEqual(['First', 'Second']));
+    expect(router.state.location.search).toMatchObject({ eventType: 'adjustment' });
   },
 );
+
+it('validates event type and calendar dates from links', () => {
+  expect(
+    offlineEventsSearchSchema.parse({
+      eventType: 'adjustment',
+      startDate: '2026-10-12',
+      endDate: '2026-10-13',
+    }),
+  ).toMatchObject({ eventType: 'adjustment', startDate: '2026-10-12', endDate: '2026-10-13' });
+  expect(
+    offlineEventsSearchSchema.parse({
+      eventType: 'issue',
+      startDate: '2026-02-30',
+      endDate: 'invalid',
+    }),
+  ).toEqual({ eventType: undefined, startDate: undefined, endDate: undefined });
+});

@@ -2,8 +2,10 @@ import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import Dexie from 'dexie';
-import { toast } from 'sonner';
+import ICU from 'i18next-icu';
+import { type Action, toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   getSyncPhase,
@@ -43,7 +45,7 @@ vi.mock('@/features/stock-events/lib/event-kinds', async (original) => {
     },
   };
 });
-vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const owner = { referenceDataUserId: 'uploader', username: 'Ada', accessToken: 'first' };
 const line = newEventLine(
   {
@@ -549,6 +551,61 @@ it('excludes access preparation from the foreground sending start deadline', asy
     expect((await result).kind).toBe('accepted');
   } finally {
     preparing.resolve(snapshot);
+    foregroundStockEvents.delete(event.localEventId);
+  }
+});
+
+it('summarizes only new background refusals once per pass and offers review', async () => {
+  await i18n.use(ICU).init({
+    lng: 'en',
+    resources: { en: { translation: en } },
+    keySeparator: false,
+    nsSeparator: false,
+  });
+  await enqueue();
+  await enqueue();
+  const reviewRefused = vi.fn();
+  const translated = vi.spyOn(i18n, 't');
+  const send = vi.fn(async () => ({
+    status: 400,
+    data: { messageKey: 'refused', message: 'Refused' },
+  }));
+  stops.push(startStockEventUploader({ access: async () => snapshot, send, reviewRefused }));
+  onlineManager.setOnline(true);
+  await waitFor(() => expect(toast.error).toHaveBeenCalledOnce());
+  expect(toast.error).toHaveBeenCalledWith('2 Offline Events Refused', {
+    description: en['offline-events.refused-summary-description'],
+    action: { label: en['offline-events.review'], onClick: expect.any(Function) },
+  });
+  expect(translated).toHaveBeenCalledWith('offline-events.refused-summary', { count: 2 });
+  const options = vi.mocked(toast.error).mock.calls[0][1];
+  const action = options?.action as Action;
+  action.onClick({} as never);
+  expect(reviewRefused).toHaveBeenCalledOnce();
+  wakeStockEventSync();
+  await waitFor(() => expect(getSyncPhase()).toBe('idle'));
+  expect(toast.error).toHaveBeenCalledOnce();
+  useLoginData.getState().clearLoginData();
+  action.onClick({} as never);
+  expect(reviewRefused).toHaveBeenCalledOnce();
+});
+
+it('keeps foreground refusals out of the background summary toast', async () => {
+  const event = await enqueue();
+  foregroundStockEvents.add(event.localEventId);
+  try {
+    stops.push(
+      startStockEventUploader({
+        access: async () => snapshot,
+        send: async () => ({ status: 400, data: { messageKey: 'refused', message: 'Refused' } }),
+      }),
+    );
+    onlineManager.setOnline(true);
+    await waitFor(async () =>
+      expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(1),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+  } finally {
     foregroundStockEvents.delete(event.localEventId);
   }
 });

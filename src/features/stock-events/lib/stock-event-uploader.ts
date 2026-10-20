@@ -40,6 +40,7 @@ import { uploadAccessEpoch } from '@/lib/upload-access';
 
 export function startStockEventUploader(dependencies: {
   access: (force?: boolean) => Promise<OfflineAccess>;
+  reviewRefused?: () => void;
   refresh?: (refreshKey: string) => void;
   send?: SyncDependencies['send'];
   retryReceipt?: () => Promise<void>;
@@ -176,7 +177,7 @@ export function startStockEventUploader(dependencies: {
           toast.success(i18n.t('offline-events.synced'), {
             description: i18n.t('offline-events.synced-count', { count: acceptedCount }),
           });
-        const unfinished = await db.transaction(
+        const { unfinished, refusedCount } = await db.transaction(
           'r',
           ['stockEventQueue', 'stockEventSyncErrors'],
           async () => {
@@ -190,10 +191,31 @@ export function startStockEventUploader(dependencies: {
                 (error) => error.event.userId === userId && !error.resolvedAt && !error.dismissedAt,
               )
               .count();
-            return queued + errors;
+            const refusedCount = await db
+              .table<StockEventSyncError>('stockEventSyncErrors')
+              .filter(
+                (error) =>
+                  error.event.userId === userId &&
+                  backgroundEvents.has(error.localEventId) &&
+                  error.category !== 'uncertain' &&
+                  !error.resolvedAt &&
+                  !error.dismissedAt,
+              )
+              .count();
+            return { unfinished: queued + errors, refusedCount };
           },
         );
         check();
+        if (refusedCount)
+          toast.error(i18n.t('offline-events.refused-summary', { count: refusedCount }), {
+            description: i18n.t('offline-events.refused-summary-description'),
+            action: {
+              label: i18n.t('offline-events.review'),
+              onClick: () => {
+                if (scope === getSessionScope() && !stopped) dependencies.reviewRefused?.();
+              },
+            },
+          });
         setSyncPhase(
           acceptedCount &&
             acceptedCount === sentCount &&

@@ -26,6 +26,7 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { DialogNotFound } from '@/components/dialog-parts';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { DatePicker } from '@/components/form/form-fields';
 import { SettingsItem } from '@/components/form/settings-list';
 import { FormDialog } from '@/components/form-dialog/form-dialog';
 import { ListError } from '@/components/list-error';
@@ -44,8 +45,12 @@ import { DeviceEventActions } from '@/features/stock-events/components/device-ev
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { EventStatus } from '@/features/stock-events/components/event-status';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
-import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import type { OfflineEventsSearch } from '@/features/stock-events/lib/offline-events-search';
+import { EVENT_KINDS, OFFLINE_EVENT_TYPES } from '@/features/stock-events/lib/event-kinds';
+import {
+  activeEventFilters,
+  CLEARED_EVENT_FILTERS,
+  type OfflineEventsSearch,
+} from '@/features/stock-events/lib/offline-events-search';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useCardView } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
@@ -121,10 +126,8 @@ export function OfflineEventsPage({
             <div className="flex-1 @2xl/main:flex-none">
               <DataTableFilters
                 size="lg"
-                activeCount={search.status ? 1 : 0}
-                onClear={() =>
-                  onSearchChange({ status: undefined, page: undefined, event: undefined }, true)
-                }
+                activeCount={activeEventFilters(search)}
+                onClear={() => onSearchChange(CLEARED_EVENT_FILTERS, true)}
               >
                 <DataTableSelectFilter
                   label={t('offline-events.status')}
@@ -143,6 +146,55 @@ export function OfflineEventsPage({
                     value,
                     label: t(`offline-events.status-${value}`),
                   }))}
+                />
+                <DataTableSelectFilter
+                  allLabel={t('offline-events.type-all')}
+                  label={t('offline-events.type')}
+                  value={search.eventType ?? ''}
+                  options={OFFLINE_EVENT_TYPES.map((kind) => ({
+                    value: kind,
+                    label: t(EVENT_KINDS[kind].copy.label),
+                  }))}
+                  onValueChange={(eventType) =>
+                    onSearchChange(
+                      {
+                        eventType: (eventType as OfflineEventsSearch['eventType']) || undefined,
+                        page: undefined,
+                        event: undefined,
+                      },
+                      true,
+                    )
+                  }
+                />
+                <DatePicker
+                  id="offline-events-start-date"
+                  label={t('offline-events.start-date')}
+                  placeholder={t('offline-events.start-date')}
+                  value={search.startDate ?? ''}
+                  latest={search.endDate}
+                  clearLabel={t('data-table.clear-filter', {
+                    label: t('offline-events.start-date'),
+                  })}
+                  onValueChange={(startDate) =>
+                    onSearchChange(
+                      { startDate: startDate || undefined, page: undefined, event: undefined },
+                      true,
+                    )
+                  }
+                />
+                <DatePicker
+                  id="offline-events-end-date"
+                  label={t('offline-events.end-date')}
+                  placeholder={t('offline-events.end-date')}
+                  value={search.endDate ?? ''}
+                  earliest={search.startDate}
+                  clearLabel={t('data-table.clear-filter', { label: t('offline-events.end-date') })}
+                  onValueChange={(endDate) =>
+                    onSearchChange(
+                      { endDate: endDate || undefined, page: undefined, event: undefined },
+                      true,
+                    )
+                  }
                 />
               </DataTableFilters>
             </div>
@@ -323,7 +375,17 @@ function OfflineEventsTable({
   const sorted = useMemo(
     () =>
       [...(local.events ?? [])]
-        .filter((event) => !deferred.status || event.status === deferred.status)
+        .filter(
+          (event) =>
+            (!deferred.status || event.status === deferred.status) &&
+            (!deferred.eventType || event.kind === deferred.eventType) &&
+            ((!deferred.startDate && !deferred.endDate) ||
+              occurredDate(event).some(
+                (date) =>
+                  (!deferred.startDate || date >= deferred.startDate) &&
+                  (!deferred.endDate || date <= deferred.endDate),
+              )),
+        )
         .sort(
           (a, b) =>
             ((deferred.sort === 'queuedAt'
@@ -333,7 +395,15 @@ function OfflineEventsTable({
               (a.sequence ?? 0) - (b.sequence ?? 0)) *
             ((deferred.dir ? deferred.dir === 'desc' : defaultSort.desc) ? -1 : 1),
         ),
-    [local.events, deferred.dir, deferred.sort, deferred.status],
+    [
+      local.events,
+      deferred.dir,
+      deferred.sort,
+      deferred.status,
+      deferred.eventType,
+      deferred.startDate,
+      deferred.endDate,
+    ],
   );
   const pagination = toPaginationState(deferred);
   const data = useMemo(
@@ -400,18 +470,20 @@ function OfflineEventsTable({
       <DataTableEmpty
         icon={<ListChecksIcon />}
         title={t(
-          search.status ? 'offline-events.no-matches-title' : 'offline-events.no-events-title',
+          activeEventFilters(search)
+            ? 'offline-events.no-matches-title'
+            : 'offline-events.no-events-title',
         )}
         description={t(
-          search.status
+          activeEventFilters(search)
             ? 'offline-events.no-matches-description'
             : 'offline-events.no-events-description',
         )}
         action={
-          search.status ? (
+          activeEventFilters(search) ? (
             <Button
               variant="destructive"
-              onClick={() => onSearchChange({ status: undefined, page: undefined }, true)}
+              onClick={() => onSearchChange(CLEARED_EVENT_FILTERS, true)}
             >
               {t('data-table.clear-filters')}
             </Button>

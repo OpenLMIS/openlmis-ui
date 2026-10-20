@@ -355,7 +355,8 @@ export const EVENT_KINDS = {
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 
-export const OFFLINE_EVENT_KINDS = Object.values(EVENT_KINDS).filter(
-  (kind) => kind.download !== null && kind.drafts === 'device',
+export const OFFLINE_EVENT_TYPES = (Object.keys(EVENT_KINDS) as ConfiguredEventKind[]).filter(
+  (kind) => EVENT_KINDS[kind].download !== null && EVENT_KINDS[kind].drafts === 'device',
 );
+export const OFFLINE_EVENT_KINDS = OFFLINE_EVENT_TYPES.map((kind) => EVENT_KINDS[kind]);
 export const OFFLINE_EVENT_RIGHTS = [...new Set(OFFLINE_EVENT_KINDS.map((kind) => kind.right))];

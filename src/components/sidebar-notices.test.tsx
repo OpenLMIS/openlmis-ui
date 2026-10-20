@@ -23,6 +23,7 @@ import { useDeviceSaveAnnouncement } from '@/features/stock-events/lib/device-sa
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
+import * as mobile from '@/hooks/use-mobile';
 import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate } from '@/lib/service-worker';
@@ -338,7 +339,7 @@ it('clears the completed download announcement before later notices change', () 
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
 });
 
-it('announces uncertain and refused counts without duplicate count cards', async () => {
+it('shows action-needed events once visibly and once in the persistent announcer', async () => {
   device.allowed = true;
   device.events = [
     { status: 'queued' },
@@ -365,14 +366,21 @@ it('announces uncertain and refused counts without duplicate count cards', async
     </I18nextProvider>,
   );
   expect(screen.getByRole('status')).not.toHaveTextContent('Events Waiting To Sync');
-  expect(screen.getByRole('status')).toHaveTextContent('1 Event Needs Review');
-  expect(screen.getByRole('status')).toHaveTextContent('1 Refused Event');
+  expect(
+    screen.getByRole('status').textContent?.match(/2 Offline Events Need Review/g),
+  ).toHaveLength(1);
   const notes = screen.getAllByRole('note');
-  expect(notes).toHaveLength(2);
+  expect(notes).toHaveLength(3);
+  expect(notes[0]).toHaveClass('border-destructive/30');
   expect(notes.some((note) => note.textContent?.includes('Access Changed'))).toBe(true);
   expect(screen.getAllByRole('button', { name: 'Review Offline Events' })).toHaveLength(1);
-  for (const note of notes)
-    expect(note).not.toHaveTextContent(/Events? Waiting To Sync|Refused Event/);
+  const needsReview = notes.find((note) =>
+    note.textContent?.includes('2 Offline Events Need Review'),
+  );
+  expect(needsReview).toHaveClass('border-destructive/30');
+  if (!needsReview) throw new Error('Missing action-needed notice');
+  expect(within(needsReview).getByRole('button', { name: 'Review Offline Events' })).toBeVisible();
+  expect(screen.getAllByRole('status')).toHaveLength(1);
 });
 it('keeps the offline connection notice alone and offers sign-in after reconnect', () => {
   device.allowed = true;
@@ -531,3 +539,16 @@ it('groups failed programs by dataset in separate messages', async () => {
     'Stock On Hand: Medicines, Vaccines\nAdjustments: Supplies',
   );
 });
+
+it.each(['refused', 'uncertain'] as const)(
+  'marks the closed phone menu for %s work without requiring kind rights',
+  (status) => {
+    vi.spyOn(mobile, 'useIsMobile').mockReturnValue(true);
+    device.events = [{ status }] as DeviceEvent[];
+    renderNotices({ extra: <OfflineDot />, defaultOpen: false });
+    expect(screen.getByRole('img', { name: 'offline-events.action-needed-count' })).toHaveClass(
+      'bg-destructive',
+    );
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  },
+);

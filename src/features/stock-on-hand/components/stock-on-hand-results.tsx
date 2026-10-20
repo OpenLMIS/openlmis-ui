@@ -58,6 +58,7 @@ import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
+  pendingEvents?: ReactNode;
   cards: boolean;
   search: StockOnHandSearch;
   facilityId: string;
@@ -74,6 +75,7 @@ const collapsedSchema = z.array(z.string());
 const NO_SORT = { id: 'productCode', desc: false };
 
 export function StockOnHandResults({
+  pendingEvents,
   cards,
   search,
   facilityId,
@@ -207,6 +209,7 @@ export function StockOnHandResults({
           <DownloadedAt timestamp={page.device.fetchedAt} />
         </div>
       )}
+      {page.device && pendingEvents}
       {cards ? (
         <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
       ) : (

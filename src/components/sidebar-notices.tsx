@@ -47,7 +47,7 @@ type Notice = {
   spinning?: boolean;
   countdown?: NoticeCountdown;
   closesSidebar?: boolean;
-  variant: 'warning' | 'success' | 'info';
+  variant: 'warning' | 'success' | 'info' | 'destructive';
   Icon: LucideIcon;
   title: string;
   description?: string;
@@ -56,6 +56,7 @@ type Notice = {
 };
 
 const ICON_TONE: Record<Notice['variant'], string> = {
+  destructive: 'text-destructive',
   warning: 'text-warning-strong',
   success: 'text-success-strong',
   info: 'text-primary dark:text-info',
@@ -219,7 +220,19 @@ function useNotices(): Notice[] {
         closesSidebar: true,
       });
   }
+  const needsAction = device.refused + device.uncertain;
+  if (needsAction)
+    notices.unshift({
+      id: 'device-events-action-needed',
+      variant: 'destructive',
+      Icon: AlertTriangleIcon,
+      title: t('offline-events.action-needed-count', { count: needsAction }),
+      description: t('offline-events.action-needed-description'),
+      action: review,
+      closesSidebar: true,
+    });
   const reviewNotice =
+    notices.find((notice) => notice.action === review && notice.variant === 'destructive') ??
     notices.find((notice) => notice.action === review && notice.variant === 'warning') ??
     notices.find((notice) => notice.action === review);
   for (const notice of notices) {
@@ -373,7 +386,6 @@ export function StatusAnnouncer() {
   const updateReady = useUpdateReady();
   const notices = useNotices();
   const { queued, save: deviceSave } = useDeviceSync();
-  const { uncertain, refused } = useDeviceWork();
   const scope = useSessionScope();
   const { t } = useTranslation();
   const current: Record<string, string> = {};
@@ -381,8 +393,6 @@ export function StatusAnnouncer() {
   for (const { id, title, description } of notices) {
     current[id] = description ? `${title.replace(/[.!?؟。]+$/u, '')}. ${description}` : title;
   }
-  if (uncertain) current.uncertain = t('offline-events.uncertain-count', { count: uncertain });
-  if (refused) current.refused = t('offline-events.refused-count', { count: refused });
   if (queued) current.queued = t('offline-events.waiting', { count: queued.count });
   if (deviceSave) current.save = t(deviceSave);
   const signature = JSON.stringify(current);
@@ -412,7 +422,10 @@ export function StatusAnnouncer() {
 
 export function OfflineDot() {
   const { t } = useTranslation();
-  const warnings = useNotices().filter((notice) => notice.variant === 'warning');
+  const warnings = useNotices().filter((notice) =>
+    ['warning', 'destructive'].includes(notice.variant),
+  );
+  const destructive = warnings.some((notice) => notice.variant === 'destructive');
   const updateReady = useUpdateReady();
   const { isMobile, open, openMobile } = useSidebar();
   if ((!warnings.length && !updateReady) || (isMobile ? openMobile : open)) return null;
@@ -424,7 +437,10 @@ export function OfflineDot() {
     <span
       role="img"
       aria-label={label}
-      className="pointer-events-none absolute top-1 end-1 size-2 rounded-full bg-warning"
+      className={cn(
+        'pointer-events-none absolute top-1 end-1 size-2 rounded-full',
+        destructive ? 'bg-destructive' : 'bg-warning',
+      )}
     />
   );
 }

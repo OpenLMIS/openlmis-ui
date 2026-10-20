@@ -298,3 +298,26 @@ it.each([AxiosError.ERR_NETWORK, AxiosError.ECONNABORTED])(
     expect(isOnline()).toBe(true);
   },
 );
+
+it('recovers immediately from maximum backoff on a browser online event without overlapping an active probe', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const answer = Promise.withResolvers<{ ok: boolean; json: () => Promise<unknown> }>();
+  const fetch = vi.fn().mockRejectedValue(new TypeError('unreachable'));
+  vi.stubGlobal('fetch', fetch);
+  reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+  for (const delay of [1000, 2000, 4000, 8000, 16000]) await vi.advanceTimersByTimeAsync(delay);
+  expect(fetch).toHaveBeenCalledTimes(5);
+  fetch.mockImplementation(() => answer.promise);
+  window.dispatchEvent(new Event('online'));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(fetch).toHaveBeenCalledTimes(6);
+  window.dispatchEvent(new Event('online'));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(fetch).toHaveBeenCalledTimes(6);
+  answer.resolve({ ok: true, json: async () => ({ timeZoneId: 'UTC' }) });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(isOnline()).toBe(true);
+  await vi.advanceTimersByTimeAsync(30000);
+  expect(fetch).toHaveBeenCalledTimes(6);
+});
