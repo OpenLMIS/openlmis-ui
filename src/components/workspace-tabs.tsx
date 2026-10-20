@@ -43,7 +43,7 @@ export function WorkspaceTabs({
   return (
     <Tabs spacing="page" value={tab}>
       <div className="@container">
-        <TabsList aria-label={label} wrap={wrap === 'grid' ? true : 'column'}>
+        <TabsList aria-label={label} size="lg" wrap={wrap === 'grid' ? true : 'column'}>
           {tabs.map((item) => (
             <TabsTrigger
               key={item.to}

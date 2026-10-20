@@ -240,7 +240,8 @@ gate CI and must have zero findings.**
 has no allowlist. Add a variant in `src/components/ui/`, or put layout classes on a plain
 wrapper. Skeleton sizes always belong to the surrounding layout. Existing variant props
 are defined in the typed components; reuse them before adding another. `TabsList wrap="column"`
-fits odd tab counts; `wrap="md"` fits short labels. `Button variant="destructive-solid"` and
+fits odd tab counts; `wrap="md"` fits short labels. Page tabs use `TabsList size="lg"` (36px);
+dialogs keep the default. `Button variant="destructive-solid"` and
 `"destructive-outline"` mark the current and other invalid pages in the pager.
 `DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns;
 `size="table"` (36rem) fits a short form above a compact five-column table.
@@ -268,6 +269,7 @@ edits, which have no prop for TypeScript to detect:
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `combobox.tsx` | Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
+| `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 
 ### Integrations
 

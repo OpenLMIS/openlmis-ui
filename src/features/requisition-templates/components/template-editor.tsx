@@ -197,7 +197,7 @@ export function TemplateEditor({
                 onValueChange={(value: TemplateTab) => onTabChange(value)}
                 spacing="page"
               >
-                <TabsList aria-label={t('requisition-templates.configure.tabs-label')}>
+                <TabsList aria-label={t('requisition-templates.configure.tabs-label')} size="lg">
                   <TabsTrigger value="columns">
                     {t('requisition-templates.configure.columns')}
                   </TabsTrigger>

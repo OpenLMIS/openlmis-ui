@@ -304,7 +304,7 @@ function EditorHeader({ title, description }: { title?: string; description: str
 function EditorTabs() {
   const { t } = useTranslation();
   return (
-    <TabsList aria-label={t('requisition-groups.form.tabs-label')}>
+    <TabsList aria-label={t('requisition-groups.form.tabs-label')} size="lg">
       <TabsTrigger value="programs">{t('requisition-groups.form.programs')}</TabsTrigger>
       <TabsTrigger value="facilities">{t('requisition-groups.form.facilities')}</TabsTrigger>
     </TabsList>

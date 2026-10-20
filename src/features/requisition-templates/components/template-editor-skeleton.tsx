@@ -51,7 +51,7 @@ export function TemplateEditorSkeleton({
         <WorkspaceContent>
           <div ref={measure}>
             <Tabs value={tab} spacing="page">
-              <TabsList aria-label={t('requisition-templates.configure.tabs-label')}>
+              <TabsList aria-label={t('requisition-templates.configure.tabs-label')} size="lg">
                 <TabsTrigger disabled value="columns">
                   {t('requisition-templates.configure.columns')}
                 </TabsTrigger>

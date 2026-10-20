@@ -244,7 +244,7 @@ export function FacilityEditor({
                 spacing="page"
                 value={tab}
               >
-                <TabsList aria-label={t('facilities.form.tabs-label')}>
+                <TabsList aria-label={t('facilities.form.tabs-label')} size="lg">
                   <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
                   <TabsTrigger value="programs">
                     {t('facilities.form.programs')}
@@ -798,7 +798,7 @@ export function FacilityEditorSkeleton({
         <WorkspaceContent>
           <div className="flex flex-col gap-4 @4xl/main:gap-6">
             <Tabs spacing="page" value="information">
-              <TabsList aria-label={t('facilities.form.tabs-label')}>
+              <TabsList aria-label={t('facilities.form.tabs-label')} size="lg">
                 <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
                 <TabsTrigger value="programs">
                   {t('facilities.form.programs')}

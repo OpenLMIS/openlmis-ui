@@ -87,7 +87,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
       >
         {/* A size container, so the tabs go two by two when four do not fit in a row. */}
         <div className="@container">
-          <TabsList aria-label={t('users.roles.tabs-label')} wrap>
+          <TabsList aria-label={t('users.roles.tabs-label')} size="lg" wrap>
             {ROLE_TABS.map((item) => (
               <TabsTrigger key={item.id} value={item.id}>
                 {t(item.labelKey)}
@@ -186,7 +186,7 @@ export function RoleTabsSkeleton({ tab, search, editable = false }: RoleTabsSkel
     <div aria-busy ref={measure}>
       <Tabs spacing="page" value={tab.id}>
         <div className="@container">
-          <TabsList aria-label={t('users.roles.tabs-label')} wrap>
+          <TabsList aria-label={t('users.roles.tabs-label')} size="lg" wrap>
             {ROLE_TABS.map((item) => (
               <TabsTrigger key={item.id} value={item.id}>
                 {t(item.labelKey)}
