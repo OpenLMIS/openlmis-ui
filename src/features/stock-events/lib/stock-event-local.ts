@@ -168,7 +168,7 @@ export async function restoreStockEventCopy(
     const restored: StockEventDraft = {
       ...archived,
       state: 'editing',
-      revision: archived.revision + 1,
+      revision: Math.max(archived.revision, stored?.revision ?? 0) + 1,
       updatedAt: Date.now(),
     };
     await table.put(restored);
