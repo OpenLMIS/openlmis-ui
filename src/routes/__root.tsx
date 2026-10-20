@@ -2,15 +2,73 @@ import type { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
+import { lazy, type ReactNode, Suspense, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  type DeviceSync,
+  DeviceSyncContext,
+  DeviceSyncPublisher,
+  type DeviceWork,
+  DeviceWorkContext,
+  DeviceWorkPublisher,
+  EMPTY_DEVICE_SYNC,
+  EMPTY_DEVICE_WORK,
+} from '@/components/device-work';
 import { NotFoundPage } from '@/components/not-found-page';
+import { OfflineNavigationProvider } from '@/components/offline-navigation';
 import { SessionExpiredDialog } from '@/components/session-expired-dialog';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { DialogCloseLabelProvider } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
+import { useLoginData } from '@/features/auth/store/login-data';
+import { getSessionScope, useSessionScope } from '@/lib/session-scope';
+
+const DeviceWorkProvider = lazy(() =>
+  import('@/routes/-device-work-provider').then((module) => ({
+    default: module.DeviceWorkProvider,
+  })),
+);
+
+export function SignedInDeviceWork({ children }: { children: ReactNode }) {
+  const authenticated = useLoginData((state) => state.isAuthenticated);
+  const scope = useSessionScope();
+  const [work, setWork] = useState({ scope, value: EMPTY_DEVICE_WORK });
+  const [sync, setSync] = useState({ scope, value: EMPTY_DEVICE_SYNC });
+  const publish = useCallback(
+    (value: DeviceWork) => setWork({ scope: getSessionScope(), value }),
+    [],
+  );
+  const publishSync = useCallback(
+    (value: DeviceSync) => setSync({ scope: getSessionScope(), value }),
+    [],
+  );
+  const [initialTrigger, setInitialTrigger] = useState<'boot' | 'force'>(
+    authenticated ? 'boot' : 'force',
+  );
+  if (!authenticated && initialTrigger !== 'force') setInitialTrigger('force');
+  return (
+    <DeviceWorkContext
+      value={authenticated && work.scope === scope ? work.value : EMPTY_DEVICE_WORK}
+    >
+      <DeviceWorkPublisher value={publish}>
+        <DeviceSyncContext
+          value={authenticated && sync.scope === scope ? sync.value : EMPTY_DEVICE_SYNC}
+        >
+          <DeviceSyncPublisher value={publishSync}>
+            {children}
+            <Suspense fallback={null}>
+              {authenticated && <DeviceWorkProvider initialTrigger={initialTrigger} />}
+            </Suspense>
+          </DeviceSyncPublisher>
+        </DeviceSyncContext>
+      </DeviceWorkPublisher>
+    </DeviceWorkContext>
+  );
+}
 
 export type RouterContext = {
   queryClient: QueryClient;
+  getResolvedPathname?: () => string | undefined;
 };
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -24,13 +82,17 @@ function RootLayout() {
   return (
     <>
       {/* At the root, so forms outside the app shell, like sign in, translate their messages too. */}
-      <TranslatedFormMessages>
-        <DialogCloseLabelProvider label={t('dialog.close')}>
-          <Outlet />
-          {/* At the root, so it also covers a page whose loader is waiting for the session. */}
-          <SessionExpiredDialog />
-        </DialogCloseLabelProvider>
-      </TranslatedFormMessages>
+      <SignedInDeviceWork>
+        <TranslatedFormMessages>
+          <DialogCloseLabelProvider label={t('dialog.close')}>
+            <OfflineNavigationProvider>
+              <Outlet />
+              {/* At the root, so it also covers a page whose loader is waiting for the session. */}
+              <SessionExpiredDialog />
+            </OfflineNavigationProvider>
+          </DialogCloseLabelProvider>
+        </TranslatedFormMessages>
+      </SignedInDeviceWork>
       <Toaster toastOptions={{ closeButtonAriaLabel: t('toast.close') }} />
       {import.meta.env.VITE_SHOW_DEVTOOLS === 'true' && (
         <>

@@ -27,7 +27,7 @@ import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { loginSchema } from '@/features/auth/lib/types';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { continueOffline, useOnline } from '@/lib/online';
 import { isSignInPage } from '@/lib/redirect';
 
 // Its own field name, so its id never clashes with a password field on the page behind it.
@@ -41,17 +41,17 @@ function signInErrorKey(error: unknown): ParseKeys {
 
 /** Over whatever page was open when the server refused the token, until the same user signs in. */
 export function SessionExpiredDialog() {
+  const online = useOnline();
   const expired = useLoginData((state) => state.isAuthenticated && state.expired);
   const username = useLoginData((state) => state.username);
   const onLogin = useRouterState({ select: (state) => isSignInPage(state.location.pathname) });
   // Keeps the last username through the close animation, so the dialog never empties as it fades.
   const { shown, dialogProps } = useDialogTarget(
-    expired && !onLogin && username ? username : undefined,
+    expired && online && !onLogin && username ? username : undefined,
     () => {},
   );
 
   return (
-    // The pages behind are waiting on it, so only signing in or out closes it.
     <FormDialog closeButton={false} {...dialogProps(true)}>
       {shown && <SignInAgainForm username={shown} />}
     </FormDialog>
@@ -143,14 +143,17 @@ function SignInAgainForm({ username }: { username: string }) {
       <FormDialogFooter>
         <Button
           disabled={pending}
-          onClick={() =>
-            offlineSignOut.confirm(() => whenLeaveAllowed(() => signOut.mutate()), cannotConnect)
-          }
+          onClick={() => offlineSignOut.confirm(() => signOut.mutate(), cannotConnect)}
           type="button"
           variant="destructive"
         >
           {t('session.sign-out')}
         </Button>
+        {cannotConnect && (
+          <Button onClick={continueOffline} type="button" variant="outline">
+            {t('session.continue-offline')}
+          </Button>
+        )}
         <FormDialogSubmit disabled={signOut.isPending} pending={signIn.isPending}>
           {signIn.isPending ? t('session.signing-in') : t('session.sign-in')}
         </FormDialogSubmit>

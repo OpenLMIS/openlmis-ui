@@ -33,13 +33,13 @@ const knownTimeZone = (timeZone: string | undefined) => {
 export function formatTimestamp(
   value: string | null | undefined,
   locale: string,
-  { time = false, timeZone }: { time?: boolean; timeZone?: string | undefined } = {},
+  { time = false, timeZone }: { time?: boolean | 'short'; timeZone?: string | undefined } = {},
 ): string {
   const date = value ? new Date(value) : undefined;
   if (!date || Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
-    ...(time && { timeStyle: 'medium' }),
+    ...(time && { timeStyle: time === 'short' ? 'short' : 'medium' }),
     timeZone: knownTimeZone(timeZone),
   }).format(date);
 }

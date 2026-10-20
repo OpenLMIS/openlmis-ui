@@ -4,6 +4,7 @@ import {
   ChartColumnIcon,
   ClipboardListIcon,
   HouseIcon,
+  ListChecksIcon,
   RefrigeratorIcon,
   Settings2Icon,
   TruckIcon,
@@ -45,6 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { titleKey: 'home.title', to: '/home', icon: HouseIcon },
+      { titleKey: 'nav.offline-events', to: '/offline-events', icon: ListChecksIcon },
       { titleKey: 'nav.notifications', to: '#', icon: BellIcon },
     ],
   },

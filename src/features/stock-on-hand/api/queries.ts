@@ -9,6 +9,7 @@ export const stockCardSummariesOptions = (query: StockCardSummariesQuery) =>
   queryOptions({
     queryKey: queryKeys.stockCardSummaries.list(query),
     queryFn: () => fetchStockCardSummaries(query),
+    staleTime: 30_000,
   });
 
 /** Starts the page of stock, then its product and lot names as soon as it arrives; failures show in the list. */

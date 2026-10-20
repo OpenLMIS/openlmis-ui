@@ -1,11 +1,14 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { ChevronRightIcon } from 'lucide-react';
+import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CustomTrigger } from '@/components/custom-trigger';
+import { useDeviceWork } from '@/components/device-work';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { LocalizedCount } from '@/components/localized-count';
 import { Logo } from '@/components/logo';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import { SidebarNotices } from '@/components/sidebar-notices';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
@@ -28,6 +31,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -35,6 +39,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { UpdateButton } from '@/components/update-button';
 import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
@@ -44,12 +49,18 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
+  const railTooltipSide = !isMobile && state === 'collapsed' ? 'inline-end' : 'top';
   const navGroups = useNavGroups();
   const accountLinks = useAccountLinks();
   const sidebarGroups = navGroups.map((group) => ({
     ...group,
     items: group.items.flatMap((item) =>
-      !isNavParent(item) && item.to === '/home' ? [item, ...accountLinks] : [item],
+      !isNavParent(item) &&
+      (item.to === '/offline-events' ||
+        (item.to === '/home' &&
+          !group.items.some((entry) => !isNavParent(entry) && entry.to === '/offline-events')))
+        ? [item, ...accountLinks]
+        : [item],
     ),
   }));
   const appName = useAppName();
@@ -117,10 +128,15 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarNotices />
-        <div className="flex items-center group-data-[collapsible=icon]:hidden">
-          <ThemeSwitcher tone="sidebar" />
-          <LanguageSwitcher tone="sidebar" />
+        <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
+          <SidebarNotices />
+        </div>
+        <div className="flex items-center group-data-[collapsible=icon]:flex-col">
+          <ThemeSwitcher tone="sidebar" tooltipSide={railTooltipSide} />
+          <LanguageSwitcher tone="sidebar" tooltipSide={railTooltipSide} />
+          <div className="ms-auto group-data-[collapsible=icon]:ms-0">
+            <UpdateButton tooltipSide={railTooltipSide} />
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
@@ -165,25 +181,78 @@ function NavMenuItem({ item, isCollapsed, ...props }: NavMenuItemProps) {
     );
   }
 
-  return <NavLinkItem item={item} onNavigate={props.onNavigate} pathname={props.pathname} />;
+  return item.to === '/offline-events' ? (
+    <OfflineEventsNavItem item={item} onNavigate={props.onNavigate} pathname={props.pathname} />
+  ) : (
+    <NavLinkItem item={item} onNavigate={props.onNavigate} pathname={props.pathname} />
+  );
 }
 
 type NavLinkItemProps = Pick<NavMenuItemProps, 'pathname' | 'onNavigate'> & { item: LiveNavLink };
 
-function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
+function OfflineEventsNavItem(props: NavLinkItemProps) {
+  const { pending, refused, uncertain } = useDeviceWork();
+  return <NavLinkItem {...props} count={pending} needsAction={refused + uncertain} />;
+}
+
+function NavLinkItem({
+  item,
+  pathname,
+  onNavigate,
+  count = 0,
+  needsAction = 0,
+}: NavLinkItemProps & { count?: number; needsAction?: number }) {
   const { t } = useTranslation();
   const title = t(item.titleKey);
+  const offline = useOfflineNavigation();
+  const label = [
+    count ? t('offline-events.nav-count', { count }) : title,
+    needsAction ? t('offline-events.action-needed-count', { count: needsAction }) : undefined,
+  ]
+    .filter(Boolean)
+    .join('. ');
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={pathname === item.to || pathname.startsWith(`${item.to}/`)}
-        render={<Link onClick={onNavigate} to={item.to} />}
-        tooltip={title}
+        data-unavailable={item.connectionRequired || undefined}
+        aria-describedby={item.connectionRequired ? offline.descriptionId : undefined}
+        onClick={item.connectionRequired ? (event) => offline.show(event.currentTarget) : undefined}
+        aria-label={label}
+        render={
+          item.connectionRequired ? (
+            <button type="button" />
+          ) : (
+            <Link onClick={onNavigate} to={item.to} />
+          )
+        }
+        tooltip={
+          item.connectionRequired
+            ? {
+                children: (
+                  <div>
+                    <div>{label}</div>
+                    <div>{t('offline.connection-required')}</div>
+                  </div>
+                ),
+              }
+            : label
+        }
       >
         {item.icon && <item.icon />}
         <span className="truncate">{title}</span>
+        {item.connectionRequired && <WifiOffIcon aria-hidden="true" />}
       </SidebarMenuButton>
+      {count > 0 && (
+        <SidebarMenuBadge
+          collapsed="indicator"
+          variant={needsAction ? 'destructive' : 'default'}
+          aria-hidden
+        >
+          <LocalizedCount count={count} />
+        </SidebarMenuBadge>
+      )}
     </SidebarMenuItem>
   );
 }
@@ -202,6 +271,7 @@ function NavCollapsible({
   onNavigate,
 }: NavParentProps) {
   const { t } = useTranslation();
+  const offline = useOfflineNavigation();
   return (
     <Collapsible onOpenChange={onOpenChange} open={open} render={<SidebarMenuItem />}>
       <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} />}>
@@ -214,11 +284,26 @@ function NavCollapsible({
           {item.items.map((child) => (
             <SidebarMenuSubItem key={child.titleKey}>
               <SidebarMenuSubButton
+                data-unavailable={child.connectionRequired || undefined}
                 isActive={isNavActive(pathname, child.to)}
-                render={<Link onClick={onNavigate} to={child.to} />}
+                onClick={
+                  child.connectionRequired
+                    ? (event) => offline.show(event.currentTarget)
+                    : undefined
+                }
+                aria-describedby={child.connectionRequired ? offline.descriptionId : undefined}
+                aria-label={t(child.titleKey)}
+                render={
+                  child.connectionRequired ? (
+                    <button type="button" />
+                  ) : (
+                    <Link onClick={onNavigate} to={child.to} />
+                  )
+                }
               >
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
+                {child.connectionRequired && <WifiOffIcon aria-hidden="true" />}
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
           ))}
@@ -232,9 +317,16 @@ function NavCollapsible({
 function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>) {
   const { t } = useTranslation();
   const title = t(item.titleKey);
+  const offline = useOfflineNavigation();
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <SidebarMenuItem>
-      <DropdownMenu>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(next) => {
+          if (!offline.open) setMenuOpen(next);
+        }}
+      >
         <DropdownMenuTrigger render={<SidebarMenuButton aria-label={title} isActive={isActive} />}>
           {item.icon && <item.icon />}
           <span>{title}</span>
@@ -243,9 +335,24 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
           <DropdownMenuGroup>
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
             {item.items.map((child) => (
-              <DropdownMenuItem key={child.titleKey} render={<Link to={child.to} />}>
+              <DropdownMenuItem
+                key={child.titleKey}
+                data-unavailable={child.connectionRequired || undefined}
+                closeOnClick={!child.connectionRequired}
+                onClick={
+                  child.connectionRequired
+                    ? (event) => {
+                        event.preventDefault();
+                        offline.show(event.currentTarget);
+                      }
+                    : undefined
+                }
+                aria-describedby={child.connectionRequired ? offline.descriptionId : undefined}
+                render={child.connectionRequired ? undefined : <Link to={child.to} />}
+              >
                 {child.icon && <child.icon />}
                 <span className="truncate">{t(child.titleKey)}</span>
+                {child.connectionRequired && <WifiOffIcon aria-hidden="true" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>

@@ -6,4 +6,5 @@ export const stockCardOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.stockCards.detail(id),
     queryFn: () => fetchStockCard(id),
+    staleTime: 30_000,
   });

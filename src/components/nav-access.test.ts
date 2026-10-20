@@ -1,3 +1,4 @@
+import '@/routes/-offline-pages';
 import { HouseIcon } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { canOpen, navWithinRights } from '@/components/nav-access';
@@ -42,6 +43,12 @@ describe('navWithinRights', () => {
 });
 
 describe('canOpen', () => {
+  it('keeps Offline Events behind adjustment access unless the user owns pending events', () => {
+    expect(canOpen('/offline-events', new Set(['STOCK_ADJUST']))).toBe(true);
+    expect(canOpen('/offline-events', new Set(['STOCK_CARDS_VIEW']))).toBe(false);
+    expect(canOpen('/offline-events', new Set(), true)).toBe(true);
+    expect(canOpen('/stock-management/adjustments', new Set(), true)).toBe(false);
+  });
   it('lets anyone open a page that needs no right', () => {
     expect(canOpen('/home', undefined)).toBe(true);
     expect(canOpen('/administration/users', new Set())).toBe(false);
@@ -104,4 +111,9 @@ describe('canOpen', () => {
     expect(canOpen('/administration/lots', new Set(['LOTS_MANAGE']))).toBe(true);
     expect(canOpen('/administration/lots', new Set(['ORDERABLES_MANAGE']))).toBe(false);
   });
+});
+
+it('offers Offline Events offline before access or events have been downloaded', () => {
+  expect(canOpen('/offline-events', undefined, false, true)).toBe(true);
+  expect(canOpen('/stock-management/adjustments', undefined, false, true)).toBe(false);
 });

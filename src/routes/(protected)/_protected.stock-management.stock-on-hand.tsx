@@ -1,20 +1,20 @@
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
 } from '@/components/facility-program-selector/facility-program-selector';
-import {
-  prefetchFacilityProgramOptions,
-  useFacilityProgramOptions,
-} from '@/components/facility-program-selector/use-facility-program-options';
-import { ListError } from '@/components/list-error';
-import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +32,11 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  minimalFacilitiesOptions,
+  userProgramsOptions,
+  userRecordOptions,
+} from '@/features/reference-data/api/queries';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import {
   prefetchStockOnHand,
@@ -58,6 +63,7 @@ import {
   type CompleteSelection,
   type FacilityProgramOptions,
   type FacilityProgramSelection,
+  facilityProgramOptions,
   isCompleteSelection,
   type NamedRecord,
   recordLabel,
@@ -65,10 +71,13 @@ import {
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
+import { StockReadError } from '@/routes/-stock-read-error';
+
+const stockPickerQueries = (userId: string) =>
+  [userRecordOptions(userId), userProgramsOptions(userId), minimalFacilitiesOptions()] as const;
 
 const RIGHT = RIGHTS.stockCardsView;
 
@@ -84,7 +93,10 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    prefetchFacilityProgramOptions(queryClient, userId);
+    const [user, programs, facilities] = stockPickerQueries(userId);
+    queryClient.prefetchQuery(user);
+    queryClient.prefetchQuery(programs);
+    queryClient.prefetchQuery(facilities);
     const selection = {
       mode: search.mode,
       programId: search.programId,
@@ -239,7 +251,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
-              <LoadError
+              <StockReadError
                 description={t('facility-program.load-error-description')}
                 error={error}
                 reset={reset}
@@ -279,7 +291,19 @@ function StockOnHandBody({
   onSearchChange,
 }: StockOnHandBodyProps) {
   const queryClient = useQueryClient();
-  const options = useFacilityProgramOptions(userId, grants);
+  const [user, programs, facilities] = useSuspenseQueries({
+    queries: stockPickerQueries(userId),
+  });
+  const options = useMemo(
+    () =>
+      facilityProgramOptions({
+        homeFacilityId: user.data.homeFacilityId,
+        programs: programs.data,
+        facilities: facilities.data,
+        grants,
+      }),
+    [user.data.homeFacilityId, programs.data, facilities.data, grants],
+  );
   const applied = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -451,7 +475,7 @@ function StockOnHandList({
       />
       <QueryBoundary
         errorComponent={({ error, reset }) => (
-          <ListError
+          <StockReadError
             description={t('stock-on-hand.error-description')}
             error={error}
             reset={reset}
@@ -504,7 +528,10 @@ function StockOnHandPrintButton({
   query,
 }: PrintButtonProps) {
   const { t } = useTranslation();
-  const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
+  const { data: page } = useQuery({
+    ...stockCardSummariesOptions(query),
+    enabled: false,
+  });
   const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
   const print = usePrintReport({
     userId,
@@ -532,18 +559,22 @@ function StockOnHandPrintButton({
     refusedDescription: t('stock-on-hand.print-refused'),
   });
   return (
-    <Button
-      disabled={!page || page.totalElements === 0 || print.isPending}
-      onClick={print.print}
-      size="lg"
-      width="full"
-    >
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <PrinterIcon data-icon="inline-start" />
-      )}
-      {t('stock-on-hand.print')}
-    </Button>
+    <ActionTooltip reason={print.disabledReason}>
+      <Button
+        disabled={print.offline || !page || page.totalElements === 0 || print.isPending}
+        onClick={print.print}
+        focusableWhenDisabled={print.offline}
+        aria-description={print.disabledReason}
+        size="lg"
+        width="full"
+      >
+        {print.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <PrinterIcon data-icon="inline-start" />
+        )}
+        {t('stock-on-hand.print')}
+      </Button>
+    </ActionTooltip>
   );
 }

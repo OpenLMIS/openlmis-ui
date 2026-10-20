@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePageHidden } from '@/components/page-visibility';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkspaceActions, WorkspaceFooter } from '@/components/workspace';
 
@@ -97,7 +98,13 @@ type WorkspaceFooterPortalProps = {
 
 export function WorkspaceFooterPortal({ children, width = 'narrow' }: WorkspaceFooterPortalProps) {
   const { footer } = useContext(SlotsContext);
+  const hidden = usePageHidden();
   return footer
-    ? createPortal(<WorkspaceFooter width={width}>{children}</WorkspaceFooter>, footer)
+    ? createPortal(
+        <div className={hidden ? undefined : 'contents'} hidden={hidden} inert={hidden}>
+          <WorkspaceFooter width={width}>{children}</WorkspaceFooter>
+        </div>,
+        footer,
+      )
     : null;
 }

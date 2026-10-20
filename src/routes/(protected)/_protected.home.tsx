@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -30,8 +31,10 @@ import { WaitingSummary, WelcomeTitle } from '@/features/home/components/dashboa
 import { DashboardRevision } from '@/features/home/components/dashboard-parts';
 import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/dashboard-skeleton';
 import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
+import { SystemNotifications } from '@/features/home/components/system-notifications';
 import type { DashboardAccess } from '@/features/home/lib/types';
 import { queryKeys } from '@/lib/key-factory';
+import { isOnline, useOnline } from '@/lib/online';
 
 /** Each part of the dashboard needs the right its legacy page asks for. */
 function toAccess(rights: ReadonlySet<string>): DashboardAccess {
@@ -52,7 +55,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     queryClient.prefetchQuery(systemNotificationsOptions());
 
     // What to load depends on the user's rights, so the page waits for those, as for any permission check.
-    const access = toAccess((await queryClient.ensureQueryData(permissionsOptions(userId))).rights);
+    const access = toAccess((await queryClient.fetchQuery(permissionsOptions(userId))).rights);
     if (access.approve) queryClient.prefetchQuery(approvalsOptions());
     if (access.convert) queryClient.prefetchQuery(convertCountOptions());
     if (access.orders) queryClient.prefetchQuery(openOrdersCountOptions());
@@ -74,6 +77,7 @@ function HomePage() {
 }
 
 function HomeContent({ userId }: { userId: string }) {
+  const online = useOnline();
   const { t } = useTranslation();
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
   const access = toAccess(rights);
@@ -91,16 +95,24 @@ function HomeContent({ userId }: { userId: string }) {
           </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
+          <SystemNotifications revision={revision} />
           <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
           {rights.has(RIGHTS.usersManage) && (
-            <Button
-              nativeButton={false}
-              render={<Link search={{ user: 'new' }} to="/administration/users" />}
-              size="lg"
-            >
-              <PlusIcon data-icon="inline-start" />
-              {t('home.add-user')}
-            </Button>
+            <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
+              <Button
+                nativeButton={!online}
+                disabled={!online}
+                focusableWhenDisabled={!online}
+                aria-description={online ? undefined : t('offline.action-description')}
+                render={
+                  online ? <Link search={{ user: 'new' }} to="/administration/users" /> : undefined
+                }
+                size="lg"
+              >
+                <PlusIcon data-icon="inline-start" />
+                {t('home.add-user')}
+              </Button>
+            </ActionTooltip>
           )}
         </WorkspaceActions>
       </WorkspaceHeader>
@@ -115,21 +127,36 @@ function HomeContent({ userId }: { userId: string }) {
 
 /** Reloads every number and the user's rights; cards that had failed mount again and retry. */
 function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () => void }) {
+  const online = useOnline();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isFetching = useIsFetching({ queryKey: queryKeys.home.all }) > 0;
 
   const refresh = () => {
+    if (!isOnline()) return;
     void queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey });
     void queryClient.resetQueries({ queryKey: queryKeys.home.all });
     onRefresh();
   };
 
   return (
-    <Button disabled={isFetching} onClick={refresh} size="lg" type="button" variant="outline">
-      <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} data-icon="inline-start" />
-      {t('home.refresh')}
-    </Button>
+    <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
+      <Button
+        disabled={!online || isFetching}
+        focusableWhenDisabled={!online}
+        aria-description={online ? undefined : t('offline.action-description')}
+        onClick={refresh}
+        size="lg"
+        type="button"
+        variant="outline"
+      >
+        <RefreshCwIcon
+          className={isFetching ? 'animate-spin' : undefined}
+          data-icon="inline-start"
+        />
+        {t('home.refresh')}
+      </Button>
+    </ActionTooltip>
   );
 }
 

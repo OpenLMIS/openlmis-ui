@@ -7,6 +7,7 @@ export type NavLink = {
   /** `'#'` marks a page that is not migrated yet; it renders disabled. */
   to: LinkProps['to'] | '#';
   icon?: LucideIcon;
+  connectionRequired?: boolean;
 };
 
 /** Expands in place in the sidebar and opens as a flyout menu when the sidebar is collapsed. */

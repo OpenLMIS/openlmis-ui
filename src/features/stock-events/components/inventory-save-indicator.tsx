@@ -7,6 +7,7 @@ const keys = {
   saving: 'physical-inventory.saving',
   saved: 'physical-inventory.saved-local',
   failed: 'physical-inventory.not-saved-local',
+  conflict: 'stock-events.draft-conflict',
 } as const;
 export function InventorySaveIndicator({ status }: { status: InventorySaveStatus }) {
   const { t } = useTranslation();

@@ -7,6 +7,7 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { isOnline, useOnline } from '@/lib/online';
 import type { ReportDelivery } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 
@@ -34,17 +35,20 @@ const isServerError = (error: unknown) =>
   isAxiosError(error) && (error.response?.status ?? 0) >= 500;
 
 export function usePrintReport(options: PrintReportOptions) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const online = useOnline();
   const queryClient = useQueryClient();
   const print = useMutation({
     mutationFn: async (sent: PrintRequest) => {
       try {
         if (!sent.isCurrent()) throw new SessionEndedError();
+        if (!isOnline()) throw new Error(t('offline.print-description'));
         const permissions = await queryClient.fetchQuery(permissionsOptions(sent.userId));
         if (!sent.isCurrent()) throw new SessionEndedError();
         if (!hasProgramGrant(permissions, sent.right, sent.facilityId, sent.programId)) {
           throw new ForbiddenError(sent.right);
         }
+        if (!isOnline()) throw new Error(t('offline.print-description'));
         const report = await sent.request(sent.language);
         if (!sent.isCurrent()) throw new SessionEndedError();
         sent.delivery.deliver(report);
@@ -62,8 +66,9 @@ export function usePrintReport(options: PrintReportOptions) {
     onError: (error, sent) => {
       if (!sent.isCurrent()) return;
       toast.error(sent.errorTitle, {
-        description:
-          error instanceof ForbiddenError
+        description: !isOnline()
+          ? t('offline.print-description')
+          : error instanceof ForbiddenError
             ? sent.refusedDescription
             : (!isServerError(error) && serverMessage(error)) || sent.errorDescription,
       });
@@ -71,8 +76,10 @@ export function usePrintReport(options: PrintReportOptions) {
   });
   return {
     isPending: print.isPending,
+    offline: !online,
+    disabledReason: online ? undefined : t('offline.print-description'),
     print: () => {
-      if (print.isPending || !stillSignedIn(options.userId)) return;
+      if (!isOnline() || print.isPending || !stillSignedIn(options.userId)) return;
       const delivery = options.onReport();
       let cancelled = false;
       const unsubscribe = useLoginData.subscribe((state) => {

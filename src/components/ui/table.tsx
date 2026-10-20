@@ -92,7 +92,7 @@ function TableRow({
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted data-[invalid]:bg-destructive/10",
         drag === true && "relative z-1 border-b-0 bg-card shadow-[inset_0_-1px_0_var(--color-border)] [transform:var(--row-transform)] [transition:var(--row-transition)] hover:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] data-[dragging=true]:z-0 data-[dragging=true]:bg-muted data-[dragging=true]:hover:bg-muted [&[data-dragging=true]>td>*]:invisible",
         drag === "overlay" && "cursor-grabbing border-b-0 bg-[color-mix(in_srgb,var(--primary)_8%,var(--background))] shadow-lg hover:bg-[color-mix(in_srgb,var(--primary)_8%,var(--background))]",
         surface === "muted" && "bg-muted/30 font-medium has-aria-expanded:bg-muted/30",

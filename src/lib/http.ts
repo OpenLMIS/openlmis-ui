@@ -1,5 +1,8 @@
 import { AxiosError, isAxiosError } from 'axios';
 import { client } from '@/integrations/axios';
+import { isChunkLoadError } from '@/lib/chunk-load';
+import { LocalDataUnavailableError } from '@/lib/local-data';
+import { isOnline } from '@/lib/online';
 
 export const isNotFound = (error: unknown) => isAxiosError(error) && error.response?.status === 404;
 
@@ -8,7 +11,17 @@ export const isRefused = (error: unknown) => isAxiosError(error) && error.respon
 export const isConflict = (error: unknown) => isAxiosError(error) && error.response?.status === 409;
 
 export const isOfflineError = (error: unknown) =>
-  isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED;
+  error instanceof LocalDataUnavailableError ||
+  (isChunkLoadError(error) && !isOnline()) ||
+  (isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED);
+
+export function isAccessFallbackError(error: unknown) {
+  if (!isAxiosError(error)) return false;
+  if (!error.response) return error.code !== AxiosError.ERR_CANCELED;
+  const { status, data } = error.response;
+  const serviceError = typeof data === 'object' && data !== null;
+  return [502, 503, 504].includes(status) && !serviceError;
+}
 
 export const isUnauthorized = (error: unknown) =>
   isAxiosError(error) && error.response?.status === 401;

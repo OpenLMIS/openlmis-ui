@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 it('keeps pending edits serialized and clears the indicator when the copy is cleared', async () => {
   const finish = Promise.withResolvers<void>();
-  vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise);
+  vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise.then(() => undefined));
   const view = renderHook(
     ({ value }) => {
       const form = usePhysicalInventoryForm([], false);
@@ -59,7 +59,7 @@ it.each(['next-user', 'autosave-user'])(
   'drops queued writes after switching to %s',
   async (nextUser) => {
     const finish = Promise.withResolvers<void>();
-    vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise);
+    vi.mocked(writeInventoryLocal).mockReturnValueOnce(finish.promise.then(() => undefined));
     const view = renderHook(
       ({ value }) => {
         const form = usePhysicalInventoryForm([], false);

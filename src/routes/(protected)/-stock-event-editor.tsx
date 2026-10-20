@@ -1,7 +1,7 @@
 import { type QueryClient, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ClipboardPenLineIcon } from 'lucide-react';
-import { useState } from 'react';
+import { type ComponentProps, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -23,81 +23,83 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  facilityOptions,
+  deploymentTimeZoneOptions,
   facilityOrderableFulfillsOptions,
+  homeFacilityOptions,
   reasonsOptions,
   userProgramsOptions,
   userRecordOptions,
-  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import {
   eventApprovedProductsOptions,
   eventStockCardsOptions,
+  eventValidReasonsOptions,
+  homeStockScope,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
   EventLineTableSkeleton,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
+import {
+  EventLineToolbarActions,
+  EventLineToolbarControls,
+  EventLineToolbarStatus,
+} from '@/features/stock-events/components/event-line-toolbar';
 import { PrintEventDialog } from '@/features/stock-events/components/print-event-dialog';
 import { ProductLotPickerSkeleton } from '@/features/stock-events/components/product-lot-picker';
 import {
   type ConfiguredEventKind,
   counterpartyOptions,
   EVENT_KINDS,
-  type PrintableEventKind,
+  type EventPrintCopy,
 } from '@/features/stock-events/lib/event-kinds';
 import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
+import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
-import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
-
-export const stockEventSearchSchema = tableSearchSchema(['id'])
-  .pick({ page: true, size: true })
-  .extend({
-    keyword: textFilterSchema,
-  })
-  .transform((search) => ({
-    ...search,
-    page: search.page === 1 ? undefined : search.page,
-    size: search.size === 10 ? undefined : search.size,
-  }));
 
 export async function loadStockEventEditor(
   queryClient: QueryClient,
   programId: string,
   kind: ConfiguredEventKind,
 ) {
+  const right = EVENT_KINDS[kind].right;
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+    throw new ForbiddenError(right);
   }
   const [permissions, user] = await Promise.all([
-    requirePermissions(queryClient, RIGHTS.stockAdjust),
-    queryClient.ensureQueryData(userRecordOptions(userId)),
+    requirePermissions(queryClient, right),
+    queryClient.fetchQuery(userRecordOptions(userId)),
   ]);
   const homeId = user.homeFacilityId;
-  if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockAdjust, homeId, programId)) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+  if (!homeId || !hasProgramGrant(permissions, right, homeId, programId)) {
+    throw new ForbiddenError(right);
   }
-  const homeFacility = await queryClient.ensureQueryData(facilityOptions(homeId));
+  const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));
   const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
   if (!program) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+    throw new ForbiddenError(right);
   }
   queryClient.prefetchQuery(userProgramsOptions(userId));
+  if (EVENT_KINDS[kind].drafts === 'device') queryClient.prefetchQuery(deploymentTimeZoneOptions());
   const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
   if (canViewStock) {
     const { counterparty, products } = EVENT_KINDS[kind];
     const filter = { facilityId: homeId, programId };
     if (counterparty !== 'none')
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
-    if (products.from === 'stock-cards') queryClient.prefetchQuery(eventStockCardsOptions(filter));
+    const bundleScope = EVENT_KINDS[kind].download
+      ? homeStockScope(filter, homeFacility.type.id)
+      : undefined;
+    if (products.from === 'stock-cards')
+      queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
     if (products.from === 'approved-products') {
       queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
       queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
@@ -105,7 +107,10 @@ export async function loadStockEventEditor(
     if (EVENT_KINDS[kind].contents.type === 'kit') queryClient.prefetchQuery(reasonsOptions());
     if (EVENT_KINDS[kind].reasons !== null)
       queryClient.prefetchQuery(
-        validReasonsOptions({ program: programId, facilityType: homeFacility.type.id }),
+        eventValidReasonsOptions(
+          { program: programId, facilityType: homeFacility.type.id },
+          bundleScope,
+        ),
       );
   }
   const canManageLots = permissions.rights.has(RIGHTS.lotsManage);
@@ -157,6 +162,7 @@ export function StockEventPending({
 }) {
   const { t } = useTranslation();
   const config = EVENT_KINDS[kind];
+  const online = useOnline();
   const unit = useQuantityUnit();
   const { measure, cards, columnView, layout } = useCardView(
     eventHideableColumns(kind),
@@ -165,7 +171,7 @@ export function StockEventPending({
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: false });
   const { data: home } = useQuery({
-    ...facilityOptions(user?.homeFacilityId ?? ''),
+    ...homeFacilityOptions(user?.homeFacilityId ?? ''),
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
@@ -192,28 +198,33 @@ export function StockEventPending({
                   onValueChange={() => {}}
                 />
               </fieldset>
-              {unit.canSwitch && (
-                <div className="min-w-0 flex-1 @2xl/main:flex-none">
-                  <QuantityUnitToggle unit={unit.unit} onUnitChange={() => {}} disabled />
-                </div>
-              )}
-              <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
-                <DataTableViewOptions
-                  size="lg"
-                  disabled
-                  layout={layout}
-                  columns={eventHideableColumns(kind)
-                    .filter(
-                      ({ id }) =>
-                        (!cards || id !== 'productCode') &&
-                        id !== 'expiry' &&
-                        (id !== 'total' || unit.unit === 'PACKS'),
-                    )
-                    .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-                  visibility={visibility}
-                  onVisibilityChange={() => {}}
-                />
-              </div>
+              <EventLineToolbarActions>
+                {config.drafts === 'device' && <EventLineToolbarStatus />}
+                <EventLineToolbarControls>
+                  {unit.canSwitch && (
+                    <div className="min-w-0 flex-1 @2xl/main:flex-none">
+                      <QuantityUnitToggle unit={unit.unit} onUnitChange={() => {}} disabled />
+                    </div>
+                  )}
+                  <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+                    <DataTableViewOptions
+                      size="lg"
+                      disabled
+                      layout={layout}
+                      columns={eventHideableColumns(kind)
+                        .filter(
+                          ({ id }) =>
+                            (!cards || id !== 'productCode') &&
+                            id !== 'expiry' &&
+                            (id !== 'total' || unit.unit === 'PACKS'),
+                        )
+                        .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+                      visibility={visibility}
+                      onVisibilityChange={() => {}}
+                    />
+                  </div>
+                </EventLineToolbarControls>
+              </EventLineToolbarActions>
             </DataTableToolbar>
             <EventLineTableSkeleton
               cards={cards}
@@ -229,33 +240,40 @@ export function StockEventPending({
           {t('stock-events.clear')}
         </Button>
         <Button disabled size="lg">
-          {t('stock-events.submit')}
+          {t(
+            config.drafts === 'device' && !online
+              ? 'stock-events.submit-offline'
+              : 'stock-events.submit',
+          )}
         </Button>
       </WorkspaceFooter>
     </>
   );
 }
 
-function useStockEventPrint({
+export function useStockEventPrint({
   kind,
+  copy,
   userId,
   facilityId,
   programId,
 }: {
-  kind: PrintableEventKind;
+  kind: ConfiguredEventKind;
+  copy: EventPrintCopy;
   userId: string;
   facilityId: string;
   programId: string;
 }) {
   const { t } = useTranslation();
-  const copy = EVENT_KINDS[kind].print;
   const navigate = useNavigate();
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
-    navigate({
-      to: '/stock-management/stock-on-hand',
-      search: { mode: 'my', facilityId, programId },
-    });
+    !isOnline()
+      ? navigate({ to: EVENT_KINDS[kind].listRoute })
+      : navigate({
+          to: '/stock-management/stock-on-hand',
+          search: { mode: 'my', facilityId, programId },
+        });
   const print = usePrintReport({
     userId,
     right: RIGHTS.stockCardsView,
@@ -287,44 +305,85 @@ function useStockEventPrint({
   };
 }
 
-export function StockEventEditorPage({
-  kind,
-  defaultReasonId,
-  data: { userId, homeFacility, program, canViewStock, canManageLots },
-  search,
-}: {
-  kind: PrintableEventKind;
-  defaultReasonId: string | undefined;
+type StockEventEditorPageProps = {
+  kind: ConfiguredEventKind;
+  defaultReasonId?: string;
+  kitUnpackReasonIds?: ComponentProps<typeof EventEditor>['kitUnpackReasonIds'];
   data: Awaited<ReturnType<typeof loadStockEventEditor>>;
   search: EventSearch;
-}) {
-  const { updateSearch } = useSearchNavigation<EventSearch>({});
-  const username = useLoginData((state) => state.username) ?? '';
+};
+
+export function StockEventEditorPage(props: StockEventEditorPageProps) {
+  const navigate = useNavigate();
+  const { homeFacility, program } = props.data;
+  const copy = EVENT_KINDS[props.kind].print;
+  return copy ? (
+    <PrintableStockEventEditor {...props} copy={copy} />
+  ) : (
+    <StockEventEditorContent
+      {...props}
+      onSubmitted={(_eventId, synced) =>
+        !synced && EVENT_KINDS[props.kind].drafts === 'device'
+          ? navigate({ to: EVENT_KINDS[props.kind].listRoute })
+          : navigate({
+              to: '/stock-management/stock-on-hand',
+              search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+            })
+      }
+    />
+  );
+}
+
+function PrintableStockEventEditor({
+  copy,
+  ...props
+}: StockEventEditorPageProps & { copy: EventPrintCopy }) {
+  const { userId, homeFacility, program } = props.data;
   const print = useStockEventPrint({
-    kind,
+    kind: props.kind,
+    copy,
     userId,
     facilityId: homeFacility.id,
     programId: program.id,
   });
   return (
     <>
-      <EventEditor
-        kind={kind}
-        defaultReasonId={defaultReasonId}
-        key={`${homeFacility.id}/${program.id}`}
-        facilityId={homeFacility.id}
-        facilityTypeId={homeFacility.type.id}
-        programId={program.id}
-        username={username}
-        canViewStock={canViewStock}
-        canManageLots={canManageLots}
-        search={search}
-        onSearchChange={updateSearch}
-        onSubmitted={print.onSubmitted}
-      >
-        <StockEventHeader kind={kind} facility={homeFacility} program={program} />
-      </EventEditor>
+      <StockEventEditorContent {...props} onSubmitted={print.onSubmitted} />
       {print.dialog}
     </>
+  );
+}
+
+function StockEventEditorContent({
+  kind,
+  defaultReasonId,
+  kitUnpackReasonIds,
+  data: { homeFacility, program, canViewStock, canManageLots },
+  search,
+  onSubmitted,
+}: StockEventEditorPageProps & {
+  onSubmitted: ComponentProps<typeof EventEditor>['onSubmitted'];
+}) {
+  const { updateSearch } = useSearchNavigation<EventSearch>({});
+  const username = useLoginData((state) => state.username) ?? '';
+  return (
+    <EventEditor
+      kind={kind}
+      defaultReasonId={defaultReasonId}
+      kitUnpackReasonIds={kitUnpackReasonIds}
+      key={`${homeFacility.id}/${program.id}`}
+      facilityId={homeFacility.id}
+      facilityTypeId={homeFacility.type.id}
+      programId={program.id}
+      username={username}
+      canViewStock={canViewStock}
+      canManageLots={canManageLots}
+      search={search}
+      onSearchChange={updateSearch}
+      onSubmitted={onSubmitted}
+      deviceDisplay={{ facility: homeFacility, program }}
+    >
+      <StockEventHeader kind={kind} facility={homeFacility} program={program} />
+    </EventEditor>
   );
 }

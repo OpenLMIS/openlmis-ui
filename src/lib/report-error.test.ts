@@ -20,12 +20,14 @@ describe('reportCaughtError', () => {
     expect(log).not.toHaveBeenCalled();
   });
 
-  it('still logs a real bug that happens while offline', () => {
+  it('still logs a real bug that happens while offline, but not an app part it could not fetch', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     onlineManager.setOnline(false);
 
+    reportCaughtError(new TypeError('Failed to fetch dynamically imported module: /a.js'), {});
     reportCaughtError(new TypeError('Cannot read properties of undefined'), {});
 
     expect(log).toHaveBeenCalledOnce();
+    expect(log.mock.calls[0]?.[0]).toHaveProperty('message', 'Cannot read properties of undefined');
   });
 });

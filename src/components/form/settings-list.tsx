@@ -1,8 +1,25 @@
 import type { ReactNode } from 'react';
 
 /** Bordered rows of settings: fields with `layout="row"` and `SettingsItem`s. */
-export function SettingsList({ children }: { children: ReactNode }) {
-  return <div className="divide-y rounded-xl border bg-card *:px-4 *:py-3">{children}</div>;
+export function SettingsList({
+  children,
+  density = 'default',
+}: {
+  children: ReactNode;
+  density?: 'default' | 'compact';
+}) {
+  return (
+    <div
+      data-slot="settings-list"
+      className={
+        density === 'compact'
+          ? 'divide-y rounded-xl border bg-card *:px-3 *:py-1 *:*:min-h-6 *:*:*:min-h-6'
+          : 'divide-y rounded-xl border bg-card *:px-4 *:py-3'
+      }
+    >
+      {children}
+    </div>
+  );
 }
 
 type SettingsRowFrameProps = {

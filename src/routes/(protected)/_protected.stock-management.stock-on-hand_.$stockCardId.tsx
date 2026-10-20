@@ -8,6 +8,7 @@ import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -229,15 +230,25 @@ function StockCardPrint({
     errorDescription: t('stock-card.print-error'),
     refusedDescription: t('stock-card.print-refused'),
   });
+  const offline = print.offline;
+  const disabledReason = offline ? t('offline.print-description') : undefined;
   return (
-    <Button size="lg" disabled={print.isPending} onClick={print.print}>
-      {print.isPending ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <PrinterIcon data-icon="inline-start" />
-      )}
-      {t('stock-card.print')}
-    </Button>
+    <ActionTooltip reason={disabledReason}>
+      <Button
+        size="lg"
+        disabled={offline || print.isPending}
+        onClick={print.print}
+        focusableWhenDisabled={offline}
+        aria-description={disabledReason}
+      >
+        {print.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <PrinterIcon data-icon="inline-start" />
+        )}
+        {t('stock-card.print')}
+      </Button>
+    </ActionTooltip>
   );
 }
 

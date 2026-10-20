@@ -1,9 +1,10 @@
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
-import { type LucideIcon, SearchIcon } from 'lucide-react';
+import { type LucideIcon, SearchIcon, WifiOffIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import {
   Command,
   CommandDialog,
@@ -39,6 +40,7 @@ function toSections(items: LiveNavItem[]): PaletteSection[] {
 export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const offline = useOfflineNavigation();
   const [open, setOpen] = useState(false);
   const paletteRef = useRef<HTMLDivElement>(null);
   const navGroups = useNavGroups();
@@ -99,14 +101,33 @@ export function CommandPalette() {
                     return (
                       <CommandItem
                         key={link.titleKey}
+                        data-unavailable={link.connectionRequired || undefined}
+                        aria-describedby={
+                          link.connectionRequired ? offline.descriptionId : undefined
+                        }
                         onSelect={() => {
+                          if (link.connectionRequired) {
+                            offline.show();
+                            return;
+                          }
                           setOpen(false);
                           navigate({ to: link.to });
                         }}
                         value={heading ? `${heading} ${title}` : title}
                       >
                         {link.icon ? <link.icon /> : section.icon && <section.icon />}
-                        <span>{title}</span>
+                        {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
+                        <span className="min-w-0">
+                          <span className="block">{title}</span>
+                          {link.connectionRequired && (
+                            <span
+                              aria-hidden="true"
+                              className="block text-xs text-muted-foreground"
+                            >
+                              {t('offline.connection-required')}
+                            </span>
+                          )}
+                        </span>
                       </CommandItem>
                     );
                   })}
@@ -119,14 +140,28 @@ export function CommandPalette() {
                 return (
                   <CommandItem
                     key={link.to}
+                    data-unavailable={link.connectionRequired || undefined}
+                    aria-describedby={link.connectionRequired ? offline.descriptionId : undefined}
                     onSelect={() => {
+                      if (link.connectionRequired) {
+                        offline.show();
+                        return;
+                      }
                       setOpen(false);
                       navigate({ to: link.to });
                     }}
                     value={`${accountHeading} ${title}`}
                   >
                     <link.icon />
-                    <span>{title}</span>
+                    {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
+                    <span className="min-w-0">
+                      <span className="block">{title}</span>
+                      {link.connectionRequired && (
+                        <span aria-hidden="true" className="block text-xs text-muted-foreground">
+                          {t('offline.connection-required')}
+                        </span>
+                      )}
+                    </span>
                   </CommandItem>
                 );
               })}

@@ -5,6 +5,7 @@ import type {
   SystemNotification,
 } from '@/features/home/lib/types';
 import { client } from '@/integrations/axios';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 // Spring binds repeated params (`status=a&status=b`), not axios's default `status[]=a`.
@@ -101,10 +102,18 @@ export function fetchEquipmentStatusCounts(): Promise<Record<EquipmentStatus, nu
 
 /** Notices an administrator has published for everyone. */
 export async function fetchSystemNotifications(): Promise<SystemNotification[]> {
-  const { data } = await client.get<Page<SystemNotification>>('/systemNotifications', {
-    params: { isDisplayed: true, page: 0, size: 5 },
-  });
-  return data.content;
+  const scope = getSessionScope();
+  const notifications: SystemNotification[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<SystemNotification>>('/systemNotifications', {
+      params: { isDisplayed: true, expand: 'author', page, size: 100, sort: 'createdDate,desc' },
+    });
+    assertSessionScope(scope);
+    notifications.push(...data.content);
+    if (page + 1 >= data.totalPages) break;
+  }
+  return notifications;
 }
 
 export async function fetchFirstName(userId: string): Promise<string> {

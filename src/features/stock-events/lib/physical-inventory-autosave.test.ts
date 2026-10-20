@@ -28,5 +28,19 @@ it('reports failure and retries the next change', async () => {
   expect(status).toHaveBeenLastCalledWith('failed');
   writer.enqueue(2);
   await writer.flush();
+  expect(write.mock.calls).toEqual([[1], [2]]);
+  expect(status).toHaveBeenLastCalledWith('saved');
+});
+
+it('still saves the latest waiting snapshot when an earlier inventory write fails', async () => {
+  const first = Promise.withResolvers<void>();
+  const write = vi.fn().mockReturnValueOnce(first.promise).mockResolvedValue(undefined);
+  const status = vi.fn();
+  const writer = createInventoryWriter(write, status);
+  writer.enqueue(1);
+  writer.enqueue(2);
+  first.reject(new Error('Storage temporarily unavailable'));
+  await writer.flush();
+  expect(write.mock.calls).toEqual([[1], [2]]);
   expect(status).toHaveBeenLastCalledWith('saved');
 });

@@ -1,11 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useDeviceWork } from '@/components/device-work';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { changePassword } from '@/features/profile/api/api';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import type { UserRecord } from '@/lib/user-types';
+
+beforeEach(() =>
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u1', username: 'ada', accessToken: 'token' }),
+);
+
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: vi.fn(() => ({ countUnsyncedWork: async () => 0 })),
+}));
 
 vi.mock('@/features/profile/api/api', () => ({ changePassword: vi.fn() }));
 
@@ -60,5 +72,21 @@ describe('ChangePasswordDialog', () => {
     proceed?.();
     await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
     expect(changePassword).toHaveBeenCalledOnce();
+  });
+});
+
+it('warns once about retained work before changing the password and signing out', async () => {
+  const check = vi.fn(async () => 2);
+  vi.mocked(useDeviceWork).mockReturnValue({ ...useDeviceWork(), countUnsyncedWork: check });
+  vi.mocked(changePassword).mockReset().mockResolvedValue();
+  const onChanged = await submitValidPassword();
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-device.description');
+  expect(changePassword).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'sign-out-offline.confirm' }));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+  expect(check).toHaveBeenCalledOnce();
+  vi.mocked(useDeviceWork).mockReturnValue({
+    ...useDeviceWork(),
+    countUnsyncedWork: async () => 0,
   });
 });

@@ -1,22 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ClipboardPenLineIcon } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import {
-  WorkspaceDescription,
-  WorkspaceHeader,
-  WorkspaceHeading,
-  WorkspaceIcon,
-  WorkspaceTitle,
-} from '@/components/workspace';
-import { useLoginData } from '@/features/auth/store/login-data';
-import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
-import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { recordLabel } from '@/lib/facility-program-selection';
+import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import {
   loadStockEventEditor,
+  StockEventEditorPage,
   StockEventPending,
-  stockEventSearchSchema,
 } from '@/routes/(protected)/-stock-event-editor';
 
 export const Route = createFileRoute(
@@ -33,47 +20,11 @@ export const Route = createFileRoute(
 });
 
 function AdjustmentPage() {
-  const { t } = useTranslation();
-  const { homeFacility, program, canViewStock } = Route.useLoaderData();
-  const search = Route.useSearch();
-  const { updateSearch } = useSearchNavigation<EventSearch>({});
-  const navigate = Route.useNavigate();
-  const username = useLoginData((state) => state.username) ?? '';
   return (
-    <EventEditor
+    <StockEventEditorPage
       kind="adjustment"
-      key={`${homeFacility.id}/${program.id}`}
-      facilityId={homeFacility.id}
-      facilityTypeId={homeFacility.type.id}
-      programId={program.id}
-      username={username}
-      canViewStock={canViewStock}
-      search={search}
-      onSearchChange={updateSearch}
-      onSubmitted={() =>
-        navigate({
-          to: '/stock-management/stock-on-hand',
-          search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
-        })
-      }
-    >
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <ClipboardPenLineIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>
-            {t(EVENT_KINDS.adjustment.copy.editorTitle, {
-              code: homeFacility.code,
-              facility: recordLabel(homeFacility),
-              program: recordLabel(program),
-            })}
-          </WorkspaceTitle>
-          <WorkspaceDescription>
-            {t(EVENT_KINDS.adjustment.copy.editorDescription)}
-          </WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-    </EventEditor>
+      data={Route.useLoaderData()}
+      search={Route.useSearch()}
+    />
   );
 }

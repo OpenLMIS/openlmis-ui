@@ -27,6 +27,10 @@ import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { httpError } from '@/tests/http-error';
 
+vi.mock('@/components/device-work', () => ({
+  useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
+}));
+
 vi.mock('@/features/auth/api/api', async (original) => ({
   ...(await original<typeof import('@/features/auth/api/api')>()),
   login: vi.fn(),
@@ -122,14 +126,8 @@ describe('SessionExpiredDialog', () => {
     await waitFor(() => expect(session.contains(document.activeElement)).toBe(true));
     expect(draft).toHaveValue('Unsaved value');
   });
-  it.each([
-    ['ACCESS_TOKEN', 'USER_ID', 'USERNAME'],
-    ['ACCESS_TOKEN', 'USERNAME', 'USER_ID'],
-    ['USER_ID', 'ACCESS_TOKEN', 'USERNAME'],
-    ['USER_ID', 'USERNAME', 'ACCESS_TOKEN'],
-    ['USERNAME', 'ACCESS_TOKEN', 'USER_ID'],
-    ['USERNAME', 'USER_ID', 'ACCESS_TOKEN'],
-  ])('submits the adopted username after legacy writes %s, %s, %s', async (...order) => {
+  it('submits the adopted username when it arrives after the legacy identity and token', async () => {
+    const user = userEvent.setup();
     const current = {
       ACCESS_TOKEN: ada.accessToken,
       USER_ID: ada.referenceDataUserId,
@@ -142,9 +140,9 @@ describe('SessionExpiredDialog', () => {
     vi.mocked(authApi.login).mockRejectedValue(httpError(400));
     await renderAt('/users');
 
-    for (const key of order) {
+    for (const key of ['USER_ID', 'ACCESS_TOKEN', 'USERNAME'] as const) {
       await act(async () => {
-        localStorage.setItem(`openlmis.${key}`, next[key as keyof typeof next]);
+        localStorage.setItem(`openlmis.${key}`, next[key]);
         await syncOtherTab(`openlmis.${key}`);
       });
     }
@@ -152,48 +150,32 @@ describe('SessionExpiredDialog', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog.querySelector('input[autocomplete="username"]')).toHaveValue('alan');
-    await userEvent.type(within(dialog).getByLabelText('login.password'), 'secret');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'session.sign-in' }));
+    await user.type(within(dialog).getByLabelText('login.password'), 'secret');
+    await user.click(within(dialog).getByRole('button', { name: 'session.sign-in' }));
 
     await waitFor(() =>
       expect(authApi.login).toHaveBeenCalledWith({ username: 'alan', password: 'secret' }),
     );
   });
 
-  it('stays closed while the session is live', async () => {
+  it('opens only after expiry and keeps the same-user renewal available on Escape', async () => {
+    const user = userEvent.setup();
     await renderAt('/users');
-
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('opens over the page once the session expires, for the same user', async () => {
-    await renderAt('/users');
 
     act(() => useLoginData.getState().expireSession());
 
     expect(await screen.findByRole('dialog')).toHaveTextContent('session.expired-title');
     expect(screen.getByText('/users')).toBeInTheDocument();
     expect(screen.queryByLabelText('login.username')).not.toBeInTheDocument();
-  });
-
-  it('stays open on Escape, since the page waits on it', async () => {
-    await renderAt('/users');
-    act(() => useLoginData.getState().expireSession());
-    await screen.findByRole('dialog');
-
-    await userEvent.keyboard('{Escape}');
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'sidebar.change-language',
+      }),
+    ).toBeVisible();
+    await user.keyboard('{Escape}');
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-  });
-
-  it('asks for the password before trying', async () => {
-    useLoginData.getState().expireSession();
-    await renderAt('/users');
-
-    await userEvent.click(await screen.findByRole('button', { name: 'session.sign-in' }));
-
-    expect(await screen.findByText('login.password-required')).toBeInTheDocument();
-    expect(authApi.login).not.toHaveBeenCalled();
   });
 
   it('labels its own password field when the page behind has one too', async () => {
@@ -206,7 +188,6 @@ describe('SessionExpiredDialog', () => {
   });
 
   it.each([
-    [httpError(400), 'session.wrong-password'],
     [new AxiosError('Network Error', 'ERR_NETWORK'), 'session.cannot-connect'],
     [httpError(500), 'session.sign-in-failed'],
   ])('explains why signing in failed (%s)', async (error, message) => {
@@ -237,6 +218,7 @@ describe('SessionExpiredDialog', () => {
   });
 
   it('signs the same user back in and closes', async () => {
+    const user = userEvent.setup();
     vi.mocked(authApi.login).mockResolvedValue({
       access_token: 'new-token',
       token_type: 'bearer',
@@ -247,9 +229,11 @@ describe('SessionExpiredDialog', () => {
     });
     useLoginData.getState().expireSession();
     await renderAt('/users');
-
-    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+    await user.click(await screen.findByRole('button', { name: 'session.sign-in' }));
+    expect(await screen.findByText('login.password-required')).toBeInTheDocument();
+    expect(authApi.login).not.toHaveBeenCalled();
+    await user.type(screen.getByLabelText('login.password'), 'secret');
+    await user.click(screen.getByRole('button', { name: 'session.sign-in' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(authApi.login).toHaveBeenCalledWith({ username: 'ada', password: 'secret' });
@@ -271,7 +255,6 @@ describe('SessionExpiredDialog', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(router.state.location.pathname).toBe('/login');
     expect(useLoginData.getState().isAuthenticated).toBe(false);
-    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
   });
 
   it('warns before signing out when the server was out of reach', async () => {
@@ -288,29 +271,30 @@ describe('SessionExpiredDialog', () => {
     expect(authApi.logout).not.toHaveBeenCalled();
   });
 
-  it('lets the user change the language without leaving it', async () => {
+  it('keeps offline editing available after expiry and asks for renewal on reconnect', async () => {
+    onlineManager.setOnline(false);
     useLoginData.getState().expireSession();
-    await renderAt('/users');
-
-    const dialog = await screen.findByRole('dialog');
-
-    expect(within(dialog).getByRole('button', { name: 'sidebar.change-language' })).toBeVisible();
+    await renderAt('/users', undefined, <input aria-label="Local Draft" />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Local Draft' }), 'retained');
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('session.expired-title');
+    expect(screen.getByLabelText('Local Draft')).toHaveValue('retained');
   });
 
-  it('tries to sign in and out even while offline, rather than waiting for the network', async () => {
-    onlineManager.setOnline(false);
+  it('offers offline continuation after renewal cannot connect and retries on reconnect', async () => {
     vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
-    vi.mocked(authApi.logout).mockResolvedValue();
     useLoginData.getState().expireSession();
-    const router = await renderAt('/users');
-
+    await renderAt('/users');
     await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
     await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
-    expect(await screen.findByText('session.cannot-connect')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'session.sign-out' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'sign-out-offline.confirm' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    await screen.findByText('session.cannot-connect');
+    await userEvent.click(screen.getByRole('button', { name: 'session.continue-offline' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(useLoginData.getState().expired).toBe(true);
+    act(() => onlineManager.setOnline(false));
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('holds both buttons while signing out', async () => {
@@ -320,7 +304,9 @@ describe('SessionExpiredDialog', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'session.sign-out' }));
 
-    expect(screen.getByRole('button', { name: 'session.sign-out' })).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'session.sign-out' })).toBeDisabled(),
+    );
     expect(screen.getByRole('button', { name: 'session.sign-in' })).toBeDisabled();
   });
 

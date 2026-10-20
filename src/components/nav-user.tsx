@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { LogOutIcon } from 'lucide-react';
-import type { ReactElement } from 'react';
+import { LogOutIcon, WifiOffIcon } from 'lucide-react';
+import { type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAccountLinks } from '@/components/nav-access';
+import { useDeviceWork } from '@/components/device-work';
+import { LocalizedCount } from '@/components/localized-count';
+import { useAccountLinks, useNavGroups } from '@/components/nav-access';
+import { useOfflineNavigation } from '@/components/offline-navigation';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +20,9 @@ import {
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
-import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { isNavParent } from '@/lib/config';
 import { fullName } from '@/lib/text';
+import type { LiveNavLink } from '@/lib/types';
 
 type NavUserProps = {
   /** Rendered as the menu trigger so each call site styles its own. */
@@ -33,7 +38,16 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
   const referenceDataUserId = useLoginData((state) => state.referenceDataUserId);
 
   const accountLinks = useAccountLinks();
+  const navGroups = useNavGroups();
+  const offlineEvents = navGroups
+    .flatMap((group) => group.items)
+    .filter((item): item is LiveNavLink => !isNavParent(item))
+    .find((item) => item.to === '/offline-events');
+  const menuLinks = [...accountLinks, ...(offlineEvents ? [offlineEvents] : [])];
+  const { pending } = useDeviceWork();
   const offlineSignOut = useOfflineSignOut();
+  const offline = useOfflineNavigation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -42,24 +56,54 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(next) => {
+          if (!offline.open) setMenuOpen(next);
+        }}
+      >
         <DropdownMenuTrigger render={trigger} />
         <DropdownMenuContent align={align} width="wide">
           <SignedInAs userId={referenceDataUserId} username={username} />
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            {accountLinks.map((link) => (
-              <DropdownMenuItem key={link.to} render={<Link to={link.to} />}>
-                <link.icon />
+            {menuLinks.map((link) => (
+              <DropdownMenuItem
+                key={link.to}
+                aria-label={
+                  link.to === '/offline-events' && pending > 0
+                    ? t('offline-events.nav-count', { count: pending })
+                    : undefined
+                }
+                data-unavailable={link.connectionRequired || undefined}
+                closeOnClick={!link.connectionRequired}
+                onClick={
+                  link.connectionRequired
+                    ? (event) => {
+                        event.preventDefault();
+                        offline.show(event.currentTarget);
+                      }
+                    : undefined
+                }
+                aria-describedby={link.connectionRequired ? offline.descriptionId : undefined}
+                render={link.connectionRequired ? undefined : <Link to={link.to} />}
+              >
+                {link.icon && <link.icon />}
                 {t(link.titleKey)}
+                {link.to === '/offline-events' && pending > 0 && (
+                  <span className="ms-auto">
+                    <Badge variant="secondary" aria-hidden>
+                      <LocalizedCount count={pending} />
+                    </Badge>
+                  </span>
+                )}
+                {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() =>
-              offlineSignOut.confirm(() => whenLeaveAllowed(() => void handleLogout()))
-            }
+            onClick={() => offlineSignOut.confirm(() => void handleLogout())}
             variant="destructive"
           >
             <LogOutIcon className="rtl:rotate-180" />

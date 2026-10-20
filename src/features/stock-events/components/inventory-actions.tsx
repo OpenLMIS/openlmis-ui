@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import {
   FormDialog,
@@ -47,10 +48,7 @@ import {
   eligibleInventoryLines,
   inventoryLocalCopy,
 } from '@/features/stock-events/lib/physical-inventory-lines';
-import {
-  clearInventoryLocal,
-  writeInventoryLocal,
-} from '@/features/stock-events/lib/physical-inventory-local';
+import type { writeInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   createInventoryLots,
   InventoryLotError,
@@ -84,6 +82,8 @@ type Props = {
   disabled: boolean;
   writeDisabled?: boolean;
   flush: () => Promise<void>;
+  clearLocal: (draftId: string) => Promise<void>;
+  writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
   onBusy: (busy: boolean) => void;
   onLots: (lines: InventoryLine[]) => void;
   onSaved: (lines: InventoryLine[], terminal: boolean) => void;
@@ -150,12 +150,12 @@ export function InventoryActions(props: Props) {
     retry: false,
     mutationFn: async (action: Action) => {
       const scope = getSessionScope();
-      await props.flush();
-      assertSessionScope(scope);
       if (action.type === 'delete') {
         await deletePhysicalInventory(props.draft.id);
         return [];
       }
+      await props.flush();
+      assertSessionScope(scope);
       const eligible = await queryClient.fetchQuery(eligibleOptions);
       assertSessionScope(scope);
       const lines = eligibleInventoryLines(props.getLines(), eligible);
@@ -170,7 +170,7 @@ export function InventoryActions(props: Props) {
         async (next) => {
           assertSessionScope(scope);
           props.onLots(next);
-          await writeInventoryLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+          await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
           assertSessionScope(scope);
         },
       );
@@ -260,7 +260,7 @@ export function InventoryActions(props: Props) {
     if (!mutation.isCurrent()) return;
     if (action.type !== 'save') finished.current = true;
     try {
-      await clearInventoryLocal(props.draft.id);
+      await props.clearLocal(props.draft.id);
     } catch {
       if (mutation.isCurrent())
         toast.error(t('physical-inventory.local-clear-error-title'), {
@@ -424,14 +424,19 @@ export function InventoryActions(props: Props) {
           <Button variant="outline" onClick={closePrint}>
             {t('physical-inventory.no')}
           </Button>
-          <Button
-            onClick={() => {
-              print.print();
-              closePrint();
-            }}
-          >
-            {t('physical-inventory.print')}
-          </Button>
+          <ActionTooltip reason={print.disabledReason}>
+            <Button
+              disabled={print.offline}
+              focusableWhenDisabled={print.offline}
+              aria-description={print.disabledReason}
+              onClick={() => {
+                print.print();
+                closePrint();
+              }}
+            >
+              {t('physical-inventory.print')}
+            </Button>
+          </ActionTooltip>
         </FormDialogFooter>
       </FormDialog>
     </>

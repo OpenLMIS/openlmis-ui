@@ -1,7 +1,6 @@
 import { LayoutDashboardIcon } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { QueryBoundary } from '@/components/query-boundary';
 import {
   Empty,
   EmptyDescription,
@@ -20,7 +19,6 @@ import { DashboardRow } from '@/features/home/components/dashboard-parts';
 import { CardSkeleton, PENDING } from '@/features/home/components/dashboard-skeleton';
 import { EquipmentStatusCard } from '@/features/home/components/equipment-status';
 import { Stat, StatStrip } from '@/features/home/components/stat-strip';
-import { SystemNotifications } from '@/features/home/components/system-notifications';
 import type { DashboardAccess } from '@/features/home/lib/types';
 
 // The charts bring Recharts, so they load apart from the page, and only for users who see them.
@@ -69,10 +67,6 @@ export function HomeDashboard({ access }: { access: DashboardAccess }) {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
-      <QueryBoundary errorComponent={() => null} pendingFallback={null} resetKey="notifications">
-        <SystemNotifications />
-      </QueryBoundary>
-
       {!Object.values(access).some(Boolean) && (
         <Empty>
           <EmptyHeader>

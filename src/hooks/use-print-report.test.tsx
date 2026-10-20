@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PrinterIcon } from 'lucide-react';
@@ -207,4 +207,29 @@ describe('usePrintReport', () => {
       expect(toast.error).not.toHaveBeenCalled();
     },
   );
+});
+
+it('never opens a tab or starts permission/report requests offline', async () => {
+  onlineManager.setOnline(false);
+  renderButton('open');
+  await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+  expect(window.open).not.toHaveBeenCalled();
+  expect(fetchPermissionStrings).not.toHaveBeenCalled();
+  expect(request).not.toHaveBeenCalled();
+});
+
+it('does not request a PDF when connection is lost during its permission check', async () => {
+  let release = () => {};
+  vi.mocked(fetchPermissionStrings).mockReturnValue(
+    new Promise((resolve) => {
+      release = () => resolve(grant);
+    }),
+  );
+  renderButton('open');
+  await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+  await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalled());
+  act(() => onlineManager.setOnline(false));
+  await act(async () => release());
+  await waitFor(() => expect(tab.close).toHaveBeenCalled());
+  expect(request).not.toHaveBeenCalled();
 });

@@ -1,8 +1,17 @@
 import { useStore } from '@tanstack/react-form';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
-import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CalendarIcon, CircleAlertIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { CardActions } from '@/components/card-actions';
 import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
@@ -260,7 +269,11 @@ const LineCell = memo(function LineCell({
     case 'productCode':
       return <bdi>{line.orderable.productCode}</bdi>;
     case 'product':
-      return <ProductName label={product} width={measured ? 'compact' : 'default'} />;
+      return (
+        <StockProblemNote line={line}>
+          <ProductName label={product} width={measured ? 'compact' : 'default'} />
+        </StockProblemNote>
+      );
     case 'packSize':
       return (
         <bdi className="tabular-nums" dir="ltr">
@@ -798,7 +811,10 @@ export function EventLineTable({
       isPageInvalid={(index) =>
         lines
           .slice(index * size, (index + 1) * size)
-          .some((line) => invalidIndexes.has(lineIndex.current.get(line.key) ?? -1))
+          .some(
+            (line) =>
+              !!line.stockProblem || invalidIndexes.has(lineIndex.current.get(line.key) ?? -1),
+          )
       }
     />
   );
@@ -835,12 +851,36 @@ export function EventLineTable({
               : undefined
           }
           table={table}
+          isRowInvalid={(line) => !!line.stockProblem}
           density="compact"
           layout="auto"
           empty={empty}
           footer={footer}
         />
       )}
+    </div>
+  );
+}
+
+function StockProblemNote({ line, children }: { line: EventLine; children: React.ReactNode }) {
+  const { t } = useTranslation();
+  const descriptionId = useId();
+  if (!line.stockProblem) return children;
+  return (
+    <div
+      className="min-w-0"
+      role="note"
+      aria-label={productLabel(line.orderable)}
+      aria-describedby={descriptionId}
+    >
+      {children}
+      <p
+        id={descriptionId}
+        className="flex items-start gap-1 text-destructive text-xs whitespace-normal"
+      >
+        <CircleAlertIcon aria-hidden="true" className="size-4 shrink-0" />
+        {t('stock-events.draft-stock-unavailable')}
+      </p>
     </div>
   );
 }
@@ -861,9 +901,11 @@ function EventLineCard(props: Omit<CellProps, 'id'> & { columns: CellId[] }) {
   return (
     <CardListItem>
       <CardBand>
-        <bdi className="min-w-0 wrap-anywhere">
-          {productLabel(line.orderable)} ({line.orderable.productCode})
-        </bdi>
+        <StockProblemNote line={line}>
+          <bdi className="min-w-0 wrap-anywhere">
+            {productLabel(line.orderable)} ({line.orderable.productCode})
+          </bdi>
+        </StockProblemNote>
         <LineCell {...cellProps} id="actions" />
       </CardBand>
       <CardRows>

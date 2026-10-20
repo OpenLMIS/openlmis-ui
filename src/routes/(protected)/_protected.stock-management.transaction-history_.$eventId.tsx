@@ -3,6 +3,7 @@ import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react
 import { ClipboardListIcon, PrinterIcon, Undo2Icon } from 'lucide-react';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ListError } from '@/components/list-error';
@@ -276,18 +277,22 @@ function StockEventActions({
           {t('stock-event-reverse.reverse')}
         </Button>
       )}
-      <Button
-        size="lg"
-        disabled={print.isPending || !lines.data?.totalElements || !!lines.error}
-        onClick={print.print}
-      >
-        {print.isPending ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <PrinterIcon data-icon="inline-start" />
-        )}
-        {t('stock-event.print')}
-      </Button>
+      <ActionTooltip reason={print.disabledReason}>
+        <Button
+          size="lg"
+          disabled={print.offline || print.isPending || !lines.data?.totalElements || !!lines.error}
+          onClick={print.print}
+          focusableWhenDisabled={print.offline}
+          aria-description={print.disabledReason}
+        >
+          {print.isPending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <PrinterIcon data-icon="inline-start" />
+          )}
+          {t('stock-event.print')}
+        </Button>
+      </ActionTooltip>
     </>
   );
 }

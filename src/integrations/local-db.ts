@@ -16,14 +16,34 @@ function deployment() {
 
 let database: Dexie | null = null;
 
-export function getLocalDb(): Dexie {
+export function getLocalDbUserId() {
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new Error('No one is signed in, so there is no local database to open.');
+  return userId;
+}
+
+export function getLocalDb(): Dexie {
+  const userId = getLocalDbUserId();
 
   if (!database) {
     database = new Dexie(localDatabaseName({ deployment: deployment(), userId }));
     database.version(1).stores({});
     database.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+    database.version(7).stores({
+      physicalInventoryDrafts: 'draftId',
+      offlineAccess: 'userId',
+      adjustmentDownloads: '[facilityId+programId]',
+      stockEventDrafts: 'draftId, [kind+facilityId+programId+state]',
+      stockEventQueue: '++sequence, &localEventId, [status+sequence]',
+      stockEventSyncErrors: '&localEventId',
+      stockEventReceipts: '[draftId+revision], &localEventId',
+    });
+    database.version(8).stores({
+      adjustmentDownloads: null,
+      homeStockDownloads: '[facilityId+programId]',
+    });
+    database.version(9).stores({ stockCardHistory: 'id, fetchedAt' });
+    database.version(10).stores({ stockCardHistory: null });
   }
   return database;
 }

@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { type RenderOptions, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { OfflineNavigationProvider } from '@/components/offline-navigation';
 
 export function renderPage(
   page: ReactNode,
@@ -21,7 +22,9 @@ export function renderPage(
   } = {},
 ) {
   const router = createRouter({
-    routeTree: createRootRoute({ component: () => page }),
+    routeTree: createRootRoute({
+      component: () => <OfflineNavigationProvider>{page}</OfflineNavigationProvider>,
+    }),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   render(

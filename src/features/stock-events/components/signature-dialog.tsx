@@ -1,12 +1,11 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
   FormDialogBody,
   FormDialogCancel,
-  FormDialogDescription,
   FormDialogFooter,
   FormDialogForm,
   FormDialogHeader,
@@ -68,15 +67,23 @@ function SignatureForm({
     >
       <FormDialogHeader>
         <FormDialogTitle>{t('stock-events.signature-title')}</FormDialogTitle>
-        <FormDialogDescription>
-          {t('stock-events.submitted-by', { username })}
-        </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
           <form.AppField name="signature">
             {(field) => (
-              <field.TextField dir="auto" disabled={pending} label={t('stock-events.signature')} />
+              <field.TextField
+                dir="auto"
+                disabled={pending}
+                label={t('stock-events.signature')}
+                description={
+                  <Trans
+                    i18nKey="stock-events.submitted-by"
+                    values={{ username }}
+                    components={{ strong: <strong /> }}
+                  />
+                }
+              />
             )}
           </form.AppField>
         </FieldGroup>

@@ -18,6 +18,10 @@ const buttonVariants = cva(
           "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:hover:bg-destructive/20 dark:focus-visible:ring-destructive/40",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        warning:
+          "bg-warning/10 text-warning-strong hover:bg-warning/20 focus-visible:border-warning/40 focus-visible:ring-warning/20 dark:bg-warning/20 dark:hover:bg-warning/30 dark:focus-visible:ring-warning/40",
+        info:
+          "bg-info/10 text-primary hover:bg-info/20 focus-visible:border-info/40 focus-visible:ring-info/20 dark:bg-info/20 dark:text-info dark:hover:bg-info/30 dark:focus-visible:ring-info/40",
         "destructive-outline":
           "border-destructive bg-background text-destructive hover:bg-destructive/10 focus-visible:border-destructive focus-visible:ring-destructive/20 dark:bg-input/30 dark:hover:bg-destructive/20 dark:focus-visible:ring-destructive/40",
         "destructive-solid":
@@ -56,6 +60,10 @@ const buttonVariants = cva(
         full: "w-full",
         shrink: "min-w-0 shrink",
       },
+      indicator: {
+        none: "",
+        info: "relative after:pointer-events-none after:absolute after:top-1 after:end-1 after:size-1.5 after:rounded-full after:bg-info",
+      },
       // Ghost hover uses `muted`, which is invisible on the sidebar surface.
       tone: {
         default: "",
@@ -70,6 +78,7 @@ const buttonVariants = cva(
       align: "default",
       width: "default",
       tone: "default",
+      indicator: "none",
     },
   }
 )
@@ -83,12 +92,13 @@ function Button({
   align = "default",
   width = "default",
   tone = "default",
+  indicator = "none",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, padding, align, width, tone, wrap, className }))}
+      className={cn(buttonVariants({ variant, size, padding, align, width, tone, indicator, wrap, className }))}
       {...props}
     />
   )

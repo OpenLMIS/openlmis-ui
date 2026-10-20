@@ -148,8 +148,9 @@ config or a corrected translation reaches users on their next load.
 
 Nothing in nginx needs to change for it. Everything under `/v2/` except `assets/` is already
 served `no-cache`, `sw.js` included, which is what lets a new version be noticed; the gateway
-passes those headers through. A deployment then shows open tabs an "Update Available" notice,
-and the new version loads when the user chooses Reload.
+passes those headers through. A deployment then shows open tabs an update button with a small
+dot beside the theme and language buttons at the bottom of the sidebar, and the new version
+loads when the user clicks it.
 
 The legacy UI has its own worker for the whole site. The two keep separate caches and do not
 touch each other's.
@@ -351,3 +352,25 @@ does not exist here, so the first real build failed at checkout.
 
 See [how-to-add-new-ui.md](how-to-add-new-ui.md) for the steps, including the Jenkins
 job, the OAuth client, the compose entry and how to verify.
+
+## Offline Readiness
+
+Serve the new UI over HTTPS, with its service worker, app assets, `config.json` and language
+catalogs under the same configured base path. A successful page load alone does not mean a
+program is downloaded. Wait for Adjustments downloads to finish in the actual browser profile
+and check sidebar failures before disconnecting. Keep `/api` outside the `/v2` asset cache; API responses must never be cached
+by a proxy or service worker as an offline substitute.
+
+Offline download and upload coordination requires Web Locks. Browsers without it show an
+explanation and keep connected reads available, but cannot automatically send queued work.
+Edge has full automated browser coverage on Linux in Docker. WebKit has partial coverage
+of worker-backed shell/restart behavior; actual Safari has not run. Test
+managed browsers and real phones separately. The
+[offline support guide](../offline-plan/offline-plan.md#verification-and-rollout-limits)
+describes the verification limits.
+
+Do not clear browser site data as a routine fix for sync trouble. It can delete the only copy
+of unsynced events. Preserve the same deployment URL, base path and browser profile when
+recovering device work. A changed origin or base path uses a different device database.
+Refer users to [Working Offline](../working-offline/working-offline.md) for safe recovery,
+sign-out behavior and browser storage limits.

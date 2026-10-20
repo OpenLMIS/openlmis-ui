@@ -1,6 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { act, render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { describe, expect, it, vi } from 'vitest';
 import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
 import { httpError, networkError } from '@/tests/http-error';
@@ -31,6 +32,8 @@ describe('useOfflineFailure', () => {
 
 describe('OfflineNotice', () => {
   it('says the data needs a connection and lets the user try again', async () => {
+    onlineManager.setOnline(false);
+    const feedback = vi.spyOn(toast, 'info');
     const onRetry = vi.fn();
     render(<OfflineNotice onRetry={onRetry} />);
 
@@ -39,5 +42,8 @@ describe('OfflineNotice', () => {
     await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
 
     expect(onRetry).toHaveBeenCalledOnce();
+    expect(feedback).toHaveBeenCalledWith('offline.title', {
+      description: 'offline.retry-unavailable',
+    });
   });
 });

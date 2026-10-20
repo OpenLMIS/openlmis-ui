@@ -34,6 +34,8 @@ type StockProgramRow = {
   status?: ReactNode;
   actionLabel?: string;
   disabled?: boolean;
+  disabledReason?: string;
+  disabledDescription?: string;
 };
 
 type StockProgramPickerProps = {
@@ -41,7 +43,7 @@ type StockProgramPickerProps = {
   hasHomeFacility: boolean;
   actionLabel?: string;
   actionsLabel?: string;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
 } & (
   | { linkFor: (row: StockProgramRow) => ReactElement; onAction?: never }
   | { onAction: (row: StockProgramRow) => void; linkFor?: never }
@@ -53,16 +55,16 @@ function ProgramTable({
   actionsLabel,
 }: {
   children: ReactNode;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
   actionsLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
     <DataTableCard>
-      <Table density="comfortable" layout="fixed">
+      <Table density="default" layout="fixed">
         <colgroup>
-          <col className="w-2/5" />
-          {statusLabel ? <col className="w-1/3" /> : null}
+          <col className={statusLabel ? 'w-1/3 @xl/main:w-2/5' : 'w-2/5'} />
+          {statusLabel ? <col className="w-3/10 @xl/main:w-1/3" /> : null}
           <col />
         </colgroup>
         <TableHeader surface="muted">
@@ -131,11 +133,15 @@ function ProgramPickerContent({
       render={onAction ? undefined : linkFor?.(row)}
       role={onAction ? undefined : 'link'}
       disabled={row.disabled}
+      focusableWhenDisabled={!!row.disabledReason}
+      aria-describedby={row.disabledReason ? `program-unavailable-${row.id}` : undefined}
       onClick={onAction ? () => onAction(row) : undefined}
       size={cards ? 'sm' : 'xl'}
       width="shrink"
     >
-      <span className="whitespace-normal break-words">{row.actionLabel ?? actionLabel}</span>
+      <span className="min-w-0 break-words whitespace-normal">
+        {row.actionLabel ?? actionLabel}
+      </span>
     </Button>
   );
   if (cards) {
@@ -147,7 +153,17 @@ function ProgramPickerContent({
               <span className="min-w-0 flex-1 wrap-anywhere">
                 <bdi>{row.label}</bdi>
               </span>
-              {action(row)}
+              <div className="flex flex-col items-end gap-1">
+                {action(row)}
+                {row.disabledReason && (
+                  <span className="text-xs text-muted-foreground">
+                    {row.disabledReason}
+                    <span id={`program-unavailable-${row.id}`} className="sr-only">
+                      {row.disabledDescription ?? row.disabledReason}
+                    </span>
+                  </span>
+                )}
+              </div>
             </CardBand>
             {statusLabel ? (
               <CardRows>
@@ -162,23 +178,35 @@ function ProgramPickerContent({
     );
   }
   return (
-    <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
-      {rows.map((row) => (
-        <TableRow key={row.id}>
-          <TableCell>
-            <div className="whitespace-normal break-words font-medium">{row.label}</div>
-          </TableCell>
-          {statusLabel ? (
+    <div>
+      <ProgramTable statusLabel={statusLabel} actionsLabel={actionsLabel}>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
             <TableCell>
-              <div className="whitespace-normal break-words">{row.status}</div>
+              <div className="break-words whitespace-normal font-medium">{row.label}</div>
             </TableCell>
-          ) : null}
-          <TableCell>
-            <div className="flex justify-end">{action(row)}</div>
-          </TableCell>
-        </TableRow>
-      ))}
-    </ProgramTable>
+            {statusLabel ? (
+              <TableCell>
+                <div className="min-w-0 break-words whitespace-normal">{row.status}</div>
+              </TableCell>
+            ) : null}
+            <TableCell>
+              <div className="flex flex-col items-end gap-1">
+                {action(row)}
+                {row.disabledReason && (
+                  <span className="text-xs text-muted-foreground">
+                    {row.disabledReason}
+                    <span id={`program-unavailable-${row.id}`} className="sr-only">
+                      {row.disabledDescription ?? row.disabledReason}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </ProgramTable>
+    </div>
   );
 }
 
@@ -189,14 +217,14 @@ export function StockProgramPickerSkeleton({
 }: {
   actionLabel: string;
   actionsLabel?: string;
-  statusLabel?: string;
+  statusLabel?: ReactNode;
 }) {
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   const action = (
     <div className="relative min-w-0">
       <div className="invisible" aria-hidden="true">
         <Button size={cards ? 'sm' : 'xl'} width="shrink" disabled tabIndex={-1}>
-          <span className="whitespace-normal break-words">{actionLabel}</span>
+          <span className="min-w-0 break-words whitespace-normal">{actionLabel}</span>
         </Button>
       </div>
       <div className="absolute inset-0">

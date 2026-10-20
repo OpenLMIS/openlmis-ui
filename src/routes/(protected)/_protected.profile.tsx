@@ -17,7 +17,7 @@ import { BasicInformationSkeleton } from '@/features/profile/components/basic-in
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
 import { NotificationSettingsSkeleton } from '@/features/profile/components/notification-settings';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
-import { facilityOptions } from '@/features/reference-data/api/queries';
+import { homeFacilityOptions } from '@/features/reference-data/api/queries';
 import { RoleTabsSkeleton } from '@/features/users/components/role-tabs';
 import { ROLE_TABS } from '@/features/users/lib/role-assignments';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -39,7 +39,7 @@ export const Route = createFileRoute('/(protected)/_protected/profile')({
     queryClient.prefetchQuery(pendingEmailOptions(userId));
     // The page is about this record, so it waits for it.
     const { user } = await queryClient.ensureQueryData(profileOptions(userId));
-    if (user.homeFacilityId) queryClient.prefetchQuery(facilityOptions(user.homeFacilityId));
+    if (user.homeFacilityId) queryClient.prefetchQuery(homeFacilityOptions(user.homeFacilityId));
   },
   pendingComponent: ProfilePending,
   errorComponent: ProfileError,

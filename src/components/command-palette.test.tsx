@@ -1,5 +1,5 @@
-import { QueryClient } from '@tanstack/react-query';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -99,4 +99,28 @@ describe('CommandPalette', () => {
     expect(await screen.findByRole('option', { name: 'nav-user.account' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'nav-user.settings' })).not.toBeInTheDocument();
   });
+});
+
+it('lets keyboard users reach an offline item and hear its reason without leaving the palette', async () => {
+  onlineManager.setOnline(false);
+  renderPalette(['STOCK_ADJUST']);
+  await userEvent.keyboard('{Control>}k{/Control}');
+  const input = await screen.findByRole('combobox');
+  await userEvent.type(input, 'nav.stock-management.issue');
+  await userEvent.keyboard('{ArrowDown}');
+  const issue = screen.getByRole('option', { name: /nav.stock-management.issue/ });
+  expect(issue).toHaveTextContent('offline.connection-required');
+  expect(issue).toHaveAccessibleName('nav.stock-management.issue');
+  expect(issue).toHaveAccessibleDescription('offline.connection-required');
+  expect(issue).toHaveAttribute('data-unavailable');
+  expect(issue).not.toHaveAttribute('aria-disabled', 'true');
+  await waitFor(() => expect(issue).toHaveAttribute('data-selected', 'true'));
+  await userEvent.keyboard('{Enter}');
+  expect(issue).toHaveAttribute('aria-describedby');
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'offline.navigation-unavailable',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(issue).toHaveAttribute('data-selected', 'true');
 });

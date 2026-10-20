@@ -2,48 +2,26 @@ import { useQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { useMemo } from 'react';
+import { useDeviceWork } from '@/components/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
+import { navRightFor } from '@/lib/nav-rights';
+import { hasOfflineCapability, isOfflineCapable } from '@/lib/offline-pages';
+import { useOnline } from '@/lib/online';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
-/** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
-const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readonly string[]>> = {
-  '/administration/facilities': RIGHTS.facilitiesManage,
-  '/administration/supply-lines': RIGHTS.supplyLinesManage,
-  '/administration/geographic-zones': RIGHTS.geographicZonesManage,
-  '/administration/supervisory-nodes': RIGHTS.supervisoryNodesManage,
-  '/administration/supply-partners': RIGHTS.supplyPartnersManage,
-  '/administration/facility-types': RIGHTS.facilitiesManage,
-  '/administration/lots': RIGHTS.lotsManage,
-  '/administration/products': [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage],
-  '/administration/users': RIGHTS.usersManage,
-  '/administration/roles': RIGHTS.usersManage,
-  '/administration/service-accounts': RIGHTS.serviceAccountsManage,
-  '/administration/programs': RIGHTS.programsManage,
-  '/administration/processing-schedules': RIGHTS.processingSchedulesManage,
-  '/administration/ideal-stock-amounts': RIGHTS.systemIdealStockAmountsManage,
-  '/administration/requisition-templates': RIGHTS.requisitionTemplatesManage,
-  '/administration/reasons': RIGHTS.stockCardLineItemReasonsManage,
-  '/administration/requisition-groups': RIGHTS.requisitionGroupsManage,
-  '/administration/rejection-reason-categories': RIGHTS.usersManage,
-  '/administration/rejection-reasons': RIGHTS.usersManage,
-  '/administration/valid-destinations': RIGHTS.stockDestinationsManage,
-  '/administration/valid-sources': RIGHTS.stockSourcesManage,
-  '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
-  '/stock-management/transaction-history': RIGHTS.stockCardsView,
-  '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,
-  '/stock-management/adjustments': RIGHTS.stockAdjust,
-  '/stock-management/issue': RIGHTS.stockAdjust,
-  '/stock-management/receive': RIGHTS.stockAdjust,
-  '/stock-management/unpack': RIGHTS.stockAdjust,
-};
-
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
-export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | undefined) {
-  const right = to && NAV_RIGHTS[to];
+export function canOpen(
+  to: LiveNavLink['to'],
+  rights: ReadonlySet<string> | undefined,
+  hasDeviceEvents = false,
+  offline = false,
+) {
+  if (to === '/offline-events' && (hasDeviceEvents || offline)) return true;
+  const right = to && navRightFor(to);
   return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
 
@@ -51,8 +29,10 @@ export function canOpen(to: LiveNavLink['to'], rights: ReadonlySet<string> | und
 export function navWithinRights(
   groups: LiveNavGroup[],
   rights: ReadonlySet<string> | undefined,
+  hasDeviceEvents = false,
+  offline = false,
 ): LiveNavGroup[] {
-  const allowed = (link: LiveNavLink) => canOpen(link.to, rights);
+  const allowed = (link: LiveNavLink) => canOpen(link.to, rights, hasDeviceEvents, offline);
   return groups
     .map((group) => ({
       ...group,
@@ -74,7 +54,20 @@ function useSignedInRights() {
 /** The signed-in user's nav, for the sidebar and the command palette. */
 export function useNavGroups() {
   const rights = useSignedInRights();
-  return useMemo(() => navWithinRights(LIVE_NAV_GROUPS, rights), [rights]);
+  const { hasDeviceEvents } = useDeviceWork();
+  const online = useOnline();
+  return useMemo<LiveNavGroup[]>(() => {
+    const mark = (link: LiveNavLink) => ({
+      ...link,
+      connectionRequired: !online && !isOfflineCapable(link.to ?? ''),
+    });
+    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online).map((group) => ({
+      ...group,
+      items: group.items.map((item) =>
+        isNavParent(item) ? { ...item, items: item.items.map(mark) } : mark(item),
+      ),
+    }));
+  }, [rights, online, hasDeviceEvents]);
 }
 
 export function useHasRight(right: string) {
@@ -84,19 +77,39 @@ export function useHasRight(right: string) {
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
   const rights = useSignedInRights();
-  return (to: LiveNavLink['to']) => canOpen(to, rights);
+  const { hasDeviceEvents } = useDeviceWork();
+  const online = useOnline();
+  return (to: LiveNavLink['to']) =>
+    canOpen(to, rights, hasDeviceEvents, !online) && (online || isOfflineCapable(to ?? ''));
 }
 
-export type AccountLink = { titleKey: ParseKeys; to: '/profile' | '/settings'; icon: LucideIcon };
+type AccountLink = {
+  titleKey: ParseKeys;
+  to: '/profile' | '/settings';
+  icon: LucideIcon;
+  connectionRequired?: boolean;
+};
 
 export function useAccountLinks(): AccountLink[] {
+  const online = useOnline();
   const mayManageSettings = useHasRight(RIGHTS.systemSettingsManage);
   const settingsOn = useFlag('SYSTEM_SETTINGS');
   const canManageSettings = mayManageSettings && settingsOn;
   return [
-    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon },
+    { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon, connectionRequired: !online },
     ...(canManageSettings
-      ? [{ titleKey: 'nav-user.settings', to: '/settings', icon: SettingsIcon } as const]
+      ? [
+          {
+            titleKey: 'nav-user.settings',
+            to: '/settings',
+            icon: SettingsIcon,
+            connectionRequired: !online,
+          } as const,
+        ]
       : []),
   ];
+}
+
+export function useHasOfflineCapability() {
+  return hasOfflineCapability(useSignedInRights());
 }

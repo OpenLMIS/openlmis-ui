@@ -13,9 +13,10 @@ import { SUPPORTED_LANGUAGES } from '@/lib/config';
 
 type LanguageSwitcherProps = {
   tone?: 'default' | 'sidebar';
+  tooltipSide?: 'top' | 'inline-end';
 };
 
-export function LanguageSwitcher({ tone = 'default' }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ tone = 'default', tooltipSide = 'top' }: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
   const label = t('sidebar.change-language');
 
@@ -31,7 +32,7 @@ export function LanguageSwitcher({ tone = 'default' }: LanguageSwitcherProps) {
         >
           <GlobeIcon />
         </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
+        <TooltipContent side={tooltipSide}>{label}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup

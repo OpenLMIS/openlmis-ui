@@ -17,6 +17,9 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchFacility,
+  fetchLotsByIds,
+  fetchMinimalFacilities,
+  fetchOrderablesByIds,
   fetchUserPrograms,
   fetchUserRecord,
   fetchValidAssignments,
@@ -28,9 +31,11 @@ import {
   fetchStockEventReport,
   submitStockEvent,
 } from '@/features/stock-events/api/api';
+import { fetchStockCardSummaries } from '@/features/stock-on-hand/api/api';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.issue';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
+import { Route as StockRoute } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
 
 vi.mock('@/components/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
@@ -43,6 +48,9 @@ vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchReasons: vi.fn(),
   fetchFacility: vi.fn(),
+  fetchLotsByIds: vi.fn(),
+  fetchMinimalFacilities: vi.fn(),
+  fetchOrderablesByIds: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
   fetchValidReasons: vi.fn(),
@@ -53,6 +61,10 @@ vi.mock('@/features/stock-events/api/api', () => ({
   fetchEventStockCards: vi.fn(),
   submitStockEvent: vi.fn(),
   fetchStockEventReport: vi.fn(),
+}));
+
+vi.mock('@/features/stock-on-hand/api/api', () => ({
+  fetchStockCardSummaries: vi.fn(),
 }));
 
 vi.mock('@/lib/open-report', () => ({
@@ -76,7 +88,7 @@ const programs = [
   { id: FP, code: 'PRG001', name: 'Family Planning', active: true },
   { id: EM, code: 'PRG002', name: 'Essential Meds', active: true },
 ];
-const homeFacility: Facility = {
+const homeFacility = {
   id: HOME,
   code: 'HC01',
   name: 'Comfort Health Clinic',
@@ -89,7 +101,7 @@ const homeFacility: Facility = {
     supportActive: true,
     supportLocallyFulfilled: false,
   })),
-};
+} satisfies Facility;
 
 function renderRoute(path = PICKER) {
   const queryClient = new QueryClient({
@@ -121,13 +133,18 @@ function renderRoute(path = PICKER) {
   const stock = createRoute({
     getParentRoute: () => layout,
     path: 'stock-management/stock-on-hand',
-    component: () => <h1>Stock landing</h1>,
+    validateSearch: StockRoute.options.validateSearch as never,
+    loaderDeps: StockRoute.options.loaderDeps as never,
+    loader: StockRoute.options.loader as never,
+    component: StockRoute.options.component as never,
+    pendingComponent: StockRoute.options.pendingComponent as never,
   });
   const router = createRouter({
     routeTree: root.addChildren([
       group.addChildren([layout.addChildren([picker, editor, stock] as never)] as never),
     ] as never),
     context: { queryClient },
+    defaultPendingMs: 0,
     defaultErrorComponent: ErrorFallback,
     history: createMemoryHistory({ initialEntries: [path] }),
   } as never) as AnyRouter;
@@ -181,6 +198,16 @@ beforeEach(async () => {
   });
   vi.mocked(fetchUserPrograms).mockResolvedValue(programs);
   vi.mocked(fetchFacility).mockResolvedValue(homeFacility);
+  vi.mocked(fetchMinimalFacilities).mockResolvedValue([homeFacility]);
+  vi.mocked(fetchLotsByIds).mockResolvedValue([]);
+  vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
+  vi.mocked(fetchStockCardSummaries).mockResolvedValue({
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 10,
+  });
 });
 
 afterEach(() => {
@@ -210,7 +237,10 @@ describe('Issue report after submit', () => {
     vi.mocked(fetchStockEventReport).mockResolvedValue(new Blob(['report']));
     const user = userEvent.setup();
     const { router } = renderRoute(`${PICKER}/${FP}`);
-    await user.click(await screen.findByRole('button', { name: 'stock-events.add' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'stock-events.add' })).toBeEnabled(),
+    );
+    await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
     const destination = document.getElementById('lines[0].counterparty') as HTMLElement;
     await user.click(destination);
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
@@ -226,7 +256,23 @@ describe('Issue report after submit', () => {
     window.dispatchEvent(reload);
     expect(reload.defaultPrevented).toBe(false);
     await user.click(screen.getByRole('button', { name: answer }));
-    expect(await screen.findByRole('heading', { name: 'Stock landing' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'stock-on-hand.title' })).toBeInTheDocument();
+    expect(await screen.findByRole('combobox', { name: 'facility-program.program' })).toHaveValue(
+      'Family Planning',
+    );
+    expect(screen.getByRole('combobox', { name: 'facility-program.facility' })).toHaveTextContent(
+      'Comfort Health Clinic',
+    );
+    expect(fetchMinimalFacilities).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(fetchStockCardSummaries).toHaveBeenCalledWith({
+        facilityId: HOME,
+        programId: FP,
+        nonEmptyOnly: true,
+        page: 0,
+        size: 10,
+      }),
+    );
     expect(router.state.location.search).toMatchObject({
       mode: 'my',
       facilityId: HOME,

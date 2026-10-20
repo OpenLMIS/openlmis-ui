@@ -57,6 +57,18 @@ export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignm
 }
 
 export type EventKindConfig = {
+  right: string;
+  listRoute:
+    | '/stock-management/adjustments'
+    | '/stock-management/issue'
+    | '/stock-management/receive'
+    | '/stock-management/unpack';
+  editorRoute:
+    | '/stock-management/adjustments/$programId'
+    | '/stock-management/issue/$programId'
+    | '/stock-management/receive/$programId'
+    | '/stock-management/unpack/$programId';
+  historyType: 'adjustment' | 'issue' | 'receive';
   eventOrigin: NonNullable<StockEvent['eventOrigin']> | null;
   contents:
     | { type: 'none' }
@@ -78,6 +90,8 @@ export type EventKindConfig = {
     | { type: 'signature' }
     | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
   scanning: boolean;
+  download: 'home-stock' | null;
+  drafts: 'device' | null;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
   twoLineSelectMinWidth: number | null;
@@ -90,6 +104,7 @@ export type EventKindConfig = {
   stockOnHandCap: 'debit-reason' | 'always' | 'never';
   newLots: 'none' | 'manual-and-scan';
   copy: Record<
+    | 'label'
     | 'pickerTitle'
     | 'make'
     | 'pageDescription'
@@ -116,6 +131,12 @@ export type EventKindConfig = {
 
 export const EVENT_KINDS = {
   adjustment: {
+    right: 'STOCK_ADJUST',
+    listRoute: '/stock-management/adjustments',
+    editorRoute: '/stock-management/adjustments/$programId',
+    historyType: 'adjustment',
+    download: 'home-stock',
+    drafts: 'device',
     eventOrigin: 'ADJUSTMENT',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -133,6 +154,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'debit-reason',
     newLots: 'none',
     copy: {
+      label: 'nav.stock-management.adjustments',
       pickerTitle: 'stock-adjustment.title',
       make: 'stock-adjustment.make',
       pageDescription: 'stock-adjustment.page-description',
@@ -156,6 +178,12 @@ export const EVENT_KINDS = {
     formId: 'adjustment-form',
   },
   issue: {
+    right: 'STOCK_ADJUST',
+    listRoute: '/stock-management/issue',
+    editorRoute: '/stock-management/issue/$programId',
+    historyType: 'issue',
+    download: null,
+    drafts: null,
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -182,6 +210,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     newLots: 'none',
     copy: {
+      label: 'nav.stock-management.issue',
       pickerTitle: 'stock-issue.title',
       make: 'stock-issue.make',
       pageDescription: 'stock-issue.page-description',
@@ -205,6 +234,12 @@ export const EVENT_KINDS = {
     formId: 'issue-form',
   },
   receive: {
+    right: 'STOCK_ADJUST',
+    listRoute: '/stock-management/receive',
+    editorRoute: '/stock-management/receive/$programId',
+    historyType: 'receive',
+    download: null,
+    drafts: null,
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -231,6 +266,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'never',
     newLots: 'manual-and-scan',
     copy: {
+      label: 'nav.stock-management.receive',
       pickerTitle: 'stock-receive.title',
       make: 'stock-receive.make',
       pageDescription: 'stock-receive.page-description',
@@ -254,6 +290,12 @@ export const EVENT_KINDS = {
     formId: 'receive-form',
   },
   unpack: {
+    right: 'STOCK_ADJUST',
+    listRoute: '/stock-management/unpack',
+    editorRoute: '/stock-management/unpack/$programId',
+    historyType: 'adjustment',
+    download: null,
+    drafts: null,
     eventOrigin: null,
     contents: {
       type: 'kit',
@@ -286,6 +328,7 @@ export const EVENT_KINDS = {
     reasons: null,
     stockOnHandCap: 'always',
     copy: {
+      label: 'nav.stock-management.unpack',
       pickerTitle: 'stock-unpack.title',
       make: 'stock-unpack.make',
       pageDescription: 'stock-unpack.page-description',
@@ -312,6 +355,8 @@ export const EVENT_KINDS = {
 
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 
-export type PrintableEventKind = {
-  [Kind in ConfiguredEventKind]: (typeof EVENT_KINDS)[Kind]['print'] extends null ? never : Kind;
-}[ConfiguredEventKind];
+export const OFFLINE_EVENT_TYPES = (Object.keys(EVENT_KINDS) as ConfiguredEventKind[]).filter(
+  (kind) => EVENT_KINDS[kind].download !== null && EVENT_KINDS[kind].drafts === 'device',
+);
+export const OFFLINE_EVENT_KINDS = OFFLINE_EVENT_TYPES.map((kind) => EVENT_KINDS[kind]);
+export const OFFLINE_EVENT_RIGHTS = [...new Set(OFFLINE_EVENT_KINDS.map((kind) => kind.right))];

@@ -36,6 +36,7 @@ describe('useDeploymentTimeZone', () => {
     expect(client.get).toHaveBeenCalledWith('/localeSettings', {
       baseURL: '/',
       anonymous: true,
+      connectionStatus: false,
       timeout: 10_000,
     });
   });

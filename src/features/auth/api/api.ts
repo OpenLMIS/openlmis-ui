@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import type { LoginInput, LoginResponse } from '@/features/auth/lib/types';
 import type { LoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
@@ -45,8 +46,11 @@ export async function logout(): Promise<void> {
 }
 
 /** Every right the user holds, one string per grant, e.g. `REQUISITION_VIEW|facilityId|programId`. */
-export async function fetchPermissionStrings(userId: string): Promise<string[]> {
-  const { data } = await client.get<string[]>(`/users/${userId}/permissionStrings`);
+export async function fetchPermissionStrings(
+  userId: string,
+  config?: AxiosRequestConfig,
+): Promise<string[]> {
+  const { data } = await client.get<string[]>(`/users/${userId}/permissionStrings`, config);
   return data;
 }
 
