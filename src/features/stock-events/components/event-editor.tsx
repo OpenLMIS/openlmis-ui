@@ -70,6 +70,11 @@ import {
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 import {
+  EventLineToolbarActions,
+  EventLineToolbarControls,
+  EventLineToolbarStatus,
+} from '@/features/stock-events/components/event-line-toolbar';
+import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
@@ -874,20 +879,6 @@ export function EventEditor({
                   </ProductLotPicker>
                 </QueryBoundary>
               )}
-              {deviceDrafts && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {(lines.length > 0 || draft.status !== 'saved') && (
-                    <EventDraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
-                  )}
-                  <EventArchivedCopies
-                    kind={kind}
-                    facilityId={facilityId}
-                    programId={programId}
-                    disabled={locked}
-                    onRestore={draft.restore}
-                  />
-                </div>
-              )}
               {unknownOutcome && (
                 <ErrorAlert
                   title={t('stock-events.unknown-outcome-title')}
@@ -916,30 +907,54 @@ export function EventEditor({
                     }
                   />
                 </fieldset>
-                {quantityUnit.canSwitch && (
-                  <div className="min-w-0 flex-1 @2xl/main:flex-none">
-                    <QuantityUnitToggle
-                      unit={quantityUnit.unit}
-                      onUnitChange={quantityUnit.setUnit}
-                      disabled={locked}
-                    />
-                  </div>
-                )}
-                <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
-                  <DataTableViewOptions
-                    size="lg"
-                    {...columns}
-                    layout={cards ? 'cards' : 'table'}
-                    columns={hideableColumns
-                      .filter(
-                        (column) =>
-                          (!cards || column.id !== 'productCode') &&
-                          (column.id !== 'total' || quantityUnit.unit === 'PACKS') &&
-                          (column.id !== 'expiry' || hasLots),
-                      )
-                      .map((column) => ({ id: column.id, label: t(column.labelKey) }))}
-                  />
-                </div>
+                <EventLineToolbarActions>
+                  {deviceDrafts && (
+                    <EventLineToolbarStatus>
+                      {(lines.length > 0 || draft.status !== 'saved') && (
+                        <EventDraftStatus
+                          {...draft}
+                          onRetry={draft.retry}
+                          onResolve={draft.resolve}
+                        />
+                      )}
+                      <EventArchivedCopies
+                        kind={kind}
+                        facilityId={facilityId}
+                        programId={programId}
+                        disabled={locked}
+                        onRestore={draft.restore}
+                      />
+                    </EventLineToolbarStatus>
+                  )}
+                  <EventLineToolbarControls>
+                    {quantityUnit.canSwitch && (
+                      <div className="min-w-0 flex-1 @2xl/main:flex-none">
+                        <QuantityUnitToggle
+                          unit={quantityUnit.unit}
+                          onUnitChange={quantityUnit.setUnit}
+                          disabled={locked}
+                        />
+                      </div>
+                    )}
+                    <div
+                      className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
+                    >
+                      <DataTableViewOptions
+                        size="lg"
+                        {...columns}
+                        layout={cards ? 'cards' : 'table'}
+                        columns={hideableColumns
+                          .filter(
+                            (column) =>
+                              (!cards || column.id !== 'productCode') &&
+                              (column.id !== 'total' || quantityUnit.unit === 'PACKS') &&
+                              (column.id !== 'expiry' || hasLots),
+                          )
+                          .map((column) => ({ id: column.id, label: t(column.labelKey) }))}
+                      />
+                    </div>
+                  </EventLineToolbarControls>
+                </EventLineToolbarActions>
               </DataTableToolbar>
               {!canViewStock ? (
                 <DataTableEmpty

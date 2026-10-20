@@ -1014,6 +1014,9 @@ offline criteria stay open until those criteria are met.
   hide progress/completion for accepted-event `refresh` runs, retaining boot/force/retry notices.
   Coalesce queued triggers by force > retry > boot > refresh; refresh cannot silence visible work.
   Collapsed actions remain clickable with title/count tooltips.
+  Auto-dismiss Alerts use countdown to isolate and clip the flush full-width bottom bar to
+  the alert border radius. The decorative 2px fill inherits the notice tone; preserve the shared
+  dismissal timer, hover/focus pause and reduced-motion behavior.
 - While offline, You're Offline is the only connection notice. Suppress Sign In To Sync and
   connection-related Sync Paused notices and download failures with reason `offline`, including
   in StatusAnnouncer. Reconnecting may show a retained download failure again. Show sign-in again
@@ -1084,6 +1087,10 @@ offline criteria stay open until those criteria are met.
 - Use one serial autosave writer. Stage immediately for leave protection and flush before
   durable transitions/navigation/logout. Announce Saved On This Device only after commit.
   Failures remain visible during retries. Logout retains committed drafts.
+  EventDraftStatus and archived-copy actions occupy the line toolbar end group before the
+  quantity-unit toggle and View. Reserve the same status slot in pending/empty editors so
+  controls stay anchored; narrow toolbars wrap the status above the controls. Keep the status
+  a note and retain the shared announcement path without a second live region.
 - Refresh resumed product/lot snapshots by identity while preserving typed text. Explain missing
   cards/invalid lots through the existing invalid-submit dialog and the kind's card policy.
 - Offline submission never POSTs from the editor. Flush, validate, collect signature and atomically
@@ -1109,7 +1116,8 @@ offline criteria stay open until those criteria are met.
   and retains body/sequence/history. Stale decisions explain that the event changed.
 - Refusal Copy For Correction makes an editable copy in one explained confirmation. Dismiss
   hides the refusal from review/counts while retaining audit data. Only never-attempted queued
-  events may be removed; delete the linked draft only if it still matches.
+  events may be deleted; remove the linked draft only if it still matches. Accepted receipt
+  removal keeps the minimal duplicate-protection record as described below.
 - Offline Events at `/offline-events` sits directly below Home in the shared nav source. Its
   badge counts queued, sending, uncertain and unresolved refused events, including held work;
   zero hides it, and the collapsed label/tooltip includes the count.
@@ -1122,22 +1130,28 @@ offline criteria stay open until those criteria are met.
   queued events, accepted events and refusals; omit it for sending/uncertain work. Refused removal
   dismisses without deleting correction copies. Accepted removal drops the local payload/draft,
   hides the row and keeps a minimal receipt for duplicate protection; explain that server stock
-  is unchanged. Use session-scoped mutations and focus the list after removal. Hide facility/program by measured width;
-  stored View choices override defaults. Below 672px use type/View Details bands and rows for
-  facility, program, date and status. Card-band View Details is size="sm" with a neighbouring
-  shared action menu. Line details appear only in the Event Details dialog.
+  is unchanged. Use session-scoped mutations and focus the list after removal. Hide facility/program
+  by measured width; stored View choices override defaults. Below 672px use type/View Details bands and rows for
+  facility, program, date and status. Card bands use aria-labelled icon-sm actions without tooltips: destructive
+  trash before outline Eye/View Details. Reserve the trash slot when removal is unavailable.
+  Table menu View Details has EyeIcon; Remove Event uses destructive and Trash2Icon. Every
+  destructive removal uses a confirmation AlertDialog, including the details footer.
+  Line details appear only in the Event Details dialog.
   Share descriptive action labels and EventStatus badges across list/cards/dialog: accepted
   success/check, queued info/clock, sending info/spinner with reduced motion, uncertain warning
   and refused destructive. Preserve pagination, sorting and live status filtering through Filters.
-  Event Details uses DialogContent size="table" (36rem), a scrolling body and measured line
-  cards at this width. Its title has no visible subtitle or separate status. Keep a meaningful
-  screen-reader-only description, and wrap the status badge beside the Pending Event value.
-  Dialog metadata uses SettingsList/SettingsItem and EMPTY_VALUE for missing non-table values.
-  Its lines use a bordered table with blank missing cells, one-line headers and vertical dividers;
+  Event Details uses DialogContent size="xl" (48rem). Its compact metadata and footer stay
+  fixed while only the lines/recovery context scrolls. Its title has no visible subtitle or separate
+  status. Keep a meaningful screen-reader-only description, and wrap the status badge beside the
+  Pending Event value.
+  Dialog metadata uses SettingsList density="compact"/SettingsItem and omits empty rows.
+  Its lines use a bordered compact table with blank missing cells, one-line headers and vertical
+  dividers. Show Reason Comments/VVM only when at least one line has a value;
   below 672px measured within the dialog, use flat product-band cards with settings rows.
   DialogFooter wrap puts Transaction History (outline) and recovery actions before the final
-  primary Close button in DOM order. Recovery actions are outline/destructive-outline so
-  Close is the only solid primary. Set initial focus to Close, never a destructive action.
+  primary Close button in DOM order. Recovery actions are outline; Remove Event uses the
+  standard destructive Button with Trash2Icon and shared removal confirmation. Set initial
+  focus to Close, never a destructive action.
   History is an outline footer link with no preload or wrapping height override. Stock Card
   links use the same offline dialog behaviour. Lot cards use break-all so fitting codes stay
   intact and long codes break anywhere, preserving copied hyphens. The table keeps codes nowrap.

@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { StockEventSaveState } from '@/features/stock-events/lib/stock-event-autosave';
 import { DraftConflictError } from '@/features/stock-events/lib/stock-event-local';
@@ -31,27 +32,36 @@ export function EventDraftStatus({ status, error, onRetry, onResolve }: Props) {
   };
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" role="note">
+      <div
+        className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground"
+        role="note"
+      >
         {status === 'saved' ? (
-          <CheckIcon aria-hidden="true" className="size-4 shrink-0 text-success" />
+          <Badge variant="secondary">
+            <CheckIcon aria-hidden="true" data-icon="inline-start" />
+            {t('stock-events.draft-saved')}
+          </Badge>
         ) : status === 'saving' || status === 'loading' ? (
-          <Loader2Icon aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+          <Loader2Icon
+            aria-hidden="true"
+            className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+          />
         ) : (
           <TriangleAlertIcon aria-hidden="true" className="size-4 shrink-0 text-destructive" />
         )}
-        <span>
-          {t(
-            status === 'saved'
-              ? 'stock-events.draft-saved'
-              : status === 'loading'
+        {status !== 'saved' && (
+          <span>
+            {t(
+              status === 'loading'
                 ? 'stock-events.draft-loading'
                 : status === 'saving'
                   ? 'stock-events.draft-saving'
                   : status === 'conflict'
                     ? 'stock-events.draft-conflict'
                     : 'stock-events.draft-failed',
-          )}
-        </span>
+            )}
+          </span>
+        )}
         {status === 'saving' && error !== undefined && (
           <span>{t('stock-events.draft-failed')}</span>
         )}

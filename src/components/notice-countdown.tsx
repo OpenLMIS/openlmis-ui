@@ -18,7 +18,7 @@ export function NoticeCountdownBar({ countdown }: { countdown: NoticeCountdown }
     <div
       ref={ref}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden rounded-b-lg"
+      className="pointer-events-none absolute start-0 end-0 bottom-0 h-0.5"
     >
       <div
         key={state.revision}

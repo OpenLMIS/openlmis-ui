@@ -2263,7 +2263,13 @@ it.each([
 it('shows failed local commits with Retry and leave protection until a successful retry', async () => {
   const { user, router } = setup(true, undefined, { browserHistory: true });
   await add(user);
-  await screen.findByText('Saved On This Device');
+  const saved = await screen.findByText('Saved On This Device');
+  const toolbar = screen
+    .getByRole('textbox', { name: 'Keywords' })
+    .closest('fieldset')?.parentElement;
+  expect(toolbar).toContainElement(saved);
+  const unit = screen.getByRole('radiogroup', { name: 'Show Quantities In' });
+  expect(saved.compareDocumentPosition(unit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
   await screen.findByText('Could not save on this device. Your latest edits are not saved.');
@@ -2271,7 +2277,7 @@ it('shows failed local commits with Retry and leave protection until a successfu
   const unload = new Event('beforeunload', { cancelable: true });
   fireEvent(window, unload);
   expect(unload.defaultPrevented).toBe(true);
-  await user.click(screen.getByRole('button', { name: /^Retry$/ }));
+  await user.click(within(toolbar as HTMLElement).getByRole('button', { name: /^Retry$/ }));
   await screen.findByText('Saved On This Device');
   const savedUnload = new Event('beforeunload', { cancelable: true });
   fireEvent(window, savedUnload);

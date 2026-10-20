@@ -42,6 +42,11 @@ import {
   EventLineTableSkeleton,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
+import {
+  EventLineToolbarActions,
+  EventLineToolbarControls,
+  EventLineToolbarStatus,
+} from '@/features/stock-events/components/event-line-toolbar';
 import { PrintEventDialog } from '@/features/stock-events/components/print-event-dialog';
 import { ProductLotPickerSkeleton } from '@/features/stock-events/components/product-lot-picker';
 import {
@@ -192,28 +197,33 @@ export function StockEventPending({
                   onValueChange={() => {}}
                 />
               </fieldset>
-              {unit.canSwitch && (
-                <div className="min-w-0 flex-1 @2xl/main:flex-none">
-                  <QuantityUnitToggle unit={unit.unit} onUnitChange={() => {}} disabled />
-                </div>
-              )}
-              <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
-                <DataTableViewOptions
-                  size="lg"
-                  disabled
-                  layout={layout}
-                  columns={eventHideableColumns(kind)
-                    .filter(
-                      ({ id }) =>
-                        (!cards || id !== 'productCode') &&
-                        id !== 'expiry' &&
-                        (id !== 'total' || unit.unit === 'PACKS'),
-                    )
-                    .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-                  visibility={visibility}
-                  onVisibilityChange={() => {}}
-                />
-              </div>
+              <EventLineToolbarActions>
+                {config.drafts === 'device' && <EventLineToolbarStatus />}
+                <EventLineToolbarControls>
+                  {unit.canSwitch && (
+                    <div className="min-w-0 flex-1 @2xl/main:flex-none">
+                      <QuantityUnitToggle unit={unit.unit} onUnitChange={() => {}} disabled />
+                    </div>
+                  )}
+                  <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+                    <DataTableViewOptions
+                      size="lg"
+                      disabled
+                      layout={layout}
+                      columns={eventHideableColumns(kind)
+                        .filter(
+                          ({ id }) =>
+                            (!cards || id !== 'productCode') &&
+                            id !== 'expiry' &&
+                            (id !== 'total' || unit.unit === 'PACKS'),
+                        )
+                        .map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+                      visibility={visibility}
+                      onVisibilityChange={() => {}}
+                    />
+                  </div>
+                </EventLineToolbarControls>
+              </EventLineToolbarActions>
             </DataTableToolbar>
             <EventLineTableSkeleton
               cards={cards}

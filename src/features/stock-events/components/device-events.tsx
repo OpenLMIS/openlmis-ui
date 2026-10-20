@@ -59,7 +59,7 @@ const hideable = [
   { id: 'occurredDate', labelKey: 'device-events.occurred-date' },
   { id: 'status', labelKey: 'device-events.status' },
 ] as const;
-const defaultSort = { id: 'occurredDate', desc: false };
+const defaultSort = { id: 'occurredDate', desc: true };
 const statuses = ['queued', 'sending', 'uncertain', 'refused', 'accepted'] as const;
 const occurredDate = (event: DeviceEvent) =>
   [...new Set(event.payload.lineItems.map((line) => line.occurredDate).filter(Boolean))].sort();
@@ -232,8 +232,13 @@ function DeviceEventsTable({
   if (selected !== lastMatched) setLastMatched(selected);
   const deferred = useDeferredValue(search);
   const reviewLabel = useCallback(
-    (event: DeviceEvent) =>
-      t('device-events.review-event-label', {
+    (
+      event: DeviceEvent,
+      key:
+        | 'device-events.review-event-label'
+        | 'device-events.remove-event-label' = 'device-events.review-event-label',
+    ) =>
+      t(key, {
         type: t(kindLabels[event.kind]),
         date: formatTimestamp(new Date(event.queuedAt).toISOString(), i18n.language, {
           time: true,
@@ -283,6 +288,7 @@ function DeviceEventsTable({
           <DeviceEventActions
             event={row.original}
             label={reviewLabel(row.original)}
+            removeLabel={reviewLabel(row.original, 'device-events.remove-event-label')}
             onOpen={() => onOpenEvent(row.original.localEventId)}
             onRemoved={() => setRemovedId(row.original.localEventId)}
           />
@@ -302,7 +308,8 @@ function DeviceEventsTable({
               ? 0
               : occurredDate(a).join().localeCompare(occurredDate(b).join())) ||
               a.queuedAt - b.queuedAt ||
-              (a.sequence ?? 0) - (b.sequence ?? 0)) * (deferred.dir === 'desc' ? -1 : 1),
+              (a.sequence ?? 0) - (b.sequence ?? 0)) *
+            ((deferred.dir ? deferred.dir === 'desc' : defaultSort.desc) ? -1 : 1),
         ),
     [local.events, deferred.dir, deferred.sort, deferred.status],
   );
@@ -417,6 +424,7 @@ function DeviceEventsTable({
           )}
           timeZone={timeZone}
           onClose={onCloseEvent}
+          onRemoved={() => setRemovedId(selected.localEventId)}
         />
       )}
       <div ref={listRef} tabIndex={-1} className="min-w-0 outline-none">
@@ -431,22 +439,14 @@ function DeviceEventsTable({
               <CardListItem key={event.localEventId}>
                 <CardBand>
                   <span>{t(kindLabels[event.kind])}</span>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label={reviewLabel(event)}
-                      onClick={() => onOpenEvent(event.localEventId)}
-                    >
-                      {t('device-events.review-event')}
-                    </Button>
-                    <DeviceEventActions
-                      event={event}
-                      label={reviewLabel(event)}
-                      onOpen={() => onOpenEvent(event.localEventId)}
-                      onRemoved={() => setRemovedId(event.localEventId)}
-                    />
-                  </div>
+                  <DeviceEventActions
+                    layout="cards"
+                    event={event}
+                    label={reviewLabel(event)}
+                    removeLabel={reviewLabel(event, 'device-events.remove-event-label')}
+                    onOpen={() => onOpenEvent(event.localEventId)}
+                    onRemoved={() => setRemovedId(event.localEventId)}
+                  />
                 </CardBand>
                 <CardRows>
                   {columnVisibility.facility !== false && (

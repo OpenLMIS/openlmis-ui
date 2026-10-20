@@ -19,7 +19,10 @@ export async function records(page: Page, table: string) {
     });
   }, table);
 }
-export async function enqueue(page: Page, signatures: { signature: string; programId?: string }[]) {
+export async function enqueue(
+  page: Page,
+  signatures: { signature: string; programId?: string; lineCount?: number }[],
+) {
   await page.evaluate(async (signatures) => {
     const name = (await indexedDB.databases()).find((db) =>
       db.name?.endsWith(':download-user'),
@@ -30,7 +33,7 @@ export async function enqueue(page: Page, signatures: { signature: string; progr
       request.onsuccess = () => {
         const db = request.result;
         const tx = db.transaction(['stockEventQueue', 'stockEventDrafts'], 'readwrite');
-        signatures.forEach(({ signature, programId = 'program' }, index) => {
+        signatures.forEach(({ signature, programId = 'program', lineCount = 1 }, index) => {
           const identity = {
             localEventId: crypto.randomUUID(),
             draftId: crypto.randomUUID(),
@@ -71,9 +74,16 @@ export async function enqueue(page: Page, signatures: { signature: string; progr
               },
             ],
           };
+          const eventLines = Array.from({ length: lineCount }, () => ({
+            ...lines[0],
+            key: crypto.randomUUID(),
+          }));
+          payload.lineItems = Array.from({ length: lineCount }, () => ({
+            ...payload.lineItems[0],
+          }));
           tx.objectStore('stockEventQueue').add({
             ...identity,
-            lines,
+            lines: eventLines,
             payload,
             postBody: JSON.stringify(payload),
             status: 'queued',
@@ -85,7 +95,7 @@ export async function enqueue(page: Page, signatures: { signature: string; progr
           });
           tx.objectStore('stockEventDrafts').add({
             ...identity,
-            lines,
+            lines: eventLines,
             state: 'queued',
             savedAt: Date.now(),
             updatedAt: Date.now(),

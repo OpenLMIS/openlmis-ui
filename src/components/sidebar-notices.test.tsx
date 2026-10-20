@@ -461,6 +461,7 @@ it('pauses an auto-dismiss countdown while hovered or focused, then resumes the 
   renderNotices();
   act(() => onlineManager.setOnline(true));
   const notice = screen.getByRole('note');
+  expect(notice).toHaveAttribute('data-countdown', 'true');
   const close = within(notice).getByRole('button', { name: 'notice.close' });
   act(() => vi.advanceTimersByTime(1000));
   fireEvent.mouseEnter(notice);

@@ -1,6 +1,7 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { act, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -199,10 +200,10 @@ it('dismisses a refusal after confirmation and shows only a human message in det
   expect(screen.getByRole('dialog')).toHaveTextContent('Human refusal');
   expect(screen.queryByText(/secret-debug-value/)).not.toBeInTheDocument();
   expect(screen.queryByText('device-events.revision')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.dismiss' }));
+  await userEvent.click(screen.getByRole('button', { name: 'device-events.remove' }));
   const warning = screen.getByRole('alertdialog');
-  expect(warning).toHaveTextContent('device-events.dismiss-warning');
-  await userEvent.click(within(warning).getByRole('button', { name: 'device-events.dismiss' }));
+  expect(warning).toHaveTextContent('device-events.remove-refused-warning');
+  await userEvent.click(within(warning).getByRole('button', { name: 'device-events.remove' }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(
     (await getLocalDb().table('stockEventSyncErrors').get(uncertain.localEventId)).dismissedAt,
@@ -259,27 +260,43 @@ it('opens the correction in the refused event kind editor', async () => {
   expect(onClose).not.toHaveBeenCalled();
 });
 
-it.each(['queued', 'accepted'] as const)(
-  'removes %s work directly from the card menu and focuses the empty list',
-  async (status) => {
+it.each([
+  ['queued', 'card'],
+  ['accepted', 'card'],
+  ['accepted', 'details'],
+] as const)(
+  'removes %s work from %s after confirmation and focuses the empty list',
+  async (status, source) => {
     await open(true, status, 'adjustment', false);
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     queryClient.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
-    renderPage(
-      <DeviceEventsPage
-        search={{}}
-        onSearchChange={() => {}}
-        onOpenEvent={() => {}}
-        onCloseEvent={() => {}}
-        permissions={parsePermissions([])}
-        permissionsUpdatedAt={1}
-      />,
-      { queryClient },
-    );
-    await userEvent.click(
-      await screen.findByRole('button', { name: 'device-events.actions-label' }),
-    );
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'device-events.remove' }));
+    function Page() {
+      const [event, setEvent] = useState<string>();
+      return (
+        <DeviceEventsPage
+          search={{ event }}
+          onSearchChange={() => {}}
+          onOpenEvent={setEvent}
+          onCloseEvent={() => setEvent(undefined)}
+          permissions={parsePermissions([])}
+          permissionsUpdatedAt={1}
+        />
+      );
+    }
+    renderPage(<Page />, { queryClient });
+    if (source === 'details') {
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'device-events.review-event-label' }),
+      );
+      await userEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', {
+          name: 'device-events.remove',
+        }),
+      );
+    } else
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'device-events.remove-event-label' }),
+      );
     const confirm = await screen.findByRole('alertdialog');
     await userEvent.click(within(confirm).getByRole('button', { name: 'device-events.remove' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());

@@ -302,6 +302,7 @@ export function SidebarNotices() {
             key={id}
             role="note"
             variant={variant}
+            countdown={!!countdown}
             onMouseEnter={() => countdown?.pause('hover', true)}
             onMouseLeave={() => countdown?.pause('hover', false)}
             onFocusCapture={() => countdown?.pause('focus', true)}

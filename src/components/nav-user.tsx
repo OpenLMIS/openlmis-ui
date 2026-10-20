@@ -3,9 +3,11 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { LogOutIcon, WifiOffIcon } from 'lucide-react';
 import { type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAccountLinks } from '@/components/nav-access';
+import { useDeviceWork } from '@/components/device-work';
+import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import { useOfflineNavigation } from '@/components/offline-navigation';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +19,9 @@ import {
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
+import { isNavParent } from '@/lib/config';
 import { fullName } from '@/lib/text';
+import type { LiveNavLink } from '@/lib/types';
 
 type NavUserProps = {
   /** Rendered as the menu trigger so each call site styles its own. */
@@ -33,6 +37,13 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
   const referenceDataUserId = useLoginData((state) => state.referenceDataUserId);
 
   const accountLinks = useAccountLinks();
+  const navGroups = useNavGroups();
+  const offlineEvents = navGroups
+    .flatMap((group) => group.items)
+    .filter((item): item is LiveNavLink => !isNavParent(item))
+    .find((item) => item.to === '/offline-events');
+  const menuLinks = [...accountLinks, ...(offlineEvents ? [offlineEvents] : [])];
+  const { pending } = useDeviceWork();
   const offlineSignOut = useOfflineSignOut();
   const offline = useOfflineNavigation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,9 +66,14 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
           <SignedInAs userId={referenceDataUserId} username={username} />
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            {accountLinks.map((link) => (
+            {menuLinks.map((link) => (
               <DropdownMenuItem
                 key={link.to}
+                aria-label={
+                  link.to === '/offline-events' && pending > 0
+                    ? t('device-events.nav-count', { count: pending })
+                    : undefined
+                }
                 data-unavailable={link.connectionRequired || undefined}
                 closeOnClick={!link.connectionRequired}
                 onClick={
@@ -73,8 +89,15 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
                 }
                 render={link.connectionRequired ? undefined : <Link to={link.to} />}
               >
-                <link.icon />
+                {link.icon && <link.icon />}
                 {t(link.titleKey)}
+                {link.to === '/offline-events' && pending > 0 && (
+                  <span className="ms-auto">
+                    <Badge variant="secondary" aria-hidden>
+                      {pending.toLocaleString()}
+                    </Badge>
+                  </span>
+                )}
                 {link.connectionRequired && <WifiOffIcon aria-hidden="true" />}
               </DropdownMenuItem>
             ))}

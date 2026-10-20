@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
+import { Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -26,6 +27,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DeviceEventLines } from '@/features/stock-events/components/device-event-lines';
+import {
+  canRemoveDeviceEvent,
+  DeviceEventRemoval,
+} from '@/features/stock-events/components/device-event-removal';
 import { EventStatus } from '@/features/stock-events/components/event-status';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { kindLabels } from '@/features/stock-events/lib/kind-labels';
@@ -35,21 +40,16 @@ import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-q
 import {
   copyRefusedEvent,
   type DeviceEvent,
-  dismissRefusedEvent,
-  removeQueuedEvent,
   resolveUncertain,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
-import { orEmpty } from '@/lib/empty-value';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 
 const confirmationCopy = {
   resend: { title: 'device-events.send-again', warning: 'device-events.duplicate-warning' },
   copy: { title: 'device-events.copy', warning: 'device-events.copy-warning' },
-  remove: { title: 'device-events.remove', warning: 'device-events.remove-warning' },
-  dismiss: { title: 'device-events.dismiss', warning: 'device-events.dismiss-warning' },
 } as const;
 const pauseCopy = {
   'access-changed': {
@@ -69,6 +69,7 @@ export function DeviceEventRecovery({
   timeZone,
   onClose,
   onCopied,
+  onRemoved,
 }: {
   event: DeviceEvent;
   canView: boolean;
@@ -76,6 +77,7 @@ export function DeviceEventRecovery({
   timeZone?: string;
   onClose: () => void;
   onCopied?: () => void;
+  onRemoved?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const online = useOnline();
@@ -84,27 +86,23 @@ export function DeviceEventRecovery({
   const offlineNavigation = useOfflineNavigation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [confirmation, setConfirmation] = useState<'resend' | 'copy' | 'remove' | 'dismiss' | null>(
-    null,
-  );
+  const [removing, setRemoving] = useState(false);
+  const [confirmation, setConfirmation] = useState<'resend' | 'copy' | null>(null);
   const confirmationTarget = useDialogTarget(confirmation ?? undefined, () =>
     setConfirmation(null),
   );
   const confirmationShown = confirmationTarget.shown;
   const operation = useSessionMutation({
-    mutationFn: async (choice: 'recorded' | 'resend' | 'copy' | 'remove' | 'dismiss') => {
+    mutationFn: async (choice: 'recorded' | 'resend' | 'copy') => {
       const context = createStockEventContext(event);
       if (choice === 'resend' && !canSend) return false;
-      if (choice === 'dismiss')
-        return event.error ? dismissRefusedEvent(context, event.error) : false;
       if (choice === 'copy')
         return event.error ? copyRefusedEvent(context, event.error) : undefined;
-      if (choice === 'remove') return removeQueuedEvent(context, event as QueuedStockEvent);
       return resolveUncertain(context, event as QueuedStockEvent, choice);
     },
     retry: false,
   });
-  const act = async (choice: 'recorded' | 'resend' | 'copy' | 'remove' | 'dismiss') => {
+  const act = async (choice: 'recorded' | 'resend' | 'copy') => {
     try {
       const changed = await operation.mutateAsync(choice);
       if (!operation.isCurrent()) return;
@@ -115,7 +113,6 @@ export function DeviceEventRecovery({
           announceDeviceSave('device-events.recorded-by-you');
         }
         if (choice === 'resend') announceDeviceSave('device-events.status-queued');
-        if (choice === 'remove') announceDeviceSave('device-events.removed');
         if (choice === 'copy' && onCopied) onCopied();
         else if (choice === 'copy')
           await navigate({
@@ -150,7 +147,7 @@ export function DeviceEventRecovery({
         }}
       >
         <DialogContent
-          size="table"
+          size="xl"
           layout="scroll"
           aria-describedby={descriptionId}
           initialFocus={closeRef}
@@ -166,8 +163,8 @@ export function DeviceEventRecovery({
               )}
             </p>
           </DialogHeader>
-          <div className="flex min-w-0 flex-col gap-4 overflow-y-auto">
-            <SettingsList>
+          <div className="shrink-0 min-w-0">
+            <SettingsList density="compact">
               <SettingsItem label={t('device-events.type')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
                   <span>{t(kindLabels[event.kind])}</span>
@@ -186,12 +183,19 @@ export function DeviceEventRecovery({
                       [t('stock-event.document-number'), event.receipt.documentNumber],
                     ]
                   : []),
-              ].map(([label, value]) => (
-                <SettingsItem key={label} label={label}>
-                  <span dir="auto">{orEmpty(value)}</span>
-                </SettingsItem>
-              ))}
+              ]
+                .filter(([, value]) => value != null && value !== '')
+                .map(([label, value]) => (
+                  <SettingsItem key={label} label={label}>
+                    <span dir="auto">{value}</span>
+                  </SettingsItem>
+                ))}
             </SettingsList>
+          </div>
+          <div
+            data-event-lines-region
+            className="min-h-0 min-w-0 flex flex-col gap-3 overflow-y-auto"
+          >
             <DeviceEventLines event={event} />
             {event.error?.category === 'stock-changed' && (
               <Alert variant="warning">
@@ -333,29 +337,21 @@ export function DeviceEventRecovery({
               </>
             )}
             {event.status === 'refused' && (
-              <>
-                <Button
-                  variant="destructive-outline"
-                  disabled={operation.isPending}
-                  onClick={() => setConfirmation('dismiss')}
-                >
-                  {t('device-events.dismiss')}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={operation.isPending || !!event.error?.resolvedAt}
-                  onClick={() => setConfirmation('copy')}
-                >
-                  {t('device-events.copy')}
-                </Button>
-              </>
-            )}
-            {event.status === 'queued' && !event.attemptId && (
               <Button
-                variant="destructive-outline"
-                disabled={operation.isPending}
-                onClick={() => setConfirmation('remove')}
+                variant="outline"
+                disabled={operation.isPending || !!event.error?.resolvedAt}
+                onClick={() => setConfirmation('copy')}
               >
+                {t('device-events.copy')}
+              </Button>
+            )}
+            {canRemoveDeviceEvent(event) && (
+              <Button
+                variant="destructive"
+                disabled={operation.isPending}
+                onClick={() => setRemoving(true)}
+              >
+                <Trash2Icon data-icon="inline-start" />
                 {t('device-events.remove')}
               </Button>
             )}
@@ -364,34 +360,44 @@ export function DeviceEventRecovery({
             </Button>
           </DialogFooter>
         </DialogContent>
+        {removing && (
+          <DeviceEventRemoval
+            event={event}
+            onClose={() => setRemoving(false)}
+            onRemoved={() => {
+              onRemoved?.();
+              onClose();
+            }}
+          />
+        )}
+        <AlertDialog {...confirmationTarget.dialogProps(operation.isPending)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t(confirmationCopy[confirmationShown ?? 'resend'].title)}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t(confirmationCopy[confirmationShown ?? 'resend'].warning)}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={operation.isPending}>
+                {t('device-events.cancel')}
+              </AlertDialogCancel>
+              <Button
+                disabled={operation.isPending}
+                variant={confirmationShown === 'copy' ? 'default' : 'destructive'}
+                onClick={() => {
+                  if (confirmation) void act(confirmation);
+                }}
+              >
+                {t(confirmationCopy[confirmationShown ?? 'resend'].title)}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Dialog>
       {offlineNavigation.dialog}
-      <AlertDialog {...confirmationTarget.dialogProps(operation.isPending)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t(confirmationCopy[confirmationShown ?? 'remove'].title)}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(confirmationCopy[confirmationShown ?? 'remove'].warning)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={operation.isPending}>
-              {t('device-events.cancel')}
-            </AlertDialogCancel>
-            <Button
-              disabled={operation.isPending}
-              variant={confirmationShown === 'copy' ? 'default' : 'destructive'}
-              onClick={() => {
-                if (confirmation) void act(confirmation);
-              }}
-            >
-              {t(confirmationCopy[confirmationShown ?? 'remove'].title)}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

@@ -1,7 +1,9 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CommandPalette } from '@/components/command-palette';
+import { DeviceWorkContext } from '@/components/device-work';
 import { NavUser } from '@/components/nav-user';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -83,3 +85,60 @@ it('opens the offline dialog from Account and returns focus on close', async () 
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   await waitFor(() => expect(account).toHaveFocus());
 });
+
+it.each([
+  { rights: [], pending: 0, visible: false },
+  { rights: ['STOCK_ADJUST'], pending: 0, visible: true },
+  { rights: [], pending: 3, visible: true },
+])(
+  'shares Offline Events visibility across the account menu and palette: %j',
+  async ({ rights, pending, visible }) => {
+    useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
+    renderPage(
+      <DeviceWorkContext
+        value={{
+          hasDeviceEvents: pending > 0,
+          pending,
+          waiting: pending,
+          uncertain: 0,
+          refused: 0,
+          sending: false,
+          retained: false,
+          pauses: [],
+          countUnsyncedWork: async () => pending,
+        }}
+      >
+        <NavUser trigger={<button type="button">Open Account Menu</button>} />
+        <CommandPalette />
+      </DeviceWorkContext>,
+      { queryClient },
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Open Account Menu' }));
+    const menu = within(await screen.findByRole('menu'));
+    const event = menu.queryByRole('menuitem', {
+      name: pending > 0 ? 'device-events.nav-count' : 'nav.offline-events',
+    });
+    if (visible) {
+      expect(event).toHaveAttribute('href', '/offline-events');
+      expect(event?.querySelector('svg.lucide-list-checks')).not.toBeNull();
+      if (pending > 0)
+        expect(within(event as HTMLElement).getByText('3')).toHaveAttribute('data-slot', 'badge');
+      else expect(event?.querySelector('[data-slot=badge]')).toBeNull();
+      const items = menu.getAllByRole('menuitem');
+      expect(items.indexOf(event as HTMLElement)).toBeGreaterThan(
+        items.indexOf(menu.getByRole('menuitem', { name: 'nav-user.account' })),
+      );
+      expect(items.indexOf(event as HTMLElement)).toBeLessThan(
+        items.indexOf(menu.getByRole('menuitem', { name: 'nav-user.log-out' })),
+      );
+    } else expect(event).toBeNull();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.keyboard('{Control>}k{/Control}');
+    const palette = within(await screen.findByRole('dialog'));
+    expect(palette.queryAllByRole('option', { name: 'nav.offline-events' })).toHaveLength(
+      visible ? 1 : 0,
+    );
+  },
+);

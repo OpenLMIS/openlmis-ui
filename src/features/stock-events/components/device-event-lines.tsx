@@ -38,8 +38,15 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
       item.extraData?.vvmStatus,
     ],
   }));
+  const visibleHeaders = headers
+    .map((header, index) => ({ header, index }))
+    .filter(
+      ({ header, index }) =>
+        !['stock-events.reason-comments', 'stock-events.vvm-status'].includes(header) ||
+        lines.some((line) => line.values[index] != null && line.values[index] !== ''),
+    );
   return (
-    <div className="min-w-0" ref={measure}>
+    <div className="min-w-0 shrink-0" ref={measure}>
       {cards ? (
         <CardList>
           {lines.map((line) => (
@@ -48,7 +55,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                 <span dir="auto">{line.product}</span>
               </CardBand>
               <CardRows>
-                {headers.map((header, index) => (
+                {visibleHeaders.map(({ header, index }) => (
                   <SettingsItem key={header} label={t(header)}>
                     <span
                       className={header === 'device-events.lots' ? 'break-all' : undefined}
@@ -64,10 +71,12 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
         </CardList>
       ) : (
         <DataTableCard>
-          <Table layout="auto">
+          <Table layout="auto" density="compact">
             <TableHeader>
               <TableRow>
-                {(['device-events.products', ...headers] as const).map((header) => (
+                {(
+                  ['device-events.products', ...visibleHeaders.map(({ header }) => header)] as const
+                ).map((header) => (
                   <TableHead key={header}>
                     <DataTableHeaderLabel>{t(header)}</DataTableHeaderLabel>
                   </TableHead>
@@ -80,7 +89,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                   <TableCell>
                     <span dir="auto">{line.product}</span>
                   </TableCell>
-                  {headers.map((header, index) => (
+                  {visibleHeaders.map(({ header, index }) => (
                     <TableCell key={header}>
                       <span
                         className={
