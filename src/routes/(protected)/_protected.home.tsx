@@ -31,6 +31,7 @@ import { WaitingSummary, WelcomeTitle } from '@/features/home/components/dashboa
 import { DashboardRevision } from '@/features/home/components/dashboard-parts';
 import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/dashboard-skeleton';
 import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
+import { SystemNotifications } from '@/features/home/components/system-notifications';
 import type { DashboardAccess } from '@/features/home/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 import { isOnline, useOnline } from '@/lib/online';
@@ -94,6 +95,7 @@ function HomeContent({ userId }: { userId: string }) {
           </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
+          <SystemNotifications revision={revision} />
           <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
           {rights.has(RIGHTS.usersManage) && (
             <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
