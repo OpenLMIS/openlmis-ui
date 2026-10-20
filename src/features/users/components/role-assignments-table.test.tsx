@@ -45,12 +45,13 @@ function renderTable(
       rights: [{ id: 'x1', name: 'REPORTS_VIEW', type: 'REPORTS' }],
     },
   ]);
+  const onRemove = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
       <RoleAssignmentsTable
         cards={cards}
         onAdd={editable ? vi.fn() : undefined}
-        onRemove={editable ? vi.fn() : undefined}
+        onRemove={editable ? onRemove : undefined}
         onSearchChange={vi.fn()}
         rows={rows}
         search={{}}
@@ -59,6 +60,7 @@ function renderTable(
       />
     </QueryClientProvider>,
   );
+  return { onRemove };
 }
 
 describe('RoleAssignmentsTable', () => {
@@ -85,26 +87,23 @@ describe('RoleAssignmentsTable', () => {
     expect(screen.queryByRole('button', { name: /users.roles.actions-for/ })).toBeNull();
   });
 
-  it('puts the role, its rights and Unsaved in a card band, with the rest as rows', async () => {
-    renderTable(
-      [{ ...row, program: 'Family Planning', node: 'FP approval point', isUnsaved: true }],
-      true,
-      supervision,
-      false,
-      true,
-    );
+  it('heads each card with the role, its rights and Unsaved, and removes it at once', async () => {
+    const unsaved = {
+      ...row,
+      program: 'Family Planning',
+      node: 'FP approval point',
+      isUnsaved: true,
+    };
+    const { onRemove } = renderTable([unsaved], true, supervision, false, true);
     const card = screen.getByRole('listitem');
-    const remove = within(card).getByRole('button', { name: 'users.roles.remove' });
-    const band = remove.closest('li > * > * > :first-child') as HTMLElement;
 
-    expect(band).toContainElement(remove);
-    expect(within(band).getByText('Report Viewer')).toBeVisible();
-    expect(within(band).getByText('users.roles.unsaved')).toBeVisible();
-    expect(within(band).getByRole('button', { name: 'role-rights.title' })).toBeVisible();
-    expect(within(band).queryByText('Family Planning')).toBeNull();
-    expect(within(card).getByText('users.roles.column.program')).toBeVisible();
-    expect(within(card).getByText('Family Planning')).toBeVisible();
-    expect(within(card).getByText('users.roles.column.node')).toBeVisible();
+    expect(card.textContent).toMatch(
+      /^Report Viewerusers\.roles\.unsaved.*users\.roles\.column\.programFamily Planning/,
+    );
+    expect(within(card).getByRole('button', { name: 'role-rights.title' })).toBeVisible();
+
+    await userEvent.click(within(card).getByRole('button', { name: 'users.roles.remove' }));
+    expect(onRemove).toHaveBeenCalledWith(unsaved);
   });
 
   it('lists the program and the node before the role', () => {

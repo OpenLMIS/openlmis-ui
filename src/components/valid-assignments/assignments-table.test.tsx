@@ -188,8 +188,8 @@ describe('AssignmentsTable', () => {
     expect(onDelete).toHaveBeenCalledWith({ id: 'a2', name }, '|');
   });
 
-  it('picks a card from its band, or the whole page, and keeps its actions in the band', async () => {
-    const { onPickedChange } = renderTable([balaka('a2', 'p2'), ngo], { cards: true });
+  it('picks a card from its band, or the whole page, and deletes from its band', async () => {
+    const { onDelete, onPickedChange } = renderTable([balaka('a2', 'p2'), ngo], { cards: true });
     const user = userEvent.setup();
     const name = 'Balaka District Hospital for Health Center in EPI';
 
@@ -206,11 +206,14 @@ describe('AssignmentsTable', () => {
       '|',
     );
 
-    const card = screen.getByText('NGO').closest('li') as HTMLElement;
-    const actions = within(card).getByRole('group', {
+    const actions = screen.getByRole('group', {
       name: 'Actions For NGO for Health Center in Essential Meds',
     });
-    expect(within(actions).getByRole('button', { name: 'Delete' })).toBeVisible();
+    await user.click(within(actions).getByRole('button', { name: 'Delete' }));
+    expect(onDelete).toHaveBeenCalledWith(
+      { id: 'a3', name: 'NGO for Health Center in Essential Meds' },
+      '|',
+    );
   });
 
   it('names a row by its place alone until the program and type names arrive', async () => {

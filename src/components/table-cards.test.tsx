@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
 import { CellText, TableCards } from '@/components/table-cards';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 
 type Row = {
   id: string;
@@ -54,21 +55,9 @@ it('puts the title and actions in the band and every other visible column in an 
   render(<Harness />);
   const card = screen.getByRole('listitem');
 
-  const title = within(card).getByText('Comfort Health Clinic');
-  expect(title).not.toHaveClass('truncate');
-  expect(
-    within(card).getByRole('button', { name: 'Actions for Comfort Health Clinic' }),
-  ).toBeVisible();
-  expect(
-    within(card).getByText('Code').parentElement?.parentElement?.parentElement,
-  ).toHaveTextContent('CodeHC01');
-  expect(
-    within(card).getByText('Zone').parentElement?.parentElement?.parentElement,
-  ).toHaveTextContent('Zone-');
-  expect(
-    within(card).getByText('Note').parentElement?.parentElement?.parentElement,
-  ).toHaveTextContent('Note-');
+  expect(card.textContent).toBe(
+    `Comfort Health ClinicActions for Comfort Health ClinicCodeHC01Zone${EMPTY_VALUE}Note${EMPTY_VALUE}`,
+  );
+  expect(within(card).getByText('Comfort Health Clinic')).not.toHaveClass('truncate');
   expect(within(card).getByText('HC01').closest('bdi')).not.toBeNull();
-  expect(within(card).queryByText('Type')).toBeNull();
-  expect(within(card).queryByText('name')).toBeNull();
 });

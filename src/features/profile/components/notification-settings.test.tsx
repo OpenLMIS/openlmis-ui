@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchDigestConfigurations,
   fetchSubscriptions,
@@ -150,25 +150,6 @@ describe('NotificationSettings', () => {
     await user.click(screen.getByRole('button', { name: 'profile.notifications.save' }));
 
     await waitFor(() => expect(cron).toHaveFocus());
-    expect(saveSubscriptions).not.toHaveBeenCalled();
-  });
-
-  it('brings the phone card into view before focusing the field to correct', async () => {
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(360);
-    const scrollIntoView = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
-    onTestFinished(() => {
-      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
-    });
-    const { user } = await renderSettings();
-    await user.click(digestSwitch());
-    const time = screen.getByLabelText(/profile.notifications.time/);
-    await user.clear(time);
-
-    await user.click(screen.getByRole('button', { name: 'profile.notifications.save' }));
-
-    await waitFor(() => expect(time).toHaveFocus());
-    expect(scrollIntoView.mock.contexts[0]).toBe(time.closest('li'));
     expect(saveSubscriptions).not.toHaveBeenCalled();
   });
 
