@@ -79,9 +79,18 @@ async function register() {
   );
 }
 
+// Leaves keys a newer container already took over, so a replacement can start before this one stops.
+async function releaseResource(resource) {
+  const response = await fetch(`${CONSUL}/kv/resources${resource}`);
+  if (!response.ok) return;
+  const [{ Value, ModifyIndex }] = await response.json();
+  if (Buffer.from(Value ?? '', 'base64').toString() !== SERVICE_NAME) return;
+  await request('DELETE', `/kv/resources${resource}?cas=${ModifyIndex}`);
+}
+
 async function deregister() {
   for (const resource of resources) {
-    await request('DELETE', `/kv/resources${resource}`).catch(() => {});
+    await releaseResource(resource).catch(() => {});
   }
   await request('PUT', `/agent/service/deregister/${SERVICE_NAME}-service`).catch(() => {});
   console.log(`Deregistered ${SERVICE_NAME}`);
