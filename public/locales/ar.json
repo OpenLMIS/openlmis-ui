@@ -327,8 +327,6 @@
   "home.equipment.title": "معدات سلسلة التبريد",
   "home.equipment.unserviceable": "غير صالح للخدمة",
   "home.load-error": "تعذر تحميل هذا.",
-  "home.notifications.author": "الكاتب",
-  "home.notifications.created": "تاريخ الإنشاء",
   "home.notifications.title": "الإشعارات",
   "home.periods.approved": "تمت الموافقة",
   "home.periods.description": "الطلبات الأخيرة، قيد التنفيذ وتمت الموافقة، حسب الشهر الذي تبدأ فيه فترتها.",

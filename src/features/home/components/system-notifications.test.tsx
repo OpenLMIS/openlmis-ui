@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { systemNotificationsOptions } from '@/features/home/api/queries';
@@ -53,7 +53,7 @@ describe('SystemNotifications', () => {
     expect(within(popup).getByText('Maintenance tonight')).toBeInTheDocument();
     expect(within(popup).getByText('Another notice')).toBeInTheDocument();
     expect(within(popup).getByText('Jane Doe')).toBeInTheDocument();
-    expect(within(popup).getByText('Oct 8, 2026, 2:35:07 PM')).toBeInTheDocument();
+    expect(within(popup).getByText('Oct 8, 2026, 2:35 PM')).toBeInTheDocument();
   });
 
   it('renders basic HTML and safe links while stripping executable markup and unsafe URLs', async () => {
@@ -68,6 +68,7 @@ describe('SystemNotifications', () => {
     await user.click(screen.getByRole('button'));
     const popup = screen.getByRole('dialog');
     const link = within(popup).getByRole('link', { name: 'Details' });
+    await waitFor(() => expect(popup).toHaveFocus());
     expect(link).toHaveAttribute('href', 'https://test.openlmis.org/v2/');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).not.toHaveAttribute('onclick');

@@ -327,8 +327,6 @@
   "home.equipment.title": "Cold Chain Equipment",
   "home.equipment.unserviceable": "Unserviceable",
   "home.load-error": "Could not load this.",
-  "home.notifications.author": "Author",
-  "home.notifications.created": "Created",
   "home.notifications.title": "Notifications",
   "home.periods.approved": "Approved",
   "home.periods.description": "Recent requisitions, in progress and approved, by the month their period starts.",

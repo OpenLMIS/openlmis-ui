@@ -327,8 +327,6 @@
   "home.equipment.title": "Equipamento da Cadeia de Frio",
   "home.equipment.unserviceable": "Inutilizável",
   "home.load-error": "Não foi possível carregar isto.",
-  "home.notifications.author": "Autor",
-  "home.notifications.created": "Data de criação",
   "home.notifications.title": "Notificações",
   "home.periods.approved": "Aprovadas",
   "home.periods.description": "Requisições recentes, em curso e aprovadas, pelo mês em que o seu período começa.",
