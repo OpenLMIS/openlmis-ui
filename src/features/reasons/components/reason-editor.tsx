@@ -16,6 +16,16 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   DialogLoadError,
@@ -28,6 +38,7 @@ import {
 } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
+import { SettingsItem } from '@/components/form/settings-list';
 import type { TagRefusal } from '@/components/form/tags';
 import {
   FormDialog,
@@ -98,6 +109,7 @@ import {
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { FacilityType, Program, Reason } from '@/features/reference-data/lib/types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
@@ -482,6 +494,7 @@ function PairsFields({ form }: { form: ReasonForm }) {
   const table = useRef<HTMLDivElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const [adding, setAdding] = useState(false);
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
 
   const removeRow = (index: number) => {
     form.removeFieldValue('pairs', index);
@@ -493,10 +506,51 @@ function PairsFields({ form }: { form: ReasonForm }) {
     });
   };
 
+  const rowFields = (row: PairDraft, index: number) => {
+    const pair = names.pair(row);
+    return {
+      show: (
+        <form.AppField name={`pairs[${index}].show`}>
+          {(field) => (
+            <field.SwitchField
+              label={t('reasons.form.row-label', { field: t('reasons.form.show'), pair })}
+              layout="inline"
+            />
+          )}
+        </form.AppField>
+      ),
+      remove: cards ? (
+        <CardActions
+          label={t('card-actions.actions-for', { name: pair })}
+          actions={[
+            {
+              id: 'remove',
+              icon: <Trash2Icon />,
+              label: t('reasons.form.remove-pair', { pair }),
+              destructive: true,
+              data: { 'data-remove-pair': true },
+              onSelect: () => removeRow(index),
+            },
+          ]}
+        />
+      ) : (
+        <Button
+          aria-label={t('reasons.form.remove-pair', { pair })}
+          data-remove-pair
+          onClick={() => removeRow(index)}
+          size="icon-sm"
+          variant="destructive"
+        >
+          <Trash2Icon />
+        </Button>
+      ),
+    };
+  };
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" ref={measure}>
       <div className="flex justify-end">
-        <Button onClick={() => setAdding(true)} ref={addButton} variant="outline">
+        <Button onClick={() => setAdding(true)} ref={addButton} size="lg" variant="outline">
           <PlusIcon data-icon="inline-start" />
           {t('reasons.form.add-pair-title')}
         </Button>
@@ -508,85 +562,101 @@ function PairsFields({ form }: { form: ReasonForm }) {
         rows={rows}
       />
       <div ref={table}>
-        <DataTableCard>
-          {rows.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <MapPinnedIcon />
-                </EmptyMedia>
-                <EmptyTitle>{t('reasons.form.no-pairs-title')}</EmptyTitle>
-                <EmptyDescription>{t('reasons.form.no-pairs-description')}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <Table density="comfortable">
-              <TableHeader surface="muted">
-                <TableRow>
-                  <TableHead>
-                    <DataTableHeaderLabel>{t('reasons.form.program')}</DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <DataTableHeaderLabel>{t('reasons.form.facility-type')}</DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <DataTableHeaderLabel>{t('reasons.form.show')}</DataTableHeaderLabel>
-                  </TableHead>
-                  <TableHead>
-                    <span className="sr-only">{t('reasons.form.actions')}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row, index) => {
-                  const pair = names.pair(row);
-                  return (
-                    <TableRow key={pairKey(row)}>
-                      <TableCell>
-                        <span className="whitespace-normal font-medium" dir="auto">
-                          {names.program(row.programId)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="whitespace-normal" dir="auto">
-                          {names.facilityType(row.facilityTypeId)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <form.AppField name={`pairs[${index}].show`}>
-                          {(field) => (
-                            <field.SwitchField
-                              label={t('reasons.form.row-label', {
-                                field: t('reasons.form.show'),
-                                pair,
-                              })}
-                              layout="inline"
-                            />
-                          )}
-                        </form.AppField>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end">
-                          <Button
-                            aria-label={t('reasons.form.remove-pair', { pair })}
-                            data-remove-pair
-                            onClick={() => removeRow(index)}
-                            size="icon-sm"
-                            variant="destructive"
-                          >
-                            <Trash2Icon />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </DataTableCard>
+        {cards ? (
+          <CardList empty={rows.length === 0 && <PairsEmpty />}>
+            {rows.map((row, index) => {
+              const fields = rowFields(row, index);
+              return (
+                <CardListItem key={pairKey(row)}>
+                  <CardBand>
+                    <bdi className="min-w-0 wrap-anywhere">{names.program(row.programId)}</bdi>
+                    <div className="shrink-0">{fields.remove}</div>
+                  </CardBand>
+                  <CardRows>
+                    <SettingsItem label={t('reasons.form.facility-type')}>
+                      <bdi>{names.facilityType(row.facilityTypeId)}</bdi>
+                    </SettingsItem>
+                    <CardControlRow label={t('reasons.form.show')} width="fit">
+                      {fields.show}
+                    </CardControlRow>
+                  </CardRows>
+                </CardListItem>
+              );
+            })}
+          </CardList>
+        ) : (
+          <DataTableCard>
+            {rows.length === 0 ? (
+              <PairsEmpty />
+            ) : (
+              <Table density="comfortable">
+                <PairsHeader />
+                <TableBody>
+                  {rows.map((row, index) => {
+                    const fields = rowFields(row, index);
+                    return (
+                      <TableRow key={pairKey(row)}>
+                        <TableCell>
+                          <span className="whitespace-normal font-medium" dir="auto">
+                            {names.program(row.programId)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="whitespace-normal" dir="auto">
+                            {names.facilityType(row.facilityTypeId)}
+                          </span>
+                        </TableCell>
+                        <TableCell>{fields.show}</TableCell>
+                        <TableCell>
+                          <div className="flex justify-end">{fields.remove}</div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </DataTableCard>
+        )}
       </div>
     </div>
+  );
+}
+
+function PairsEmpty() {
+  const { t } = useTranslation();
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <MapPinnedIcon />
+        </EmptyMedia>
+        <EmptyTitle>{t('reasons.form.no-pairs-title')}</EmptyTitle>
+        <EmptyDescription>{t('reasons.form.no-pairs-description')}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+function PairsHeader() {
+  const { t } = useTranslation();
+  return (
+    <TableHeader surface="muted">
+      <TableRow>
+        <TableHead>
+          <DataTableHeaderLabel>{t('reasons.form.program')}</DataTableHeaderLabel>
+        </TableHead>
+        <TableHead>
+          <DataTableHeaderLabel>{t('reasons.form.facility-type')}</DataTableHeaderLabel>
+        </TableHead>
+        <TableHead>
+          <DataTableHeaderLabel>{t('reasons.form.show')}</DataTableHeaderLabel>
+        </TableHead>
+        <TableHead>
+          <span className="sr-only">{t('reasons.form.actions')}</span>
+        </TableHead>
+      </TableRow>
+    </TableHeader>
   );
 }
 
@@ -714,67 +784,63 @@ function AddPairSkeleton() {
 
 function PairsSkeleton({ rows }: { rows: number }) {
   const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" ref={measure}>
       <div className="flex justify-end">
-        <Button disabled variant="outline">
+        <Button disabled size="lg" variant="outline">
           <PlusIcon data-icon="inline-start" />
           {t('reasons.form.add-pair-title')}
         </Button>
       </div>
-      <DataTableCard>
-        {rows === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <MapPinnedIcon />
-              </EmptyMedia>
-              <EmptyTitle>{t('reasons.form.no-pairs-title')}</EmptyTitle>
-              <EmptyDescription>{t('reasons.form.no-pairs-description')}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+      {cards ? (
+        rows === 0 ? (
+          <CardList empty={<PairsEmpty />} />
         ) : (
-          <Table density="comfortable">
-            <TableHeader surface="muted">
-              <TableRow>
-                <TableHead>
-                  <DataTableHeaderLabel>{t('reasons.form.program')}</DataTableHeaderLabel>
-                </TableHead>
-                <TableHead>
-                  <DataTableHeaderLabel>{t('reasons.form.facility-type')}</DataTableHeaderLabel>
-                </TableHead>
-                <TableHead>
-                  <DataTableHeaderLabel>{t('reasons.form.show')}</DataTableHeaderLabel>
-                </TableHead>
-                <TableHead>
-                  <span className="sr-only">{t('reasons.form.actions')}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: rows }, (_, index) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have nothing else to key on.
-                <TableRow key={index}>
-                  <TableCell>
-                    <Block className="h-4 w-28" />
-                  </TableCell>
-                  <TableCell>
-                    <Block className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Block className="h-4.5 w-8" shape="circle" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <Block className="size-7" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </DataTableCard>
+          <CardListSkeleton
+            band={
+              <>
+                <SkeletonBar width="w-28" />
+                <Block className="size-7" />
+              </>
+            }
+            count={rows}
+            pagination={false}
+            rows={2}
+          />
+        )
+      ) : (
+        <DataTableCard>
+          {rows === 0 ? (
+            <PairsEmpty />
+          ) : (
+            <Table density="comfortable">
+              <PairsHeader />
+              <TableBody>
+                {Array.from({ length: rows }, (_, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have nothing else to key on.
+                  <TableRow key={index}>
+                    <TableCell>
+                      <Block className="h-4 w-28" />
+                    </TableCell>
+                    <TableCell>
+                      <Block className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Block className="h-4.5 w-8" shape="circle" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end">
+                        <Block className="size-7" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DataTableCard>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   FACILITY_EDITOR_LOOKUPS,
@@ -108,6 +108,10 @@ const duplicateCode = () =>
     data: { messageKey: 'referenceData.error.facility.code.mustBeUnique' },
   });
 
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+});
+
 describe('FacilityEditor', () => {
   it('refuses the previous user facility draft after a session switch', async () => {
     useLoginData
@@ -173,6 +177,33 @@ describe('FacilityEditor', () => {
       ),
     );
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('brings a phone card into view and focuses its missing start date on save', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(360);
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    });
+    const user = userEvent.setup();
+    renderPage(
+      <Editor
+        initialValues={{
+          ...filled,
+          programs: [row('p0', 'ARV'), { ...row('p1', 'Family Planning'), supportStartDate: '' }],
+        }}
+        save={vi.fn()}
+      />,
+      { queryClient: seededClient() },
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Create' }));
+
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('aria-invalid', 'true'));
+    const card = document.activeElement?.closest('li') as HTMLElement;
+    expect(within(card).getByText('Family Planning')).toBeInTheDocument();
+    expect(scrollIntoView.mock.contexts[0]).toBe(card);
   });
 
   it('flags a code the server refused on the Code field and goes back to Information', async () => {

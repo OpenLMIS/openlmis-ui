@@ -8,6 +8,12 @@ export const REASON_HIDEABLE_COLUMNS = [
   { id: 'freeText', labelKey: 'reasons.free-text', hideBelow: 'xl' },
 ] as const;
 
+export const REASON_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'reasons.name' },
+  { id: 'category', labelKey: 'reasons.category' },
+  { id: 'type', labelKey: 'reasons.type' },
+] as const;
+
 const REASON_SORT_FIELDS = ['name', 'category', 'type'] as const;
 
 export type ReasonSortField = (typeof REASON_SORT_FIELDS)[number];

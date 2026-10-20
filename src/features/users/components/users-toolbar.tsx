@@ -7,16 +7,31 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { Button } from '@/components/ui/button';
-import { USER_HIDEABLE_COLUMNS, type UsersSearch } from '@/features/users/lib/search';
+import {
+  DEFAULT_USERS_SORT,
+  USER_HIDEABLE_COLUMNS,
+  USER_SORT_COLUMNS,
+  type UsersSearch,
+} from '@/features/users/lib/search';
+import { searchSort } from '@/lib/table-search';
 
 type UsersToolbarProps = {
   search: UsersSearch;
   onFilterChange: (patch: Partial<UsersSearch>) => void;
+  onSortChange: (patch: Partial<UsersSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd: () => void;
 };
 
-export function UsersToolbar({ search, onFilterChange, columnView, onAdd }: UsersToolbarProps) {
+export function UsersToolbar({
+  search,
+  onFilterChange,
+  onSortChange,
+  columnView,
+  layout,
+  onAdd,
+}: UsersToolbarProps) {
   const { t } = useTranslation();
 
   return (
@@ -24,6 +39,7 @@ export function UsersToolbar({ search, onFilterChange, columnView, onAdd }: User
       {/* Search above the rest while the page is narrow, one row once there is room; sized by the page. */}
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           label={t('users.search')}
           onValueChange={(q) => onFilterChange({ q: q || undefined, page: undefined })}
           value={search.q ?? ''}
@@ -31,6 +47,7 @@ export function UsersToolbar({ search, onFilterChange, columnView, onAdd }: User
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={search.status ? 1 : 0}
           onClear={() => onFilterChange({ status: undefined, page: undefined })}
         >
@@ -52,14 +69,20 @@ export function UsersToolbar({ search, onFilterChange, columnView, onAdd }: User
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={USER_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
+          sort={{
+            columns: USER_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+            ...searchSort(search, DEFAULT_USERS_SORT, onSortChange),
+          }}
           visibility={columnView.visibility}
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('users.add')}
         </Button>

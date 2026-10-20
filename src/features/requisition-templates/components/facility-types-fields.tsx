@@ -1,6 +1,8 @@
 import { Building2Icon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
+import { CardBand, CardList, CardListItem } from '@/components/card-list';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -27,10 +29,12 @@ import {
 } from '@/components/ui/table';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
+import { useCardLayout } from '@/hooks/use-card-view';
 
 type TypeItem = { value: string; label: string };
 
 export function FacilityTypesFields({
+  dialogCards,
   options,
   types,
   selected,
@@ -42,7 +46,10 @@ export function FacilityTypesFields({
   emptyDescription,
   label,
   addLabel,
+  size = 'lg',
 }: {
+  dialogCards?: boolean;
+  size?: 'default' | 'lg';
   label?: string;
   addLabel?: string;
   options: FacilityType[];
@@ -57,6 +64,8 @@ export function FacilityTypesFields({
 }) {
   const { t } = useTranslation();
   const errorId = useId();
+  const page = useCardLayout<HTMLDivElement>();
+  const cards = dialogCards ?? page.cards;
   const [pickedId, setPickedId] = useState<string | null>(null);
   const names = new Map(types.map((type) => [type.id, facilityTypeName(type)]));
   const rows = selected
@@ -83,8 +92,11 @@ export function FacilityTypesFields({
     });
   };
   const pickerLabel = label ?? t('requisition-templates.configure.facility-type');
+  const emptyState = (
+    <DataTableEmpty icon={<Building2Icon />} title={emptyTitle} description={emptyDescription} />
+  );
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" ref={dialogCards === undefined ? page.measure : undefined}>
       <div className="flex items-center gap-2">
         <PickerAdd>
           <Combobox
@@ -96,6 +108,7 @@ export function FacilityTypesFields({
           >
             <PickerAddField ref={pickerRef}>
               <ComboboxInput
+                size={size}
                 aria-label={pickerLabel}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
@@ -119,65 +132,86 @@ export function FacilityTypesFields({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          <PickerAddButton disabled={!picked} onClick={add}>
+          <PickerAddButton disabled={!picked} onClick={add} size={size}>
             {addLabel ?? t('requisition-templates.configure.add')}
           </PickerAddButton>
         </PickerAdd>
       </div>
       <div ref={tableRef}>
-        <DataTableCard>
-          <Table density="comfortable" layout="fixed">
-            <TableHeader surface="muted">
-              <TableRow>
-                <TableHead>
-                  <DataTableHeaderLabel>
-                    {t('requisition-templates.configure.facility-type')}
-                  </DataTableHeaderLabel>
-                </TableHead>
-                <TableHead width="icon">
-                  <span className="sr-only">{t('requisition-templates.action')}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length ? (
-                rows.map((row, index) => (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <span dir="auto">{row.name}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon-sm"
-                          data-remove-type
-                          aria-label={t('requisition-templates.form.remove-type', {
-                            type: row.name,
-                          })}
-                          onClick={() => remove(row.id, index)}
-                        >
-                          <Trash2Icon />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+        {cards ? (
+          <CardList empty={rows.length === 0 && emptyState}>
+            {rows.map((row, index) => (
+              <CardListItem key={row.id} surface={dialogCards === undefined ? 'raised' : 'flat'}>
+                <CardBand>
+                  <div className="min-w-0 font-medium wrap-anywhere">
+                    <bdi>{row.name}</bdi>
+                  </div>
+                  <CardActions
+                    label={t('card-actions.actions-for', { name: row.name })}
+                    actions={[
+                      {
+                        id: 'remove',
+                        icon: <Trash2Icon />,
+                        label: t('requisition-templates.form.remove-type', { type: row.name }),
+                        destructive: true,
+                        data: { 'data-remove-type': true },
+                        onSelect: () => remove(row.id, index),
+                      },
+                    ]}
+                  />
+                </CardBand>
+              </CardListItem>
+            ))}
+          </CardList>
+        ) : (
+          <DataTableCard>
+            <Table density="comfortable" layout="fixed">
+              <TableHeader surface="muted">
                 <TableRow>
-                  <TableCell colSpan={2}>
-                    <DataTableEmpty
-                      icon={<Building2Icon />}
-                      title={emptyTitle}
-                      description={emptyDescription}
-                    />
-                  </TableCell>
+                  <TableHead>
+                    <DataTableHeaderLabel>
+                      {t('requisition-templates.configure.facility-type')}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                  <TableHead width="icon">
+                    <span className="sr-only">{t('requisition-templates.action')}</span>
+                  </TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </DataTableCard>
+              </TableHeader>
+              <TableBody>
+                {rows.length ? (
+                  rows.map((row, index) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        <span dir="auto">{row.name}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon-sm"
+                            data-remove-type
+                            aria-label={t('requisition-templates.form.remove-type', {
+                              type: row.name,
+                            })}
+                            onClick={() => remove(row.id, index)}
+                          >
+                            <Trash2Icon />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={2}>{emptyState}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </DataTableCard>
+        )}
       </div>
       {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>

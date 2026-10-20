@@ -126,6 +126,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
             limit={-1}
             placeholder={t('facility-program.program-placeholder')}
             required
+            size="lg"
           />
         ) : (
           <NoOptions
@@ -151,6 +152,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
               items={[{ value: options.home.id, label: recordLabel(options.home) }]}
               label={t('facility-program.facility')}
               required
+              size="lg"
             />
           ) : (
             <NoOptions
@@ -176,6 +178,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
                 : t('facility-program.facility-after-program')
             }
             required
+            size="lg"
           />
         )}
       </form.AppField>
@@ -211,13 +214,14 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
                     disabled: options.supervisedPrograms.length === 0,
                   },
                 ]}
+                size="lg"
                 variant="segmented"
               />
             )}
           </form.AppField>
         }
         search={
-          <Button type="submit">
+          <Button size="lg" type="submit">
             <SearchIcon data-icon="inline-start" />
             {t('facility-program.search')}
           </Button>
@@ -274,7 +278,7 @@ export function FacilityProgramSelectorSkeleton() {
       <span className="font-medium text-sm leading-snug">
         <FieldLabelText label={label} required />
       </span>
-      <div className="h-8">
+      <div className="h-9">
         <Skeleton fill />
       </div>
     </div>
@@ -285,13 +289,13 @@ export function FacilityProgramSelectorSkeleton() {
         mode={
           <div className="flex flex-col gap-1">
             <span className="font-medium text-sm leading-snug">{t('facility-program.mode')}</span>
-            <div className="h-8 w-full">
+            <div className="h-9 w-full">
               <Skeleton fill />
             </div>
           </div>
         }
         search={
-          <div className="h-8 w-full @3xl/main:w-24">
+          <div className="h-9 w-full @3xl/main:w-24">
             <Skeleton fill />
           </div>
         }

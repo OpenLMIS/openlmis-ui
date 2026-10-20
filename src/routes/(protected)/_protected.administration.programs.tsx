@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { LayersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -28,8 +26,8 @@ import {
   programsSearchSchema,
 } from '@/features/programs/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const loadDialog = () => import('@/features/programs/components/program-form-dialog');
 const ProgramFormDialog = lazy(() =>
@@ -38,7 +36,7 @@ const ProgramFormDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { program: undefined } satisfies Partial<ProgramsSearch>;
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
+const usePageCardView = () => useCardView(PROGRAM_HIDEABLE_COLUMNS, 'programs.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/programs')({
   validateSearch: programsSearchSchema,
@@ -59,12 +57,7 @@ function ProgramsPage() {
     structuralSharing: true,
   });
   const program = Route.useSearch({ select: (search) => search.program });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    PROGRAM_HIDEABLE_COLUMNS,
-    useStoredState('programs.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<ProgramsSearch>(CLOSED_DIALOGS);
   const addProgram = useCallback(() => openDialog({ program: 'new' }), [openDialog]);
@@ -79,8 +72,14 @@ function ProgramsPage() {
     <Workspace>
       <ProgramsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
-          <ProgramsToolbar columnView={columnView} onAdd={addProgram} />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          <ProgramsToolbar
+            columnView={columnView}
+            layout={layout}
+            onAdd={addProgram}
+            onSortChange={updateSearch}
+            search={search}
+          />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -91,11 +90,16 @@ function ProgramsPage() {
               />
             )}
             pendingFallback={
-              <ProgramsTableSkeleton columnVisibility={columnView.visibility} search={search} />
+              <ProgramsTableSkeleton
+                cards={cards}
+                columnVisibility={columnView.visibility}
+                search={search}
+              />
             }
             resetKey={JSON.stringify(search)}
           >
             <ProgramsTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onAdd={addProgram}
               onEdit={editProgram}
@@ -130,11 +134,18 @@ function ProgramsHeader() {
 }
 
 function ProgramsPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <ProgramsHeader />
       <WorkspaceContent>
-        <ProgramsTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <ProgramsTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

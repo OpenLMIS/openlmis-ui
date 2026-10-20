@@ -89,7 +89,7 @@ it('loads full membership only on opening, shares it by node, and keeps failures
   );
   renderPage(
     <Suspense>
-      <SupplyLinesTable search={{}} columnVisibility={{}} onSearchChange={vi.fn()} />
+      <SupplyLinesTable cards={false} search={{}} columnVisibility={{}} onSearchChange={vi.fn()} />
       <button type="button">Outside</button>
     </Suspense>,
     { queryClient },

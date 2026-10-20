@@ -12,6 +12,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import {
   CardBand,
   CardControlRow,
@@ -716,6 +717,33 @@ function InventoryCell({
       return null;
     case 'actions':
       if (summary || (!line.justAdded && !canDeactivateInventoryLine(line, true))) return null;
+      if (cards)
+        return (
+          <CardActions
+            label={t('card-actions.actions-for', { name: row })}
+            actions={[
+              line.justAdded
+                ? {
+                    id: 'delete',
+                    icon: <Trash2Icon />,
+                    label: t('physical-inventory.delete-row'),
+                    name: label(t('physical-inventory.delete-row')),
+                    destructive: true,
+                    disabled: editor.pending,
+                    onSelect: () => editor.onRemove(line),
+                  }
+                : {
+                    id: 'deactivate',
+                    icon: <ArchiveXIcon />,
+                    label: t('physical-inventory.deactivate'),
+                    name: label(t('physical-inventory.deactivate')),
+                    disabled: editor.pending || !editor.online,
+                    focusableWhenDisabled: !editor.online,
+                    onSelect: () => editor.onDeactivate(line),
+                  },
+            ]}
+          />
+        );
       return (
         <Tooltip>
           <TooltipTrigger

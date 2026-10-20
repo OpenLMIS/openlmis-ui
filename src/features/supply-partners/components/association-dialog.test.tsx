@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
-import { beforeAll, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import {
   facilitiesByIdsOptions,
@@ -71,6 +71,10 @@ function Harness({ record = saved }: { record?: typeof saved }) {
     </TranslatedFormMessages>
   );
 }
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+});
+
 beforeAll(async () => {
   await i18n
     .use(ICU)

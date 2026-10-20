@@ -82,6 +82,22 @@ export function fromSortingState(
   return { sort: first.id, dir: first.desc ? 'desc' : 'asc' };
 }
 
+export function searchSort<TSearch extends TableSearch>(
+  search: TableSearch,
+  defaultSort: DefaultSort,
+  onSearchChange: (patch: Partial<TSearch>) => void,
+) {
+  const [value = defaultSort] = toSortingState(search, defaultSort);
+  return {
+    value,
+    onValueChange: (next: DefaultSort) =>
+      onSearchChange({
+        ...fromSortingState([next], defaultSort),
+        page: undefined,
+      } as Partial<TSearch>),
+  };
+}
+
 /** The Spring Data `sort` param, e.g. `username,asc`. */
 export function toSortParam(search: TableSearch, defaultSort: DefaultSort) {
   const [{ id, desc }] = toSortingState(search, defaultSort) as [SortingState[number]];
@@ -98,7 +114,7 @@ export type SearchChange<TSearch> = (
   options?: { resetScroll?: boolean; keepState?: boolean },
 ) => void;
 
-type TableSearchStateOptions<TSearch extends TableSearch> = {
+export type TableSearchStateOptions<TSearch extends TableSearch> = {
   search: TableSearch;
   defaultSort: DefaultSort;
   defaultPageSize?: number;

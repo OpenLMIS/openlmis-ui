@@ -65,6 +65,7 @@ export function InventoryToolbar({
         <div className="min-w-0 flex-1 @4xl/main:w-80 @4xl/main:flex-none">{progress}</div>
         <div className="shrink-0">
           <DataTableFilters
+            size="lg"
             activeCount={[search.keyword, search.includeInactive].filter(Boolean).length}
             disabled={disabled}
             onClear={() =>
@@ -106,6 +107,7 @@ export function InventoryToolbar({
         )}
         <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}>
           <DataTableViewOptions
+            size="lg"
             disabled={disabled}
             layout={cards ? 'cards' : 'table'}
             columns={INVENTORY_HIDEABLE_COLUMNS.filter(
@@ -118,7 +120,7 @@ export function InventoryToolbar({
           />
         </div>
         <div className="w-full @4xl/main:w-auto">
-          <Button disabled={disabled} onClick={onAdd} width="full">
+          <Button size="lg" disabled={disabled} onClick={onAdd} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('physical-inventory.add-product')}
           </Button>

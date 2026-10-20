@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import type { ParseKeys } from 'i18next';
 import { PlusIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -24,17 +26,22 @@ import {
   type RoleTab,
   toRoleRows,
 } from '@/features/users/lib/role-assignments';
-import { type RolesTableSearch, TAB_RESET } from '@/features/users/lib/roles-search';
+import {
+  DEFAULT_ROLES_SORT,
+  type RolesTableSearch,
+  TAB_RESET,
+} from '@/features/users/lib/roles-search';
 import { useRoleLookups } from '@/features/users/lib/use-role-lookups';
-import type { SearchChange } from '@/lib/table-search';
+import { useCardLayout } from '@/hooks/use-card-view';
+import { type SearchChange, searchSort } from '@/lib/table-search';
 import type { RoleAssignment } from '@/lib/user-types';
+import { cn } from '@/lib/utils';
 
 type RoleTabsProps = {
   tab: RoleTab;
   draft: RoleAssignment[];
   saved: RoleAssignment[];
   homeFacilityId: string | null | undefined;
-  compact: boolean;
   search: RolesTableSearch;
   onSearchChange: SearchChange<RolesTableSearch>;
   /** Both left out where the roles are only shown, e.g. on the user's own profile. */
@@ -42,9 +49,27 @@ type RoleTabsProps = {
   onRemove?: (row: RoleRow) => void;
 };
 
-/** One tab per role type, each with its count; only the open tab renders its table. */
-export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props }: RoleTabsProps) {
+const SORT_COLUMNS: Record<RoleTab['type'], readonly { id: string; labelKey: ParseKeys }[]> = {
+  SUPERVISION: [
+    { id: 'program', labelKey: 'users.roles.column.program' },
+    { id: 'node', labelKey: 'users.roles.column.node' },
+    { id: 'role', labelKey: 'users.roles.column.role' },
+  ],
+  ORDER_FULFILLMENT: [
+    { id: 'facility', labelKey: 'users.roles.column.facility' },
+    { id: 'role', labelKey: 'users.roles.column.role' },
+  ],
+  REPORTS: [{ id: 'role', labelKey: 'users.roles.column.role' }],
+  GENERAL_ADMIN: [{ id: 'role', labelKey: 'users.roles.column.role' }],
+};
+
+const noop = () => {};
+
+const SEARCH_WIDTH = 'min-w-0 flex-1 @xl/main:w-72 @xl/main:flex-none';
+
+export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleTabsProps) {
   const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   // Counted once the roles are known, since a role's type decides its tab.
   const { data: counts } = useQuery({
     ...rolesOptions(),
@@ -52,102 +77,116 @@ export function RoleTabs({ tab, draft, search, onSearchChange, compact, ...props
   });
 
   return (
-    <Tabs
-      spacing="page"
-      onValueChange={(value: RoleTab['id']) =>
-        onSearchChange({ ...TAB_RESET, tab: value === 'supervision' ? undefined : value })
-      }
-      value={tab.id}
-    >
-      {/* A size container, so the tabs go two by two when four do not fit in a row. */}
-      <div className="@container">
-        <TabsList aria-label={t('users.roles.tabs-label')} wrap>
-          {ROLE_TABS.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
-              {t(item.labelKey)}
-              {counts && <Badge variant="secondary">{counts[item.type]}</Badge>}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-      {ROLE_TABS.map((item) => (
-        <TabsContent key={item.id} value={item.id}>
-          {item.id === tab.id && (
-            <div className="flex flex-col gap-4">
-              <DataTableToolbar>
-                <div className="min-w-0 flex-1 @xl/main:w-72 @xl/main:flex-none">
-                  <DataTableSearch
-                    label={t('users.roles.search-label')}
-                    onValueChange={(q) => onSearchChange({ q, page: undefined }, true)}
-                    placeholder={t('users.roles.search')}
-                    value={search.q ?? ''}
-                  />
-                </div>
-                {props.onAdd && (
-                  <div className="ms-auto">
-                    <Button onClick={props.onAdd}>
-                      <PlusIcon data-icon="inline-start" />
-                      {t('users.roles.add')}
-                    </Button>
+    <div ref={measure}>
+      <Tabs
+        spacing="page"
+        onValueChange={(value: RoleTab['id']) =>
+          onSearchChange({ ...TAB_RESET, tab: value === 'supervision' ? undefined : value })
+        }
+        value={tab.id}
+      >
+        {/* A size container, so the tabs go two by two when four do not fit in a row. */}
+        <div className="@container">
+          <TabsList aria-label={t('users.roles.tabs-label')} size="lg" wrap>
+            {ROLE_TABS.map((item) => (
+              <TabsTrigger key={item.id} value={item.id}>
+                {t(item.labelKey)}
+                {counts && <Badge variant="secondary">{counts[item.type]}</Badge>}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        {ROLE_TABS.map((item) => (
+          <TabsContent key={item.id} value={item.id}>
+            {item.id === tab.id && (
+              <div className="flex flex-col gap-4">
+                <DataTableToolbar>
+                  <div className={cards ? 'w-full' : SEARCH_WIDTH}>
+                    <DataTableSearch
+                      size="lg"
+                      label={t('users.roles.search-label')}
+                      onValueChange={(q) => onSearchChange({ q, page: undefined }, true)}
+                      placeholder={t('users.roles.search')}
+                      value={search.q ?? ''}
+                    />
                   </div>
-                )}
-              </DataTableToolbar>
-              <QueryBoundary
-                errorComponent={({ error, reset }) => (
-                  <LoadError
-                    description={t('users.roles.error-description')}
-                    error={error}
-                    reset={reset}
-                    title={t('users.roles.error-title')}
-                  />
-                )}
-                pendingFallback={
-                  <RoleAssignmentsTableSkeleton
-                    compact={compact}
-                    onRemove={props.onRemove}
+                  {cards && (
+                    <div className="ms-auto">
+                      <DataTableViewOptions
+                        size="lg"
+                        layout="cards"
+                        sort={{
+                          columns: SORT_COLUMNS[item.type].map(({ id, labelKey }) => ({
+                            id,
+                            label: t(labelKey),
+                          })),
+                          ...searchSort<RolesTableSearch>(search, DEFAULT_ROLES_SORT, (patch) =>
+                            onSearchChange(patch),
+                          ),
+                        }}
+                      />
+                    </div>
+                  )}
+                  {props.onAdd && (
+                    <div className={cards ? undefined : 'ms-auto'}>
+                      <Button size="lg" data-add-role onClick={props.onAdd}>
+                        <PlusIcon data-icon="inline-start" />
+                        {t('users.roles.add')}
+                      </Button>
+                    </div>
+                  )}
+                </DataTableToolbar>
+                <QueryBoundary
+                  errorComponent={({ error, reset }) => (
+                    <LoadError
+                      description={t('users.roles.error-description')}
+                      error={error}
+                      reset={reset}
+                      title={t('users.roles.error-title')}
+                    />
+                  )}
+                  pendingFallback={
+                    <RoleAssignmentsTableSkeleton
+                      cards={cards}
+                      onRemove={props.onRemove}
+                      search={search}
+                      tab={item}
+                    />
+                  }
+                  resetKey={item.id}
+                >
+                  <TabTable
+                    cards={cards}
+                    draft={draft}
+                    onSearchChange={onSearchChange}
                     search={search}
                     tab={item}
+                    {...props}
                   />
-                }
-                resetKey={item.id}
-              >
-                <TabTable
-                  compact={compact}
-                  draft={draft}
-                  onSearchChange={onSearchChange}
-                  search={search}
-                  tab={item}
-                  {...props}
-                />
-              </QueryBoundary>
-            </div>
-          )}
-        </TabsContent>
-      ))}
-    </Tabs>
+                </QueryBoundary>
+              </div>
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }
 
-type RoleTabsSkeletonProps = Pick<RoleTabsProps, 'tab' | 'compact' | 'search'> & {
+type RoleTabsSkeletonProps = Pick<RoleTabsProps, 'tab' | 'search'> & {
   /** Holds the places of Add Role and each row's actions, where the roles can be changed. */
   editable?: boolean;
 };
 
-const noop = () => {};
-
 /** The tabs while the user loads: the real tab list, with placeholders for the toolbar and rows. */
-export function RoleTabsSkeleton({
-  tab,
-  compact,
-  search,
-  editable = false,
-}: RoleTabsSkeletonProps) {
+export function RoleTabsSkeleton({ tab, search, editable = false }: RoleTabsSkeletonProps) {
   const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
-    <div aria-busy>
+    <div aria-busy ref={measure}>
       <Tabs spacing="page" value={tab.id}>
         <div className="@container">
-          <TabsList aria-label={t('users.roles.tabs-label')} wrap>
+          <TabsList aria-label={t('users.roles.tabs-label')} size="lg" wrap>
             {ROLE_TABS.map((item) => (
               <TabsTrigger key={item.id} value={item.id}>
                 {t(item.labelKey)}
@@ -158,13 +197,14 @@ export function RoleTabsSkeleton({
         <TabsContent value={tab.id}>
           <div className="flex flex-col gap-4">
             <DataTableToolbar>
-              <div className="min-w-0 flex-1 @xl/main:w-72 @xl/main:flex-none">
-                <Block className="h-8 w-full" />
+              <div className={cards ? 'w-full' : SEARCH_WIDTH}>
+                <Block className="h-9 w-full" />
               </div>
-              {editable && <Block className="ms-auto h-8 w-28" />}
+              {cards && <Block className="ms-auto h-9 w-20" />}
+              {editable && <Block className={cn('h-9 w-28', !cards && 'ms-auto')} />}
             </DataTableToolbar>
             <RoleAssignmentsTableSkeleton
-              compact={compact}
+              cards={cards}
               onRemove={editable ? noop : undefined}
               search={search}
               tab={tab}
@@ -176,7 +216,13 @@ export function RoleTabsSkeleton({
   );
 }
 
-function TabTable({ draft, saved, homeFacilityId, tab, ...props }: RoleTabsProps) {
+function TabTable({
+  draft,
+  saved,
+  homeFacilityId,
+  tab,
+  ...props
+}: RoleTabsProps & { cards: boolean }) {
   const { t } = useTranslation();
   const { lookups, status, retry } = useRoleLookups();
   const savedKeys = useMemo(() => new Set(saved.map(assignmentKey)), [saved]);

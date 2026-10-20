@@ -52,6 +52,7 @@ import {
   toPeriodsQuery,
 } from '@/features/processing-schedules/lib/search';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound } from '@/lib/http';
@@ -97,29 +98,32 @@ function PeriodDialogContent({ scheduleId, ...props }: PeriodDialogContentProps)
     void queryClient.prefetchQuery(latestPeriodOptions(scheduleId, opening));
     void queryClient.prefetchQuery(periodsListOptions(toPeriodsQuery(scheduleId, search)));
   }, [queryClient, scheduleId, opening, search]);
+  const { measure, cards } = useDialogCardLayout('table');
   const title = t('processing-schedules.edit');
   return (
-    <QueryBoundary
-      errorComponent={({ error, reset }) =>
-        isNotFound(error) ? (
-          <DialogNotFound
-            title={title}
-            description={t('processing-schedules.periods.not-found-description')}
-          />
-        ) : (
-          <DialogLoadError
-            error={error}
-            errorTitle={t('processing-schedules.periods.load-error-title')}
-            onRetry={reset}
-            title={title}
-          />
-        )
-      }
-      pendingFallback={<PeriodFormSkeleton search={props.search} />}
-      resetKey={scheduleId}
-    >
-      <ExistingSchedule scheduleId={scheduleId} opening={opening} {...props} />
-    </QueryBoundary>
+    <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
+      <QueryBoundary
+        errorComponent={({ error, reset }) =>
+          isNotFound(error) ? (
+            <DialogNotFound
+              title={title}
+              description={t('processing-schedules.periods.not-found-description')}
+            />
+          ) : (
+            <DialogLoadError
+              error={error}
+              errorTitle={t('processing-schedules.periods.load-error-title')}
+              onRetry={reset}
+              title={title}
+            />
+          )
+        }
+        pendingFallback={<PeriodFormSkeleton cards={cards} search={props.search} />}
+        resetKey={scheduleId}
+      >
+        <ExistingSchedule cards={cards} scheduleId={scheduleId} opening={opening} {...props} />
+      </QueryBoundary>
+    </div>
   );
 }
 
@@ -127,18 +131,20 @@ function ExistingSchedule({
   scheduleId,
   opening,
   ...props
-}: PeriodDialogContentProps & { opening: number }) {
+}: PeriodDialogContentProps & { opening: number; cards: boolean }) {
   const { data: schedule } = useSuspenseQuery(scheduleDetailOptions(scheduleId, opening));
   return <PeriodForm schedule={schedule} opening={opening} {...props} />;
 }
 
 function PeriodForm({
+  cards,
   schedule,
   opening,
   onAdded,
   search,
   onSearchChange,
 }: Pick<PeriodsDialogProps, 'search' | 'onSearchChange' | 'onAdded'> & {
+  cards: boolean;
   schedule: ProcessingSchedule;
   opening: number;
 }) {
@@ -260,7 +266,7 @@ function PeriodForm({
             </FormDialogSubmit>
           </div>
         </div>
-        <div className="grid min-h-32 flex-auto">
+        <div className={cards ? undefined : 'grid min-h-32 flex-auto'}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -270,10 +276,11 @@ function PeriodForm({
                 title={t('processing-schedules.periods.error-title')}
               />
             )}
-            pendingFallback={<PeriodsTableSkeleton search={search} />}
+            pendingFallback={<PeriodsTableSkeleton cards={cards} search={search} />}
             resetKey={schedule.id}
           >
             <PeriodsTable
+              cards={cards}
               scheduleId={schedule.id}
               scheduleCode={schedule.code}
               search={search}
@@ -303,7 +310,7 @@ function PeriodFormHeader({ code }: { code?: string }) {
   );
 }
 
-function PeriodFormSkeleton({ search }: { search: SchedulesSearch }) {
+function PeriodFormSkeleton({ cards, search }: { cards: boolean; search: SchedulesSearch }) {
   const { t } = useTranslation();
   return (
     <>
@@ -325,8 +332,8 @@ function PeriodFormSkeleton({ search }: { search: SchedulesSearch }) {
             </FormDialogSubmit>
           </div>
         </div>
-        <div className="grid min-h-32 flex-auto">
-          <PeriodsTableSkeleton search={search} />
+        <div className={cards ? undefined : 'grid min-h-32 flex-auto'}>
+          <PeriodsTableSkeleton cards={cards} search={search} />
         </div>
       </FormDialogBody>
       <FormDialogFooter>

@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { UsersIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -27,8 +25,8 @@ import {
   type UsersSearch,
   usersSearchSchema,
 } from '@/features/users/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { useAppName } from '@/lib/app-configuration';
 
 // Their own chunk: the list paints without the forms, and the chunk is fetched right after.
@@ -52,6 +50,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const usePageCardView = () => useCardView(USER_HIDEABLE_COLUMNS, 'users.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/users')({
   validateSearch: usersSearchSchema,
   loaderDeps: ({ search }) => ({
@@ -71,8 +71,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
   pendingComponent: UsersPagePending,
   component: UsersPage,
 });
-
-const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 function UsersPage() {
   const { t } = useTranslation();
@@ -95,12 +93,7 @@ function UsersPage() {
   });
   const anyDialogOpen = dialogs.user !== undefined || dialogs.password !== undefined;
   const navigate = Route.useNavigate();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    USER_HIDEABLE_COLUMNS,
-    useStoredState('users.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
 
   // Typing in a filter replaces the history entry; paging and sorting add one, so Back steps through them.
@@ -138,11 +131,13 @@ function UsersPage() {
       </WorkspaceHeader>
       <WorkspaceContent>
         {/* Measured, because the room for columns depends on the sidebar as well as the window. */}
-        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 lg:gap-6" ref={measure}>
           <UsersToolbar
             columnView={columnView}
+            layout={layout}
             onAdd={() => openDialog({ user: 'new' })}
             onFilterChange={(patch) => updateSearch(patch, true)}
+            onSortChange={updateSearch}
             search={search}
           />
           <QueryBoundary
@@ -155,11 +150,16 @@ function UsersPage() {
               />
             )}
             pendingFallback={
-              <UsersTableSkeleton columnVisibility={columnView.visibility} search={search} />
+              <UsersTableSkeleton
+                cards={cards}
+                columnVisibility={columnView.visibility}
+                search={search}
+              />
             }
             resetKey={JSON.stringify(query)}
           >
             <UsersTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onEdit={editUser}
               onResetPassword={resetPassword}
@@ -187,6 +187,7 @@ function UsersPage() {
 function UsersPagePending() {
   const { t } = useTranslation();
   const appName = useAppName();
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <WorkspaceHeader>
@@ -199,7 +200,9 @@ function UsersPagePending() {
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <UsersTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <UsersTableSkeleton cards={cards} columnVisibility={columnView.visibility} search={{}} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

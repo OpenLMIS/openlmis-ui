@@ -8,6 +8,7 @@ import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorFallback } from '@/components/error-fallback';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
@@ -155,14 +156,14 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <DataTableToolbar align="end">
             {canSwitch && (
               <div className="flex-1 @2xl/main:flex-none">
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
             <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
-          </div>
+          </DataTableToolbar>
           <StockCardLines
             cards={cards}
             card={data.card}
@@ -191,6 +192,7 @@ function StockCardColumns({
   return (
     <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
+        size="lg"
         columns={STOCK_CARD_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
           id,
           label: t(labelKey),
@@ -267,7 +269,7 @@ function StockCardPending() {
           </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
-          <div className="h-10 w-24">
+          <div className="h-9 w-24">
             <Skeleton fill />
           </div>
         </WorkspaceActions>
@@ -277,13 +279,13 @@ function StockCardPending() {
           <StockCardHeaderSkeleton lot={hasLot} />
           <div className="flex justify-end gap-2">
             {canSwitch && (
-              <div className="h-8 flex-1 @2xl/main:w-36 @2xl/main:flex-none">
+              <div className="h-9 flex-1 @2xl/main:w-36 @2xl/main:flex-none">
                 <Skeleton fill />
               </div>
             )}
             <div
               className={
-                canSwitch ? 'h-8 w-20 shrink-0' : 'h-8 flex-1 @2xl/main:w-20 @2xl/main:flex-none'
+                canSwitch ? 'h-9 w-20 shrink-0' : 'h-9 flex-1 @2xl/main:w-20 @2xl/main:flex-none'
               }
             >
               <Skeleton fill />

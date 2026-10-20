@@ -11,6 +11,10 @@ export type DataTableLabels = {
   resetColumns: string;
   toggleDetails: string;
   resetDetails: string;
+  sortBy: string;
+  sortOrder: string;
+  ascending: string;
+  descending: string;
   rowsPerPage: string;
   page: (page: number) => string;
   invalidPage: string;
@@ -24,6 +28,7 @@ export type DataTableLabels = {
   selectPage: string;
   selectRow: (row: string) => string;
   selectedCount: (count: number) => string;
+  clear: string;
   clearSelection: string;
   filters: string;
   activeFilters: (count: number) => string;
@@ -40,6 +45,10 @@ export const defaultDataTableLabels: DataTableLabels = {
   resetColumns: 'Reset Columns',
   toggleDetails: 'Toggle Details',
   resetDetails: 'Reset Details',
+  sortBy: 'Sort By',
+  sortOrder: 'Sort Order',
+  ascending: 'Ascending',
+  descending: 'Descending',
   rowsPerPage: 'Rows Per Page',
   page: (page) => `Page ${page}`,
   invalidPage: 'Contains Invalid Rows',
@@ -53,6 +62,7 @@ export const defaultDataTableLabels: DataTableLabels = {
   selectPage: 'Select Page',
   selectRow: (row) => `Select ${row}`,
   selectedCount: (count) => `${count.toLocaleString()} Selected`,
+  clear: 'Clear',
   clearSelection: 'Clear Selection',
   filters: 'Filters',
   activeFilters: (count) =>

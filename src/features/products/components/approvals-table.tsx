@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { BuildingIcon, EllipsisIcon, EyeIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { BuildingIcon, EyeIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -12,25 +13,18 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { productApprovalsOptions } from '@/features/products/api/queries';
 import { groupApprovals } from '@/features/products/lib/approvals';
 import type { Approval } from '@/features/products/lib/types';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 
 type ApprovalRow =
   | { kind: 'group'; id: string; facilityType: string }
   | { kind: 'approval'; id: string; facilityType: string; approval: Approval };
 
-type RowActions = {
+type LineActions = {
   canEdit: boolean;
   onEdit: (approvalId: string) => void;
   onRemove: (approvalId: string) => void;
@@ -40,12 +34,16 @@ type StockColumn = 'maxPeriodsOfStock' | 'minPeriodsOfStock' | 'emergencyOrderPo
 
 const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
 
-function createColumns(t: TFunction, formatNumber: (value: number) => string, actions: RowActions) {
+function createColumns(
+  t: TFunction,
+  formatNumber: (value: number) => string,
+  actions: LineActions,
+) {
   const stockColumn = (id: StockColumn, title: string) =>
     columnHelper.display({
       id,
       header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
-      meta: { className: 'w-48' },
+      meta: { className: 'w-48', label: title },
       cell: ({ row }) => {
         if (row.original.kind === 'group') return null;
         const value = row.original.approval[id];
@@ -80,6 +78,7 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
             {programName(row.original.approval.program)}
           </span>
         ),
+      meta: { label: t('products.approvals.program') },
     }),
     stockColumn('maxPeriodsOfStock', t('products.approvals.max-periods')),
     stockColumn('emergencyOrderPoint', t('products.approvals.emergency-point')),
@@ -100,54 +99,46 @@ function createColumns(t: TFunction, formatNumber: (value: number) => string, ac
   ]);
 }
 
-type ApprovalActionsProps = { approval: Approval; facilityType: string; actions: RowActions };
+type ApprovalActionsProps = { approval: Approval; facilityType: string; actions: LineActions };
 
 function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsProps) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
-  const edit = menu.opensDialog(() => actions.onEdit(approval.id));
+
+  const label = t('products.approvals.actions-for', {
+    facilityType,
+    program: programName(approval.program),
+  });
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('products.approvals.actions-for', {
-                facilityType,
-                program: programName(approval.program),
-              })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          {actions.canEdit ? (
-            <>
-              <DropdownMenuItem onClick={edit}>
-                <PencilIcon />
-                {t('products.approvals.edit')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={menu.opensDialog(() => actions.onRemove(approval.id))}
-                variant="destructive"
-              >
-                <Trash2Icon />
-                {t('products.approvals.remove')}
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <DropdownMenuItem onClick={edit}>
-              <EyeIcon />
-              {t('products.approvals.view')}
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={
+        actions.canEdit
+          ? [
+              {
+                id: 'edit',
+                icon: <PencilIcon />,
+                label: t('products.approvals.edit'),
+                onSelect: () => actions.onEdit(approval.id),
+              },
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('products.approvals.remove'),
+                destructive: true,
+                onSelect: () => actions.onRemove(approval.id),
+              },
+            ]
+          : [
+              {
+                id: 'view',
+                icon: <EyeIcon />,
+                label: t('products.approvals.view'),
+                onSelect: () => actions.onEdit(approval.id),
+              },
+            ]
+      }
+    />
   );
 }
 
@@ -157,13 +148,20 @@ const getRowId = (row: ApprovalRow) => `${row.kind}-${row.id}`;
 
 const noop = () => {};
 
+const withoutFacilityType = (visibility: ColumnVisibilityState) => ({
+  ...visibility,
+  facilityType: false,
+});
+
+const groupHeading = (row: ApprovalRow) => (row.kind === 'group' ? row.facilityType : undefined);
+
 function useApprovalsTable({
   rows,
   columnVisibility,
   canEdit,
   onEdit,
   onRemove,
-}: RowActions & { rows: ApprovalRow[]; columnVisibility: ColumnVisibilityState }) {
+}: LineActions & { rows: ApprovalRow[]; columnVisibility: ColumnVisibilityState }) {
   const { t, i18n } = useTranslation();
   const columns = useMemo(() => {
     const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 });
@@ -181,26 +179,40 @@ function useApprovalsTable({
 }
 
 export function ApprovalsTableSkeleton({
+  cards,
+  canEdit,
   columnVisibility,
 }: {
+  cards: boolean;
+  canEdit: boolean;
   columnVisibility: ColumnVisibilityState;
 }) {
   const table = useApprovalsTable({
     rows: NO_ROWS,
-    columnVisibility,
+    columnVisibility: cards ? withoutFacilityType(columnVisibility) : columnVisibility,
     canEdit: false,
     onEdit: noop,
     onRemove: noop,
   });
+  if (cards)
+    return (
+      <TableCardsSkeleton actions={canEdit ? 2 : 1} rowCount={3} table={table} title="program" />
+    );
   return <DataTableSkeleton rowCount={3} table={table} />;
 }
 
-type ApprovalsTableProps = RowActions & {
+type ApprovalsTableProps = LineActions & {
+  cards: boolean;
   productId: string;
   columnVisibility: ColumnVisibilityState;
 };
 
-export function ApprovalsTable({ productId, columnVisibility, ...actions }: ApprovalsTableProps) {
+export function ApprovalsTable({
+  cards,
+  productId,
+  columnVisibility,
+  ...actions
+}: ApprovalsTableProps) {
   const { t } = useTranslation();
   const { data: approvals } = useSuspenseQuery(productApprovalsOptions(productId));
   const rows = useMemo(
@@ -216,22 +228,24 @@ export function ApprovalsTable({ productId, columnVisibility, ...actions }: Appr
       ]),
     [approvals],
   );
-  const table = useApprovalsTable({ rows, columnVisibility, ...actions });
-
-  return (
-    <DataTable
-      empty={
-        <DataTableEmpty
-          description={t(
-            actions.canEdit
-              ? 'products.approvals.empty-description'
-              : 'products.approvals.empty-read-only',
-          )}
-          icon={<BuildingIcon />}
-          title={t('products.approvals.empty-title')}
-        />
-      }
-      table={table}
+  const table = useApprovalsTable({
+    rows,
+    columnVisibility: cards ? withoutFacilityType(columnVisibility) : columnVisibility,
+    ...actions,
+  });
+  const empty = (
+    <DataTableEmpty
+      description={t(
+        actions.canEdit
+          ? 'products.approvals.empty-description'
+          : 'products.approvals.empty-read-only',
+      )}
+      icon={<BuildingIcon />}
+      title={t('products.approvals.empty-title')}
     />
   );
+  if (cards) {
+    return <TableCards empty={empty} heading={groupHeading} table={table} title="program" />;
+  }
+  return <DataTable empty={empty} table={table} />;
 }

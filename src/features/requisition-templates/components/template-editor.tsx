@@ -45,9 +45,11 @@ import {
   getRowErrors,
 } from '@/features/requisition-templates/lib/template-validation';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
+import { revealField } from '@/lib/reveal-field';
 
 export type TemplateTab = 'columns' | 'settings';
 const schema = z.custom<TemplateDraft>().superRefine((draft, context) => {
@@ -104,6 +106,7 @@ export function TemplateEditor({
   const leaving = useRef(false);
   const editorRef = useRef<HTMLFormElement>(null);
   const [invalidTab, setInvalidTab] = useState<TemplateTab | null>(null);
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const save = useSessionMutation({
     mutationFn: (draft: TemplateDraft): Promise<RequisitionTemplate> =>
       saveRequisitionTemplate(saved.id, draft),
@@ -146,15 +149,14 @@ export function TemplateEditor({
   useEffect(() => {
     if (invalidTab !== tab) return;
     const frame = requestAnimationFrame(() => {
-      editorRef.current
-        ?.querySelector<HTMLElement>(
-          `[data-template-tab="${tab}"]:not([hidden]) [aria-invalid="true"]`,
-        )
-        ?.focus();
+      const target = editorRef.current?.querySelector<HTMLElement>(
+        `[data-template-tab="${tab}"]:not([hidden]) [aria-invalid="true"]`,
+      );
+      if (target) revealField(target, cards);
       setInvalidTab(null);
     });
     return () => cancelAnimationFrame(frame);
-  }, [invalidTab, tab]);
+  }, [invalidTab, tab, cards]);
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
   const guard = useDiscardGuard(changed, {
     pending: save.isPending,
@@ -189,13 +191,13 @@ export function TemplateEditor({
               void form.handleSubmit();
             }}
           >
-            <div inert={save.isPending || confirmation !== null}>
+            <div inert={save.isPending || confirmation !== null} ref={measure}>
               <Tabs
                 value={tab}
                 onValueChange={(value: TemplateTab) => onTabChange(value)}
                 spacing="page"
               >
-                <TabsList aria-label={t('requisition-templates.configure.tabs-label')}>
+                <TabsList aria-label={t('requisition-templates.configure.tabs-label')} size="lg">
                   <TabsTrigger value="columns">
                     {t('requisition-templates.configure.columns')}
                   </TabsTrigger>
@@ -204,7 +206,7 @@ export function TemplateEditor({
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent data-template-tab="columns" keepMounted value="columns">
-                  <ColumnsTab form={form} saved={saved} />
+                  <ColumnsTab cards={cards} form={form} saved={saved} />
                 </TabsContent>
                 <TabsContent data-template-tab="settings" keepMounted value="settings">
                   <SettingsTab form={form} saved={saved} />

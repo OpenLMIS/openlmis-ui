@@ -25,6 +25,7 @@ type AssignmentsToolbarProps = {
   search: AssignmentsSearch;
   onFilterChange: (patch: Partial<AssignmentsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd: () => void;
 };
 
@@ -33,6 +34,7 @@ export function AssignmentsToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
   onAdd,
 }: AssignmentsToolbarProps) {
   const { t } = useTranslation();
@@ -52,6 +54,7 @@ export function AssignmentsToolbar({
     <DataTableToolbar>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={[search.facilityId, search.programId].filter(Boolean).length}
           onClear={() =>
             onFilterChange({ facilityId: undefined, programId: undefined, page: undefined })
@@ -77,17 +80,19 @@ export function AssignmentsToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={ASSIGNMENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('valid-assignments.add', { kind })}
         </Button>

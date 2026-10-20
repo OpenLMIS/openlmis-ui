@@ -1,9 +1,11 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { BoxesIcon, EllipsisIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { BoxesIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { CardActions } from '@/components/card-actions';
+import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -14,12 +16,6 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -40,6 +36,7 @@ import {
 } from '@/features/products/lib/kit-form';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 
 const FORM_ID = 'kit-unpack-list-form';
@@ -69,6 +66,7 @@ export function KitUnpackList({
   const listRegion = useRef<HTMLElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const kitLabel = productName(kit);
+  const { measure, cards } = useCardLayout<HTMLFormElement>();
 
   const form = useAppForm({
     defaultValues: toKitFormValues(kit, products),
@@ -94,10 +92,64 @@ export function KitUnpackList({
   const rows = useStore(form.store, (state) => state.values.children);
   const removeRow = (index: number) => {
     flushSync(() => form.removeFieldValue('children', index));
-    const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-actions]');
+    const buttons = listRegion.current?.querySelectorAll<HTMLButtonElement>('[data-kit-remove]');
     (buttons?.[Math.min(index, buttons.length - 1)] ?? addButton.current)?.focus();
   };
   const inKit = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
+
+  const rowFields = (row: (typeof rows)[number], index: number) => {
+    const name = row.name || row.code;
+    return {
+      name,
+      quantity: (
+        <form.AppField name={`children[${index}].quantity`}>
+          {(field) => (
+            <field.NumberField
+              disabled={readOnly}
+              label={t('products.kit.quantity-of', { product: name })}
+              layout="inline"
+              required
+            />
+          )}
+        </form.AppField>
+      ),
+      actions:
+        !readOnly &&
+        (cards ? (
+          <CardActions
+            label={t('card-actions.actions-for', { name })}
+            actions={[
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('products.kit.remove-product', { product: name }),
+                destructive: true,
+                data: { 'data-kit-remove': '' },
+                onSelect: () => removeRow(index),
+              },
+            ]}
+          />
+        ) : (
+          <Button
+            aria-label={t('products.kit.remove-product', { product: name })}
+            data-kit-remove=""
+            onClick={() => removeRow(index)}
+            size="icon-sm"
+            type="button"
+            variant="destructive"
+          >
+            <Trash2Icon />
+          </Button>
+        )),
+    };
+  };
+  const empty = (
+    <DataTableEmpty
+      description={t(readOnly ? 'products.kit.empty-read-only' : 'products.kit.empty-description')}
+      icon={<BoxesIcon />}
+      title={t('products.kit.empty-title')}
+    />
+  );
 
   const addProducts = (picked: Product[]) =>
     form.setFieldValue('children', (current) => [
@@ -110,6 +162,7 @@ export function KitUnpackList({
       <form
         className="flex flex-col gap-4"
         id={FORM_ID}
+        ref={measure}
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -119,7 +172,7 @@ export function KitUnpackList({
         {!readOnly && (
           <DataTableToolbar>
             <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
-              <Button onClick={onAddOpen} ref={addButton} type="button" width="full">
+              <Button size="lg" onClick={onAddOpen} ref={addButton} type="button" width="full">
                 <PlusIcon data-icon="inline-start" />
                 {t('products.kit.add')}
               </Button>
@@ -133,100 +186,86 @@ export function KitUnpackList({
           />
         )}
         <section aria-label={t('products.kit.products')} ref={listRegion}>
-          <DataTableCard>
-            {rows.length === 0 ? (
-              <DataTableEmpty
-                description={t(
-                  readOnly ? 'products.kit.empty-read-only' : 'products.kit.empty-description',
-                )}
-                icon={<BoxesIcon />}
-                title={t('products.kit.empty-title')}
-              />
-            ) : (
-              <Table density="comfortable">
-                <TableHeader surface="muted">
-                  <TableRow>
-                    <TableHead>
-                      <DataTableHeaderLabel>{t('products.kit.product')}</DataTableHeaderLabel>
-                    </TableHead>
-                    <TableHead>
-                      <DataTableHeaderLabel>{t('products.kit.quantity')}</DataTableHeaderLabel>
-                    </TableHead>
-                    {!readOnly && (
-                      <TableHead>
-                        <span className="sr-only">{t('products.actions')}</span>
-                      </TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row, index) => {
-                    const name = row.name || row.code;
-                    return (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <span className="flex flex-col whitespace-normal break-words">
-                            <span className="font-medium" dir="auto">
-                              {name}
-                            </span>
-                            {row.name && (
-                              <span className="text-muted-foreground text-xs" dir="ltr">
-                                {row.code}
-                              </span>
-                            )}
+          {cards ? (
+            <CardList empty={rows.length === 0 && empty}>
+              {rows.map((row, index) => {
+                const fields = rowFields(row, index);
+                return (
+                  <CardListItem key={row.id}>
+                    <CardBand>
+                      <span className="flex min-w-0 flex-col wrap-anywhere">
+                        <bdi>{fields.name}</bdi>
+                        {row.name && (
+                          <span className="font-normal text-muted-foreground text-xs" dir="ltr">
+                            {row.code}
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="w-20 @md/main:w-28">
-                            <form.AppField name={`children[${index}].quantity`}>
-                              {(field) => (
-                                <field.NumberField
-                                  disabled={readOnly}
-                                  label={t('products.kit.quantity-of', { product: name })}
-                                  layout="inline"
-                                  required
-                                />
-                              )}
-                            </form.AppField>
-                          </div>
-                        </TableCell>
-                        {!readOnly && (
-                          <TableCell>
-                            <div className="flex justify-end">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger
-                                  render={
-                                    <Button
-                                      aria-label={t('products.kit.actions-for', { product: name })}
-                                      data-kit-actions=""
-                                      size="icon-sm"
-                                      type="button"
-                                      variant="ghost"
-                                    />
-                                  }
-                                >
-                                  <EllipsisIcon />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" width="auto">
-                                  <DropdownMenuItem
-                                    onClick={() => removeRow(index)}
-                                    variant="destructive"
-                                  >
-                                    <Trash2Icon />
-                                    {t('products.kit.remove')}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
                         )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </DataTableCard>
+                      </span>
+                      {fields.actions && <div className="shrink-0">{fields.actions}</div>}
+                    </CardBand>
+                    <CardRows>
+                      <CardControlRow label={t('products.kit.quantity')}>
+                        {fields.quantity}
+                      </CardControlRow>
+                    </CardRows>
+                  </CardListItem>
+                );
+              })}
+            </CardList>
+          ) : (
+            <DataTableCard>
+              {rows.length === 0 ? (
+                empty
+              ) : (
+                <Table density="comfortable">
+                  <TableHeader surface="muted">
+                    <TableRow>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('products.kit.product')}</DataTableHeaderLabel>
+                      </TableHead>
+                      <TableHead>
+                        <DataTableHeaderLabel>{t('products.kit.quantity')}</DataTableHeaderLabel>
+                      </TableHead>
+                      {!readOnly && (
+                        <TableHead>
+                          <span className="sr-only">{t('products.actions')}</span>
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, index) => {
+                      const fields = rowFields(row, index);
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <span className="flex flex-col whitespace-normal break-words">
+                              <span className="font-medium" dir="auto">
+                                {fields.name}
+                              </span>
+                              {row.name && (
+                                <span className="text-muted-foreground text-xs" dir="ltr">
+                                  {row.code}
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-20 @md/main:w-28">{fields.quantity}</div>
+                          </TableCell>
+                          {fields.actions && (
+                            <TableCell>
+                              <div className="flex justify-end">{fields.actions}</div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </DataTableCard>
+          )}
         </section>
       </form>
       <WorkspaceFooterPortal width="default">

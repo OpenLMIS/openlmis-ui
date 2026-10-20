@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import { HistoryIcon, SearchXIcon } from 'lucide-react';
+import { EyeIcon, HistoryIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
 import {
   CardBand,
   CardList,
@@ -24,7 +25,6 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {
@@ -36,9 +36,9 @@ import {
 } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const NO_SORT = { id: 'date', desc: true };
 const columnHelper = createColumnHelper<DataTableFeatures, StockEventSummary>();
@@ -137,28 +137,43 @@ function ViewEvent({
   search,
   eventDay,
   disabled,
+  cards = false,
 }: {
   event: StockEventSummary;
   search: TransactionHistorySearch;
   disabled: boolean;
   eventDay: EventDay;
+  cards?: boolean;
 }) {
   const { t } = useTranslation();
   const document = event.documentNumber || eventDay(event.processedDate);
+  const name = t('transaction-history.view-event', { document });
+  const link = (
+    <Link
+      params={{ eventId: event.id }}
+      search={search}
+      to="/stock-management/transaction-history/$eventId"
+    />
+  );
+  if (cards) {
+    return (
+      <CardActions
+        label={t('card-actions.actions-for', { name: document })}
+        actions={[
+          {
+            id: 'view',
+            icon: <EyeIcon />,
+            label: t('transaction-history.view'),
+            name,
+            disabled,
+            link,
+          },
+        ]}
+      />
+    );
+  }
   return (
-    <Button
-      aria-label={t('transaction-history.view-event', { document })}
-      disabled={disabled}
-      nativeButton={false}
-      render={
-        <Link
-          params={{ eventId: event.id }}
-          search={search}
-          to="/stock-management/transaction-history/$eventId"
-        />
-      }
-      size="sm"
-    >
+    <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
       {t('transaction-history.view')}
     </Button>
   );
@@ -211,7 +226,7 @@ function EventCard({
         <div className="min-w-0 wrap-anywhere">
           <bdi>{event.documentNumber || eventDay(event.processedDate)}</bdi>
         </div>
-        <ViewEvent disabled={stale} event={event} eventDay={eventDay} search={search} />
+        <ViewEvent cards disabled={stale} event={event} eventDay={eventDay} search={search} />
       </CardBand>
       <CardRows>
         {CARD_ROWS.filter(([id]) => columns[id] !== false).map(([id, key]) => (
@@ -249,17 +264,12 @@ function useEventsTable({
   stale: boolean;
 }) {
   const columnDefs = useEventColumns(search, eventDay, stale);
-  const { pageIndex, pageSize } = toPaginationState(search, EVENTS_PAGE_SIZE);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onPageChange = useCallback<SearchChange<TransactionHistorySearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: NO_SORT,
     defaultPageSize: EVENTS_PAGE_SIZE,
-    onSearchChange: onPageChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -271,7 +281,6 @@ function useEventsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility: columns },
   });
   return { table, pageStart };
@@ -382,14 +391,12 @@ export function TransactionHistoryResultsSkeleton({
   if (cards) {
     return (
       <CardListSkeleton
-        count={Math.min(3, rowCount)}
+        count={rowCount}
         rows={CARD_ROWS.filter(([column]) => columns[column] !== false).length}
         band={
           <>
             <SkeletonBar width="w-24" />
-            <div className="h-7 w-16">
-              <Skeleton fill />
-            </div>
+            <CardActionsSkeleton count={1} />
           </>
         }
       />

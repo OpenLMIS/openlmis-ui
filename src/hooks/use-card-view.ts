@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { z } from 'zod';
 import {
   CONTAINER_WIDTHS,
@@ -15,8 +16,11 @@ export function useCardLayout<T extends HTMLElement>() {
   return { measure, width, cards };
 }
 
-export function useCardView(columns: readonly ResponsiveColumn[], storageKey: string) {
-  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
+export function useCardView<T extends HTMLElement = HTMLDivElement>(
+  columns: readonly ResponsiveColumn[],
+  storageKey: string,
+) {
+  const { measure, width, cards } = useCardLayout<T>();
   const columnView = useColumnVisibility(
     columns,
     useStoredState(storageKey, choicesSchema, {}),
@@ -24,4 +28,20 @@ export function useCardView(columns: readonly ResponsiveColumn[], storageKey: st
   );
   const layout = cards ? 'cards' : 'table';
   return { measure, cards, columnView, layout } as const;
+}
+
+const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48 } as const;
+
+type CardDialogSize = keyof typeof DIALOG_WIDTHS_REM;
+
+export const isDialogCards = (width: number | undefined, size: CardDialogSize, rem = 16) =>
+  width !== undefined &&
+  width < Math.min(CONTAINER_WIDTHS['2xl'], (DIALOG_WIDTHS_REM[size] - 2) * rem - 1);
+
+export function useDialogCardLayout(size: CardDialogSize) {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const [rem] = useState(
+    () => Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+  );
+  return { measure, width, cards: isDialogCards(width, size, rem) };
 }

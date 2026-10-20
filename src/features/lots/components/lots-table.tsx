@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { BoxesIcon, EllipsisIcon, PencilIcon, SearchXIcon } from 'lucide-react';
+import { BoxesIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,13 +15,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { lotsListOptions } from '@/features/lots/api/queries';
 import {
   CLEARED_LOT_FILTERS,
@@ -29,8 +25,8 @@ import {
   toLotsQuery,
 } from '@/features/lots/lib/search';
 import type { LotRow } from '@/features/lots/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, LotRow>();
 
@@ -44,15 +40,8 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('lots.product-code')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="flex">
-            <span className="min-w-0 truncate" dir="ltr">
-              {getValue()}
-            </span>
-          </span>
-        ) : null,
-      meta: { className: 'w-40' },
+      cell: ({ getValue }) => (getValue() ? <CellText dir="ltr">{getValue()}</CellText> : null),
+      meta: { className: 'w-40', label: t('lots.product-code') },
     }),
     columnHelper.accessor((lot) => lot.product?.fullProductName ?? '', {
       id: 'productName',
@@ -67,15 +56,14 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
             {getValue()}
           </span>
         ) : null,
+      meta: { label: t('lots.product-name') },
     }),
     columnHelper.accessor('lotCode', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('lots.lot-code')} />,
       cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate font-medium" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
+        <CellText dir="ltr" strong>
+          {getValue()}
+        </CellText>
       ),
       meta: { className: 'w-36 @xl/main:w-44' },
     }),
@@ -84,14 +72,14 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
         <DataTableColumnHeader column={column} title={t('lots.expiration-date')} />
       ),
       cell: ({ getValue }) => date(getValue()),
-      meta: { className: 'w-36' },
+      meta: { className: 'w-36', label: t('lots.expiration-date') },
     }),
     columnHelper.accessor('manufactureDate', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('lots.manufacture-date')} />
       ),
       cell: ({ getValue }) => date(getValue()),
-      meta: { className: 'w-40' },
+      meta: { className: 'w-40', label: t('lots.manufacture-date') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -104,34 +92,26 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
 
 function LotActions({ lot, onEdit }: { lot: LotRow; onEdit: (id: string) => void }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
+
+  const label = t('lots.actions-for', { lot: lot.lotCode });
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('lots.actions-for', { lot: lot.lotCode })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(lot.id))}>
-            <PencilIcon />
-            {t('lots.edit')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('lots.edit'),
+          onSelect: () => onEdit(lot.id),
+        },
+      ]}
+    />
   );
 }
 
 type LotsTableProps = {
+  cards: boolean;
   search: LotsSearch;
   onSearchChange: SearchChange<LotsSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -147,6 +127,7 @@ const noop = () => {};
 const NO_SORT = { id: 'lotCode', desc: false };
 
 function useLotsTable({
+  cards,
   data,
   rowCount,
   search,
@@ -159,9 +140,14 @@ function useLotsTable({
     () => createColumns(t, i18n.language, onEdit),
     [t, i18n.language, onEdit],
   );
-  const searchState = useTableSearchState({ search, defaultSort: NO_SORT, onSearchChange });
+  const { pageStart, searchState } = usePagedTableSearch({
+    search,
+    defaultSort: NO_SORT,
+    onSearchChange,
+    cards,
+  });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -173,13 +159,16 @@ function useLotsTable({
     ...searchState,
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function LotsTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<LotsTableProps, 'search' | 'columnVisibility'>) {
-  const table = useLotsTable({
+}: Pick<LotsTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useLotsTable({
+    cards: false,
     data: NO_LOTS,
     rowCount: 0,
     search,
@@ -187,14 +176,23 @@ export function LotsTableSkeleton({
     columnVisibility,
     onEdit: noop,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="lotCode" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
-export function LotsTable({ search, onSearchChange, columnVisibility, onEdit }: LotsTableProps) {
+export function LotsTable({
+  cards,
+  search,
+  onSearchChange,
+  columnVisibility,
+  onEdit,
+}: LotsTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(lotsListOptions(toLotsQuery(deferredSearch)));
-  const table = useLotsTable({
+  const { table, pageStart } = useLotsTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -229,12 +227,21 @@ export function LotsTable({ search, onSearchChange, columnVisibility, onEdit }: 
     />
   );
 
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="lotCode"
+      />
+    );
+  }
   return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
-    />
+    <DataTable empty={!isPastLastPage && empty} footer={footer} isStale={isStale} table={table} />
   );
 }

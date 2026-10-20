@@ -20,6 +20,7 @@ export function QuantityUnitToggle({ unit, onUnitChange, disabled }: QuantityUni
         aria-label={t('quantity-unit.label')}
         disabled={disabled}
         onValueChange={(value) => onUnitChange(value as QuantityUnit)}
+        size="lg"
         value={unit}
         variant="segmented"
       >

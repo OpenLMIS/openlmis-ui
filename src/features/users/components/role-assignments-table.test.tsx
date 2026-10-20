@@ -30,7 +30,13 @@ const row: RoleRow = {
   isUnsaved: false,
 };
 
-function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports, failed = false) {
+function renderTable(
+  rows: RoleRow[],
+  editable: boolean,
+  tab: RoleTab = reports,
+  failed = false,
+  cards = false,
+) {
   const queryClient = new QueryClient();
   queryClient.setQueryData(rolesOptions().queryKey, [
     {
@@ -39,12 +45,13 @@ function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports,
       rights: [{ id: 'x1', name: 'REPORTS_VIEW', type: 'REPORTS' }],
     },
   ]);
+  const onRemove = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
       <RoleAssignmentsTable
-        compact={false}
+        cards={cards}
         onAdd={editable ? vi.fn() : undefined}
-        onRemove={editable ? vi.fn() : undefined}
+        onRemove={editable ? onRemove : undefined}
         onSearchChange={vi.fn()}
         rows={rows}
         search={{}}
@@ -53,6 +60,7 @@ function renderTable(rows: RoleRow[], editable: boolean, tab: RoleTab = reports,
       />
     </QueryClientProvider>,
   );
+  return { onRemove };
 }
 
 describe('RoleAssignmentsTable', () => {
@@ -79,6 +87,25 @@ describe('RoleAssignmentsTable', () => {
     expect(screen.queryByRole('button', { name: /users.roles.actions-for/ })).toBeNull();
   });
 
+  it('heads each card with the role, its rights and Unsaved, and removes it at once', async () => {
+    const unsaved = {
+      ...row,
+      program: 'Family Planning',
+      node: 'FP approval point',
+      isUnsaved: true,
+    };
+    const { onRemove } = renderTable([unsaved], true, supervision, false, true);
+    const card = screen.getByRole('listitem');
+
+    expect(card.textContent).toMatch(
+      /^Report Viewerusers\.roles\.unsaved.*users\.roles\.column\.programFamily Planning/,
+    );
+    expect(within(card).getByRole('button', { name: 'role-rights.title' })).toBeVisible();
+
+    await userEvent.click(within(card).getByRole('button', { name: 'users.roles.remove' }));
+    expect(onRemove).toHaveBeenCalledWith(unsaved);
+  });
+
   it('lists the program and the node before the role', () => {
     renderTable(
       [{ ...row, program: 'Family Planning', node: 'FP approval point' }],
@@ -103,7 +130,7 @@ describe('RoleAssignmentsTable', () => {
 
   it('keeps the actions column while loading when roles can be removed, so nothing shifts', () => {
     render(
-      <RoleAssignmentsTableSkeleton compact={false} onRemove={vi.fn()} search={{}} tab={reports} />,
+      <RoleAssignmentsTableSkeleton cards={false} onRemove={vi.fn()} search={{}} tab={reports} />,
     );
 
     expect(screen.getAllByRole('columnheader')).toHaveLength(2);

@@ -52,6 +52,7 @@ function renderDialog() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(fetchLatestPeriod).mockResolvedValue(latest);
   vi.mocked(fetchProcessingSchedule).mockResolvedValue(schedule);
   vi.mocked(fetchProcessingPeriodsPage).mockResolvedValue(latest);
@@ -101,6 +102,49 @@ describe('PeriodsDialog', () => {
     expect(scroller.scrollLeft).toBe(50);
     await user.keyboard('{Enter}');
     expect(await screen.findByRole('cell', { name: 'March' })).toBeInTheDocument();
+  });
+
+  it('scrolls phone cards to the top once a slow next page arrives', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const scroll = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scroll;
+    let release = () => {};
+    vi.mocked(fetchProcessingPeriodsPage).mockImplementation(async ({ page }) => {
+      if (page > 0) await new Promise<void>((resolve) => (release = resolve));
+      return {
+        ...latest,
+        content: [{ ...period, id: `p${page}`, name: ['January', 'February'][page] }],
+        totalElements: 20,
+        totalPages: 2,
+        number: page,
+        size: 10,
+      };
+    });
+    function PagedDialog() {
+      const [search, setSearch] = useState<SchedulesSearch>({});
+      return (
+        <PeriodsDialog
+          target={schedule.id}
+          search={search}
+          onSearchChange={(update) =>
+            setSearch((previous) => ({
+              ...previous,
+              ...(typeof update === 'function' ? update(previous) : update),
+            }))
+          }
+          onAdded={vi.fn()}
+          onClose={vi.fn()}
+        />
+      );
+    }
+    renderPage(<PagedDialog />);
+    await screen.findByText('January');
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => release());
+    await screen.findByText('February');
+    await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
   });
 
   it('starts the period reads while the schedule detail is still loading', async () => {

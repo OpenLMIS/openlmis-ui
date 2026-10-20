@@ -27,6 +27,7 @@ import {
   supplyPartnersSearchSchema,
   toSupplyPartnersQuery,
 } from '@/features/supply-partners/lib/search';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 declare module '@tanstack/react-router' {
@@ -65,14 +66,15 @@ function ListPage() {
   const search = Route.useSearch();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<SupplyPartnersSearch>(CLOSED);
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <Workspace>
       <Heading />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
-            <div className="ms-auto">
-              <Button onClick={() => void openDialog({ partner: 'new' })}>
+            <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
+              <Button size="lg" onClick={() => void openDialog({ partner: 'new' })} width="full">
                 <PlusIcon data-icon="inline-start" />
                 {t('supply-partners.add')}
               </Button>
@@ -80,7 +82,7 @@ function ListPage() {
           </DataTableToolbar>
           <QueryBoundary
             resetKey={JSON.stringify(toSupplyPartnersQuery(search))}
-            pendingFallback={<SupplyPartnersTableSkeleton search={search} />}
+            pendingFallback={<SupplyPartnersTableSkeleton cards={cards} search={search} />}
             errorComponent={({ error, reset }) => (
               <ListError
                 error={error}
@@ -90,7 +92,7 @@ function ListPage() {
               />
             )}
           >
-            <SupplyPartnersTable search={search} onSearchChange={updateSearch} />
+            <SupplyPartnersTable cards={cards} search={search} onSearchChange={updateSearch} />
           </QueryBoundary>
           <AddSupplyPartnerDialog target={search.partner} search={search} onClose={closeDialog} />
         </div>
@@ -100,20 +102,21 @@ function ListPage() {
 }
 function ListPending() {
   const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <Workspace>
       <Heading />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
-            <div className="ms-auto">
-              <Button disabled>
+            <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
+              <Button size="lg" disabled width="full">
                 <PlusIcon data-icon="inline-start" />
                 {t('supply-partners.add')}
               </Button>
             </div>
           </DataTableToolbar>
-          <SupplyPartnersTableSkeleton search={{}} />
+          <SupplyPartnersTableSkeleton cards={cards} search={{}} />
         </div>
       </WorkspaceContent>
     </Workspace>

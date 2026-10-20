@@ -28,6 +28,7 @@ import {
   schedulesSearchSchema,
   toSchedulesQuery,
 } from '@/features/processing-schedules/lib/search';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const loadDialog = () => import('@/features/processing-schedules/components/schedule-form-dialog');
@@ -45,6 +46,8 @@ const CLOSED_DIALOGS = {
   periods: undefined,
   periodsPage: undefined,
 } satisfies Partial<SchedulesSearch>;
+
+const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/administration/processing-schedules')(
   {
@@ -81,6 +84,7 @@ function SchedulesPage() {
   const schedule = Route.useSearch({ select: (search) => search.schedule });
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<SchedulesSearch>(CLOSED_DIALOGS);
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   const addSchedule = useCallback(() => openDialog({ schedule: 'new' }), [openDialog]);
   const editSchedule = useCallback((id: string) => openDialog({ periods: id }), [openDialog]);
   const onAdded = useCallback(
@@ -108,8 +112,13 @@ function SchedulesPage() {
     <Workspace width="narrow">
       <SchedulesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6">
-          <SchedulesToolbar onAdd={addSchedule} />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          <SchedulesToolbar
+            layout={cards ? 'cards' : 'table'}
+            onAdd={addSchedule}
+            onSortChange={updateSearch}
+            search={search}
+          />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -119,10 +128,11 @@ function SchedulesPage() {
                 title={t('processing-schedules.error-title')}
               />
             )}
-            pendingFallback={<SchedulesTableSkeleton search={search} />}
+            pendingFallback={<SchedulesTableSkeleton cards={cards} search={search} />}
             resetKey={JSON.stringify(search)}
           >
             <SchedulesTable
+              cards={cards}
               onEdit={editSchedule}
               onAdd={addSchedule}
               onSearchChange={updateSearch}
@@ -163,11 +173,23 @@ function SchedulesHeader() {
 }
 
 function SchedulesPagePending() {
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <Workspace width="narrow">
       <SchedulesHeader />
       <WorkspaceContent>
-        <SchedulesTableSkeleton search={{}} />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          {cards && (
+            <SchedulesToolbar
+              disabled
+              layout="cards"
+              onAdd={noop}
+              onSortChange={noop}
+              search={{}}
+            />
+          )}
+          <SchedulesTableSkeleton cards={cards} search={{}} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

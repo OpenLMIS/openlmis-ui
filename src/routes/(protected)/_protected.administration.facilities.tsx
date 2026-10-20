@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { BuildingIcon } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -30,8 +28,8 @@ import {
   toFacilitiesQuery,
 } from '@/features/facilities/lib/search';
 import { geographicZonesOptions } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
@@ -39,6 +37,9 @@ declare module '@tanstack/react-router' {
     facilitiesListSearch?: FacilitiesSearch;
   }
 }
+
+const usePageCardView = () =>
+  useCardView(FACILITY_HIDEABLE_COLUMNS, 'facilities.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/facilities')({
   validateSearch: facilitiesSearchSchema,
@@ -52,18 +53,11 @@ export const Route = createFileRoute('/(protected)/_protected/administration/fac
   component: FacilitiesPage,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function FacilitiesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    FACILITY_HIDEABLE_COLUMNS,
-    useStoredState('facilities.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { updateSearch } = useSearchNavigation<FacilitiesSearch>({});
   const addFacility = useCallback(
@@ -76,11 +70,13 @@ function FacilitiesPage() {
     <Workspace>
       <FacilitiesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <FacilitiesToolbar
             columnView={columnView}
+            layout={layout}
             onAdd={addFacility}
             onFilterChange={(patch) => updateSearch(patch, true)}
+            onSortChange={updateSearch}
             search={search}
           />
           <QueryBoundary
@@ -93,11 +89,16 @@ function FacilitiesPage() {
               />
             )}
             pendingFallback={
-              <FacilitiesTableSkeleton columnVisibility={columnView.visibility} search={search} />
+              <FacilitiesTableSkeleton
+                cards={cards}
+                columnVisibility={columnView.visibility}
+                search={search}
+              />
             }
             resetKey={JSON.stringify(query)}
           >
             <FacilitiesTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onAdd={addFacility}
               onSearchChange={updateSearch}
@@ -126,11 +127,18 @@ function FacilitiesHeader() {
 }
 
 function FacilitiesPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <FacilitiesHeader />
       <WorkspaceContent>
-        <FacilitiesTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <FacilitiesTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

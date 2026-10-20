@@ -138,6 +138,7 @@ async function addProgram(name = 'ARV') {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(createRequisitionGroup).mockResolvedValue(group);
   vi.mocked(updateRequisitionGroup).mockResolvedValue(group);
 });
@@ -257,13 +258,6 @@ describe('RequisitionGroupEditor', () => {
     resolveFacility(pickedFacility);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(fetchFacility).toHaveBeenCalledWith('f2');
-    await click('View');
-    for (const column of ['type', 'enabled', 'zone']) {
-      await userEvent
-        .setup()
-        .click(screen.getByRole('menuitemcheckbox', { name: `requisition-groups.form.${column}` }));
-    }
-    await userEvent.setup().keyboard('{Escape}');
     const addedRow = screen.getByText('Second Facility').closest('tr') as HTMLElement;
     expect(within(addedRow).getByText('Hospital')).toBeVisible();
     expect(within(addedRow).getByText('Maputo')).toBeVisible();

@@ -19,12 +19,14 @@ type SupervisoryNodesToolbarProps = {
   search: SupervisoryNodesSearch;
   onFilterChange: (patch: Partial<SupervisoryNodesSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
 };
 
 export function SupervisoryNodesToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
 }: SupervisoryNodesToolbarProps) {
   const { t } = useTranslation();
   const { data: zones } = useQuery(geographicZonesOptions());
@@ -37,6 +39,7 @@ export function SupervisoryNodesToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('supervisory-nodes.search')}
           value={search.name ?? ''}
@@ -44,6 +47,7 @@ export function SupervisoryNodesToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={search.zoneId ? 1 : 0}
           onClear={() => onFilterChange({ zoneId: undefined, page: undefined })}
         >
@@ -60,10 +64,12 @@ export function SupervisoryNodesToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={SUPERVISORY_NODE_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
           }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

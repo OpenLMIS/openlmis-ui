@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from 'lucide-react';
-import type { ReactNode, Ref } from 'react';
+import { type CSSProperties, Fragment, type ReactNode, type Ref } from 'react';
 import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { SettingsRowFrame } from '@/components/form/settings-list';
@@ -37,20 +37,46 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
 
 export function CardListItem({
   surface = 'raised',
+  itemRef,
+  drag,
   children,
 }: {
   surface?: 'raised' | 'flat';
+  itemRef?: Ref<HTMLLIElement>;
+  drag?: { y: number; animate: boolean; dragging: boolean };
   children: ReactNode;
 }) {
   const content = <div className="divide-y">{children}</div>;
   return (
-    <li className="scroll-mt-page-start">
+    <li
+      className={cn(
+        'scroll-mt-page-start',
+        drag && 'relative translate-y-(--card-y)',
+        drag?.animate && 'transition-transform duration-150 ease-out',
+      )}
+      ref={itemRef}
+      style={drag && ({ '--card-y': `${drag.y}px` } as CSSProperties)}
+    >
       {surface === 'flat' ? (
         <div className="min-w-0 overflow-hidden rounded-xl border bg-card">{content}</div>
       ) : (
         <DataTableCard>{content}</DataTableCard>
       )}
+      {drag?.dragging && (
+        <div aria-hidden className="absolute inset-0 rounded-xl border border-dashed bg-muted" />
+      )}
     </li>
+  );
+}
+
+export function CardDragPreview({ children }: { children: ReactNode }) {
+  return (
+    <div
+      aria-hidden
+      className="min-w-0 cursor-grabbing divide-y overflow-hidden rounded-xl border bg-card shadow-lg ring-2 ring-primary/30"
+    >
+      {children}
+    </div>
   );
 }
 
@@ -66,24 +92,34 @@ export function CardSelectBand({
   htmlFor,
   selected,
   disabled = false,
+  action,
   children,
 }: {
   htmlFor: string;
   selected: boolean;
   disabled?: boolean;
+  action?: ReactNode;
   children: ReactNode;
 }) {
-  return (
+  const tint = selected ? 'bg-primary/5' : 'bg-muted/50';
+  const band = (
     <label
       htmlFor={htmlFor}
       className={cn(
-        'flex min-h-10 items-center gap-3 px-4 py-1.5 font-semibold text-sm transition-colors',
-        selected ? 'bg-primary/5' : 'bg-muted/50',
+        'flex min-h-10 items-center gap-3 px-4 py-1.5 font-semibold text-sm',
+        action ? 'min-w-0 flex-1' : ['transition-colors', tint],
         !disabled && 'cursor-pointer',
       )}
     >
       {children}
     </label>
+  );
+  if (!action) return band;
+  return (
+    <div className={cn('flex items-center pe-4 transition-colors', tint)}>
+      {band}
+      <div className="shrink-0">{action}</div>
+    </div>
   );
 }
 
@@ -125,12 +161,12 @@ export function CardControlRow({
   children,
 }: {
   label: ReactNode;
-  width?: 'half' | 'wide';
+  width?: 'half' | 'wide' | 'fit';
   children: ReactNode;
 }) {
   return (
     <SettingsRowFrame
-      value={width === 'wide' ? 'wide' : 'control'}
+      value={width === 'half' ? 'control' : width}
       align="center"
       label={<span className="text-sm">{label}</span>}
     >
@@ -160,23 +196,27 @@ export function CardListSkeleton({
   rows,
   band = <SkeletonBar width="w-24" />,
   pagination = true,
+  surface = 'raised',
+  row = <CardRowSkeleton />,
 }: {
   count: number;
   rows: number;
   band?: ReactNode;
   pagination?: boolean;
+  surface?: 'raised' | 'flat';
+  row?: ReactNode;
 }) {
   const cards = Array.from({ length: count }, (_, index) => index);
   const details = Array.from({ length: rows }, (_, index) => index);
   return (
     <CardList footer={pagination && <DataTablePaginationSkeleton />}>
       {cards.map((id) => (
-        <CardListItem key={id}>
+        <CardListItem key={id} surface={surface}>
           <CardBand>{band}</CardBand>
           {rows > 0 && (
             <CardRows>
               {details.map((id) => (
-                <CardRowSkeleton key={id} />
+                <Fragment key={id}>{row}</Fragment>
               ))}
             </CardRows>
           )}

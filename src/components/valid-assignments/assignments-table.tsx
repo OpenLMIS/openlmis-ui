@@ -7,9 +7,10 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, MapPinnedIcon, SearchXIcon, Trash2Icon } from 'lucide-react';
+import { MapPinnedIcon, SearchXIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableCard,
@@ -21,13 +22,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   type AssignmentsSearch,
@@ -50,13 +46,8 @@ import {
 } from '@/features/reference-data/api/queries';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import {
-  type DefaultSort,
-  type SearchChange,
-  toPaginationState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type DefaultSort, type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type Lookup = string | null | undefined;
 
@@ -98,12 +89,14 @@ function createColumns(
         <DataTableColumnHeader column={column} title={t('valid-assignments.program')} />
       ),
       cell: ({ getValue }) => looked(getValue()),
+      meta: { label: t('valid-assignments.program') },
     }),
     columnHelper.accessor('facilityType', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('valid-assignments.facility-type')} />
       ),
       cell: ({ getValue }) => looked(getValue()),
+      meta: { label: t('valid-assignments.facility-type') },
     }),
     columnHelper.accessor('label', {
       id: 'name',
@@ -136,6 +129,7 @@ function createColumns(
         const zone = zones.get(row.original.node.referenceId);
         return zone ? wrapped(zone) : null;
       },
+      meta: { label: t('valid-assignments.geo-zone') },
     }),
     columnHelper.accessor('geoLevel', {
       id: 'geoLevelAffinity',
@@ -143,6 +137,7 @@ function createColumns(
         <DataTableColumnHeader column={column} title={t('valid-assignments.geo-level-affinity')} />
       ),
       cell: ({ getValue, row }) => (row.original.geoLevelAffinityId ? looked(getValue()) : null),
+      meta: { label: t('valid-assignments.geo-level-affinity') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -166,32 +161,24 @@ function CellSkeleton() {
   );
 }
 
-function AssignmentActions({ label, onDelete }: { label: string; onDelete: () => void }) {
+function AssignmentActions({ label: name, onDelete }: { label: string; onDelete: () => void }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
+
+  const label = t('valid-assignments.actions-for', { name });
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('valid-assignments.actions-for', { name: label })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(onDelete)} variant="destructive">
-            <Trash2Icon />
-            {t('valid-assignments.delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'delete',
+          icon: <Trash2Icon />,
+          label: t('valid-assignments.delete'),
+          destructive: true,
+          onSelect: onDelete,
+        },
+      ]}
+    />
   );
 }
 
@@ -256,6 +243,7 @@ function useZones(data: readonly ValidAssignment[]) {
 }
 
 type AssignmentsTableProps = {
+  cards: boolean;
   api: AssignmentsApi;
   search: AssignmentsSearch;
   onSearchChange: SearchChange<AssignmentsSearch>;
@@ -271,6 +259,7 @@ const getRowId = (row: AssignmentRow) => row.id;
 const noop = () => {};
 
 function useAssignmentsTable({
+  cards,
   rows,
   rowCount,
   search,
@@ -281,6 +270,7 @@ function useAssignmentsTable({
   onRowSelectionChange,
   onDelete,
 }: {
+  cards: boolean;
   rows: AssignmentRow[];
   rowCount: number;
   search: AssignmentsSearch;
@@ -293,9 +283,14 @@ function useAssignmentsTable({
 }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, zones, onDelete), [t, zones, onDelete]);
-  const searchState = useTableSearchState({ search, defaultSort: UNSORTED, onSearchChange });
+  const { pageStart, searchState } = usePagedTableSearch({
+    search,
+    defaultSort: UNSORTED,
+    onSearchChange,
+    cards,
+  });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data: rows,
@@ -308,16 +303,20 @@ function useAssignmentsTable({
     state: { ...searchState.state, columnVisibility, rowSelection },
     onRowSelectionChange,
   });
+  return { table, pageStart };
 }
 
 export function AssignmentsTableSkeleton({
+  cards,
   search,
   columnVisibility,
 }: {
+  cards: boolean;
   search: AssignmentsSearch;
   columnVisibility: ColumnVisibilityState;
 }) {
-  const table = useAssignmentsTable({
+  const { table } = useAssignmentsTable({
+    cards: false,
     rows: NO_ROWS,
     rowCount: 0,
     search,
@@ -329,10 +328,13 @@ export function AssignmentsTableSkeleton({
     onDelete: noop,
   });
 
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="name" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function AssignmentsTable({
+  cards,
   api,
   search,
   onSearchChange,
@@ -352,7 +354,8 @@ export function AssignmentsTable({
     (row: { id: string; name: string }) => onDelete(row, rowsFilterKey),
     [onDelete, rowsFilterKey],
   );
-  const table = useAssignmentsTable({
+  const { table, pageStart } = useAssignmentsTable({
+    cards,
     rows,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -393,13 +396,22 @@ export function AssignmentsTable({
     />
   );
 
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="name"
+      />
+    );
+  }
   return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
-    />
+    <DataTable empty={!isPastLastPage && empty} footer={footer} isStale={isStale} table={table} />
   );
 }
 

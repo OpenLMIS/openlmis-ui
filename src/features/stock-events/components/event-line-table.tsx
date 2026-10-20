@@ -4,6 +4,7 @@ import type { ParseKeys } from 'i18next';
 import { CalendarIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions } from '@/components/card-actions';
 import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTable,
@@ -514,6 +515,24 @@ const LineCell = memo(function LineCell({
         </div>
       );
     case 'actions':
+      if (cards)
+        return (
+          <CardActions
+            label={t('card-actions.actions-for', { name: row })}
+            actions={[
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('stock-events.remove'),
+                name: t('stock-events.field-of', { field: t('stock-events.remove'), row }),
+                destructive: true,
+                disabled,
+                data: { 'data-line-actions': line.key },
+                onSelect: () => onRemove(line.key),
+              },
+            ]}
+          />
+        );
       return (
         <Tooltip>
           <TooltipTrigger

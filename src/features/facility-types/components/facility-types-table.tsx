@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, PencilIcon, PlusIcon, ShapesIcon } from 'lucide-react';
+import { PencilIcon, PlusIcon, ShapesIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,13 +15,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { facilityTypesListOptions } from '@/features/facility-types/api/queries';
 import {
   DEFAULT_FACILITY_TYPES_SORT,
@@ -29,8 +25,8 @@ import {
 } from '@/features/facility-types/lib/search';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, FacilityType>();
 
@@ -41,11 +37,9 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
         <DataTableColumnHeader column={column} title={t('facility-types.code')} />
       ),
       cell: ({ getValue }) => (
-        <span className="flex">
-          <span className="min-w-0 truncate font-medium" dir="ltr">
-            {getValue()}
-          </span>
-        </span>
+        <CellText dir="ltr" strong>
+          {getValue()}
+        </CellText>
       ),
       meta: { className: '@xl/main:w-1/3' },
     }),
@@ -53,21 +47,16 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facility-types.name')} />
       ),
-      cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="flex">
-            <span className="min-w-0 truncate" dir="auto">
-              {getValue()}
-            </span>
-          </span>
-        ) : null,
+      cell: ({ getValue }) => (getValue() ? <CellText>{getValue()}</CellText> : null),
+      meta: { label: t('facility-types.name') },
     }),
     columnHelper.accessor('displayOrder', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('facility-types.display-order')} />
       ),
-      cell: ({ getValue }) => <span className="tabular-nums">{getValue()}</span>,
-      meta: { className: 'w-40' },
+      cell: ({ getValue }) =>
+        getValue() === null ? null : <span className="tabular-nums">{getValue()}</span>,
+      meta: { className: 'w-40', label: t('facility-types.display-order') },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => (
@@ -80,7 +69,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
           falseLabel={t('facility-types.inactive')}
         />
       ),
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('facility-types.status') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -99,34 +88,26 @@ function FacilityTypeActions({
   onEdit: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
+
+  const label = t('facility-types.actions-for', { type: facilityTypeName(type) });
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('facility-types.actions-for', { type: facilityTypeName(type) })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(type.id))}>
-            <PencilIcon />
-            {t('facility-types.edit')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('facility-types.edit'),
+          onSelect: () => onEdit(type.id),
+        },
+      ]}
+    />
   );
 }
 
 type FacilityTypesTableProps = {
+  cards: boolean;
   search: FacilityTypesSearch;
   onSearchChange: SearchChange<FacilityTypesSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -141,6 +122,7 @@ const getRowId = (type: FacilityType) => type.id;
 const noop = () => {};
 
 function useFacilityTypesTable({
+  cards,
   data,
   rowCount,
   search,
@@ -150,13 +132,14 @@ function useFacilityTypesTable({
 }: Omit<FacilityTypesTableProps, 'onAdd'> & { data: FacilityType[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, onEdit), [t, onEdit]);
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_FACILITY_TYPES_SORT,
     onSearchChange,
+    cards,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -168,13 +151,16 @@ function useFacilityTypesTable({
     ...searchState,
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function FacilityTypesTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<FacilityTypesTableProps, 'search' | 'columnVisibility'>) {
-  const table = useFacilityTypesTable({
+}: Pick<FacilityTypesTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useFacilityTypesTable({
+    cards: false,
     data: NO_TYPES,
     rowCount: 0,
     search,
@@ -182,10 +168,13 @@ export function FacilityTypesTableSkeleton({
     columnVisibility,
     onEdit: noop,
   });
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="code" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function FacilityTypesTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -195,7 +184,8 @@ export function FacilityTypesTable({
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(facilityTypesListOptions(toFacilityTypesQuery(deferredSearch)));
-  const table = useFacilityTypesTable({
+  const { table, pageStart } = useFacilityTypesTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -211,26 +201,32 @@ export function FacilityTypesTable({
     }
   }, [isPastLastPage, data.totalPages, onSearchChange]);
 
-  return (
-    <DataTable
-      empty={
-        !isPastLastPage && (
-          <DataTableEmpty
-            action={
-              <Button onClick={onAdd}>
-                <PlusIcon data-icon="inline-start" />
-                {t('facility-types.add')}
-              </Button>
-            }
-            description={t('facility-types.empty-description')}
-            icon={<ShapesIcon />}
-            title={t('facility-types.empty-title')}
-          />
-        )
+  const empty = !isPastLastPage && (
+    <DataTableEmpty
+      action={
+        <Button onClick={onAdd}>
+          <PlusIcon data-icon="inline-start" />
+          {t('facility-types.add')}
+        </Button>
       }
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
+      description={t('facility-types.empty-description')}
+      icon={<ShapesIcon />}
+      title={t('facility-types.empty-title')}
     />
   );
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="code"
+      />
+    );
+  }
+  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
 }

@@ -15,6 +15,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -26,11 +27,11 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import {
   type ResponsiveColumn,
   resolveColumnVisibility,
-  useElementWidth,
 } from '@/components/data-table/responsive-columns';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -53,6 +54,8 @@ import type { NodeEditSearch, NodeLinkKind } from '@/features/supervisory-nodes/
 import { facilityNames } from '@/features/supervisory-nodes/lib/facility-names';
 import type { DraftNode } from '@/features/supervisory-nodes/lib/node-form';
 import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
+import { useCardLayout } from '@/hooks/use-card-view';
+import { usePageStart } from '@/hooks/use-page-start';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
@@ -95,10 +98,10 @@ export function NodeLinksTable({
   const requestedPage = search[pageKey] ?? 1;
   const page = Math.min(requestedPage, Math.max(1, Math.ceil(rows.length / size)));
   const tableRegion = useRef<HTMLDivElement>(null);
-  const [measureTable, tableWidth] = useElementWidth<HTMLDivElement>();
+  const { measure: measureTable, width: tableWidth, cards } = useCardLayout<HTMLDivElement>();
   const columnVisibility = useMemo(
-    () => resolveColumnVisibility(LINK_COLUMNS, NO_CHOICES, tableWidth),
-    [tableWidth],
+    () => resolveColumnVisibility(LINK_COLUMNS, NO_CHOICES, cards ? undefined : tableWidth),
+    [cards, tableWidth],
   );
   const pickerRegion = useRef<HTMLDivElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
@@ -204,6 +207,7 @@ export function NodeLinksTable({
           pendingFallback={
             <NodeLinksTableSkeleton
               kind={kind}
+              cards={cards}
               columnVisibility={columnVisibility}
               page={page}
               size={size}
@@ -214,6 +218,7 @@ export function NodeLinksTable({
         >
           <NodeLinksRows
             kind={kind}
+            cards={cards}
             columnVisibility={columnVisibility}
             rows={rows}
             savedIds={savedIds}
@@ -276,23 +281,52 @@ function NodeLinkActions({
   onRemove: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const cards = useInCards();
   const listSearch = useLocation({
     select: (location) => location.state.supervisoryNodesListSearch,
   });
   const label = node.name || node.code || node.id;
+  const link = (
+    <Link
+      to="/administration/supervisory-nodes/$id"
+      params={{ id: node.id }}
+      state={{ supervisoryNodesListSearch: listSearch }}
+    />
+  );
+  if (cards) {
+    return (
+      <CardActions
+        label={t('card-actions.actions-for', { name: label })}
+        actions={[
+          {
+            id: 'edit',
+            icon: <PencilIcon />,
+            label: t('supervisory-nodes.edit'),
+            name: t('supervisory-nodes.edit-node', { node: label }),
+            disabled,
+            link,
+          },
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label: t(`supervisory-nodes.form.remove-${kind}`),
+            name: t(`supervisory-nodes.form.remove-${kind}-node`, { node: label }),
+            destructive: true,
+            disabled,
+            data: { 'data-node-remove': node.id },
+            onSelect: () => onRemove(node.id),
+          },
+        ]}
+      />
+    );
+  }
   return (
     <div className="flex justify-center gap-1">
       <Button
         aria-label={t('supervisory-nodes.edit-node', { node: label })}
         disabled={disabled}
         nativeButton={false}
-        render={
-          <Link
-            to="/administration/supervisory-nodes/$id"
-            params={{ id: node.id }}
-            state={{ supervisoryNodesListSearch: listSearch }}
-          />
-        }
+        render={link}
         size="icon-sm"
         variant="ghost"
       >
@@ -324,26 +358,26 @@ function createColumns(
     columnHelper.accessor('name', {
       header: t('supervisory-nodes.name'),
       cell: ({ getValue }) => (
-        <span className="whitespace-nowrap font-medium" dir="auto">
+        <CellText overflow="nowrap" strong>
           {tableValue(getValue())}
-        </span>
+        </CellText>
       ),
     }),
     columnHelper.accessor('code', {
       header: t('supervisory-nodes.code'),
-      cell: ({ getValue }) => (
-        <span className="whitespace-nowrap" dir="ltr">
-          {tableValue(getValue())}
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        tableValue(getValue()) && (
+          <CellText dir="ltr" overflow="nowrap">
+            {getValue()}
+          </CellText>
+        ),
+      meta: { label: t('supervisory-nodes.code') },
     }),
     columnHelper.accessor('facilityName', {
       header: t('supervisory-nodes.facility'),
-      cell: ({ getValue }) => (
-        <span className="whitespace-nowrap" dir="auto">
-          {tableValue(getValue())}
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        tableValue(getValue()) && <CellText overflow="nowrap">{getValue()}</CellText>,
+      meta: { label: t('supervisory-nodes.facility') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -358,6 +392,7 @@ function createColumns(
 
 type LinksTableOptions = {
   kind: NodeLinkKind;
+  cards: boolean;
   columnVisibility: ColumnVisibilityState;
   page: number;
   size: number;
@@ -369,6 +404,7 @@ type LinksTableOptions = {
 };
 function useLinksTable({
   kind,
+  cards,
   columnVisibility,
   page,
   size,
@@ -383,12 +419,13 @@ function useLinksTable({
     () => createColumns(t, kind, disabled, onRemove),
     [t, kind, disabled, onRemove],
   );
+  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`, cards);
   const searchState = useTableSearchState({
     search: { page, size },
     defaultSort: NO_SORT,
     onSearchChange,
   });
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data: rows,
@@ -399,25 +436,30 @@ function useLinksTable({
     enableSorting: false,
     enableHiding: false,
     ...searchState,
+    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 function NodeLinksTableSkeleton({
   kind,
+  cards,
   columnVisibility,
   page = 1,
   size = 10,
   rowCount,
 }: {
   kind: NodeLinkKind;
+  cards: boolean;
   columnVisibility: ColumnVisibilityState;
   page?: number;
   size?: number;
   rowCount: number;
 }) {
-  const table = useLinksTable({
+  const { table } = useLinksTable({
     kind,
+    cards: false,
     columnVisibility,
     page,
     size,
@@ -427,6 +469,13 @@ function NodeLinksTableSkeleton({
     onRemove: noop,
     onSearchChange: noop,
   });
+  if (cards) {
+    return rowCount > 0 ? (
+      <TableCardsSkeleton table={table} title="name" rowCount={rowCount} />
+    ) : (
+      <TableCards table={table} title="name" empty={<NodeLinksEmpty kind={kind} />} />
+    );
+  }
   return rowCount > 0 ? (
     <DataTableSkeleton table={table} rowCount={rowCount} layout="auto" />
   ) : (
@@ -467,22 +516,29 @@ function NodeLinksRows({
       });
   }, [rows, nodes, facilities, deferredPage, deferredSize]);
   useEffect(() => onRendered(resolved), [resolved, onRendered]);
-  const table = useLinksTable({
+  const { table, pageStart } = useLinksTable({
     ...props,
     page: deferredPage,
     size: deferredSize,
     rows: resolved,
     rowCount: rows.length,
   });
-  return (
-    <DataTable
-      table={table}
-      isStale={props.page !== deferredPage || props.size !== deferredSize}
-      layout="auto"
-      empty={<NodeLinksEmpty kind={props.kind} />}
-      footer={rows.length > 0 && <DataTablePagination table={table} disabled={props.disabled} />}
-    />
-  );
+  const isStale = props.page !== deferredPage || props.size !== deferredSize;
+  const empty = <NodeLinksEmpty kind={props.kind} />;
+  const footer = rows.length > 0 && <DataTablePagination table={table} disabled={props.disabled} />;
+  if (props.cards) {
+    return (
+      <TableCards
+        table={table}
+        title="name"
+        busy={isStale}
+        empty={empty}
+        footer={footer}
+        listRef={pageStart.ref}
+      />
+    );
+  }
+  return <DataTable table={table} isStale={isStale} layout="auto" empty={empty} footer={footer} />;
 }
 
 function NodeLinksEmpty({ kind }: { kind: NodeLinkKind }) {
@@ -542,14 +598,19 @@ export function NodeLinksSectionSkeleton({ kind }: { kind: NodeLinkKind }) {
 }
 
 function MeasuredLinksSkeleton({ kind }: { kind: NodeLinkKind }) {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const { measure, width, cards } = useCardLayout<HTMLDivElement>();
   const columnVisibility = useMemo(
-    () => resolveColumnVisibility(LINK_COLUMNS, NO_CHOICES, width),
-    [width],
+    () => resolveColumnVisibility(LINK_COLUMNS, NO_CHOICES, cards ? undefined : width),
+    [cards, width],
   );
   return (
     <div ref={measure}>
-      <NodeLinksTableSkeleton kind={kind} columnVisibility={columnVisibility} rowCount={2} />
+      <NodeLinksTableSkeleton
+        kind={kind}
+        cards={cards}
+        columnVisibility={columnVisibility}
+        rowCount={2}
+      />
     </div>
   );
 }

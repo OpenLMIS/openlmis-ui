@@ -138,6 +138,7 @@ type LookupBoundaryProps = {
   description?: string;
   errorTitle: string;
   errorDescription: string;
+  pendingFallback?: ReactNode;
   children: ReactNode;
 };
 
@@ -147,6 +148,7 @@ export function LookupBoundary({
   description,
   errorTitle,
   errorDescription,
+  pendingFallback,
   children,
 }: LookupBoundaryProps) {
   return (
@@ -155,7 +157,9 @@ export function LookupBoundary({
         <LoadError description={errorDescription} error={error} reset={reset} title={errorTitle} />
       )}
       pendingFallback={
-        <FieldSkeleton description={description} label={label} required={required} />
+        pendingFallback ?? (
+          <FieldSkeleton description={description} label={label} required={required} />
+        )
       }
       resetKey={label}
     >

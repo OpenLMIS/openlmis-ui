@@ -6,6 +6,12 @@ export const CATEGORY_HIDEABLE_COLUMNS = [
   { id: 'active', labelKey: 'rejection-reason-categories.active', hideBelow: 'sm' },
 ] as const;
 
+export const CATEGORY_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'rejection-reason-categories.name' },
+  { id: 'code', labelKey: 'rejection-reason-categories.code' },
+  { id: 'active', labelKey: 'rejection-reason-categories.active' },
+] as const;
+
 export const DEFAULT_CATEGORIES_SORT: DefaultSort = { id: 'name', desc: false };
 
 export const categoriesListSearchSchema = tableSearchSchema(['name', 'code', 'active']).extend({
@@ -26,6 +32,13 @@ export const REJECTION_REASON_HIDEABLE_COLUMNS = [
   { id: 'code', labelKey: 'rejection-reasons.code', hideBelow: 'md' },
   { id: 'category', labelKey: 'rejection-reasons.category', hideBelow: 'xl' },
   { id: 'active', labelKey: 'rejection-reasons.active', hideBelow: 'sm' },
+] as const;
+
+export const REJECTION_REASON_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'rejection-reasons.name' },
+  { id: 'code', labelKey: 'rejection-reasons.code' },
+  { id: 'category', labelKey: 'rejection-reasons.category' },
+  { id: 'active', labelKey: 'rejection-reasons.active' },
 ] as const;
 
 export const DEFAULT_REJECTION_REASONS_SORT: DefaultSort = { id: 'name', desc: false };

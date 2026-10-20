@@ -46,6 +46,7 @@ const updateProduct = vi.fn<(id: string, body: ProductDetail) => Promise<Product
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   updateProduct.mockReset();
   vi.mocked(saveProductChange).mockImplementation((id, change) => updateProduct(id, change(kit)));
   vi.mocked(fetchOrderables).mockResolvedValue({
@@ -127,8 +128,7 @@ describe('KitUnpackList', () => {
     );
     expect(quantity).toHaveAttribute('aria-invalid', 'false');
 
-    await user.click(screen.getByRole('button', { name: 'products.kit.actions-for' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'products.kit.remove' }));
+    await user.click(screen.getByRole('button', { name: 'products.kit.remove-product' }));
     expect(await screen.findByText('products.kit.empty-title')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'products.kit.add' })).toHaveFocus(),

@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { PackageIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -30,8 +28,8 @@ import {
   toProductsQuery,
 } from '@/features/products/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const loadDialog = () => import('@/features/products/components/add-product-dialog');
 const AddProductDialog = lazy(() =>
@@ -46,6 +44,8 @@ declare module '@tanstack/react-router' {
     productsListSearch?: ProductsSearch;
   }
 }
+
+const usePageCardView = () => useCardView(PRODUCT_HIDEABLE_COLUMNS, 'products.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/products')({
   validateSearch: productsSearchSchema,
@@ -63,8 +63,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/pro
   component: ProductsPage,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function ProductsPage() {
   const { t } = useTranslation();
   const { canAdd } = Route.useLoaderData();
@@ -72,12 +70,7 @@ function ProductsPage() {
     select: ({ product: _product, ...list }): ProductsSearch => list,
     structuralSharing: true,
   });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    PRODUCT_HIDEABLE_COLUMNS,
-    useStoredState('products.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
 
   const { updateSearch, openDialog, closeDialog } =
@@ -102,9 +95,10 @@ function ProductsPage() {
     <Workspace>
       <ProductsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <ProductsToolbar
             columnView={columnView}
+            layout={layout}
             onAdd={canAdd ? addProduct : undefined}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
@@ -119,11 +113,16 @@ function ProductsPage() {
               />
             )}
             pendingFallback={
-              <ProductsTableSkeleton columnVisibility={columnView.visibility} search={search} />
+              <ProductsTableSkeleton
+                cards={cards}
+                columnVisibility={columnView.visibility}
+                search={search}
+              />
             }
             resetKey={JSON.stringify(query)}
           >
             <ProductsTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onSearchChange={updateSearch}
               search={search}
@@ -156,11 +155,18 @@ function ProductsHeader() {
 }
 
 function ProductsPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <ProductsHeader />
       <WorkspaceContent>
-        <ProductsTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <ProductsTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

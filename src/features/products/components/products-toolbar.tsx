@@ -17,6 +17,7 @@ type ProductsToolbarProps = {
   search: ProductsSearch;
   onFilterChange: (patch: Partial<ProductsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   onAdd?: (() => void) | undefined;
 };
 
@@ -24,6 +25,7 @@ export function ProductsToolbar({
   search,
   onFilterChange,
   columnView,
+  layout,
   onAdd,
 }: ProductsToolbarProps) {
   const { t } = useTranslation();
@@ -37,6 +39,7 @@ export function ProductsToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('products.search-name')}
           value={search.name ?? ''}
@@ -44,6 +47,7 @@ export function ProductsToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={[search.code, search.program].filter(Boolean).length}
           onClear={() => onFilterChange({ code: undefined, program: undefined, page: undefined })}
         >
@@ -64,7 +68,9 @@ export function ProductsToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={PRODUCT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}
@@ -72,7 +78,7 @@ export function ProductsToolbar({
       </div>
       {onAdd && (
         <div className="w-full @2xl/main:w-auto">
-          <Button onClick={onAdd} width="full">
+          <Button size="lg" onClick={onAdd} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('products.add')}
           </Button>

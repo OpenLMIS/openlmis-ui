@@ -2,9 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, PackageIcon, PencilIcon, SearchXIcon } from 'lucide-react';
+import { PackageIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,13 +15,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { productsListOptions } from '@/features/products/api/queries';
 import {
   CLEARED_PRODUCT_FILTERS,
@@ -31,7 +27,8 @@ import {
 } from '@/features/products/lib/search';
 import type { Product } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();
 
@@ -54,18 +51,15 @@ function createColumns(t: TFunction, listSearch: ProductsSearch) {
             {getValue()}
           </span>
         ) : null,
-      meta: { className: '@2xl/main:w-2/5' },
+      meta: { className: '@2xl/main:w-2/5', label: t('products.name') },
     }),
     columnHelper.accessor('description', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('products.description')} />
       ),
       cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="line-clamp-2 whitespace-normal break-words" dir="auto">
-            {getValue()}
-          </span>
-        ) : null,
+        getValue() ? <CellText overflow="clamp">{getValue()}</CellText> : null,
+      meta: { label: t('products.description') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -84,42 +78,33 @@ type ProductActionsProps = {
 function ProductActions({ product, listSearch }: ProductActionsProps) {
   const { t } = useTranslation();
 
+  const label = t('products.actions-for', {
+    product: productName(product),
+  });
+
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('products.actions-for', {
-                product: productName(product),
-              })}
-              size="icon-sm"
-              variant="ghost"
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('products.edit'),
+          link: (
+            <Link
+              params={{ id: product.id }}
+              state={{ productsListSearch: listSearch }}
+              to="/administration/products/$id/general"
             />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuItem
-            render={
-              <Link
-                params={{ id: product.id }}
-                state={{ productsListSearch: listSearch }}
-                to="/administration/products/$id/general"
-              />
-            }
-          >
-            <PencilIcon />
-            {t('products.edit')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+          ),
+        },
+      ]}
+    />
   );
 }
 
 type ProductsTableProps = {
+  cards: boolean;
   search: ProductsSearch;
   onSearchChange: SearchChange<ProductsSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -132,6 +117,7 @@ const getRowId = (product: Product) => product.id;
 const noop = () => {};
 
 function useProductsTable({
+  cards,
   data,
   rowCount,
   search,
@@ -140,13 +126,14 @@ function useProductsTable({
 }: ProductsTableProps & { data: Product[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_PRODUCTS_SORT,
     onSearchChange,
+    cards,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -158,13 +145,16 @@ function useProductsTable({
     ...searchState,
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function ProductsTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<ProductsTableProps, 'search' | 'columnVisibility'>) {
-  const table = useProductsTable({
+}: Pick<ProductsTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useProductsTable({
+    cards: false,
     data: NO_PRODUCTS,
     rowCount: 0,
     search,
@@ -172,14 +162,22 @@ export function ProductsTableSkeleton({
     columnVisibility,
   });
 
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards) return <TableCardsSkeleton rowCount={rowCount} table={table} title="productCode" />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
-export function ProductsTable({ search, onSearchChange, columnVisibility }: ProductsTableProps) {
+export function ProductsTable({
+  cards,
+  search,
+  onSearchChange,
+  columnVisibility,
+}: ProductsTableProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(productsListOptions(toProductsQuery(deferredSearch)));
-  const table = useProductsTable({
+  const { table, pageStart } = useProductsTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -213,12 +211,21 @@ export function ProductsTable({ search, onSearchChange, columnVisibility }: Prod
     />
   );
 
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="productCode"
+      />
+    );
+  }
   return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
-    />
+    <DataTable empty={!isPastLastPage && empty} footer={footer} isStale={isStale} table={table} />
   );
 }

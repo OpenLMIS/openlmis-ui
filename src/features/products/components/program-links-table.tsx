@@ -1,9 +1,10 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -13,25 +14,18 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import type { ProductDetail, ProgramLink } from '@/features/products/lib/types';
 import {
   orderableDisplayCategoriesOptions,
   programsOptions,
 } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 
 type ProgramLinkRow = ProgramLink & { name: string };
 
-type RowActions = {
+type LineActions = {
   canEdit: boolean;
   onEdit: (programId: string) => void;
   onRemove: (programId: string) => void;
@@ -39,7 +33,7 @@ type RowActions = {
 
 const columnHelper = createColumnHelper<DataTableFeatures, ProgramLinkRow>();
 
-function createColumns(t: TFunction, formatPrice: (price: number) => string, actions: RowActions) {
+function createColumns(t: TFunction, formatPrice: (price: number) => string, actions: LineActions) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
       header: ({ column }) => (
@@ -70,7 +64,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
             {getValue()}
           </span>
         ) : null,
-      meta: { className: '@3xl/main:w-1/4' },
+      meta: { className: '@3xl/main:w-1/4', label: t('products.programs.category') },
     }),
     columnHelper.accessor('fullSupply', {
       header: ({ column }) => (
@@ -83,7 +77,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
           falseLabel={t('products.programs.no')}
         />
       ),
-      meta: { className: 'w-28' },
+      meta: { className: 'w-28', label: t('products.programs.full-supply') },
     }),
     columnHelper.accessor('pricePerPack', {
       header: ({ column }) => (
@@ -93,7 +87,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
         const price = getValue();
         return price == null ? null : <span dir="ltr">{formatPrice(price)}</span>;
       },
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('products.programs.price') },
     }),
     columnHelper.display({
       id: 'actions',
@@ -104,53 +98,46 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
   ]);
 }
 
-function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: RowActions }) {
+function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: LineActions }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
-  const edit = menu.opensDialog(() => actions.onEdit(link.programId));
+
+  const label = t('products.programs.actions-for', { program: link.name });
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('products.programs.actions-for', { program: link.name })}
-              size="icon-sm"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          {actions.canEdit ? (
-            <>
-              <DropdownMenuItem onClick={edit}>
-                <PencilIcon />
-                {t('products.programs.edit')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={menu.opensDialog(() => actions.onRemove(link.programId))}
-                variant="destructive"
-              >
-                <Trash2Icon />
-                {t('products.programs.remove')}
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <DropdownMenuItem onClick={edit}>
-              <EyeIcon />
-              {t('products.programs.view')}
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={
+        actions.canEdit
+          ? [
+              {
+                id: 'edit',
+                icon: <PencilIcon />,
+                label: t('products.programs.edit'),
+                onSelect: () => actions.onEdit(link.programId),
+              },
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('products.programs.remove'),
+                destructive: true,
+                onSelect: () => actions.onRemove(link.programId),
+              },
+            ]
+          : [
+              {
+                id: 'view',
+                icon: <EyeIcon />,
+                label: t('products.programs.view'),
+                onSelect: () => actions.onEdit(link.programId),
+              },
+            ]
+      }
+    />
   );
 }
 
-type ProgramLinksTableProps = RowActions & {
+type ProgramLinksTableProps = LineActions & {
+  cards: boolean;
   product: ProductDetail;
   columnVisibility: ColumnVisibilityState;
 };
@@ -163,7 +150,7 @@ function useProgramLinksTable({
   rows,
   columnVisibility,
   ...actions
-}: RowActions & { rows: ProgramLinkRow[]; columnVisibility: ColumnVisibilityState }) {
+}: LineActions & { rows: ProgramLinkRow[]; columnVisibility: ColumnVisibilityState }) {
   const { t, i18n } = useTranslation();
   const { canEdit, onEdit, onRemove } = actions;
   const columns = useMemo(() => {
@@ -185,8 +172,12 @@ function useProgramLinksTable({
 }
 
 export function ProgramLinksTableSkeleton({
+  cards,
+  canEdit,
   columnVisibility,
 }: {
+  cards: boolean;
+  canEdit: boolean;
   columnVisibility: ColumnVisibilityState;
 }) {
   const table = useProgramLinksTable({
@@ -196,12 +187,15 @@ export function ProgramLinksTableSkeleton({
     onEdit: noop,
     onRemove: noop,
   });
+  if (cards)
+    return <TableCardsSkeleton actions={canEdit ? 2 : 1} rowCount={3} table={table} title="name" />;
   return <DataTableSkeleton rowCount={3} table={table} />;
 }
 
 const noop = () => {};
 
 export function ProgramLinksTable({
+  cards,
   product,
   columnVisibility,
   ...actions
@@ -226,20 +220,17 @@ export function ProgramLinksTable({
   }, [programs, categories, product.programs]);
   const table = useProgramLinksTable({ rows, columnVisibility, ...actions });
 
-  return (
-    <DataTable
-      empty={
-        <DataTableEmpty
-          description={t(
-            actions.canEdit
-              ? 'products.programs.empty-description'
-              : 'products.programs.empty-read-only',
-          )}
-          icon={<LayersIcon />}
-          title={t('products.programs.empty-title')}
-        />
-      }
-      table={table}
+  const empty = (
+    <DataTableEmpty
+      description={t(
+        actions.canEdit
+          ? 'products.programs.empty-description'
+          : 'products.programs.empty-read-only',
+      )}
+      icon={<LayersIcon />}
+      title={t('products.programs.empty-title')}
     />
   );
+  if (cards) return <TableCards empty={empty} table={table} title="name" />;
+  return <DataTable empty={empty} table={table} />;
 }

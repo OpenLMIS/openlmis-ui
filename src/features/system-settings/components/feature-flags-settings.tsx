@@ -127,6 +127,7 @@ export function FeatureFlagsSettings({ saved, search, onSearchChange }: FeatureF
       <div className="flex flex-col gap-4">
         <div className="w-full @2xl/main:w-72" ref={searchBox}>
           <DataTableSearch
+            size="lg"
             label={t('system-settings.flags.search-label')}
             onValueChange={onSearchChange}
             placeholder={t('system-settings.flags.search-placeholder')}

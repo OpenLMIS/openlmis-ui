@@ -1,5 +1,12 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+} from '@/components/card-list';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { DialogLoadError, DialogNotFound, SkeletonLine } from '@/components/dialog-parts';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
@@ -30,8 +37,9 @@ import {
 import { geographicZonePolicy } from '@/features/geographic-zones/lib/zone-form';
 import { geographicLevelsOptions } from '@/features/reference-data/api/queries';
 import type { GeographicZone } from '@/features/reference-data/lib/types';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useOpening } from '@/hooks/use-opening';
-import { orEmpty } from '@/lib/empty-value';
+import { EMPTY_VALUE, orEmpty } from '@/lib/empty-value';
 import { isNotFound } from '@/lib/http';
 
 type GeographicZonePopulationDialogProps = { target: string | undefined; onClose: () => void };
@@ -51,30 +59,41 @@ export function GeographicZonePopulationDialog({
 function PopulationDialogContent({ zoneId }: { zoneId: string }) {
   const { t } = useTranslation();
   const opening = useOpening();
+  const { measure, cards } = useDialogCardLayout('table');
   const title = t('geographic-zones.visualize');
   return (
-    <QueryBoundary
-      errorComponent={({ error, reset }) =>
-        isNotFound(error) ? (
-          <DialogNotFound description={t('geographic-zones.not-found')} title={title} />
-        ) : (
-          <DialogLoadError
-            error={error}
-            errorTitle={t('geographic-zones.population-error-title')}
-            onRetry={reset}
-            title={title}
-          />
-        )
-      }
-      pendingFallback={<PopulationSkeleton />}
-      resetKey={zoneId}
-    >
-      <PopulationContent opening={opening} zoneId={zoneId} />
-    </QueryBoundary>
+    <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
+      <QueryBoundary
+        errorComponent={({ error, reset }) =>
+          isNotFound(error) ? (
+            <DialogNotFound description={t('geographic-zones.not-found')} title={title} />
+          ) : (
+            <DialogLoadError
+              error={error}
+              errorTitle={t('geographic-zones.population-error-title')}
+              onRetry={reset}
+              title={title}
+            />
+          )
+        }
+        pendingFallback={<PopulationSkeleton cards={cards} />}
+        resetKey={zoneId}
+      >
+        <PopulationContent cards={cards} opening={opening} zoneId={zoneId} />
+      </QueryBoundary>
+    </div>
   );
 }
 
-function PopulationContent({ zoneId, opening }: { zoneId: string; opening: number }) {
+function PopulationContent({
+  zoneId,
+  opening,
+  cards,
+}: {
+  zoneId: string;
+  opening: number;
+  cards: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const [{ data: zone }, { data: levels }, { data: children }] = useSuspenseQueries({
     queries: [
@@ -119,9 +138,15 @@ function PopulationContent({ zoneId, opening }: { zoneId: string; opening: numbe
           </SettingsItem>
         </SettingsList>
       </div>
-      <FormDialogBody layout="table">
-        <PopulationTable zones={children} number={number} />
-      </FormDialogBody>
+      {cards ? (
+        <FormDialogBody>
+          <PopulationCards zones={children} number={number} />
+        </FormDialogBody>
+      ) : (
+        <FormDialogBody layout="table">
+          <PopulationTable zones={children} number={number} />
+        </FormDialogBody>
+      )}
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
       </FormDialogFooter>
@@ -187,7 +212,50 @@ function PopulationTable({
   );
 }
 
-function PopulationSkeleton() {
+function PopulationCards({
+  zones,
+  number,
+}: {
+  zones: GeographicZone[];
+  number: Intl.NumberFormat;
+}) {
+  const { t } = useTranslation();
+  return (
+    <CardList
+      empty={
+        zones.length === 0 && (
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">
+            {t('geographic-zones.no-children')}
+          </div>
+        )
+      }
+    >
+      {zones.map((zone) => (
+        <CardListItem key={zone.id} surface="flat">
+          <CardBand>
+            <div className="min-w-0 font-medium wrap-anywhere">
+              <bdi>{zone.name}</bdi>
+            </div>
+          </CardBand>
+          <CardRows>
+            <SettingsItem label={t('geographic-zones.level')}>
+              <bdi>{orEmpty(zone.level.name)}</bdi>
+            </SettingsItem>
+            <SettingsItem label={t('geographic-zones.population')}>
+              <span className="tabular-nums">
+                {zone.catchmentPopulation == null
+                  ? EMPTY_VALUE
+                  : number.format(zone.catchmentPopulation)}
+              </span>
+            </SettingsItem>
+          </CardRows>
+        </CardListItem>
+      ))}
+    </CardList>
+  );
+}
+
+function PopulationSkeleton({ cards }: { cards: boolean }) {
   const { t } = useTranslation();
   return (
     <>
@@ -204,34 +272,40 @@ function PopulationSkeleton() {
           ))}
         </SettingsList>
       </div>
-      <FormDialogBody layout="table">
-        <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
-          <Table density="compact" scroll="both">
-            <TableHeader surface="muted">
-              <TableRow>
-                {POPULATION_COLUMNS.map((column) => (
-                  <TableHead key={column}>
-                    <DataTableHeaderLabel>{t(`geographic-zones.${column}`)}</DataTableHeaderLabel>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[0, 1, 2, 3, 4].map((row) => (
-                <TableRow key={row}>
+      {cards ? (
+        <FormDialogBody>
+          <CardListSkeleton count={1} pagination={false} rows={2} surface="flat" />
+        </FormDialogBody>
+      ) : (
+        <FormDialogBody layout="table">
+          <div className="grid min-h-0 flex-auto grid-rows-1 overflow-hidden rounded-lg border">
+            <Table density="compact" scroll="both">
+              <TableHeader surface="muted">
+                <TableRow>
                   {POPULATION_COLUMNS.map((column) => (
-                    <TableCell key={column}>
-                      <div className="h-4 w-20">
-                        <Skeleton fill />
-                      </div>
-                    </TableCell>
+                    <TableHead key={column}>
+                      <DataTableHeaderLabel>{t(`geographic-zones.${column}`)}</DataTableHeaderLabel>
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </FormDialogBody>
+              </TableHeader>
+              <TableBody>
+                {[0, 1, 2, 3, 4].map((row) => (
+                  <TableRow key={row}>
+                    {POPULATION_COLUMNS.map((column) => (
+                      <TableCell key={column}>
+                        <div className="h-4 w-20">
+                          <Skeleton fill />
+                        </div>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </FormDialogBody>
+      )}
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
       </FormDialogFooter>

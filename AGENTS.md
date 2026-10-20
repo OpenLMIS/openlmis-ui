@@ -240,7 +240,8 @@ gate CI and must have zero findings.**
 has no allowlist. Add a variant in `src/components/ui/`, or put layout classes on a plain
 wrapper. Skeleton sizes always belong to the surrounding layout. Existing variant props
 are defined in the typed components; reuse them before adding another. `TabsList wrap="column"`
-fits odd tab counts; `wrap="md"` fits short labels. `Button variant="destructive-solid"` and
+fits odd tab counts; `wrap="md"` fits short labels. Page tabs use `TabsList size="lg"` (36px);
+dialogs keep the default. `Button variant="destructive-solid"` and
 `"destructive-outline"` mark the current and other invalid pages in the pager.
 `DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns;
 `size="table"` (36rem) fits a short form above a compact five-column table.
@@ -268,6 +269,7 @@ edits, which have no prop for TypeScript to detect:
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `combobox.tsx` | Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
+| `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 
 ### Integrations
 
@@ -462,7 +464,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   which tints, and enables the card's reason field. Cards ignore width defaults, so stored View
   choices apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes
   `layout="cards"` (Toggle Details). Use `usePageStart(key, cards)`
-  (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options. Each new card
+  (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options;
+  `usePagedTableSearch` wires it into `useTableSearchState` for URL-paged tables. Each new card
   page opens at its first card below the header; filters and past-end clamps never request a
   scroll. Confirm Reversal cards collapse behind `CardToggleBand`, showing the stock change in
   the band; every card starts collapsed and the dialog's cards have no shadow.
@@ -481,14 +484,39 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
-  Other lists keep tables at every width, hiding lower-priority columns and allowing sideways
-  scrolling on phones. Keep headers on one line; every table header uses
-  `DataTableHeaderLabel`'s style, including loading skeletons.
+  Every table switches to cards below 672px. Other tables use `TableCards` and
+  `TableCardsSkeleton` (`src/components/table-cards.tsx`) over the same TanStack table: the `title` column and the
+  `actions` cell form the band; every other visible column is a row labelled by `meta.label`.
+  Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"` for two lines),
+  which wraps in full in cards; `TableCards` bolds the band title. It calls each column's `cell`
+  directly, so cells must not call hooks and must return `null` or `''` when empty to show
+  `EMPTY_VALUE`. Sortable card lists pass `sort` to `DataTableViewOptions` from `searchSort`
+  (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
+  history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
+  above the cards; `heading` renders group rows as headings, as on product Facility Types.
+  Row action cells render `RowActions` with one `actions` list: `CardActions` in cards, the
+  table's ghost "..." menu otherwise; other cell components read `useInCards()`. Every card band action, Stock included, goes through `CardActions`
+  (`src/components/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
+  table's accessible name, tinted `destructive` for destructive ones, inside a group named like
+  the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
+  View) first in `actions`; it sits at the band's end. Up to three show as buttons; four or more
+  show two plus a "..." menu holding the rest, destructive last. Server deletes always confirm;
+  draft-row removal is instant. Skeletons pass the same count to `CardActionsSkeleton` or
+  `TableCardsSkeleton actions`. Editor and dialog tables follow the same rule. Dialogs measure
+  with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
+  squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
+  (`src/components/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog body
+  scrolls forms, cards and pager as one, with no nested scroll area, and a pager move scrolls to
+  the first card; filters and past-end clamps do not. Measure outside `FormDialogBody`, whose scrollbar would flip the layout.
+  Requisition template Columns cards keep drag-to-reorder: the handle, indicator, label and
+  Display checkbox form the band, `CardListItem drag` moves the card and `CardDragPreview` draws
+  the overlay. Keep headers on one line;
+  every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
-  may hide. Row actions use an end-of-row "..." menu at every width. Draft editor line tables
-  whose only row action is Remove use a trash icon button.
+  may hide. Table row actions use an end-of-row "..." menu; cards use `CardActions`. Draft
+  editor line tables whose only row action is Remove use a trash icon button.
 - Put Create at the toolbar's end, after View.
 
 **Filters and states:**
@@ -499,7 +527,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
   go inside too. No search means the button stands alone; no other filters means no button.
   Physical Inventory is the exception: its progress bar leads the toolbar, so Keywords sits
-  inside Filters there.
+  inside Filters there. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
+- Page-level controls (header actions, toolbars, pickers and Add buttons above child tables)
+  pass the `lg` size: 36px at every width, with h-9 skeleton blocks. Controls in table rows
+  stay `sm`; those in cards, dialogs and the Filters popover keep the default. Never resize
+  shadcn controls from a parent.
 - `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
   them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
   toolbars render it disabled.
@@ -520,7 +552,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Filter changes clear selection and close confirmations. `useFilterScoped` prevents stale
   visible rows from changing selection or opening deletion. Name each checkbox with every
   distinguishing row detail.
-- Render `DataTableSelectionBar` after the table with count, Clear and actions. Selection
+- Render `DataTableSelectionBar` after the table with count, Clear and actions: one line, info
+  tint, outline Clear; actions label through `SelectionBarLabel` with `full` and `short` text so
+  the bar stays on one line on phones. Selection
   stays out of the URL. Bulk delete awaits every request, reports failures and focuses the
   list after rows/bar disappear; see Valid Destinations.
 - PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for permission checks,
@@ -537,9 +571,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout/width/scroll`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
-  `ComboboxInput width/clearLabel`, `PopoverContent width`, `Skeleton fill`,
+  `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
   `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
-  `className`s in the registry. `selectionColumn` ships the checkbox's indeterminate-minus
+  `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
@@ -677,9 +711,10 @@ Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/ut
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
-`FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
-`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width/wrap`, `Button align/width`,
-`PopoverContent width/padding`.
+`FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
+`ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
+`Button align/width`, `PopoverContent width/padding`. Each `lg` size is a plain `h-9` className
+in the registry.
 
 **Every toast has a short Title Case title and a detail sentence as `description`**, displayed
 at most two lines. `Toaster` supplies the translated close button; callers never pass one.

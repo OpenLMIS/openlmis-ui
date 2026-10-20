@@ -31,6 +31,7 @@ const sms: DigestSubscription = {
 };
 
 beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(fetchDigestConfigurations)
     .mockReset()
     .mockResolvedValue([{ id: 'd1', tag: 'requisition-actionRequired' }]);

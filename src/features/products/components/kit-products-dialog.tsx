@@ -1,30 +1,21 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
-  createColumnHelper,
   type PaginationState,
   type RowSelectionState,
   type Updater,
   useTable,
 } from '@tanstack/react-table';
 import { PackageSearchIcon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  DataTable,
-  DataTableColumnHeader,
   DataTableEmpty,
-  type DataTableFeatures,
-  DataTableSkeleton,
   DataTableToolbar,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { selectionColumn } from '@/components/data-table/data-table-selection';
-import {
-  resolveColumnVisibility,
-  useElementWidth,
-} from '@/components/data-table/responsive-columns';
+import { DialogTable, DialogTableSkeleton } from '@/components/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -38,12 +29,12 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
+import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
 import type { Product } from '@/features/products/lib/types';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 
 const PAGE_SIZE = 10;
-
-const HIDEABLE_COLUMNS = [{ id: 'unit', hideBelow: 'md' }] as const;
 
 type KitProductsDialogProps = {
   open: boolean;
@@ -80,62 +71,17 @@ const productLabel = (product: Product) => {
   return unit ? `${name} (${unit})` : name;
 };
 
-const columnHelper = createColumnHelper<DataTableFeatures, Product>();
-
-function Locked({ locked, children }: { locked: boolean; children: ReactNode }) {
-  return locked ? <span className="text-muted-foreground">{children}</span> : children;
-}
-
 function useColumns(kitId: string) {
   const { t } = useTranslation();
   return useMemo(
     () =>
-      columnHelper.columns([
-        selectionColumn<Product>(productLabel),
-        columnHelper.accessor('productCode', {
-          header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={t('products.code')} />
-          ),
-          cell: ({ row, getValue }) => (
-            <Locked locked={!row.getCanSelect()}>
-              <span className="block whitespace-normal break-all" dir="ltr">
-                {getValue()}
-              </span>
-            </Locked>
-          ),
-          meta: { className: 'w-24 @lg/table:w-36' },
-        }),
-        columnHelper.accessor((product) => product.fullProductName ?? '', {
-          id: 'name',
-          header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={t('products.kit.product')} />
-          ),
-          cell: ({ row, getValue }) => (
-            <Locked locked={!row.getCanSelect()}>
-              <span className="block whitespace-normal break-words">
-                <bdi>{getValue()}</bdi>
-                {row.id === kitId && ` ${t('products.kit.this-kit')}`}
-              </span>
-            </Locked>
-          ),
-        }),
-        columnHelper.accessor((product) => product.dispensable?.displayUnit ?? '', {
-          id: 'unit',
-          header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={t('products.kit.unit')} />
-          ),
-          cell: ({ row, getValue }) => (
-            <Locked locked={!row.getCanSelect()}>
-              <span className="flex">
-                <span className="min-w-0 truncate" dir="ltr">
-                  {getValue()}
-                </span>
-              </span>
-            </Locked>
-          ),
-          meta: { className: 'w-32' },
-        }),
-      ]),
+      productPickColumns({
+        code: t('products.code'),
+        product: t('products.kit.product'),
+        unit: t('products.kit.unit'),
+        selectLabel: productLabel,
+        note: (product) => (product.id === kitId ? t('products.kit.this-kit') : undefined),
+      }),
     [t, kitId],
   );
 }
@@ -154,7 +100,7 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
     pageSize: PAGE_SIZE,
   });
   const [picked, setPicked] = useState<ReadonlyMap<string, Product>>(new Map());
-  const [measure, width] = useElementWidth<HTMLDivElement>();
+  const { measure, width, cards } = useDialogCardLayout('xl');
 
   const results = useQuery({
     ...orderablesSearchOptions({
@@ -202,7 +148,7 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
     state: {
       pagination,
       rowSelection,
-      columnVisibility: resolveColumnVisibility(HIDEABLE_COLUMNS, {}, width),
+      columnVisibility: productPickVisibility(cards, width),
     },
     onPaginationChange: setPagination,
     onRowSelectionChange: changeSelection,
@@ -247,9 +193,11 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
               title={t('products.kit.search-error-title')}
             />
           ) : results.isPending ? (
-            <DataTableSkeleton rowCount={PAGE_SIZE} table={table} />
+            <DialogTableSkeleton cards={cards} rowCount={PAGE_SIZE} table={table} title="name" />
           ) : (
-            <DataTable
+            <DialogTable
+              busy={results.isPlaceholderData}
+              cards={cards}
               empty={
                 <DataTableEmpty
                   description={t('products.kit.search-empty-description')}
@@ -262,8 +210,8 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
                   <DataTablePagination disabled={results.isPlaceholderData} table={table} />
                 )
               }
-              isStale={results.isPlaceholderData}
               table={table}
+              title="name"
             />
           )}
         </div>

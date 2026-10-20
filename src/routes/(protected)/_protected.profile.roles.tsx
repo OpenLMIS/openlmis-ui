@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { z } from 'zod';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
 import {
@@ -33,9 +32,6 @@ export const Route = createFileRoute('/(protected)/_protected/profile/roles')({
   component: RoleAssignmentsPage,
 });
 
-/** Too narrow for a column per name, so each row lists them under the role. */
-const COMPACT_BELOW = 576;
-
 function RoleAssignmentsPage() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   return userId ? <RoleAssignmentsTab userId={userId} /> : null;
@@ -46,14 +42,12 @@ function RoleAssignmentsTab({ userId }: { userId: string }) {
   const { data: profile } = useSuspenseQuery(profileOptions(userId));
   const { user } = profile;
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
 
   const { updateSearch } = useSearchNavigation<ProfileRolesSearch>({});
 
   return (
-    <div ref={measureContent}>
+    <div>
       <RoleTabs
-        compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
         draft={user.roleAssignments}
         homeFacilityId={user.homeFacilityId}
         onSearchChange={updateSearch}

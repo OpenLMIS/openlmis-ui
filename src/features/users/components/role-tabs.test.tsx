@@ -13,7 +13,7 @@ beforeAll(async () => {
 
 describe('RoleTabsSkeleton', () => {
   it('holds the real tabs with the open one selected while the roles load', () => {
-    render(<RoleTabsSkeleton compact={false} search={{}} tab={reports} />);
+    render(<RoleTabsSkeleton search={{}} tab={reports} />);
 
     expect(screen.getAllByRole('tab')).toHaveLength(ROLE_TABS.length);
     expect(screen.getByRole('tab', { name: reports.labelKey })).toHaveAttribute(

@@ -66,6 +66,7 @@ function renderTable(search: RequisitionGroupsListSearch = {}, groups?: Requisit
       resetKey={JSON.stringify(search)}
     >
       <RequisitionGroupsTable
+        cards={false}
         columnVisibility={{}}
         onSearchChange={onSearchChange}
         search={search}

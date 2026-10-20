@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { MessageSquareXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -29,8 +27,8 @@ import {
   type RejectionReasonsSearch,
   rejectionReasonsSearchSchema,
 } from '@/features/rejection-reasons/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const loadDialog = () =>
   import('@/features/rejection-reasons/components/rejection-reason-form-dialog');
@@ -38,7 +36,8 @@ const RejectionReasonFormDialog = lazy(() =>
   loadDialog().then((module) => ({ default: module.RejectionReasonFormDialog })),
 );
 const CLOSED_DIALOGS = { reason: undefined } satisfies Partial<RejectionReasonsSearch>;
-const columnChoicesSchema = z.record(z.string(), z.boolean());
+const usePageCardView = () =>
+  useCardView(REJECTION_REASON_HIDEABLE_COLUMNS, 'rejection-reasons.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/rejection-reasons')({
   validateSearch: rejectionReasonsSearchSchema,
@@ -57,12 +56,7 @@ function RejectionReasonsPage() {
     structuralSharing: true,
   });
   const target = Route.useSearch({ select: (search) => search.reason });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    REJECTION_REASON_HIDEABLE_COLUMNS,
-    useStoredState('rejection-reasons.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<RejectionReasonsSearch>(CLOSED_DIALOGS);
   const addReason = useCallback(() => openDialog({ reason: 'new' }), [openDialog]);
@@ -76,11 +70,12 @@ function RejectionReasonsPage() {
     <Workspace>
       <RejectionReasonsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <RejectionReasonsToolbar
             search={search}
             onSearchChange={updateSearch}
             columnView={columnView}
+            layout={layout}
             onAdd={addReason}
           />
           <QueryBoundary
@@ -94,6 +89,7 @@ function RejectionReasonsPage() {
             )}
             pendingFallback={
               <RejectionReasonsTableSkeleton
+                cards={cards}
                 search={search}
                 columnVisibility={columnView.visibility}
               />
@@ -101,6 +97,7 @@ function RejectionReasonsPage() {
             resetKey="rejection-reasons"
           >
             <RejectionReasonsTable
+              cards={cards}
               search={search}
               onSearchChange={updateSearch}
               columnVisibility={columnView.visibility}
@@ -134,11 +131,18 @@ function RejectionReasonsHeader() {
 }
 
 function RejectionReasonsPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <RejectionReasonsHeader />
       <WorkspaceContent>
-        <RejectionReasonsTableSkeleton search={{}} columnVisibility={{}} />
+        <div ref={measure}>
+          <RejectionReasonsTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

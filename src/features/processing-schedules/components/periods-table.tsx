@@ -11,15 +11,14 @@ import { CalendarRangeIcon, InfoIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  DataTable,
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableHeaderLabel,
-  DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { DialogTable, DialogTableSkeleton } from '@/components/dialog-table';
 import { FlagBadge } from '@/components/flag-badge';
 import { formatDateValue } from '@/components/form/date-value';
 import { Button } from '@/components/ui/button';
@@ -54,12 +53,18 @@ function createColumns(t: TFunction, language: string) {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('processing-schedules.description')} />
       ),
-      cell: ({ getValue }) => (
-        <span className="whitespace-normal break-words" dir="auto">
-          {tableValue(getValue())}
-        </span>
-      ),
+      cell: ({ getValue }) => {
+        const description = tableValue(getValue());
+        return (
+          description && (
+            <span className="whitespace-normal break-words" dir="auto">
+              {description}
+            </span>
+          )
+        );
+      },
       enableSorting: false,
+      meta: { label: t('processing-schedules.description') },
     }),
     columnHelper.accessor('startDate', {
       header: ({ column }) => (
@@ -85,12 +90,14 @@ function createColumns(t: TFunction, language: string) {
         </div>
       ),
       cell: ({ getValue }) => <bdi>{formatDateValue(getValue(), language)}</bdi>,
+      meta: { label: t('processing-schedules.periods.start-date') },
     }),
     columnHelper.accessor('endDate', {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('processing-schedules.periods.end-date')} />
       ),
       cell: ({ getValue }) => <bdi>{formatDateValue(getValue(), language)}</bdi>,
+      meta: { label: t('processing-schedules.periods.end-date') },
     }),
     columnHelper.display({
       id: 'reportOnly',
@@ -104,11 +111,13 @@ function createColumns(t: TFunction, language: string) {
           falseLabel={t('processing-schedules.periods.no')}
         />
       ),
+      meta: { label: t('processing-schedules.periods.report-only') },
     }),
   ]);
 }
 
 type PeriodsTableProps = {
+  cards: boolean;
   scheduleId: string;
   scheduleCode: string;
   search: SchedulesSearch;
@@ -126,7 +135,7 @@ function usePeriodsTable({
   rowCount,
   search,
   onSearchChange,
-}: Omit<PeriodsTableProps, 'scheduleId' | 'scheduleCode'> & {
+}: Omit<PeriodsTableProps, 'cards' | 'scheduleId' | 'scheduleCode'> & {
   data: ProcessingPeriod[];
   rowCount: number;
 }) {
@@ -168,7 +177,10 @@ function usePeriodsTable({
   });
 }
 
-export function PeriodsTableSkeleton({ search }: Pick<PeriodsTableProps, 'search'>) {
+export function PeriodsTableSkeleton({
+  cards,
+  search,
+}: Pick<PeriodsTableProps, 'cards' | 'search'>) {
   const table = usePeriodsTable({
     data: NO_PERIODS,
     rowCount: 0,
@@ -176,18 +188,21 @@ export function PeriodsTableSkeleton({ search }: Pick<PeriodsTableProps, 'search
     onSearchChange: noop,
   });
   return (
-    <DataTableSkeleton
+    <DialogTableSkeleton
+      cards={cards}
       density="compact"
       height="fill"
       layout="auto"
       pagination="centered"
       rowCount={PERIODS_PAGE_SIZE}
       table={table}
+      title="name"
     />
   );
 }
 
 export function PeriodsTable({
+  cards,
   scheduleId,
   scheduleCode,
   search,
@@ -213,7 +228,9 @@ export function PeriodsTable({
   }, [isPastLastPage, data.totalPages, onSearchChange]);
 
   return (
-    <DataTable
+    <DialogTable
+      busy={search !== deferredSearch}
+      cards={cards}
       density="compact"
       height="fill"
       empty={
@@ -231,9 +248,9 @@ export function PeriodsTable({
         !isPastLastPage &&
         data.totalElements > 0 && <DataTablePagination layout="centered" table={table} />
       }
-      isStale={search !== deferredSearch}
       layout="auto"
       table={table}
+      title="name"
     />
   );
 }

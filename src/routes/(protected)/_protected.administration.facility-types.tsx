@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ShapesIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -30,8 +28,8 @@ import {
   toFacilityTypesQuery,
 } from '@/features/facility-types/lib/search';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 const loadDialog = () => import('@/features/facility-types/components/facility-type-form-dialog');
 const FacilityTypeFormDialog = lazy(() =>
@@ -40,7 +38,8 @@ const FacilityTypeFormDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { facilityType: undefined } satisfies Partial<FacilityTypesSearch>;
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
+const usePageCardView = () =>
+  useCardView(FACILITY_TYPE_HIDEABLE_COLUMNS, 'facility-types.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/facility-types')({
   validateSearch: facilityTypesSearchSchema,
@@ -65,12 +64,7 @@ function FacilityTypesPage() {
     structuralSharing: true,
   });
   const facilityType = Route.useSearch({ select: (search) => search.facilityType });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    FACILITY_TYPE_HIDEABLE_COLUMNS,
-    useStoredState('facility-types.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<FacilityTypesSearch>(CLOSED_DIALOGS);
   const addType = useCallback(() => openDialog({ facilityType: 'new' }), [openDialog]);
@@ -85,8 +79,14 @@ function FacilityTypesPage() {
     <Workspace>
       <FacilityTypesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
-          <FacilityTypesToolbar columnView={columnView} onAdd={addType} />
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+          <FacilityTypesToolbar
+            columnView={columnView}
+            layout={layout}
+            onAdd={addType}
+            onSortChange={updateSearch}
+            search={search}
+          />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -98,6 +98,7 @@ function FacilityTypesPage() {
             )}
             pendingFallback={
               <FacilityTypesTableSkeleton
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 search={search}
               />
@@ -105,6 +106,7 @@ function FacilityTypesPage() {
             resetKey={JSON.stringify(search)}
           >
             <FacilityTypesTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onAdd={addType}
               onEdit={editType}
@@ -139,11 +141,18 @@ function FacilityTypesHeader() {
 }
 
 function FacilityTypesPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <FacilityTypesHeader />
       <WorkspaceContent>
-        <FacilityTypesTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <FacilityTypesTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

@@ -128,6 +128,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(fetchReasonTypes).mockResolvedValue(['CREDIT', 'DEBIT']);
   vi.mocked(fetchReasonCategories).mockResolvedValue(['TRANSFER', 'ADJUSTMENT']);
   vi.mocked(fetchReasonTags).mockResolvedValue(['adjustment', 'consumed']);

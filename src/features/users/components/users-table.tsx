@@ -2,16 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import {
-  EllipsisIcon,
-  KeyRoundIcon,
-  PencilIcon,
-  SearchXIcon,
-  ShieldIcon,
-  UsersIcon,
-} from 'lucide-react';
+import { KeyRoundIcon, PencilIcon, SearchXIcon, ShieldIcon, UsersIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -22,13 +16,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { usersListOptions } from '@/features/users/api/queries';
 import {
   CLEARED_USER_FILTERS,
@@ -38,9 +27,9 @@ import {
   type UsersSearch,
 } from '@/features/users/lib/search';
 import type { UserListItem } from '@/features/users/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useAppName } from '@/lib/app-configuration';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
 
 const columnHelper = createColumnHelper<DataTableFeatures, UserListItem>();
@@ -50,7 +39,7 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     // Shows the full name but sorts by last name, the usual order for a list of people.
     columnHelper.accessor('lastName', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.name')} />,
-      meta: { className: '@xl/main:w-2/5 @4xl/main:w-1/4' },
+      meta: { className: '@xl/main:w-2/5 @4xl/main:w-1/4', label: t('users.name') },
       cell: ({ row }) => fullName(row.original) || null,
     }),
     columnHelper.accessor('username', {
@@ -63,10 +52,11 @@ function createColumns(t: TFunction, actions: UserRowActions) {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.email')} />,
       cell: ({ getValue }) => getValue() ?? null,
       enableSorting: false,
+      meta: { label: t('users.email') },
     }),
     columnHelper.accessor('active', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('users.status')} />,
-      meta: { className: 'w-32' },
+      meta: { className: 'w-32', label: t('users.status') },
       cell: ({ getValue }) => (
         <FlagBadge
           value={getValue()}
@@ -109,51 +99,39 @@ type UserActionsProps = {
 
 function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: UserActionsProps) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
+  const label = t('users.actions-for', { username });
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={t('users.actions-for', { username })}
-              size="icon-sm"
-              variant="ghost"
+    <RowActions
+      label={label}
+      actions={[
+        { id: 'edit', icon: <PencilIcon />, label: t('users.edit'), onSelect: onEdit },
+        {
+          id: 'roles',
+          icon: <ShieldIcon />,
+          label: t('users.roles'),
+          link: (
+            <Link
+              params={{ id: userId }}
+              state={{ usersListSearch: listSearch }}
+              to="/administration/users/$id/roles"
             />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(onEdit)}>
-            <PencilIcon />
-            {t('users.edit')}
-          </DropdownMenuItem>
-          {/* A link, so it can open in a new tab to compare two users' roles. */}
-          <DropdownMenuItem
-            render={
-              <Link
-                params={{ id: userId }}
-                state={{ usersListSearch: listSearch }}
-                to="/administration/users/$id/roles"
-              />
-            }
-          >
-            <ShieldIcon />
-            {t('users.roles')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={menu.opensDialog(onResetPassword)} variant="destructive">
-            <KeyRoundIcon />
-            {t('users.reset-password')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+          ),
+        },
+        {
+          id: 'reset-password',
+          icon: <KeyRoundIcon />,
+          label: t('users.reset-password'),
+          destructive: true,
+          onSelect: onResetPassword,
+        },
+      ]}
+    />
   );
 }
 
 type UsersTableProps = {
+  cards: boolean;
   search: UsersSearch;
   onSearchChange: SearchChange<UsersSearch>;
   columnVisibility: ColumnVisibilityState;
@@ -167,6 +145,7 @@ const noop = () => {};
 
 /** The one table setup, shared by the real table and its skeleton so both lay out the same. */
 function useUsersTable({
+  cards,
   data,
   rowCount,
   search,
@@ -180,13 +159,14 @@ function useUsersTable({
     () => createColumns(t, { onEdit, onResetPassword, listSearch: search }),
     [t, onEdit, onResetPassword, search],
   );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_USERS_SORT,
     onSearchChange,
+    cards,
   });
 
-  return useTable({
+  const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
@@ -198,13 +178,16 @@ function useUsersTable({
     ...searchState,
     state: { ...searchState.state, columnVisibility },
   });
+  return { table, pageStart };
 }
 
 export function UsersTableSkeleton({
+  cards,
   search,
   columnVisibility,
-}: Pick<UsersTableProps, 'search' | 'columnVisibility'>) {
-  const table = useUsersTable({
+}: Pick<UsersTableProps, 'cards' | 'search' | 'columnVisibility'>) {
+  const { table } = useUsersTable({
+    cards: false,
     data: NO_USERS,
     rowCount: 0,
     search,
@@ -214,10 +197,14 @@ export function UsersTableSkeleton({
     onResetPassword: noop,
   });
 
-  return <DataTableSkeleton rowCount={toPaginationState(search).pageSize} table={table} />;
+  const rowCount = toPaginationState(search).pageSize;
+  if (cards)
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" actions={3} />;
+  return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
 export function UsersTable({
+  cards,
   search,
   onSearchChange,
   columnVisibility,
@@ -230,7 +217,8 @@ export function UsersTable({
   const deferredSearch = useDeferredValue(search);
   const { data } = useSuspenseQuery(usersListOptions(toUsersQuery(deferredSearch)));
   // Everything on screen describes the rows on screen; changes still build on the latest URL.
-  const table = useUsersTable({
+  const { table, pageStart } = useUsersTable({
+    cards,
     data: data.content,
     rowCount: data.totalElements,
     search: deferredSearch,
@@ -267,12 +255,21 @@ export function UsersTable({
     />
   );
 
+  const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
+  const isStale = search !== deferredSearch;
+  if (cards) {
+    return (
+      <TableCards
+        busy={isStale}
+        empty={!isPastLastPage && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+        table={table}
+        title="username"
+      />
+    );
+  }
   return (
-    <DataTable
-      empty={!isPastLastPage && empty}
-      footer={!isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />}
-      isStale={search !== deferredSearch}
-      table={table}
-    />
+    <DataTable empty={!isPastLastPage && empty} footer={footer} isStale={isStale} table={table} />
   );
 }

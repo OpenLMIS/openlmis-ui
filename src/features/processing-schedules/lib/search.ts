@@ -12,6 +12,11 @@ import {
 
 export const DEFAULT_SCHEDULES_SORT: DefaultSort = { id: 'code', desc: false };
 
+export const SCHEDULE_SORT_COLUMNS = [
+  { id: 'code', labelKey: 'processing-schedules.code' },
+  { id: 'name', labelKey: 'processing-schedules.name' },
+] as const;
+
 export const PERIODS_PAGE_SIZE = 10;
 
 const schedulesTableSchema = tableSearchSchema(['code', 'name']);

@@ -99,8 +99,10 @@ export function SystemSettingsPending() {
       }
     >
       <div aria-busy className="flex flex-col gap-4">
-        <div className="h-8 w-40">
-          <Skeleton fill />
+        <div className="@container">
+          <div className="h-28.5 w-full @lg:h-10.5 @lg:w-40">
+            <Skeleton fill />
+          </div>
         </div>
         <div className="h-32 w-full">
           <Skeleton fill />

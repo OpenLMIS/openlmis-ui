@@ -683,6 +683,7 @@ export function EventEditor({
               <DataTableToolbar>
                 <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled={pending}>
                   <DataTableSearch
+                    size="lg"
                     value={keyword}
                     resetKey={`${search.page ?? 1}/${search.size ?? 10}`}
                     placeholder={t('stock-events.keywords')}
@@ -702,6 +703,7 @@ export function EventEditor({
                 )}
                 <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
+                    size="lg"
                     {...columns}
                     layout={cards ? 'cards' : 'table'}
                     columns={hideableColumns

@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { MapPinIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { serverMessage } from '@/components/dialog-parts';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
@@ -34,8 +32,8 @@ import {
   geographicLevelsOptions,
   geographicZonesOptions,
 } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 
 const loadDialogs = () =>
@@ -49,6 +47,9 @@ const GeographicZoneFormDialog = lazy(() =>
 const GeographicZonePopulationDialog = lazy(() =>
   loadDialogs().then(([, module]) => ({ default: module.GeographicZonePopulationDialog })),
 );
+
+const usePageCardView = () =>
+  useCardView(GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS, 'geographic-zones.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/geographic-zones')({
   validateSearch: geographicZonesSearchSchema,
@@ -67,8 +68,6 @@ const CLOSED_DIALOGS = {
   zone: undefined,
   population: undefined,
 } satisfies Partial<GeographicZonesSearch>;
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function GeographicZonesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch({
@@ -80,12 +79,7 @@ function GeographicZonesPage() {
   const population = Route.useSearch({
     select: (search) => (search.zone ? undefined : search.population),
   });
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS,
-    useStoredState('geographic-zones.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<GeographicZonesSearch>(CLOSED_DIALOGS);
   const showDetail = useCallback((id: string) => openDialog({ zone: id }), [openDialog]);
@@ -103,8 +97,9 @@ function GeographicZonesPage() {
     <Workspace>
       <GeographicZonesHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <GeographicZonesToolbar
+            layout={layout}
             columnView={columnView}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
@@ -120,6 +115,7 @@ function GeographicZonesPage() {
             )}
             pendingFallback={
               <GeographicZonesTableSkeleton
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 search={search}
               />
@@ -127,6 +123,7 @@ function GeographicZonesPage() {
             resetKey={JSON.stringify(query)}
           >
             <GeographicZonesTable
+              cards={cards}
               automatic={automatic}
               columnVisibility={columnView.visibility}
               onDetail={showDetail}
@@ -163,11 +160,18 @@ function GeographicZonesHeader() {
 }
 
 function GeographicZonesPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <GeographicZonesHeader />
       <WorkspaceContent>
-        <GeographicZonesTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <GeographicZonesTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

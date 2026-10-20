@@ -51,6 +51,7 @@ type TableOptions = {
   columnVisibility?: Record<string, boolean>;
   totalElements?: number;
   totalPages?: number;
+  cards?: boolean;
 };
 
 function renderTable(
@@ -61,6 +62,7 @@ function renderTable(
     columnVisibility = {},
     totalElements,
     totalPages = 1,
+    cards = false,
   }: TableOptions = {},
 ) {
   const onDelete = vi.fn();
@@ -87,6 +89,7 @@ function renderTable(
     <Suspense>
       <AssignmentsTable
         api={api}
+        cards={cards}
         columnVisibility={columnVisibility}
         onDelete={onDelete}
         onPickedChange={onPickedChange}
@@ -183,6 +186,34 @@ describe('AssignmentsTable', () => {
     await user.click(screen.getByRole('button', { name: `Actions For ${name}` }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
     expect(onDelete).toHaveBeenCalledWith({ id: 'a2', name }, '|');
+  });
+
+  it('picks a card from its band, or the whole page, and deletes from its band', async () => {
+    const { onDelete, onPickedChange } = renderTable([balaka('a2', 'p2'), ngo], { cards: true });
+    const user = userEvent.setup();
+    const name = 'Balaka District Hospital for Health Center in EPI';
+
+    await user.click(await screen.findByText('Balaka District Hospital'));
+    expect(onPickedChange).toHaveBeenLastCalledWith(new Map([['a2', name]]), '|');
+    expect(screen.getByRole('checkbox', { name: `Select ${name}` })).toBeVisible();
+
+    await user.click(screen.getByText('Select Page'));
+    expect(onPickedChange).toHaveBeenLastCalledWith(
+      new Map([
+        ['a2', name],
+        ['a3', 'NGO for Health Center in Essential Meds'],
+      ]),
+      '|',
+    );
+
+    const actions = screen.getByRole('group', {
+      name: 'Actions For NGO for Health Center in Essential Meds',
+    });
+    await user.click(within(actions).getByRole('button', { name: 'Delete' }));
+    expect(onDelete).toHaveBeenCalledWith(
+      { id: 'a3', name: 'NGO for Health Center in Essential Meds' },
+      '|',
+    );
   });
 
   it('names a row by its place alone until the program and type names arrive', async () => {

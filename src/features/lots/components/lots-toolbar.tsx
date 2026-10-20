@@ -30,15 +30,17 @@ type LotsToolbarProps = {
   search: LotsSearch;
   onFilterChange: (patch: Partial<LotsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
 };
 
-export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarProps) {
+export function LotsToolbar({ search, onFilterChange, columnView, layout }: LotsToolbarProps) {
   const { t } = useTranslation();
 
   return (
     <DataTableToolbar>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={[search.product, search.expiryFrom, search.expiryTo].filter(Boolean).length}
           onClear={() =>
             onFilterChange({
@@ -81,7 +83,9 @@ export function LotsToolbar({ search, onFilterChange, columnView }: LotsToolbarP
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={LOT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+          layout={layout}
           onReset={columnView.onReset}
           onVisibilityChange={columnView.onVisibilityChange}
           visibility={columnView.visibility}

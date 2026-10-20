@@ -19,12 +19,14 @@ import {
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableHeaderLabel,
+  type DataTableInstance,
   DataTableSkeleton,
   DataTableToolbar,
   dataTableFeatures,
@@ -32,7 +34,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
+import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import {
   ErrorAlert,
   FieldSkeleton,
@@ -55,6 +57,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Block } from '@/components/skeleton-block';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -99,12 +102,13 @@ import type {
   ProgramSchedule,
   RequisitionGroup,
 } from '@/features/requisition-groups/lib/types';
+import { useCardView } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { useStoredState } from '@/hooks/use-stored-state';
 import { tableValue } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
-import { type SearchChange, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, searchSort } from '@/lib/table-search';
 
 export const REQUISITION_GROUP_LOOKUPS = {
   nodes: supervisoryNodesOptions(),
@@ -300,7 +304,7 @@ function EditorHeader({ title, description }: { title?: string; description: str
 function EditorTabs() {
   const { t } = useTranslation();
   return (
-    <TabsList aria-label={t('requisition-groups.form.tabs-label')}>
+    <TabsList aria-label={t('requisition-groups.form.tabs-label')} size="lg">
       <TabsTrigger value="programs">{t('requisition-groups.form.programs')}</TabsTrigger>
       <TabsTrigger value="facilities">{t('requisition-groups.form.facilities')}</TabsTrigger>
     </TabsList>
@@ -420,7 +424,6 @@ const MEMBER_COLUMNS = [
   { id: 'enabled', labelKey: 'requisition-groups.form.enabled', hideBelow: '2xl' },
   { id: 'zone', labelKey: 'requisition-groups.form.zone', hideBelow: 'lg' },
 ] as const;
-const visibilitySchema = z.record(z.string(), z.boolean());
 const programColumn = createColumnHelper<DataTableFeatures, ProgramSchedule>();
 const memberColumn = createColumnHelper<DataTableFeatures, MemberFacility>();
 function focusAfterRemove(
@@ -433,7 +436,33 @@ function focusAfterRemove(
     (buttons?.[Math.min(index, buttons.length - 1)] ?? add)?.focus();
   });
 }
-function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+function RemoveButton({
+  name,
+  label,
+  onClick,
+}: {
+  name: string;
+  label: string;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
+  if (useInCards()) {
+    return (
+      <CardActions
+        label={t('card-actions.actions-for', { name })}
+        actions={[
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label,
+            destructive: true,
+            data: { 'data-remove-row': true },
+            onSelect: onClick,
+          },
+        ]}
+      />
+    );
+  }
   return (
     <div className="flex justify-end">
       <Button
@@ -448,9 +477,8 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
     </div>
   );
 }
-function DropOffName({ id }: { id: string | undefined }) {
+function DropOffName({ id }: { id: string }) {
   const { data, isPending } = useQuery(REQUISITION_GROUP_LOOKUPS.facilities);
-  if (!id) return null;
   if (isPending) return <Block className="h-4 w-24" />;
   return (
     <span className="whitespace-normal break-words" dir="auto">
@@ -486,6 +514,7 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
             {t('requisition-groups.form.schedule-column')}
           </DataTableHeaderLabel>
         ),
+        meta: { label: t('requisition-groups.form.schedule-column') },
       },
     ),
     programColumn.display({
@@ -493,10 +522,14 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
       header: () => (
         <DataTableHeaderLabel>{t('requisition-groups.form.drop-off')}</DataTableHeaderLabel>
       ),
-      cell: ({ row }) => <DropOffName id={row.original.dropOffFacility?.id} />,
+      cell: ({ row }) =>
+        row.original.dropOffFacility?.id ? (
+          <DropOffName id={row.original.dropOffFacility.id} />
+        ) : null,
+      meta: { label: t('requisition-groups.form.drop-off') },
     }),
     programColumn.accessor('directDelivery', {
-      meta: { className: 'w-36' },
+      meta: { className: 'w-36', label: t('requisition-groups.form.direct-delivery') },
       header: () => (
         <DataTableHeaderLabel>{t('requisition-groups.form.direct-delivery')}</DataTableHeaderLabel>
       ),
@@ -516,6 +549,7 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
             meta: { className: 'w-16' },
             cell: ({ row }) => (
               <RemoveButton
+                name={row.original.program.name ?? row.original.program.id}
                 label={t('requisition-groups.form.remove-program', {
                   program: row.original.program.name ?? row.original.program.id,
                 })}
@@ -528,22 +562,22 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
   ]);
 }
 function useProgramColumnView() {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const view = useColumnVisibility(
+  const { columnView, ...rest } = useCardView(
     PROGRAM_COLUMNS,
-    useStoredState('requisition-group-programs.column-visibility', visibilitySchema, {}),
-    width,
+    'requisition-group-programs.column-visibility',
   );
-  return { measure, view };
+  return { view: columnView, ...rest };
 }
 function ProgramsToolbar({
   view,
+  layout,
   readOnly,
   disabled = false,
   addRef,
   onAdd,
 }: {
   view: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
   readOnly: boolean;
   disabled?: boolean;
   addRef?: Ref<HTMLButtonElement>;
@@ -554,15 +588,17 @@ function ProgramsToolbar({
     <DataTableToolbar>
       <div className="ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           disabled={disabled}
+          layout={layout}
           visibility={view.visibility}
           onVisibilityChange={view.onVisibilityChange}
           onReset={view.onReset}
         />
       </div>
       {!readOnly && (
-        <Button ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+        <Button size="lg" ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
           <PlusIcon data-icon="inline-start" />
           {t('requisition-groups.form.add-program')}
         </Button>
@@ -576,7 +612,7 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
   const tableRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const [adding, setAdding] = useState(false);
-  const { measure, view } = useProgramColumnView();
+  const { measure, view, cards, layout } = useProgramColumnView();
   const remove = useCallback(
     (index: number) => {
       form.removeFieldValue('schedules', index);
@@ -596,10 +632,22 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
     enableSorting: false,
     state: { columnVisibility: view.visibility },
   });
+  const empty = (
+    <DataTableEmpty
+      title={t('requisition-groups.form.no-programs')}
+      description={t(
+        readOnly
+          ? 'requisition-groups.form.no-programs-view-description'
+          : 'requisition-groups.form.no-programs-description',
+      )}
+      icon={<NetworkIcon />}
+    />
+  );
   return (
     <div className="flex flex-col gap-4" ref={measure}>
       <ProgramsToolbar
         view={view}
+        layout={layout}
         readOnly={readOnly}
         addRef={addRef}
         onAdd={() => setAdding(true)}
@@ -613,20 +661,11 @@ function ProgramSchedulesFields({ form, readOnly }: { form: GroupForm; readOnly:
         />
       )}
       <div ref={tableRef}>
-        <DataTable
-          table={table}
-          empty={
-            <DataTableEmpty
-              title={t('requisition-groups.form.no-programs')}
-              description={t(
-                readOnly
-                  ? 'requisition-groups.form.no-programs-view-description'
-                  : 'requisition-groups.form.no-programs-description',
-              )}
-              icon={<NetworkIcon />}
-            />
-          }
-        />
+        {cards ? (
+          <TableCards table={table} title="program" empty={empty} />
+        ) : (
+          <DataTable table={table} empty={empty} />
+        )}
       </div>
     </div>
   );
@@ -645,28 +684,32 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
     }),
     memberColumn.accessor((row) => row.geographicZone?.name ?? '', {
       id: 'zone',
-      cell: ({ getValue }) => (
-        <span className="whitespace-normal break-words" dir="auto">
-          {getValue()}
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ) : null,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.zone')} />
       ),
+      meta: { label: t('requisition-groups.form.zone') },
     }),
     memberColumn.accessor((row) => row.type?.name ?? '', {
       id: 'type',
-      cell: ({ getValue }) => (
-        <span className="whitespace-normal break-words" dir="auto">
-          {getValue()}
-        </span>
-      ),
+      cell: ({ getValue }) =>
+        getValue() ? (
+          <span className="whitespace-normal break-words" dir="auto">
+            {getValue()}
+          </span>
+        ) : null,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.type')} />
       ),
+      meta: { label: t('requisition-groups.form.type') },
     }),
     memberColumn.accessor('enabled', {
-      meta: { className: 'w-40' },
+      meta: { className: 'w-40', label: t('requisition-groups.form.enabled') },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('requisition-groups.form.enabled')} />
       ),
@@ -685,6 +728,7 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
       cell: ({ row }) =>
         remove && (
           <RemoveButton
+            name={row.original.name}
             label={t('requisition-groups.form.remove-facility', {
               facility: row.original.name,
             })}
@@ -695,16 +739,23 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
   ]);
 }
 function useMemberColumnView() {
-  const [measure, width] = useElementWidth<HTMLDivElement>();
-  const view = useColumnVisibility(
+  const { columnView, ...rest } = useCardView(
     MEMBER_COLUMNS,
-    useStoredState('requisition-group-members.column-visibility', visibilitySchema, {}),
-    width,
+    'requisition-group-members.column-visibility',
   );
-  return { measure, view };
+  return { view: columnView, ...rest };
 }
+const MEMBER_SORT_COLUMNS = [
+  { id: 'name', labelKey: 'requisition-groups.form.facility-name' },
+  { id: 'zone', labelKey: 'requisition-groups.form.zone' },
+  { id: 'type', labelKey: 'requisition-groups.form.type' },
+  { id: 'enabled', labelKey: 'requisition-groups.form.enabled' },
+] as const;
 function MembersToolbar({
   view,
+  layout,
+  search,
+  onSortChange,
   readOnly,
   query,
   disabled = false,
@@ -713,6 +764,9 @@ function MembersToolbar({
   onQueryChange,
 }: {
   view: ReturnType<typeof useColumnVisibility>;
+  layout: 'table' | 'cards';
+  search: RequisitionGroupEditorSearch;
+  onSortChange?: (patch: Partial<RequisitionGroupEditorSearch>) => void;
   readOnly: boolean;
   query: string | undefined;
   disabled?: boolean;
@@ -725,6 +779,7 @@ function MembersToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           disabled={disabled}
           value={query ?? ''}
           placeholder={t('requisition-groups.form.member-search')}
@@ -733,15 +788,21 @@ function MembersToolbar({
       </div>
       <div className="ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={MEMBER_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           disabled={disabled}
+          layout={layout}
+          sort={{
+            columns: MEMBER_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+            ...searchSort(search, DEFAULT_MEMBER_SORT, onSortChange ?? noop),
+          }}
           visibility={view.visibility}
           onVisibilityChange={view.onVisibilityChange}
           onReset={view.onReset}
         />
       </div>
       {!readOnly && (
-        <Button ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+        <Button size="lg" ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
           <PlusIcon data-icon="inline-start" />
           {t('requisition-groups.form.add-facility')}
         </Button>
@@ -765,7 +826,7 @@ function MembersFields({
   const tableRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const [adding, setAdding] = useState(false);
-  const { measure, view } = useMemberColumnView();
+  const { measure, view, cards, layout } = useMemberColumnView();
   const page = useMemo(() => memberPage(rows, search), [rows, search]);
   const remove = useCallback(
     (id: string, visible: number) => {
@@ -780,10 +841,12 @@ function MembersFields({
     () => memberColumns(t, readOnly ? undefined : remove),
     [t, readOnly, remove],
   );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_MEMBER_SORT,
     onSearchChange,
+    cards,
+    page: `${page.page}:${search.size ?? 10}`,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -809,6 +872,9 @@ function MembersFields({
     <div className="flex flex-col gap-4" ref={measure}>
       <MembersToolbar
         view={view}
+        layout={layout}
+        search={search}
+        onSortChange={(patch) => onSearchChange(patch, false, { resetScroll: false })}
         readOnly={readOnly}
         query={search.q}
         addRef={addRef}
@@ -826,8 +892,11 @@ function MembersFields({
         />
       )}
       <div ref={tableRef}>
-        <DataTable
+        <MembersList
+          cards={cards}
           table={table}
+          listRef={pageStart.ref}
+          footer={page.total > 0 && <DataTablePagination table={table} />}
           empty={
             search.q ? (
               <DataTableEmpty
@@ -855,12 +924,32 @@ function MembersFields({
               />
             )
           }
-          footer={page.total > 0 && <DataTablePagination table={table} />}
         />
       </div>
     </div>
   );
 }
+function MembersList({
+  cards,
+  table,
+  listRef,
+  empty,
+  footer,
+}: {
+  cards: boolean;
+  table: DataTableInstance<MemberFacility>;
+  listRef: Ref<HTMLUListElement>;
+  empty: ReactNode;
+  footer: ReactNode;
+}) {
+  if (cards) {
+    return (
+      <TableCards table={table} title="name" listRef={listRef} empty={empty} footer={footer} />
+    );
+  }
+  return <DataTable table={table} empty={empty} footer={footer} />;
+}
+const noop = () => {};
 
 type AddProgramProps = {
   open: boolean;
@@ -1202,7 +1291,7 @@ export function RequisitionGroupEditorSkeleton({
 }
 function ProgramsSkeleton({ readOnly }: { readOnly: boolean }) {
   const { t } = useTranslation();
-  const { measure, view } = useProgramColumnView();
+  const { measure, view, cards, layout } = useProgramColumnView();
   const columns = useMemo(() => programColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
   const table = useTable({
     features: dataTableFeatures,
@@ -1213,8 +1302,12 @@ function ProgramsSkeleton({ readOnly }: { readOnly: boolean }) {
   });
   return (
     <div className="flex flex-col gap-4" ref={measure}>
-      <ProgramsToolbar view={view} readOnly={readOnly} disabled />
-      <DataTableSkeleton table={table} rowCount={3} />
+      <ProgramsToolbar view={view} layout={layout} readOnly={readOnly} disabled />
+      {cards ? (
+        <TableCardsSkeleton table={table} title="program" rowCount={3} />
+      ) : (
+        <DataTableSkeleton table={table} rowCount={3} />
+      )}
     </div>
   );
 }
@@ -1226,19 +1319,33 @@ function MembersSkeleton({
   search: RequisitionGroupEditorSearch;
 }) {
   const { t } = useTranslation();
-  const { measure, view } = useMemberColumnView();
+  const { measure, view, cards, layout } = useMemberColumnView();
   const columns = useMemo(() => memberColumns(t, readOnly ? undefined : () => {}), [t, readOnly]);
   const table = useTable({
     features: dataTableFeatures,
     columns,
     data: [],
     enableSorting: false,
-    state: { columnVisibility: view.visibility },
+    state: {
+      columnVisibility:
+        readOnly && cards ? { ...view.visibility, actions: false } : view.visibility,
+    },
   });
   return (
     <div className="flex flex-col gap-4" ref={measure}>
-      <MembersToolbar view={view} readOnly={readOnly} query={search.q} disabled />
-      <DataTableSkeleton table={table} rowCount={search.size ?? 10} />
+      <MembersToolbar
+        view={view}
+        layout={layout}
+        search={search}
+        readOnly={readOnly}
+        query={search.q}
+        disabled
+      />
+      {cards ? (
+        <TableCardsSkeleton table={table} title="name" rowCount={search.size ?? 10} />
+      ) : (
+        <DataTableSkeleton table={table} rowCount={search.size ?? 10} />
+      )}
     </div>
   );
 }

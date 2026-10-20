@@ -46,10 +46,19 @@ const tabsListVariants = cva(
         column: "grid w-full grid-cols-1 group-data-horizontal/tabs:h-auto @lg:inline-flex @lg:w-fit @lg:group-data-horizontal/tabs:h-8",
         md: "grid w-full grid-cols-2 group-data-horizontal/tabs:h-auto @md:flex @md:group-data-horizontal/tabs:h-8",
       },
+      size: {
+        default: "",
+        lg: "group-data-horizontal/tabs:h-auto",
+      },
     },
+    compoundVariants: [
+      { size: "lg", wrap: [true, "column"], className: "@lg:group-data-horizontal/tabs:h-auto" },
+      { size: "lg", wrap: "md", className: "@md:group-data-horizontal/tabs:h-auto" },
+    ],
     defaultVariants: {
       variant: "default",
       wrap: false,
+      size: "default",
     },
   }
 )
@@ -58,13 +67,16 @@ function TabsList({
   className,
   variant = "default",
   wrap = false,
+  size = "default",
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn(tabsListVariants({ variant, wrap }), className)}
+      data-wrap={String(wrap)}
+      data-size={size}
+      className={cn(tabsListVariants({ variant, wrap, size }), className)}
       {...props}
     />
   )
@@ -78,6 +90,8 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pe-1 has-data-[icon=inline-start]:ps-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
         "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
+        "group-data-[size=lg]/tabs-list:h-9",
+        "@max-lg:group-data-[wrap=column]/tabs-list:justify-start @max-lg:group-data-[wrap=column]/tabs-list:px-2.5 @max-lg:group-data-[wrap=column]/tabs-list:text-foreground dark:@max-lg:group-data-[wrap=column]/tabs-list:text-foreground",
         "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-end-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
         className
       )}

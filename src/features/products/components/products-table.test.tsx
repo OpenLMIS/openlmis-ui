@@ -32,7 +32,12 @@ beforeEach(() => {
 describe('ProductsTable', () => {
   it("opens a product's General tab from its row menu, keeping the list search", async () => {
     const router = renderPage(
-      <ProductsTable columnVisibility={{}} onSearchChange={vi.fn()} search={search} />,
+      <ProductsTable
+        cards={false}
+        columnVisibility={{}}
+        onSearchChange={vi.fn()}
+        search={search}
+      />,
     );
     const user = userEvent.setup();
 

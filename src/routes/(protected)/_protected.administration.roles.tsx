@@ -3,8 +3,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ShieldIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -31,8 +29,8 @@ import {
   type RolesSearch,
   rolesSearchSchema,
 } from '@/features/roles/lib/search';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 // Their own chunk: the list paints without the forms, and the chunk is fetched right after.
 const loadRoleDialogs = () => import('@/features/roles/components/role-dialogs');
@@ -48,6 +46,8 @@ const CLOSED_DIALOGS = {
 
 // Legacy reloads the list on every visit; another admin may have changed a role since.
 const LIST_FRESH_FOR = 30 * 1000;
+
+const usePageCardView = () => useCardView(ROLE_HIDEABLE_COLUMNS, 'roles.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/roles')({
   validateSearch: rolesSearchSchema,
@@ -75,8 +75,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rol
   component: RolesPage,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function useRoleAccess() {
   const userId = useLoginData((state) => state.referenceDataUserId) ?? '';
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
@@ -101,12 +99,7 @@ function RolesPage() {
     structuralSharing: true,
   });
   const anyDialogOpen = dialogs.role !== undefined || dialogs.rights !== undefined;
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    ROLE_HIDEABLE_COLUMNS,
-    useStoredState('roles.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
 
   // Typing in a filter replaces the history entry; paging and sorting add one, so Back steps through them.
   const { updateSearch, openDialog, closeDialog } =
@@ -134,11 +127,13 @@ function RolesPage() {
       <RolesHeader />
       <WorkspaceContent>
         {/* Measured, because the room for columns depends on the sidebar as well as the window. */}
-        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 lg:gap-6" ref={measure}>
           <RolesToolbar
             columnView={columnView}
+            layout={layout}
             onCreate={canEdit ? () => openDialog({ role: 'new' }) : undefined}
             onFilterChange={(patch) => updateSearch(patch, true)}
+            onSortChange={updateSearch}
             search={search}
           />
           <QueryBoundary
@@ -152,6 +147,7 @@ function RolesPage() {
             )}
             pendingFallback={
               <RolesTableSkeleton
+                cards={cards}
                 columnVisibility={columnView.visibility}
                 search={search}
                 {...rowActions}
@@ -160,6 +156,7 @@ function RolesPage() {
             resetKey="roles"
           >
             <RolesTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onSearchChange={updateSearch}
               search={search}
@@ -200,11 +197,14 @@ function RolesHeader() {
 
 /** While the rights check runs on a first visit: the page's header over a table skeleton. */
 function RolesPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <RolesHeader />
       <WorkspaceContent>
-        <RolesTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <RolesTableSkeleton cards={cards} columnVisibility={columnView.visibility} search={{}} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

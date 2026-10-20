@@ -72,6 +72,7 @@ import {
   availablePrograms,
 } from '@/features/supply-partners/lib/association';
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
@@ -132,6 +133,7 @@ export function AssociationDialog({ target, onClose, returnFocus, ...props }: Pr
     [props.onPendingChange],
   );
   const row = props.associations.find((item) => associationKey(item) === shown);
+  const { measure, cards } = useDialogCardLayout('table');
   return (
     <FormDialog
       {...dialogProps(pending)}
@@ -145,28 +147,32 @@ export function AssociationDialog({ target, onClose, returnFocus, ...props }: Pr
       closeButton={!pending}
       size="table"
     >
-      {shown &&
-        (shown === 'new' || row ? (
-          <AssociationForm
-            key={shown}
-            {...props}
-            initial={row ?? EMPTY}
-            editingKey={row ? shown : undefined}
-            onPendingChange={reportPending}
-          />
-        ) : (
-          <>
-            <DialogNotFound
-              title={t('supply-partners.edit-association')}
-              description={t('supply-partners.unavailable')}
+      <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
+        {shown &&
+          (shown === 'new' || row ? (
+            <AssociationForm
+              key={shown}
+              cards={cards}
+              {...props}
+              initial={row ?? EMPTY}
+              editingKey={row ? shown : undefined}
+              onPendingChange={reportPending}
             />
-            {props.children}
-          </>
-        ))}
+          ) : (
+            <>
+              <DialogNotFound
+                title={t('supply-partners.edit-association')}
+                description={t('supply-partners.unavailable')}
+              />
+              {props.children}
+            </>
+          ))}
+      </div>
     </FormDialog>
   );
 }
 function AssociationForm({
+  cards,
   initial,
   children,
   editingKey,
@@ -181,6 +187,7 @@ function AssociationForm({
   onProductsDirtyChange,
   onPendingChange,
 }: Omit<Props, 'target' | 'onClose' | 'returnFocus'> & {
+  cards: boolean;
   initial: AssociationDraft;
   editingKey?: string;
 }) {
@@ -487,6 +494,7 @@ function AssociationForm({
               />
             )}
             <AssociationMembersTable
+              cards={cards}
               kind="facilities"
               pending={busy || refs.products.isPending || !facilityLookupReady}
               rows={draft.facilityIds.map((id) => {
@@ -549,6 +557,7 @@ function AssociationForm({
               />
             )}
             <AssociationMembersTable
+              cards={cards}
               kind="products"
               pending={busy}
               rows={draft.orderableIds.map((id) => {
@@ -699,6 +708,7 @@ function FacilityPicker({
         </ComboboxContent>
       </Combobox>
       <PickerAddButton
+        size="default"
         disabled={disabled || !picked}
         onClick={() => {
           if (picked) {

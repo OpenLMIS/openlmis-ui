@@ -10,7 +10,6 @@ import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useElementWidth } from '@/components/data-table/responsive-columns';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -93,9 +92,6 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
   component: UserRolesPage,
 });
 
-/** Too narrow for a column per name, so each row lists them under the role. */
-const COMPACT_BELOW = 576;
-
 function UserRolesPage() {
   const { id: userId } = Route.useParams();
   const { data: details } = useSuspenseQuery(userDetailsOptions(userId));
@@ -112,7 +108,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
   const { user } = details;
   const draft = useRoleDraft(user.roleAssignments);
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
 
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<RolesSearch>(CLOSED_ROLE_DIALOGS);
@@ -209,7 +204,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           </WorkspaceActions>
         </WorkspaceHeader>
         <WorkspaceContent>
-          <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+          <div className="flex flex-col gap-4 lg:gap-6">
             {save.isError && (
               <ErrorAlert
                 description={serverMessage(save.error) ?? t('users.roles.save-error')}
@@ -218,7 +213,6 @@ function RolesEditor({ details }: { details: UserDetails }) {
             )}
             <div className="outline-none" ref={rolesRegion} tabIndex={-1}>
               <RoleTabs
-                compact={contentWidth !== undefined && contentWidth < COMPACT_BELOW}
                 draft={draft.draft}
                 homeFacilityId={user.homeFacilityId}
                 onAdd={() => openDialog({ dialog: 'add' })}
@@ -309,7 +303,7 @@ function RolesPagePending() {
         </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <RoleTabsSkeleton compact={false} editable search={search} tab={tab} />
+        <RoleTabsSkeleton editable search={search} tab={tab} />
       </WorkspaceContent>
     </Workspace>
   );

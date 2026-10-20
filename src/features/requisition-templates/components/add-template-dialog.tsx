@@ -47,6 +47,7 @@ import {
 } from '@/features/requisition-templates/lib/add-template-form';
 import { eligibleForNewTemplate } from '@/features/requisition-templates/lib/eligible-facility-types';
 import { buildNewTemplate } from '@/features/requisition-templates/lib/new-template';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -61,9 +62,12 @@ export function AddTemplateDialog({
 }) {
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const pending = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
+  const { measure, cards } = useDialogCardLayout('lg');
   return (
     <FormDialog size="lg" {...dialogProps(pending)}>
-      {shown && <AddTemplateForm />}
+      <div className="flex min-h-0 flex-1 flex-col" ref={measure}>
+        {shown && <AddTemplateForm cards={cards} />}
+      </div>
     </FormDialog>
   );
 }
@@ -125,7 +129,7 @@ function useTemplateForm() {
 
 type TemplateForm = ReturnType<typeof useTemplateForm>['form'];
 
-function AddTemplateForm() {
+function AddTemplateForm({ cards }: { cards: boolean }) {
   const { t } = useTranslation();
   const { form, save, confirmation, setConfirmation, confirm } = useTemplateForm();
   const queryClient = useQueryClient();
@@ -181,7 +185,7 @@ function AddTemplateForm() {
               errorTitle={t('requisition-templates.form.lookup-error')}
               errorDescription={t('error.check-connection')}
             >
-              <AddFacilityTypes form={form} />
+              <AddFacilityTypes cards={cards} form={form} />
             </LookupBoundary>
           </FieldGroup>
         </FormDialogBody>
@@ -238,7 +242,7 @@ function ProgramField({ form, clearTypes }: { form: TemplateForm; clearTypes: ()
   );
 }
 
-function AddFacilityTypes({ form }: { form: TemplateForm }) {
+function AddFacilityTypes({ cards, form }: { cards: boolean; form: TemplateForm }) {
   const { t } = useTranslation();
   const { data: types } = useSuspenseQuery(facilityTypesOptions({ active: true }));
   const { data: templates } = useSuspenseQuery(requisitionTemplatesOptions());
@@ -248,6 +252,8 @@ function AddFacilityTypes({ form }: { form: TemplateForm }) {
     <form.AppField name="facilityTypeIds">
       {(field) => (
         <FacilityTypesFields
+          size="default"
+          dialogCards={cards}
           key={`${values.programId}-${values.requisitionReportOnly}`}
           label={t('requisition-templates.form.facility-type')}
           addLabel={t('requisition-templates.form.add-facility-type')}

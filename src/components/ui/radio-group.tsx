@@ -6,10 +6,12 @@ function RadioGroup({
   className,
   columns,
   variant = "default",
+  size = "default",
   ...props
 }: RadioGroupPrimitive.Props & {
   columns?: "tiles" | "row"
   variant?: "default" | "segmented"
+  size?: "default" | "lg"
 }) {
   return (
     <RadioGroupPrimitive
@@ -18,6 +20,7 @@ function RadioGroup({
         variant === "segmented"
           ? "flex h-8 w-full gap-0.5 rounded-lg border border-input bg-background p-0.5"
           : "grid w-full gap-2",
+        variant === "segmented" && size === "lg" && "h-9",
         columns === "tiles" && "grid-cols-3 @md/main:grid-cols-4 @2xl/main:grid-cols-6",
         columns === "row" && "@md/main:auto-cols-fr @md/main:grid-flow-col",
         className

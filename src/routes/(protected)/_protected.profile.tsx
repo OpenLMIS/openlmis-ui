@@ -92,7 +92,7 @@ function ProfilePending() {
   return (
     <ProfileWorkspace>
       {path === '/profile/roles' ? (
-        <RoleTabsSkeleton compact={false} search={{}} tab={roleTab} />
+        <RoleTabsSkeleton search={{}} tab={roleTab} />
       ) : path === '/profile/notifications' ? (
         <NotificationSettingsSkeleton />
       ) : (

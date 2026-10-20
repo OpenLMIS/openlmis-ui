@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ErrorAlert } from '@/components/dialog-parts';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { CellText } from '@/components/table-cards';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   facilitiesByIdsOptions,
@@ -126,8 +127,8 @@ export function ReferenceName({
       <Skeleton fill />
     </div>
   ) : (
-    <span className="whitespace-nowrap" dir="auto">
+    <CellText overflow="nowrap">
       {name === undefined ? t('supply-partners.unavailable') : name}
-    </span>
+    </CellText>
   );
 }

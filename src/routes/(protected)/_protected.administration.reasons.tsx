@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { MessageSquareTextIcon } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useColumnVisibility, useElementWidth } from '@/components/data-table/responsive-columns';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import {
@@ -25,8 +23,8 @@ import {
   reasonsSearchSchema,
 } from '@/features/reasons/lib/search';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
+import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { useStoredState } from '@/hooks/use-stored-state';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
@@ -38,6 +36,8 @@ declare module '@tanstack/react-router' {
 // Legacy reloads the list on every visit; another admin may have changed a reason since.
 const LIST_FRESH_FOR = 30 * 1000;
 
+const usePageCardView = () => useCardView(REASON_HIDEABLE_COLUMNS, 'reasons.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/reasons')({
   validateSearch: reasonsSearchSchema,
   loader: async ({ context: { queryClient } }) => {
@@ -48,18 +48,11 @@ export const Route = createFileRoute('/(protected)/_protected/administration/rea
   component: ReasonsPage,
 });
 
-const columnChoicesSchema = z.record(z.string(), z.boolean());
-
 function ReasonsPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const [measureContent, contentWidth] = useElementWidth<HTMLDivElement>();
-  const columnView = useColumnVisibility(
-    REASON_HIDEABLE_COLUMNS,
-    useStoredState('reasons.column-visibility', columnChoicesSchema, {}),
-    contentWidth,
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch } = useSearchNavigation<ReasonsSearch>({});
   const addReason = useCallback(
     () => navigate({ to: '/administration/reasons/new', state: { reasonsListSearch: search } }),
@@ -71,9 +64,11 @@ function ReasonsPage() {
       <ReasonsHeader />
       <WorkspaceContent>
         {/* Measured, because the room for columns depends on the sidebar as well as the window. */}
-        <div className="flex flex-col gap-4 lg:gap-6" ref={measureContent}>
+        <div className="flex flex-col gap-4 lg:gap-6" ref={measure}>
           <ReasonsToolbar
             columnView={columnView}
+            layout={layout}
+            onSortChange={updateSearch}
             onAdd={addReason}
             onFilterChange={(patch) => updateSearch(patch, true)}
             search={search}
@@ -88,11 +83,16 @@ function ReasonsPage() {
               />
             )}
             pendingFallback={
-              <ReasonsTableSkeleton columnVisibility={columnView.visibility} search={search} />
+              <ReasonsTableSkeleton
+                cards={cards}
+                columnVisibility={columnView.visibility}
+                search={search}
+              />
             }
             resetKey="reasons"
           >
             <ReasonsTable
+              cards={cards}
               columnVisibility={columnView.visibility}
               onSearchChange={updateSearch}
               search={search}
@@ -121,11 +121,18 @@ function ReasonsHeader() {
 
 /** While the rights check runs on a first visit: the page's header over a table skeleton. */
 function ReasonsPagePending() {
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <ReasonsHeader />
       <WorkspaceContent>
-        <ReasonsTableSkeleton columnVisibility={{}} search={{}} />
+        <div ref={measure}>
+          <ReasonsTableSkeleton
+            cards={cards}
+            columnVisibility={columnView.visibility}
+            search={{}}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

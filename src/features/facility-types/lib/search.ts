@@ -12,6 +12,13 @@ export const FACILITY_TYPE_HIDEABLE_COLUMNS = [
   { id: 'active', labelKey: 'facility-types.status', hideBelow: 'md' },
 ] as const;
 
+export const FACILITY_TYPE_SORT_COLUMNS = [
+  { id: 'code', labelKey: 'facility-types.code' },
+  { id: 'name', labelKey: 'facility-types.name' },
+  { id: 'displayOrder', labelKey: 'facility-types.display-order' },
+  { id: 'active', labelKey: 'facility-types.status' },
+] as const;
+
 const FACILITY_TYPE_SORT_FIELDS = ['displayOrder', 'code', 'name', 'active'] as const;
 
 export const DEFAULT_FACILITY_TYPES_SORT: DefaultSort = { id: 'displayOrder', desc: false };

@@ -1048,6 +1048,7 @@ type RadioGroupFieldProps = {
   columns?: 'row';
   /** `tile` puts the media above the label, in a grid of small options such as colours; `segmented` is a compact row of a few short options. */
   variant?: 'card' | 'tile' | 'segmented';
+  size?: 'default' | 'lg';
 };
 
 /** One choice from a few, each drawn as a card, or as a small tile. */
@@ -1057,6 +1058,7 @@ export function RadioGroupField({
   disabled,
   columns,
   variant = 'card',
+  size = 'default',
 }: RadioGroupFieldProps) {
   const field = useFieldContext<string>();
 
@@ -1072,6 +1074,7 @@ export function RadioGroupField({
           name={field.name}
           onBlur={field.handleBlur}
           onValueChange={(value) => field.handleChange(String(value))}
+          size={size}
           value={field.state.value}
           variant="segmented"
         >
@@ -1148,7 +1151,7 @@ type SelectFieldProps = FieldProps &
     errorDescriptionId?: string;
     placeholder?: string;
     items: readonly SelectFieldItem[];
-    size?: 'sm' | 'default';
+    size?: 'sm' | 'default' | 'lg';
     wrap?: 'nowrap' | 'wrap' | 'two-lines';
   };
 
@@ -1233,6 +1236,7 @@ type ComboboxFieldProps = FieldProps &
     clearLabel: string;
     /** Most matches rendered at once, so a list of thousands stays quick to type into. */
     limit?: number;
+    size?: 'default' | 'lg';
   };
 
 /** Picks one item by typing to filter; the field's value is the item's `value`, or null for none. */
@@ -1250,6 +1254,7 @@ export function ComboboxField({
   invalid,
   describedBy,
   limit = 50,
+  size = 'default',
 }: ComboboxFieldProps) {
   const field = useFieldContext<string | null>();
   const state = useFieldErrors(description);
@@ -1292,6 +1297,7 @@ export function ComboboxField({
           onBlur={field.handleBlur}
           placeholder={placeholder}
           showClear={selected !== null && !disabled}
+          size={size}
           width="full"
         />
         <ComboboxContent>
@@ -1606,7 +1612,7 @@ export function DateField({
 }
 
 type DatePickerProps = {
-  size?: 'sm' | 'default';
+  size?: 'sm' | 'default' | 'lg';
   id: string;
   /** `yyyy-MM-dd`, or an empty string for no date. */
   value: string;

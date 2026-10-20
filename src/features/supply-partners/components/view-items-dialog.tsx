@@ -3,7 +3,6 @@ import { SearchXIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  DataTable,
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
@@ -11,6 +10,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DialogNotFound } from '@/components/dialog-parts';
+import { DialogTable } from '@/components/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -32,6 +32,7 @@ import {
   type SupplyPartnerEditSearch,
 } from '@/features/supply-partners/lib/search';
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { type TableSearch, useTableSearchState } from '@/lib/table-search';
 
 type Item = { id: string; name: string | null; code: string };
@@ -102,24 +103,27 @@ function ViewItems({
       helper.columns([
         helper.accessor('name', {
           header: t('supply-partners.name'),
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
+          cell: ({ getValue }) =>
+            getValue() ? (
+              <span className="block whitespace-normal wrap-anywhere" dir="auto">
+                {getValue()}
+              </span>
+            ) : null,
         }),
         helper.accessor('code', {
           header: t('supply-partners.code'),
-          meta: { className: 'w-32' },
-          cell: ({ getValue }) => (
-            <span className="block whitespace-normal wrap-anywhere" dir="auto">
-              {getValue()}
-            </span>
-          ),
+          meta: { className: 'w-32', label: t('supply-partners.code') },
+          cell: ({ getValue }) =>
+            getValue() ? (
+              <span className="block whitespace-normal wrap-anywhere" dir="auto">
+                {getValue()}
+              </span>
+            ) : null,
         }),
       ]),
     [t],
   );
+  const { measure, cards } = useDialogCardLayout('table');
   const state = useTableSearchState({
     search: { ...search, page },
     defaultSort: NO_SORT,
@@ -136,7 +140,7 @@ function ViewItems({
     ...state,
   });
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
       <FormDialogHeader>
         <FormDialogTitle>
           {t(
@@ -148,53 +152,57 @@ function ViewItems({
         <FormDialogDescription>{t('supply-partners.view-description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody layout="table">
-        <search className="w-full max-w-sm">
-          <DataTableSearch
-            value={query}
-            placeholder={t('supply-partners.search-items')}
-            onValueChange={(value) => {
-              setQuery(value);
-              setSearch((old) => ({ ...old, page: undefined }));
-            }}
-          />
-        </search>
-        <ReferenceStatus associations={[association]} />
-        {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
-          <DataTable
-            table={table}
-            empty={
-              <DataTableEmpty
-                icon={<SearchXIcon />}
-                title={t(
-                  query
-                    ? 'supply-partners.no-matches'
-                    : kind === 'facilities'
-                      ? 'supply-partners.no-facilities'
-                      : 'supply-partners.no-products',
-                )}
-                description={query ? t('supply-partners.no-matches-description') : undefined}
-                action={
-                  query && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        setQuery('');
-                        setSearch((old) => ({ ...old, page: undefined }));
-                      }}
-                    >
-                      {t('supply-partners.clear-search')}
-                    </Button>
-                  )
-                }
-              />
-            }
-            footer={filtered.length > 0 && <DataTablePagination table={table} />}
-          />
-        )}
+        <div className="flex flex-col gap-4">
+          <search className="w-full max-w-sm">
+            <DataTableSearch
+              value={query}
+              placeholder={t('supply-partners.search-items')}
+              onValueChange={(value) => {
+                setQuery(value);
+                setSearch((old) => ({ ...old, page: undefined }));
+              }}
+            />
+          </search>
+          <ReferenceStatus associations={[association]} />
+          {(kind === 'facilities' ? refs.facilities.isSuccess : refs.products.isSuccess) && (
+            <DialogTable
+              cards={cards}
+              table={table}
+              title="name"
+              empty={
+                <DataTableEmpty
+                  icon={<SearchXIcon />}
+                  title={t(
+                    query
+                      ? 'supply-partners.no-matches'
+                      : kind === 'facilities'
+                        ? 'supply-partners.no-facilities'
+                        : 'supply-partners.no-products',
+                  )}
+                  description={query ? t('supply-partners.no-matches-description') : undefined}
+                  action={
+                    query && (
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          setQuery('');
+                          setSearch((old) => ({ ...old, page: undefined }));
+                        }}
+                      >
+                        {t('supply-partners.clear-search')}
+                      </Button>
+                    )
+                  }
+                />
+              }
+              footer={filtered.length > 0 && <DataTablePagination table={table} />}
+            />
+          )}
+        </div>
       </FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
       </FormDialogFooter>
-    </>
+    </div>
   );
 }

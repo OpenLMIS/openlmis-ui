@@ -64,6 +64,7 @@ function seededClient() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.mocked(client.get).mockResolvedValue({ data: structuredClone(saved) });
   vi.mocked(client.put).mockResolvedValue({ data: saved });
 });

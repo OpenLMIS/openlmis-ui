@@ -38,6 +38,7 @@ import {
   type DataTableFeatures,
   DataTableHeaderLabel,
   DataTableSkeleton,
+  DataTableToolbar,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -492,7 +493,7 @@ export function ReverseEditor({
                 submit();
               }}
             >
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <DataTableToolbar align="end">
                 {quantityUnit.canSwitch && (
                   <div className="flex-1 @2xl/main:flex-none">
                     <QuantityUnitToggle
@@ -504,6 +505,7 @@ export function ReverseEditor({
                 )}
                 <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
+                    size="lg"
                     {...columnView}
                     layout={layout}
                     columns={REVERSE_HIDEABLE_COLUMNS.filter(
@@ -514,7 +516,7 @@ export function ReverseEditor({
                     }))}
                   />
                 </div>
-              </div>
+              </DataTableToolbar>
               <QueryBoundary
                 resetKey={event.id}
                 pendingFallback={
@@ -1037,7 +1039,7 @@ function ReverseCardsSkeleton({
 }) {
   return (
     <CardListSkeleton
-      count={Math.min(3, count)}
+      count={count}
       rows={READ_ONLY_COLUMNS.filter(([id]) => visibility[id] !== false).length + 2}
       band={
         <div className="flex items-center gap-3">
