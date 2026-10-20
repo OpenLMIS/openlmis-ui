@@ -58,7 +58,7 @@ function NotificationsButton() {
       <PopoverTrigger render={<Button size="lg" type="button" variant="outline" />}>
         <BellIcon data-icon="inline-start" />
         {t('home.notifications.title')}
-        <Badge variant="secondary">{count}</Badge>
+        <Badge>{count}</Badge>
       </PopoverTrigger>
       <PopoverContent
         align="end"
@@ -69,9 +69,7 @@ function NotificationsButton() {
       >
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <PopoverTitle>{t('home.notifications.title')}</PopoverTitle>
-          <Badge aria-hidden variant="secondary">
-            {count}
-          </Badge>
+          <Badge aria-hidden>{count}</Badge>
         </div>
         <Separator />
         <ul className="min-h-0 divide-y overflow-y-auto overscroll-contain">
@@ -102,10 +100,22 @@ function Notification({ notification }: { notification: SystemNotification }) {
         <MegaphoneIcon aria-hidden />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 wrap-anywhere">
-        {notification.title && (
-          <h3 className="text-sm font-medium" dir="auto">
-            {notification.title}
-          </h3>
+        {(notification.title || created) && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {notification.title && (
+              <h3 className="min-w-0 text-sm font-medium" dir="auto">
+                {notification.title}
+              </h3>
+            )}
+            {created && (
+              <Badge
+                render={<time dateTime={notification.createdDate ?? undefined} />}
+                variant="secondary"
+              >
+                {created}
+              </Badge>
+            )}
+          </div>
         )}
         <div
           className="text-sm/relaxed whitespace-pre-wrap text-muted-foreground [&_a]:rounded-xs [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:decoration-primary/40 [&_a]:underline-offset-4 [&_a]:outline-none [&_a]:hover:decoration-primary [&_a]:focus-visible:ring-3 [&_a]:focus-visible:ring-ring/50 [&_ol]:list-decimal [&_ol]:ps-5 [&_strong]:font-medium [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:ps-5"
@@ -113,13 +123,7 @@ function Notification({ notification }: { notification: SystemNotification }) {
           // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitizeNotification restricts tags, attributes and URLs.
           dangerouslySetInnerHTML={{ __html: message }}
         />
-        {(author || created) && (
-          <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-            {author && <span>{author}</span>}
-            {author && created && <span aria-hidden>·</span>}
-            {created && <time dateTime={notification.createdDate ?? undefined}>{created}</time>}
-          </p>
-        )}
+        {author && <p className="text-xs text-muted-foreground">{author}</p>}
       </div>
     </li>
   );
