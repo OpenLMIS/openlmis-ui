@@ -131,15 +131,18 @@ export async function waitForStockEventReceipt(
     let startDeadline: ReturnType<typeof setTimeout> | undefined;
     const updateStartDeadline = () => {
       clearTimeout(startDeadline);
-      if (!isSyncPreparing())
-        startDeadline = setTimeout(() => {
-          if (!sending) finish({ kind: 'queued' });
+      startDeadline = undefined;
+      if (!isSyncPreparing()) {
+        const timer = setTimeout(() => {
+          if (!sending) void checkDeadline(() => startDeadline === timer);
         }, 1500);
+        startDeadline = timer;
+      }
     };
     const unsubscribePreparation = subscribeSyncPreparation(updateStartDeadline);
     updateStartDeadline();
-    const deadline = setTimeout(() => finish({ kind: sending ? 'uncertain' : 'queued' }), 65_000);
-    const subscription = liveQuery(async () => {
+    const deadline = setTimeout(() => void checkDeadline(() => true, true), 65_000);
+    const readState = async () => {
       assertSessionScope(scope);
       return db.transaction(
         'r',
@@ -166,17 +169,35 @@ export async function waitForStockEventReceipt(
           return { receipt, error, row, earlier };
         },
       );
-    }).subscribe({
-      next: ({ receipt, error, row, earlier }) => {
-        if (receipt) finish({ kind: 'accepted', receipt });
-        else if (error && !error.resolvedAt && error.category !== 'uncertain')
-          finish({ kind: 'refused', error });
-        else if (row?.status === 'uncertain') finish({ kind: 'uncertain' });
-        else if (row?.pauseReason) finish({ kind: 'held', reason: row.pauseReason });
-        else if (earlier) finish({ kind: 'blocked' });
-        else if (!row || (sending && row.status === 'queued')) finish({ kind: 'queued' });
-        else if (row.status === 'sending') sending = true;
-      },
+    };
+    const observeState = ({
+      receipt,
+      error,
+      row,
+      earlier,
+    }: Awaited<ReturnType<typeof readState>>) => {
+      if (done) return;
+      if (receipt) finish({ kind: 'accepted', receipt });
+      else if (error && !error.resolvedAt && error.category !== 'uncertain')
+        finish({ kind: 'refused', error });
+      else if (row?.status === 'uncertain') finish({ kind: 'uncertain' });
+      else if (row?.pauseReason) finish({ kind: 'held', reason: row.pauseReason });
+      else if (earlier) finish({ kind: 'blocked' });
+      else if (!row || (sending && row.status === 'queued')) finish({ kind: 'queued' });
+      else if (row.status === 'sending') sending = true;
+    };
+    const checkDeadline = async (isCurrent: () => boolean, sendingExpired = false) => {
+      try {
+        const state = await readState();
+        if (!isCurrent() || done) return;
+        observeState(state);
+        if (!sending || sendingExpired) finish({ kind: sending ? 'uncertain' : 'queued' });
+      } catch {
+        if (isCurrent()) finish({ kind: sending ? 'uncertain' : 'queued' });
+      }
+    };
+    const subscription = liveQuery(readState).subscribe({
+      next: observeState,
       error: () => finish({ kind: sending ? 'uncertain' : 'queued' }),
     });
     wakeStockEventSync();

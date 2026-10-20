@@ -1,5 +1,6 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import * as dexie from 'dexie';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
@@ -13,6 +14,11 @@ import {
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
+
+vi.mock('dexie', async (original) => {
+  const module = await original<typeof import('dexie')>();
+  return { ...module, liveQuery: vi.fn(module.liveQuery) };
+});
 
 const event = {
   sequence: 1,
@@ -41,22 +47,39 @@ it('waits at most 65 seconds for a sending event even without a durable receipt'
   await getLocalDb()
     .table('stockEventQueue')
     .put({ ...event, status: 'sending' });
-  const original = globalThis.setTimeout;
-  let deadline!: () => void;
-  vi.spyOn(globalThis, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
-    const handle = original(handler, timeout, ...args);
-    if (timeout === 65_000)
-      deadline = () => {
-        if (typeof handler === 'function') handler(...args);
-      };
-    return handle;
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  let settled = false;
+  const result = waitForStockEventReceipt(event).then((value) => {
+    settled = true;
+    return value;
   });
-  const observed = vi.spyOn(getLocalDb().table('stockEventQueue'), 'filter');
-  const result = waitForStockEventReceipt(event);
-  await waitFor(() => expect(observed).toHaveBeenCalled());
-  deadline();
+  await vi.advanceTimersByTimeAsync(64_999);
+  expect(settled).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
   expect(await result).toEqual({ kind: 'uncertain' });
   expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('sending');
+});
+it('checks durable sending state at the start deadline when live notifications lag', async () => {
+  const queue = getLocalDb().table('stockEventQueue');
+  await queue.put(event);
+  const unsubscribe = vi.fn();
+  const delayed = dexie.liveQuery(async () => undefined);
+  vi.spyOn(delayed, 'subscribe').mockReturnValue({ unsubscribe, closed: false });
+  vi.mocked(dexie.liveQuery).mockReturnValueOnce(delayed);
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  let settled = false;
+  const result = waitForStockEventReceipt(event).then((value) => {
+    settled = true;
+    return value;
+  });
+  await vi.advanceTimersByTimeAsync(1499);
+  await queue.update(event.sequence, { status: 'sending' });
+  await vi.advanceTimersByTimeAsync(1);
+  await vi.advanceTimersByTimeAsync(63_499);
+  expect(settled).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(await result).toEqual({ kind: 'uncertain' });
+  expect(unsubscribe).toHaveBeenCalledOnce();
 });
 it('reads a refusal after atomic queue removal instead of reporting queued', async () => {
   const error = {
@@ -131,15 +154,16 @@ it('keeps a slow online submission in progress and invalidates stock before retu
 
 it('returns queued after 1.5 seconds when the online uploader never starts', async () => {
   await getLocalDb().table('stockEventQueue').put(event);
-  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-  let outcome: unknown;
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  let settled = false;
   const result = waitForStockEventReceipt(event).then((value) => {
-    outcome = value;
+    settled = true;
     return value;
   });
-  await vi.advanceTimersByTimeAsync(1600);
-  expect(outcome).toEqual({ kind: 'queued' });
-  await result;
+  await vi.advanceTimersByTimeAsync(1499);
+  expect(settled).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(await result).toEqual({ kind: 'queued' });
   expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('queued');
 });
 
